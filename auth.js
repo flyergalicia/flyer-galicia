@@ -30,9 +30,11 @@ function _applyTheme(t){
   var dark=(t==='dark');
   document.documentElement.classList.toggle('dark',dark);
   var btn=document.getElementById('hdr-dd-theme');
-  if(btn)btn.innerHTML=dark
-    ?'<span class="dd-ico">&#9728;&#65039;</span><span>Modo claro</span>'
-    :'<span class="dd-ico">&#9790;</span><span>Modo oscuro</span>';
+  if(!btn)return;
+  var svgOpen='<svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">';
+  var moon=svgOpen+'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  var sun=svgOpen+'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  btn.innerHTML=(dark?sun:moon)+'<span>'+(dark?'Modo claro':'Modo oscuro')+'</span>';
 }
 function _initTheme(){
   var t='light';
@@ -159,7 +161,7 @@ function _favApply(f){
   if(typeof redraw==='function')redraw();
 }
 function _initFavsUI(){
-  if(!_admin)return;
+  if(!_canNotes)return; // ADMIN y VIP
   var tab=document.getElementById('tab-individual');if(!tab)return;
   if(document.getElementById('fav-bar'))return; // ya inyectado
   _loadFavs();
@@ -176,8 +178,54 @@ function _renderFavs(){
       '<span class="fav-del" onclick="event.stopPropagation();deleteFav(\''+f.id+'\')" title="Eliminar">&#10005;</span></span>';
   }).join('');
   bar.innerHTML='<div class="fav-head"><span class="fav-title">&#9733; Mis plantillas</span>'+
-    '<button class="fav-add" onclick="saveFav()">+ Guardar actual</button></div>'+
-    '<div class="fav-chips">'+(chips||'<span class="fav-empty">Guard&aacute; la combinaci&oacute;n actual (empresa, asesor, config, legal) para reusarla de un clic.</span>')+'</div>';
+    '<div class="fav-actions">'+
+      '<button class="fav-add" onclick="document.getElementById(\'fav-xls\').click()" title="Importar asesores desde un Excel (mismas columnas que la plantilla de Masivo)">&#8593; Importar Excel</button>'+
+      '<button class="fav-add primary" onclick="saveFav()">+ Guardar actual</button>'+
+    '</div></div>'+
+    '<input type="file" id="fav-xls" accept=".xlsx,.xls" style="display:none" onchange="importFavsExcel(this)">'+
+    '<div class="fav-chips">'+(chips||'<span class="fav-empty">Guard&aacute; la combinaci&oacute;n actual (empresa, asesor, config, legal) o import&aacute; un Excel de asesores. Después tocás una plantilla y se autocompleta.</span>')+'</div>';
+}
+function _cfgIdx(name){
+  var n=(name||'').toString().toLowerCase().trim();
+  if(n==='config 1'||n==='1')return 1;
+  if(n==='config 2'||n==='2')return 2;
+  if(n==='config 3'||n==='3')return 3;
+  if(n==='config 4'||n==='4')return 4;
+  return 0;
+}
+// Importa un Excel de asesores (mismas columnas que la plantilla de Masivo) y crea
+// una plantilla por fila. Solo ADMIN/VIP (el botón solo existe si _initFavsUI corrió).
+function importFavsExcel(input){
+  var file=input&&input.files&&input.files[0];if(!file)return;input.value='';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'binary'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+      var added=0;
+      rows.forEach(function(r){
+        function g(keys){for(var i=0;i<keys.length;i++){var v=r[keys[i]];if(v!=null&&String(v).trim()!=='')return String(v).trim();}return '';}
+        var empresa=g(['empresa','Empresa']);
+        var nombre=g(['asesor1_nombre','nombre','Nombre']);
+        var celular=g(['asesor1_celular','celular','Celular']);
+        var email=g(['asesor1_email','email','Email']);
+        var nombre2=g(['asesor2_nombre']);
+        var celular2=g(['asesor2_celular']);
+        var email2=g(['asesor2_email']);
+        if(!empresa&&!nombre)return; // fila vacía
+        _favs.unshift({id:'f'+Date.now()+Math.random().toString(36).slice(2,5),name:(nombre||empresa||'Sin nombre'),data:{
+          empresa:empresa,nombre:nombre,celular:celular,email:email,
+          nombre2:nombre2,celular2:celular2,email2:email2,legal:'',filename:'',
+          ac:_cfgIdx(g(['config','Config'])),a1:!!nombre,a2:!!nombre2
+        }});
+        added++;
+      });
+      _saveFavs();_renderFavs();
+      showToast(added?(added+' plantilla'+(added>1?'s':'')+' importada'+(added>1?'s':'')):'No se encontraron filas con datos');
+    }catch(err){showToast('No se pudo leer el Excel: '+(err&&err.message||err));console.error('importFavsExcel:',err);}
+  };
+  reader.readAsBinaryString(file);
 }
 function saveFav(){
   var name=prompt('Nombre de la plantilla:','');
@@ -344,7 +392,7 @@ function checkProfile(user){
     var _ddNotes=document.getElementById('hdr-dd-notes');if(_ddNotes)_ddNotes.style.display=_canNotes?'flex':'none';
     var _ddName=document.getElementById('hdr-dd-name');if(_ddName)_ddName.textContent=_myName;
     var _ddRole=document.getElementById('hdr-dd-role');if(_ddRole)_ddRole.innerHTML=_roleBadge(p.role);
-    if(_admin)_initFavsUI();
+    if(_canNotes)_initFavsUI();
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});

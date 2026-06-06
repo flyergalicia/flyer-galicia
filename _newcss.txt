@@ -240,7 +240,9 @@ html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1
 .hdr-dd-item.danger{color:var(--red);}
 .hdr-dd-item.danger:hover{background:#fff0f0;}
 .hdr-dd-sep{height:1px;background:var(--border);margin:5px 8px;}
-.hdr-dd-item .dd-ico{width:20px;text-align:center;flex-shrink:0;font-size:.9rem;line-height:1;}
+.hdr-dd-item{font-weight:500 !important;}
+.hdr-dd-item .dd-svg{width:16px;height:16px;flex-shrink:0;opacity:.7;}
+.hdr-dd-item.danger .dd-svg{opacity:.9;}
 .hdr-dd-head{padding:9px 11px 6px;}
 .hdr-dd-name{font-family:"Syne",sans-serif;font-size:.82rem;font-weight:800;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
 html.dark .hdr-dropdown{background:#22262c;border-color:#333840;}
@@ -265,8 +267,13 @@ html.dark .note-item:hover,html.dark .note-item.active{background:#2a2f36;}
 .fav-bar{background:var(--light);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;}
 .fav-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
 .fav-title{font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#b8860b;}
+.fav-actions{display:flex;gap:6px;flex-shrink:0;}
 .fav-add{background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;cursor:pointer;color:var(--dark);transition:all .15s;white-space:nowrap;}
 .fav-add:hover{border-color:var(--red);color:var(--red);}
+.fav-add.primary{background:var(--red);color:#fff;border-color:var(--red);}
+.fav-add.primary:hover{background:#c0000f;color:#fff;}
+html.dark .fav-actions .fav-add{background:#22262c;color:#e9eaec;}
+html.dark .fav-actions .fav-add.primary{background:var(--red);color:#fff;}
 .fav-chips{display:flex;gap:6px;flex-wrap:wrap;}
 .fav-chip{display:inline-flex;align-items:center;gap:5px;background:#fdf0d5;color:#7a5800;border-radius:20px;padding:4px 7px 4px 10px;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s;}
 .fav-chip:hover{background:#fae3b0;}

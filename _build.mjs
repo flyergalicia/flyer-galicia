@@ -10,6 +10,14 @@ const headerIso = '<svg class="header-logo" viewBox="0 0 100 100" xmlns="http://
 // Logo completo para login (D blanca + espada granate + wordmark)
 const galiciaLogoWhite = '<div class="lg-logo"><svg class="lg-iso" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#fff"/><g fill="#A6273B">' + swordPaths + '</g></svg><span class="lg-word">Galicia</span></div>';
 
+// Íconos monocromáticos (estilo Feather) para el menú de usuario. Heredan el color
+// del texto (currentColor) → look sobrio, sin emojis de color que quedan mal.
+const _svgIco = (p) => '<svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+const ICO_LOCK = _svgIco('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>');
+const ICO_MOON = _svgIco('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>');
+const ICO_DOC  = _svgIco('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>');
+const ICO_OUT  = _svgIco('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>');
+
 // ── CSS FIXES ──────────────────────────────────────────────────────────────
 html = html.replace(
   'body{font-family:"DM Sans",sans-serif;background:var(--light);color:var(--dark);min-height:100vh;}',
@@ -55,11 +63,11 @@ html = html.replace(
     '<div class="hdr-dropdown" id="hdr-dropdown">' +
       '<div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div>' +
       '<div class="hdr-dd-sep"></div>' +
-      '<button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><span class="dd-ico">&#128273;</span><span>Cambiar mi clave</span></button>' +
-      '<button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><span class="dd-ico">&#9790;</span><span>Modo oscuro</span></button>' +
-      '<button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><span class="dd-ico">&#128221;</span><span>Bloc de notas</span></button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()">' + ICO_LOCK + '<span>Cambiar mi clave</span></button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()">' + ICO_MOON + '<span>Modo oscuro</span></button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none">' + ICO_DOC + '<span>Bloc de notas</span></button>' +
       '<div class="hdr-dd-sep"></div>' +
-      '<button class="hdr-dd-item danger" onclick="doLogout()"><span class="dd-ico">&#9099;</span><span>Salir</span></button>' +
+      '<button class="hdr-dd-item danger" onclick="doLogout()">' + ICO_OUT + '<span>Salir</span></button>' +
     '</div>' +
   '</div>' +
   '<button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button>' +

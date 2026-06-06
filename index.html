@@ -348,7 +348,9 @@ html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1
 .hdr-dd-item.danger{color:var(--red);}
 .hdr-dd-item.danger:hover{background:#fff0f0;}
 .hdr-dd-sep{height:1px;background:var(--border);margin:5px 8px;}
-.hdr-dd-item .dd-ico{width:20px;text-align:center;flex-shrink:0;font-size:.9rem;line-height:1;}
+.hdr-dd-item{font-weight:500 !important;}
+.hdr-dd-item .dd-svg{width:16px;height:16px;flex-shrink:0;opacity:.7;}
+.hdr-dd-item.danger .dd-svg{opacity:.9;}
 .hdr-dd-head{padding:9px 11px 6px;}
 .hdr-dd-name{font-family:"Syne",sans-serif;font-size:.82rem;font-weight:800;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
 html.dark .hdr-dropdown{background:#22262c;border-color:#333840;}
@@ -373,8 +375,13 @@ html.dark .note-item:hover,html.dark .note-item.active{background:#2a2f36;}
 .fav-bar{background:var(--light);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;}
 .fav-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
 .fav-title{font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#b8860b;}
+.fav-actions{display:flex;gap:6px;flex-shrink:0;}
 .fav-add{background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;cursor:pointer;color:var(--dark);transition:all .15s;white-space:nowrap;}
 .fav-add:hover{border-color:var(--red);color:var(--red);}
+.fav-add.primary{background:var(--red);color:#fff;border-color:var(--red);}
+.fav-add.primary:hover{background:#c0000f;color:#fff;}
+html.dark .fav-actions .fav-add{background:#22262c;color:#e9eaec;}
+html.dark .fav-actions .fav-add.primary{background:var(--red);color:#fff;}
 .fav-chips{display:flex;gap:6px;flex-wrap:wrap;}
 .fav-chip{display:inline-flex;align-items:center;gap:5px;background:#fdf0d5;color:#7a5800;border-radius:20px;padding:4px 7px 4px 10px;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s;}
 .fav-chip:hover{background:#fae3b0;}
@@ -445,7 +452,7 @@ html.dark .fav-del{background:rgba(255,255,255,0.12);color:#e8c87a;}
 
   </div>
 </div>
-<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><span class="dd-ico">&#128273;</span><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><span class="dd-ico">&#9790;</span><span>Modo oscuro</span></button><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><span class="dd-ico">&#128221;</span><span>Bloc de notas</span></button><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><span class="dd-ico">&#9099;</span><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button></div></header>
+<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Modo oscuro</span></button><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Bloc de notas</span></button><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button></div></header>
 
 <div class="modal-overlay" id="modal">
   <div class="modal">
