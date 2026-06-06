@@ -1,0 +1,6 @@
+.netlify/
+deploy.zip
+deploy_new.zip
+_authjs.txt
+node_modules/
+*.log
