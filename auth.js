@@ -23,8 +23,29 @@ function _callFn(action,payload,cb){
   });
 }
 
+// ── TEMA CLARO / OSCURO ─────────────────────────────────────────────────────────
+// La preferencia se guarda en localStorage (por navegador). Disponible para todos
+// los usuarios logueados (asesor y admin) desde el botón del header.
+function _applyTheme(t){
+  var dark=(t==='dark');
+  document.documentElement.classList.toggle('dark',dark);
+  var btn=document.getElementById('hdr-theme-btn');
+  if(btn)btn.innerHTML=dark?'&#9728;&#65039; Claro':'&#9790; Oscuro';
+}
+function _initTheme(){
+  var t='light';
+  try{t=localStorage.getItem('fg_theme')||'light';}catch(e){}
+  _applyTheme(t);
+}
+function toggleTheme(){
+  var next=document.documentElement.classList.contains('dark')?'light':'dark';
+  try{localStorage.setItem('fg_theme',next);}catch(e){}
+  _applyTheme(next);
+}
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function initApp(){
+  _initTheme();
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -176,6 +197,51 @@ function doLogin(){
 }
 
 function doLogout(){_sb.auth.signOut().then(function(){location.reload();});}
+
+// ── CAMBIAR MI PROPIA CLAVE (cualquier usuario logueado) ────────────────────────
+// El usuario autenticado cambia su clave directamente con updateUser. No pasa por
+// el flujo de aprobación del admin (eso es sólo para el reset desde el login).
+function openMyPassModal(){
+  document.getElementById('mp-cur').value='';
+  document.getElementById('mp-new').value='';
+  document.getElementById('mp-new2').value='';
+  document.getElementById('mp-err').textContent='';
+  document.getElementById('mp-ok').textContent='';
+  var btn=document.getElementById('mp-submit');btn.textContent='Cambiar contraseña';btn.disabled=false;
+  document.getElementById('pass-modal').style.display='flex';
+  setTimeout(function(){document.getElementById('mp-cur').focus();},100);
+}
+
+function closeMyPassModal(){document.getElementById('pass-modal').style.display='none';}
+
+function submitMyPass(){
+  var cur=document.getElementById('mp-cur').value;
+  var np=document.getElementById('mp-new').value;
+  var np2=document.getElementById('mp-new2').value;
+  var errEl=document.getElementById('mp-err');var okEl=document.getElementById('mp-ok');
+  errEl.textContent='';okEl.textContent='';
+  if(!_me){errEl.textContent='Tu sesión expiró. Volvé a ingresar.';return;}
+  if(!cur){errEl.textContent='Ingresá tu contraseña actual.';return;}
+  if(np.length<8){errEl.textContent='La nueva contraseña debe tener al menos 8 caracteres.';return;}
+  if(np!==np2){errEl.textContent='Las contraseñas nuevas no coinciden.';return;}
+  if(np===cur){errEl.textContent='La nueva contraseña debe ser distinta de la actual.';return;}
+  var btn=document.getElementById('mp-submit');btn.textContent='Verificando...';btn.disabled=true;
+  // Reautenticamos para confirmar que la clave actual es correcta antes de cambiarla.
+  _sb.auth.signInWithPassword({email:_me.email,password:cur}).then(function(r){
+    if(r.error){btn.textContent='Cambiar contraseña';btn.disabled=false;errEl.textContent='La contraseña actual es incorrecta.';return;}
+    btn.textContent='Guardando...';
+    _sb.auth.updateUser({password:np}).then(function(r2){
+      btn.textContent='Cambiar contraseña';btn.disabled=false;
+      if(r2.error){errEl.textContent=r2.error.message;return;}
+      okEl.textContent='✅ Tu contraseña se cambió correctamente.';
+      document.getElementById('mp-cur').value='';
+      document.getElementById('mp-new').value='';
+      document.getElementById('mp-new2').value='';
+      showToast('Contraseña actualizada');
+      setTimeout(closeMyPassModal,1600);
+    });
+  });
+}
 
 // ── PANEL ADMIN ───────────────────────────────────────────────────────────────
 function openAdminPanel(){

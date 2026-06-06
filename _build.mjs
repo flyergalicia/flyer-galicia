@@ -51,6 +51,8 @@ html = html.replace(
   '<div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<span id="hdr-user"></span>' +
+  '<button id="hdr-theme-btn" class="btn-hdr btn-hdr-theme" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">&#9790; Oscuro</button>' +
+  '<button class="btn-hdr btn-hdr-admin" onclick="openMyPassModal()" title="Cambiar mi contrase&ntilde;a">&#128273; Mi clave</button>' +
   '<button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button>' +
   '<button class="btn-hdr btn-hdr-out" onclick="doLogout()">Salir</button>' +
   '</div></header>'
@@ -111,7 +113,9 @@ const loginOverlay = `<div id="login-ov">
 
   </div>
 </div>`;
-html = html.replace('<body>', '<body>\n' + loginOverlay);
+// Aplica el tema guardado lo antes posible para evitar parpadeo (flash) al cargar.
+const themeBoot = `<script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>`;
+html = html.replace('<body>', '<body>\n' + themeBoot + '\n' + loginOverlay);
 
 // ── ADMIN PANEL ─────────────────────────────────────────────────────────────
 const adminPanel = `<div id="admin-panel">
@@ -270,10 +274,41 @@ const userModal = `<div id="user-modal">
   </div>
 </div>`;
 
+const passModal = `<div id="pass-modal">
+  <div class="um-card" style="width:420px">
+    <div class="um-header">
+      <h3>Cambiar mi contrase&ntilde;a</h3>
+      <button class="ap-close" onclick="closeMyPassModal()">&#10005;</button>
+    </div>
+    <div class="um-body">
+      <div class="um-grid">
+        <div class="um-full">
+          <label class="login-lbl">Contrase&ntilde;a actual</label>
+          <input type="password" id="mp-cur" class="login-inp" placeholder="Tu contrase&ntilde;a actual">
+        </div>
+        <div class="um-full">
+          <label class="login-lbl">Nueva contrase&ntilde;a</label>
+          <input type="password" id="mp-new" class="login-inp" placeholder="M&iacute;nimo 8 caracteres">
+        </div>
+        <div class="um-full">
+          <label class="login-lbl">Repetir nueva contrase&ntilde;a</label>
+          <input type="password" id="mp-new2" class="login-inp" placeholder="Repet&iacute; la nueva contrase&ntilde;a" onkeydown="if(event.key==='Enter')submitMyPass()">
+        </div>
+      </div>
+    </div>
+    <div id="mp-err" class="um-err"></div>
+    <div id="mp-ok" class="mp-ok"></div>
+    <div class="um-footer">
+      <button class="btn-cancel" onclick="closeMyPassModal()">Cancelar</button>
+      <button id="mp-submit" class="btn-submit" onclick="submitMyPass()">Cambiar contrase&ntilde;a</button>
+    </div>
+  </div>
+</div>`;
+
 const toastEl = `<div id="toast"></div>`;
 
 const adminBackdrop = `<div id="admin-backdrop" onclick="closeAdminPanel()"></div>`;
-html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + toastEl + '\n</body>');
+html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + toastEl + '\n</body>');
 
 // ── ZOOM TOOLBAR EN EL PREVIEW ───────────────────────────────────────────────
 html = html.replace(

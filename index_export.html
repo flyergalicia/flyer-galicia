@@ -177,7 +177,8 @@ html{height:100%;overflow:hidden;}
 .usr-btn.edit{background:#eef2ff;color:#1565c0;}
 .usr-btn.edit:hover{background:#1565c0;color:white;}
 .usr-btn:disabled{opacity:0.5;cursor:not-allowed;}
-#user-modal{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1200;display:none;align-items:center;justify-content:center;}
+#user-modal,#pass-modal{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1200;display:none;align-items:center;justify-content:center;}
+.mp-ok{color:var(--green);font-size:.8rem;font-weight:600;padding:0 22px 4px;text-align:center;}
 .um-card{background:white;border-radius:16px;width:520px;max-width:96vw;box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;}
 .um-header{padding:18px 22px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;}
 .um-header h3{font-family:"Syne",sans-serif;font-size:0.95rem;font-weight:800;flex:1;margin:0;}
@@ -295,6 +296,44 @@ html{height:100%;overflow:hidden;}
 .usr-btn.danger:hover{background:#c00;color:#fff;}
 .usr-search-inp,.usr-filter-sel{box-shadow:0 1px 2px rgba(0,0,0,0.03);}
 .reg-filter{box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+/* ===== DARK MODE ===== */
+.btn-hdr-theme{background:rgba(255,255,255,0.15);color:#fff;}
+.btn-hdr-theme:hover{background:rgba(255,255,255,0.28);}
+html.dark{--light:#16181c;--dark:#e9eaec;--gray:#9aa0a8;--border:#333840;--card:#22262c;}
+html.dark body{background:#16181c;color:#e9eaec;}
+html.dark label,html.dark .login-lbl{color:#c2c6cc;}
+html.dark input[type=text],html.dark textarea{background:#1b1e23;color:#e9eaec;}
+html.dark input[type=text]:focus,html.dark textarea:focus{background:#22262c;}
+html.dark .login-inp,html.dark .usr-search-inp,html.dark .usr-filter-sel,html.dark .reg-filter-group input{background:#1b1e23;color:#e9eaec;border-color:#333840;}
+html.dark .login-inp:disabled{background:#15171a;color:#777;}
+html.dark #login-ov{background:#16181c;}
+html.dark .login-card{background:#22262c !important;border-color:#333840;}
+html.dark #admin-panel{background:#1b1e23;}
+html.dark .ap-header,html.dark .atabs{background:#22262c;border-color:#333840;}
+html.dark .stat-card,html.dark .recent-row,html.dark .usr-row,html.dark .reg-row,html.dark .um-card,html.dark .upload-result-box,html.dark .reg-filter,html.dark .upload-drop{background:#22262c;border-color:#333840;}
+html.dark .um-footer{background:#1b1e23;border-color:#333840;}
+html.dark .um-header{border-color:#333840;}
+html.dark .cfg-btn,html.dark .hist-btn{background:#22262c;color:#e9eaec;border-color:#333840;}
+html.dark .cfg-box,html.dark .excel-preview,html.dark .toggle-row,html.dark .hist-item,html.dark .ftag,html.dark .history-empty{background:#1b1e23;border-color:#333840;}
+html.dark .excel-preview th{background:#2a2f36;}
+html.dark .excel-preview td{border-color:#333840;}
+html.dark .modal{background:#22262c;color:#e9eaec;}
+html.dark .collapsible{background:#2a2326;border-color:#5a3a3a;}
+html.dark .progress-bar,html.dark .upload-prog{background:#2a2f36;}
+html.dark .hist-thumb{background:#3a4049;}
+html.dark .btn-cancel{background:#2a2f36;color:#e9eaec;border-color:#3a4049;}
+html.dark .btn-cancel:hover{background:#3a4049;}
+html.dark .bg{color:#e9eaec;border-color:#3a4049;}
+html.dark .skel{background:#2a2f36;}
+html.dark .reg-mid{color:#c2c6cc;}
+html.dark .af-banner-empty{background:#22262c;border-color:#333840;color:#9aa0a8;}
+html.dark .prev{background:radial-gradient(ellipse 130% 90% at 50% -8%, #2a2e34 0%, #202329 62%, #191b20 100%) !important;}
+html.dark .plabel{background:rgba(34,38,44,0.82);color:#e9eaec;}
+html.dark .zoom-btn{background:#22262c;color:#e9eaec;border-color:#333840;}
+html.dark .zoom-bar{background:rgba(34,38,44,0.85);}
+html.dark .ap-close:hover{background:#2a2f36;color:#e9eaec;}
+html.dark .atab:hover{background:#262b31;}
+html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1e23;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
@@ -322,8 +361,29 @@ function _callFn(action,payload,cb){
   });
 }
 
+// ── TEMA CLARO / OSCURO ─────────────────────────────────────────────────────────
+// La preferencia se guarda en localStorage (por navegador). Disponible para todos
+// los usuarios logueados (asesor y admin) desde el botón del header.
+function _applyTheme(t){
+  var dark=(t==='dark');
+  document.documentElement.classList.toggle('dark',dark);
+  var btn=document.getElementById('hdr-theme-btn');
+  if(btn)btn.innerHTML=dark?'&#9728;&#65039; Claro':'&#9790; Oscuro';
+}
+function _initTheme(){
+  var t='light';
+  try{t=localStorage.getItem('fg_theme')||'light';}catch(e){}
+  _applyTheme(t);
+}
+function toggleTheme(){
+  var next=document.documentElement.classList.contains('dark')?'light':'dark';
+  try{localStorage.setItem('fg_theme',next);}catch(e){}
+  _applyTheme(next);
+}
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function initApp(){
+  _initTheme();
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -475,6 +535,51 @@ function doLogin(){
 }
 
 function doLogout(){_sb.auth.signOut().then(function(){location.reload();});}
+
+// ── CAMBIAR MI PROPIA CLAVE (cualquier usuario logueado) ────────────────────────
+// El usuario autenticado cambia su clave directamente con updateUser. No pasa por
+// el flujo de aprobación del admin (eso es sólo para el reset desde el login).
+function openMyPassModal(){
+  document.getElementById('mp-cur').value='';
+  document.getElementById('mp-new').value='';
+  document.getElementById('mp-new2').value='';
+  document.getElementById('mp-err').textContent='';
+  document.getElementById('mp-ok').textContent='';
+  var btn=document.getElementById('mp-submit');btn.textContent='Cambiar contraseña';btn.disabled=false;
+  document.getElementById('pass-modal').style.display='flex';
+  setTimeout(function(){document.getElementById('mp-cur').focus();},100);
+}
+
+function closeMyPassModal(){document.getElementById('pass-modal').style.display='none';}
+
+function submitMyPass(){
+  var cur=document.getElementById('mp-cur').value;
+  var np=document.getElementById('mp-new').value;
+  var np2=document.getElementById('mp-new2').value;
+  var errEl=document.getElementById('mp-err');var okEl=document.getElementById('mp-ok');
+  errEl.textContent='';okEl.textContent='';
+  if(!_me){errEl.textContent='Tu sesión expiró. Volvé a ingresar.';return;}
+  if(!cur){errEl.textContent='Ingresá tu contraseña actual.';return;}
+  if(np.length<8){errEl.textContent='La nueva contraseña debe tener al menos 8 caracteres.';return;}
+  if(np!==np2){errEl.textContent='Las contraseñas nuevas no coinciden.';return;}
+  if(np===cur){errEl.textContent='La nueva contraseña debe ser distinta de la actual.';return;}
+  var btn=document.getElementById('mp-submit');btn.textContent='Verificando...';btn.disabled=true;
+  // Reautenticamos para confirmar que la clave actual es correcta antes de cambiarla.
+  _sb.auth.signInWithPassword({email:_me.email,password:cur}).then(function(r){
+    if(r.error){btn.textContent='Cambiar contraseña';btn.disabled=false;errEl.textContent='La contraseña actual es incorrecta.';return;}
+    btn.textContent='Guardando...';
+    _sb.auth.updateUser({password:np}).then(function(r2){
+      btn.textContent='Cambiar contraseña';btn.disabled=false;
+      if(r2.error){errEl.textContent=r2.error.message;return;}
+      okEl.textContent='✅ Tu contraseña se cambió correctamente.';
+      document.getElementById('mp-cur').value='';
+      document.getElementById('mp-new').value='';
+      document.getElementById('mp-new2').value='';
+      showToast('Contraseña actualizada');
+      setTimeout(closeMyPassModal,1600);
+    });
+  });
+}
 
 // ── PANEL ADMIN ───────────────────────────────────────────────────────────────
 function openAdminPanel(){
@@ -1111,6 +1216,7 @@ function _fmtDate(iso){
 
 </script></head>
 <body>
+<script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
   <div class="login-card">
 
@@ -1165,7 +1271,7 @@ function _fmtDate(iso){
 
   </div>
 </div>
-<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><span id="hdr-user"></span><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button><button class="btn-hdr btn-hdr-out" onclick="doLogout()">Salir</button></div></header>
+<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><span id="hdr-user"></span><button id="hdr-theme-btn" class="btn-hdr btn-hdr-theme" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">&#9790; Oscuro</button><button class="btn-hdr btn-hdr-admin" onclick="openMyPassModal()" title="Cambiar mi contrase&ntilde;a">&#128273; Mi clave</button><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button><button class="btn-hdr btn-hdr-out" onclick="doLogout()">Salir</button></div></header>
 
 <div class="modal-overlay" id="modal">
   <div class="modal">
@@ -2006,6 +2112,36 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
     <div class="um-footer">
       <button class="btn-cancel" onclick="closeUserModal()">Cancelar</button>
       <button id="um-submit" class="btn-submit" onclick="submitUser()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+<div id="pass-modal">
+  <div class="um-card" style="width:420px">
+    <div class="um-header">
+      <h3>Cambiar mi contrase&ntilde;a</h3>
+      <button class="ap-close" onclick="closeMyPassModal()">&#10005;</button>
+    </div>
+    <div class="um-body">
+      <div class="um-grid">
+        <div class="um-full">
+          <label class="login-lbl">Contrase&ntilde;a actual</label>
+          <input type="password" id="mp-cur" class="login-inp" placeholder="Tu contrase&ntilde;a actual">
+        </div>
+        <div class="um-full">
+          <label class="login-lbl">Nueva contrase&ntilde;a</label>
+          <input type="password" id="mp-new" class="login-inp" placeholder="M&iacute;nimo 8 caracteres">
+        </div>
+        <div class="um-full">
+          <label class="login-lbl">Repetir nueva contrase&ntilde;a</label>
+          <input type="password" id="mp-new2" class="login-inp" placeholder="Repet&iacute; la nueva contrase&ntilde;a" onkeydown="if(event.key==='Enter')submitMyPass()">
+        </div>
+      </div>
+    </div>
+    <div id="mp-err" class="um-err"></div>
+    <div id="mp-ok" class="mp-ok"></div>
+    <div class="um-footer">
+      <button class="btn-cancel" onclick="closeMyPassModal()">Cancelar</button>
+      <button id="mp-submit" class="btn-submit" onclick="submitMyPass()">Cambiar contrase&ntilde;a</button>
     </div>
   </div>
 </div>
