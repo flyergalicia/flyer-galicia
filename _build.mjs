@@ -50,11 +50,17 @@ html = html.replace(
   '<h1>Flyer Galicia 5.5</h1></header>',
   '<div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
-  '<span id="hdr-user"></span>' +
-  '<button id="hdr-theme-btn" class="btn-hdr btn-hdr-theme" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">&#9790; Oscuro</button>' +
-  '<button class="btn-hdr btn-hdr-admin" onclick="openMyPassModal()" title="Cambiar mi contrase&ntilde;a">&#128273; Mi clave</button>' +
+  '<div class="hdr-user-menu">' +
+    '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
+    '<div class="hdr-dropdown" id="hdr-dropdown">' +
+      '<button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()">&#128273; Cambiar mi clave</button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()">&#9790; Modo oscuro</button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none">&#128221; Bloc de notas</button>' +
+      '<div class="hdr-dd-sep"></div>' +
+      '<button class="hdr-dd-item danger" onclick="doLogout()">&#9099; Salir</button>' +
+    '</div>' +
+  '</div>' +
   '<button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button>' +
-  '<button class="btn-hdr btn-hdr-out" onclick="doLogout()">Salir</button>' +
   '</div></header>'
 );
 
@@ -254,6 +260,7 @@ const userModal = `<div id="user-modal">
           <label class="login-lbl">Rol</label>
           <select id="um-role" class="login-inp">
             <option value="asesor">Asesor</option>
+            <option value="vip">VIP</option>
             <option value="admin">Administrador</option>
           </select>
         </div>
@@ -305,10 +312,30 @@ const passModal = `<div id="pass-modal">
   </div>
 </div>`;
 
+const notesModal = `<div id="notes-modal">
+  <div class="um-card" style="width:520px">
+    <div class="um-header">
+      <h3>&#128221; Bloc de notas</h3>
+      <button class="ap-close" onclick="closeNotes()">&#10005;</button>
+    </div>
+    <div class="um-body">
+      <p style="font-size:.74rem;color:var(--gray);margin-bottom:8px">Guard&aacute; ac&aacute; legales, datos fijos o recordatorios. Se guarda autom&aacute;ticamente en este navegador.</p>
+      <textarea id="notes-text" class="login-inp" style="min-height:240px;resize:vertical;font-family:inherit;margin-bottom:0" placeholder="Escrib&iacute; tus notas ac&aacute;..." oninput="_notesAutosave()"></textarea>
+    </div>
+    <div class="um-footer" style="justify-content:space-between">
+      <span id="notes-status" class="mp-ok" style="padding:0"></span>
+      <div style="display:flex;gap:10px">
+        <button class="btn-cancel" onclick="copyNotes()">&#128203; Copiar todo</button>
+        <button class="btn-submit" onclick="closeNotes()">Listo</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+
 const toastEl = `<div id="toast"></div>`;
 
 const adminBackdrop = `<div id="admin-backdrop" onclick="closeAdminPanel()"></div>`;
-html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + toastEl + '\n</body>');
+html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n</body>');
 
 // ── ZOOM TOOLBAR EN EL PREVIEW ───────────────────────────────────────────────
 html = html.replace(

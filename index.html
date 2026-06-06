@@ -155,6 +155,7 @@ html{height:100%;overflow:hidden;}
 .badge-inactive{background:#ffebee;color:#c62828;}
 .badge-admin{background:#e3f2fd;color:#1565c0;}
 .badge-asesor{background:#f3e5f5;color:#6a1b9a;}
+.badge-vip{background:#fdf0d5;color:#9a6b00;}
 .usr-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .btn-new-usr{background:var(--red);color:white;border:none;border-radius:8px;padding:8px 16px;font-family:"Syne",sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;transition:background .15s;}
 .btn-new-usr:hover{background:#c0000f;}
@@ -177,7 +178,7 @@ html{height:100%;overflow:hidden;}
 .usr-btn.edit{background:#eef2ff;color:#1565c0;}
 .usr-btn.edit:hover{background:#1565c0;color:white;}
 .usr-btn:disabled{opacity:0.5;cursor:not-allowed;}
-#user-modal,#pass-modal{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1200;display:none;align-items:center;justify-content:center;}
+#user-modal,#pass-modal,#notes-modal{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1200;display:none;align-items:center;justify-content:center;}
 .mp-ok{color:var(--green);font-size:.8rem;font-weight:600;padding:0 22px 4px;text-align:center;}
 .um-card{background:white;border-radius:16px;width:520px;max-width:96vw;box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;}
 .um-header{padding:18px 22px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;}
@@ -334,6 +335,22 @@ html.dark .zoom-bar{background:rgba(34,38,44,0.85);}
 html.dark .ap-close:hover{background:#2a2f36;color:#e9eaec;}
 html.dark .atab:hover{background:#262b31;}
 html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1e23;}
+/* ===== MENU DE USUARIO (header) ===== */
+.hdr-user-menu{position:relative;}
+.hdr-user-btn{background:none;border:none;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:"DM Sans",sans-serif;font-size:.78rem;font-weight:500;padding:5px 8px;border-radius:7px;transition:background .15s;}
+.hdr-user-btn:hover{background:rgba(255,255,255,0.14);}
+.hdr-caret{font-size:.58rem;opacity:.7;}
+.hdr-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.28);min-width:212px;padding:6px;z-index:1500;display:none;border:1px solid var(--border);}
+.hdr-dropdown.open{display:block;animation:ddIn .14s ease;}
+@keyframes ddIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.hdr-dd-item{width:100%;display:flex;align-items:center;gap:9px;background:none;border:none;text-align:left;padding:9px 11px;border-radius:8px;font-family:"DM Sans",sans-serif;font-size:.8rem;font-weight:600;color:var(--dark);cursor:pointer;transition:background .12s;}
+.hdr-dd-item:hover{background:var(--light);}
+.hdr-dd-item.danger{color:var(--red);}
+.hdr-dd-item.danger:hover{background:#fff0f0;}
+.hdr-dd-sep{height:1px;background:var(--border);margin:5px 8px;}
+html.dark .hdr-dropdown{background:#22262c;border-color:#333840;}
+html.dark .hdr-dd-item:hover{background:#2a2f36;}
+html.dark .hdr-dd-item.danger:hover{background:#3a2326;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js"></script></head>
 <body>
@@ -392,7 +409,7 @@ html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1
 
   </div>
 </div>
-<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><span id="hdr-user"></span><button id="hdr-theme-btn" class="btn-hdr btn-hdr-theme" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">&#9790; Oscuro</button><button class="btn-hdr btn-hdr-admin" onclick="openMyPassModal()" title="Cambiar mi contrase&ntilde;a">&#128273; Mi clave</button><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button><button class="btn-hdr btn-hdr-out" onclick="doLogout()">Salir</button></div></header>
+<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()">&#128273; Cambiar mi clave</button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()">&#9790; Modo oscuro</button><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none">&#128221; Bloc de notas</button><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()">&#9099; Salir</button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button></div></header>
 
 <div class="modal-overlay" id="modal">
   <div class="modal">
@@ -1217,6 +1234,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
           <label class="login-lbl">Rol</label>
           <select id="um-role" class="login-inp">
             <option value="asesor">Asesor</option>
+            <option value="vip">VIP</option>
             <option value="admin">Administrador</option>
           </select>
         </div>
@@ -1263,6 +1281,25 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
     <div class="um-footer">
       <button class="btn-cancel" onclick="closeMyPassModal()">Cancelar</button>
       <button id="mp-submit" class="btn-submit" onclick="submitMyPass()">Cambiar contrase&ntilde;a</button>
+    </div>
+  </div>
+</div>
+<div id="notes-modal">
+  <div class="um-card" style="width:520px">
+    <div class="um-header">
+      <h3>&#128221; Bloc de notas</h3>
+      <button class="ap-close" onclick="closeNotes()">&#10005;</button>
+    </div>
+    <div class="um-body">
+      <p style="font-size:.74rem;color:var(--gray);margin-bottom:8px">Guard&aacute; ac&aacute; legales, datos fijos o recordatorios. Se guarda autom&aacute;ticamente en este navegador.</p>
+      <textarea id="notes-text" class="login-inp" style="min-height:240px;resize:vertical;font-family:inherit;margin-bottom:0" placeholder="Escrib&iacute; tus notas ac&aacute;..." oninput="_notesAutosave()"></textarea>
+    </div>
+    <div class="um-footer" style="justify-content:space-between">
+      <span id="notes-status" class="mp-ok" style="padding:0"></span>
+      <div style="display:flex;gap:10px">
+        <button class="btn-cancel" onclick="copyNotes()">&#128203; Copiar todo</button>
+        <button class="btn-submit" onclick="closeNotes()">Listo</button>
+      </div>
     </div>
   </div>
 </div>

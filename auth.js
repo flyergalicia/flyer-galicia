@@ -4,7 +4,7 @@ var SUPA_ANON='sb_publishable_M62msRVQkNbl0zk91r0zUw_q-gUDnJi';
 // pasan por la Edge Function auth-admin, que la guarda del lado servidor.
 var FN_URL=SUPA_URL+'/functions/v1/auth-admin';
 var _sb=window.supabase.createClient(SUPA_URL,SUPA_ANON);
-var _me=null,_admin=false,_allUsers=[],_editUid=null,_myName='';
+var _me=null,_admin=false,_canNotes=false,_allUsers=[],_editUid=null,_myName='';
 var FLYERS_PUBLIC='https://cajyjnxjbobdpltflgnb.supabase.co/storage/v1/object/public/flyers/';
 var _activeFlyerUrl=null,_activeFlyerName='';
 
@@ -29,8 +29,8 @@ function _callFn(action,payload,cb){
 function _applyTheme(t){
   var dark=(t==='dark');
   document.documentElement.classList.toggle('dark',dark);
-  var btn=document.getElementById('hdr-theme-btn');
-  if(btn)btn.innerHTML=dark?'&#9728;&#65039; Claro':'&#9790; Oscuro';
+  var btn=document.getElementById('hdr-dd-theme');
+  if(btn)btn.innerHTML=dark?'&#9728;&#65039; Modo claro':'&#9790; Modo oscuro';
 }
 function _initTheme(){
   var t='light';
@@ -41,6 +41,55 @@ function toggleTheme(){
   var next=document.documentElement.classList.contains('dark')?'light':'dark';
   try{localStorage.setItem('fg_theme',next);}catch(e){}
   _applyTheme(next);
+}
+
+// ── MENU DE USUARIO (header) ─────────────────────────────────────────────────────
+function toggleUserMenu(e){
+  if(e)e.stopPropagation();
+  var dd=document.getElementById('hdr-dropdown');if(!dd)return;
+  var open=dd.classList.toggle('open');
+  if(open)setTimeout(function(){document.addEventListener('click',_closeUserMenuOutside);},0);
+  else document.removeEventListener('click',_closeUserMenuOutside);
+}
+function closeUserMenu(){
+  var dd=document.getElementById('hdr-dropdown');if(dd)dd.classList.remove('open');
+  document.removeEventListener('click',_closeUserMenuOutside);
+}
+function _closeUserMenuOutside(e){
+  var menu=document.querySelector('.hdr-user-menu');
+  if(menu&&!menu.contains(e.target))closeUserMenu();
+}
+
+// ── BLOC DE NOTAS (solo ADMIN y VIP) ─────────────────────────────────────────────
+// Se guarda en localStorage por cuenta (clave fg_notes_<userId>). Persiste en este
+// navegador; no viaja entre dispositivos (si se necesita, se migra a Supabase).
+function _notesKey(){return 'fg_notes_'+(_me?_me.id:'anon');}
+function openNotes(){
+  if(!_canNotes)return;
+  var ta=document.getElementById('notes-text');if(!ta)return;
+  try{ta.value=localStorage.getItem(_notesKey())||'';}catch(e){ta.value='';}
+  var st=document.getElementById('notes-status');if(st)st.textContent='';
+  document.getElementById('notes-modal').style.display='flex';
+  setTimeout(function(){ta.focus();},100);
+}
+function closeNotes(){document.getElementById('notes-modal').style.display='none';}
+var _notesTid=null;
+function _notesAutosave(){
+  var ta=document.getElementById('notes-text');if(!ta)return;
+  try{localStorage.setItem(_notesKey(),ta.value);}catch(e){}
+  var st=document.getElementById('notes-status');
+  if(st){st.textContent='Guardado ✓';clearTimeout(_notesTid);_notesTid=setTimeout(function(){st.textContent='';},1500);}
+}
+function copyNotes(){
+  var ta=document.getElementById('notes-text');if(!ta)return;
+  navigator.clipboard.writeText(ta.value).then(function(){showToast('Notas copiadas');});
+}
+
+// Devuelve el badge HTML del rol (admin / vip / asesor).
+function _roleBadge(role){
+  var cls=role==='admin'?'admin':(role==='vip'?'vip':'asesor');
+  var lbl=role==='admin'?'Admin':(role==='vip'?'VIP':'Asesor');
+  return '<span class="badge badge-'+cls+'">'+lbl+'</span>';
 }
 
 // ── PARSER DE EXCEL ROBUSTO (override) ──────────────────────────────────────────
@@ -177,7 +226,11 @@ function checkProfile(user){
       showLoginView('login');
       return;
     }
-    _me=user;_admin=(p.role==='admin');_myName=p.full_name||p.email_asesor||user.email;
+    _me=user;_admin=(p.role==='admin');_canNotes=(p.role==='admin'||p.role==='vip');_myName=p.full_name||p.email_asesor||user.email;
+    // Menú: "Cambiar mi clave" se oculta para admin (lo hace desde el panel);
+    // "Bloc de notas" solo para admin y VIP.
+    var _ddPass=document.getElementById('hdr-dd-pass');if(_ddPass)_ddPass.style.display=_admin?'none':'flex';
+    var _ddNotes=document.getElementById('hdr-dd-notes');if(_ddNotes)_ddNotes.style.display=_canNotes?'flex':'none';
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});
@@ -331,7 +384,7 @@ function loadStats(){
         var mail=u.email_asesor||'';
         var ini=_initials(u.full_name,mail);
         var col=_avatarColor(u.id||mail);
-        var roleB='<span class="badge badge-'+(u.role==='admin'?'admin':'asesor')+'">'+(u.role==='admin'?'Admin':'Asesor')+'</span>';
+        var roleB=_roleBadge(u.role);
         return '<div class="recent-row">'+
           '<div class="usr-avatar sm" style="background:'+col+'">'+ini+'</div>'+
           '<div class="recent-info"><strong>'+(u.full_name||mail||'Usuario')+'</strong>'+
@@ -370,7 +423,7 @@ function filterUsers(){
     var col=_avatarColor(u.id||mail);
     var isPend=u.status==='pending';
     var isReset=u.status==='reset_pending';
-    var roleB=isPend?'':'<span class="badge badge-'+(u.role==='admin'?'admin':'asesor')+'">'+(u.role==='admin'?'Admin':'Asesor')+'</span>';
+    var roleB=isPend?'':_roleBadge(u.role);
     var statusLabel=u.status==='active'?'Activo':isPend?'Pendiente':isReset?'Cambio de clave':'Inactivo';
     var statusBadgeClass=isReset?'badge-pending':'badge-'+u.status;
     var statusB='<span class="badge '+statusBadgeClass+'">'+statusLabel+'</span>';
