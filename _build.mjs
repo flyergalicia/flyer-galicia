@@ -54,9 +54,11 @@ html = html.replace(
 html = html.replace('<div class="layout">', '<div class="layout" id="layout" style="display:none">');
 
 // ── HEADER con user info ────────────────────────────────────────────────────
+// Anchor tolerante a la versión (5.5, 5.6, ...) para que el menú se inyecte
+// aunque cambie el número de versión en una regeneración del HTML.
 html = html.replace(
-  '<h1>Flyer Galicia 5.5</h1></header>',
-  '<div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div>' +
+  /<h1>(Flyer Galicia[^<]*)<\/h1><\/header>/,
+  '<div class="header-text"><h1>$1</h1><span>ARMADOR</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
     '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
@@ -421,6 +423,17 @@ const checks = {
   'admin-panel': html.includes('id="admin-panel"'),
   'calcSC': html.includes('calcSC()'),
   'initApp': html.includes('initApp()'),
+  // ── Contrato de estructura que necesita auth.js (si algo da ✗, ese feature se rompe) ──
+  'header menu (hdr-dropdown)': html.includes('id="hdr-dropdown"'),
+  'modal clave': html.includes('id="pass-modal"'),
+  'modal notas': html.includes('id="notes-modal"'),
+  'campos asesor (nombre/nombre2)': html.includes('id="nombre"') && html.includes('id="nombre2"'),
+  'campos empresa/celular/email': html.includes('id="empresa"') && html.includes('id="celular"') && html.includes('id="email"'),
+  'titulos Asesor 1/2 (popover)': /Asesor\s*1/i.test(html) && /Asesor\s*2/i.test(html),
+  'config setCfg': html.includes('setCfg('),
+  'toggles a1/a2': html.includes('toggleA1(') && html.includes('toggleA2('),
+  'legal-text': html.includes('id="legal-text"'),
+  'loadExcel (override)': html.includes('loadExcel('),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
