@@ -263,26 +263,28 @@ html.dark .hdr-dd-item.danger:hover{background:#3a2326;}
 .notes-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
 html.dark .notes-side{border-color:#333840;}
 html.dark .note-item:hover,html.dark .note-item.active{background:#2a2f36;}
-/* ===== FAVORITOS / PLANTILLAS ===== */
-.fav-bar{background:var(--light);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;}
-.fav-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
-.fav-title{font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#b8860b;}
-.fav-actions{display:flex;gap:6px;flex-shrink:0;}
-.fav-add{background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;cursor:pointer;color:var(--dark);transition:all .15s;white-space:nowrap;}
-.fav-add:hover{border-color:var(--red);color:var(--red);}
-.fav-add.primary{background:var(--red);color:#fff;border-color:var(--red);}
-.fav-add.primary:hover{background:#c0000f;color:#fff;}
-html.dark .fav-actions .fav-add{background:#22262c;color:#e9eaec;}
-html.dark .fav-actions .fav-add.primary{background:var(--red);color:#fff;}
-.fav-chips{display:flex;gap:6px;flex-wrap:wrap;}
-.fav-chip{display:inline-flex;align-items:center;gap:5px;background:#fdf0d5;color:#7a5800;border-radius:20px;padding:4px 7px 4px 10px;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s;}
-.fav-chip:hover{background:#fae3b0;}
-.fav-star{color:#d4a017;}
-.fav-del{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,0.08);font-size:.58rem;color:#7a5800;transition:all .15s;}
-.fav-del:hover{background:var(--red);color:#fff;}
-.fav-empty{font-size:.72rem;color:var(--gray);}
-html.dark .fav-bar{background:#1b1e23;border-color:#333840;}
-html.dark .fav-add{background:#22262c;color:#e9eaec;}
-html.dark .fav-chip{background:#3a3020;color:#e8c87a;}
-html.dark .fav-chip:hover{background:#4a3e28;}
-html.dark .fav-del{background:rgba(255,255,255,0.12);color:#e8c87a;}
+/* ===== NOTAS: reordenar ===== */
+.notes-foot-left{display:flex;align-items:center;gap:6px;}
+.note-move{background:var(--light);color:var(--dark);border:1.5px solid var(--border);padding:4px 9px;font-size:.82rem;line-height:1;}
+.note-move:hover{border-color:var(--red);color:var(--red);}
+html.dark .note-move{background:#2a2f36;color:#e9eaec;border-color:#3a4049;}
+/* ===== ASESORES GUARDADOS (popover desde título) ===== */
+.sec-clickable{cursor:pointer;display:inline-flex;align-items:center;gap:5px;user-select:none;width:fit-content;}
+.sec-clickable:hover{opacity:.78;}
+.sec-caret{font-size:.55rem;opacity:.7;}
+.as-pop{position:fixed;z-index:1600;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.26);width:248px;max-width:92vw;padding:6px;animation:ddIn .14s ease;}
+.as-pop-head{font-family:"Syne",sans-serif;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray);padding:7px 9px 5px;}
+.as-list{max-height:220px;overflow-y:auto;}
+.as-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:.8rem;color:var(--dark);transition:background .12s;}
+.as-item:hover{background:var(--light);}
+.as-item-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.as-del{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:.62rem;color:var(--gray);transition:all .15s;}
+.as-del:hover{background:var(--red);color:#fff;}
+.as-empty{font-size:.76rem;color:var(--gray);padding:10px;text-align:center;}
+.as-pop-foot{display:flex;gap:6px;border-top:1px solid var(--border);margin-top:4px;padding:6px 4px 2px;}
+.as-act{flex:1;background:var(--light);border:1.5px solid var(--border);border-radius:7px;padding:6px 8px;font-family:"Syne",sans-serif;font-size:.62rem;font-weight:700;cursor:pointer;color:var(--dark);transition:all .15s;white-space:nowrap;}
+.as-act:hover{border-color:var(--red);color:var(--red);}
+html.dark .as-pop{background:#22262c;border-color:#333840;}
+html.dark .as-item:hover,html.dark .as-act{background:#2a2f36;color:#e9eaec;}
+html.dark .as-act{border-color:#3a4049;}
+html.dark .as-pop-foot{border-color:#333840;}

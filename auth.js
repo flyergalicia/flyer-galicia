@@ -127,75 +127,104 @@ function copyNotes(){
   var b=document.getElementById('note-body');if(!b)return;
   navigator.clipboard.writeText(b.value).then(function(){showToast('Nota copiada');});
 }
+function moveNote(dir){
+  var i=-1;for(var k=0;k<_notes.length;k++){if(_notes[k].id===_noteActive){i=k;break;}}
+  if(i<0)return;
+  var j=i+dir;if(j<0||j>=_notes.length)return;
+  var tmp=_notes[i];_notes[i]=_notes[j];_notes[j]=tmp;
+  _saveNotes();_renderNotesList();
+}
 
-// ── FAVORITOS / PLANTILLAS (solo ADMIN por ahora) ─────────────────────────────────
-// Guarda la combinación actual del armador (empresa, asesores, config, legal, nombre
-// de archivo) y la recarga de un clic. Vive en auth.js y lee/escribe los IDs estables
-// del formulario, así sobrevive a la regeneración de _source.html.
-function _favKey(){return 'fg_favs_'+(_me?_me.id:'anon');}
-var _favs=[];
-function _loadFavs(){
-  try{_favs=JSON.parse(localStorage.getItem(_favKey())||'[]');}catch(e){_favs=[];}
-  if(!Array.isArray(_favs))_favs=[];
+// ── ASESORES GUARDADOS (predeterminados) — ADMIN y VIP ───────────────────────────
+// Lista de asesores (nombre, celular, email) guardada por cuenta. Se accede tocando
+// el título de sección "Asesor 1" / "Asesor 2": abre un popover con la lista (solo
+// nombres) para autocompletar ese asesor. Vive en auth.js (sobrevive a la regen).
+function _asKey(){return 'fg_asesores_'+(_me?_me.id:'anon');}
+var _asesores=[];
+function _loadAsesores(){
+  try{_asesores=JSON.parse(localStorage.getItem(_asKey())||'[]');}catch(e){_asesores=[];}
+  if(!Array.isArray(_asesores))_asesores=[];
 }
-function _saveFavs(){try{localStorage.setItem(_favKey(),JSON.stringify(_favs));}catch(e){}}
-function _favCapture(){
-  function gv(id){var el=document.getElementById(id);return el?el.value:'';}
-  return {
-    empresa:gv('empresa'),nombre:gv('nombre'),celular:gv('celular'),email:gv('email'),
-    nombre2:gv('nombre2'),celular2:gv('celular2'),email2:gv('email2'),
-    legal:gv('legal-text'),filename:gv('filename'),
-    ac:(typeof window.ac!=='undefined'?window.ac:0),
-    a1:!!window.a1,a2:!!window.a2
-  };
+function _saveAsesores(){try{localStorage.setItem(_asKey(),JSON.stringify(_asesores));}catch(e){}}
+function _gv(id){var el=document.getElementById(id);return el?el.value:'';}
+function _setVal(id,v){var el=document.getElementById(id);if(el)el.value=(v||'');}
+
+// Hace clickeables los títulos "Asesor 1" y "Asesor 2" (vienen de _source.html).
+function _initAsesoresUI(){
+  if(!_canNotes)return; // ADMIN y VIP
+  var secs=document.querySelectorAll('#tab-individual .sec');
+  Array.prototype.forEach.call(secs,function(sec){
+    var t=(sec.textContent||'').toLowerCase();
+    var slot=t.indexOf('asesor 1')>=0?1:(t.indexOf('asesor 2')>=0?2:0);
+    if(!slot||sec.dataset.asLinked)return;
+    sec.dataset.asLinked='1';
+    sec.classList.add('sec-clickable');
+    sec.insertAdjacentHTML('beforeend',' <span class="sec-caret">&#9662;</span>');
+    sec.addEventListener('click',function(e){e.stopPropagation();openAsPop(slot,sec);});
+  });
 }
-function _favApply(f){
-  function sv(id,val){var el=document.getElementById(id);if(el)el.value=(val||'');}
-  sv('empresa',f.empresa);sv('nombre',f.nombre);sv('celular',f.celular);sv('email',f.email);
-  sv('nombre2',f.nombre2);sv('celular2',f.celular2);sv('email2',f.email2);
-  sv('legal-text',f.legal);if(f.filename)sv('filename',f.filename);
-  if(typeof toggleA1==='function'&&typeof window.a1!=='undefined'&&!!window.a1!==!!f.a1)toggleA1();
-  if(typeof toggleA2==='function'&&typeof window.a2!=='undefined'&&!!window.a2!==!!f.a2)toggleA2();
-  if(typeof setCfg==='function')setCfg(f.ac||0);
+function _asItemHtml(a,slot){
+  return '<div class="as-item" onclick="applyAsesor(\''+a.id+'\','+slot+')">'+
+    '<span class="as-item-name">'+_escHtml(a.name||a.nombre||'Sin nombre')+'</span>'+
+    '<span class="as-del" onclick="event.stopPropagation();delAsesor(\''+a.id+'\','+slot+')" title="Eliminar">&#10005;</span></div>';
+}
+function _asListHtml(slot){
+  return _asesores.length?_asesores.map(function(a){return _asItemHtml(a,slot);}).join('')
+    :'<div class="as-empty">No tenés asesores guardados todavía.</div>';
+}
+function openAsPop(slot,anchor){
+  closeAsPop();
+  _loadAsesores();
+  var pop=document.createElement('div');
+  pop.id='as-pop';pop.className='as-pop';
+  pop.innerHTML='<div class="as-pop-head">Asesor '+slot+' &middot; guardados</div>'+
+    '<div class="as-list">'+_asListHtml(slot)+'</div>'+
+    '<div class="as-pop-foot">'+
+      '<button class="as-act" onclick="saveAsesor('+slot+')">+ Guardar el actual</button>'+
+      '<button class="as-act" onclick="document.getElementById(\'as-xls\').click()" title="Importar asesores desde Excel">&#8593; Excel</button>'+
+    '</div>'+
+    '<input type="file" id="as-xls" accept=".xlsx,.xls" style="display:none" onchange="importAsesores(this)">';
+  document.body.appendChild(pop);
+  var r=anchor.getBoundingClientRect();
+  pop.style.top=(r.bottom+4)+'px';
+  pop.style.left=Math.round(r.left)+'px';
+  setTimeout(function(){document.addEventListener('click',_closeAsOutside);},0);
+}
+function closeAsPop(){var p=document.getElementById('as-pop');if(p)p.parentNode.removeChild(p);document.removeEventListener('click',_closeAsOutside);}
+function _closeAsOutside(e){var p=document.getElementById('as-pop');if(p&&!p.contains(e.target))closeAsPop();}
+function applyAsesor(id,slot){
+  var a=_asesores.find(function(x){return x.id===id;});if(!a)return;
+  if(slot===2){
+    _setVal('nombre2',a.nombre);_setVal('celular2',a.celular);_setVal('email2',a.email);
+    if(typeof toggleA2==='function'&&!window.a2)toggleA2();
+  }else{
+    _setVal('nombre',a.nombre);_setVal('celular',a.celular);_setVal('email',a.email);
+    if(typeof toggleA1==='function'&&!window.a1)toggleA1();
+  }
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
+  closeAsPop();showToast('Asesor "'+(a.name||a.nombre)+'" cargado');
 }
-function _initFavsUI(){
-  if(!_canNotes)return; // ADMIN y VIP
-  var tab=document.getElementById('tab-individual');if(!tab)return;
-  if(document.getElementById('fav-bar'))return; // ya inyectado
-  _loadFavs();
-  var bar=document.createElement('div');
-  bar.id='fav-bar';bar.className='fav-bar';
-  tab.insertBefore(bar,tab.firstChild);
-  _renderFavs();
+function saveAsesor(slot){
+  var n=slot===2?_gv('nombre2'):_gv('nombre');
+  var c=slot===2?_gv('celular2'):_gv('celular');
+  var m=slot===2?_gv('email2'):_gv('email');
+  if(!n&&!c&&!m){showToast('Completá el asesor antes de guardar');return;}
+  var name=prompt('Nombre para guardar este asesor:',n||'');
+  if(name===null)return;name=(name||n||'').trim();if(!name){showToast('Poné un nombre');return;}
+  _asesores.unshift({id:'a'+Date.now()+Math.random().toString(36).slice(2,5),name:name,nombre:n,celular:c,email:m});
+  _saveAsesores();closeAsPop();showToast('Asesor "'+name+'" guardado');
 }
-function _renderFavs(){
-  var bar=document.getElementById('fav-bar');if(!bar)return;
-  var chips=_favs.map(function(f){
-    return '<span class="fav-chip" onclick="applyFav(\''+f.id+'\')" title="Cargar esta plantilla">'+
-      '<span class="fav-star">&#9733;</span>'+_escHtml(f.name)+
-      '<span class="fav-del" onclick="event.stopPropagation();deleteFav(\''+f.id+'\')" title="Eliminar">&#10005;</span></span>';
-  }).join('');
-  bar.innerHTML='<div class="fav-head"><span class="fav-title">&#9733; Mis plantillas</span>'+
-    '<div class="fav-actions">'+
-      '<button class="fav-add" onclick="document.getElementById(\'fav-xls\').click()" title="Importar asesores desde un Excel (mismas columnas que la plantilla de Masivo)">&#8593; Importar Excel</button>'+
-      '<button class="fav-add primary" onclick="saveFav()">+ Guardar actual</button>'+
-    '</div></div>'+
-    '<input type="file" id="fav-xls" accept=".xlsx,.xls" style="display:none" onchange="importFavsExcel(this)">'+
-    '<div class="fav-chips">'+(chips||'<span class="fav-empty">Guard&aacute; la combinaci&oacute;n actual (empresa, asesor, config, legal) o import&aacute; un Excel de asesores. Después tocás una plantilla y se autocompleta.</span>')+'</div>';
+function delAsesor(id,slot){
+  var a=_asesores.find(function(x){return x.id===id;});if(!a)return;
+  if(!confirm('¿Eliminar el asesor guardado "'+(a.name||a.nombre)+'"?'))return;
+  _asesores=_asesores.filter(function(x){return x.id!==id;});
+  _saveAsesores();
+  var list=document.querySelector('#as-pop .as-list');
+  if(list)list.innerHTML=_asListHtml(slot); // refresca sin cerrar
+  showToast('Asesor eliminado');
 }
-function _cfgIdx(name){
-  var n=(name||'').toString().toLowerCase().trim();
-  if(n==='config 1'||n==='1')return 1;
-  if(n==='config 2'||n==='2')return 2;
-  if(n==='config 3'||n==='3')return 3;
-  if(n==='config 4'||n==='4')return 4;
-  return 0;
-}
-// Importa un Excel de asesores (mismas columnas que la plantilla de Masivo) y crea
-// una plantilla por fila. Solo ADMIN/VIP (el botón solo existe si _initFavsUI corrió).
-function importFavsExcel(input){
+function importAsesores(input){
   var file=input&&input.files&&input.files[0];if(!file)return;input.value='';
   var reader=new FileReader();
   reader.onload=function(e){
@@ -206,42 +235,16 @@ function importFavsExcel(input){
       var added=0;
       rows.forEach(function(r){
         function g(keys){for(var i=0;i<keys.length;i++){var v=r[keys[i]];if(v!=null&&String(v).trim()!=='')return String(v).trim();}return '';}
-        var empresa=g(['empresa','Empresa']);
-        var nombre=g(['asesor1_nombre','nombre','Nombre']);
-        var celular=g(['asesor1_celular','celular','Celular']);
-        var email=g(['asesor1_email','email','Email']);
-        var nombre2=g(['asesor2_nombre']);
-        var celular2=g(['asesor2_celular']);
-        var email2=g(['asesor2_email']);
-        if(!empresa&&!nombre)return; // fila vacía
-        _favs.unshift({id:'f'+Date.now()+Math.random().toString(36).slice(2,5),name:(nombre||empresa||'Sin nombre'),data:{
-          empresa:empresa,nombre:nombre,celular:celular,email:email,
-          nombre2:nombre2,celular2:celular2,email2:email2,legal:'',filename:'',
-          ac:_cfgIdx(g(['config','Config'])),a1:!!nombre,a2:!!nombre2
-        }});
-        added++;
+        var n1=g(['asesor1_nombre','nombre','Nombre']);
+        if(n1){_asesores.unshift({id:'a'+Date.now()+Math.random().toString(36).slice(2,5),name:n1,nombre:n1,celular:g(['asesor1_celular','celular','Celular']),email:g(['asesor1_email','email','Email'])});added++;}
+        var n2=g(['asesor2_nombre']);
+        if(n2){_asesores.unshift({id:'a'+Date.now()+Math.random().toString(36).slice(2,5)+'b',name:n2,nombre:n2,celular:g(['asesor2_celular']),email:g(['asesor2_email'])});added++;}
       });
-      _saveFavs();_renderFavs();
-      showToast(added?(added+' plantilla'+(added>1?'s':'')+' importada'+(added>1?'s':'')):'No se encontraron filas con datos');
-    }catch(err){showToast('No se pudo leer el Excel: '+(err&&err.message||err));console.error('importFavsExcel:',err);}
+      _saveAsesores();closeAsPop();
+      showToast(added?(added+' asesor'+(added>1?'es':'')+' importado'+(added>1?'s':'')):'No se encontraron asesores en el Excel');
+    }catch(err){showToast('No se pudo leer el Excel: '+(err&&err.message||err));console.error('importAsesores:',err);}
   };
   reader.readAsBinaryString(file);
-}
-function saveFav(){
-  var name=prompt('Nombre de la plantilla:','');
-  if(name===null)return;name=(name||'').trim();if(!name){showToast('Poné un nombre');return;}
-  _favs.unshift({id:'f'+Date.now()+Math.random().toString(36).slice(2,5),name:name,data:_favCapture()});
-  _saveFavs();_renderFavs();showToast('Plantilla "'+name+'" guardada');
-}
-function applyFav(id){
-  var f=_favs.find(function(x){return x.id===id;});if(!f)return;
-  _favApply(f.data);showToast('Plantilla "'+f.name+'" cargada');
-}
-function deleteFav(id){
-  var f=_favs.find(function(x){return x.id===id;});if(!f)return;
-  if(!confirm('¿Eliminar la plantilla "'+f.name+'"?'))return;
-  _favs=_favs.filter(function(x){return x.id!==id;});
-  _saveFavs();_renderFavs();showToast('Plantilla eliminada');
 }
 
 // Devuelve el badge HTML del rol (admin / vip / asesor).
@@ -392,7 +395,7 @@ function checkProfile(user){
     var _ddNotes=document.getElementById('hdr-dd-notes');if(_ddNotes)_ddNotes.style.display=_canNotes?'flex':'none';
     var _ddName=document.getElementById('hdr-dd-name');if(_ddName)_ddName.textContent=_myName;
     var _ddRole=document.getElementById('hdr-dd-role');if(_ddRole)_ddRole.innerHTML=_roleBadge(p.role);
-    if(_canNotes)_initFavsUI();
+    if(_canNotes)_initAsesoresUI();
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});

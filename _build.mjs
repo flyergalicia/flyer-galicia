@@ -337,7 +337,11 @@ const notesModal = `<div id="notes-modal">
         <input type="text" id="note-title" class="login-inp note-title-inp" placeholder="T&iacute;tulo de la nota" oninput="_noteEdit(true)">
         <textarea id="note-body" class="login-inp note-body-inp" placeholder="Escrib&iacute; ac&aacute; legales, datos fijos o recordatorios..." oninput="_noteEdit(false)"></textarea>
         <div class="notes-foot">
-          <span id="notes-status" class="mp-ok" style="padding:0"></span>
+          <div class="notes-foot-left">
+            <button class="usr-btn note-move" onclick="moveNote(-1)" title="Subir esta nota">&#8593;</button>
+            <button class="usr-btn note-move" onclick="moveNote(1)" title="Bajar esta nota">&#8595;</button>
+            <span id="notes-status" class="mp-ok" style="padding:0"></span>
+          </div>
           <div style="display:flex;gap:8px">
             <button class="usr-btn warn" onclick="deleteNote()">&#128465; Eliminar</button>
             <button class="usr-btn edit" onclick="copyNotes()">&#128203; Copiar</button>
