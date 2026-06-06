@@ -399,9 +399,13 @@ function checkProfile(user){
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});
-    if(p.nombre_asesor)document.getElementById('nombre').value=p.nombre_asesor;
-    if(p.celular_asesor)document.getElementById('celular').value=p.celular_asesor;
-    if(p.email_asesor)document.getElementById('email').value=p.email_asesor;
+    // Default vacío: si el usuario no tiene datos guardados, NO mostramos el
+    // ejemplo del template (Julieta). Cada uno carga lo suyo o usa "asesores guardados".
+    var _eN=document.getElementById('nombre');if(_eN)_eN.value=p.nombre_asesor||'';
+    var _eC=document.getElementById('celular');if(_eC)_eC.value=p.celular_asesor||'';
+    var _eE=document.getElementById('email');if(_eE)_eE.value=p.email_asesor||'';
+    if(typeof updateFnPreview==='function')updateFnPreview();
+    if(typeof redraw==='function')redraw();
     document.getElementById('hdr-user').textContent=_myName;
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
     if(_admin)_refreshPendingBadge();
