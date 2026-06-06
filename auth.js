@@ -30,7 +30,9 @@ function _applyTheme(t){
   var dark=(t==='dark');
   document.documentElement.classList.toggle('dark',dark);
   var btn=document.getElementById('hdr-dd-theme');
-  if(btn)btn.innerHTML=dark?'&#9728;&#65039; Modo claro':'&#9790; Modo oscuro';
+  if(btn)btn.innerHTML=dark
+    ?'<span class="dd-ico">&#9728;&#65039;</span><span>Modo claro</span>'
+    :'<span class="dd-ico">&#9790;</span><span>Modo oscuro</span>';
 }
 function _initTheme(){
   var t='light';
@@ -60,29 +62,138 @@ function _closeUserMenuOutside(e){
   if(menu&&!menu.contains(e.target))closeUserMenu();
 }
 
-// ── BLOC DE NOTAS (solo ADMIN y VIP) ─────────────────────────────────────────────
-// Se guarda en localStorage por cuenta (clave fg_notes_<userId>). Persiste en este
-// navegador; no viaja entre dispositivos (si se necesita, se migra a Supabase).
+function _escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── BLOC DE NOTAS MÚLTIPLE (solo ADMIN y VIP) ─────────────────────────────────────
+// Varias notas por usuario, con crear/eliminar. Se guardan en localStorage por
+// cuenta (fg_notes_<userId>) como JSON; persisten en este navegador (no cross-device).
 function _notesKey(){return 'fg_notes_'+(_me?_me.id:'anon');}
+var _notes=[],_noteActive=null,_notesTid=null;
+function _loadNotes(){
+  try{_notes=JSON.parse(localStorage.getItem(_notesKey())||'[]');}catch(e){_notes=[];}
+  if(!Array.isArray(_notes))_notes=[];
+}
+function _saveNotes(){try{localStorage.setItem(_notesKey(),JSON.stringify(_notes));}catch(e){}}
+function _noteId(){return 'n'+Date.now()+Math.random().toString(36).slice(2,6);}
 function openNotes(){
   if(!_canNotes)return;
-  var ta=document.getElementById('notes-text');if(!ta)return;
-  try{ta.value=localStorage.getItem(_notesKey())||'';}catch(e){ta.value='';}
-  var st=document.getElementById('notes-status');if(st)st.textContent='';
+  _loadNotes();
+  if(!_notes.length)_notes.push({id:_noteId(),title:'Nota 1',body:'',updated:Date.now()});
+  _noteActive=_notes[0].id;
+  _renderNotesList();_renderNoteEditor();
   document.getElementById('notes-modal').style.display='flex';
-  setTimeout(function(){ta.focus();},100);
 }
 function closeNotes(){document.getElementById('notes-modal').style.display='none';}
-var _notesTid=null;
-function _notesAutosave(){
-  var ta=document.getElementById('notes-text');if(!ta)return;
-  try{localStorage.setItem(_notesKey(),ta.value);}catch(e){}
+function _renderNotesList(){
+  var list=document.getElementById('notes-list');if(!list)return;
+  list.innerHTML=_notes.map(function(n){
+    return '<button class="note-item'+(n.id===_noteActive?' active':'')+'" onclick="selectNote(\''+n.id+'\')">'+
+      (_escHtml(n.title)||'Sin t&iacute;tulo')+'</button>';
+  }).join('');
+}
+function _renderNoteEditor(){
+  var n=_notes.find(function(x){return x.id===_noteActive;});
+  var t=document.getElementById('note-title'),b=document.getElementById('note-body');
+  if(t)t.value=n?n.title:'';
+  if(b)b.value=n?n.body:'';
+  var st=document.getElementById('notes-status');if(st)st.textContent='';
+}
+function selectNote(id){_noteActive=id;_renderNotesList();_renderNoteEditor();}
+function newNote(){
+  var n={id:_noteId(),title:'Nota '+(_notes.length+1),body:'',updated:Date.now()};
+  _notes.unshift(n);_noteActive=n.id;_saveNotes();_renderNotesList();_renderNoteEditor();
+  var t=document.getElementById('note-title');if(t){t.focus();t.select();}
+}
+function deleteNote(){
+  var n=_notes.find(function(x){return x.id===_noteActive;});if(!n)return;
+  if(!confirm('¿Eliminar la nota "'+(n.title||'Sin título')+'"?\n\nEsta acción no se puede deshacer.'))return;
+  _notes=_notes.filter(function(x){return x.id!==_noteActive;});
+  if(!_notes.length)_notes.push({id:_noteId(),title:'Nota 1',body:'',updated:Date.now()});
+  _noteActive=_notes[0].id;_saveNotes();_renderNotesList();_renderNoteEditor();
+  showToast('Nota eliminada');
+}
+function _noteEdit(titleChanged){
+  var n=_notes.find(function(x){return x.id===_noteActive;});if(!n)return;
+  var t=document.getElementById('note-title'),b=document.getElementById('note-body');
+  n.title=t?t.value:n.title;n.body=b?b.value:n.body;n.updated=Date.now();
+  _saveNotes();
+  if(titleChanged)_renderNotesList();
   var st=document.getElementById('notes-status');
   if(st){st.textContent='Guardado ✓';clearTimeout(_notesTid);_notesTid=setTimeout(function(){st.textContent='';},1500);}
 }
 function copyNotes(){
-  var ta=document.getElementById('notes-text');if(!ta)return;
-  navigator.clipboard.writeText(ta.value).then(function(){showToast('Notas copiadas');});
+  var b=document.getElementById('note-body');if(!b)return;
+  navigator.clipboard.writeText(b.value).then(function(){showToast('Nota copiada');});
+}
+
+// ── FAVORITOS / PLANTILLAS (solo ADMIN por ahora) ─────────────────────────────────
+// Guarda la combinación actual del armador (empresa, asesores, config, legal, nombre
+// de archivo) y la recarga de un clic. Vive en auth.js y lee/escribe los IDs estables
+// del formulario, así sobrevive a la regeneración de _source.html.
+function _favKey(){return 'fg_favs_'+(_me?_me.id:'anon');}
+var _favs=[];
+function _loadFavs(){
+  try{_favs=JSON.parse(localStorage.getItem(_favKey())||'[]');}catch(e){_favs=[];}
+  if(!Array.isArray(_favs))_favs=[];
+}
+function _saveFavs(){try{localStorage.setItem(_favKey(),JSON.stringify(_favs));}catch(e){}}
+function _favCapture(){
+  function gv(id){var el=document.getElementById(id);return el?el.value:'';}
+  return {
+    empresa:gv('empresa'),nombre:gv('nombre'),celular:gv('celular'),email:gv('email'),
+    nombre2:gv('nombre2'),celular2:gv('celular2'),email2:gv('email2'),
+    legal:gv('legal-text'),filename:gv('filename'),
+    ac:(typeof window.ac!=='undefined'?window.ac:0),
+    a1:!!window.a1,a2:!!window.a2
+  };
+}
+function _favApply(f){
+  function sv(id,val){var el=document.getElementById(id);if(el)el.value=(val||'');}
+  sv('empresa',f.empresa);sv('nombre',f.nombre);sv('celular',f.celular);sv('email',f.email);
+  sv('nombre2',f.nombre2);sv('celular2',f.celular2);sv('email2',f.email2);
+  sv('legal-text',f.legal);if(f.filename)sv('filename',f.filename);
+  if(typeof toggleA1==='function'&&typeof window.a1!=='undefined'&&!!window.a1!==!!f.a1)toggleA1();
+  if(typeof toggleA2==='function'&&typeof window.a2!=='undefined'&&!!window.a2!==!!f.a2)toggleA2();
+  if(typeof setCfg==='function')setCfg(f.ac||0);
+  if(typeof updateFnPreview==='function')updateFnPreview();
+  if(typeof redraw==='function')redraw();
+}
+function _initFavsUI(){
+  if(!_admin)return;
+  var tab=document.getElementById('tab-individual');if(!tab)return;
+  if(document.getElementById('fav-bar'))return; // ya inyectado
+  _loadFavs();
+  var bar=document.createElement('div');
+  bar.id='fav-bar';bar.className='fav-bar';
+  tab.insertBefore(bar,tab.firstChild);
+  _renderFavs();
+}
+function _renderFavs(){
+  var bar=document.getElementById('fav-bar');if(!bar)return;
+  var chips=_favs.map(function(f){
+    return '<span class="fav-chip" onclick="applyFav(\''+f.id+'\')" title="Cargar esta plantilla">'+
+      '<span class="fav-star">&#9733;</span>'+_escHtml(f.name)+
+      '<span class="fav-del" onclick="event.stopPropagation();deleteFav(\''+f.id+'\')" title="Eliminar">&#10005;</span></span>';
+  }).join('');
+  bar.innerHTML='<div class="fav-head"><span class="fav-title">&#9733; Mis plantillas</span>'+
+    '<button class="fav-add" onclick="saveFav()">+ Guardar actual</button></div>'+
+    '<div class="fav-chips">'+(chips||'<span class="fav-empty">Guard&aacute; la combinaci&oacute;n actual (empresa, asesor, config, legal) para reusarla de un clic.</span>')+'</div>';
+}
+function saveFav(){
+  var name=prompt('Nombre de la plantilla:','');
+  if(name===null)return;name=(name||'').trim();if(!name){showToast('Poné un nombre');return;}
+  _favs.unshift({id:'f'+Date.now()+Math.random().toString(36).slice(2,5),name:name,data:_favCapture()});
+  _saveFavs();_renderFavs();showToast('Plantilla "'+name+'" guardada');
+}
+function applyFav(id){
+  var f=_favs.find(function(x){return x.id===id;});if(!f)return;
+  _favApply(f.data);showToast('Plantilla "'+f.name+'" cargada');
+}
+function deleteFav(id){
+  var f=_favs.find(function(x){return x.id===id;});if(!f)return;
+  if(!confirm('¿Eliminar la plantilla "'+f.name+'"?'))return;
+  _favs=_favs.filter(function(x){return x.id!==id;});
+  _saveFavs();_renderFavs();showToast('Plantilla eliminada');
 }
 
 // Devuelve el badge HTML del rol (admin / vip / asesor).
@@ -231,6 +342,9 @@ function checkProfile(user){
     // "Bloc de notas" solo para admin y VIP.
     var _ddPass=document.getElementById('hdr-dd-pass');if(_ddPass)_ddPass.style.display=_admin?'none':'flex';
     var _ddNotes=document.getElementById('hdr-dd-notes');if(_ddNotes)_ddNotes.style.display=_canNotes?'flex':'none';
+    var _ddName=document.getElementById('hdr-dd-name');if(_ddName)_ddName.textContent=_myName;
+    var _ddRole=document.getElementById('hdr-dd-role');if(_ddRole)_ddRole.innerHTML=_roleBadge(p.role);
+    if(_admin)_initFavsUI();
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});

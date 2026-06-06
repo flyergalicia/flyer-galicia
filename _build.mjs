@@ -53,11 +53,13 @@ html = html.replace(
   '<div class="hdr-user-menu">' +
     '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
     '<div class="hdr-dropdown" id="hdr-dropdown">' +
-      '<button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()">&#128273; Cambiar mi clave</button>' +
-      '<button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()">&#9790; Modo oscuro</button>' +
-      '<button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none">&#128221; Bloc de notas</button>' +
+      '<div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div>' +
       '<div class="hdr-dd-sep"></div>' +
-      '<button class="hdr-dd-item danger" onclick="doLogout()">&#9099; Salir</button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><span class="dd-ico">&#128273;</span><span>Cambiar mi clave</span></button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><span class="dd-ico">&#9790;</span><span>Modo oscuro</span></button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><span class="dd-ico">&#128221;</span><span>Bloc de notas</span></button>' +
+      '<div class="hdr-dd-sep"></div>' +
+      '<button class="hdr-dd-item danger" onclick="doLogout()"><span class="dd-ico">&#9099;</span><span>Salir</span></button>' +
     '</div>' +
   '</div>' +
   '<button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button>' +
@@ -313,20 +315,26 @@ const passModal = `<div id="pass-modal">
 </div>`;
 
 const notesModal = `<div id="notes-modal">
-  <div class="um-card" style="width:520px">
+  <div class="um-card notes-card">
     <div class="um-header">
       <h3>&#128221; Bloc de notas</h3>
       <button class="ap-close" onclick="closeNotes()">&#10005;</button>
     </div>
-    <div class="um-body">
-      <p style="font-size:.74rem;color:var(--gray);margin-bottom:8px">Guard&aacute; ac&aacute; legales, datos fijos o recordatorios. Se guarda autom&aacute;ticamente en este navegador.</p>
-      <textarea id="notes-text" class="login-inp" style="min-height:240px;resize:vertical;font-family:inherit;margin-bottom:0" placeholder="Escrib&iacute; tus notas ac&aacute;..." oninput="_notesAutosave()"></textarea>
-    </div>
-    <div class="um-footer" style="justify-content:space-between">
-      <span id="notes-status" class="mp-ok" style="padding:0"></span>
-      <div style="display:flex;gap:10px">
-        <button class="btn-cancel" onclick="copyNotes()">&#128203; Copiar todo</button>
-        <button class="btn-submit" onclick="closeNotes()">Listo</button>
+    <div class="notes-body">
+      <div class="notes-side">
+        <button class="notes-new" onclick="newNote()">+ Nueva nota</button>
+        <div id="notes-list"></div>
+      </div>
+      <div class="notes-main">
+        <input type="text" id="note-title" class="login-inp note-title-inp" placeholder="T&iacute;tulo de la nota" oninput="_noteEdit(true)">
+        <textarea id="note-body" class="login-inp note-body-inp" placeholder="Escrib&iacute; ac&aacute; legales, datos fijos o recordatorios..." oninput="_noteEdit(false)"></textarea>
+        <div class="notes-foot">
+          <span id="notes-status" class="mp-ok" style="padding:0"></span>
+          <div style="display:flex;gap:8px">
+            <button class="usr-btn warn" onclick="deleteNote()">&#128465; Eliminar</button>
+            <button class="usr-btn edit" onclick="copyNotes()">&#128203; Copiar</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -240,6 +240,42 @@ html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1
 .hdr-dd-item.danger{color:var(--red);}
 .hdr-dd-item.danger:hover{background:#fff0f0;}
 .hdr-dd-sep{height:1px;background:var(--border);margin:5px 8px;}
+.hdr-dd-item .dd-ico{width:20px;text-align:center;flex-shrink:0;font-size:.9rem;line-height:1;}
+.hdr-dd-head{padding:9px 11px 6px;}
+.hdr-dd-name{font-family:"Syne",sans-serif;font-size:.82rem;font-weight:800;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
 html.dark .hdr-dropdown{background:#22262c;border-color:#333840;}
 html.dark .hdr-dd-item:hover{background:#2a2f36;}
 html.dark .hdr-dd-item.danger:hover{background:#3a2326;}
+/* ===== BLOC DE NOTAS (multi) ===== */
+.notes-card{width:680px;max-width:96vw;}
+.notes-body{display:flex;height:430px;max-height:72vh;}
+.notes-side{width:200px;border-right:1.5px solid var(--border);padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;flex-shrink:0;}
+.notes-new{width:100%;padding:8px;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:"Syne",sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;}
+.notes-new:hover{background:#c0000f;}
+.note-item{width:100%;text-align:left;background:none;border:1.5px solid transparent;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:"DM Sans",sans-serif;font-size:.78rem;color:var(--dark);transition:all .12s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.note-item:hover{background:var(--light);}
+.note-item.active{background:var(--light);border-color:var(--red);font-weight:700;}
+.notes-main{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.note-title-inp{margin-bottom:0 !important;font-weight:700;}
+.note-body-inp{flex:1;resize:none;margin-bottom:0 !important;font-family:inherit;line-height:1.5;}
+.notes-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+html.dark .notes-side{border-color:#333840;}
+html.dark .note-item:hover,html.dark .note-item.active{background:#2a2f36;}
+/* ===== FAVORITOS / PLANTILLAS ===== */
+.fav-bar{background:var(--light);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;}
+.fav-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
+.fav-title{font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#b8860b;}
+.fav-add{background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;font-family:"Syne",sans-serif;font-size:.64rem;font-weight:700;cursor:pointer;color:var(--dark);transition:all .15s;white-space:nowrap;}
+.fav-add:hover{border-color:var(--red);color:var(--red);}
+.fav-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.fav-chip{display:inline-flex;align-items:center;gap:5px;background:#fdf0d5;color:#7a5800;border-radius:20px;padding:4px 7px 4px 10px;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s;}
+.fav-chip:hover{background:#fae3b0;}
+.fav-star{color:#d4a017;}
+.fav-del{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,0.08);font-size:.58rem;color:#7a5800;transition:all .15s;}
+.fav-del:hover{background:var(--red);color:#fff;}
+.fav-empty{font-size:.72rem;color:var(--gray);}
+html.dark .fav-bar{background:#1b1e23;border-color:#333840;}
+html.dark .fav-add{background:#22262c;color:#e9eaec;}
+html.dark .fav-chip{background:#3a3020;color:#e8c87a;}
+html.dark .fav-chip:hover{background:#4a3e28;}
+html.dark .fav-del{background:rgba(255,255,255,0.12);color:#e8c87a;}
