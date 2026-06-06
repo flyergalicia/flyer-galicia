@@ -381,9 +381,48 @@ function toggleTheme(){
   _applyTheme(next);
 }
 
+// ── PARSER DE EXCEL ROBUSTO (override) ──────────────────────────────────────────
+// La función loadExcel se define inline en _source.html, que se regenera seguido.
+// Acá la pisamos (desde initApp, una vez cargado el HTML) por una versión que
+// tolera celdas numéricas (celulares como número, config "1") y filas vacías:
+// el bug original llamaba .trim()/.toLowerCase() sobre números → se trababa.
+// Saneamos TODO a texto, así las funciones del HTML (validateExcel/genAll) no
+// crashean aunque se regeneren con el bug. Vive en auth.js para no perderse.
+function _robustLoadExcel(input){
+  var file=input&&input.files&&input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'binary'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      // raw:false → XLSX formatea números/fechas como texto visible
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+      var clean=[];
+      rows.forEach(function(r){
+        var o={},hasVal=false;
+        for(var k in r){
+          if(!r.hasOwnProperty(k))continue;
+          var val=(r[k]==null?'':String(r[k])).trim();
+          o[k]=val;if(val)hasVal=true;
+        }
+        if(hasVal)clean.push(o); // descarta filas totalmente vacías
+      });
+      window.excelData=clean;
+      if(typeof validateExcel==='function')validateExcel(clean);
+      else if(!clean.length&&typeof showToast==='function')showToast('El Excel no tiene filas con datos.');
+    }catch(err){
+      if(typeof showToast==='function')showToast('No se pudo leer el Excel: '+(err&&err.message||err));
+      console.error('loadExcel error:',err);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function initApp(){
   _initTheme();
+  // Pisa loadExcel del HTML por la versión robusta (ver _robustLoadExcel).
+  window.loadExcel=_robustLoadExcel;
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
