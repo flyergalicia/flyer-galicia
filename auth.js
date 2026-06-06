@@ -399,11 +399,11 @@ function checkProfile(user){
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});
-    // Default vacío: si el usuario no tiene datos guardados, NO mostramos el
-    // ejemplo del template (Julieta). Cada uno carga lo suyo o usa "asesores guardados".
-    var _eN=document.getElementById('nombre');if(_eN)_eN.value=p.nombre_asesor||'';
-    var _eC=document.getElementById('celular');if(_eC)_eC.value=p.celular_asesor||'';
-    var _eE=document.getElementById('email');if(_eE)_eE.value=p.email_asesor||'';
+    // Default vacío + placeholders (como Asesor 2): NO mostramos el ejemplo del
+    // template (Julieta) ni el mail. Cada uno carga lo suyo o usa "asesores guardados".
+    var _eN=document.getElementById('nombre');if(_eN){_eN.value=p.nombre_asesor||'';_eN.placeholder='Nombre Asesor 1';}
+    var _eC=document.getElementById('celular');if(_eC){_eC.value=p.celular_asesor||'';_eC.placeholder='11 XXXX XXXX';}
+    var _eE=document.getElementById('email');if(_eE){_eE.value='';_eE.placeholder='mail@bancogalicia.com.ar';}
     if(typeof updateFnPreview==='function')updateFnPreview();
     if(typeof redraw==='function')redraw();
     document.getElementById('hdr-user').textContent=_myName;
