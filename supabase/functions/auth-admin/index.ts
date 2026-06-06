@@ -113,6 +113,21 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true });
     }
 
+    if (action === "delete_user") {
+      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const uid = String(body.uid || "");
+      if (!uid) return json({ error: "Datos inválidos" }, 400);
+      // No permitir que un admin se elimine a sí mismo.
+      const reqToken = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      const { data: me } = await admin.auth.getUser(reqToken);
+      if (me?.user?.id === uid) return json({ error: "No podés eliminar tu propia cuenta." }, 400);
+      // Borrar el perfil primero; los flyer_logs quedan con user_id NULL (FK SET NULL).
+      await admin.from("profiles").delete().eq("id", uid);
+      const { error } = await admin.auth.admin.deleteUser(uid);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     return json({ error: "Acción desconocida" }, 400);
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);

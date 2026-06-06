@@ -3,6 +3,13 @@ import { readFileSync, writeFileSync } from 'fs';
 let html = readFileSync('_source.html', 'utf8');
 const newCSS = readFileSync('_newcss.txt', 'utf8');
 
+// ── LOGO GALICIA (SVG inline, self-contained) ──────────────────────────────
+const swordPaths = '<circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/>';
+// Isotipo para header (D granate, espada blanca)
+const headerIso = '<svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff">' + swordPaths + '</g></svg>';
+// Logo completo para login (D blanca + espada granate + wordmark)
+const galiciaLogoWhite = '<div class="lg-logo"><svg class="lg-iso" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#fff"/><g fill="#A6273B">' + swordPaths + '</g></svg><span class="lg-word">Galicia</span></div>';
+
 // ── CSS FIXES ──────────────────────────────────────────────────────────────
 html = html.replace(
   'body{font-family:"DM Sans",sans-serif;background:var(--light);color:var(--dark);min-height:100vh;}',
@@ -25,6 +32,9 @@ html = html.replace(
   '.prev{padding:16px;display:flex;flex-direction:column;align-items:center;overflow:auto;background:#e8e8e3;height:100%;}'
 );
 html = html.replace('</style>', newCSS + '</style>');
+
+// ── LOGO HEADER (reemplaza el <img> por isotipo SVG) ───────────────────────
+html = html.replace(/<img src="data:image[^"]*" alt="Galicia" class="header-logo">/, headerIso);
 
 // ── SDK SUPABASE + auth.js EXTERNO ─────────────────────────────────────────
 html = html.replace(
@@ -130,9 +140,9 @@ const adminPanel = `<div id="admin-panel">
         <div class="stat-card" style="border-color:#f5c542"><span style="color:#c07000">Pendientes aprobaci&oacute;n</span><strong id="stat-pending" style="color:#c07000">&mdash;</strong></div>
       </div>
       <p class="ap-sec" style="margin-top:20px">&Uacute;ltimos accesos</p>
-      <div id="recent-logins"><p style="color:var(--gray);font-size:.8rem">Cargando...</p></div>
+      <div id="recent-logins"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></div>
       <p class="ap-sec" style="margin-top:20px">Flyers recientes &mdash; qui&eacute;n gener&oacute; cada uno</p>
-      <div id="recent-flyers"><p style="color:var(--gray);font-size:.8rem">Cargando...</p></div>
+      <div id="recent-flyers"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></div>
     </div>
 
     <div id="at-usuarios" style="display:none">
@@ -149,7 +159,7 @@ const adminPanel = `<div id="admin-panel">
           <option value="pending">Pendientes</option>
         </select>
       </div>
-      <div id="users-list"><p style="color:var(--gray);font-size:.8rem">Cargando...</p></div>
+      <div id="users-list"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></div>
     </div>
 
     <div id="at-subir" style="display:none">
@@ -262,7 +272,8 @@ const userModal = `<div id="user-modal">
 
 const toastEl = `<div id="toast"></div>`;
 
-html = html.replace('</body>', adminPanel + '\n' + userModal + '\n' + toastEl + '\n</body>');
+const adminBackdrop = `<div id="admin-backdrop" onclick="closeAdminPanel()"></div>`;
+html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + toastEl + '\n</body>');
 
 // ── ZOOM TOOLBAR EN EL PREVIEW ───────────────────────────────────────────────
 html = html.replace(

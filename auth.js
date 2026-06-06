@@ -178,8 +178,20 @@ function doLogin(){
 function doLogout(){_sb.auth.signOut().then(function(){location.reload();});}
 
 // ── PANEL ADMIN ───────────────────────────────────────────────────────────────
-function openAdminPanel(){document.getElementById('admin-panel').style.display='flex';loadStats();}
-function closeAdminPanel(){document.getElementById('admin-panel').style.display='none';}
+function openAdminPanel(){
+  var p=document.getElementById('admin-panel'),b=document.getElementById('admin-backdrop');
+  if(b){b.style.display='block';requestAnimationFrame(function(){b.classList.add('show');});}
+  p.style.display='flex';
+  requestAnimationFrame(function(){p.classList.add('open');});
+  loadStats();
+}
+function closeAdminPanel(){
+  var p=document.getElementById('admin-panel'),b=document.getElementById('admin-backdrop');
+  p.classList.remove('open');
+  if(b)b.classList.remove('show');
+  setTimeout(function(){p.style.display='none';if(b)b.style.display='none';},320);
+}
+function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel-row"></div>';return s;}
 
 function switchAdminTab(el,t){
   ['dashboard','usuarios','subir','registros'].forEach(function(tab){
@@ -229,7 +241,7 @@ function loadStats(){
 
 // ── USUARIOS ──────────────────────────────────────────────────────────────────
 function loadUsers(){
-  document.getElementById('users-list').innerHTML='<p style="color:var(--gray);font-size:.8rem">Cargando...</p>';
+  document.getElementById('users-list').innerHTML=skelRows(4);
   _sb.from('profiles').select('*').order('created_at',{ascending:false}).then(function(r){
     _allUsers=r.data||[];
     filterUsers();
@@ -272,12 +284,14 @@ function filterUsers(){
         '<button class="usr-btn edit" onclick="openEditUser(\''+u.id+'\')">Editar</button>';
     }
     var rowStyle=(isPend||isReset)?' style="border-color:#f5c542"':'';
+    var nameEsc=(u.full_name||mail||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    var delBtn=(_me&&u.id===_me.id)?'':'<button class="usr-btn danger" onclick="deleteUser(this,\''+u.id+'\',\''+nameEsc+'\')" title="Eliminar usuario definitivamente">&#128465;</button>';
     return '<div class="usr-row"'+rowStyle+'>'+
       '<div class="usr-avatar" style="background:'+col+'">'+ini+'</div>'+
       '<div class="usr-info"><strong>'+(u.full_name||mail||'Sin nombre')+'</strong>'+
       '<small>'+mail+' &nbsp;&middot;&nbsp; &Uacute;lt. acceso: '+lastLogin+'</small></div>'+
       '<div class="usr-badges">'+roleB+statusB+'</div>'+
-      '<div class="usr-btns">'+actionBtns+'</div></div>';
+      '<div class="usr-btns">'+actionBtns+delBtn+'</div></div>';
   }).join('');
 }
 
@@ -285,6 +299,16 @@ function setUStatus(btn,uid,status){
   btn.disabled=true;
   _sb.from('profiles').update({status:status}).eq('id',uid).then(function(){
     loadUsers();loadStats();showToast(status==='active'?'Usuario activado':'Usuario desactivado');
+  });
+}
+
+function deleteUser(btn,uid,name){
+  if(!confirm('¿Eliminar definitivamente a '+(name||'este usuario')+'?\n\nSe borrará su cuenta de acceso y su perfil. Esta acción no se puede deshacer.'))return;
+  btn.disabled=true;var _h=btn.innerHTML;btn.innerHTML='…';
+  _callFn('delete_user',{uid:uid},function(err){
+    if(err){btn.disabled=false;btn.innerHTML=_h;showToast('Error: '+err);return;}
+    showToast('Usuario eliminado');
+    loadUsers();loadStats();
   });
 }
 
@@ -435,7 +459,7 @@ function downloadUploaded(){
 
 function loadUploadHistory(){
   var histEl=document.getElementById('upload-history');if(!histEl)return;
-  histEl.innerHTML='<p style="color:var(--gray);font-size:.8rem">Cargando...</p>';
+  histEl.innerHTML=skelRows(2);
   // Leer _active.json completo para tener htmlUrl para el botón Ver
   fetch(FLYERS_PUBLIC+'_active.json?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
@@ -597,7 +621,7 @@ function _loadProfileMap(cb){
 function loadRegistros(){
   var container=document.getElementById('registros-list');
   if(!container)return;
-  container.innerHTML='<p style="color:var(--gray);font-size:.8rem">Cargando...</p>';
+  container.innerHTML=skelRows(4);
   var qemp=(document.getElementById('reg-q-empresa')||{}).value||'';
   var qusr=(document.getElementById('reg-q-user')||{}).value||'';
   var qfrom=(document.getElementById('reg-q-from')||{}).value||'';

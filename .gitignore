@@ -4,3 +4,8 @@ deploy_new.zip
 _authjs.txt
 node_modules/
 *.log
+_backup_*/
+_backup_*.json
+_shot_*.png
+_preview_*.html
+_padmin_*.html
