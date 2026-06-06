@@ -529,6 +529,7 @@ function getVals(){
   var c=CONFIGS[ac];
   return{
     empresa: document.getElementById("empresa").value,
+    config: (typeof CNAMES!=="undefined"&&CNAMES[ac])?CNAMES[ac]:"",
     m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4,
     has1: a1,
     nombre:  document.getElementById("nombre").value,

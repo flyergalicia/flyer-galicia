@@ -804,7 +804,7 @@ function logFlyerToSupabase(v,fn,fmt){
   if(!_me)return;
   var extra={};
   if(v){
-    ['m1','m2','m3','m4','nombre','celular','email','nombre2','celular2','email2'].forEach(function(k){
+    ['config','nombre','celular','email','nombre2','celular2','email2'].forEach(function(k){
       if(v[k])extra[k]=v[k];
     });
   }
@@ -865,14 +865,14 @@ function loadRegistros(){
         var col=_avatarColor(row.user_id||'x');
         var fmtBadge=row.format?'<span class="badge badge-asesor" style="font-size:.58rem">'+row.format.toUpperCase()+'</span>':'';
         var ex={};try{if(row.flyer_type)ex=JSON.parse(row.flyer_type);}catch(e){}
-        var montos=[ex.m1,ex.m2,ex.m3,ex.m4].filter(Boolean);
-        var montosHtml=montos.length?'<div class="reg-montos">'+montos.map(function(m){return '<span class="reg-monto">'+m+'</span>';}).join('')+'</div>':'';
+        var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+ex.config+'</span>':'';
+        var cfgWrap=cfgHtml?'<div class="reg-montos">'+cfgHtml+'</div>':'';
         var asesorHtml=ex.nombre?'<div style="font-size:.68rem;color:#555;margin-top:3px"><b>Asesor:</b> '+ex.nombre+(ex.celular?' &middot; '+ex.celular:'')+(ex.email?' &middot; '+ex.email:'')+'</div>':'';
         return '<div class="reg-row">'+
           '<div class="usr-avatar sm" style="background:'+col+';flex-shrink:0">'+ini+'</div>'+
           '<div class="reg-info">'+
             '<div class="reg-top"><span class="reg-empresa">'+(row.empresa||'—')+'</span>'+fmtBadge+'</div>'+
-            montosHtml+
+            cfgWrap+
             asesorHtml+
             '<div class="reg-mid"><span class="reg-lbl">Generado por</span> '+nombre+'</div>'+
           '</div>'+
@@ -913,10 +913,7 @@ function exportRegistros(){
           'Fecha/Hora':row.created_at?new Date(row.created_at).toLocaleString('es-AR'):'',
           'Usuario':profileMap[row.user_id]||row.user_id||'',
           'Empresa':row.empresa||'',
-          'Cashback 1':ex.m1||'',
-          'Cashback 2':ex.m2||'',
-          'Cashback 3':ex.m3||'',
-          'Cashback 4':ex.m4||'',
+          'Configuración':ex.config||'',
           'Nombre Asesor 1':ex.nombre||'',
           'Cel Asesor 1':ex.celular||'',
           'Email Asesor 1':ex.email||'',
@@ -927,7 +924,7 @@ function exportRegistros(){
         };
       });
       var ws=XLSX.utils.json_to_sheet(rows);
-      ws['!cols']=[{wch:22},{wch:28},{wch:32},{wch:14},{wch:14},{wch:14},{wch:14},{wch:28},{wch:18},{wch:36},{wch:28},{wch:18},{wch:36},{wch:8}];
+      ws['!cols']=[{wch:22},{wch:28},{wch:32},{wch:14},{wch:28},{wch:18},{wch:36},{wch:28},{wch:18},{wch:36},{wch:8}];
       var wb=XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb,ws,'Registros');
       XLSX.writeFile(wb,'registros_flyers_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx');
@@ -1321,6 +1318,7 @@ function getVals(){
   var c=CONFIGS[ac];
   return{
     empresa: document.getElementById("empresa").value,
+    config: (typeof CNAMES!=="undefined"&&CNAMES[ac])?CNAMES[ac]:"",
     m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4,
     has1: a1,
     nombre:  document.getElementById("nombre").value,
