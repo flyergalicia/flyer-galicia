@@ -1607,38 +1607,11 @@ function _applyFlyerCfg(cfg){
 // vivo (usa el MISMO motor fgDrawAll = WYSIWYG) → cada flyer guarda su calibración
 // en _flyer_cfgs.json. Todo vive acá (durable, no se pierde al regenerar el HTML).
 var _FG_TARGET_W=1240;
-// Espacio (px base) que hay que dejar DEBAJO del contenido para que entren asesores+legales.
-// = distancia del bloque de asesores al borde inferior en la referencia + un respiro.
-function _fgFooterBand(){var d=FLYER_CFG_DEFAULT;return (d.imgH-d.contacto.ey)+60;}
-// Recorta el blanco sobrante del pie del PDF/imagen: detecta la última fila con contenido
-// y deja sólo el "footer band" para el pie. Sin esto, PDFs con margen blanco enorme mandan
-// asesores/legales al fondo del vacío (quedaba un espacio en blanco gigante).
-function _trimFlyerCanvas(cvs){
-  try{
-    var W=cvs.width,H=cvs.height,cx=cvs.getContext('2d');
-    var data=cx.getImageData(0,0,W,H).data,contentBottom=0;
-    for(var y=H-1;y>=0;y-=2){
-      var ink=0;
-      for(var x=20;x<W;x+=30){
-        var i=(y*W+x)*4,r=data[i],g=data[i+1],b=data[i+2];
-        var mx=Math.max(r,g,b),mn=Math.min(r,g,b);
-        if((mx-mn)>25||mx<210){ink++;if(ink>=5)break;}
-      }
-      if(ink>=5){contentBottom=y;break;}
-    }
-    if(!contentBottom)return cvs;
-    var Hp=Math.round(contentBottom+_fgFooterBand());
-    if(Hp>=H-8&&Hp<=H+8)return cvs; // ya venía justo => no toco
-    var out=document.createElement('canvas');out.width=W;out.height=Hp;
-    var ox=out.getContext('2d');ox.fillStyle='#fff';ox.fillRect(0,0,W,Hp);
-    ox.drawImage(cvs,0,0);
-    return out;
-  }catch(e){return cvs;}
-}
-// Recorta el blanco, exporta a JPG y entrega blob + canvas final.
+// Exporta a JPG sin recortar automático. El calibrador permite ajustar altura
+// manualmente (arrastrar borde de legales redimensiona la imagen). Esto evita
+// cortar contenido legítimo (PDFs con múltiples elementos en el pie).
 function _finishRaster(cvs,cb){
-  var t=_trimFlyerCanvas(cvs);
-  t.toBlob(function(b){cb(b,t);},'image/jpeg',0.92);
+  cvs.toBlob(function(b){cb(b,cvs);},'image/jpeg',0.92);
 }
 function _fgLoadPdfJs(cb){
   if(window.pdfjsLib&&window.pdfjsLib.getDocument){cb();return;}
@@ -1767,6 +1740,10 @@ function _calEnsureDom(){
         '<button class="ap-close" onclick="_calClose()">&#10005;</button></div>'+
       '<div class="cal-legend" id="cal-legend"></div>'+
       '<div class="cal-body"><canvas id="cal-cv"></canvas></div>'+
+      '<div style="padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.72rem;display:flex;gap:12px;align-items:center">'+
+        '<label>Altura final (px):</label><input id="cal-height" type="number" style="width:80px;padding:4px 6px" onchange="_calHeightChanged()">'+
+        '<span style="color:var(--gray)">(si el PDF tiene mucho blanco, achicá este valor)</span>'+
+      '</div>'+
       '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
     '</div>';
   document.body.appendChild(m);
@@ -1784,6 +1761,11 @@ function _calRenderLegend(){
   }).join('');
 }
 function _calSelect(id){if(!_cal)return;_cal.sel=id;_calRenderLegend();_calDraw();var s=document.getElementById('cal-sel');if(s)s.textContent='';}
+function _calHeightChanged(){
+  if(!_cal)return;
+  var h=parseInt(document.getElementById('cal-height').value);
+  if(h>0&&h!==_cal.cfg.imgH){_cal.cfg.imgH=h;_calDraw();}
+}
 // Rectángulos de cada zona en px BASE (imagen 1240×H). Bottom-anchored suman DBOT=H-imgH.
 function _calZoneRects(){
   var cfg=_cal.cfg,H=_cal.img.height,imgH=cfg.imgH||6457,DBOT=H-imgH;
@@ -1864,9 +1846,11 @@ function _calOpen(img,name,url){
   _cal={img:img,name:name,url:url,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
     ds:Math.min(560,(window.innerWidth||600)-70)/_FG_TARGET_W};
   document.getElementById('cal-modal').classList.add('show');
+  var hInput=document.getElementById('cal-height');if(hInput)hInput.value=img.height;
   _calRenderLegend();_calDraw();
   _loadFlyerCfgs(function(m){
     if(m&&m[name]){try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}}
+    var hInput=document.getElementById('cal-height');if(hInput)hInput.value=_cal.cfg.imgH;
     fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
       .then(function(d){if(_cal){_cal.legalText=(d&&d.text)||_CAL_SAMPLE_LEGAL;_calDraw();}});
   });
