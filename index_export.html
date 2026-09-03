@@ -1370,6 +1370,7 @@ function deactivateFlyer(btn){
 // regenerar el HTML.
 var FLYER_CFG_DEFAULT = {
   imgW:1240, imgH:6457, // dimensiones de referencia para las que están calibradas las coords
+  bottomMargin:45,      // px (base) de aire debajo del último contenido; el resto del blanco se recorta
   empresa:{xc:620,yc:725,lh:52,mw:1100,fs:46,ex:70,bg:"#f7f2ef"},
   montos:{y:1069,fs:56,mh:58,bg:"#f4e0d3",boxes:[
     {xc:224,ew:220,col:"#1d4070"},{xc:493,ew:215,col:"#1d4070"},
@@ -1383,6 +1384,7 @@ function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if
 function _fgCfg(){
   var d=FLYER_CFG_DEFAULT,c=window.FLYER_CFG||{};
   return {imgW:c.imgW||d.imgW,imgH:c.imgH||d.imgH,
+    bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
     empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
     contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal)};
 }
@@ -1424,8 +1426,11 @@ function fgDrawAll(c,s,v){
   c.drawImage(baseImg,0,0,Math.round(baseImg.width*s),Math.round(baseImg.height*s));
   fgDrawEmpresa(c,s,v.empresa);
   fgDrawMontos(c,s,v);
-  fgDrawContacto(c,s,v);
-  fgDrawLegal(c,s,v.legal);
+  var cb=fgDrawContacto(c,s,v)||0;   // fondo (px escalados) del bloque de asesores
+  var lb=fgDrawLegal(c,s,v.legal)||0; // fondo (px escalados) del último renglón de legales
+  var bottomScaled=Math.max(cb,lb);
+  // guardo el fondo del contenido en coords base para poder recortar el blanco sobrante
+  window._fgContentBottomBase=(s>0?bottomScaled/s:bottomScaled);
 }
 function fgDrawEmpresa(c,s,empresa){
   var E=_fgCfg().empresa,se=_fgSE(s);
@@ -1458,12 +1463,13 @@ function fgDrawMontos(c,s,v){
 }
 function fgDrawContacto(c,s,v){
   var C=_fgCfg().contacto,se=_fgSE(s);
+  var eyTop=Math.round(_fgBottomY(C.ey,s));
   c.fillStyle=C.bg;
-  c.fillRect(Math.round(C.ex*se),Math.round(_fgBottomY(C.ey,s)),Math.round(C.ew*se),Math.round(C.eh*se));
-  if(!v.has1&&!v.has2)return;
+  c.fillRect(Math.round(C.ex*se),eyTop,Math.round(C.ew*se),Math.round(C.eh*se));
   if(v.has1&&!v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre,v.celular,v.email);
   else if(!v.has1&&v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre2,v.celular2,v.email2);
-  else{fgDrawC1(c,s,C.xLeft,C,v.nombre,v.celular,v.email);fgDrawC1(c,s,C.xRight,C,v.nombre2,v.celular2,v.email2);}
+  else if(v.has1&&v.has2){fgDrawC1(c,s,C.xLeft,C,v.nombre,v.celular,v.email);fgDrawC1(c,s,C.xRight,C,v.nombre2,v.celular2,v.email2);}
+  return eyTop+Math.round(C.eh*se); // fondo del bloque de asesores (px escalados)
 }
 function fgDrawC1(c,s,xc,C,nom,cel,mail){
   var se=_fgSE(s);
@@ -1475,7 +1481,7 @@ function fgDrawC1(c,s,xc,C,nom,cel,mail){
   if(mail)c.fillText(mail,cx,Math.round(_fgBottomY(C.y3,s)));
 }
 function fgDrawLegal(c,s,text){
-  if(!text||!text.trim())return;
+  if(!text||!text.trim())return 0;
   var L=_fgCfg().legal,se=_fgSE(s);
   var x0=Math.round(L.x0*se),yStart=Math.round(_fgBottomY(L.yStart,s)),yEnd=Math.round(_fgBottomY(L.yEnd,s));
   var maxW=Math.round(L.maxW*se),availH=yEnd-yStart;
@@ -1522,11 +1528,46 @@ function fgDrawLegal(c,s,text){
     });
     y+=lh;
   });
+  return y; // fondo del último renglón dibujado (px escalados)
+}
+// Altura final (en px BASE) = fondo del último contenido + un poco de aire, recortando
+// el blanco sobrante del pie del flyer. Responsive: legal corto => flyer más corto.
+function _fgFinalHeightBase(){
+  var C=_fgCfg();
+  var ih=(window.baseImg&&baseImg.height)?baseImg.height:(C.imgH||6457);
+  var cb=window._fgContentBottomBase||0;
+  if(!cb)return ih; // sin contenido medido => no recorto
+  var m=(C.bottomMargin!=null?C.bottomMargin:45)*_fgSE(1); // aire escalado por ancho real
+  var h=Math.ceil(cb+m);
+  if(h>ih)h=ih;                               // nunca más alto que la imagen
+  var min=Math.round(ih*0.25);if(h<min)h=min; // guarda de seguridad
+  return h;
+}
+// Preview: dibuja en un canvas completo y copia sólo la franja útil al canvas visible.
+function fgRedraw(){
+  if(!window.baseImg||!baseImg.width)return;
+  var w=Math.round(baseImg.width*SC),fh=Math.round(baseImg.height*SC);
+  var full=document.createElement('canvas');full.width=w;full.height=fh;
+  fgDrawAll(full.getContext('2d'),SC,getVals()); // setea _fgContentBottomBase
+  var h=Math.min(fh,Math.round(_fgFinalHeightBase()*SC));
+  cv.width=w;cv.height=h;
+  var cc=cv.getContext('2d');window.ctx=cc;
+  cc.clearRect(0,0,w,h);cc.drawImage(full,0,0);
+}
+// Descarga / preview modal / historial: canvas full-res ya recortado.
+function fgFullRes(v){
+  var full=document.createElement('canvas');full.width=baseImg.width;full.height=baseImg.height;
+  fgDrawAll(full.getContext('2d'),1.0,v); // setea _fgContentBottomBase
+  var h=Math.min(baseImg.height,Math.round(_fgFinalHeightBase()));
+  var out=document.createElement('canvas');out.width=baseImg.width;out.height=h;
+  out.getContext('2d').drawImage(full,0,0);
+  return out;
 }
 function _installFlyerEngine(){
   window.drawAll=fgDrawAll;window.drawEmpresa=fgDrawEmpresa;window.drawMontos=fgDrawMontos;
   window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
   window.splitBoldRegular=fgSplitBold;
+  window.redraw=fgRedraw;window.fullRes=fgFullRes; // recorte responsive del blanco inferior
 }
 // Lee el "mapa" embebido en el propio documento (para flyers armados con ese bloque).
 function _readDocCfg(){
