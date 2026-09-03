@@ -451,6 +451,8 @@ const checks = {
   // ── Subida PDF/imagen + calibrador visual (viven en auth.js) ──
   'subir acepta PDF/img': html.includes('accept=".pdf') && html.includes('handleFileSelect'),
   'rasterizar PDF/img': _authSrc.includes('function _rasterizeFlyer(') && _authSrc.includes('_fgLoadPdfJs'),
+  // CRITICO: sin bandas, los PDFs con soft masks salen con media pagina en blanco
+  'render PDF en bandas': _authSrc.includes('function _renderPageBanded(') && _authSrc.includes('transform:[1,0,0,1,0,-y0]'),
   'calibrador visual': _authSrc.includes('function _calOpen(') && _authSrc.includes('function _calSave('),
   'activar flyer imagen': _authSrc.includes('function activateImageFlyer('),
 };

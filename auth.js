@@ -1004,6 +1004,7 @@ function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if
 function _fgCfg(){
   var d=FLYER_CFG_DEFAULT,c=window.FLYER_CFG||{};
   return {imgW:c.imgW||d.imgW,imgH:c.imgH||d.imgH,
+    cropH:c.cropH||0, // altura final fijada a mano (0 = automático)
     bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
     empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
     contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal)};
@@ -1155,6 +1156,7 @@ function fgDrawLegal(c,s,text){
 function _fgFinalHeightBase(){
   var C=_fgCfg();
   var ih=(window.baseImg&&baseImg.height)?baseImg.height:(C.imgH||6457);
+  if(C.cropH&&C.cropH>0)return Math.min(Math.round(C.cropH),ih); // altura fijada en el calibrador
   var cb=window._fgContentBottomBase||0;
   if(!cb)return ih; // sin contenido medido => no recorto
   var m=(C.bottomMargin!=null?C.bottomMargin:45)*_fgSE(1); // aire escalado por ancho real
@@ -1229,6 +1231,33 @@ function _fgLoadPdfJs(cb){
   s.onerror=function(){showToast('No se pudo cargar el lector de PDF');};
   document.head.appendChild(s);
 }
+// Renderiza la página del PDF en BANDAS y las compone en un solo canvas.
+// POR QUÉ: los PDFs de Galicia usan soft masks (grupos de transparencia en fotos y formas).
+// Al renderizar de una sola pasada en un canvas muy alto (ej. 1240x6996), la composición de
+// máscaras de pdf.js falla silenciosamente y MEDIA PÁGINA sale en blanco (se perdían Pago
+// Fácil, dólares, colectivos, cajas, préstamos, galicia.ar, el logo y los legales).
+// Verificado: 1 pasada corta en ~4070px; en bandas llega a 6960px. No tocar sin re-verificar.
+var _FG_BAND_H=1600;
+function _renderPageBanded(page,done){
+  var vp1=page.getViewport({scale:1});
+  var vp=page.getViewport({scale:_FG_TARGET_W/vp1.width});
+  var W=Math.round(vp.width),H=Math.round(vp.height);
+  var out=document.createElement('canvas');out.width=W;out.height=H;
+  var ox=out.getContext('2d');ox.fillStyle='#fff';ox.fillRect(0,0,W,H);
+  var ys=[];for(var y=0;y<H;y+=_FG_BAND_H)ys.push(y);
+  function step(i){
+    if(i>=ys.length){done(out);return;}
+    var y0=ys[i],bh=Math.min(_FG_BAND_H,H-y0);
+    var band=document.createElement('canvas');band.width=W;band.height=bh;
+    var bx=band.getContext('2d');bx.fillStyle='#fff';bx.fillRect(0,0,W,bh);
+    showToast('Convirtiendo PDF... '+Math.round(i*100/ys.length)+'%');
+    // transform se aplica ANTES del viewport => corre el dibujo y0 px hacia arriba
+    page.render({canvasContext:bx,viewport:vp,transform:[1,0,0,1,0,-y0]}).promise
+      .then(function(){ox.drawImage(band,0,y0);step(i+1);})
+      .catch(function(e){console.warn('banda '+y0+' falló:',e);ox.drawImage(band,0,y0);step(i+1);});
+  }
+  step(0);
+}
 // file → blob JPG + canvas (1240px de ancho, fondo blanco). Soporta PDF (pág. 1) e imagen.
 function _rasterizeFlyer(file,cb){
   var isPdf=/\.pdf$/i.test(file.name)||file.type==='application/pdf';
@@ -1240,14 +1269,7 @@ function _rasterizeFlyer(file,cb){
           var data=new Uint8Array(fr.result);
           window.pdfjsLib.getDocument({data:data}).promise.then(function(pdf){return pdf.getPage(1);})
           .then(function(page){
-            var vp1=page.getViewport({scale:1});
-            var vp=page.getViewport({scale:_FG_TARGET_W/vp1.width});
-            var cvs=document.createElement('canvas');
-            cvs.width=Math.round(vp.width);cvs.height=Math.round(vp.height);
-            var cx=cvs.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cvs.width,cvs.height);
-            return page.render({canvasContext:cx,viewport:vp}).promise.then(function(){
-              _finishRaster(cvs,cb);
-            });
+            _renderPageBanded(page,function(cvs){_finishRaster(cvs,cb);});
           }).catch(function(e){cb(null,null);showToast('Error leyendo PDF: '+(e&&e.message||e));});
         }catch(e){cb(null,null);showToast('Error leyendo PDF');}
       };
@@ -1341,8 +1363,9 @@ function _calEnsureDom(){
       '<div class="cal-legend" id="cal-legend"></div>'+
       '<div class="cal-body"><canvas id="cal-cv"></canvas></div>'+
       '<div style="padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.72rem;display:flex;gap:12px;align-items:center">'+
-        '<label>Altura final (px):</label><input id="cal-height" type="number" style="width:80px;padding:4px 6px" onchange="_calHeightChanged()">'+
-        '<span style="color:var(--gray)">(si el PDF tiene mucho blanco, achicá este valor)</span>'+
+        '<label>Altura final (px):</label><input id="cal-height" type="number" placeholder="auto" style="width:90px;padding:4px 6px" onchange="_calHeightChanged()">'+
+        '<button class="usr-btn edit" style="font-size:.65rem;padding:4px 9px" onclick="document.getElementById(\'cal-height\').value=\'\';_calHeightChanged()">Auto</button>'+
+        '<span style="color:var(--gray)">vac&iacute;o = corta solo despu&eacute;s de los legales (l&iacute;nea naranja)</span>'+
       '</div>'+
       '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
     '</div>';
@@ -1361,10 +1384,14 @@ function _calRenderLegend(){
   }).join('');
 }
 function _calSelect(id){if(!_cal)return;_cal.sel=id;_calRenderLegend();_calDraw();var s=document.getElementById('cal-sel');if(s)s.textContent='';}
+// Altura final del flyer exportado. Vacío/0 = automático (corta después de los legales).
+// OJO: NO toca imgH (esa es la altura de REFERENCIA del anclaje; cambiarla corre las zonas).
 function _calHeightChanged(){
   if(!_cal)return;
-  var h=parseInt(document.getElementById('cal-height').value);
-  if(h>0&&h!==_cal.cfg.imgH){_cal.cfg.imgH=h;_calDraw();}
+  var raw=document.getElementById('cal-height').value;
+  var h=parseInt(raw,10);
+  _cal.cfg.cropH=(raw!==''&&h>0)?h:0;
+  _calDraw();
 }
 // Rectángulos de cada zona en px BASE (imagen 1240×H). Bottom-anchored suman DBOT=H-imgH.
 function _calZoneRects(){
@@ -1382,10 +1409,21 @@ function _calDraw(){
   var cv=document.getElementById('cal-cv');if(!cv)return;var g=cv.getContext('2d');var ds=_cal.ds;
   cv.width=Math.round(_FG_TARGET_W*ds);cv.height=Math.round(_cal.img.height*ds);
   cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
-  var sb=window.baseImg,sc=window.FLYER_CFG;
+  var sb=window.baseImg,sc=window.FLYER_CFG,cutBase=0;
   window.baseImg=_cal.img;window.FLYER_CFG=_cal.cfg;
-  try{fgDrawAll(g,ds,_calSampleVals());}catch(e){}
+  try{fgDrawAll(g,ds,_calSampleVals());cutBase=_fgFinalHeightBase();}catch(e){}
   window.baseImg=sb;window.FLYER_CFG=sc;
+  // línea de corte: dónde termina el flyer exportado (gris el sobrante)
+  if(cutBase>0&&cutBase<_cal.img.height){
+    var cy=Math.round(cutBase*ds);
+    g.save();
+    g.fillStyle='rgba(120,120,120,.45)';g.fillRect(0,cy,cv.width,cv.height-cy);
+    g.strokeStyle='#f5921e';g.lineWidth=2;g.setLineDash([9,5]);
+    g.beginPath();g.moveTo(0,cy);g.lineTo(cv.width,cy);g.stroke();g.setLineDash([]);
+    g.fillStyle='#f5921e';g.font='bold 11px Arial';g.textAlign='right';g.textBaseline='top';
+    g.fillText('corte '+Math.round(cutBase)+'px',cv.width-5,cy+4);
+    g.restore();
+  }
   var rects=_calZoneRects();
   _CAL_ZONES.forEach(function(z){
     var r=rects[z.id];if(!r)return;var x=r.x*ds,y=r.y*ds,w=r.w*ds,h=r.h*ds,on=_cal.sel===z.id;
@@ -1446,11 +1484,11 @@ function _calOpen(img,name,url){
   _cal={img:img,name:name,url:url,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
     ds:Math.min(560,(window.innerWidth||600)-70)/_FG_TARGET_W};
   document.getElementById('cal-modal').classList.add('show');
-  var hInput=document.getElementById('cal-height');if(hInput)hInput.value=img.height;
+  var hInput=document.getElementById('cal-height');if(hInput)hInput.value='';
   _calRenderLegend();_calDraw();
   _loadFlyerCfgs(function(m){
     if(m&&m[name]){try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}}
-    var hInput=document.getElementById('cal-height');if(hInput)hInput.value=_cal.cfg.imgH;
+    var hInput=document.getElementById('cal-height');if(hInput)hInput.value=_cal.cfg.cropH?_cal.cfg.cropH:'';
     fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
       .then(function(d){if(_cal){_cal.legalText=(d&&d.text)||_CAL_SAMPLE_LEGAL;_calDraw();}});
   });
