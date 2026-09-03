@@ -145,6 +145,7 @@ const adminPanel = `<div id="admin-panel">
     <div class="atab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
     <div class="atab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
     <div class="atab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
+    <div class="atab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
     <div class="atab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Subir Flyer</div>
   </div>
   <div class="ap-body">
@@ -243,6 +244,18 @@ const adminPanel = `<div id="admin-panel">
       </div>
       <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="reg-count"></p>
       <div id="registros-list"></div>
+    </div>
+
+    <div id="at-legales" style="display:none">
+      <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Edit&aacute; el texto legal que ven <strong>todos los usuarios</strong>. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
+      <textarea id="glegal-text" class="login-inp" style="min-height:340px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Peg&aacute; o escrib&iacute; los t&eacute;rminos y condiciones..."></textarea>
+      <div class="login-err" id="glegal-err" style="margin-top:6px"></div>
+      <div class="login-ok" id="glegal-ok" style="margin-top:6px"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-submit" id="glegal-save" onclick="saveGlobalLegal()">Guardar y aplicar a todos</button>
+        <button class="usr-btn edit" onclick="loadGlobalLegal(true)">Recargar</button>
+      </div>
     </div>
 
   </div>

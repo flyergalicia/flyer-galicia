@@ -296,6 +296,10 @@ function initApp(){
   _initTheme();
   // Pisa loadExcel del HTML por la versión robusta (ver _robustLoadExcel).
   window.loadExcel=_robustLoadExcel;
+  // Motor de dibujado config-driven (coordenadas por flyer) + negritas al pegar.
+  _installFlyerEngine();
+  window.FLYER_CFG=_readDocCfg()||window.FLYER_CFG||{};
+  _attachLegalPaste('legal-text');
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -406,6 +410,7 @@ function checkProfile(user){
     var _eE=document.getElementById('email');if(_eE){_eE.value='';_eE.placeholder='mail@bancogalicia.com.ar';}
     if(typeof updateFnPreview==='function')updateFnPreview();
     if(typeof redraw==='function')redraw();
+    _applyGlobalLegalToForm(); // trae los T&C globales (los que edita el admin)
     document.getElementById('hdr-user').textContent=_myName;
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
     if(_admin)_refreshPendingBadge();
@@ -521,14 +526,52 @@ function closeAdminPanel(){
 function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel-row"></div>';return s;}
 
 function switchAdminTab(el,t){
-  ['dashboard','usuarios','subir','registros'].forEach(function(tab){
-    document.getElementById('at-'+tab).style.display=tab===t?'block':'none';
+  ['dashboard','usuarios','subir','registros','legales'].forEach(function(tab){
+    var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
   });
   document.querySelectorAll('.atab').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
   if(t==='usuarios')loadUsers();
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
+  if(t==='legales'){loadGlobalLegal(true);_attachLegalPaste('glegal-text');}
+}
+
+// ── LEGAL GLOBAL (términos y condiciones para todos) ──────────────────────────────
+// Se guarda en el bucket flyers como _legal.json {text, updated_at}. El admin lo edita
+// desde el panel; todos los usuarios lo reciben precargado al iniciar sesión.
+function loadGlobalLegal(toEditor){
+  return fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){
+      var txt=(d&&typeof d.text==='string')?d.text:'';
+      if(toEditor){var el=document.getElementById('glegal-text');if(el)el.value=txt;}
+      return txt;
+    }).catch(function(){return '';});
+}
+function saveGlobalLegal(){
+  var el=document.getElementById('glegal-text');if(!el)return;
+  var txt=el.value;
+  var btn=document.getElementById('glegal-save'),err=document.getElementById('glegal-err'),ok=document.getElementById('glegal-ok');
+  if(err)err.textContent='';if(ok)ok.textContent='';
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  var meta=JSON.stringify({text:txt,updated_at:new Date().toISOString()});
+  _sb.storage.from('flyers').upload('_legal.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+    .then(function(r){
+      if(btn){btn.disabled=false;btn.textContent='Guardar y aplicar a todos';}
+      if(r&&r.error){if(err)err.textContent='Error: '+r.error.message;return;}
+      if(ok)ok.textContent='✅ Guardado. Todos los usuarios verán este legal al ingresar.';
+      showToast('Legal global actualizado');
+    });
+}
+// Precarga el legal global en el formulario del usuario (pisa el default del template).
+function _applyGlobalLegalToForm(){
+  fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){
+      var txt=(d&&typeof d.text==='string'&&d.text.trim())?d.text:null;
+      if(txt){var el=document.getElementById('legal-text');if(el){el.value=txt;if(typeof redraw==='function')redraw();}}
+    }).catch(function(){});
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -848,6 +891,8 @@ function _fetchActiveFlyer(cb){
     .then(function(d){
       _activeFlyerUrl=(d&&d.imageUrl)||null;
       _activeFlyerName=(d&&d.name)||'';
+      // El flyer activo trae su propio "mapa" de coordenadas → se dibuja alineado.
+      if(d&&d.cfg&&typeof d.cfg==='object')window.FLYER_CFG=d.cfg;
       if(cb)cb(_activeFlyerUrl,_activeFlyerName);
     })
     .catch(function(){_activeFlyerUrl=null;_activeFlyerName='';if(cb)cb(null,'');});
@@ -866,6 +911,11 @@ function activateFlyer(htmlUrl,name,btn){
       var m,dataUrl=null;
       while((m=re.exec(html))!==null){dataUrl=m[1];}
       if(!dataUrl)throw new Error('No se encontró la imagen en el HTML');
+      // Extraer el "mapa" de coordenadas embebido (si el HTML lo trae) para que el
+      // flyer se dibuje alineado sin importar su tamaño. Si no lo trae, cfg=null.
+      var flyerCfg=null;
+      var cm=html.match(/<script[^>]*id=["']flyer-cfg["'][^>]*>([\s\S]*?)<\/script>/i);
+      if(cm){try{flyerCfg=JSON.parse(cm[1]);}catch(e){flyerCfg=null;}}
       // Convertir data URL → Blob binario
       var commaIdx=dataUrl.indexOf(',');
       var mime=dataUrl.substring(5,dataUrl.indexOf(';'));
@@ -882,7 +932,7 @@ function activateFlyer(htmlUrl,name,btn){
           if(r.error)throw new Error(r.error.message);
           // Guardar referencia en _active.json con timestamp para evitar cache CDN
           var imageUrl=FLYERS_PUBLIC+imgName+'?v='+Date.now();
-          var meta=JSON.stringify({name:name,htmlUrl:htmlUrl,imageUrl:imageUrl,updated_at:new Date().toISOString()});
+          var meta=JSON.stringify({name:name,htmlUrl:htmlUrl,imageUrl:imageUrl,cfg:flyerCfg,updated_at:new Date().toISOString()});
           return _sb.storage.from('flyers').upload('_active.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true});
         })
         .then(function(r){
@@ -910,6 +960,221 @@ function deactivateFlyer(btn){
       showToast('Flyer desactivado. Usuarios ven el flyer por defecto.');
       loadUploadHistory();
     });
+}
+
+// ── MOTOR DE DIBUJADO DEL FLYER (config-driven, durable) ─────────────────────────
+// Portado 1:1 de _source.html. Las coordenadas salen de FLYER_CFG para que cada flyer
+// subido use SU propio "mapa" (fin del desfase de asesores/legales). El default = los
+// valores actuales, así el flyer de hoy se ve idéntico. Sobrescribe las funciones de
+// _source.html en initApp (window.drawAll, etc.). Vive en auth.js = no se pierde al
+// regenerar el HTML.
+var FLYER_CFG_DEFAULT = {
+  empresa:{xc:620,yc:725,lh:52,mw:1100,fs:46,ex:70,bg:"#f7f2ef"},
+  montos:{y:1069,fs:56,mh:58,bg:"#f4e0d3",boxes:[
+    {xc:224,ew:220,col:"#1d4070"},{xc:493,ew:215,col:"#1d4070"},
+    {xc:760,ew:195,col:"#f5921e"},{xc:1008,ew:185,col:"#f5921e"}]},
+  contacto:{ex:150,ey:5330,ew:940,eh:130,bg:"#ffffff",y1:5360,y2:5390,y3:5418,
+    xSingle:619,xLeft:310,xRight:930,fnBold:24,frReg:21,color:"#111"},
+  legal:{x0:39,yStart:5595,yEnd:6300,maxW:1162,fs:12,lh:17,gap:5,
+    minFs:7,minLh:10,minGap:3,color:"#222222",bg:"#ffffff"}
+};
+function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if(b[k2]!=null)o[k2]=b[k2];return o;}
+function _fgCfg(){
+  var d=FLYER_CFG_DEFAULT,c=window.FLYER_CFG||{};
+  return {empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
+    contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal)};
+}
+var FG_BOLD_PHRASES = [
+  "(1) Promoción del 100% de ahorro.","(2) Bonificación de comisiones.",
+  "(3) Promoción en supermercados.","(4) Promoción en combustibles.",
+  "(5) Promociones Galicia.","(6) Referidos.","(7) Corresponsalias.","(8) Préstamos.",
+  "Bonificación de la comisión por mantenimiento del Servicio Galicia por 6 meses para nuevos clientes.",
+  "Bonificación de la comisión por mantenimiento del Servicio Galicia para clientes de Banco Galicia.",
+  "PARA MÁS INFORMACIÓN O LIMITACIONES APLICABLES, CONSULTE EN:"
+];
+// Divide en segmentos {text,bold}. Soporta **negrita** (se arrastra al pegar) + la
+// lista de frases fijas (compatibilidad con lo anterior).
+function fgSplitBold(text){
+  var dyn=[];
+  var clean=(text||"").replace(/\*\*([\s\S]+?)\*\*/g,function(_m,inner){var t=inner.trim();if(t)dyn.push(t);return inner;});
+  return _fgPhraseSplit(clean,dyn.concat(FG_BOLD_PHRASES));
+}
+function _fgPhraseSplit(text,phrases){
+  var result=[],remaining=text;
+  while(remaining.length>0){
+    var found=false;
+    for(var i=0;i<phrases.length;i++){
+      var bp=phrases[i];if(!bp)continue;
+      var idx=remaining.indexOf(bp);
+      if(idx===0){result.push({text:bp+" ",bold:true});remaining=remaining.slice(bp.length).replace(/^\s+/,"");found=true;break;}
+      else if(idx>0){result.push({text:remaining.slice(0,idx),bold:false});result.push({text:bp+" ",bold:true});remaining=remaining.slice(idx+bp.length).replace(/^\s+/,"");found=true;break;}
+    }
+    if(!found){result.push({text:remaining,bold:false});remaining="";}
+  }
+  return result;
+}
+function fgDrawAll(c,s,v){
+  c.drawImage(baseImg,0,0,Math.round(baseImg.width*s),Math.round(baseImg.height*s));
+  fgDrawEmpresa(c,s,v.empresa);
+  fgDrawMontos(c,s,v);
+  fgDrawContacto(c,s,v);
+  fgDrawLegal(c,s,v.legal);
+}
+function fgDrawEmpresa(c,s,empresa){
+  var E=_fgCfg().empresa;
+  var xc=Math.round(E.xc*s),yc=Math.round(E.yc*s);
+  var lh=Math.round(E.lh*s),mw=Math.round(E.mw*s),fs=Math.round(E.fs*s);
+  c.fillStyle=E.bg;
+  c.fillRect(Math.round(E.ex*s),yc-lh,mw,lh*2+Math.round(8*s));
+  c.font="bold "+fs+"px Arial,sans-serif";
+  c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";
+  var full="Por ser parte de "+empresa;
+  if(c.measureText(full).width<=mw){c.fillText(full,xc,yc);}
+  else{
+    c.fillText("Por ser parte de",xc,yc-Math.round(lh*0.5));
+    var efs=fs,ew=c.measureText(empresa).width;
+    if(ew>mw){efs=Math.floor(fs*(mw/ew));c.font="bold "+efs+"px Arial,sans-serif";}
+    c.fillText(empresa,xc,yc+Math.round(lh*0.5));
+  }
+}
+function fgDrawMontos(c,s,v){
+  var M=_fgCfg().montos;
+  var my=Math.round(M.y*s),fs=Math.round(M.fs*s);
+  var vals=[v.m1,v.m2,v.m3,v.m4];
+  M.boxes.forEach(function(m,i){
+    var mx=Math.round(m.xc*s),mw=Math.round(m.ew*s),mh=Math.round(M.mh*s);
+    c.fillStyle=M.bg;c.fillRect(mx-mw/2,my-mh/2,mw,mh);
+    c.font="bold "+fs+"px Arial,sans-serif";
+    c.fillStyle=m.col;c.textAlign="center";c.textBaseline="middle";
+    c.fillText(vals[i],mx,my);
+  });
+}
+function fgDrawContacto(c,s,v){
+  var C=_fgCfg().contacto;
+  c.fillStyle=C.bg;
+  c.fillRect(Math.round(C.ex*s),Math.round(C.ey*s),Math.round(C.ew*s),Math.round(C.eh*s));
+  if(!v.has1&&!v.has2)return;
+  if(v.has1&&!v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre,v.celular,v.email);
+  else if(!v.has1&&v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre2,v.celular2,v.email2);
+  else{fgDrawC1(c,s,C.xLeft,C,v.nombre,v.celular,v.email);fgDrawC1(c,s,C.xRight,C,v.nombre2,v.celular2,v.email2);}
+}
+function fgDrawC1(c,s,xc,C,nom,cel,mail){
+  var fn=Math.round(C.fnBold*s),fr=Math.round(C.frReg*s),cx=Math.round(xc*s);
+  c.textAlign="center";c.textBaseline="middle";c.fillStyle=C.color;
+  c.font="bold "+fn+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(C.y1*s));
+  c.font=fr+"px Arial,sans-serif";
+  if(cel)c.fillText(cel,cx,Math.round(C.y2*s));
+  if(mail)c.fillText(mail,cx,Math.round(C.y3*s));
+}
+function fgDrawLegal(c,s,text){
+  if(!text||!text.trim())return;
+  var L=_fgCfg().legal;
+  var x0=Math.round(L.x0*s),yStart=Math.round(L.yStart*s),yEnd=Math.round(L.yEnd*s);
+  var maxW=Math.round(L.maxW*s),availH=yEnd-yStart;
+  c.fillStyle=L.bg;
+  c.fillRect(x0-Math.round(2*s),yStart-Math.round(5*s),maxW+Math.round(20*s),availH+Math.round(30*s));
+  c.textAlign="left";c.textBaseline="top";
+  var paragraphs=text.split("\n");
+  function calcLines(fs){
+    var allLines=[];
+    paragraphs.forEach(function(para){
+      if(!para.trim()){allLines.push({gap:true});return;}
+      var segs=fgSplitBold(para),currentTokens=[],lineW=0;
+      segs.forEach(function(seg){
+        seg.text.split(" ").forEach(function(word,wi,arr){
+          if(!word)return;
+          var tok=word+(wi<arr.length-1?" ":"");
+          c.font=(seg.bold?"bold ":"")+fs+"px Arial,sans-serif";
+          var w=c.measureText(tok).width;
+          if(lineW+w>maxW&&currentTokens.length>0){allLines.push({tokens:currentTokens,gap:false});currentTokens=[];lineW=0;}
+          currentTokens.push({text:tok,bold:seg.bold,w:w});lineW+=w;
+        });
+      });
+      if(currentTokens.length>0)allLines.push({tokens:currentTokens,gap:false});
+    });
+    return allLines;
+  }
+  function calcHeight(lines,lh,gapH){var t=0;lines.forEach(function(l){t+=l.gap?gapH:lh;});return t;}
+  var fs=Math.round(L.fs*s),lh=Math.round(L.lh*s),gapH=Math.round(L.gap*s);
+  var lines=calcLines(fs),totalH=calcHeight(lines,lh,gapH);
+  if(totalH>availH&&totalH>0){
+    var ratio=availH/totalH;
+    fs=Math.max(Math.floor(fs*ratio),Math.round(L.minFs*s));
+    lh=Math.max(Math.floor(lh*ratio),Math.round(L.minLh*s));
+    gapH=Math.max(Math.floor(gapH*ratio),Math.round(L.minGap*s));
+    lines=calcLines(fs);
+  }
+  var y=yStart;
+  lines.forEach(function(line){
+    if(line.gap){y+=gapH;return;}
+    var cx=x0;
+    line.tokens.forEach(function(tok){
+      c.font=(tok.bold?"bold ":"")+fs+"px Arial,sans-serif";
+      c.fillStyle=L.color;c.fillText(tok.text,cx,y);cx+=tok.w;
+    });
+    y+=lh;
+  });
+}
+function _installFlyerEngine(){
+  window.drawAll=fgDrawAll;window.drawEmpresa=fgDrawEmpresa;window.drawMontos=fgDrawMontos;
+  window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
+  window.splitBoldRegular=fgSplitBold;
+}
+// Lee el "mapa" embebido en el propio documento (para flyers armados con ese bloque).
+function _readDocCfg(){
+  try{var el=document.getElementById('flyer-cfg');if(el&&el.textContent.trim())return JSON.parse(el.textContent);}catch(e){}
+  return null;
+}
+// Aplica un mapa (del flyer activo) y redibuja.
+function _applyFlyerCfg(cfg){
+  if(cfg&&typeof cfg==='object')window.FLYER_CFG=cfg;
+  if(typeof redraw==='function'&&window.baseImg&&window.baseImg.width)redraw();
+}
+
+// ── NEGRITAS AL PEGAR ─────────────────────────────────────────────────────────────
+// Convierte el formato pegado (negrita de Word/PDF/web) a marcadores **...** dentro
+// del textarea, para que drawLegal las dibuje en negrita. Se engancha a #legal-text
+// y al editor de legales del panel.
+function _htmlBoldToMarkers(html){
+  var d=document.createElement('div');d.innerHTML=html;
+  function isBold(n){
+    if(!n||!n.tagName)return false;
+    var t=n.tagName.toLowerCase();
+    if(t==='b'||t==='strong')return true;
+    var fw=n.style&&n.style.fontWeight;
+    return fw==='bold'||fw==='bolder'||(parseInt(fw,10)>=600);
+  }
+  function walk(node,bold){
+    var out='';
+    for(var i=0;i<node.childNodes.length;i++){
+      var n=node.childNodes[i];
+      if(n.nodeType===3){var t=n.nodeValue.replace(/[ \t\r\n]+/g,' ');if(bold&&t.trim())out+='**'+t+'**';else out+=t;}
+      else if(n.nodeType===1){
+        var tag=n.tagName.toLowerCase();
+        out+=walk(n,bold||isBold(n));
+        if(tag==='br'||/^(p|div|li|tr|h[1-6])$/.test(tag))out+='\n';
+      }
+    }
+    return out;
+  }
+  return walk(d,false)
+    .replace(/\*\*\s*\*\*/g,' ')        // une negritas adyacentes: **a** **b** -> **a b**
+    .replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/[ \t]{2,}/g,' ').trim();
+}
+function _legalPasteHandler(e){
+  var cd=e.clipboardData||window.clipboardData;if(!cd)return;
+  var html=cd.getData('text/html');
+  if(!html)return; // sin formato: pegado normal
+  e.preventDefault();
+  var md=_htmlBoldToMarkers(html);
+  var ta=e.target,st=ta.selectionStart,en=ta.selectionEnd;
+  ta.value=ta.value.slice(0,st)+md+ta.value.slice(en);
+  ta.selectionStart=ta.selectionEnd=st+md.length;
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function _attachLegalPaste(id){
+  var el=document.getElementById(id);
+  if(el&&!el.dataset.pasteBold){el.dataset.pasteBold='1';el.addEventListener('paste',_legalPasteHandler);}
 }
 
 // ── LOGS DE FLYERS ────────────────────────────────────────────────────────────
