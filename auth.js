@@ -1207,6 +1207,39 @@ function _applyFlyerCfg(cfg){
 // vivo (usa el MISMO motor fgDrawAll = WYSIWYG) → cada flyer guarda su calibración
 // en _flyer_cfgs.json. Todo vive acá (durable, no se pierde al regenerar el HTML).
 var _FG_TARGET_W=1240;
+// Espacio (px base) que hay que dejar DEBAJO del contenido para que entren asesores+legales.
+// = distancia del bloque de asesores al borde inferior en la referencia + un respiro.
+function _fgFooterBand(){var d=FLYER_CFG_DEFAULT;return (d.imgH-d.contacto.ey)+60;}
+// Recorta el blanco sobrante del pie del PDF/imagen: detecta la última fila con contenido
+// y deja sólo el "footer band" para el pie. Sin esto, PDFs con margen blanco enorme mandan
+// asesores/legales al fondo del vacío (quedaba un espacio en blanco gigante).
+function _trimFlyerCanvas(cvs){
+  try{
+    var W=cvs.width,H=cvs.height,cx=cvs.getContext('2d');
+    var data=cx.getImageData(0,0,W,H).data,contentBottom=0;
+    for(var y=H-1;y>=0;y-=2){
+      var ink=0;
+      for(var x=20;x<W;x+=30){
+        var i=(y*W+x)*4,r=data[i],g=data[i+1],b=data[i+2];
+        var mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+        if((mx-mn)>25||mx<210){ink++;if(ink>=5)break;}
+      }
+      if(ink>=5){contentBottom=y;break;}
+    }
+    if(!contentBottom)return cvs;
+    var Hp=Math.round(contentBottom+_fgFooterBand());
+    if(Hp>=H-8&&Hp<=H+8)return cvs; // ya venía justo => no toco
+    var out=document.createElement('canvas');out.width=W;out.height=Hp;
+    var ox=out.getContext('2d');ox.fillStyle='#fff';ox.fillRect(0,0,W,Hp);
+    ox.drawImage(cvs,0,0);
+    return out;
+  }catch(e){return cvs;}
+}
+// Recorta el blanco, exporta a JPG y entrega blob + canvas final.
+function _finishRaster(cvs,cb){
+  var t=_trimFlyerCanvas(cvs);
+  t.toBlob(function(b){cb(b,t);},'image/jpeg',0.92);
+}
 function _fgLoadPdfJs(cb){
   if(window.pdfjsLib&&window.pdfjsLib.getDocument){cb();return;}
   var s=document.createElement('script');
@@ -1240,7 +1273,7 @@ function _rasterizeFlyer(file,cb){
             cvs.width=Math.round(vp.width);cvs.height=Math.round(vp.height);
             var cx=cvs.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cvs.width,cvs.height);
             return page.render({canvasContext:cx,viewport:vp}).promise.then(function(){
-              cvs.toBlob(function(b){cb(b,cvs);},'image/jpeg',0.92);
+              _finishRaster(cvs,cb);
             });
           }).catch(function(e){cb(null,null);showToast('Error leyendo PDF: '+(e&&e.message||e));});
         }catch(e){cb(null,null);showToast('Error leyendo PDF');}
@@ -1256,7 +1289,7 @@ function _rasterizeFlyer(file,cb){
         cvs.width=_FG_TARGET_W;cvs.height=Math.round(img.height*(_FG_TARGET_W/img.width));
         var cx=cvs.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cvs.width,cvs.height);
         cx.drawImage(img,0,0,cvs.width,cvs.height);
-        cvs.toBlob(function(b){cb(b,cvs);},'image/jpeg',0.92);
+        _finishRaster(cvs,cb);
       };
       img.onerror=function(){cb(null,null);showToast('No se pudo leer la imagen');};
       img.src=fr2.result;
