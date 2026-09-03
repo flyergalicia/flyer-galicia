@@ -601,6 +601,7 @@ function applyAsesor(id,slot){
   else if(slot===3){if(!_fgA3)toggleA3();}
   else if(slot===4){if(!_fgA4)toggleA4();}
   else{if(typeof toggleA1==='function'&&!window.a1)toggleA1();}
+  if(slot>1)_fgShowBlock(slot,true);_fgRefreshAddBtn();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
   closeAsPop();showToast('Asesor "'+(a.name||a.nombre)+'" cargado');
@@ -703,6 +704,8 @@ function initApp(){
   _fgEnsureAsesores34(); // campos de asesor 3 y 4 (el template sólo trae 1 y 2)
   _fgFixAsesorLabels();  // "Agregar asesor 1..4" en los cuatro switches
   _fgAutoMail();         // sugiere nombre.apellido@bancogalicia.com.ar al tipear
+  _fgEnsureAddBtn();     // botón "+ Agregar asesor"
+  _fgSyncAsesorBlocks(); // arranca mostrando sólo el Asesor 1
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -1905,6 +1908,92 @@ function _fgAutoMail(){
     });
   });
 }
+// ── ALTA PROGRESIVA DE ASESORES ───────────────────────────────────────────────
+// En vez de mostrar los 4 bloques de entrada (mucho ruido para el caso normal de
+// 1 o 2 asesores), arranca sólo el Asesor 1 y un botón "+ Agregar asesor" que va
+// abriendo el siguiente. NADA se oculta solo: sacar un asesor es siempre explícito
+// (✕ Quitar) y no borra lo cargado, así que no se pierde nada sin querer.
+function _fgBlock(n){
+  var f=document.getElementById('fields'+n);if(!f)return null;
+  var row=f.previousElementSibling;if(!row||!row.classList.contains('toggle-row'))return null;
+  var sec=row.previousElementSibling;if(!sec||!sec.classList.contains('sec'))return null;
+  return {sec:sec,row:row,fields:f};
+}
+function _fgAsesorOn(n){
+  if(n===1)return (typeof a1==='undefined')?true:!!a1;
+  if(n===2)return (typeof a2!=='undefined')&&!!a2;
+  return (n===3)?_fgA3:_fgA4;
+}
+function _fgSetAsesorOn(n,on){
+  if(_fgAsesorOn(n)===!!on)return;
+  if(n===1&&typeof toggleA1==='function')toggleA1();
+  else if(n===2&&typeof toggleA2==='function')toggleA2();
+  else if(n===3)toggleA3();
+  else if(n===4)toggleA4();
+}
+// Muestra/oculta el bloque entero (título + fila del switch + campos).
+// En los bloques 2-4 la fila del switch queda siempre oculta: el alta la maneja
+// el botón "+ Agregar asesor" y la baja el "✕ Quitar".
+function _fgShowBlock(n,show){
+  var b=_fgBlock(n);if(!b)return;
+  b.sec.style.display=show?'':'none';
+  b.fields.style.display=show?'':'none';
+  if(n>1)b.row.style.display='none';
+  if(show&&n>1&&!b.sec.dataset.fgDel){
+    b.sec.dataset.fgDel='1';
+    b.sec.insertAdjacentHTML('beforeend',
+      ' <span class="fg-del" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
+  }
+}
+function _fgIsBlockVisible(n){
+  var b=_fgBlock(n);return !!(b&&b.sec.style.display!=='none');
+}
+function _fgAddNextAsesor(){
+  for(var n=2;n<=4;n++){
+    if(_fgIsBlockVisible(n))continue;
+    _fgShowBlock(n,true);_fgSetAsesorOn(n,true);_fgRefreshAddBtn();
+    var el=document.getElementById('nombre'+n);if(el)el.focus();
+    return;
+  }
+}
+// Quitar NO borra lo cargado: sólo lo saca del flyer y esconde el bloque.
+// Si lo volvés a agregar, los datos siguen ahí.
+function _fgRemoveAsesor(n){
+  _fgSetAsesorOn(n,false);_fgShowBlock(n,false);_fgRefreshAddBtn();
+  if(typeof redraw==='function')redraw();
+}
+function _fgRefreshAddBtn(){
+  var b=document.getElementById('fg-add-asesor');if(!b)return;
+  var libre=false;for(var n=2;n<=4;n++)if(!_fgIsBlockVisible(n))libre=true;
+  b.style.display=libre?'':'none';
+}
+function _fgEnsureAddBtn(){
+  if(document.getElementById('fg-add-asesor'))return;
+  var f4=document.getElementById('fields4');if(!f4||!f4.parentNode)return;
+  if(!document.getElementById('fg-add-style')){
+    var st=document.createElement('style');st.id='fg-add-style';
+    st.textContent=
+      '#fg-add-asesor{display:block;width:100%;margin:2px 0 14px;padding:9px;border:1.5px dashed rgba(128,128,128,.5);'+
+      'background:none;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--gray,#777);transition:.15s}'+
+      '#fg-add-asesor:hover{border-color:var(--red,#c62828);color:var(--red,#c62828)}'+
+      '.fg-del{float:right;font-size:.62rem;font-weight:600;color:var(--gray,#999);cursor:pointer;'+
+      'text-transform:none;letter-spacing:0;background:none;padding:0}'+
+      '.fg-del:hover{color:var(--red,#c62828)}';
+    document.head.appendChild(st);
+  }
+  f4.insertAdjacentHTML('afterend',
+    '<button type="button" id="fg-add-asesor" onclick="_fgAddNextAsesor()">+ Agregar asesor</button>');
+}
+// Deja visibles sólo los bloques que tienen datos (o están activos). Se usa al
+// iniciar y al Restaurar: nunca en medio de la edición.
+function _fgSyncAsesorBlocks(){
+  for(var n=2;n<=4;n++){
+    var el=document.getElementById('nombre'+n);
+    var tiene=!!(el&&el.value.trim())||_fgAsesorOn(n);
+    _fgShowBlock(n,tiene);
+  }
+  _fgRefreshAddBtn();
+}
 // Unifica las etiquetas de los switches: "Agregar asesor 1..4".
 // El template trae "Mostrar asesor 1" y "Agregar segundo asesor"; como lo regenerás,
 // lo normalizo acá. Uso el id del switch (sw1..sw4) para saber el número, así no
@@ -1996,6 +2085,7 @@ function fgLoadHistory(i){
       s('celular'+i,(h.v['celular'+i]||'').replace('Cel: ',''));
       s('email'+i,h.v['email'+i]||'');
     });
+    _fgSyncAsesorBlocks(); // muestra los bloques que el flyer del historial tenía
     if(typeof setCfg==='function')setCfg(h.ac||0);
     if(typeof switchTab==='function')switchTab('individual');
     showToast('Datos cargados');
@@ -2009,6 +2099,8 @@ function fgResetVals(){
    'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(id){s(id,'');});
   s('filename','Flyer {empresa}');
   if(_fgA3)toggleA3();if(_fgA4)toggleA4();
+  if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
+  _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
   var n=_optN(_fgOpt),c=_fgOptCache[n];
   if(c)delete c.legalEdited;
   var base=(c&&typeof c.legal==='string'&&c.legal.trim())?c.legal:(window.LEGAL_DEFAULT||'');

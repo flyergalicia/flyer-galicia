@@ -506,6 +506,7 @@ const checks = {
   'masivo/plantilla 4 asesores': _authSrc.includes('window.genAll=fgGenAll') && _authSrc.includes('window.dlTemplate=fgDlTemplate'),
   'etiquetas Agregar asesor N': _authSrc.includes('function _fgFixAsesorLabels(') && _authSrc.includes("'Agregar asesor '+n"),
   'autocompletar mail': _authSrc.includes('function _fgMailFromName(') && _authSrc.includes('_fgAutoMail();'),
+  'alta progresiva asesores': _authSrc.includes('function _fgAddNextAsesor(') && _authSrc.includes('id="fg-add-asesor"') && _authSrc.includes('function _fgRemoveAsesor('),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
