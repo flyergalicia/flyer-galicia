@@ -187,17 +187,17 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-subir" style="display:none">
       <p class="ap-sec">Subir nueva versi&oacute;n del flyer</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Subí el archivo <strong>index_export.html</strong> generado por el build. Una vez subido, hacé clic en <strong>Activar</strong> para que todos los usuarios vean ese flyer automáticamente.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Sub&iacute; el <strong>PDF limpio</strong> del flyer (sin los datos que completa cada asesor) &mdash; tambi&eacute;n vale PNG/JPG. Se convierte solo y se abre el <strong>calibrador</strong> para acomodar las zonas arrastrando. El HTML del build (<strong>index_export.html</strong>) tambi&eacute;n sirve como antes.</p>
       <div id="upload-drop" class="upload-drop"
         onclick="document.getElementById('upload-file').click()"
         ondragover="event.preventDefault();this.classList.add('drag-over')"
         ondragleave="this.classList.remove('drag-over')"
         ondrop="this.classList.remove('drag-over');handleFileDrop(event)">
         <div class="upload-icon">&#128196;</div>
-        <p class="upload-hint">Hac&eacute; clic o arrastrar un archivo HTML aqu&iacute;</p>
-        <p class="upload-hint-sub">Solo archivos .html &mdash; m&aacute;x. 10 MB</p>
+        <p class="upload-hint">Hac&eacute; clic o arrastr&aacute; el <strong>PDF</strong> del flyer aqu&iacute;</p>
+        <p class="upload-hint-sub">PDF, PNG, JPG o HTML &mdash; m&aacute;x. 25 MB</p>
       </div>
-      <input type="file" id="upload-file" accept=".html,text/html" style="display:none" onchange="handleFileSelect(this)">
+      <input type="file" id="upload-file" accept=".pdf,.png,.jpg,.jpeg,.html,application/pdf,image/*,text/html" style="display:none" onchange="handleFileSelect(this)">
       <div class="login-err" id="upload-err" style="margin-top:8px"></div>
       <div class="login-ok" id="upload-ok" style="margin-top:8px"></div>
       <div id="upload-progress" style="display:none;margin-top:10px">
@@ -425,6 +425,7 @@ html = html.replace(
 );
 
 // ── VERIFICACIONES ──────────────────────────────────────────────────────────
+const _authSrc = readFileSync('auth.js', 'utf8');
 const checks = {
   'CSS full-screen': html.includes('height:100vh;overflow:hidden'),
   'layout height': html.includes('height:calc(100vh - 62px)'),
@@ -447,6 +448,11 @@ const checks = {
   'toggles a1/a2': html.includes('toggleA1(') && html.includes('toggleA2('),
   'legal-text': html.includes('id="legal-text"'),
   'loadExcel (override)': html.includes('loadExcel('),
+  // ── Subida PDF/imagen + calibrador visual (viven en auth.js) ──
+  'subir acepta PDF/img': html.includes('accept=".pdf') && html.includes('handleFileSelect'),
+  'rasterizar PDF/img': _authSrc.includes('function _rasterizeFlyer(') && _authSrc.includes('_fgLoadPdfJs'),
+  'calibrador visual': _authSrc.includes('function _calOpen(') && _authSrc.includes('function _calSave('),
+  'activar flyer imagen': _authSrc.includes('function activateImageFlyer('),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
@@ -457,10 +463,9 @@ console.log(`\nindex.html guardado: ${(html.length / 1024 / 1024).toFixed(2)} MB
 
 // ── EXPORT SELF-CONTAINED (para subir a Supabase Storage) ───────────────────
 // index_export.html tiene auth.js inlineado → funciona desde cualquier dominio
-const authJs = readFileSync('auth.js', 'utf8');
 const exportHtml = html.replace(
   '<script src="auth.js"></script>',
-  '<script>\n' + authJs + '\n</script>'
+  '<script>\n' + _authSrc + '\n</script>'
 );
 writeFileSync('index_export.html', exportHtml, 'utf8');
 console.log(`index_export.html guardado: ${(exportHtml.length / 1024 / 1024).toFixed(2)} MB  ← subir este a Supabase`);

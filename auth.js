@@ -784,37 +784,53 @@ function handleFileSelect(input){
   input.value='';
 }
 
+// Barra de progreso de subida (on/off), reutilizable para HTML y PDF/imagen.
+function _upProg(on){
+  var drop=document.getElementById('upload-drop');
+  var prog=document.getElementById('upload-progress');
+  var bar=document.getElementById('upload-bar'),pct=document.getElementById('upload-pct');
+  if(on){if(drop){drop.style.pointerEvents='none';drop.style.opacity='0.5';}if(prog)prog.style.display='block';
+    if(bar)bar.style.width='0%';if(pct)pct.textContent='0%';_upProg._v=0;
+    _upProg._t=setInterval(function(){_upProg._v=Math.min(_upProg._v+8,80);if(bar)bar.style.width=_upProg._v+'%';if(pct)pct.textContent=_upProg._v+'%';},150);}
+  else{clearInterval(_upProg._t);if(drop){drop.style.pointerEvents='';drop.style.opacity='1';}
+    if(bar)bar.style.width='100%';if(pct)pct.textContent='100%';setTimeout(function(){if(prog)prog.style.display='none';},600);}
+}
 function uploadFile(file){
   var errEl=document.getElementById('upload-err');
   var okEl=document.getElementById('upload-ok');
   errEl.textContent='';okEl.textContent='';
   document.getElementById('upload-result').style.display='none';
-  if(!file.name.endsWith('.html')&&file.type!=='text/html'){
-    errEl.textContent='Solo se permiten archivos .html';return;
+  var isHtml=/\.html?$/i.test(file.name)||file.type==='text/html';
+  var isPdf=/\.pdf$/i.test(file.name)||file.type==='application/pdf';
+  var isImg=/\.(png|jpe?g)$/i.test(file.name)||/^image\//.test(file.type||'');
+  if(!isHtml&&!isPdf&&!isImg){errEl.textContent='Formatos permitidos: PDF, PNG, JPG o HTML.';return;}
+  if(file.size>25*1024*1024){errEl.textContent='El archivo supera los 25 MB.';return;}
+  if(isHtml){
+    _upProg(true);
+    var fileName='index_'+Date.now()+'.html';
+    _sb.storage.from('flyers').upload(fileName,file,{contentType:'text/html',upsert:true}).then(function(r){
+      _upProg(false);
+      if(r.error){errEl.textContent='Error al subir: '+r.error.message;return;}
+      _uploadedUrl=FLYERS_PUBLIC+fileName;
+      var urlEl=document.getElementById('upload-url');urlEl.href=_uploadedUrl;urlEl.textContent=_uploadedUrl;
+      document.getElementById('upload-result').style.display='block';
+      okEl.textContent='¡Archivo subido exitosamente!';showToast('Flyer subido OK');loadUploadHistory();
+    });
+    return;
   }
-  if(file.size>10*1024*1024){errEl.textContent='El archivo supera los 10 MB.';return;}
-  var drop=document.getElementById('upload-drop');
-  drop.style.pointerEvents='none';drop.style.opacity='0.5';
-  var prog=document.getElementById('upload-progress');
-  var bar=document.getElementById('upload-bar');
-  var pct=document.getElementById('upload-pct');
-  prog.style.display='block';bar.style.width='0%';pct.textContent='0%';
-  var tick=0;
-  var ticker=setInterval(function(){tick=Math.min(tick+8,80);bar.style.width=tick+'%';pct.textContent=tick+'%';},150);
-  var fileName='index_'+Date.now()+'.html';
-  _sb.storage.from('flyers').upload(fileName,file,{contentType:'text/html',upsert:true}).then(function(r){
-    clearInterval(ticker);
-    drop.style.pointerEvents='';drop.style.opacity='1';
-    bar.style.width='100%';pct.textContent='100%';
-    setTimeout(function(){prog.style.display='none';},600);
-    if(r.error){errEl.textContent='Error al subir: '+r.error.message;return;}
-    _uploadedUrl='https://cajyjnxjbobdpltflgnb.supabase.co/storage/v1/object/public/flyers/'+fileName;
-    var urlEl=document.getElementById('upload-url');
-    urlEl.href=_uploadedUrl;urlEl.textContent=_uploadedUrl;
-    document.getElementById('upload-result').style.display='block';
-    okEl.textContent='¡Archivo subido exitosamente!';
-    showToast('Flyer subido OK');
-    loadUploadHistory();
+  // PDF o imagen → rasterizar a 1240px → subir jpg → abrir calibrador automáticamente
+  _upProg(true);showToast('Convirtiendo flyer...');
+  _rasterizeFlyer(file,function(blob,cvs){
+    if(!blob){_upProg(false);errEl.textContent='No se pudo procesar el archivo.';return;}
+    var imgName='flyer_'+Date.now()+'.jpg';
+    _sb.storage.from('flyers').upload(imgName,blob,{contentType:'image/jpeg',upsert:true}).then(function(r){
+      _upProg(false);
+      if(r.error){errEl.textContent='Error al subir: '+r.error.message;return;}
+      okEl.textContent='¡Flyer convertido! Acomodá las zonas y guardá.';
+      showToast('Flyer subido — calibrá las zonas');loadUploadHistory();
+      var url=FLYERS_PUBLIC+imgName;
+      var im=new Image();im.onload=function(){_calOpen(im,imgName,url);};im.src=cvs.toDataURL('image/jpeg',0.92);
+    });
   });
 }
 
@@ -839,7 +855,7 @@ function loadUploadHistory(){
     var activeHtmlUrl=(activeData&&activeData.htmlUrl)||null;
     var hasActive=!!(activeData&&activeData.imageUrl);
     _sb.storage.from('flyers').list('',{limit:50,sortBy:{column:'created_at',order:'desc'}}).then(function(r){
-      var files=(r.data||[]).filter(function(f){return f.name!=='_active.json'&&!f.name.startsWith('_active_img');});
+      var files=(r.data||[]).filter(function(f){return !f.name.startsWith('_');});
       var banner=hasActive
         ?'<div class="af-banner"><div class="af-banner-info"><span class="badge badge-active" style="font-size:.62rem;letter-spacing:.5px">ACTIVO</span><span class="af-banner-name">'+activeName+'</span></div>'+
           '<div style="display:flex;gap:6px">'+(activeHtmlUrl?'<a href="'+activeHtmlUrl+'" target="_blank" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
@@ -859,14 +875,18 @@ function loadUploadHistory(){
           var ts=f.created_at?_fmtDate(f.created_at):'';
           var kb=f.metadata&&f.metadata.size?Math.round(f.metadata.size/1024)+' KB':'';
           var isAct=activeName===f.name;
+          var isImg=/\.(png|jpe?g)$/i.test(f.name);
+          var tag=isImg?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
+          var actBtn=isAct?'<span class="badge badge-active" style="font-size:.58rem;padding:4px 8px">ACTIVO</span>':
+            '<button class="usr-btn ok" onclick="'+(isImg?'activateImageFlyer':'activateFlyer')+'(\''+url+'\',\''+f.name+'\',this)">Activar</button>';
+          var calBtn=isImg?'<button class="usr-btn edit" onclick="_calOpenFromUrl(\''+url+'\',\''+f.name+'\')">Calibrar</button>':'';
           return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
             '<div class="usr-info">'+
-              '<strong style="font-size:.78rem">'+f.name+'</strong>'+
+              '<strong style="font-size:.78rem">'+f.name+tag+'</strong>'+
               '<small>'+ts+(kb?' &middot; '+kb:'')+'</small>'+
             '</div>'+
             '<div class="usr-btns">'+
-              (isAct?'<span class="badge badge-active" style="font-size:.58rem;padding:4px 8px">ACTIVO</span>':
-                '<button class="usr-btn ok" onclick="activateFlyer(\''+url+'\',\''+f.name+'\',this)">Activar</button>')+
+              actBtn+calBtn+
               '<button class="usr-btn edit" onclick="window.open(\''+url+'\',\'_blank\')">Ver</button>'+
               '<button class="usr-btn warn" onclick="deleteUpload(this,\''+f.name+'\')"'+(isAct?' disabled title="Desactivá primero"':'')+'>Borrar</button>'+
             '</div></div>';
@@ -1178,6 +1198,264 @@ function _readDocCfg(){
 function _applyFlyerCfg(cfg){
   if(cfg&&typeof cfg==='object')window.FLYER_CFG=cfg;
   if(typeof redraw==='function'&&window.baseImg&&window.baseImg.width)redraw();
+}
+
+// ── RASTERIZADO PDF/IMAGEN + CALIBRADOR VISUAL ──────────────────────────────────
+// El admin sube el PDF/imagen LIMPIO del flyer → se rasteriza a 1240px de ancho
+// (= ancho de referencia, así las coords calzan y el anclaje sigue andando) → se
+// acomodan las zonas (empresa/montos/asesores/legales) arrastrando, con preview en
+// vivo (usa el MISMO motor fgDrawAll = WYSIWYG) → cada flyer guarda su calibración
+// en _flyer_cfgs.json. Todo vive acá (durable, no se pierde al regenerar el HTML).
+var _FG_TARGET_W=1240;
+function _fgLoadPdfJs(cb){
+  if(window.pdfjsLib&&window.pdfjsLib.getDocument){cb();return;}
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  s.onload=function(){
+    var wsrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    try{
+      // Worker cross-origin robusto: blob mismo-origen que importa el worker real (cdnjs manda CORS).
+      var blob=new Blob(['importScripts('+JSON.stringify(wsrc)+');'],{type:'application/javascript'});
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
+    }catch(e){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=wsrc;}catch(_){}}
+    cb();
+  };
+  s.onerror=function(){showToast('No se pudo cargar el lector de PDF');};
+  document.head.appendChild(s);
+}
+// file → blob JPG + canvas (1240px de ancho, fondo blanco). Soporta PDF (pág. 1) e imagen.
+function _rasterizeFlyer(file,cb){
+  var isPdf=/\.pdf$/i.test(file.name)||file.type==='application/pdf';
+  if(isPdf){
+    _fgLoadPdfJs(function(){
+      var fr=new FileReader();
+      fr.onload=function(){
+        try{
+          var data=new Uint8Array(fr.result);
+          window.pdfjsLib.getDocument({data:data}).promise.then(function(pdf){return pdf.getPage(1);})
+          .then(function(page){
+            var vp1=page.getViewport({scale:1});
+            var vp=page.getViewport({scale:_FG_TARGET_W/vp1.width});
+            var cvs=document.createElement('canvas');
+            cvs.width=Math.round(vp.width);cvs.height=Math.round(vp.height);
+            var cx=cvs.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cvs.width,cvs.height);
+            return page.render({canvasContext:cx,viewport:vp}).promise.then(function(){
+              cvs.toBlob(function(b){cb(b,cvs);},'image/jpeg',0.92);
+            });
+          }).catch(function(e){cb(null,null);showToast('Error leyendo PDF: '+(e&&e.message||e));});
+        }catch(e){cb(null,null);showToast('Error leyendo PDF');}
+      };
+      fr.readAsArrayBuffer(file);
+    });
+  }else{
+    var fr2=new FileReader();
+    fr2.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var cvs=document.createElement('canvas');
+        cvs.width=_FG_TARGET_W;cvs.height=Math.round(img.height*(_FG_TARGET_W/img.width));
+        var cx=cvs.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cvs.width,cvs.height);
+        cx.drawImage(img,0,0,cvs.width,cvs.height);
+        cvs.toBlob(function(b){cb(b,cvs);},'image/jpeg',0.92);
+      };
+      img.onerror=function(){cb(null,null);showToast('No se pudo leer la imagen');};
+      img.src=fr2.result;
+    };
+    fr2.readAsDataURL(file);
+  }
+}
+// Mapa de calibraciones por flyer: { "flyer_123.jpg": {cfg}, ... }
+function _loadFlyerCfgs(cb){
+  fetch(FLYERS_PUBLIC+'_flyer_cfgs.json?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():{};}).catch(function(){return {};})
+    .then(function(m){cb(m&&typeof m==='object'?m:{});});
+}
+function _saveFlyerCfg(name,cfg,cb){
+  _loadFlyerCfgs(function(m){
+    m[name]=cfg;
+    _sb.storage.from('flyers').upload('_flyer_cfgs.json',new Blob([JSON.stringify(m)],{type:'application/json'}),{contentType:'application/json',upsert:true})
+      .then(function(){cb&&cb();}).catch(function(){cb&&cb();});
+  });
+}
+// Activa un flyer basado en imagen (usa su calibración guardada, o el default si no tiene).
+function activateImageFlyer(url,name,btn){
+  if(btn){btn.disabled=true;btn.textContent='Activando...';}
+  _loadFlyerCfgs(function(m){
+    var cfg=(m&&m[name])||null;
+    var imageUrl=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
+    var meta=JSON.stringify({name:name,imageUrl:imageUrl,cfg:cfg,updated_at:new Date().toISOString()});
+    _sb.storage.from('flyers').upload('_active.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+      .then(function(){if(btn){btn.disabled=false;btn.textContent='Activar';}_activeFlyerName=name;showToast('¡Flyer "'+name+'" activado!');loadUploadHistory();})
+      .catch(function(){if(btn){btn.disabled=false;btn.textContent='Activar';}showToast('Error al activar');});
+  });
+}
+
+// -- Estado + UI del calibrador --
+var _cal=null;
+var _CAL_ZONES=[
+  {id:'empresa',label:'Empresa',color:'#8e44ad'},
+  {id:'montos',label:'Montos',color:'#1d4070'},
+  {id:'asesores',label:'Asesores',color:'#c0392b'},
+  {id:'legal',label:'Legales',color:'#0e8a5f'}
+];
+var _CAL_SAMPLE_LEGAL="Ejemplo de términos y condiciones del flyer. **Bonificación de comisiones** por 6 meses para nuevos clientes. Promociones sujetas a disponibilidad y a las bases y condiciones vigentes.\nPARA MÁS INFORMACIÓN O LIMITACIONES APLICABLES, CONSULTE EN: www.bancogalicia.com.ar";
+function _calSampleVals(){
+  return {empresa:'EMPRESA EJEMPLO S.A.',
+    m1:'$100.000',m2:'$80.000',m3:'$50.000',m4:'$30.000',
+    has1:true,nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar',
+    has2:true,nombre2:'Segundo Asesor',celular2:'11 8765 4321',email2:'segundo.asesor@bancogalicia.com.ar',
+    legal:(_cal&&_cal.legalText)||_CAL_SAMPLE_LEGAL};
+}
+function _calEnsureDom(){
+  if(document.getElementById('cal-modal'))return;
+  var st=document.createElement('style');st.id='cal-style';
+  st.textContent=
+    '#cal-modal{position:fixed;inset:0;z-index:100000;background:rgba(20,18,16,.72);display:none;padding:16px}'+
+    '#cal-modal.show{display:flex;align-items:stretch;justify-content:center}'+
+    '.cal-card{background:#fff;color:#1a1a1a;width:100%;max-width:720px;margin:auto;max-height:96vh;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}'+
+    'html.dark .cal-card{background:#22242a;color:#e9e9ea}'+
+    '.cal-hd{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid rgba(128,128,128,.25)}'+
+    '.cal-hd h3{margin:0;font-size:1rem;flex:1}'+
+    '.cal-legend{display:flex;flex-wrap:wrap;gap:7px;padding:9px 16px;border-bottom:1px solid rgba(128,128,128,.18)}'+
+    '.cal-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;cursor:pointer;border:1.5px solid transparent;font-size:.7rem;user-select:none}'+
+    '.cal-chip .dot{width:11px;height:11px;border-radius:3px;display:inline-block}'+
+    '.cal-chip.on{border-color:currentColor;font-weight:700}'+
+    '.cal-body{flex:1;overflow:auto;background:#e9e9e6;display:flex;justify-content:center;padding:16px}'+
+    'html.dark .cal-body{background:#15161a}'+
+    '.cal-body canvas{background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18);touch-action:none;align-self:flex-start;cursor:grab}'+
+    '.cal-ft{padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);display:flex;gap:10px;align-items:center;font-size:.72rem;color:var(--gray,#777)}'+
+    '.cal-ft .sp{flex:1}';
+  document.head.appendChild(st);
+  var m=document.createElement('div');m.id='cal-modal';
+  m.innerHTML=
+    '<div class="cal-card">'+
+      '<div class="cal-hd"><h3>Calibrar flyer</h3>'+
+        '<button class="btn-submit" onclick="_calSave()" style="padding:7px 14px">Guardar y activar</button>'+
+        '<button class="ap-close" onclick="_calClose()">&#10005;</button></div>'+
+      '<div class="cal-legend" id="cal-legend"></div>'+
+      '<div class="cal-body"><canvas id="cal-cv"></canvas></div>'+
+      '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
+    '</div>';
+  document.body.appendChild(m);
+  var cv=document.getElementById('cal-cv');
+  cv.addEventListener('pointerdown',_calDown);
+  cv.addEventListener('pointermove',_calMove);
+  window.addEventListener('pointerup',_calUp);
+  document.addEventListener('keydown',_calKey);
+}
+function _calRenderLegend(){
+  var el=document.getElementById('cal-legend');if(!el)return;
+  el.innerHTML=_CAL_ZONES.map(function(z){
+    var on=_cal&&_cal.sel===z.id;
+    return '<span class="cal-chip'+(on?' on':'')+'" style="color:'+z.color+'" onclick="_calSelect(\''+z.id+'\')"><span class="dot" style="background:'+z.color+'"></span>'+z.label+'</span>';
+  }).join('');
+}
+function _calSelect(id){if(!_cal)return;_cal.sel=id;_calRenderLegend();_calDraw();var s=document.getElementById('cal-sel');if(s)s.textContent='';}
+// Rectángulos de cada zona en px BASE (imagen 1240×H). Bottom-anchored suman DBOT=H-imgH.
+function _calZoneRects(){
+  var cfg=_cal.cfg,H=_cal.img.height,imgH=cfg.imgH||6457,DBOT=H-imgH;
+  var E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal,r={};
+  r.empresa={x:E.ex,y:E.yc-E.lh,w:E.mw,h:E.lh*2};
+  var minx=1e9,maxx=-1e9;M.boxes.forEach(function(b){minx=Math.min(minx,b.xc-b.ew/2);maxx=Math.max(maxx,b.xc+b.ew/2);});
+  r.montos={x:minx,y:M.y-M.mh/2,w:maxx-minx,h:M.mh};
+  r.asesores={x:C.ex,y:C.ey+DBOT,w:C.ew,h:C.eh};
+  r.legal={x:L.x0,y:L.yStart+DBOT,w:L.maxW,h:(L.yEnd-L.yStart)};
+  return r;
+}
+function _calDraw(){
+  if(!_cal)return;
+  var cv=document.getElementById('cal-cv');if(!cv)return;var g=cv.getContext('2d');var ds=_cal.ds;
+  cv.width=Math.round(_FG_TARGET_W*ds);cv.height=Math.round(_cal.img.height*ds);
+  cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
+  var sb=window.baseImg,sc=window.FLYER_CFG;
+  window.baseImg=_cal.img;window.FLYER_CFG=_cal.cfg;
+  try{fgDrawAll(g,ds,_calSampleVals());}catch(e){}
+  window.baseImg=sb;window.FLYER_CFG=sc;
+  var rects=_calZoneRects();
+  _CAL_ZONES.forEach(function(z){
+    var r=rects[z.id];if(!r)return;var x=r.x*ds,y=r.y*ds,w=r.w*ds,h=r.h*ds,on=_cal.sel===z.id;
+    g.save();g.strokeStyle=z.color;g.lineWidth=on?2.5:1.5;g.setLineDash(on?[]:[6,4]);
+    g.strokeRect(x,y,w,h);g.setLineDash([]);
+    g.fillStyle=z.color;g.font='bold 11px Arial';g.textAlign='left';g.textBaseline='bottom';
+    g.fillText(z.label,x+3,y>14?y-3:y+13);
+    if(z.id==='legal'){g.fillRect(x+w-6,y+h-6,11,11);}
+    g.restore();
+  });
+}
+function _calXY(e){var cv=document.getElementById('cal-cv');var rc=cv.getBoundingClientRect();return {x:(e.clientX-rc.left)/_cal.ds,y:(e.clientY-rc.top)/_cal.ds};}
+function _calHit(bx,by){
+  var rects=_calZoneRects(),L=rects.legal;
+  if(L&&Math.abs(bx-(L.x+L.w))<16&&Math.abs(by-(L.y+L.h))<16)return {zone:'legal',handle:'br'};
+  var order=['empresa','montos','asesores','legal'];
+  for(var i=0;i<order.length;i++){var r=rects[order[i]];if(r&&bx>=r.x&&bx<=r.x+r.w&&by>=r.y&&by<=r.y+r.h)return {zone:order[i],handle:null};}
+  return null;
+}
+function _calDown(e){
+  if(!_cal)return;e.preventDefault();
+  var p=_calXY(e),hit=_calHit(p.x,p.y);if(!hit)return;
+  _cal.drag=hit;_cal.sel=hit.zone;_cal.lastX=p.x;_cal.lastY=p.y;
+  try{e.target.setPointerCapture&&e.target.setPointerCapture(e.pointerId);}catch(_){}
+  _calRenderLegend();_calDraw();
+}
+function _calMove(e){
+  if(!_cal||!_cal.drag)return;e.preventDefault();
+  var p=_calXY(e),dx=p.x-_cal.lastX,dy=p.y-_cal.lastY;_cal.lastX=p.x;_cal.lastY=p.y;
+  _calApply(_cal.drag,dx,dy);_calDraw();
+}
+function _calUp(){if(_cal&&_cal.drag)_cal.drag=null;}
+function _calApply(drag,dx,dy){
+  var cfg=_cal.cfg,E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal;
+  if(drag.zone==='empresa'){E.yc+=dy;E.xc+=dx;E.ex+=dx;}
+  else if(drag.zone==='montos'){M.y+=dy;M.boxes.forEach(function(b){b.xc+=dx;});}
+  else if(drag.zone==='asesores'){C.ey+=dy;C.y1+=dy;C.y2+=dy;C.y3+=dy;C.xSingle+=dx;C.xLeft+=dx;C.xRight+=dx;}
+  else if(drag.zone==='legal'){
+    if(drag.handle==='br'){L.yEnd=Math.max(L.yStart+30,L.yEnd+dy);L.maxW=Math.max(120,L.maxW+dx);}
+    else{L.x0+=dx;L.yStart+=dy;L.yEnd+=dy;}
+  }
+}
+function _calKey(e){
+  if(!_cal||!_cal.sel)return;
+  var step=e.shiftKey?10:1,dx=0,dy=0;
+  if(e.key==='ArrowUp')dy=-step;else if(e.key==='ArrowDown')dy=step;else if(e.key==='ArrowLeft')dx=-step;else if(e.key==='ArrowRight')dx=step;else return;
+  e.preventDefault();_calApply({zone:_cal.sel,handle:null},dx,dy);_calDraw();
+}
+function _calMergeCfg(base,saved){
+  for(var k in saved){
+    if(saved[k]&&typeof saved[k]==='object'&&!Array.isArray(saved[k])&&base[k])for(var j in saved[k])base[k][j]=saved[k][j];
+    else base[k]=saved[k];
+  }
+}
+function _calOpen(img,name,url){
+  _calEnsureDom();
+  var base=JSON.parse(JSON.stringify(FLYER_CFG_DEFAULT));
+  _cal={img:img,name:name,url:url,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
+    ds:Math.min(560,(window.innerWidth||600)-70)/_FG_TARGET_W};
+  document.getElementById('cal-modal').classList.add('show');
+  _calRenderLegend();_calDraw();
+  _loadFlyerCfgs(function(m){
+    if(m&&m[name]){try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}}
+    fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+      .then(function(d){if(_cal){_cal.legalText=(d&&d.text)||_CAL_SAMPLE_LEGAL;_calDraw();}});
+  });
+}
+function _calOpenFromUrl(url,name){
+  showToast('Cargando flyer...');
+  var im=new Image();
+  im.onload=function(){_calOpen(im,name,url);};
+  im.onerror=function(){showToast('No se pudo cargar la imagen del flyer');};
+  im.src=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
+}
+function _calClose(){var m=document.getElementById('cal-modal');if(m)m.classList.remove('show');_cal=null;}
+function _calSave(){
+  if(!_cal)return;var name=_cal.name,url=_cal.url,cfg=_cal.cfg;
+  showToast('Guardando calibración...');
+  _saveFlyerCfg(name,cfg,function(){
+    var imageUrl=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
+    var meta=JSON.stringify({name:name,imageUrl:imageUrl,cfg:cfg,updated_at:new Date().toISOString()});
+    _sb.storage.from('flyers').upload('_active.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+      .then(function(){_activeFlyerName=name;showToast('¡Calibración guardada y flyer activado!');_calClose();loadUploadHistory();})
+      .catch(function(){showToast('Error al guardar la calibración');});
+  });
 }
 
 // ── NEGRITAS AL PEGAR ─────────────────────────────────────────────────────────────
