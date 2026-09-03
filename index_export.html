@@ -701,6 +701,7 @@ function initApp(){
   window.FLYER_CFG=_readDocCfg()||window.FLYER_CFG||{};
   _attachLegalPaste('legal-text');
   _fgEnsureAsesores34(); // campos de asesor 3 y 4 (el template sólo trae 1 y 2)
+  _fgFixAsesorLabels();  // "Agregar asesor 1..4" en los cuatro switches
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -1866,6 +1867,20 @@ function _fgEnsureAsesores34(){
     if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
   });
   if(_canNotes)_initAsesoresUI(); // engancha el popover de asesores guardados en 3 y 4
+}
+// Unifica las etiquetas de los switches: "Agregar asesor 1..4".
+// El template trae "Mostrar asesor 1" y "Agregar segundo asesor"; como lo regenerás,
+// lo normalizo acá. Uso el id del switch (sw1..sw4) para saber el número, así no
+// depende del texto que traiga el HTML.
+function _fgFixAsesorLabels(){
+  var rows=document.querySelectorAll('.toggle-row');
+  Array.prototype.forEach.call(rows,function(r){
+    var sw=r.querySelector('.sw');if(!sw||!sw.id)return;
+    var n=parseInt(String(sw.id).replace(/\D/g,''),10);
+    if(!n||n<1||n>4)return;
+    var sp=r.querySelector('span');
+    if(sp)sp.textContent='Agregar asesor '+n;
+  });
 }
 // getVals ampliado a 4 asesores (pisa el de _source.html, que sólo conoce 2).
 function fgGetVals(){
