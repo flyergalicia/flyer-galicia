@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs';
+import { createHash } from 'crypto';
 
 let html = readFileSync('_source.html', 'utf8');
 const newCSS = readFileSync('_newcss.txt', 'utf8');
@@ -451,12 +452,21 @@ html = html.replace(
 
 // ── VERIFICACIONES ──────────────────────────────────────────────────────────
 const _authSrc = readFileSync('auth.js', 'utf8');
+// ── CACHE-BUSTING de auth.js ────────────────────────────────────────────────
+// GitHub Pages sirve auth.js con Cache-Control: max-age=600, así que el navegador
+// se quedaba hasta 10 min con la versión vieja (y el usuario "no veía" los cambios
+// recién deployados). Le cuelgo un hash del contenido: cambia sólo cuando cambia
+// auth.js, y fuerza la descarga al toque.
+const _authHash = createHash('sha1').update(_authSrc).digest('hex').slice(0, 10);
+const AUTH_TAG = `<script src="auth.js?v=${_authHash}"></script>`;
+html = html.replace('<script src="auth.js"></script>', AUTH_TAG);
 const checks = {
   'CSS full-screen': html.includes('height:100vh;overflow:hidden'),
   'layout height': html.includes('height:calc(100vh - 62px)'),
   'panel height': html.includes('height:100%'),
   'Supabase SDK': html.includes('supabase.js'),
   'auth.js': html.includes('auth.js'),
+  'cache-busting auth.js': html.includes('auth.js?v=') && !html.includes('<script src="auth.js"></script>'),
   'layout hidden': html.includes('id="layout" style="display:none"'),
   'login-ov': html.includes('id="login-ov"'),
   'admin-panel': html.includes('id="admin-panel"'),
@@ -505,7 +515,7 @@ console.log(`\nindex.html guardado: ${(html.length / 1024 / 1024).toFixed(2)} MB
 // ── EXPORT SELF-CONTAINED (para subir a Supabase Storage) ───────────────────
 // index_export.html tiene auth.js inlineado → funciona desde cualquier dominio
 const exportHtml = html.replace(
-  '<script src="auth.js"></script>',
+  AUTH_TAG,
   '<script>\n' + _authSrc + '\n</script>'
 );
 writeFileSync('index_export.html', exportHtml, 'utf8');
