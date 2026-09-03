@@ -1195,7 +1195,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
 
     <div id="at-subir" style="display:none">
       <p class="ap-sec">Subir nueva versi&oacute;n del flyer</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Sub&iacute; el <strong>PDF limpio</strong> del flyer (sin los datos que completa cada asesor) &mdash; tambi&eacute;n vale PNG/JPG. Se convierte solo y se abre el <strong>calibrador</strong> para acomodar las zonas arrastrando. El HTML del build (<strong>index_export.html</strong>) tambi&eacute;n sirve como antes.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Sub&iacute; el <strong>PDF limpio</strong> del flyer (sin los datos que completa cada asesor) &mdash; tambi&eacute;n vale PNG/JPG. Te pregunta si va a la <strong>Opci&oacute;n 1</strong> o la <strong>Opci&oacute;n 2</strong>, se convierte solo y se abre el <strong>calibrador</strong> de esa opci&oacute;n para acomodar las zonas arrastrando. Ojo: los asesores y VIP siempre ven la <strong>Opci&oacute;n 1</strong>. El HTML del build (<strong>index_export.html</strong>) tambi&eacute;n sirve como antes.</p>
       <div id="upload-drop" class="upload-drop"
         onclick="document.getElementById('upload-file').click()"
         ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -1256,13 +1256,28 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
 
     <div id="at-legales" style="display:none">
       <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Edit&aacute; el texto legal que ven <strong>todos los usuarios</strong>. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
-      <textarea id="glegal-text" class="login-inp" style="min-height:340px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Peg&aacute; o escrib&iacute; los t&eacute;rminos y condiciones..."></textarea>
-      <div class="login-err" id="glegal-err" style="margin-top:6px"></div>
-      <div class="login-ok" id="glegal-ok" style="margin-top:6px"></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn-submit" id="glegal-save" onclick="saveGlobalLegal()">Guardar y aplicar a todos</button>
-        <button class="usr-btn edit" onclick="loadGlobalLegal(true)">Recargar</button>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
+      <div class="atabs" style="margin-bottom:14px">
+        <div class="atab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
+        <div class="atab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
+      </div>
+      <div id="lt-1">
+        <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>
+        <div class="login-err" id="glegal-err" style="margin-top:6px"></div>
+        <div class="login-ok" id="glegal-ok" style="margin-top:6px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn-submit" id="glegal-save" onclick="saveGlobalLegal(1)">Guardar y aplicar a todos</button>
+          <button class="usr-btn edit" onclick="loadGlobalLegal(true,1)">Recargar</button>
+        </div>
+      </div>
+      <div id="lt-2" style="display:none">
+        <textarea id="glegal-text2" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 2..."></textarea>
+        <div class="login-err" id="glegal-err2" style="margin-top:6px"></div>
+        <div class="login-ok" id="glegal-ok2" style="margin-top:6px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn-submit" id="glegal-save2" onclick="saveGlobalLegal(2)">Guardar y aplicar a todos</button>
+          <button class="usr-btn edit" onclick="loadGlobalLegal(true,2)">Recargar</button>
+        </div>
       </div>
     </div>
 

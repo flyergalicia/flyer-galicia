@@ -410,18 +410,24 @@ function checkProfile(user){
     var _eE=document.getElementById('email');if(_eE){_eE.value='';_eE.placeholder='mail@bancogalicia.com.ar';}
     if(typeof updateFnPreview==='function')updateFnPreview();
     if(typeof redraw==='function')redraw();
-    _applyGlobalLegalToForm(); // trae los T&C globales (los que edita el admin)
+    _fgOpt=1; // todos arrancan en Opción 1 (los asesores/VIP se quedan siempre acá)
+    _applyGlobalLegalToForm(1); // trae los T&C globales de la Opción 1
     document.getElementById('hdr-user').textContent=_myName;
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
-    if(_admin)_refreshPendingBadge();
-    // Aplicar imagen del flyer activo
+    if(_admin){_refreshPendingBadge();_fgEnsureOptBar();} // el selector es SOLO para admin
+    // Aplicar imagen del flyer activo (Opción 1)
     _fetchActiveFlyer(function(imageUrl){
       _showApp();
+      // Cacheo la Opción 1 para que volver a ella sea instantáneo
+      _fgOptCache[1]={loaded:true,cfg:window.FLYER_CFG||null,imageUrl:imageUrl,
+        name:_activeFlyerName,legal:null,img:null};
+      loadGlobalLegal(false,1).then(function(t){if(_fgOptCache[1])_fgOptCache[1].legal=t||'';});
       if(imageUrl&&window.baseImg){
         var _ni=new Image();
         _ni.crossOrigin='anonymous';
         _ni.onload=function(){
           window.baseImg=_ni;
+          if(_fgOptCache[1])_fgOptCache[1].img=_ni;
           if(typeof calcSC==='function')calcSC();
           if(typeof redraw==='function')redraw();
         };
@@ -529,49 +535,65 @@ function switchAdminTab(el,t){
   ['dashboard','usuarios','subir','registros','legales'].forEach(function(tab){
     var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
   });
-  document.querySelectorAll('.atab').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
+  // :not(.ltab) para no pisar las sub-solapas de legales (Opción 1 / Opción 2)
+  document.querySelectorAll('.atab:not(.ltab)').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
   if(t==='usuarios')loadUsers();
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
-  if(t==='legales'){loadGlobalLegal(true);_attachLegalPaste('glegal-text');}
+  if(t==='legales'){
+    loadGlobalLegal(true,1);loadGlobalLegal(true,2);
+    _attachLegalPaste('glegal-text');_attachLegalPaste('glegal-text2');
+  }
 }
 
 // ── LEGAL GLOBAL (términos y condiciones para todos) ──────────────────────────────
 // Se guarda en el bucket flyers como _legal.json {text, updated_at}. El admin lo edita
 // desde el panel; todos los usuarios lo reciben precargado al iniciar sesión.
-function loadGlobalLegal(toEditor){
-  return fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'})
+// Cada opción del armador tiene su propio legal (_legal.json / _legal2.json).
+function loadGlobalLegal(toEditor,opt){
+  opt=(+opt===2)?2:1;
+  return fetch(FLYERS_PUBLIC+_legalFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
     .then(function(d){
       var txt=(d&&typeof d.text==='string')?d.text:'';
-      if(toEditor){var el=document.getElementById('glegal-text');if(el)el.value=txt;}
+      if(toEditor){var el=document.getElementById(opt===2?'glegal-text2':'glegal-text');if(el)el.value=txt;}
       return txt;
     }).catch(function(){return '';});
 }
-function saveGlobalLegal(){
-  var el=document.getElementById('glegal-text');if(!el)return;
+function saveGlobalLegal(opt){
+  opt=(+opt===2)?2:1;
+  var sfx=(opt===2)?'2':'';
+  var el=document.getElementById('glegal-text'+sfx);if(!el)return;
   var txt=el.value;
-  var btn=document.getElementById('glegal-save'),err=document.getElementById('glegal-err'),ok=document.getElementById('glegal-ok');
+  var btn=document.getElementById('glegal-save'+sfx),err=document.getElementById('glegal-err'+sfx),ok=document.getElementById('glegal-ok'+sfx);
   if(err)err.textContent='';if(ok)ok.textContent='';
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   var meta=JSON.stringify({text:txt,updated_at:new Date().toISOString()});
-  _sb.storage.from('flyers').upload('_legal.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+  _sb.storage.from('flyers').upload(_legalFile(opt),new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
     .then(function(r){
       if(btn){btn.disabled=false;btn.textContent='Guardar y aplicar a todos';}
       if(r&&r.error){if(err)err.textContent='Error: '+r.error.message;return;}
-      if(ok)ok.textContent='✅ Guardado. Todos los usuarios verán este legal al ingresar.';
-      showToast('Legal global actualizado');
+      if(ok)ok.textContent='✅ Guardado. Se aplica a '+_optLabel(opt)+' para todos los usuarios.';
+      if(_fgOptCache[opt])_fgOptCache[opt].legal=txt;
+      // si estoy viendo esa opción, refresco el legal del armador al toque
+      if(+_fgOpt===opt){var f=document.getElementById('legal-text');if(f){f.value=txt;if(typeof redraw==='function')redraw();}}
+      showToast('Legal de '+_optLabel(opt)+' actualizado');
     });
 }
-// Precarga el legal global en el formulario del usuario (pisa el default del template).
-function _applyGlobalLegalToForm(){
-  fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(d){
-      var txt=(d&&typeof d.text==='string'&&d.text.trim())?d.text:null;
-      if(txt){var el=document.getElementById('legal-text');if(el){el.value=txt;if(typeof redraw==='function')redraw();}}
-    }).catch(function(){});
+// Precarga el legal de la opción en el formulario (pisa el default del template).
+function _applyGlobalLegalToForm(opt){
+  opt=(+opt===2)?2:1;
+  loadGlobalLegal(false,opt).then(function(txt){
+    if(txt&&txt.trim()){var el=document.getElementById('legal-text');if(el){el.value=txt;if(typeof redraw==='function')redraw();}}
+  });
+}
+// Sub-solapas de legales en el panel admin.
+function switchLegalTab(el,n){
+  n=(+n===2)?2:1;
+  [1,2].forEach(function(o){var d=document.getElementById('lt-'+o);if(d)d.style.display=(o===n)?'block':'none';});
+  document.querySelectorAll('.ltab').forEach(function(x){x.classList.toggle('active',+x.getAttribute('data-ltab')===n);});
+  _attachLegalPaste(n===2?'glegal-text2':'glegal-text');
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -772,16 +794,23 @@ function submitUser(){
 // ── SUBIR FLYER ───────────────────────────────────────────────────────────────
 var _uploadedUrl=null;
 
+// PDF/imagen: pregunto a qué opción va (queda calibrado y activado ahí).
+// HTML: se sube nomás; la opción se elige después al apretar "Activar".
+function _startUpload(file){
+  var isHtml=/\.html?$/i.test(file.name)||file.type==='text/html';
+  if(isHtml){uploadFile(file,0);return;}
+  _askOption('¿A qué opción subís este flyer?',function(o){uploadFile(file,o);});
+}
 function handleFileDrop(e){
   e.preventDefault();
   var file=e.dataTransfer&&e.dataTransfer.files[0];
-  if(file)uploadFile(file);
+  if(file)_startUpload(file);
 }
 
 function handleFileSelect(input){
   var file=input.files&&input.files[0];
-  if(file)uploadFile(file);
   input.value='';
+  if(file)_startUpload(file);
 }
 
 // Barra de progreso de subida (on/off), reutilizable para HTML y PDF/imagen.
@@ -795,7 +824,7 @@ function _upProg(on){
   else{clearInterval(_upProg._t);if(drop){drop.style.pointerEvents='';drop.style.opacity='1';}
     if(bar)bar.style.width='100%';if(pct)pct.textContent='100%';setTimeout(function(){if(prog)prog.style.display='none';},600);}
 }
-function uploadFile(file){
+function uploadFile(file,opt){
   var errEl=document.getElementById('upload-err');
   var okEl=document.getElementById('upload-ok');
   errEl.textContent='';okEl.textContent='';
@@ -826,10 +855,10 @@ function uploadFile(file){
     _sb.storage.from('flyers').upload(imgName,blob,{contentType:'image/jpeg',upsert:true}).then(function(r){
       _upProg(false);
       if(r.error){errEl.textContent='Error al subir: '+r.error.message;return;}
-      okEl.textContent='¡Flyer convertido! Acomodá las zonas y guardá.';
+      okEl.textContent='¡Flyer convertido! Acomodá las zonas y guardá ('+_optLabel(opt||1)+').';
       showToast('Flyer subido — calibrá las zonas');loadUploadHistory();
       var url=FLYERS_PUBLIC+imgName;
-      var im=new Image();im.onload=function(){_calOpen(im,imgName,url);};im.src=cvs.toDataURL('image/jpeg',0.92);
+      var im=new Image();im.onload=function(){_calOpen(im,imgName,url,opt||1);};im.src=cvs.toDataURL('image/jpeg',0.92);
     });
   });
 }
@@ -846,59 +875,172 @@ function downloadUploaded(){
 function loadUploadHistory(){
   var histEl=document.getElementById('upload-history');if(!histEl)return;
   histEl.innerHTML=skelRows(2);
-  // Leer _active.json completo para tener htmlUrl para el botón Ver
-  fetch(FLYERS_PUBLIC+'_active.json?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
-    .catch(function(){return null;})
-    .then(function(activeData){
-    var activeName=(activeData&&activeData.name)||'';
-    var activeHtmlUrl=(activeData&&activeData.htmlUrl)||null;
-    var hasActive=!!(activeData&&activeData.imageUrl);
-    _sb.storage.from('flyers').list('',{limit:50,sortBy:{column:'created_at',order:'desc'}}).then(function(r){
-      var files=(r.data||[]).filter(function(f){return !f.name.startsWith('_');});
-      var banner=hasActive
-        ?'<div class="af-banner"><div class="af-banner-info"><span class="badge badge-active" style="font-size:.62rem;letter-spacing:.5px">ACTIVO</span><span class="af-banner-name">'+activeName+'</span></div>'+
-          '<div style="display:flex;gap:6px">'+(activeHtmlUrl?'<a href="'+activeHtmlUrl+'" target="_blank" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
-          '<button class="usr-btn warn" onclick="deactivateFlyer(this)" style="font-size:.65rem;padding:5px 10px">Desactivar</button></div></div>'
-        :'<div class="af-banner af-banner-empty">Sin flyer activo &mdash; usuarios ven el flyer por defecto.</div>';
-      if(!files.length){
-        histEl.innerHTML=banner+'<p style="color:var(--gray);font-size:.8rem;margin-top:12px">Sin versiones subidas aún.</p>';
-        return;
-      }
-      if(!files.length){
-        histEl.innerHTML=banner+'<p style="color:var(--gray);font-size:.8rem;margin-top:12px">Sin versiones subidas aún.</p>';
-        return;
-      }
-      histEl.innerHTML=banner+'<p class="ap-sec" style="margin-top:16px;margin-bottom:8px">Versiones disponibles</p>'+
-        files.map(function(f){
-          var url=FLYERS_PUBLIC+f.name;
-          var ts=f.created_at?_fmtDate(f.created_at):'';
-          var kb=f.metadata&&f.metadata.size?Math.round(f.metadata.size/1024)+' KB':'';
-          var isAct=activeName===f.name;
-          var isImg=/\.(png|jpe?g)$/i.test(f.name);
-          var tag=isImg?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
-          var actBtn=isAct?'<span class="badge badge-active" style="font-size:.58rem;padding:4px 8px">ACTIVO</span>':
-            '<button class="usr-btn ok" onclick="'+(isImg?'activateImageFlyer':'activateFlyer')+'(\''+url+'\',\''+f.name+'\',this)">Activar</button>';
-          var calBtn=isImg?'<button class="usr-btn edit" onclick="_calOpenFromUrl(\''+url+'\',\''+f.name+'\')">Calibrar</button>':'';
-          return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
-            '<div class="usr-info">'+
-              '<strong style="font-size:.78rem">'+f.name+tag+'</strong>'+
-              '<small>'+ts+(kb?' &middot; '+kb:'')+'</small>'+
-            '</div>'+
-            '<div class="usr-btns">'+
-              actBtn+calBtn+
-              '<button class="usr-btn edit" onclick="window.open(\''+url+'\',\'_blank\')">Ver</button>'+
-              '<button class="usr-btn warn" onclick="deleteUpload(this,\''+f.name+'\')"'+(isAct?' disabled title="Desactivá primero"':'')+'>Borrar</button>'+
-            '</div></div>';
-        }).join('');
-    });
+  // Leo el flyer activo de LAS DOS opciones (_active.json y _active2.json)
+  var pend=2;
+  [1,2].forEach(function(o){
+    _fetchActiveMeta(o,function(d){_fgHistMeta[o]=d;if(--pend===0)_renderUploadHistory(histEl);});
+  });
+}
+function _renderUploadHistory(histEl){
+  _sb.storage.from('flyers').list('',{limit:50,sortBy:{column:'created_at',order:'desc'}}).then(function(r){
+    var files=(r.data||[]).filter(function(f){return !f.name.startsWith('_');});
+    var banner=[1,2].map(function(o){
+      var d=_fgHistMeta[o],has=!!(d&&d.imageUrl);
+      if(!has)return '<div class="af-banner af-banner-empty">'+_optLabel(o)+': sin flyer activo.</div>';
+      var hUrl=(d&&d.htmlUrl)||null;
+      return '<div class="af-banner"><div class="af-banner-info">'+
+        '<span class="badge badge-active" style="font-size:.62rem;letter-spacing:.5px">OP.'+o+'</span>'+
+        '<span class="af-banner-name">'+_escHtml(d.name||'')+'</span></div>'+
+        '<div style="display:flex;gap:6px">'+
+        (hUrl?'<a href="'+hUrl+'" target="_blank" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
+        '<button class="usr-btn warn" onclick="deactivateFlyer(this,'+o+')" style="font-size:.65rem;padding:5px 10px">Desactivar</button>'+
+        '</div></div>';
+    }).join('');
+    if(!files.length){
+      histEl.innerHTML=banner+'<p style="color:var(--gray);font-size:.8rem;margin-top:12px">Sin versiones subidas aún.</p>';
+      return;
+    }
+    histEl.innerHTML=banner+'<p class="ap-sec" style="margin-top:16px;margin-bottom:8px">Versiones disponibles</p>'+
+      files.map(function(f){
+        var url=FLYERS_PUBLIC+f.name;
+        var ts=f.created_at?_fmtDate(f.created_at):'';
+        var kb=f.metadata&&f.metadata.size?Math.round(f.metadata.size/1024)+' KB':'';
+        var in1=!!(_fgHistMeta[1]&&_fgHistMeta[1].name===f.name);
+        var in2=!!(_fgHistMeta[2]&&_fgHistMeta[2].name===f.name);
+        var isAct=in1||in2;
+        var isImg=/\.(png|jpe?g)$/i.test(f.name);
+        var fn=isImg?'activateImageFlyer':'activateFlyer';
+        var tag=isImg?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
+        function ab(o,on){
+          return on?'<span class="badge badge-active" style="font-size:.56rem;padding:4px 7px">EN OP.'+o+'</span>'
+                  :'<button class="usr-btn ok" title="Activar en '+_optLabel(o)+'" onclick="'+fn+'(\''+url+'\',\''+f.name+'\',this,'+o+')">Op.'+o+'</button>';
+        }
+        var calBtn=isImg?'<button class="usr-btn edit" onclick="_calFromList(\''+url+'\',\''+f.name+'\')">Calibrar</button>':'';
+        return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
+          '<div class="usr-info">'+
+            '<strong style="font-size:.78rem">'+f.name+tag+'</strong>'+
+            '<small>'+ts+(kb?' &middot; '+kb:'')+'</small>'+
+          '</div>'+
+          '<div class="usr-btns">'+
+            ab(1,in1)+ab(2,in2)+calBtn+
+            '<button class="usr-btn edit" onclick="window.open(\''+url+'\',\'_blank\')">Ver</button>'+
+            '<button class="usr-btn warn" onclick="deleteUpload(this,\''+f.name+'\')"'+(isAct?' disabled title="Desactivá primero"':'')+'>Borrar</button>'+
+          '</div></div>';
+      }).join('');
   });
 }
 
 function deleteUpload(btn,name){
-  if(name===_activeFlyerName&&_activeFlyerUrl){showToast('Desactivá el flyer antes de borrarlo.');return;}
+  if((_fgHistMeta[1]&&_fgHistMeta[1].name===name)||(_fgHistMeta[2]&&_fgHistMeta[2].name===name)){
+    showToast('Desactivá el flyer antes de borrarlo.');return;
+  }
   btn.disabled=true;
   _sb.storage.from('flyers').remove([name]).then(function(){loadUploadHistory();showToast('Archivo eliminado');});
+}
+
+// ── DOS ARMADORES: Opción 1 / Opción 2 (selector SOLO para ADMIN) ───────────────
+// Cada opción tiene su propio flyer activo (_active.json / _active2.json) y su propio
+// legal global (_legal.json / _legal2.json). La Opción 1 es EXACTAMENTE lo que existía
+// antes, así que asesores y VIP no ven ningún cambio (no se les muestra el selector).
+// Al cambiar de opción se intercambian baseImg + FLYER_CFG + #legal-text; por eso el
+// armador individual, el MASIVO (genAll usa legal-text + fullRes) y las descargas
+// funcionan igual en las dos sin tocar nada más.
+var _fgOpt=1,_fgOptCache={},_fgHistMeta={};
+function _activeFile(opt){return (+opt===2)?'_active2.json':'_active.json';}
+function _legalFile(opt){return (+opt===2)?'_legal2.json':'_legal.json';}
+function _optLabel(opt){return 'Opción '+((+opt===2)?2:1);}
+function _fetchActiveMeta(opt,cb){
+  fetch(FLYERS_PUBLIC+_activeFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){cb(d||null);}).catch(function(){cb(null);});
+}
+// Barra de opciones: se inyecta arriba de los tabs Individual/Masivo/Historial.
+// Se llama sólo si _admin, así que para el resto el armador queda idéntico a hoy.
+function _fgEnsureOptBar(){
+  if(document.getElementById('fg-optbar'))return;
+  var tabs=document.querySelector('.panel .tabs')||document.querySelector('.tabs');
+  if(!tabs||!tabs.parentNode)return;
+  var st=document.createElement('style');st.id='fg-optbar-style';
+  st.textContent=
+    '#fg-optbar{display:flex;gap:6px;margin:0 0 10px;padding:4px;background:rgba(128,128,128,.14);border-radius:9px}'+
+    '#fg-optbar .fgo{flex:1;text-align:center;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--gray,#777);user-select:none;transition:.15s;background:none}'+
+    '#fg-optbar .fgo:hover{color:var(--red,#c62828)}'+
+    '#fg-optbar .fgo.on{background:#fff;color:var(--red,#c62828);box-shadow:0 1px 4px rgba(0,0,0,.14)}'+
+    'html.dark #fg-optbar .fgo.on{background:#2c2f36}';
+  document.head.appendChild(st);
+  var bar=document.createElement('div');bar.id='fg-optbar';
+  bar.innerHTML='<div class="fgo" data-o="1" onclick="switchFlyerOption(1)">Opción 1</div>'+
+                '<div class="fgo" data-o="2" onclick="switchFlyerOption(2)">Opción 2</div>';
+  tabs.parentNode.insertBefore(bar,tabs);
+  _fgRenderOptBar();
+}
+function _fgRenderOptBar(){
+  var bar=document.getElementById('fg-optbar');if(!bar)return;
+  bar.querySelectorAll('.fgo').forEach(function(x){x.classList.toggle('on',+x.dataset.o===+_fgOpt);});
+}
+function switchFlyerOption(opt){
+  if(!_admin)return; // gating: sólo admin puede cambiar de armador
+  opt=(+opt===2)?2:1;
+  _fgOpt=opt;_fgRenderOptBar();
+  var c=_fgOptCache[opt];
+  if(c&&c.loaded){_fgApplyOption(c);return;}
+  showToast('Cargando '+_optLabel(opt)+'...');
+  _fetchActiveMeta(opt,function(d){
+    var cache=_fgOptCache[opt]={loaded:false,cfg:(d&&d.cfg)||null,
+      imageUrl:(d&&d.imageUrl)||null,name:(d&&d.name)||'',legal:null,img:null};
+    loadGlobalLegal(false,opt).then(function(txt){
+      cache.legal=txt||'';
+      if(!cache.imageUrl){
+        cache.loaded=true;
+        if(+_fgOpt===opt){_fgApplyOption(cache);showToast(_optLabel(opt)+' todavía no tiene flyer: subilo desde el panel.');}
+        return;
+      }
+      var im=new Image();im.crossOrigin='anonymous';
+      im.onload=function(){cache.img=im;cache.loaded=true;if(+_fgOpt===opt)_fgApplyOption(cache);};
+      im.onerror=function(){cache.loaded=true;if(+_fgOpt===opt){_fgApplyOption(cache);showToast('No se pudo cargar la imagen de '+_optLabel(opt));}};
+      im.src=cache.imageUrl+(cache.imageUrl.indexOf('?')>=0?'&':'?')+'_r='+Date.now();
+    });
+  });
+}
+function _fgApplyOption(cache){
+  if(cache.img)window.baseImg=cache.img;
+  window.FLYER_CFG=cache.cfg||{};
+  var el=document.getElementById('legal-text');
+  if(el&&typeof cache.legal==='string'&&cache.legal.trim())el.value=cache.legal;
+  if(typeof calcSC==='function')calcSC();
+  if(typeof redraw==='function')redraw();
+}
+// Fuerza recarga de una opción (después de activar/calibrar) y refresca el armador si toca.
+function _fgInvalidateOpt(opt){
+  opt=(+opt===2)?2:1;
+  delete _fgOptCache[opt];
+  if(_admin&&+_fgOpt===opt)switchFlyerOption(opt);
+}
+// Pregunta a qué opción corresponde una acción (subir / activar / calibrar).
+function _askOption(title,cb){
+  var prev=document.getElementById('fg-askopt');if(prev)prev.remove();
+  if(!document.getElementById('fg-askopt-style')){
+    var st=document.createElement('style');st.id='fg-askopt-style';
+    st.textContent='#fg-askopt{position:fixed;inset:0;z-index:100001;background:rgba(20,18,16,.72);display:flex;align-items:center;justify-content:center;padding:20px}'+
+      '#fg-askopt .box{background:#fff;color:#1a1a1a;border-radius:14px;padding:22px;max-width:390px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4)}'+
+      'html.dark #fg-askopt .box{background:#22242a;color:#e9e9ea}'+
+      '#fg-askopt h3{margin:0 0 6px;font-size:1rem}'+
+      '#fg-askopt p{margin:0 0 16px;font-size:.8rem;color:var(--gray,#777)}';
+    document.head.appendChild(st);
+  }
+  var d=document.createElement('div');d.id='fg-askopt';
+  d.innerHTML='<div class="box"><h3>'+_escHtml(title)+'</h3>'+
+    '<p>Eleg&iacute; a qu&eacute; armador corresponde.</p>'+
+    '<div style="display:flex;gap:8px">'+
+      '<button class="btn-submit" style="flex:1" data-o="1">Opci&oacute;n 1</button>'+
+      '<button class="btn-submit" style="flex:1" data-o="2">Opci&oacute;n 2</button></div>'+
+    '<button class="btn-cancel" style="width:100%;margin-top:8px" data-o="0">Cancelar</button></div>';
+  d.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest?e.target.closest('button[data-o]'):null;
+    if(!b){if(e.target===d)d.remove();return;}
+    var o=+b.getAttribute('data-o');d.remove();if(o)cb(o);
+  });
+  document.body.appendChild(d);
 }
 
 // ── FLYER ACTIVO ──────────────────────────────────────────────────────────────
@@ -920,8 +1062,9 @@ function _fetchActiveFlyer(cb){
 
 // Al activar: descarga el HTML, extrae la imagen en base64, la sube como _active_img.jpg
 // Los usuarios sólo descargan la imagen (no el HTML de 1.8MB)
-function activateFlyer(htmlUrl,name,btn){
-  if(btn){btn.disabled=true;btn.textContent='Procesando...';}
+function activateFlyer(htmlUrl,name,btn,opt){
+  opt=(+opt===2)?2:1;
+  if(btn){btn.disabled=true;btn.textContent='...';}
   showToast('Extrayendo imagen del flyer...');
   fetch(htmlUrl,{cache:'no-cache'})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
@@ -945,7 +1088,7 @@ function activateFlyer(htmlUrl,name,btn){
       for(var i=0;i<binStr.length;i++)bytes[i]=binStr.charCodeAt(i);
       var blob=new Blob([bytes],{type:mime});
       var ext=mime.indexOf('jpeg')!==-1||mime.indexOf('jpg')!==-1?'jpg':'png';
-      var imgName='_active_img.'+ext;
+      var imgName=(opt===2?'_active2_img.':'_active_img.')+ext;
       // Subir imagen a Supabase Storage
       return _sb.storage.from('flyers').upload(imgName,blob,{contentType:mime,upsert:true})
         .then(function(r){
@@ -953,14 +1096,14 @@ function activateFlyer(htmlUrl,name,btn){
           // Guardar referencia en _active.json con timestamp para evitar cache CDN
           var imageUrl=FLYERS_PUBLIC+imgName+'?v='+Date.now();
           var meta=JSON.stringify({name:name,htmlUrl:htmlUrl,imageUrl:imageUrl,cfg:flyerCfg,updated_at:new Date().toISOString()});
-          return _sb.storage.from('flyers').upload('_active.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true});
+          return _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true});
         })
         .then(function(r){
           if(r&&r.error)throw new Error(r.error.message);
           if(btn){btn.disabled=false;btn.textContent='Activar';}
-          _activeFlyerName=name;
-          showToast('¡Flyer "'+name+'" activado para todos los usuarios!');
-          loadUploadHistory();
+          if(opt===1)_activeFlyerName=name;
+          showToast('"'+name+'" activado en '+_optLabel(opt));
+          _fgInvalidateOpt(opt);loadUploadHistory();
         });
     })
     .catch(function(e){
@@ -970,15 +1113,16 @@ function activateFlyer(htmlUrl,name,btn){
     });
 }
 
-function deactivateFlyer(btn){
+function deactivateFlyer(btn,opt){
+  opt=(+opt===2)?2:1;
   if(btn){btn.disabled=true;btn.textContent='Desactivando...';}
   var data=JSON.stringify({name:'',imageUrl:null,updated_at:new Date().toISOString()});
-  _sb.storage.from('flyers').upload('_active.json',new Blob([data],{type:'application/json'}),{contentType:'application/json',upsert:true})
+  _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([data],{type:'application/json'}),{contentType:'application/json',upsert:true})
     .then(function(){
       if(btn){btn.disabled=false;btn.textContent='Desactivar';}
-      _activeFlyerUrl=null;_activeFlyerName='';
-      showToast('Flyer desactivado. Usuarios ven el flyer por defecto.');
-      loadUploadHistory();
+      if(opt===1){_activeFlyerUrl=null;_activeFlyerName='';}
+      showToast(_optLabel(opt)+' desactivada.');
+      _fgInvalidateOpt(opt);loadUploadHistory();
     });
 }
 
@@ -1306,16 +1450,32 @@ function _saveFlyerCfg(name,cfg,cb){
   });
 }
 // Activa un flyer basado en imagen (usa su calibración guardada, o el default si no tiene).
-function activateImageFlyer(url,name,btn){
-  if(btn){btn.disabled=true;btn.textContent='Activando...';}
+function activateImageFlyer(url,name,btn,opt){
+  opt=(+opt===2)?2:1;
+  var lbl=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='...';}
   _loadFlyerCfgs(function(m){
     var cfg=(m&&m[name])||null;
     var imageUrl=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
     var meta=JSON.stringify({name:name,imageUrl:imageUrl,cfg:cfg,updated_at:new Date().toISOString()});
-    _sb.storage.from('flyers').upload('_active.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
-      .then(function(){if(btn){btn.disabled=false;btn.textContent='Activar';}_activeFlyerName=name;showToast('¡Flyer "'+name+'" activado!');loadUploadHistory();})
-      .catch(function(){if(btn){btn.disabled=false;btn.textContent='Activar';}showToast('Error al activar');});
+    _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+      .then(function(){
+        if(btn){btn.disabled=false;btn.textContent=lbl;}
+        if(opt===1)_activeFlyerName=name;
+        showToast('"'+name+'" activado en '+_optLabel(opt));
+        _fgInvalidateOpt(opt);loadUploadHistory();
+      })
+      .catch(function(){if(btn){btn.disabled=false;btn.textContent=lbl;}showToast('Error al activar');});
   });
+}
+// Abre el calibrador desde la lista: si el flyer ya está activo en una sola opción usa
+// esa; si no, pregunta.
+function _calFromList(url,name){
+  var in1=!!(_fgHistMeta[1]&&_fgHistMeta[1].name===name);
+  var in2=!!(_fgHistMeta[2]&&_fgHistMeta[2].name===name);
+  if(in1&&!in2){_calOpenFromUrl(url,name,1);return;}
+  if(in2&&!in1){_calOpenFromUrl(url,name,2);return;}
+  _askOption('¿Qué opción querés calibrar?',function(o){_calOpenFromUrl(url,name,o);});
 }
 
 // -- Estado + UI del calibrador --
@@ -1357,7 +1517,7 @@ function _calEnsureDom(){
   var m=document.createElement('div');m.id='cal-modal';
   m.innerHTML=
     '<div class="cal-card">'+
-      '<div class="cal-hd"><h3>Calibrar flyer</h3>'+
+      '<div class="cal-hd"><h3 id="cal-title">Calibrar flyer</h3>'+
         '<button class="btn-submit" onclick="_calSave()" style="padding:7px 14px">Guardar y activar</button>'+
         '<button class="ap-close" onclick="_calClose()">&#10005;</button></div>'+
       '<div class="cal-legend" id="cal-legend"></div>'+
@@ -1478,37 +1638,45 @@ function _calMergeCfg(base,saved){
     else base[k]=saved[k];
   }
 }
-function _calOpen(img,name,url){
+function _calOpen(img,name,url,opt){
   _calEnsureDom();
+  opt=(+opt===2)?2:1;
   var base=JSON.parse(JSON.stringify(FLYER_CFG_DEFAULT));
-  _cal={img:img,name:name,url:url,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
+  _cal={img:img,name:name,url:url,opt:opt,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
     ds:Math.min(560,(window.innerWidth||600)-70)/_FG_TARGET_W};
   document.getElementById('cal-modal').classList.add('show');
+  var t=document.getElementById('cal-title');if(t)t.textContent='Calibrar flyer — '+_optLabel(opt);
   var hInput=document.getElementById('cal-height');if(hInput)hInput.value='';
   _calRenderLegend();_calDraw();
   _loadFlyerCfgs(function(m){
     if(m&&m[name]){try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}}
-    var hInput=document.getElementById('cal-height');if(hInput)hInput.value=_cal.cfg.cropH?_cal.cfg.cropH:'';
-    fetch(FLYERS_PUBLIC+'_legal.json?t='+Date.now(),{cache:'no-cache'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
-      .then(function(d){if(_cal){_cal.legalText=(d&&d.text)||_CAL_SAMPLE_LEGAL;_calDraw();}});
+    var hi=document.getElementById('cal-height');if(hi)hi.value=_cal.cfg.cropH?_cal.cfg.cropH:'';
+    // preview con el legal REAL de esa opción, para ver cuánto ocupa
+    loadGlobalLegal(false,opt).then(function(txt){
+      if(_cal){_cal.legalText=(txt&&txt.trim())?txt:_CAL_SAMPLE_LEGAL;_calDraw();}
+    });
   });
 }
-function _calOpenFromUrl(url,name){
+function _calOpenFromUrl(url,name,opt){
   showToast('Cargando flyer...');
   var im=new Image();
-  im.onload=function(){_calOpen(im,name,url);};
+  im.onload=function(){_calOpen(im,name,url,opt);};
   im.onerror=function(){showToast('No se pudo cargar la imagen del flyer');};
   im.src=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
 }
 function _calClose(){var m=document.getElementById('cal-modal');if(m)m.classList.remove('show');_cal=null;}
 function _calSave(){
-  if(!_cal)return;var name=_cal.name,url=_cal.url,cfg=_cal.cfg;
+  if(!_cal)return;var name=_cal.name,url=_cal.url,cfg=_cal.cfg,opt=(+_cal.opt===2)?2:1;
   showToast('Guardando calibración...');
   _saveFlyerCfg(name,cfg,function(){
     var imageUrl=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
     var meta=JSON.stringify({name:name,imageUrl:imageUrl,cfg:cfg,updated_at:new Date().toISOString()});
-    _sb.storage.from('flyers').upload('_active.json',new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
-      .then(function(){_activeFlyerName=name;showToast('¡Calibración guardada y flyer activado!');_calClose();loadUploadHistory();})
+    _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+      .then(function(){
+        if(opt===1)_activeFlyerName=name;
+        showToast('¡Calibración guardada y activada en '+_optLabel(opt)+'!');
+        _calClose();_fgInvalidateOpt(opt);loadUploadHistory();
+      })
       .catch(function(){showToast('Error al guardar la calibración');});
   });
 }
