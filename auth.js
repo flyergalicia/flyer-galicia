@@ -969,6 +969,7 @@ function deactivateFlyer(btn){
 // _source.html en initApp (window.drawAll, etc.). Vive en auth.js = no se pierde al
 // regenerar el HTML.
 var FLYER_CFG_DEFAULT = {
+  imgW:1240, imgH:6457, // dimensiones de referencia para las que están calibradas las coords
   empresa:{xc:620,yc:725,lh:52,mw:1100,fs:46,ex:70,bg:"#f7f2ef"},
   montos:{y:1069,fs:56,mh:58,bg:"#f4e0d3",boxes:[
     {xc:224,ew:220,col:"#1d4070"},{xc:493,ew:215,col:"#1d4070"},
@@ -981,9 +982,15 @@ var FLYER_CFG_DEFAULT = {
 function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if(b[k2]!=null)o[k2]=b[k2];return o;}
 function _fgCfg(){
   var d=FLYER_CFG_DEFAULT,c=window.FLYER_CFG||{};
-  return {empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
+  return {imgW:c.imgW||d.imgW,imgH:c.imgH||d.imgH,
+    empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
     contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal)};
 }
+// Escala efectiva: ajusta por el ancho real de la imagen. Mismo template (ancho=imgW) => se=s.
+function _fgSE(s){var C=_fgCfg();var iw=C.imgW||1240;return (window.baseImg&&baseImg.width)?s*baseImg.width/iw:s;}
+// Y anclada ABAJO: mantiene la distancia al borde inferior sin importar el alto real del flyer
+// (así asesores y legales no se desfasan cuando el flyer es más largo/corto).
+function _fgBottomY(yRef,s){var C=_fgCfg();var ih=C.imgH||6457;var ch=(window.baseImg&&baseImg.height?baseImg.height:ih)*s;return ch-(ih-yRef)*_fgSE(s);}
 var FG_BOLD_PHRASES = [
   "(1) Promoción del 100% de ahorro.","(2) Bonificación de comisiones.",
   "(3) Promoción en supermercados.","(4) Promoción en combustibles.",
@@ -1021,11 +1028,11 @@ function fgDrawAll(c,s,v){
   fgDrawLegal(c,s,v.legal);
 }
 function fgDrawEmpresa(c,s,empresa){
-  var E=_fgCfg().empresa;
-  var xc=Math.round(E.xc*s),yc=Math.round(E.yc*s);
-  var lh=Math.round(E.lh*s),mw=Math.round(E.mw*s),fs=Math.round(E.fs*s);
+  var E=_fgCfg().empresa,se=_fgSE(s);
+  var xc=Math.round(E.xc*se),yc=Math.round(E.yc*se);
+  var lh=Math.round(E.lh*se),mw=Math.round(E.mw*se),fs=Math.round(E.fs*se);
   c.fillStyle=E.bg;
-  c.fillRect(Math.round(E.ex*s),yc-lh,mw,lh*2+Math.round(8*s));
+  c.fillRect(Math.round(E.ex*se),yc-lh,mw,lh*2+Math.round(8*se));
   c.font="bold "+fs+"px Arial,sans-serif";
   c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";
   var full="Por ser parte de "+empresa;
@@ -1038,11 +1045,11 @@ function fgDrawEmpresa(c,s,empresa){
   }
 }
 function fgDrawMontos(c,s,v){
-  var M=_fgCfg().montos;
-  var my=Math.round(M.y*s),fs=Math.round(M.fs*s);
+  var M=_fgCfg().montos,se=_fgSE(s);
+  var my=Math.round(M.y*se),fs=Math.round(M.fs*se);
   var vals=[v.m1,v.m2,v.m3,v.m4];
   M.boxes.forEach(function(m,i){
-    var mx=Math.round(m.xc*s),mw=Math.round(m.ew*s),mh=Math.round(M.mh*s);
+    var mx=Math.round(m.xc*se),mw=Math.round(m.ew*se),mh=Math.round(M.mh*se);
     c.fillStyle=M.bg;c.fillRect(mx-mw/2,my-mh/2,mw,mh);
     c.font="bold "+fs+"px Arial,sans-serif";
     c.fillStyle=m.col;c.textAlign="center";c.textBaseline="middle";
@@ -1050,29 +1057,30 @@ function fgDrawMontos(c,s,v){
   });
 }
 function fgDrawContacto(c,s,v){
-  var C=_fgCfg().contacto;
+  var C=_fgCfg().contacto,se=_fgSE(s);
   c.fillStyle=C.bg;
-  c.fillRect(Math.round(C.ex*s),Math.round(C.ey*s),Math.round(C.ew*s),Math.round(C.eh*s));
+  c.fillRect(Math.round(C.ex*se),Math.round(_fgBottomY(C.ey,s)),Math.round(C.ew*se),Math.round(C.eh*se));
   if(!v.has1&&!v.has2)return;
   if(v.has1&&!v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre,v.celular,v.email);
   else if(!v.has1&&v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre2,v.celular2,v.email2);
   else{fgDrawC1(c,s,C.xLeft,C,v.nombre,v.celular,v.email);fgDrawC1(c,s,C.xRight,C,v.nombre2,v.celular2,v.email2);}
 }
 function fgDrawC1(c,s,xc,C,nom,cel,mail){
-  var fn=Math.round(C.fnBold*s),fr=Math.round(C.frReg*s),cx=Math.round(xc*s);
+  var se=_fgSE(s);
+  var fn=Math.round(C.fnBold*se),fr=Math.round(C.frReg*se),cx=Math.round(xc*se);
   c.textAlign="center";c.textBaseline="middle";c.fillStyle=C.color;
-  c.font="bold "+fn+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(C.y1*s));
+  c.font="bold "+fn+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(_fgBottomY(C.y1,s)));
   c.font=fr+"px Arial,sans-serif";
-  if(cel)c.fillText(cel,cx,Math.round(C.y2*s));
-  if(mail)c.fillText(mail,cx,Math.round(C.y3*s));
+  if(cel)c.fillText(cel,cx,Math.round(_fgBottomY(C.y2,s)));
+  if(mail)c.fillText(mail,cx,Math.round(_fgBottomY(C.y3,s)));
 }
 function fgDrawLegal(c,s,text){
   if(!text||!text.trim())return;
-  var L=_fgCfg().legal;
-  var x0=Math.round(L.x0*s),yStart=Math.round(L.yStart*s),yEnd=Math.round(L.yEnd*s);
-  var maxW=Math.round(L.maxW*s),availH=yEnd-yStart;
+  var L=_fgCfg().legal,se=_fgSE(s);
+  var x0=Math.round(L.x0*se),yStart=Math.round(_fgBottomY(L.yStart,s)),yEnd=Math.round(_fgBottomY(L.yEnd,s));
+  var maxW=Math.round(L.maxW*se),availH=yEnd-yStart;
   c.fillStyle=L.bg;
-  c.fillRect(x0-Math.round(2*s),yStart-Math.round(5*s),maxW+Math.round(20*s),availH+Math.round(30*s));
+  c.fillRect(x0-Math.round(2*se),yStart-Math.round(5*se),maxW+Math.round(20*se),availH+Math.round(30*se));
   c.textAlign="left";c.textBaseline="top";
   var paragraphs=text.split("\n");
   function calcLines(fs){
@@ -1095,13 +1103,13 @@ function fgDrawLegal(c,s,text){
     return allLines;
   }
   function calcHeight(lines,lh,gapH){var t=0;lines.forEach(function(l){t+=l.gap?gapH:lh;});return t;}
-  var fs=Math.round(L.fs*s),lh=Math.round(L.lh*s),gapH=Math.round(L.gap*s);
+  var fs=Math.round(L.fs*se),lh=Math.round(L.lh*se),gapH=Math.round(L.gap*se);
   var lines=calcLines(fs),totalH=calcHeight(lines,lh,gapH);
   if(totalH>availH&&totalH>0){
     var ratio=availH/totalH;
-    fs=Math.max(Math.floor(fs*ratio),Math.round(L.minFs*s));
-    lh=Math.max(Math.floor(lh*ratio),Math.round(L.minLh*s));
-    gapH=Math.max(Math.floor(gapH*ratio),Math.round(L.minGap*s));
+    fs=Math.max(Math.floor(fs*ratio),Math.round(L.minFs*se));
+    lh=Math.max(Math.floor(lh*ratio),Math.round(L.minLh*se));
+    gapH=Math.max(Math.floor(gapH*ratio),Math.round(L.minGap*se));
     lines=calcLines(fs);
   }
   var y=yStart;
