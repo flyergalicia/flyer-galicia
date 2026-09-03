@@ -302,6 +302,7 @@ function initApp(){
   _attachLegalPaste('legal-text');
   _fgEnsureAsesores34(); // campos de asesor 3 y 4 (el template sólo trae 1 y 2)
   _fgFixAsesorLabels();  // "Agregar asesor 1..4" en los cuatro switches
+  _fgAutoMail();         // sugiere nombre.apellido@bancogalicia.com.ar al tipear
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -1467,6 +1468,42 @@ function _fgEnsureAsesores34(){
     if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
   });
   if(_canNotes)_initAsesoresUI(); // engancha el popover de asesores guardados en 3 y 4
+}
+// ── AUTOCOMPLETAR EL MAIL DESDE EL NOMBRE ─────────────────────────────────────
+// Patrón Galicia: nombre.apellido@bancogalicia.com.ar
+// Ojo con dos casos reales: "Julieta A. De Santis" -> julieta.desantis (la partícula
+// "De" va pegada) y "Genesis Lisbeth Puerto" -> genesis.puerto (el segundo nombre NO
+// entra). Por eso: descarto iniciales, tomo la última palabra y le pego hacia atrás
+// sólo las partículas.
+var _FG_PARTICULAS=['de','del','la','las','los','le','di','da','dos','do','van','von','mac','mc','san','santa'];
+function _fgSlug(s){
+  return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function _fgMailFromName(name){
+  var w=(name||'').trim().split(/\s+/).filter(Boolean);
+  if(w.length<2)return '';
+  var first=_fgSlug(w[0]);if(!first)return '';
+  var rest=w.slice(1).filter(function(x){return x.replace(/\./g,'').length>1;}); // fuera iniciales
+  if(!rest.length)return '';
+  var i=rest.length-1,parts=[_fgSlug(rest[i])];
+  while(i-1>=0&&_FG_PARTICULAS.indexOf(_fgSlug(rest[i-1]))!==-1){i--;parts.unshift(_fgSlug(rest[i]));}
+  var last=parts.join('');
+  return last?(first+'.'+last+'@bancogalicia.com.ar'):'';
+}
+function _fgAutoMail(){
+  [1,2,3,4].forEach(function(i){
+    var sfx=(i===1)?'':String(i);
+    var nEl=document.getElementById('nombre'+sfx),mEl=document.getElementById('email'+sfx);
+    if(!nEl||!mEl||nEl.dataset.fgMail)return;
+    nEl.dataset.fgMail='1';
+    // si tocás el mail a mano, dejo de sugerir (salvo que lo borres)
+    mEl.addEventListener('input',function(){mEl.dataset.fgManual='1';});
+    nEl.addEventListener('input',function(){
+      if(mEl.dataset.fgManual==='1'&&mEl.value.trim()!=='')return;
+      var m=_fgMailFromName(nEl.value);
+      if(m){mEl.value=m;if(typeof redraw==='function')redraw();}
+    });
+  });
 }
 // Unifica las etiquetas de los switches: "Agregar asesor 1..4".
 // El template trae "Mostrar asesor 1" y "Agregar segundo asesor"; como lo regenerás,

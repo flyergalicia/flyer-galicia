@@ -504,6 +504,8 @@ const checks = {
   'asesores 3 y 4': _authSrc.includes('function _fgEnsureAsesores34(') && _authSrc.includes('window.getVals=fgGetVals'),
   'flyer crece (2 filas)': _authSrc.includes('function _fgExtraBaseFor(') && _authSrc.includes('_fgBottomYRaw'),
   'masivo/plantilla 4 asesores': _authSrc.includes('window.genAll=fgGenAll') && _authSrc.includes('window.dlTemplate=fgDlTemplate'),
+  'etiquetas Agregar asesor N': _authSrc.includes('function _fgFixAsesorLabels(') && _authSrc.includes("'Agregar asesor '+n"),
+  'autocompletar mail': _authSrc.includes('function _fgMailFromName(') && _authSrc.includes('_fgAutoMail();'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
