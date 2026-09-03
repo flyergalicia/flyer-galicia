@@ -155,7 +155,8 @@ function _initAsesoresUI(){
   var secs=document.querySelectorAll('#tab-individual .sec');
   Array.prototype.forEach.call(secs,function(sec){
     var t=(sec.textContent||'').toLowerCase();
-    var slot=t.indexOf('asesor 1')>=0?1:(t.indexOf('asesor 2')>=0?2:0);
+    var slot=0;
+    for(var k=1;k<=4;k++){if(t.indexOf('asesor '+k)>=0){slot=k;break;}}
     if(!slot||sec.dataset.asLinked)return;
     sec.dataset.asLinked='1';
     sec.classList.add('sec-clickable');
@@ -194,13 +195,12 @@ function closeAsPop(){var p=document.getElementById('as-pop');if(p)p.parentNode.
 function _closeAsOutside(e){var p=document.getElementById('as-pop');if(p&&!p.contains(e.target))closeAsPop();}
 function applyAsesor(id,slot){
   var a=_asesores.find(function(x){return x.id===id;});if(!a)return;
-  if(slot===2){
-    _setVal('nombre2',a.nombre);_setVal('celular2',a.celular);_setVal('email2',a.email);
-    if(typeof toggleA2==='function'&&!window.a2)toggleA2();
-  }else{
-    _setVal('nombre',a.nombre);_setVal('celular',a.celular);_setVal('email',a.email);
-    if(typeof toggleA1==='function'&&!window.a1)toggleA1();
-  }
+  var sfx=(slot>1)?String(slot):'';
+  _setVal('nombre'+sfx,a.nombre);_setVal('celular'+sfx,a.celular);_setVal('email'+sfx,a.email);
+  if(slot===2){if(typeof toggleA2==='function'&&!window.a2)toggleA2();}
+  else if(slot===3){if(!_fgA3)toggleA3();}
+  else if(slot===4){if(!_fgA4)toggleA4();}
+  else{if(typeof toggleA1==='function'&&!window.a1)toggleA1();}
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
   closeAsPop();showToast('Asesor "'+(a.name||a.nombre)+'" cargado');
@@ -300,7 +300,7 @@ function initApp(){
   _installFlyerEngine();
   window.FLYER_CFG=_readDocCfg()||window.FLYER_CFG||{};
   _attachLegalPaste('legal-text');
-  _fgWrapGenAll(); // el masivo también queda registrado, con su opción
+  _fgEnsureAsesores34(); // campos de asesor 3 y 4 (el template sólo trae 1 y 2)
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -1194,9 +1194,30 @@ function _fgCfg(){
 }
 // Escala efectiva: ajusta por el ancho real de la imagen. Mismo template (ancho=imgW) => se=s.
 function _fgSE(s){var C=_fgCfg();var iw=C.imgW||1240;return (window.baseImg&&baseImg.width)?s*baseImg.width/iw:s;}
-// Y anclada ABAJO: mantiene la distancia al borde inferior sin importar el alto real del flyer
+// Alto EXTRA (px base) que se inserta cuando el bloque de asesores necesita 2 filas (4 asesores).
+// El flyer crece: la parte de abajo del arte (galicia.ar, logo y legales) baja toda junta.
+var _fgExtra=0;
+// Y anclada ABAJO con el alto ORIGINAL de la imagen (sin el extra).
+function _fgBottomYRaw(yRef,s){var C=_fgCfg();var ih=C.imgH||6457;var ch=(window.baseImg&&baseImg.height?baseImg.height:ih)*s;return ch-(ih-yRef)*_fgSE(s);}
+// Y anclada ABAJO efectiva: al crecer el flyer, todo lo anclado abajo baja _fgExtra px.
 // (así asesores y legales no se desfasan cuando el flyer es más largo/corto).
-function _fgBottomY(yRef,s){var C=_fgCfg();var ih=C.imgH||6457;var ch=(window.baseImg&&baseImg.height?baseImg.height:ih)*s;return ch-(ih-yRef)*_fgSE(s);}
+function _fgBottomY(yRef,s){return _fgBottomYRaw(yRef,s)+_fgExtra*s;}
+// Asesores cargados, en orden. Sólo cuentan los que tienen nombre.
+function _fgAsesores(v){
+  var out=[];if(!v)return out;
+  [['has1','nombre','celular','email'],['has2','nombre2','celular2','email2'],
+   ['has3','nombre3','celular3','email3'],['has4','nombre4','celular4','email4']]
+  .forEach(function(k){
+    if(v[k[0]]&&(v[k[1]]||'').trim())out.push({n:v[k[1]],c:v[k[2]]||'',e:v[k[3]]||''});
+  });
+  return out;
+}
+function _fgRows(n){return (n>=4)?2:1;}
+// Alto extra (px BASE) según cuántas filas de asesores hagan falta.
+function _fgExtraBaseFor(v){
+  var C=_fgCfg().contacto;
+  return (_fgRows(_fgAsesores(v).length)-1)*(C.eh||130)*_fgSE(1);
+}
 var FG_BOLD_PHRASES = [
   "(1) Promoción del 100% de ahorro.","(2) Bonificación de comisiones.",
   "(3) Promoción en supermercados.","(4) Promoción en combustibles.",
@@ -1227,7 +1248,24 @@ function _fgPhraseSplit(text,phrases){
   return result;
 }
 function fgDrawAll(c,s,v){
-  c.drawImage(baseImg,0,0,Math.round(baseImg.width*s),Math.round(baseImg.height*s));
+  var CC=_fgCfg().contacto;
+  _fgExtra=_fgExtraBaseFor(v);
+  var W=Math.round(baseImg.width*s),H=baseImg.height,E=_fgExtra;
+  if(E>0){
+    // Corto el arte justo ARRIBA de la banda de asesores y bajo todo lo de abajo E px:
+    // así entra la 2da fila y galicia.ar + logo + legales acompañan.
+    var split=Math.round(_fgBottomYRaw(CC.ey,1));
+    split=Math.max(1,Math.min(H-1,split));
+    var gapY=Math.round(split*s),gapH=Math.round(E*s)+1;
+    c.drawImage(baseImg,0,0,baseImg.width,split, 0,0,W,gapY);
+    // relleno el hueco estirando la última fila de píxeles de arriba del corte,
+    // así continúa el fondo real (blanco o crema) sin costura
+    c.fillStyle=CC.bg||'#ffffff';c.fillRect(0,gapY,W,gapH);
+    try{c.drawImage(baseImg,0,split-1,baseImg.width,1, 0,gapY,W,gapH);}catch(e){}
+    c.drawImage(baseImg,0,split,baseImg.width,H-split, 0,gapY+Math.round(E*s),W,Math.round((H-split)*s));
+  }else{
+    c.drawImage(baseImg,0,0,W,Math.round(H*s));
+  }
   fgDrawEmpresa(c,s,v.empresa);
   fgDrawMontos(c,s,v);
   var cb=fgDrawContacto(c,s,v)||0;   // fondo (px escalados) del bloque de asesores
@@ -1265,24 +1303,49 @@ function fgDrawMontos(c,s,v){
     c.fillText(vals[i],mx,my);
   });
 }
+// Layout de asesores: 1 centrado · 2 lado a lado · 3 en fila · 4 en 2x2 (el flyer crece).
+// Con 1 y 2 usa EXACTAMENTE las coords calibradas de siempre => cero regresión.
 function fgDrawContacto(c,s,v){
   var C=_fgCfg().contacto,se=_fgSE(s);
-  var eyTop=Math.round(_fgBottomY(C.ey,s));
+  var list=_fgAsesores(v),n=list.length;
+  var rows=_fgRows(n),cols=(n>=4)?2:Math.max(n,1);
+  var pitch=(C.eh||130);
+  var lastTop=Math.round(_fgBottomY(C.ey,s));           // fila de abajo (la anclada)
+  var boxTop=lastTop-Math.round((rows-1)*pitch*se);     // arriba del bloque completo
+  var boxH=Math.round(rows*pitch*se);
   c.fillStyle=C.bg;
-  c.fillRect(Math.round(C.ex*se),eyTop,Math.round(C.ew*se),Math.round(C.eh*se));
-  if(v.has1&&!v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre,v.celular,v.email);
-  else if(!v.has1&&v.has2)fgDrawC1(c,s,C.xSingle,C,v.nombre2,v.celular2,v.email2);
-  else if(v.has1&&v.has2){fgDrawC1(c,s,C.xLeft,C,v.nombre,v.celular,v.email);fgDrawC1(c,s,C.xRight,C,v.nombre2,v.celular2,v.email2);}
-  return eyTop+Math.round(C.eh*se); // fondo del bloque de asesores (px escalados)
+  c.fillRect(Math.round(C.ex*se),boxTop,Math.round(C.ew*se),boxH);
+  if(!n)return boxTop+boxH;
+  var xs,colW;
+  if(n===1){xs=[C.xSingle];colW=C.ew;}
+  else if(n===2){xs=[C.xLeft,C.xRight];colW=C.ew/2;}
+  else if(n===3){xs=[C.ex+C.ew/6,C.ex+C.ew/2,C.ex+5*C.ew/6];colW=C.ew/3;}
+  else{xs=[C.xLeft,C.xRight];colW=C.ew/2;}
+  list.forEach(function(a,i){
+    var r=Math.floor(i/cols),ci=i%cols;
+    var dy=Math.round((r-(rows-1))*pitch*se); // la última fila queda en la posición anclada
+    fgDrawC1(c,s,xs[ci],C,a.n,a.c,a.e,dy,colW);
+  });
+  return boxTop+boxH; // fondo del bloque de asesores (px escalados)
 }
-function fgDrawC1(c,s,xc,C,nom,cel,mail){
-  var se=_fgSE(s);
+// dy: desplazamiento de fila. colW: ancho de columna disponible (para achicar si no entra).
+function fgDrawC1(c,s,xc,C,nom,cel,mail,dy,colW){
+  var se=_fgSE(s);dy=dy||0;
   var fn=Math.round(C.fnBold*se),fr=Math.round(C.frReg*se),cx=Math.round(xc*se);
+  var maxW=colW?Math.round((colW-18)*se):0;
+  var minF=Math.max(1,Math.round(9*se));
+  // Achica la tipografía sólo si el texto no entra en su columna (mails largos con 3 asesores).
+  function fit(txt,size,bold){
+    if(!maxW||!txt)return size;
+    c.font=(bold?'bold ':'')+size+'px Arial,sans-serif';
+    var w=c.measureText(txt).width;
+    return (w>maxW&&w>0)?Math.max(Math.floor(size*maxW/w),minF):size;
+  }
   c.textAlign="center";c.textBaseline="middle";c.fillStyle=C.color;
-  c.font="bold "+fn+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(_fgBottomY(C.y1,s)));
-  c.font=fr+"px Arial,sans-serif";
-  if(cel)c.fillText(cel,cx,Math.round(_fgBottomY(C.y2,s)));
-  if(mail)c.fillText(mail,cx,Math.round(_fgBottomY(C.y3,s)));
+  var f1=fit(nom,fn,true);
+  c.font="bold "+f1+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(_fgBottomY(C.y1,s))+dy);
+  if(cel){var f2=fit(cel,fr,false);c.font=f2+"px Arial,sans-serif";c.fillText(cel,cx,Math.round(_fgBottomY(C.y2,s))+dy);}
+  if(mail){var f3=fit(mail,fr,false);c.font=f3+"px Arial,sans-serif";c.fillText(mail,cx,Math.round(_fgBottomY(C.y3,s))+dy);}
 }
 function fgDrawLegal(c,s,text){
   if(!text||!text.trim())return 0;
@@ -1338,7 +1401,7 @@ function fgDrawLegal(c,s,text){
 // el blanco sobrante del pie del flyer. Responsive: legal corto => flyer más corto.
 function _fgFinalHeightBase(){
   var C=_fgCfg();
-  var ih=(window.baseImg&&baseImg.height)?baseImg.height:(C.imgH||6457);
+  var ih=((window.baseImg&&baseImg.height)?baseImg.height:(C.imgH||6457))+_fgExtra;
   if(C.cropH&&C.cropH>0)return Math.min(Math.round(C.cropH),ih); // altura fijada en el calibrador
   var cb=window._fgContentBottomBase||0;
   if(!cb)return ih; // sin contenido medido => no recorto
@@ -1351,9 +1414,11 @@ function _fgFinalHeightBase(){
 // Preview: dibuja en un canvas completo y copia sólo la franja útil al canvas visible.
 function fgRedraw(){
   if(!window.baseImg||!baseImg.width)return;
-  var w=Math.round(baseImg.width*SC),fh=Math.round(baseImg.height*SC);
+  var v=getVals();
+  _fgExtra=_fgExtraBaseFor(v); // el canvas tiene que contemplar el crecimiento
+  var w=Math.round(baseImg.width*SC),fh=Math.round((baseImg.height+_fgExtra)*SC);
   var full=document.createElement('canvas');full.width=w;full.height=fh;
-  fgDrawAll(full.getContext('2d'),SC,getVals()); // setea _fgContentBottomBase
+  fgDrawAll(full.getContext('2d'),SC,v); // setea _fgContentBottomBase
   var h=Math.min(fh,Math.round(_fgFinalHeightBase()*SC));
   cv.width=w;cv.height=h;
   var cc=cv.getContext('2d');window.ctx=cc;
@@ -1361,13 +1426,68 @@ function fgRedraw(){
 }
 // Descarga / preview modal / historial: canvas full-res ya recortado.
 function fgFullRes(v){
-  var full=document.createElement('canvas');full.width=baseImg.width;full.height=baseImg.height;
+  _fgExtra=_fgExtraBaseFor(v);
+  var full=document.createElement('canvas');full.width=baseImg.width;
+  full.height=Math.round(baseImg.height+_fgExtra);
   fgDrawAll(full.getContext('2d'),1.0,v); // setea _fgContentBottomBase
-  var h=Math.min(baseImg.height,Math.round(_fgFinalHeightBase()));
+  var h=Math.min(full.height,Math.round(_fgFinalHeightBase()));
   var out=document.createElement('canvas');out.width=baseImg.width;out.height=h;
   out.getContext('2d').drawImage(full,0,0);
   return out;
 }
+// ── ASESORES 3 y 4 ────────────────────────────────────────────────────────────
+// Los campos se INYECTAN desde acá (no en _source.html, que lo regenera el usuario),
+// replicando la estructura del bloque de Asesor 2.
+var _fgA3=false,_fgA4=false;
+function toggleA3(){_fgA3=!_fgA3;_fgToggleUI(3,_fgA3);if(typeof redraw==='function')redraw();}
+function toggleA4(){_fgA4=!_fgA4;_fgToggleUI(4,_fgA4);if(typeof redraw==='function')redraw();}
+function _fgToggleUI(n,on){
+  var sw=document.getElementById('sw'+n),f=document.getElementById('fields'+n);
+  if(sw)sw.classList.toggle('on',on);
+  if(f)f.classList.toggle('show',on);
+}
+function _fgEnsureAsesores34(){
+  if(document.getElementById('fields3'))return;
+  var f2=document.getElementById('fields2');if(!f2||!f2.parentNode)return;
+  var html='';
+  [3,4].forEach(function(n){
+    html+='<div class="sec">Asesor '+n+' (opcional)</div>'+
+      '<div class="toggle-row" onclick="toggleA'+n+'()"><span>Agregar asesor '+n+'</span><div class="sw" id="sw'+n+'"></div></div>'+
+      '<div class="collapsible" id="fields'+n+'">'+
+        '<div class="field"><label>Nombre</label><input type="text" id="nombre'+n+'" placeholder="Nombre Asesor '+n+'"></div>'+
+        '<div class="field"><label>Celular</label><input type="text" id="celular'+n+'" placeholder="11 XXXX XXXX"></div>'+
+        '<div class="field"><label>Email</label><input type="text" id="email'+n+'" placeholder="mail@bancogalicia.com.ar"></div>'+
+      '</div>';
+  });
+  f2.insertAdjacentHTML('afterend',html);
+  // que redibujen al tipear, igual que los campos originales
+  ['nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(id){
+    var e=document.getElementById(id);
+    if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
+  });
+  if(_canNotes)_initAsesoresUI(); // engancha el popover de asesores guardados en 3 y 4
+}
+// getVals ampliado a 4 asesores (pisa el de _source.html, que sólo conoce 2).
+function fgGetVals(){
+  function g(id){var e=document.getElementById(id);return e?e.value:'';}
+  function cel(id){var t=g(id).trim();return t?'Cel: '+t:'';}
+  var c=CONFIGS[ac];
+  return{
+    empresa:g('empresa'),
+    config:(typeof CNAMES!=='undefined'&&CNAMES[ac])?CNAMES[ac]:'',
+    m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4,
+    has1:(typeof a1==='undefined'?true:a1)&&g('nombre').trim()!=='',
+    nombre:g('nombre'),celular:cel('celular'),email:g('email'),
+    has2:(typeof a2!=='undefined'&&a2)&&g('nombre2').trim()!=='',
+    nombre2:g('nombre2'),celular2:cel('celular2'),email2:g('email2'),
+    has3:_fgA3&&g('nombre3').trim()!=='',
+    nombre3:g('nombre3'),celular3:cel('celular3'),email3:g('email3'),
+    has4:_fgA4&&g('nombre4').trim()!=='',
+    nombre4:g('nombre4'),celular4:cel('celular4'),email4:g('email4'),
+    legal:g('legal-text')
+  };
+}
+
 // ── HISTORIAL con opción (color) ──────────────────────────────────────────────
 // Piso addHistory/renderHistory/redlPDF/loadHistory de _source.html (que regenera)
 // para guardar y mostrar en qué opción se generó cada flyer.
@@ -1415,7 +1535,15 @@ function fgLoadHistory(i){
     s('empresa',h.v.empresa||'');s('nombre',h.v.nombre||'');
     s('celular',(h.v.celular||'').replace('Cel: ',''));s('email',h.v.email||'');
     if(h.v.legal)s('legal-text',h.v.legal);
-    if(h.v.has2){if(typeof a2!=='undefined'&&!a2&&typeof toggleA2==='function')toggleA2();s('nombre2',h.v.nombre2||'');}
+    if(h.v.has2){if(typeof a2!=='undefined'&&!a2&&typeof toggleA2==='function')toggleA2();
+      s('nombre2',h.v.nombre2||'');s('celular2',(h.v.celular2||'').replace('Cel: ',''));s('email2',h.v.email2||'');}
+    [3,4].forEach(function(i){
+      if(!h.v['has'+i])return;
+      if(i===3&&!_fgA3)toggleA3();if(i===4&&!_fgA4)toggleA4();
+      s('nombre'+i,h.v['nombre'+i]||'');
+      s('celular'+i,(h.v['celular'+i]||'').replace('Cel: ',''));
+      s('email'+i,h.v['email'+i]||'');
+    });
     if(typeof setCfg==='function')setCfg(h.ac||0);
     if(typeof switchTab==='function')switchTab('individual');
     showToast('Datos cargados');
@@ -1425,8 +1553,10 @@ function fgLoadHistory(i){
 // GUARDADO de la opción actual, descartando mis ediciones de sesión.
 function fgResetVals(){
   var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
-  ['empresa','nombre','celular','email','nombre2','celular2','email2'].forEach(function(id){s(id,'');});
+  ['empresa','nombre','celular','email','nombre2','celular2','email2',
+   'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(id){s(id,'');});
   s('filename','Flyer {empresa}');
+  if(_fgA3)toggleA3();if(_fgA4)toggleA4();
   var n=_optN(_fgOpt),c=_fgOptCache[n];
   if(c)delete c.legalEdited;
   var base=(c&&typeof c.legal==='string'&&c.legal.trim())?c.legal:(window.LEGAL_DEFAULT||'');
@@ -1442,6 +1572,9 @@ function _installFlyerEngine(){
   window.addHistory=fgAddHistory;window.renderHistory=fgRenderHistory;
   window.redlPDF=fgRedlPDF;window.loadHistory=fgLoadHistory;
   window.resetVals=fgResetVals;
+  window.getVals=fgGetVals;                                // hasta 4 asesores
+  window.toggleA3=toggleA3;window.toggleA4=toggleA4;
+  window.genAll=fgGenAll;window.dlTemplate=fgDlTemplate;   // masivo + plantilla con 3 y 4
   window.drawAll=fgDrawAll;window.drawEmpresa=fgDrawEmpresa;window.drawMontos=fgDrawMontos;
   window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
   window.splitBoldRegular=fgSplitBold;
@@ -1843,9 +1976,11 @@ function logFlyerToSupabase(v,fn,fmt){
   if(!_me)return;
   var extra={opcion:_optN(_fgOpt)}; // qué armador se usó (control de visibilidad)
   if(v){
-    ['config','nombre','celular','email','nombre2','celular2','email2'].forEach(function(k){
+    ['config','nombre','celular','email','nombre2','celular2','email2',
+     'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(k){
       if(v[k])extra[k]=v[k];
     });
+    extra.asesores=_fgAsesores(v).length;
   }
   _sb.from('flyer_logs').insert({
     user_id:_me.id,
@@ -1893,15 +2028,74 @@ function fgSavePNG(fc,v){
   addHistory(v,fn,fc);
   logFlyerToSupabase(v,fn,'png');
 }
-// Envuelvo genAll (masivo) sin reimplementarlo: sólo agrego el log de la corrida.
-function _fgWrapGenAll(){
-  if(typeof window.genAll!=='function'||window.genAll._fgWrapped)return;
-  var orig=window.genAll;
-  var w=function(){
-    try{if(window.excelData&&excelData.length)logFlyerBulkToSupabase(excelData.length);}catch(e){}
-    return orig.apply(this,arguments);
-  };
-  w._fgWrapped=true;window.genAll=w;
+// MASIVO con hasta 4 asesores. Pisa genAll de _source.html (que sólo mapea 1 y 2).
+// Los Excel viejos (sin columnas 3/4) siguen funcionando igual.
+function fgGenAll(){
+  if(!window.excelData||!excelData.length)return;
+  var total=excelData.length,cur=0,zip=new JSZip();
+  var legalText=document.getElementById('legal-text').value;
+  logFlyerBulkToSupabase(total);
+  var pb=document.getElementById('prog-bar'),pf=document.getElementById('prog-fill'),
+      pt=document.getElementById('prog-text'),bg=document.getElementById('btn-gen');
+  if(pb)pb.style.display='block';if(pf)pf.style.width='0%';
+  if(pt)pt.textContent='Generando 1 de '+total+'...';
+  if(bg)bg.disabled=true;
+  function pick(row,i,f){
+    var k1='asesor'+i+'_'+f;
+    if(row[k1]!=null&&String(row[k1]).trim()!=='')return String(row[k1]).trim();
+    if(i===1&&row[f]!=null)return String(row[f]).trim(); // compat: columnas sueltas
+    return '';
+  }
+  function next(){
+    if(cur>=total){
+      if(pt)pt.textContent='Empaquetando ZIP...';
+      zip.generateAsync({type:'blob'}).then(function(content){
+        var a=document.createElement('a'),d=new Date();
+        var fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        a.download='Flyers_Galicia_'+fecha+'.zip';
+        a.href=URL.createObjectURL(content);a.click();
+        if(pt)pt.textContent='✓ ZIP con '+total+' flyers!';
+        if(bg)bg.disabled=false;
+        showToast('ZIP descargado!');
+      });return;
+    }
+    var row=excelData[cur];
+    var cfg=CONFIGS[cfgIdx(row.config||row.Config||'')];
+    var v={empresa:(row.empresa||row.Empresa||'flyer'+(cur+1)),
+      m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
+    [1,2,3,4].forEach(function(i){
+      var sfx=(i===1)?'':String(i);
+      var nom=pick(row,i,'nombre'),ce=pick(row,i,'celular'),ma=pick(row,i,'email');
+      v['has'+i]=nom!=='';
+      v['nombre'+sfx]=nom;v['celular'+sfx]=ce?'Cel: '+ce:'';v['email'+sfx]=ma;
+    });
+    var fc=fullRes(v);
+    var jsPDF=window.jspdf.jsPDF;
+    var pw=210,ph=(fc.height/fc.width)*pw;
+    var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
+    pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+    zip.file('Flyer '+v.empresa+'.pdf',pdf.output('arraybuffer'));
+    cur++;
+    if(pf)pf.style.width=Math.round((cur/total)*100)+'%';
+    if(pt)pt.textContent=cur<total?('Generando '+(cur+1)+' de '+total+'...'):'Finalizando...';
+    setTimeout(next,200);
+  }
+  next();
+}
+// Plantilla Excel con las columnas de los 4 asesores (datos de ejemplo genéricos).
+function fgDlTemplate(){
+  var wb=XLSX.utils.book_new();
+  var head=['empresa'];
+  [1,2,3,4].forEach(function(i){head.push('asesor'+i+'_nombre','asesor'+i+'_celular','asesor'+i+'_email');});
+  head.push('config');
+  var data=[head,
+    ['Empresa Ejemplo S.A.','Nombre Apellido','11 1234 5678','nombre.apellido@bancogalicia.com.ar','','','','','','','','','','BAU'],
+    ['Empresa XYZ','Carlos Lopez','11 4444 5555','carlos.lopez@bancogalicia.com.ar','Ana Perez','11 5555 6666','ana.perez@bancogalicia.com.ar','','','','','','','Config 1']];
+  var ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:22}].concat([1,2,3,4].reduce(function(a){return a.concat([{wch:22},{wch:16},{wch:38}]);},[]),[{wch:10}]);
+  XLSX.utils.book_append_sheet(wb,ws,'Flyers');
+  XLSX.writeFile(wb,'Plantilla_Flyers_Galicia.xlsx');
+  showToast('Plantilla descargada!');
 }
 
 // Carga profiles en un mapa {id: nombre} para usar en los logs

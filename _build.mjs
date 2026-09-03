@@ -490,6 +490,10 @@ const checks = {
   'opcion en registros/historial': _authSrc.includes('opcion:_optN(_fgOpt)') && _authSrc.includes('function fgRenderHistory('),
   'legal persistente por opcion': _authSrc.includes('function _fgStashLegal(') && _authSrc.includes('legalEdited'),
   'empresa sin default': _authSrc.includes("_eE0.placeholder='Nombre de la empresa'"),
+  // Hasta 4 asesores (3 en fila, 4 en 2x2 con el flyer creciendo)
+  'asesores 3 y 4': _authSrc.includes('function _fgEnsureAsesores34(') && _authSrc.includes('window.getVals=fgGetVals'),
+  'flyer crece (2 filas)': _authSrc.includes('function _fgExtraBaseFor(') && _authSrc.includes('_fgBottomYRaw'),
+  'masivo/plantilla 4 asesores': _authSrc.includes('window.genAll=fgGenAll') && _authSrc.includes('window.dlTemplate=fgDlTemplate'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
