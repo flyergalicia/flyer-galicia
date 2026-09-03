@@ -1260,6 +1260,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
       <div class="atabs" style="margin-bottom:14px">
         <div class="atab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
         <div class="atab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
+        <div class="atab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
       </div>
       <div id="lt-1">
         <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>
@@ -1277,6 +1278,15 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
         <div style="display:flex;gap:8px;margin-top:8px">
           <button class="btn-submit" id="glegal-save2" onclick="saveGlobalLegal(2)">Guardar y aplicar a todos</button>
           <button class="usr-btn edit" onclick="loadGlobalLegal(true,2)">Recargar</button>
+        </div>
+      </div>
+      <div id="lt-3" style="display:none">
+        <textarea id="glegal-text3" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 3..."></textarea>
+        <div class="login-err" id="glegal-err3" style="margin-top:6px"></div>
+        <div class="login-ok" id="glegal-ok3" style="margin-top:6px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn-submit" id="glegal-save3" onclick="saveGlobalLegal(3)">Guardar y aplicar a todos</button>
+          <button class="usr-btn edit" onclick="loadGlobalLegal(true,3)">Recargar</button>
         </div>
       </div>
     </div>

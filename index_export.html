@@ -700,6 +700,7 @@ function initApp(){
   _installFlyerEngine();
   window.FLYER_CFG=_readDocCfg()||window.FLYER_CFG||{};
   _attachLegalPaste('legal-text');
+  _fgWrapGenAll(); // el masivo también queda registrado, con su opción
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
   });
@@ -805,6 +806,8 @@ function checkProfile(user){
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});
     // Default vacío + placeholders (como Asesor 2): NO mostramos el ejemplo del
     // template (Julieta) ni el mail. Cada uno carga lo suyo o usa "asesores guardados".
+    // Empresa vacía con indicación (nada de "AMIC..." por default: queda más profesional)
+    var _eE0=document.getElementById('empresa');if(_eE0){_eE0.value='';_eE0.placeholder='Nombre de la empresa';}
     var _eN=document.getElementById('nombre');if(_eN){_eN.value=p.nombre_asesor||'';_eN.placeholder='Nombre Asesor 1';}
     var _eC=document.getElementById('celular');if(_eC){_eC.value=p.celular_asesor||'';_eC.placeholder='11 XXXX XXXX';}
     var _eE=document.getElementById('email');if(_eE){_eE.value='';_eE.placeholder='mail@bancogalicia.com.ar';}
@@ -942,8 +945,7 @@ function switchAdminTab(el,t){
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
   if(t==='legales'){
-    loadGlobalLegal(true,1);loadGlobalLegal(true,2);
-    _attachLegalPaste('glegal-text');_attachLegalPaste('glegal-text2');
+    _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
   }
 }
 
@@ -952,18 +954,18 @@ function switchAdminTab(el,t){
 // desde el panel; todos los usuarios lo reciben precargado al iniciar sesión.
 // Cada opción del armador tiene su propio legal (_legal.json / _legal2.json).
 function loadGlobalLegal(toEditor,opt){
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
   return fetch(FLYERS_PUBLIC+_legalFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
     .then(function(d){
       var txt=(d&&typeof d.text==='string')?d.text:'';
-      if(toEditor){var el=document.getElementById(opt===2?'glegal-text2':'glegal-text');if(el)el.value=txt;}
+      if(toEditor){var el=document.getElementById(_glegalId(opt));if(el)el.value=txt;}
       return txt;
     }).catch(function(){return '';});
 }
 function saveGlobalLegal(opt){
-  opt=(+opt===2)?2:1;
-  var sfx=(opt===2)?'2':'';
+  opt=_optN(opt);
+  var sfx=(opt===1)?'':String(opt);
   var el=document.getElementById('glegal-text'+sfx);if(!el)return;
   var txt=el.value;
   var btn=document.getElementById('glegal-save'+sfx),err=document.getElementById('glegal-err'+sfx),ok=document.getElementById('glegal-ok'+sfx);
@@ -975,25 +977,28 @@ function saveGlobalLegal(opt){
       if(btn){btn.disabled=false;btn.textContent='Guardar y aplicar a todos';}
       if(r&&r.error){if(err)err.textContent='Error: '+r.error.message;return;}
       if(ok)ok.textContent='✅ Guardado. Se aplica a '+_optLabel(opt)+' para todos los usuarios.';
-      if(_fgOptCache[opt])_fgOptCache[opt].legal=txt;
+      var c=_fgOptCache[opt];
+      // lo recién guardado pasa a ser la base: descarto la edición de sesión
+      if(c){c.legal=txt;delete c.legalEdited;}
       // si estoy viendo esa opción, refresco el legal del armador al toque
-      if(+_fgOpt===opt){var f=document.getElementById('legal-text');if(f){f.value=txt;if(typeof redraw==='function')redraw();}}
+      if(_optN(_fgOpt)===opt){var f=document.getElementById('legal-text');if(f){f.value=txt;if(typeof redraw==='function')redraw();}}
       showToast('Legal de '+_optLabel(opt)+' actualizado');
     });
 }
 // Precarga el legal de la opción en el formulario (pisa el default del template).
 function _applyGlobalLegalToForm(opt){
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
   loadGlobalLegal(false,opt).then(function(txt){
     if(txt&&txt.trim()){var el=document.getElementById('legal-text');if(el){el.value=txt;if(typeof redraw==='function')redraw();}}
   });
 }
 // Sub-solapas de legales en el panel admin.
+function _glegalId(opt){var n=_optN(opt);return n===1?'glegal-text':'glegal-text'+n;}
 function switchLegalTab(el,n){
-  n=(+n===2)?2:1;
-  [1,2].forEach(function(o){var d=document.getElementById('lt-'+o);if(d)d.style.display=(o===n)?'block':'none';});
+  n=_optN(n);
+  _FG_OPTS.forEach(function(o){var d=document.getElementById('lt-'+o);if(d)d.style.display=(o===n)?'block':'none';});
   document.querySelectorAll('.ltab').forEach(function(x){x.classList.toggle('active',+x.getAttribute('data-ltab')===n);});
-  _attachLegalPaste(n===2?'glegal-text2':'glegal-text');
+  _attachLegalPaste(_glegalId(n));
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -1275,21 +1280,21 @@ function downloadUploaded(){
 function loadUploadHistory(){
   var histEl=document.getElementById('upload-history');if(!histEl)return;
   histEl.innerHTML=skelRows(2);
-  // Leo el flyer activo de LAS DOS opciones (_active.json y _active2.json)
-  var pend=2;
-  [1,2].forEach(function(o){
+  // Leo el flyer activo de TODAS las opciones (_active.json, _active2.json, _active3.json)
+  var pend=_FG_OPTS.length;
+  _FG_OPTS.forEach(function(o){
     _fetchActiveMeta(o,function(d){_fgHistMeta[o]=d;if(--pend===0)_renderUploadHistory(histEl);});
   });
 }
 function _renderUploadHistory(histEl){
   _sb.storage.from('flyers').list('',{limit:50,sortBy:{column:'created_at',order:'desc'}}).then(function(r){
     var files=(r.data||[]).filter(function(f){return !f.name.startsWith('_');});
-    var banner=[1,2].map(function(o){
+    var banner=_FG_OPTS.map(function(o){
       var d=_fgHistMeta[o],has=!!(d&&d.imageUrl);
       if(!has)return '<div class="af-banner af-banner-empty">'+_optLabel(o)+': sin flyer activo.</div>';
       var hUrl=(d&&d.htmlUrl)||null;
       return '<div class="af-banner"><div class="af-banner-info">'+
-        '<span class="badge badge-active" style="font-size:.62rem;letter-spacing:.5px">OP.'+o+'</span>'+
+        _optBadge(o,'font-size:.62rem;padding:4px 8px')+
         '<span class="af-banner-name">'+_escHtml(d.name||'')+'</span></div>'+
         '<div style="display:flex;gap:6px">'+
         (hUrl?'<a href="'+hUrl+'" target="_blank" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
@@ -1305,24 +1310,25 @@ function _renderUploadHistory(histEl){
         var url=FLYERS_PUBLIC+f.name;
         var ts=f.created_at?_fmtDate(f.created_at):'';
         var kb=f.metadata&&f.metadata.size?Math.round(f.metadata.size/1024)+' KB':'';
-        var in1=!!(_fgHistMeta[1]&&_fgHistMeta[1].name===f.name);
-        var in2=!!(_fgHistMeta[2]&&_fgHistMeta[2].name===f.name);
-        var isAct=in1||in2;
+        var actIn=_FG_OPTS.filter(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===f.name;});
+        var isAct=actIn.length>0;
         var isImg=/\.(png|jpe?g)$/i.test(f.name);
         var fn=isImg?'activateImageFlyer':'activateFlyer';
         var tag=isImg?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
-        function ab(o,on){
-          return on?'<span class="badge badge-active" style="font-size:.56rem;padding:4px 7px">EN OP.'+o+'</span>'
-                  :'<button class="usr-btn ok" title="Activar en '+_optLabel(o)+'" onclick="'+fn+'(\''+url+'\',\''+f.name+'\',this,'+o+')">Op.'+o+'</button>';
+        var actTags=actIn.map(function(o){return _optBadge(o,'margin-left:5px');}).join('');
+        function ab(o){
+          if(actIn.indexOf(o)!==-1)return '';
+          return '<button class="usr-btn ok" title="Activar en '+_optLabel(o)+'" style="border-color:'+_optColor(o)+';color:'+_optColor(o)+
+            '" onclick="'+fn+'(\''+url+'\',\''+f.name+'\',this,'+o+')">Op.'+o+'</button>';
         }
         var calBtn=isImg?'<button class="usr-btn edit" onclick="_calFromList(\''+url+'\',\''+f.name+'\')">Calibrar</button>':'';
         return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
           '<div class="usr-info">'+
-            '<strong style="font-size:.78rem">'+f.name+tag+'</strong>'+
+            '<strong style="font-size:.78rem">'+f.name+tag+actTags+'</strong>'+
             '<small>'+ts+(kb?' &middot; '+kb:'')+'</small>'+
           '</div>'+
           '<div class="usr-btns">'+
-            ab(1,in1)+ab(2,in2)+calBtn+
+            _FG_OPTS.map(ab).join('')+calBtn+
             '<button class="usr-btn edit" onclick="window.open(\''+url+'\',\'_blank\')">Ver</button>'+
             '<button class="usr-btn warn" onclick="deleteUpload(this,\''+f.name+'\')"'+(isAct?' disabled title="Desactivá primero"':'')+'>Borrar</button>'+
           '</div></div>';
@@ -1331,9 +1337,8 @@ function _renderUploadHistory(histEl){
 }
 
 function deleteUpload(btn,name){
-  if((_fgHistMeta[1]&&_fgHistMeta[1].name===name)||(_fgHistMeta[2]&&_fgHistMeta[2].name===name)){
-    showToast('Desactivá el flyer antes de borrarlo.');return;
-  }
+  var inUse=_FG_OPTS.some(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===name;});
+  if(inUse){showToast('Desactivá el flyer antes de borrarlo.');return;}
   btn.disabled=true;
   _sb.storage.from('flyers').remove([name]).then(function(){loadUploadHistory();showToast('Archivo eliminado');});
 }
@@ -1345,10 +1350,21 @@ function deleteUpload(btn,name){
 // Al cambiar de opción se intercambian baseImg + FLYER_CFG + #legal-text; por eso el
 // armador individual, el MASIVO (genAll usa legal-text + fullRes) y las descargas
 // funcionan igual en las dos sin tocar nada más.
+var _FG_OPTS=[1,2,3];
 var _fgOpt=1,_fgOptCache={},_fgHistMeta={};
-function _activeFile(opt){return (+opt===2)?'_active2.json':'_active.json';}
-function _legalFile(opt){return (+opt===2)?'_legal2.json':'_legal.json';}
-function _optLabel(opt){return 'Opción '+((+opt===2)?2:1);}
+function _optN(opt){var n=+opt;return (_FG_OPTS.indexOf(n)!==-1)?n:1;}
+// Opción 1 conserva los nombres originales (_active.json/_legal.json) => cero cambios
+// para los asesores; las demás agregan el número.
+function _activeFile(opt){var n=_optN(opt);return n===1?'_active.json':'_active'+n+'.json';}
+function _legalFile(opt){var n=_optN(opt);return n===1?'_legal.json':'_legal'+n+'.json';}
+function _optLabel(opt){return 'Opción '+_optN(opt);}
+// Color por opción: se usa igual en registros, historial y badges (control visual).
+function _optColor(opt){var n=_optN(opt);return n===2?'#0e8a5f':(n===3?'#8e44ad':'#1d4070');}
+function _optBadge(opt,extraCss){
+  var n=_optN(opt),c=_optColor(n);
+  return '<span class="badge" style="font-size:.56rem;padding:3px 7px;background:'+c+
+    ';color:#fff;letter-spacing:.3px;'+(extraCss||'')+'">OP.'+n+'</span>';
+}
 function _fetchActiveMeta(opt,cb){
   fetch(FLYERS_PUBLIC+_activeFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
@@ -1363,41 +1379,61 @@ function _fgEnsureOptBar(){
   var st=document.createElement('style');st.id='fg-optbar-style';
   st.textContent=
     '#fg-optbar{display:flex;gap:6px;margin:0 0 10px;padding:4px;background:rgba(128,128,128,.14);border-radius:9px}'+
-    '#fg-optbar .fgo{flex:1;text-align:center;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--gray,#777);user-select:none;transition:.15s;background:none}'+
-    '#fg-optbar .fgo:hover{color:var(--red,#c62828)}'+
-    '#fg-optbar .fgo.on{background:#fff;color:var(--red,#c62828);box-shadow:0 1px 4px rgba(0,0,0,.14)}'+
+    '#fg-optbar .fgo{flex:1;text-align:center;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:.76rem;font-weight:600;color:var(--gray,#777);user-select:none;transition:.15s;background:none;border-bottom:2px solid transparent}'+
+    '#fg-optbar .fgo:hover{color:#444}'+
+    'html.dark #fg-optbar .fgo:hover{color:#ddd}'+
+    '#fg-optbar .fgo.on{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}'+
     'html.dark #fg-optbar .fgo.on{background:#2c2f36}';
   document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
-  bar.innerHTML='<div class="fgo" data-o="1" onclick="switchFlyerOption(1)">Opción 1</div>'+
-                '<div class="fgo" data-o="2" onclick="switchFlyerOption(2)">Opción 2</div>';
+  bar.innerHTML=_FG_OPTS.map(function(o){
+    return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">Opción '+o+'</div>';
+  }).join('');
   tabs.parentNode.insertBefore(bar,tabs);
   _fgRenderOptBar();
 }
 function _fgRenderOptBar(){
   var bar=document.getElementById('fg-optbar');if(!bar)return;
-  bar.querySelectorAll('.fgo').forEach(function(x){x.classList.toggle('on',+x.dataset.o===+_fgOpt);});
+  bar.querySelectorAll('.fgo').forEach(function(x){
+    var o=+x.getAttribute('data-o'),on=(o===_optN(_fgOpt));
+    x.classList.toggle('on',on);
+    // la opción activa se pinta con SU color (mismo que registros/historial)
+    x.style.color=on?_optColor(o):'';
+    x.style.borderBottomColor=on?_optColor(o):'transparent';
+  });
 }
-function switchFlyerOption(opt){
+// Guarda en la opción que estoy dejando el legal TAL COMO LO EDITÉ, para que al volver
+// siga igual (ej: le cambié una fecha). Se pierde sólo al recargar la página o al
+// apretar "Restaurar".
+function _fgStashLegal(){
+  var el=document.getElementById('legal-text');if(!el)return;
+  var n=_optN(_fgOpt),c=_fgOptCache[n];
+  if(!c)c=_fgOptCache[n]={loaded:false};
+  c.legalEdited=el.value;
+}
+function switchFlyerOption(opt,cb){
   if(!_admin)return; // gating: sólo admin puede cambiar de armador
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
+  _fgStashLegal();
   _fgOpt=opt;_fgRenderOptBar();
   var c=_fgOptCache[opt];
-  if(c&&c.loaded){_fgApplyOption(c);return;}
+  if(c&&c.loaded){_fgApplyOption(c);if(cb)cb();return;}
   showToast('Cargando '+_optLabel(opt)+'...');
+  var keepEdited=c?c.legalEdited:undefined; // no piso una edición previa de esta opción
   _fetchActiveMeta(opt,function(d){
     var cache=_fgOptCache[opt]={loaded:false,cfg:(d&&d.cfg)||null,
-      imageUrl:(d&&d.imageUrl)||null,name:(d&&d.name)||'',legal:null,img:null};
+      imageUrl:(d&&d.imageUrl)||null,name:(d&&d.name)||'',legal:null,img:null,legalEdited:keepEdited};
     loadGlobalLegal(false,opt).then(function(txt){
       cache.legal=txt||'';
       if(!cache.imageUrl){
         cache.loaded=true;
-        if(+_fgOpt===opt){_fgApplyOption(cache);showToast(_optLabel(opt)+' todavía no tiene flyer: subilo desde el panel.');}
+        if(_optN(_fgOpt)===opt){_fgApplyOption(cache);showToast(_optLabel(opt)+' todavía no tiene flyer: subilo desde el panel.');}
+        if(cb)cb();
         return;
       }
       var im=new Image();im.crossOrigin='anonymous';
-      im.onload=function(){cache.img=im;cache.loaded=true;if(+_fgOpt===opt)_fgApplyOption(cache);};
-      im.onerror=function(){cache.loaded=true;if(+_fgOpt===opt){_fgApplyOption(cache);showToast('No se pudo cargar la imagen de '+_optLabel(opt));}};
+      im.onload=function(){cache.img=im;cache.loaded=true;if(_optN(_fgOpt)===opt)_fgApplyOption(cache);if(cb)cb();};
+      im.onerror=function(){cache.loaded=true;if(_optN(_fgOpt)===opt){_fgApplyOption(cache);showToast('No se pudo cargar la imagen de '+_optLabel(opt));}if(cb)cb();};
       im.src=cache.imageUrl+(cache.imageUrl.indexOf('?')>=0?'&':'?')+'_r='+Date.now();
     });
   });
@@ -1406,13 +1442,15 @@ function _fgApplyOption(cache){
   if(cache.img)window.baseImg=cache.img;
   window.FLYER_CFG=cache.cfg||{};
   var el=document.getElementById('legal-text');
-  if(el&&typeof cache.legal==='string'&&cache.legal.trim())el.value=cache.legal;
+  // prioridad: lo que dejé editado en esta sesión; si no, el legal guardado de la opción
+  var txt=(typeof cache.legalEdited==='string')?cache.legalEdited:cache.legal;
+  if(el&&typeof txt==='string'&&txt.trim())el.value=txt;
   if(typeof calcSC==='function')calcSC();
   if(typeof redraw==='function')redraw();
 }
 // Fuerza recarga de una opción (después de activar/calibrar) y refresca el armador si toca.
 function _fgInvalidateOpt(opt){
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
   delete _fgOptCache[opt];
   if(_admin&&+_fgOpt===opt)switchFlyerOption(opt);
 }
@@ -1432,8 +1470,9 @@ function _askOption(title,cb){
   d.innerHTML='<div class="box"><h3>'+_escHtml(title)+'</h3>'+
     '<p>Eleg&iacute; a qu&eacute; armador corresponde.</p>'+
     '<div style="display:flex;gap:8px">'+
-      '<button class="btn-submit" style="flex:1" data-o="1">Opci&oacute;n 1</button>'+
-      '<button class="btn-submit" style="flex:1" data-o="2">Opci&oacute;n 2</button></div>'+
+      _FG_OPTS.map(function(o){
+        return '<button class="btn-submit" style="flex:1;background:'+_optColor(o)+'" data-o="'+o+'">Opci&oacute;n '+o+'</button>';
+      }).join('')+'</div>'+
     '<button class="btn-cancel" style="width:100%;margin-top:8px" data-o="0">Cancelar</button></div>';
   d.addEventListener('click',function(e){
     var b=e.target&&e.target.closest?e.target.closest('button[data-o]'):null;
@@ -1463,7 +1502,7 @@ function _fetchActiveFlyer(cb){
 // Al activar: descarga el HTML, extrae la imagen en base64, la sube como _active_img.jpg
 // Los usuarios sólo descargan la imagen (no el HTML de 1.8MB)
 function activateFlyer(htmlUrl,name,btn,opt){
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
   if(btn){btn.disabled=true;btn.textContent='...';}
   showToast('Extrayendo imagen del flyer...');
   fetch(htmlUrl,{cache:'no-cache'})
@@ -1488,7 +1527,7 @@ function activateFlyer(htmlUrl,name,btn,opt){
       for(var i=0;i<binStr.length;i++)bytes[i]=binStr.charCodeAt(i);
       var blob=new Blob([bytes],{type:mime});
       var ext=mime.indexOf('jpeg')!==-1||mime.indexOf('jpg')!==-1?'jpg':'png';
-      var imgName=(opt===2?'_active2_img.':'_active_img.')+ext;
+      var imgName=(opt===1?'_active_img.':'_active'+opt+'_img.')+ext;
       // Subir imagen a Supabase Storage
       return _sb.storage.from('flyers').upload(imgName,blob,{contentType:mime,upsert:true})
         .then(function(r){
@@ -1514,7 +1553,7 @@ function activateFlyer(htmlUrl,name,btn,opt){
 }
 
 function deactivateFlyer(btn,opt){
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
   if(btn){btn.disabled=true;btn.textContent='Desactivando...';}
   var data=JSON.stringify({name:'',imageUrl:null,updated_at:new Date().toISOString()});
   _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([data],{type:'application/json'}),{contentType:'application/json',upsert:true})
@@ -1729,7 +1768,80 @@ function fgFullRes(v){
   out.getContext('2d').drawImage(full,0,0);
   return out;
 }
+// ── HISTORIAL con opción (color) ──────────────────────────────────────────────
+// Piso addHistory/renderHistory/redlPDF/loadHistory de _source.html (que regenera)
+// para guardar y mostrar en qué opción se generó cada flyer.
+function fgAddHistory(v,fn,canvas){
+  var d=new Date();
+  var hora=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+  flyerHistory.unshift({v:JSON.parse(JSON.stringify(v)),fn:fn,
+    thumb:canvas.toDataURL('image/jpeg',0.25),hora:hora,
+    ac:(typeof ac!=='undefined'?ac:0),opt:_optN(_fgOpt)});
+  if(flyerHistory.length>10)flyerHistory.pop();
+}
+function fgRenderHistory(){
+  var el=document.getElementById('history-list');if(!el)return;
+  if(!flyerHistory.length){el.innerHTML='<div class="history-empty">&#128337; Todavía no generaste ningún flyer.</div>';return;}
+  el.innerHTML=flyerHistory.map(function(h,i){
+    var o=_optN(h.opt||1);
+    return '<div class="hist-item" onclick="loadHistory('+i+')" style="border-left:4px solid '+_optColor(o)+'">'
+      +'<img class="hist-thumb" src="'+h.thumb+'">'
+      +'<div class="hist-info"><strong>'+_escHtml(h.v.empresa||'')+'</strong>'
+      +'<span>'+_escHtml(h.fn||'')+' · '+h.hora+'</span>'
+      +'<div style="margin-top:3px">'+_optBadge(o)+'</div>'
+      +'<div style="display:flex;gap:4px;margin-top:3px;">'
+      +'<button class="hist-btn" onclick="event.stopPropagation();redlPDF('+i+')">&#11015; PDF</button>'
+      +'<button class="hist-btn" onclick="event.stopPropagation();loadHistory('+i+')">&#9998; Editar</button>'
+      +'</div></div>'
+      +'<button class="hist-del" onclick="event.stopPropagation();delHistory('+i+')">&#10005;</button>'
+      +'</div>';
+  }).join('');
+}
+// Si el ítem se generó en otra opción, cambio a esa opción ANTES de rehacer el PDF /
+// cargar los datos: si no, saldría con el flyer equivocado.
+function _fgWithOpt(o,fn2){
+  o=_optN(o);
+  if(_admin&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,fn2);}
+  else fn2();
+}
+function fgRedlPDF(i){
+  var h=flyerHistory[i];if(!h)return;
+  _fgWithOpt(h.opt||1,function(){savePDF(fullRes(h.v),h.v);});
+}
+function fgLoadHistory(i){
+  var h=flyerHistory[i];if(!h)return;
+  _fgWithOpt(h.opt||1,function(){
+    var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
+    s('empresa',h.v.empresa||'');s('nombre',h.v.nombre||'');
+    s('celular',(h.v.celular||'').replace('Cel: ',''));s('email',h.v.email||'');
+    if(h.v.legal)s('legal-text',h.v.legal);
+    if(h.v.has2){if(typeof a2!=='undefined'&&!a2&&typeof toggleA2==='function')toggleA2();s('nombre2',h.v.nombre2||'');}
+    if(typeof setCfg==='function')setCfg(h.ac||0);
+    if(typeof switchTab==='function')switchTab('individual');
+    showToast('Datos cargados');
+  });
+}
+// "Restaurar": deja el formulario vacío (nada de datos de ejemplo) y devuelve el legal
+// GUARDADO de la opción actual, descartando mis ediciones de sesión.
+function fgResetVals(){
+  var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
+  ['empresa','nombre','celular','email','nombre2','celular2','email2'].forEach(function(id){s(id,'');});
+  s('filename','Flyer {empresa}');
+  var n=_optN(_fgOpt),c=_fgOptCache[n];
+  if(c)delete c.legalEdited;
+  var base=(c&&typeof c.legal==='string'&&c.legal.trim())?c.legal:(window.LEGAL_DEFAULT||'');
+  s('legal-text',base);
+  window.filenameManual=false;
+  if(typeof a1!=='undefined'&&!a1&&typeof toggleA1==='function')toggleA1();
+  if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
+  if(typeof setCfg==='function')setCfg(0);
+  if(typeof updateFnPreview==='function')updateFnPreview();
+}
 function _installFlyerEngine(){
+  window.savePDF=fgSavePDF;window.savePNG=fgSavePNG;      // engancha el registro
+  window.addHistory=fgAddHistory;window.renderHistory=fgRenderHistory;
+  window.redlPDF=fgRedlPDF;window.loadHistory=fgLoadHistory;
+  window.resetVals=fgResetVals;
   window.drawAll=fgDrawAll;window.drawEmpresa=fgDrawEmpresa;window.drawMontos=fgDrawMontos;
   window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
   window.splitBoldRegular=fgSplitBold;
@@ -1851,7 +1963,7 @@ function _saveFlyerCfg(name,cfg,cb){
 }
 // Activa un flyer basado en imagen (usa su calibración guardada, o el default si no tiene).
 function activateImageFlyer(url,name,btn,opt){
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
   var lbl=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='...';}
   _loadFlyerCfgs(function(m){
@@ -1871,10 +1983,8 @@ function activateImageFlyer(url,name,btn,opt){
 // Abre el calibrador desde la lista: si el flyer ya está activo en una sola opción usa
 // esa; si no, pregunta.
 function _calFromList(url,name){
-  var in1=!!(_fgHistMeta[1]&&_fgHistMeta[1].name===name);
-  var in2=!!(_fgHistMeta[2]&&_fgHistMeta[2].name===name);
-  if(in1&&!in2){_calOpenFromUrl(url,name,1);return;}
-  if(in2&&!in1){_calOpenFromUrl(url,name,2);return;}
+  var actIn=_FG_OPTS.filter(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===name;});
+  if(actIn.length===1){_calOpenFromUrl(url,name,actIn[0]);return;}
   _askOption('¿Qué opción querés calibrar?',function(o){_calOpenFromUrl(url,name,o);});
 }
 
@@ -2040,7 +2150,7 @@ function _calMergeCfg(base,saved){
 }
 function _calOpen(img,name,url,opt){
   _calEnsureDom();
-  opt=(+opt===2)?2:1;
+  opt=_optN(opt);
   var base=JSON.parse(JSON.stringify(FLYER_CFG_DEFAULT));
   _cal={img:img,name:name,url:url,opt:opt,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
     ds:Math.min(560,(window.innerWidth||600)-70)/_FG_TARGET_W};
@@ -2066,7 +2176,7 @@ function _calOpenFromUrl(url,name,opt){
 }
 function _calClose(){var m=document.getElementById('cal-modal');if(m)m.classList.remove('show');_cal=null;}
 function _calSave(){
-  if(!_cal)return;var name=_cal.name,url=_cal.url,cfg=_cal.cfg,opt=(+_cal.opt===2)?2:1;
+  if(!_cal)return;var name=_cal.name,url=_cal.url,cfg=_cal.cfg,opt=_optN(_cal.opt);
   showToast('Guardando calibración...');
   _saveFlyerCfg(name,cfg,function(){
     var imageUrl=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
@@ -2131,7 +2241,7 @@ function _attachLegalPaste(id){
 // Columnas reales de flyer_logs: id, user_id, flyer_type, empresa, config_name, format, is_bulk, bulk_count, created_at
 function logFlyerToSupabase(v,fn,fmt){
   if(!_me)return;
-  var extra={};
+  var extra={opcion:_optN(_fgOpt)}; // qué armador se usó (control de visibilidad)
   if(v){
     ['config','nombre','celular','email','nombre2','celular2','email2'].forEach(function(k){
       if(v[k])extra[k]=v[k];
@@ -2144,11 +2254,54 @@ function logFlyerToSupabase(v,fn,fmt){
     format:fmt||'png',
     is_bulk:false,
     bulk_count:0,
-    flyer_type:Object.keys(extra).length?JSON.stringify(extra):null,
+    flyer_type:JSON.stringify(extra),
     created_at:new Date().toISOString()
   }).then(function(r){
     if(r&&r.error)console.warn('flyer_logs insert error:',r.error.message);
   }).catch(function(e){console.warn('flyer_logs insert failed:',e);});
+}
+// Log del MASIVO: un registro por corrida, con la opción usada.
+function logFlyerBulkToSupabase(n){
+  if(!_me)return;
+  _sb.from('flyer_logs').insert({
+    user_id:_me.id,
+    empresa:'Masivo ('+n+' flyers)',
+    config_name:'',format:'pdf',is_bulk:true,bulk_count:n,
+    flyer_type:JSON.stringify({opcion:_optN(_fgOpt),masivo:true}),
+    created_at:new Date().toISOString()
+  }).then(function(r){
+    if(r&&r.error)console.warn('flyer_logs bulk error:',r.error.message);
+  }).catch(function(e){console.warn('flyer_logs bulk failed:',e);});
+}
+// ── DESCARGAS: registro + historial con opción ────────────────────────────────
+// OJO: logFlyerToSupabase existía pero NADIE lo llamaba => no se registraba ninguna
+// descarga. Lo engancho acá pisando savePDF/savePNG de _source.html (que regenera).
+function fgSavePDF(fc,v){
+  var jsPDF=window.jspdf.jsPDF;
+  var pw=210,ph=(fc.height/fc.width)*pw;
+  var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
+  pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+  var fn=buildFn(document.getElementById('filename').value,v);
+  pdf.save(fn+'.pdf');
+  addHistory(v,fn,fc);
+  logFlyerToSupabase(v,fn,'pdf');
+}
+function fgSavePNG(fc,v){
+  var a=document.createElement('a');
+  var fn=buildFn(document.getElementById('filename').value,v);
+  a.download=fn+'.png';a.href=fc.toDataURL('image/png');a.click();
+  addHistory(v,fn,fc);
+  logFlyerToSupabase(v,fn,'png');
+}
+// Envuelvo genAll (masivo) sin reimplementarlo: sólo agrego el log de la corrida.
+function _fgWrapGenAll(){
+  if(typeof window.genAll!=='function'||window.genAll._fgWrapped)return;
+  var orig=window.genAll;
+  var w=function(){
+    try{if(window.excelData&&excelData.length)logFlyerBulkToSupabase(excelData.length);}catch(e){}
+    return orig.apply(this,arguments);
+  };
+  w._fgWrapped=true;window.genAll=w;
 }
 
 // Carga profiles en un mapa {id: nombre} para usar en los logs
@@ -2194,13 +2347,16 @@ function loadRegistros(){
         var col=_avatarColor(row.user_id||'x');
         var fmtBadge=row.format?'<span class="badge badge-asesor" style="font-size:.58rem">'+row.format.toUpperCase()+'</span>':'';
         var ex={};try{if(row.flyer_type)ex=JSON.parse(row.flyer_type);}catch(e){}
+        // Opción usada (control de visibilidad). Registros viejos no la tienen.
+        var optBadge=ex.opcion?_optBadge(ex.opcion,'font-size:.58rem;margin-left:4px'):'';
+        var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">MASIVO</span>':'';
         var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+ex.config+'</span>':'';
         var cfgWrap=cfgHtml?'<div class="reg-montos">'+cfgHtml+'</div>':'';
         var asesorHtml=ex.nombre?'<div style="font-size:.68rem;color:#555;margin-top:3px"><b>Asesor:</b> '+ex.nombre+(ex.celular?' &middot; '+ex.celular:'')+(ex.email?' &middot; '+ex.email:'')+'</div>':'';
         return '<div class="reg-row">'+
           '<div class="usr-avatar sm" style="background:'+col+';flex-shrink:0">'+ini+'</div>'+
           '<div class="reg-info">'+
-            '<div class="reg-top"><span class="reg-empresa">'+(row.empresa||'—')+'</span>'+fmtBadge+'</div>'+
+            '<div class="reg-top"><span class="reg-empresa">'+(row.empresa||'—')+'</span>'+fmtBadge+optBadge+bulkBadge+'</div>'+
             cfgWrap+
             asesorHtml+
             '<div class="reg-mid"><span class="reg-lbl">Generado por</span> '+nombre+'</div>'+
@@ -3215,6 +3371,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
       <div class="atabs" style="margin-bottom:14px">
         <div class="atab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
         <div class="atab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
+        <div class="atab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
       </div>
       <div id="lt-1">
         <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>
@@ -3232,6 +3389,15 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
         <div style="display:flex;gap:8px;margin-top:8px">
           <button class="btn-submit" id="glegal-save2" onclick="saveGlobalLegal(2)">Guardar y aplicar a todos</button>
           <button class="usr-btn edit" onclick="loadGlobalLegal(true,2)">Recargar</button>
+        </div>
+      </div>
+      <div id="lt-3" style="display:none">
+        <textarea id="glegal-text3" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 3..."></textarea>
+        <div class="login-err" id="glegal-err3" style="margin-top:6px"></div>
+        <div class="login-ok" id="glegal-ok3" style="margin-top:6px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn-submit" id="glegal-save3" onclick="saveGlobalLegal(3)">Guardar y aplicar a todos</button>
+          <button class="usr-btn edit" onclick="loadGlobalLegal(true,3)">Recargar</button>
         </div>
       </div>
     </div>

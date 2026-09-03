@@ -252,6 +252,7 @@ const adminPanel = `<div id="admin-panel">
       <div class="atabs" style="margin-bottom:14px">
         <div class="atab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
         <div class="atab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
+        <div class="atab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
       </div>
       <div id="lt-1">
         <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>
@@ -269,6 +270,15 @@ const adminPanel = `<div id="admin-panel">
         <div style="display:flex;gap:8px;margin-top:8px">
           <button class="btn-submit" id="glegal-save2" onclick="saveGlobalLegal(2)">Guardar y aplicar a todos</button>
           <button class="usr-btn edit" onclick="loadGlobalLegal(true,2)">Recargar</button>
+        </div>
+      </div>
+      <div id="lt-3" style="display:none">
+        <textarea id="glegal-text3" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 3..."></textarea>
+        <div class="login-err" id="glegal-err3" style="margin-top:6px"></div>
+        <div class="login-ok" id="glegal-ok3" style="margin-top:6px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn-submit" id="glegal-save3" onclick="saveGlobalLegal(3)">Guardar y aplicar a todos</button>
+          <button class="usr-btn edit" onclick="loadGlobalLegal(true,3)">Recargar</button>
         </div>
       </div>
     </div>
@@ -471,10 +481,15 @@ const checks = {
   'calibrador visual': _authSrc.includes('function _calOpen(') && _authSrc.includes('function _calSave('),
   'activar flyer imagen': _authSrc.includes('function activateImageFlyer('),
   // Dos armadores: Opcion 1 / Opcion 2 (selector solo ADMIN)
-  'selector Opcion 1/2': _authSrc.includes('function switchFlyerOption(') && _authSrc.includes('_fgEnsureOptBar'),
-  'archivos por opcion': _authSrc.includes("'_active2.json'") && _authSrc.includes("'_legal2.json'"),
-  'legales 2 solapas': html.includes('id="glegal-text2"') && html.includes('switchLegalTab') && html.includes('saveGlobalLegal(2)'),
+  'selector 3 opciones': _authSrc.includes('function switchFlyerOption(') && _authSrc.includes('var _FG_OPTS=[1,2,3]'),
+  'archivos por opcion': _authSrc.includes("'_active'+n+'.json'") && _authSrc.includes("'_legal'+n+'.json'"),
+  'legales 3 solapas': html.includes('id="glegal-text2"') && html.includes('id="glegal-text3"') && html.includes('saveGlobalLegal(3)'),
   'preguntar opcion al subir': _authSrc.includes('function _askOption(') && _authSrc.includes('function _startUpload('),
+  // El log estaba muerto (nadie llamaba a logFlyerToSupabase): sin esto no se registra nada
+  'registro de descargas': _authSrc.includes('window.savePDF=fgSavePDF') && _authSrc.includes("logFlyerToSupabase(v,fn,'pdf')"),
+  'opcion en registros/historial': _authSrc.includes('opcion:_optN(_fgOpt)') && _authSrc.includes('function fgRenderHistory('),
+  'legal persistente por opcion': _authSrc.includes('function _fgStashLegal(') && _authSrc.includes('legalEdited'),
+  'empresa sin default': _authSrc.includes("_eE0.placeholder='Nombre de la empresa'"),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
