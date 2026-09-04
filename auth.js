@@ -1300,7 +1300,9 @@ function fgDrawEmpresa(c,s,empresa){
 function fgDrawMontos(c,s,v){
   var M=_fgCfg().montos,se=_fgSE(s);
   var my=Math.round(M.y*se),fs=Math.round(M.fs*se);
-  var vals=[v.m1,v.m2,v.m3,v.m4];
+  // "sin cashback": mantengo las cajas de fondo (por si el flyer trae importes
+  // impresos debajo) pero no escribo ningún número.
+  var vals=v.nocb?['','','','']:[v.m1,v.m2,v.m3,v.m4];
   M.boxes.forEach(function(m,i){
     var mx=Math.round(m.xc*se),mw=Math.round(m.ew*se),mh=Math.round(M.mh*se);
     c.fillStyle=M.bg;c.fillRect(mx-mw/2,my-mh/2,mw,mh);
@@ -1613,10 +1615,11 @@ function _fgFixAsesorLabels(){
 function fgGetVals(){
   function g(id){var e=document.getElementById(id);return e?e.value:'';}
   function cel(id){var t=g(id).trim();return t?'Cel: '+t:'';}
-  var c=CONFIGS[ac];
+  var c=CONFIGS[ac]||CONFIGS[0];
   return{
     empresa:g('empresa'),
-    config:(typeof CNAMES!=='undefined'&&CNAMES[ac])?CNAMES[ac]:'',
+    nocb:_fgNoCB,
+    config:_fgNoCB?'Sin cashback':((typeof CNAMES!=='undefined'&&CNAMES[ac])?CNAMES[ac]:''),
     m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4,
     has1:(typeof a1==='undefined'?true:a1)&&g('nombre').trim()!=='',
     nombre:g('nombre'),celular:cel('celular'),email:g('email'),
@@ -1688,7 +1691,8 @@ function fgLoadHistory(i){
     });
     _fgSyncAsesorBlocks(); // muestra los bloques que el flyer del historial tenía
     _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // el historial no es una fila del padrón
-    if(typeof setCfg==='function')setCfg(h.ac||0);
+    if(h.v&&h.v.nocb)_fgSetNoCB(true);
+    else if(typeof setCfg==='function')setCfg(h.ac||0);
     if(typeof switchTab==='function')switchTab('individual');
     showToast('Datos cargados');
   });
@@ -1711,6 +1715,7 @@ function fgResetVals(){
   window.filenameManual=false;
   if(typeof a1!=='undefined'&&!a1&&typeof toggleA1==='function')toggleA1();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
+  _fgSetNoCB(false);
   if(typeof setCfg==='function')setCfg(0);
   if(typeof updateFnPreview==='function')updateFnPreview();
 }
@@ -1720,6 +1725,7 @@ function _installFlyerEngine(){
   window.redlPDF=fgRedlPDF;window.loadHistory=fgLoadHistory;
   window.resetVals=fgResetVals;
   window.getVals=fgGetVals;                                // hasta 4 asesores
+  window.setCfg=fgSetCfg;                                  // + estado "sin cashback"
   window.toggleA3=toggleA3;window.toggleA4=toggleA4;
   window.genAll=fgGenAll;window.dlTemplate=fgDlTemplate;   // masivo + plantilla con 3 y 4
   window.drawAll=fgDrawAll;window.drawEmpresa=fgDrawEmpresa;window.drawMontos=fgDrawMontos;
@@ -2209,9 +2215,11 @@ function fgGenAll(){
       });return;
     }
     var row=excelData[cur];
-    var cfg=CONFIGS[_padCfgIdx(row.config||row.Config||'')]; // tolerante: "Config1", "config 1", "1"...
+    // misma regla que el padrón: sin config válida, ese flyer sale sin montos
+    var ci=_padCfgOf(row.config||row.Config||'');
+    var cfg=CONFIGS[ci<0?0:ci];
     var v={empresa:(row.empresa||row.Empresa||'flyer'+(cur+1)),
-      m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
+      nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
     [1,2,3,4].forEach(function(i){
       var sfx=(i===1)?'':String(i);
       var nom=pick(row,i,'nombre'),ce=pick(row,i,'celular'),ma=pick(row,i,'email');
@@ -2766,7 +2774,10 @@ function applyPadronRow(i){
 function _padApply(r){
   if(!r)return;
   var e=document.getElementById('empresa');if(e)e.value=r.empresa||'';
-  if(typeof setCfg==='function')setCfg(_padCfgIdx(r.config||''));
+  // El padrón manda también acá: sin config válida, la empresa va sin montos.
+  var _ci=_padCfgOf(r.config);
+  if(_ci<0)_fgSetNoCB(true);
+  else if(typeof setCfg==='function')setCfg(_ci);
   var tiene=_padNumAsesores(r);
   for(var n=1;n<=4;n++){
     var a=(r.asesores&&r.asesores[n-1])||{},sfx=(n===1)?'':String(n);
@@ -2817,8 +2828,13 @@ function _padShowNote(msg){
 // ── ¿Cambió algo respecto del padrón? ────────────────────────────────────────
 var _padRef=null,_padDismissed='';
 function _padCfgName(i){
+  if(i<0)return 'Sin cashback';
   return (typeof CNAMES!=='undefined'&&CNAMES[i])?CNAMES[i]:'BAU';
 }
+// Cashback que está mostrando el armador ahora mismo (-1 = sin cashback).
+function _padCfgActual(){return _fgNoCB?-1:((typeof ac!=='undefined')?ac:0);}
+// Lo que se guarda en la celda del Excel: vacío = sin cashback.
+function _padCfgCell(i){return i<0?'':_padCfgName(i);}
 // Asesores tal como están HOY en el formulario. Un bloque apagado cuenta como vacío
 // (no se dibuja en el flyer, así que para el padrón es "no asignado").
 function _padFormAsesores(){
@@ -2844,8 +2860,7 @@ function _padDiff(){
   // cambiaste, es otra empresa y lo resuelve _padAskNew. Dos grupos distintos
   // pueden compartir CUIT, así que el nombre es la única clave.
   if(_padNorm(emp)!==_padNorm(_padRef.empresa))return null;
-  var ci=(typeof ac!=='undefined')?ac:0;
-  var oi=_padCfgIdx(_padRef.config);
+  var ci=_padCfgActual(),oi=_padCfgOf(_padRef.config);
   var cur=_padFormAsesores(),old=[],chg=[];
   for(var k=0;k<4;k++)old.push(_padClean((_padRef.asesores||[])[k]));
   // Un mail DEDUCIDO del nombre (el padrón no traía ninguno) NO cuenta como cambio:
@@ -2866,7 +2881,7 @@ function _padDiff(){
     if(o.email!==c.email)chg.push(lbl+' &middot; mail: '+_escHtml(o.email||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.email||'(vac&iacute;o)')+'</strong>');
   }
   if(!chg.length)return null;
-  return {row:_padRef,empresa:_padRef.empresa,config:_padCfgName(ci),asesores:cur,cambios:chg};
+  return {row:_padRef,empresa:_padRef.empresa,config:_padCfgCell(ci),asesores:cur,cambios:chg};
 }
 // Firma del cambio: si decís "no" y después no tocás nada más, no vuelve a preguntar.
 function _padSig(d){return d.empresa+'|'+d.config+'|'+JSON.stringify(d.asesores);}
@@ -2962,7 +2977,7 @@ function _padModal(html){
 }
 // Resumen de lo que se va a dar de alta (config + oficiales del formulario).
 function _padResumen(as){
-  var li=['Cashback: <strong>'+_escHtml(_padCfgName((typeof ac!=='undefined')?ac:0))+'</strong>'];
+  var li=['Cashback: <strong>'+_escHtml(_padCfgName(_padCfgActual()))+'</strong>'];
   var n=0;
   as.forEach(function(a,k){
     if(!a.nombre)return;
@@ -2997,7 +3012,7 @@ function _padDoNew(){
   if(!emp||!_padron){_padCloseUpdate(0);return;}
   var el=document.getElementById('pad-cuit');
   var row={empresa:emp,cuits:_padCuits(el?el.value:''),
-    config:_padCfgName((typeof ac!=='undefined')?ac:0),asesores:_padFormAsesores()};
+    config:_padCfgCell(_padCfgActual()),asesores:_padFormAsesores()};
   var btn=document.querySelector('#pad-upd .pu-si');
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   _padron.push(row);
@@ -3177,7 +3192,8 @@ function _padSubtitulo(r){
 function _padCfgParse(raw){
   var t=(raw==null?'':String(raw)).trim().replace(/[.,]0+$/,''); // "1.0" del Excel → "1"
   var k=_padKey(t);                                             // sin acentos, signos ni espacios
-  if(!k)return 0;                                               // vacío = BAU
+  // ojo: "-" o "—" quedan en k='' pero NO son celda vacía: son un valor que no entiendo
+  if(!k)return t?-1:0;
   if(k==='bau'||k==='base'||k==='estandar')return 0;
   var m=k.match(/([0-9]+)$/);
   if(m){
@@ -3189,8 +3205,6 @@ function _padCfgParse(raw){
   }
   return -1; // no lo reconozco
 }
-// Versión segura para dibujar: lo no reconocido cae en BAU (pero ya avisamos al subir).
-function _padCfgIdx(raw){var i=_padCfgParse(raw);return i<0?0:i;}
 
 // ── Validación del Excel ────────────────────────────────────────────────────
 var _PAD_COLS_EMPRESA=['empresa','razonsocial','razsocial','nombreempresa','company','cliente'];
@@ -3220,7 +3234,7 @@ function _padValidate(raw){
     if(!o){desc++;return;}
     var fila=i+2; // +1 por el encabezado, +1 porque Excel empieza en 1
     if(!o.empresa)sinNombre.push(fila);
-    if(o.config&&_padCfgParse(o.config)<0)badCfg.push({fila:fila,val:o.config,emp:o.empresa});
+    if(_padCfgOf(o.config)<0)badCfg.push({fila:fila,val:(o.config||'(vacío)'),emp:o.empresa});
     (o.cuits||[]).forEach(function(d){
       if(d.length!==11)badCuit.push({fila:fila,val:d,emp:o.empresa});
     });
@@ -3237,11 +3251,13 @@ function _padValidate(raw){
   if(!hasEmp&&rows.length)
     prob.push({grave:true,txt:'<strong>No encontr&eacute; la columna <code>empresa</code>.</strong> Las filas se van a guardar sin raz&oacute;n social. Renombr&aacute; esa columna a <code>empresa</code>.'});
   if(!hasCfg)
-    prob.push({grave:true,txt:'<strong>No encontr&eacute; la columna del cashback.</strong> Todas las empresas van a quedar en <strong>BAU</strong>. La columna tiene que llamarse <code>config</code> (o <code>cashback</code>).'});
-  if(badCfg.length)
-    prob.push({grave:true,txt:'<strong>'+badCfg.length+' cashback'+(badCfg.length>1?'s que no entiendo':' que no entiendo')+'</strong> &rarr; quedan en BAU: '+
+    prob.push({grave:true,txt:'<strong>No encontr&eacute; la columna del cashback.</strong> <strong>Todas</strong> las empresas van a salir <strong>sin montos</strong>. La columna tiene que llamarse <code>config</code> (o <code>cashback</code>).'});
+  else if(badCfg.length)
+    prob.push({grave:false,txt:'<strong>'+badCfg.length+' empresa'+(badCfg.length>1?'s van':' va')+' a salir SIN cashback</strong> '+
+      '(la celda est&aacute; vac&iacute;a o dice algo que no reconozco): '+
       lista(badCfg,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+
-      '.<br>Valores v&aacute;lidos: <code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>, <code>Config 3</code>, <code>Config 4</code> (tambi&eacute;n vale escribir s&oacute;lo <code>1</code>, <code>2</code>, <code>3</code> o <code>4</code>).'});
+      '.<br>Si alguna s&iacute; lleva cashback, corregila. Valores v&aacute;lidos: <code>BAU</code>, <code>Config 1</code>&hellip;<code>Config 4</code> '+
+      '(tambi&eacute;n vale s&oacute;lo el n&uacute;mero). Dejar la celda vac&iacute;a es la forma de marcar que <strong>no le corresponde cashback</strong>.'});
   if(badCuit.length)
     prob.push({grave:false,txt:'<strong>'+badCuit.length+' CUIT sin 11 d&iacute;gitos</strong>: '+
       lista(badCuit,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+'. Se guardan igual, pero puede que no los encuentres al buscar.'});
@@ -3285,4 +3301,59 @@ function _padImportGo(){
     if(ok)showToast('Padrón actualizado: '+rep.rows.length+' empresas');
     renderPadronAdmin();
   });
+}
+// ── SIN CASHBACK ─────────────────────────────────────────────────────────────
+// Hay empresas a las que no les corresponde cashback. En vez de agregar una
+// opción nueva en el armador, se marcan desde el padrón: si la celda `config`
+// está VACÍA o dice algo que no reconozco, esa empresa sale SIN los montos.
+// Las cajas de fondo se siguen dibujando (por si un flyer futuro trae importes
+// impresos debajo); lo único que no se escribe es el número.
+var _fgNoCB=false;
+
+// El cashback del padrón es EXPLÍCITO: -1 = sin cashback, 0..4 = config.
+function _padCfgOf(raw){
+  var t=(raw==null?'':String(raw)).trim();
+  if(!t)return -1;
+  return _padCfgParse(t);
+}
+function _fgNoCBBadge(on){
+  if(!document.getElementById('fg-nocb-style')){
+    var st=document.createElement('style');st.id='fg-nocb-style';
+    st.textContent='#fg-nocb{display:none;margin:0 0 10px;font-size:.7rem;line-height:1.45;color:#b06000;'+
+      'background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.5);border-radius:7px;padding:7px 10px}';
+    document.head.appendChild(st);
+  }
+  var el=document.getElementById('fg-nocb');
+  if(!el){
+    var box=document.querySelector('.cfg-box');if(!box)return;
+    box.insertAdjacentHTML('beforebegin','<div id="fg-nocb"></div>');
+    el=document.getElementById('fg-nocb');if(!el)return;
+  }
+  el.innerHTML=on?('&#9888; <strong>Sin cashback</strong> &mdash; en el padr&oacute;n esta empresa no tiene un '+
+    'cashback v&aacute;lido, as&iacute; que el flyer sale con los importes en blanco. '+
+    'Si en realidad le corresponde uno, eleg&iacute;lo ac&aacute; arriba.'):'';
+  el.style.display=on?'block':'none';
+}
+function _fgSetNoCB(on){
+  _fgNoCB=!!on;
+  if(_fgNoCB){
+    ['d1','d2','d3','d4'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent='—';});
+    var btns=document.querySelectorAll('.cfg-btn');
+    Array.prototype.forEach.call(btns,function(b){b.classList.remove('active');});
+  }
+  _fgNoCBBadge(_fgNoCB);
+  if(typeof redraw==='function')redraw();
+}
+// Pisa setCfg de _source.html: elegir un cashback a mano siempre saca el "sin cashback".
+function fgSetCfg(n){
+  n=(n>=0&&n<=4)?n:0;
+  window.ac=n;
+  var c=CONFIGS[n]||CONFIGS[0];
+  _fgNoCB=false;_fgNoCBBadge(false);
+  ['d1','d2','d3','d4'].forEach(function(id,i){
+    var e=document.getElementById(id);if(e)e.textContent=c['m'+(i+1)];
+  });
+  var btns=document.querySelectorAll('.cfg-btn');
+  Array.prototype.forEach.call(btns,function(b,i){b.classList.toggle('active',i===n);});
+  if(typeof redraw==='function')redraw();
 }
