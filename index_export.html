@@ -3245,6 +3245,10 @@ function _padDiff(){
   if(!_admin||!_padRef||!_padron||_padron.indexOf(_padRef)<0)return null;
   var emp=(_gv('empresa')||'').trim();
   if(!emp)return null; // sin razón social no tiene sentido pisar la fila
+  // La razón social IDENTIFICA a la fila y nunca se renombra desde acá: si la
+  // cambiaste, es otra empresa y lo resuelve _padAskNew. Dos grupos distintos
+  // pueden compartir CUIT, así que el nombre es la única clave.
+  if(_padNorm(emp)!==_padNorm(_padRef.empresa))return null;
   var ci=(typeof ac!=='undefined')?ac:0;
   var oi=_padCfgIdx(_padRef.config);
   var cur=_padFormAsesores(),old=[],chg=[];
@@ -3255,8 +3259,6 @@ function _padDiff(){
     var cc=cur[k],oo=old[k];
     if(!oo.email&&cc.nombre&&cc.email&&cc.email===_fgMailFromName(cc.nombre))cc.email='';
   }
-  if(emp!==(_padRef.empresa||'').trim())
-    chg.push('Raz&oacute;n social: '+_escHtml(_padRef.empresa||'(vac&iacute;a)')+' &rarr; <strong>'+_escHtml(emp)+'</strong>');
   if(ci!==oi)
     chg.push('Cashback: '+_escHtml(_padCfgName(oi))+' &rarr; <strong>'+_escHtml(_padCfgName(ci))+'</strong>');
   for(var n=1;n<=4;n++){
@@ -3269,7 +3271,7 @@ function _padDiff(){
     if(o.email!==c.email)chg.push(lbl+' &middot; mail: '+_escHtml(o.email||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.email||'(vac&iacute;o)')+'</strong>');
   }
   if(!chg.length)return null;
-  return {row:_padRef,empresa:emp,config:_padCfgName(ci),asesores:cur,cambios:chg};
+  return {row:_padRef,empresa:_padRef.empresa,config:_padCfgName(ci),asesores:cur,cambios:chg};
 }
 // Firma del cambio: si decís "no" y después no tocás nada más, no vuelve a preguntar.
 function _padSig(d){return d.empresa+'|'+d.config+'|'+JSON.stringify(d.asesores);}
@@ -3326,6 +3328,17 @@ function _padCuitField(valor){
       '<p class="pu-hint" id="pad-cuit-prev"></p>'+
     '</div>';
 }
+// Dos grupos distintos pueden compartir CUIT: no lo bloqueo, sólo lo aviso.
+function _padCuitDupes(cuits,excluir){
+  var out=[];
+  (_padron||[]).forEach(function(r){
+    if(r===excluir)return;
+    for(var i=0;i<cuits.length;i++){
+      if((r.cuits||[]).indexOf(cuits[i])>=0){out.push(r.empresa||'(sin razón social)');return;}
+    }
+  });
+  return out;
+}
 function _padCuitPreview(){
   var el=document.getElementById('pad-cuit'),out=document.getElementById('pad-cuit-prev');
   if(!el||!out)return;
@@ -3336,16 +3349,20 @@ function _padCuitPreview(){
     return;
   }
   var bad=cu.filter(function(d){return d.length!==11;}).length;
-  out.className=bad?'pu-warn':'pu-hint';
+  var dup=_padCuitDupes(cu,_padPending?_padPending.row:null);
+  out.className=(bad||dup.length)?'pu-warn':'pu-hint';
   out.innerHTML='Se guardan '+cu.length+': <strong>'+cu.map(_padFmtCuit).join('  &middot;  ')+'</strong>'+
-    (bad?('<br>&#9888; '+bad+(bad>1?' no tienen':' no tiene')+' 11 d&iacute;gitos. Revis&aacute; que est&eacute;n completos.'):'');
+    (bad?('<br>&#9888; '+bad+(bad>1?' no tienen':' no tiene')+' 11 d&iacute;gitos. Revis&aacute; que est&eacute;n completos.'):'')+
+    (dup.length?('<br>&#9888; Ese CUIT ya figura en <strong>'+_escHtml(dup.slice(0,3).join(', '))+'</strong>'+
+      (dup.length>3?(' y '+(dup.length-3)+' m&aacute;s'):'')+'. Se guarda igual: al buscar ese CUIT van a aparecer las dos.'):'');
 }
 function _padModal(html){
   _padStyle();
   var ov=document.createElement('div');ov.id='pad-upd-ov';
   ov.innerHTML='<div id="pad-upd">'+html+'</div>';
   document.body.appendChild(ov);
-  ov.addEventListener('click',function(e){if(e.target===ov)_padCloseUpdate(1);});
+  // a propósito NO se cierra al tocar afuera: hay que elegir una de las dos
+  // opciones, así no se pierde un cambio por un clic al costado
   _padCuitPreview();
 }
 // Resumen de lo que se va a dar de alta (config + oficiales del formulario).
@@ -3370,7 +3387,8 @@ function _padAskNew(){
   _padPending=null;
   _padModal('<h3>&#10133; Agregar al padr&oacute;n</h3>'+
     '<p class="pu-sub"><strong>'+_escHtml(emp)+'</strong> no est&aacute; en el padr&oacute;n. '+
-      '&iquest;La guardo con esta configuraci&oacute;n para tenerla lista la pr&oacute;xima vez?</p>'+
+      '&iquest;La guardo con esta configuraci&oacute;n para tenerla lista la pr&oacute;xima vez? '+
+      'Se agrega como empresa aparte: no pisa ninguna de las que ya ten&eacute;s.</p>'+
     _padResumen(_padFormAsesores())+
     _padCuitField('')+
     '<div class="pu-foot">'+
@@ -3422,8 +3440,7 @@ function _padDoUpdate(){
   var el=document.getElementById('pad-cuit');
   var btn=document.querySelector('#pad-upd .pu-si');
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
-  d.row.empresa=d.empresa;
-  d.row.config=d.config;
+  d.row.config=d.config;   // la razón social NO se toca nunca
   d.row.asesores=d.asesores.map(function(a){return {nombre:a.nombre,celular:a.celular,email:a.email};});
   if(el)d.row.cuits=_padCuits(el.value); // el CUIT se puede completar acá mismo
   savePadron(_padron,function(ok){
@@ -3450,10 +3467,13 @@ function _padCloseUpdate(dismiss){
 function _padAfterFlyer(){
   try{
     if(!_admin||!_padron)return;
-    // indexOf<0: el padrón se recargó y la referencia quedó vieja → la re-engancho por nombre
-    if(!_padRef||_padron.indexOf(_padRef)<0){
-      var emp=(_gv('empresa')||'').trim();if(!emp){_padRef=null;return;}
-      var hit=_padFindByName(emp);   // la cargó a mano, o la referencia se vencía
+    var emp=(_gv('empresa')||'').trim();
+    if(!emp){_padRef=null;return;}
+    // Se re-engancha por NOMBRE cuando: no había fila, el padrón se recargó
+    // (referencia vieja) o cambiaste la razón social — en ese último caso es
+    // otra empresa, porque los grupos no se renombran desde el armador.
+    if(!_padRef||_padron.indexOf(_padRef)<0||_padNorm(_padRef.empresa)!==_padNorm(emp)){
+      var hit=_padFindByName(emp);
       if(hit){_padRef=hit;_padDismissed='';}
       // limpio la referencia vieja: si no, el "Ahora no" no se registraría
       else{_padRef=null;setTimeout(_padAskNew,350);return;}

@@ -532,6 +532,8 @@ const checks = {
   'padron: actualizar al generar': _authSrc.includes('function _padDiff(') && _authSrc.includes('function _padAskUpdate(') && _authSrc.includes('_padAfterFlyer();'),
   'padron: alta de empresa nueva': _authSrc.includes('function _padAskNew(') && _authSrc.includes('function _padDoNew(') && _authSrc.includes('function _padFindByName(') && _authSrc.includes('function _padCuitField('),
   'padron: typeahead en empresa': _authSrc.includes('function _padSugRender(') && _authSrc.includes('function _padPickSug(') && _authSrc.includes('inp.addEventListener(\x27input\x27,_padSugRender)') && _authSrc.includes('function _padApply('),
+  'padron: popup sin cierre accidental': !_authSrc.includes('ov.addEventListener('+String.fromCharCode(39)) && _authSrc.includes('onclick="_padCloseUpdate(1)"'),
+  'padron: el nombre identifica la empresa': _authSrc.includes('function _padCuitDupes(') && _authSrc.includes('if(_padNorm(emp)!==_padNorm(_padRef.empresa))return null;') && !_authSrc.includes('d.row.empresa=d.empresa;'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
