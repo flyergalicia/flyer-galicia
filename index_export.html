@@ -822,7 +822,7 @@ function checkProfile(user){
     _applyGlobalLegalToForm(1); // trae los T&C globales de la Opción 1
     document.getElementById('hdr-user').textContent=_myName;
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
-    if(_admin){_refreshPendingBadge();_fgEnsureOptBar();} // el selector es SOLO para admin
+    if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();} // selector + padron: SOLO admin
     // Aplicar imagen del flyer activo (Opción 1)
     _fetchActiveFlyer(function(imageUrl){
       _showApp();
@@ -940,7 +940,7 @@ function closeAdminPanel(){
 function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel-row"></div>';return s;}
 
 function switchAdminTab(el,t){
-  ['dashboard','usuarios','subir','registros','legales'].forEach(function(tab){
+  ['dashboard','usuarios','subir','registros','legales','varios'].forEach(function(tab){
     var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
   });
   // :not(.ltab) para no pisar las sub-solapas de legales (Opción 1 / Opción 2)
@@ -949,6 +949,7 @@ function switchAdminTab(el,t){
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
+  if(t==='varios')renderPadronAdmin(true);
   if(t==='legales'){
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
   }
@@ -2846,6 +2847,337 @@ function _fmtDate(iso){
   return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();
 }
 
+// ── PADRÓN DE EMPRESAS (buscador por razón social / CUIT) — SOLO ADMIN ─────────
+// Excel precargado desde Panel Administrador → Varios. Se guarda en el bucket
+// flyers como _padron.json {rows,count,updated_at}. NO se retroalimenta con lo que
+// se va generando: la fuente de verdad es el Excel del admin. Es el MISMO formato
+// que la plantilla del masivo + la columna cuit (que el masivo ignora), así un solo
+// archivo sirve para las dos cosas.
+var _PADRON_FILE='_padron.json';
+var _padron=null,_padronAt='',_padHits=[];
+var _PAD_HEAD=(function(){
+  var h=['empresa','cuit','config'];
+  [1,2,3,4].forEach(function(i){h.push('asesor'+i+'_nombre','asesor'+i+'_celular','asesor'+i+'_email');});
+  return h;
+})();
+
+function _padNorm(s){
+  return (s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+function _padKey(s){return _padNorm(s).replace(/[^a-z0-9]/g,'');}
+function _padDigits(s){return (s==null?'':String(s)).replace(/\D/g,'');}
+// "30-71234567-8, 30709876543" → ['30712345678','30709876543']
+function _padCuits(s){
+  var out=[];
+  (s==null?'':String(s)).split(/[,;/|\n\r]+/).forEach(function(x){var d=_padDigits(x);if(d)out.push(d);});
+  return out;
+}
+function _padFmtCuit(d){
+  d=String(d||'');
+  return d.length===11?(d.slice(0,2)+'-'+d.slice(2,10)+'-'+d.slice(10)):d;
+}
+// Fila cruda del Excel → fila interna. Devuelve null si no tiene ni empresa ni CUIT.
+function _padRow(r){
+  var m={},k;
+  for(k in r){if(r.hasOwnProperty(k))m[_padKey(k)]=(r[k]==null?'':String(r[k])).trim();}
+  function g(){for(var i=0;i<arguments.length;i++){var v=m[arguments[i]];if(v)return v;}return '';}
+  var emp=g('empresa','razonsocial','razsocial','nombreempresa','company','cliente');
+  var all=_padCuits(g('cuit','cuits','cuitgrupo','cuitsociedad'));
+  for(var i=1;i<=10;i++)_padCuits(m['cuit'+i]||'').forEach(function(d){all.push(d);});
+  var seen={},cuits=[];
+  all.forEach(function(d){if(!seen[d]){seen[d]=1;cuits.push(d);}});
+  var as=[];
+  for(var n=1;n<=4;n++){
+    as.push({
+      nombre :m['asesor'+n+'nombre'] ||(n===1?g('nombre','asesornombre'):'')||'',
+      celular:m['asesor'+n+'celular']||(n===1?g('celular','asesorcelular','cel'):'')||'',
+      email  :m['asesor'+n+'email']  ||(n===1?g('email','mail','asesoremail'):'')||''
+    });
+  }
+  if(!emp&&!cuits.length)return null;
+  return {empresa:emp,cuits:cuits,config:g('config','cashback','tipocashback','tipodecashback','tipo','configuracion'),asesores:as};
+}
+// Busca por CUIT (si hay 3+ dígitos) o por coincidencia parcial de la razón social:
+// todas las palabras que escribís tienen que estar en el nombre, en cualquier orden.
+function padronSearch(q,limit){
+  var rows=_padron||[],lim=limit||60;
+  var t=_padNorm(q);
+  if(!t)return rows.slice(0,lim);
+  var dig=_padDigits(q),toks=t.split(' ').filter(Boolean),out=[];
+  for(var i=0;i<rows.length&&out.length<lim;i++){
+    var r=rows[i],hit=false;
+    if(dig.length>=3){
+      for(var j=0;j<r.cuits.length;j++){if(r.cuits[j].indexOf(dig)>=0){hit=true;break;}}
+    }
+    if(!hit){
+      var e=_padNorm(r.empresa);
+      hit=toks.every(function(k){return e.indexOf(k)>=0;});
+    }
+    if(hit)out.push(r);
+  }
+  return out;
+}
+function _padCuitCount(rows){
+  var n=0;(rows||[]).forEach(function(r){n+=(r.cuits||[]).length;});return n;
+}
+function loadPadron(force,cb){
+  if(_padron&&!force){if(cb)cb(_padron);return;}
+  fetch(FLYERS_PUBLIC+_PADRON_FILE+'?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){
+      _padron=(d&&Array.isArray(d.rows))?d.rows:[];
+      _padronAt=(d&&d.updated_at)||'';
+      if(cb)cb(_padron);
+    }).catch(function(){_padron=_padron||[];if(cb)cb(_padron);});
+}
+function savePadron(rows,cb){
+  var meta=JSON.stringify({rows:rows,count:rows.length,updated_at:new Date().toISOString()});
+  return _sb.storage.from('flyers')
+    .upload(_PADRON_FILE,new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+    .then(function(r){
+      if(r&&r.error){showToast('Error al guardar el padrón: '+r.error.message);if(cb)cb(false);return;}
+      _padron=rows;_padronAt=new Date().toISOString();
+      if(cb)cb(true);
+    });
+}
+// ── PADRÓN: Excel (importar / exportar / plantilla) ───────────────────────────
+function _padToAoa(rows){
+  var out=[_PAD_HEAD.slice()];
+  (rows||[]).forEach(function(r){
+    var line=[r.empresa||'',(r.cuits||[]).map(_padFmtCuit).join(', '),r.config||''];
+    for(var n=1;n<=4;n++){var a=(r.asesores&&r.asesores[n-1])||{};line.push(a.nombre||'',a.celular||'',a.email||'');}
+    out.push(line);
+  });
+  return out;
+}
+function _padCols(){
+  return [{wch:34},{wch:30},{wch:10}]
+    .concat([1,2,3,4].reduce(function(a){return a.concat([{wch:24},{wch:16},{wch:38}]);},[]));
+}
+function _padXlsx(rows,file,sheet){
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(_padToAoa(rows));
+  ws['!cols']=_padCols();
+  XLSX.utils.book_append_sheet(wb,ws,sheet||'Padron');
+  XLSX.writeFile(wb,file);
+}
+function importPadron(input){
+  var file=input&&input.files&&input.files[0];if(!file)return;input.value='';
+  var st=document.getElementById('padron-stat');
+  if(st)st.innerHTML='<span style="color:var(--gray)">Leyendo el Excel...</span>';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'binary'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var raw=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+      var rows=[];
+      raw.forEach(function(r){var o=_padRow(r);if(o)rows.push(o);});
+      if(!rows.length){
+        showToast('El Excel no tiene filas con empresa ni CUIT');
+        renderPadronAdmin();return;
+      }
+      if(st)st.innerHTML='<span style="color:var(--gray)">Guardando '+rows.length+' empresas...</span>';
+      savePadron(rows,function(ok){
+        if(!ok){renderPadronAdmin();return;}
+        showToast('Padrón actualizado: '+rows.length+' empresas');
+        renderPadronAdmin();
+      });
+    }catch(err){
+      showToast('No se pudo leer el Excel: '+(err&&err.message||err));
+      console.error('importPadron:',err);renderPadronAdmin();
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+// Baja el padrón tal cual está guardado (mismas columnas que la plantilla): sirve
+// para editarlo en la compu y volver a subirlo.
+function dlPadron(){
+  loadPadron(false,function(rows){
+    if(!rows||!rows.length){showToast('No hay padrón cargado todavía');return;}
+    _padXlsx(rows,'Padron_Empresas_Galicia.xlsx');
+    showToast('Padrón descargado ('+rows.length+' empresas)');
+  });
+}
+function dlPadronTemplate(){
+  _padXlsx([
+    {empresa:'Pharma Sur S.A.',cuits:['30712345678','30709876543'],config:'Config 2',
+     asesores:[{nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar'},{},{},{}]},
+    {empresa:'Empresa XYZ S.R.L.',cuits:['30711111111'],config:'BAU',
+     asesores:[{nombre:'Carlos Lopez',celular:'11 4444 5555',email:'carlos.lopez@bancogalicia.com.ar'},
+               {nombre:'Ana Perez',celular:'11 5555 6666',email:'ana.perez@bancogalicia.com.ar'},{},{}]}
+  ],'Plantilla_Padron_Galicia.xlsx');
+  showToast('Plantilla descargada!');
+}
+// Panel admin → Varios
+function renderPadronAdmin(force){
+  var st=document.getElementById('padron-stat');
+  if(st&&!_padron)st.innerHTML='<span style="color:var(--gray)">Cargando padrón...</span>';
+  loadPadron(!!force,function(rows){
+    var st2=document.getElementById('padron-stat');
+    if(st2){
+      st2.innerHTML=rows.length
+        ?('<strong>'+rows.length+'</strong> empresas &nbsp;&middot;&nbsp; <strong>'+_padCuitCount(rows)+'</strong> CUIT'+
+          ' &nbsp;&middot;&nbsp; actualizado '+_fmtDate(_padronAt))
+        :'No hay padr&oacute;n cargado todav&iacute;a. Sub&iacute; un Excel para empezar.';
+    }
+    var prev=document.getElementById('padron-prev');if(!prev)return;
+    if(!rows.length){prev.innerHTML='';return;}
+    var q=(document.getElementById('padron-q')||{}).value||'';
+    var res=padronSearch(q,25);
+    if(!res.length){prev.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Sin resultados para "'+_escHtml(q)+'".</p>';return;}
+    prev.innerHTML='<p style="font-size:.68rem;color:var(--gray);margin:10px 0 6px">'+
+        (q?('Coincidencias: '+res.length+(res.length>=25?'+':'')):('Primeras '+res.length+' de '+rows.length))+'</p>'+
+      res.map(function(r){
+        var na=r.asesores.filter(function(a){return a.nombre;}).length;
+        return '<div class="usr-row" style="align-items:flex-start">'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-weight:600;font-size:.82rem">'+_escHtml(r.empresa||'(sin razón social)')+'</div>'+
+            '<div style="font-size:.68rem;color:var(--gray);margin-top:2px">'+
+              (r.cuits.length?_escHtml(r.cuits.map(_padFmtCuit).join('  ·  ')):'sin CUIT')+'</div>'+
+          '</div>'+
+          '<span style="font-size:.68rem;color:var(--gray);white-space:nowrap">'+
+            _escHtml(r.config||'BAU')+' &nbsp;·&nbsp; '+na+' asesor'+(na===1?'':'es')+'</span>'+
+        '</div>';
+      }).join('');
+  });
+}
+// ── PADRÓN: lupita + popover de búsqueda en el armador (SOLO ADMIN) ───────────
+// Se inyecta al lado del input "Nombre de la empresa". Para asesores y VIP la
+// pantalla queda exactamente como hoy (no se llama nunca a esta función).
+function _fgEnsurePadronBtn(){
+  if(document.getElementById('fg-pad-btn'))return;
+  var inp=document.getElementById('empresa');if(!inp||!inp.parentNode)return;
+  if(!document.getElementById('fg-pad-style')){
+    var st=document.createElement('style');st.id='fg-pad-style';
+    st.textContent=
+      '.fg-pad-wrap{display:flex;gap:6px;align-items:stretch}'+
+      '.fg-pad-wrap>input{flex:1;min-width:0}'+
+      '#fg-pad-btn{flex:0 0 auto;width:40px;border:1.5px solid var(--border,#ddd);background:none;'+
+        'border-radius:8px;cursor:pointer;font-size:.95rem;line-height:1;color:var(--gray,#777);transition:.15s}'+
+      '#fg-pad-btn:hover{border-color:var(--red,#c62828);color:var(--red,#c62828)}'+
+      '.pad-pop{position:fixed;z-index:9999;width:min(420px,calc(100vw - 24px));background:#fff;'+
+        'border:1.5px solid var(--border,#ddd);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.18);overflow:hidden}'+
+      'html.dark .pad-pop{background:#23262c;border-color:#3a3e46}'+
+      '.pad-head{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;'+
+        'font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray,#777);'+
+        'border-bottom:1px solid var(--border,#eee)}'+
+      'html.dark .pad-head{border-color:#3a3e46}'+
+      '.pad-x{cursor:pointer;font-size:.8rem}.pad-x:hover{color:var(--red,#c62828)}'+
+      '.pad-q{width:100%;border:none;border-bottom:1px solid var(--border,#eee);padding:10px 12px;'+
+        'font-size:.85rem;outline:none;background:none;color:inherit;font-family:inherit}'+
+      'html.dark .pad-q{border-color:#3a3e46}'+
+      '.pad-list{max-height:min(46vh,340px);overflow-y:auto}'+
+      '.pad-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(128,128,128,.12)}'+
+      '.pad-item:last-child{border-bottom:none}'+
+      '.pad-item:hover,.pad-item.on{background:rgba(198,40,40,.07)}'+
+      '.pad-emp{display:block;font-size:.82rem;font-weight:600}'+
+      '.pad-sub{display:block;font-size:.66rem;color:var(--gray,#888);margin-top:2px}'+
+      '.pad-empty{padding:16px 12px;font-size:.76rem;color:var(--gray,#888);text-align:center;line-height:1.5}';
+    document.head.appendChild(st);
+  }
+  var wrap=document.createElement('div');wrap.className='fg-pad-wrap';
+  inp.parentNode.insertBefore(wrap,inp);
+  wrap.appendChild(inp);
+  wrap.insertAdjacentHTML('beforeend',
+    '<button type="button" id="fg-pad-btn" onclick="openPadronPop()" title="Buscar en el padrón (razón social o CUIT)">&#128269;</button>');
+  loadPadron(false); // precarga para que la primera búsqueda salga instantánea
+}
+function openPadronPop(){
+  closePadronPop();
+  var pop=document.createElement('div');pop.id='pad-pop';pop.className='pad-pop';
+  pop.innerHTML='<div class="pad-head"><span>Padr&oacute;n de empresas</span>'+
+      '<span class="pad-x" onclick="closePadronPop()">&#10005;</span></div>'+
+    '<input type="text" id="pad-q" class="pad-q" placeholder="Raz&oacute;n social o CUIT..." autocomplete="off" '+
+      'oninput="renderPadronPop()" onkeydown="_padKeyNav(event)">'+
+    '<div class="pad-list" id="pad-list"><div class="pad-empty">Cargando padr&oacute;n...</div></div>';
+  document.body.appendChild(pop);
+  var anchor=document.getElementById('fg-pad-btn')||document.getElementById('empresa');
+  var r=anchor.getBoundingClientRect(),w=pop.offsetWidth;
+  pop.style.top=Math.min(r.bottom+5,window.innerHeight-60)+'px';
+  pop.style.left=Math.max(10,Math.min(r.right-w,window.innerWidth-w-10))+'px';
+  var q=document.getElementById('pad-q');
+  if(q){q.value=(document.getElementById('empresa')||{}).value||'';q.focus();q.select();}
+  _padSel=0;
+  loadPadron(false,function(){renderPadronPop();});
+  setTimeout(function(){document.addEventListener('click',_padCloseOutside);},0);
+}
+function closePadronPop(){
+  var p=document.getElementById('pad-pop');if(p&&p.parentNode)p.parentNode.removeChild(p);
+  document.removeEventListener('click',_padCloseOutside);
+}
+function _padCloseOutside(e){
+  var p=document.getElementById('pad-pop'),b=document.getElementById('fg-pad-btn');
+  if(p&&!p.contains(e.target)&&!(b&&b.contains(e.target)))closePadronPop();
+}
+var _padSel=0;
+function _padKeyNav(e){
+  if(e.key==='Escape'){closePadronPop();return;}
+  if(e.key==='Enter'){e.preventDefault();if(_padHits.length)applyPadronRow(_padSel);return;}
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();if(!_padHits.length)return;
+    _padSel=Math.max(0,Math.min(_padHits.length-1,_padSel+(e.key==='ArrowDown'?1:-1)));
+    _padMark();
+  }
+}
+function _padMark(){
+  var it=document.querySelectorAll('#pad-list .pad-item');
+  Array.prototype.forEach.call(it,function(x,i){x.classList.toggle('on',i===_padSel);});
+  if(it[_padSel]&&it[_padSel].scrollIntoView)it[_padSel].scrollIntoView({block:'nearest'});
+}
+function renderPadronPop(){
+  var list=document.getElementById('pad-list');if(!list)return;
+  if(!_padron){list.innerHTML='<div class="pad-empty">Cargando padr&oacute;n...</div>';return;}
+  if(!_padron.length){
+    list.innerHTML='<div class="pad-empty">Todav&iacute;a no hay padr&oacute;n cargado.<br>'+
+      'Sub&iacute; el Excel desde <strong>Panel Administrador &rarr; Varios</strong>.</div>';
+    _padHits=[];return;
+  }
+  var q=(document.getElementById('pad-q')||{}).value||'';
+  _padHits=padronSearch(q,60);_padSel=0;
+  if(!_padHits.length){
+    list.innerHTML='<div class="pad-empty">Sin resultados para "'+_escHtml(q)+'".</div>';return;
+  }
+  list.innerHTML=_padHits.map(function(r,i){
+    var sub=[];
+    if(r.cuits.length)sub.push(r.cuits.map(_padFmtCuit).join('  ·  '));
+    var na=r.asesores.filter(function(a){return a.nombre;}).length;
+    var tail=[];
+    if(r.config)tail.push(r.config);
+    if(na)tail.push(na+' asesor'+(na>1?'es':''));
+    if(tail.length)sub.push(tail.join('  ·  '));
+    return '<div class="pad-item'+(i===0?' on':'')+'" onclick="applyPadronRow('+i+')">'+
+      '<span class="pad-emp">'+_escHtml(r.empresa||'(sin razón social)')+'</span>'+
+      (sub.length?'<span class="pad-sub">'+_escHtml(sub.join('  —  '))+'</span>':'')+'</div>';
+  }).join('');
+}
+// Completa TODO: razón social, montos (config) y los asesores del padrón.
+// Si la fila no trae asesores, deja los que ya tenías cargados.
+function applyPadronRow(i){
+  var r=_padHits&&_padHits[i];if(!r)return;
+  var e=document.getElementById('empresa');if(e)e.value=r.empresa||'';
+  if(r.config&&typeof setCfg==='function'&&typeof cfgIdx==='function')setCfg(cfgIdx(r.config));
+  var tiene=r.asesores.filter(function(a){return (a.nombre||'').trim();}).length;
+  if(tiene){
+    for(var n=1;n<=4;n++){
+      var a=r.asesores[n-1]||{},sfx=(n===1)?'':String(n);
+      var hay=!!(a.nombre||'').trim();
+      _setVal('nombre'+sfx,hay?a.nombre:'');
+      _setVal('celular'+sfx,hay?a.celular:'');
+      _setVal('email'+sfx,hay?(a.email||_fgMailFromName(a.nombre)):'');
+      var mEl=document.getElementById('email'+sfx);
+      // si el padrón trae el mail, manda el padrón: corto la sugerencia automática
+      if(mEl)mEl.dataset.fgManual=(hay&&a.email)?'1':'';
+      _fgSetAsesorOn(n,hay);
+      if(n>1)_fgShowBlock(n,hay);
+    }
+    _fgRefreshAddBtn();
+  }
+  closePadronPop();
+  if(typeof updateFnPreview==='function')updateFnPreview();
+  if(typeof redraw==='function')redraw();
+  showToast('"'+(r.empresa||'Empresa')+'" cargada del padrón'+(tiene?(' ('+tiene+' asesor'+(tiene>1?'es':'')+')'):''));
+}
+
 </script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
@@ -3604,6 +3936,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
     <div class="atab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
     <div class="atab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
     <div class="atab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Subir Flyer</div>
+    <div class="atab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Varios</div>
   </div>
   <div class="ap-body">
 
@@ -3738,6 +4071,21 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
           <button class="usr-btn edit" onclick="loadGlobalLegal(true,3)">Recargar</button>
         </div>
       </div>
+    </div>
+
+    <div id="at-varios" style="display:none">
+      <p class="ap-sec">Padr&oacute;n de empresas</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>El padr&oacute;n <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn-submit" onclick="document.getElementById('padron-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
+        <button class="usr-btn edit" onclick="dlPadron()">&#11015; Descargar padr&oacute;n</button>
+        <button class="usr-btn edit" onclick="dlPadronTemplate()">&#11015; Plantilla vac&iacute;a</button>
+        <button class="usr-btn edit" onclick="renderPadronAdmin(true)">Recargar</button>
+        <input type="file" id="padron-xls" accept=".xlsx,.xls" style="display:none" onchange="importPadron(this)">
+      </div>
+      <p style="font-size:.76rem;color:var(--gray);margin-bottom:12px" id="padron-stat"></p>
+      <input type="text" id="padron-q" class="login-inp" placeholder="Probar el buscador: raz&oacute;n social o CUIT..." autocomplete="off" oninput="renderPadronAdmin()" style="margin-bottom:0">
+      <div id="padron-prev"></div>
     </div>
 
   </div>

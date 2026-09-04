@@ -148,6 +148,7 @@ const adminPanel = `<div id="admin-panel">
     <div class="atab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
     <div class="atab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
     <div class="atab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Subir Flyer</div>
+    <div class="atab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Varios</div>
   </div>
   <div class="ap-body">
 
@@ -282,6 +283,21 @@ const adminPanel = `<div id="admin-panel">
           <button class="usr-btn edit" onclick="loadGlobalLegal(true,3)">Recargar</button>
         </div>
       </div>
+    </div>
+
+    <div id="at-varios" style="display:none">
+      <p class="ap-sec">Padr&oacute;n de empresas</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>El padr&oacute;n <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn-submit" onclick="document.getElementById('padron-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
+        <button class="usr-btn edit" onclick="dlPadron()">&#11015; Descargar padr&oacute;n</button>
+        <button class="usr-btn edit" onclick="dlPadronTemplate()">&#11015; Plantilla vac&iacute;a</button>
+        <button class="usr-btn edit" onclick="renderPadronAdmin(true)">Recargar</button>
+        <input type="file" id="padron-xls" accept=".xlsx,.xls" style="display:none" onchange="importPadron(this)">
+      </div>
+      <p style="font-size:.76rem;color:var(--gray);margin-bottom:12px" id="padron-stat"></p>
+      <input type="text" id="padron-q" class="login-inp" placeholder="Probar el buscador: raz&oacute;n social o CUIT..." autocomplete="off" oninput="renderPadronAdmin()" style="margin-bottom:0">
+      <div id="padron-prev"></div>
     </div>
 
   </div>
@@ -507,6 +523,11 @@ const checks = {
   'etiquetas Agregar asesor N': _authSrc.includes('function _fgFixAsesorLabels(') && _authSrc.includes("'Agregar asesor '+n"),
   'autocompletar mail': _authSrc.includes('function _fgMailFromName(') && _authSrc.includes('_fgAutoMail();'),
   'alta progresiva asesores': _authSrc.includes('function _fgAddNextAsesor(') && _authSrc.includes('id="fg-add-asesor"') && _authSrc.includes('function _fgRemoveAsesor('),
+  // Padron de empresas: Excel precargado + buscador por razon social / CUIT (solo admin)
+  'padron: motor': _authSrc.includes('function padronSearch(') && _authSrc.includes('_PADRON_FILE') && _authSrc.includes('function _padCuits('),
+  'padron: excel': _authSrc.includes('function importPadron(') && _authSrc.includes('function dlPadron(') && _authSrc.includes('function dlPadronTemplate('),
+  'padron: lupita solo admin': _authSrc.includes('_fgEnsurePadronBtn();') && _authSrc.includes('function applyPadronRow('),
+  'padron: solapa Varios': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
