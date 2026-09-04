@@ -2609,7 +2609,7 @@ function fgGenAll(){
       });return;
     }
     var row=excelData[cur];
-    var cfg=CONFIGS[cfgIdx(row.config||row.Config||'')];
+    var cfg=CONFIGS[_padCfgIdx(row.config||row.Config||'')]; // tolerante: "Config1", "config 1", "1"...
     var v={empresa:(row.empresa||row.Empresa||'flyer'+(cur+1)),
       m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
     [1,2,3,4].forEach(function(i){
@@ -2974,16 +2974,14 @@ function importPadron(input){
       var wb=XLSX.read(e.target.result,{type:'binary'});
       var ws=wb.Sheets[wb.SheetNames[0]];
       var raw=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-      var rows=[];
-      raw.forEach(function(r){var o=_padRow(r);if(o)rows.push(o);});
-      if(!rows.length){
-        showToast('El Excel no tiene filas con empresa ni CUIT');
-        renderPadronAdmin();return;
-      }
-      if(st)st.innerHTML='<span style="color:var(--gray)">Guardando '+rows.length+' empresas...</span>';
-      savePadron(rows,function(ok){
+      // Valido ANTES de guardar: si hay algo raro (cashback que no se entiende,
+      // columna faltante, CUIT corto) lo muestro y decidís vos.
+      var informe=_padValidate(raw);
+      if(informe.problemas.length){_padAskImport(informe);return;}
+      if(st)st.innerHTML='<span style="color:var(--gray)">Guardando '+informe.rows.length+' empresas...</span>';
+      savePadron(informe.rows,function(ok){
         if(!ok){renderPadronAdmin();return;}
-        showToast('Padrón actualizado: '+rows.length+' empresas');
+        showToast('Padrón actualizado: '+informe.rows.length+' empresas');
         renderPadronAdmin();
       });
     }catch(err){
@@ -3168,7 +3166,7 @@ function applyPadronRow(i){
 function _padApply(r){
   if(!r)return;
   var e=document.getElementById('empresa');if(e)e.value=r.empresa||'';
-  if(typeof setCfg==='function'&&typeof cfgIdx==='function')setCfg(cfgIdx(r.config||''));
+  if(typeof setCfg==='function')setCfg(_padCfgIdx(r.config||''));
   var tiene=_padNumAsesores(r);
   for(var n=1;n<=4;n++){
     var a=(r.asesores&&r.asesores[n-1])||{},sfx=(n===1)?'':String(n);
@@ -3218,9 +3216,6 @@ function _padShowNote(msg){
 
 // ── ¿Cambió algo respecto del padrón? ────────────────────────────────────────
 var _padRef=null,_padDismissed='';
-function _padCfgIdx(raw){
-  return (typeof cfgIdx==='function')?cfgIdx(raw||''):0;
-}
 function _padCfgName(i){
   return (typeof CNAMES!=='undefined'&&CNAMES[i])?CNAMES[i]:'BAU';
 }
@@ -3572,6 +3567,124 @@ function _padSubtitulo(r){
   t.push(_padAsesoresLbl(r));
   p.push(t.join('  ·  '));
   return p.join('  —  ');
+}
+// ── PADRÓN: lectura tolerante del cashback + validación al subir el Excel ────
+// cfgIdx de _source.html compara texto EXACTO ("config 1" o "1") y ante
+// cualquier otra cosa devuelve 0 = BAU EN SILENCIO. Resultado: un "Config1" o
+// un "Configuración 1" hacía que todas las empresas quedaran en BAU sin aviso.
+// _padCfgParse acepta cualquier forma razonable y devuelve -1 si no la entiende,
+// para poder AVISAR en vez de tragárselo.
+function _padCfgParse(raw){
+  var t=(raw==null?'':String(raw)).trim().replace(/[.,]0+$/,''); // "1.0" del Excel → "1"
+  var k=_padKey(t);                                             // sin acentos, signos ni espacios
+  if(!k)return 0;                                               // vacío = BAU
+  if(k==='bau'||k==='base'||k==='estandar')return 0;
+  var m=k.match(/([0-9]+)$/);
+  if(m){
+    var n=parseInt(m[1],10);
+    if(n>=0&&n<=4)return n;
+  }
+  if(typeof CNAMES!=='undefined'){
+    for(var i=0;i<CNAMES.length;i++)if(_padKey(CNAMES[i])===k)return i;
+  }
+  return -1; // no lo reconozco
+}
+// Versión segura para dibujar: lo no reconocido cae en BAU (pero ya avisamos al subir).
+function _padCfgIdx(raw){var i=_padCfgParse(raw);return i<0?0:i;}
+
+// ── Validación del Excel ────────────────────────────────────────────────────
+var _PAD_COLS_EMPRESA=['empresa','razonsocial','razsocial','nombreempresa','company','cliente'];
+var _PAD_COLS_CONFIG=['config','cashback','tipocashback','tipodecashback','tipo','configuracion'];
+var _PAD_COLS_CUIT=['cuit','cuits','cuitgrupo','cuitsociedad'];
+var _PAD_COLS_A1=['nombre','asesornombre','celular','asesorcelular','cel','email','mail','asesoremail'];
+function _padColKnown(k){
+  if(/^asesor[1-4](nombre|celular|email)$/.test(k))return true;
+  if(/^cuit([1-9]|10)$/.test(k))return true;
+  return _PAD_COLS_EMPRESA.indexOf(k)>=0||_PAD_COLS_CONFIG.indexOf(k)>=0||
+         _PAD_COLS_CUIT.indexOf(k)>=0||_PAD_COLS_A1.indexOf(k)>=0;
+}
+// Devuelve {rows, problemas:[{tipo,txt,grave}], descartadas, cols}
+function _padValidate(raw){
+  var cols={},rows=[],prob=[],desc=0;
+  raw.forEach(function(r){for(var k in r){if(r.hasOwnProperty(k))cols[_padKey(k)]=k;}});
+  var hasEmp=false,hasCfg=false,unknown=[];
+  for(var k in cols){
+    if(!cols.hasOwnProperty(k))continue;
+    if(_PAD_COLS_EMPRESA.indexOf(k)>=0)hasEmp=true;
+    if(_PAD_COLS_CONFIG.indexOf(k)>=0)hasCfg=true;
+    if(!_padColKnown(k))unknown.push(cols[k]);
+  }
+  var badCfg=[],badCuit=[],sinNombre=[];
+  raw.forEach(function(r,i){
+    var o=_padRow(r);
+    if(!o){desc++;return;}
+    var fila=i+2; // +1 por el encabezado, +1 porque Excel empieza en 1
+    if(!o.empresa)sinNombre.push(fila);
+    if(o.config&&_padCfgParse(o.config)<0)badCfg.push({fila:fila,val:o.config,emp:o.empresa});
+    (o.cuits||[]).forEach(function(d){
+      if(d.length!==11)badCuit.push({fila:fila,val:d,emp:o.empresa});
+    });
+    rows.push(o);
+  });
+  function lista(arr,f){
+    var n=Math.min(arr.length,4),out=[];
+    for(var i=0;i<n;i++)out.push(f(arr[i]));
+    if(arr.length>n)out.push('y '+(arr.length-n)+' m&aacute;s');
+    return out.join(', ');
+  }
+  if(!rows.length)
+    prob.push({grave:true,txt:'<strong>No se pudo leer ninguna empresa.</strong> Revis&aacute; que la primera fila del Excel sean los encabezados y que haya una columna <code>empresa</code>.'});
+  if(!hasEmp&&rows.length)
+    prob.push({grave:true,txt:'<strong>No encontr&eacute; la columna <code>empresa</code>.</strong> Las filas se van a guardar sin raz&oacute;n social. Renombr&aacute; esa columna a <code>empresa</code>.'});
+  if(!hasCfg)
+    prob.push({grave:true,txt:'<strong>No encontr&eacute; la columna del cashback.</strong> Todas las empresas van a quedar en <strong>BAU</strong>. La columna tiene que llamarse <code>config</code> (o <code>cashback</code>).'});
+  if(badCfg.length)
+    prob.push({grave:true,txt:'<strong>'+badCfg.length+' cashback'+(badCfg.length>1?'s que no entiendo':' que no entiendo')+'</strong> &rarr; quedan en BAU: '+
+      lista(badCfg,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+
+      '.<br>Valores v&aacute;lidos: <code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>, <code>Config 3</code>, <code>Config 4</code> (tambi&eacute;n vale escribir s&oacute;lo <code>1</code>, <code>2</code>, <code>3</code> o <code>4</code>).'});
+  if(badCuit.length)
+    prob.push({grave:false,txt:'<strong>'+badCuit.length+' CUIT sin 11 d&iacute;gitos</strong>: '+
+      lista(badCuit,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+'. Se guardan igual, pero puede que no los encuentres al buscar.'});
+  if(sinNombre.length)
+    prob.push({grave:false,txt:'<strong>'+sinNombre.length+' fila'+(sinNombre.length>1?'s':'')+' sin raz&oacute;n social</strong> (fila'+(sinNombre.length>1?'s':'')+' '+sinNombre.slice(0,6).join(', ')+'). S&oacute;lo se van a poder buscar por CUIT.'});
+  if(desc)
+    prob.push({grave:false,txt:'<strong>'+desc+' fila'+(desc>1?'s':'')+' vac&iacute;a'+(desc>1?'s':'')+'</strong> (sin empresa ni CUIT): se descarta'+(desc>1?'n':'')+'.'});
+  if(unknown.length)
+    prob.push({grave:false,txt:'<strong>Columnas que ignor&eacute;</strong>: '+_escHtml(unknown.slice(0,6).join(', '))+
+      (unknown.length>6?(' y '+(unknown.length-6)+' m&aacute;s'):'')+'. Si alguna deber&iacute;a usarse, revis&aacute; el nombre contra la plantilla.'});
+  return {rows:rows,problemas:prob,descartadas:desc,graves:prob.filter(function(p){return p.grave;}).length};
+}
+
+// ── Popup del informe de importación ────────────────────────────────────────
+var _padImportPend=null;
+function _padAskImport(rep){
+  _padImportPend=rep;
+  _padPending=null;
+  var graves=rep.graves>0;
+  _padModal('<h3>'+(graves?'&#9888; Revis&aacute; el Excel':'&#8505; Informe de la carga')+'</h3>'+
+    '<p class="pu-sub">Le&iacute; <strong>'+rep.rows.length+' empresa'+(rep.rows.length===1?'':'s')+'</strong>'+
+      (graves?', pero hay cosas que conviene corregir antes de guardar:':', con estas observaciones:')+'</p>'+
+    '<ul><li>'+rep.problemas.map(function(p){return p.txt;}).join('</li><li>')+'</li></ul>'+
+    '<p class="pu-sub">Si cancel&aacute;s, el padr&oacute;n queda como estaba y pod&eacute;s corregir el Excel y volver a subirlo.</p>'+
+    '<div class="pu-foot">'+
+      '<button class="pu-no" onclick="_padImportCancel()">Cancelar</button>'+
+      '<button class="pu-si" onclick="_padImportGo()">Guardar igual ('+rep.rows.length+')</button>'+
+    '</div>');
+}
+function _padImportCancel(){
+  _padImportPend=null;_padCloseUpdate(0);
+  showToast('Carga cancelada: el padrón quedó como estaba');
+  renderPadronAdmin();
+}
+function _padImportGo(){
+  var rep=_padImportPend;if(!rep){_padCloseUpdate(0);return;}
+  var btn=document.querySelector('#pad-upd .pu-si');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  savePadron(rep.rows,function(ok){
+    _padImportPend=null;_padCloseUpdate(0);
+    if(ok)showToast('Padrón actualizado: '+rep.rows.length+' empresas');
+    renderPadronAdmin();
+  });
 }
 
 </script></head>
@@ -4471,7 +4584,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
 
     <div id="at-varios" style="display:none">
       <p class="ap-sec">Padr&oacute;n de empresas</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>El padr&oacute;n <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>El padr&oacute;n <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.<br><br><strong>Cashback:</strong> la columna se llama <code>config</code> y acepta <code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>, <code>Config 3</code> o <code>Config 4</code> (tambi&eacute;n vale escribir s&oacute;lo el n&uacute;mero). Al subir el Excel te muestro un informe si hay algo que no pude leer, antes de guardar nada.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn-submit" onclick="document.getElementById('padron-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
         <button class="usr-btn edit" onclick="dlPadron()">&#11015; Descargar padr&oacute;n</button>
