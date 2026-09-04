@@ -2795,6 +2795,7 @@ function _padAsesoresLbl(r){
 }
 // Aviso debajo del campo empresa (se limpia solo al cargar otra empresa).
 function _padShowNote(msg){
+  _padStyle(); // el aviso usa el CSS del modal, y puede salir antes que cualquier popup
   var wrap=document.querySelector('.fg-pad-wrap');if(!wrap||!wrap.parentNode)return;
   var el=document.getElementById('fg-pad-note');
   if(!el){
@@ -2864,67 +2865,190 @@ function _padDiff(){
 // Firma del cambio: si decís "no" y después no tocás nada más, no vuelve a preguntar.
 function _padSig(d){return d.empresa+'|'+d.config+'|'+JSON.stringify(d.asesores);}
 
-// ── Popup "¿actualizar el padrón?" al generar el flyer ───────────────────────
+// ── Popups del padrón al generar el flyer ────────────────────────────────────
+// Dos casos, mismo modal: la empresa YA está en el padrón y cambiaste algo
+// (_padAskUpdate), o la empresa NO está y te ofrece darla de alta (_padAskNew)
+// para ir alimentando el padrón. En los dos podés cargar el/los CUIT del grupo.
+var _padNewDismissed='',_padPending=null;
+
+// Busca una fila por razón social exacta (normalizada), para no duplicar empresas
+// si la cargaste a mano en vez de con la lupa.
+function _padFindByName(name){
+  var t=_padNorm(name);if(!t||!_padron)return null;
+  for(var i=0;i<_padron.length;i++){if(_padNorm(_padron[i].empresa)===t)return _padron[i];}
+  return null;
+}
+function _padStyle(){
+  if(document.getElementById('pad-upd-style'))return;
+  var st=document.createElement('style');st.id='pad-upd-style';
+  st.textContent=
+    '#fg-pad-note{display:none;margin-top:6px;font-size:.7rem;line-height:1.4;color:#b06000;'+
+      'background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.5);border-radius:7px;padding:6px 9px}'+
+    '#pad-upd-ov{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:10000;display:flex;'+
+      'align-items:center;justify-content:center;padding:16px}'+
+    '#pad-upd{background:#fff;border-radius:14px;width:min(430px,100%);max-height:86vh;overflow:auto;'+
+      'box-shadow:0 18px 50px rgba(0,0,0,.3)}'+
+    'html.dark #pad-upd{background:#23262c;color:#e8e8e8}'+
+    '#pad-upd h3{margin:0;padding:16px 18px 6px;font-size:.95rem}'+
+    '#pad-upd .pu-sub{padding:0 18px;font-size:.76rem;color:var(--gray,#888);line-height:1.5}'+
+    '#pad-upd ul{margin:12px 18px;padding:0 0 0 4px;list-style:none}'+
+    '#pad-upd li{font-size:.76rem;line-height:1.55;padding:5px 0 5px 12px;border-left:2px solid rgba(198,40,40,.35)}'+
+    '#pad-upd .pu-fld{padding:4px 18px 0}'+
+    '#pad-upd .pu-lbl{display:block;font-size:.68rem;font-weight:700;text-transform:uppercase;'+
+      'letter-spacing:.04em;color:var(--gray,#888);margin-bottom:5px}'+
+    '#pad-upd input{width:100%;box-sizing:border-box;border:1.5px solid var(--border,#ddd);border-radius:8px;'+
+      'padding:9px 11px;font-size:.82rem;font-family:inherit;background:none;color:inherit;outline:none}'+
+    '#pad-upd input:focus{border-color:var(--red,#c62828)}'+
+    'html.dark #pad-upd input{border-color:#3a3e46}'+
+    '#pad-upd .pu-hint{font-size:.68rem;line-height:1.45;color:var(--gray,#888);margin:6px 0 0}'+
+    '#pad-upd .pu-warn{font-size:.68rem;line-height:1.45;color:#b06000;margin:6px 0 0}'+
+    '#pad-upd .pu-foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px 16px}'+
+    '#pad-upd button{border:none;border-radius:8px;padding:9px 15px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}'+
+    '#pad-upd .pu-no{background:rgba(128,128,128,.16);color:inherit}'+
+    '#pad-upd .pu-si{background:var(--red,#c62828);color:#fff}';
+  document.head.appendChild(st);
+}
+// Campo de CUIT + preview en vivo de lo que se va a guardar.
+function _padCuitField(valor){
+  return '<div class="pu-fld">'+
+      '<label class="pu-lbl" for="pad-cuit">CUIT / CUITs del grupo</label>'+
+      '<input type="text" id="pad-cuit" autocomplete="off" placeholder="30-71234567-8, 30709876543" '+
+        'value="'+_escHtml(valor||'')+'" oninput="_padCuitPreview()">'+
+      '<p class="pu-hint" id="pad-cuit-prev"></p>'+
+    '</div>';
+}
+function _padCuitPreview(){
+  var el=document.getElementById('pad-cuit'),out=document.getElementById('pad-cuit-prev');
+  if(!el||!out)return;
+  var cu=_padCuits(el.value);
+  if(!cu.length){
+    out.className='pu-hint';
+    out.innerHTML='Opcional. Si la empresa es un grupo, pon&eacute; los CUIT separados por coma &mdash; con o sin guiones, da igual.';
+    return;
+  }
+  var bad=cu.filter(function(d){return d.length!==11;}).length;
+  out.className=bad?'pu-warn':'pu-hint';
+  out.innerHTML='Se guardan '+cu.length+': <strong>'+cu.map(_padFmtCuit).join('  &middot;  ')+'</strong>'+
+    (bad?('<br>&#9888; '+bad+(bad>1?' no tienen':' no tiene')+' 11 d&iacute;gitos. Revis&aacute; que est&eacute;n completos.'):'');
+}
+function _padModal(html){
+  _padStyle();
+  var ov=document.createElement('div');ov.id='pad-upd-ov';
+  ov.innerHTML='<div id="pad-upd">'+html+'</div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){if(e.target===ov)_padCloseUpdate(1);});
+  _padCuitPreview();
+}
+// Resumen de lo que se va a dar de alta (config + oficiales del formulario).
+function _padResumen(as){
+  var li=['Cashback: <strong>'+_escHtml(_padCfgName((typeof ac!=='undefined')?ac:0))+'</strong>'];
+  var n=0;
+  as.forEach(function(a,k){
+    if(!a.nombre)return;
+    n++;
+    li.push('Oficial '+(k+1)+': <strong>'+_escHtml(a.nombre)+'</strong>'+
+      (a.celular?(' &middot; '+_escHtml(a.celular)):''));
+  });
+  if(!n)li.push('<span style="color:#b06000">Sin oficiales asignados</span>');
+  return '<ul><li>'+li.join('</li><li>')+'</li></ul>';
+}
+
+// ── Empresa NUEVA: darla de alta en el padrón ───────────────────────────────
+function _padAskNew(){
+  var emp=(_gv('empresa')||'').trim();if(!emp||!_padron)return;
+  if(_padNorm(emp)===_padNewDismissed)return;
+  if(document.getElementById('pad-upd'))return;
+  _padPending=null;
+  _padModal('<h3>&#10133; Agregar al padr&oacute;n</h3>'+
+    '<p class="pu-sub"><strong>'+_escHtml(emp)+'</strong> no est&aacute; en el padr&oacute;n. '+
+      '&iquest;La guardo con esta configuraci&oacute;n para tenerla lista la pr&oacute;xima vez?</p>'+
+    _padResumen(_padFormAsesores())+
+    _padCuitField('')+
+    '<div class="pu-foot">'+
+      '<button class="pu-no" onclick="_padCloseUpdate(1)">Ahora no</button>'+
+      '<button class="pu-si" onclick="_padDoNew()">Guardar en el padr&oacute;n</button>'+
+    '</div>');
+  var el=document.getElementById('pad-cuit');if(el)el.focus();
+}
+function _padDoNew(){
+  var emp=(_gv('empresa')||'').trim();
+  if(!emp||!_padron){_padCloseUpdate(0);return;}
+  var el=document.getElementById('pad-cuit');
+  var row={empresa:emp,cuits:_padCuits(el?el.value:''),
+    config:_padCfgName((typeof ac!=='undefined')?ac:0),asesores:_padFormAsesores()};
+  var btn=document.querySelector('#pad-upd .pu-si');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  _padron.push(row);
+  savePadron(_padron,function(ok){
+    _padCloseUpdate(0);
+    if(!ok){var i=_padron.indexOf(row);if(i>=0)_padron.splice(i,1);return;} // rollback
+    _padRef=row;_padDismissed='';_padNewDismissed='';
+    _padShowNote(_padNumAsesores(row)?'':'Esta empresa no tiene oficiales asignados en el padrón.');
+    showToast('"'+emp+'" agregada al padrón'+(row.cuits.length?(' ('+row.cuits.length+' CUIT)'):''));
+  });
+}
+
+// ── Empresa YA en el padrón: guardar los cambios ────────────────────────────
 function _padAskUpdate(){
   var d=_padDiff();if(!d)return;
-  var sig=_padSig(d);if(sig===_padDismissed)return;
+  if(_padSig(d)===_padDismissed)return;
   if(document.getElementById('pad-upd'))return;
-  if(!document.getElementById('pad-upd-style')){
-    var st=document.createElement('style');st.id='pad-upd-style';
-    st.textContent=
-      '#fg-pad-note{display:none;margin-top:6px;font-size:.7rem;line-height:1.4;color:#b06000;'+
-        'background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.5);border-radius:7px;padding:6px 9px}'+
-      '#pad-upd-ov{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:10000;display:flex;'+
-        'align-items:center;justify-content:center;padding:16px}'+
-      '#pad-upd{background:#fff;border-radius:14px;width:min(430px,100%);max-height:86vh;overflow:auto;'+
-        'box-shadow:0 18px 50px rgba(0,0,0,.3)}'+
-      'html.dark #pad-upd{background:#23262c;color:#e8e8e8}'+
-      '#pad-upd h3{margin:0;padding:16px 18px 6px;font-size:.95rem}'+
-      '#pad-upd .pu-sub{padding:0 18px;font-size:.76rem;color:var(--gray,#888);line-height:1.5}'+
-      '#pad-upd ul{margin:12px 18px;padding:0 0 0 4px;list-style:none}'+
-      '#pad-upd li{font-size:.76rem;line-height:1.55;padding:5px 0 5px 12px;border-left:2px solid rgba(198,40,40,.35)}'+
-      '#pad-upd .pu-foot{display:flex;gap:8px;justify-content:flex-end;padding:8px 18px 16px}'+
-      '#pad-upd button{border:none;border-radius:8px;padding:9px 15px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}'+
-      '#pad-upd .pu-no{background:rgba(128,128,128,.16);color:inherit}'+
-      '#pad-upd .pu-si{background:var(--red,#c62828);color:#fff}';
-    document.head.appendChild(st);
-  }
-  var ov=document.createElement('div');ov.id='pad-upd-ov';
-  ov.innerHTML='<div id="pad-upd">'+
-    '<h3>&#128260; Actualizar el padr&oacute;n</h3>'+
-    '<p class="pu-sub">Generaste el flyer de <strong>'+_escHtml(d.empresa)+'</strong> con datos distintos a los que tiene el padr&oacute;n:</p>'+
+  _padPending=d;
+  _padModal('<h3>&#128260; Actualizar el padr&oacute;n</h3>'+
+    '<p class="pu-sub">Generaste el flyer de <strong>'+_escHtml(d.empresa)+'</strong> con datos distintos '+
+      'a los que tiene el padr&oacute;n:</p>'+
     '<ul><li>'+d.cambios.join('</li><li>')+'</li></ul>'+
-    '<p class="pu-sub">Si lo actualiz&aacute;s, queda guardado para todos y la pr&oacute;xima vez que busques esta empresa ya sale con estos datos. Acord&aacute;te de <strong>bajarte el padr&oacute;n</strong> si quer&eacute;s tener el Excel de tu computadora al d&iacute;a.</p>'+
+    _padCuitField((d.row.cuits||[]).map(_padFmtCuit).join(', '))+
+    '<p class="pu-sub" style="margin-top:12px">Si lo actualiz&aacute;s, queda guardado para todos y la pr&oacute;xima vez '+
+      'que busques esta empresa ya sale con estos datos. Acord&aacute;te de <strong>bajarte el padr&oacute;n</strong> '+
+      'si quer&eacute;s tener el Excel de tu computadora al d&iacute;a.</p>'+
     '<div class="pu-foot">'+
       '<button class="pu-no" onclick="_padCloseUpdate(1)">No, dejarlo como est&aacute;</button>'+
       '<button class="pu-si" onclick="_padDoUpdate()">Actualizar padr&oacute;n</button>'+
-    '</div></div>';
-  document.body.appendChild(ov);
-  ov.addEventListener('click',function(e){if(e.target===ov)_padCloseUpdate(1);});
-}
-function _padCloseUpdate(dismiss){
-  var ov=document.getElementById('pad-upd-ov');
-  if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
-  if(dismiss){var d=_padDiff();if(d)_padDismissed=_padSig(d);}
+    '</div>');
 }
 function _padDoUpdate(){
-  var d=_padDiff();
-  if(!d){_padCloseUpdate(0);return;}
+  var d=_padPending||_padDiff();
+  if(!d||!_padron||_padron.indexOf(d.row)<0){_padCloseUpdate(0);return;}
+  var el=document.getElementById('pad-cuit');
   var btn=document.querySelector('#pad-upd .pu-si');
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   d.row.empresa=d.empresa;
   d.row.config=d.config;
   d.row.asesores=d.asesores.map(function(a){return {nombre:a.nombre,celular:a.celular,email:a.email};});
+  if(el)d.row.cuits=_padCuits(el.value); // el CUIT se puede completar acá mismo
   savePadron(_padron,function(ok){
     _padCloseUpdate(0);
-    if(ok){
-      _padDismissed='';
-      _padShowNote(_padNumAsesores(d.row)?'':'Esta empresa no tiene oficiales asignados en el padrón.');
-      showToast('Padrón actualizado: '+d.empresa);
-    }
+    if(!ok)return;
+    _padDismissed='';
+    _padShowNote(_padNumAsesores(d.row)?'':'Esta empresa no tiene oficiales asignados en el padrón.');
+    showToast('Padrón actualizado: '+d.empresa);
   });
 }
+function _padCloseUpdate(dismiss){
+  var ov=document.getElementById('pad-upd-ov');
+  if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
+  if(dismiss){
+    // "ahora no": no vuelve a preguntar hasta que cambie algo más
+    if(_padRef){var d=_padDiff();if(d)_padDismissed=_padSig(d);}
+    else _padNewDismissed=_padNorm(_gv('empresa'));
+  }
+  _padPending=null;
+}
+
 // Se llama después de descargar el PDF/PNG individual (nunca en el masivo).
+// Si la empresa está en el padrón → ofrece actualizarla; si no → darla de alta.
 function _padAfterFlyer(){
-  try{if(_admin&&_padRef)setTimeout(_padAskUpdate,350);}catch(e){console.warn('padron:',e);}
+  try{
+    if(!_admin||!_padron)return;
+    // indexOf<0: el padrón se recargó y la referencia quedó vieja → la re-engancho por nombre
+    if(!_padRef||_padron.indexOf(_padRef)<0){
+      var emp=(_gv('empresa')||'').trim();if(!emp){_padRef=null;return;}
+      var hit=_padFindByName(emp);   // la cargó a mano, o la referencia se vencía
+      if(hit){_padRef=hit;_padDismissed='';}
+      // limpio la referencia vieja: si no, el "Ahora no" no se registraría
+      else{_padRef=null;setTimeout(_padAskNew,350);return;}
+    }
+    setTimeout(_padAskUpdate,350);
+  }catch(e){console.warn('padron:',e);}
 }

@@ -530,6 +530,7 @@ const checks = {
   'padron: solapa Varios': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
   'padron: sin oficiales asignados': _authSrc.includes('function _padAsesoresLbl(') && _authSrc.includes('sin oficiales asignados') && _authSrc.includes('function _padShowNote('),
   'padron: actualizar al generar': _authSrc.includes('function _padDiff(') && _authSrc.includes('function _padAskUpdate(') && _authSrc.includes('_padAfterFlyer();'),
+  'padron: alta de empresa nueva': _authSrc.includes('function _padAskNew(') && _authSrc.includes('function _padDoNew(') && _authSrc.includes('function _padFindByName(') && _authSrc.includes('function _padCuitField('),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
