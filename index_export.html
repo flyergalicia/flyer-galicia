@@ -2087,7 +2087,7 @@ function fgLoadHistory(i){
       s('email'+i,h.v['email'+i]||'');
     });
     _fgSyncAsesorBlocks(); // muestra los bloques que el flyer del historial tenía
-    _padRef=null;_padDismissed='';_padShowNote(''); // el historial no es una fila del padrón
+    _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // el historial no es una fila del padrón
     if(typeof setCfg==='function')setCfg(h.ac||0);
     if(typeof switchTab==='function')switchTab('individual');
     showToast('Datos cargados');
@@ -2103,7 +2103,7 @@ function fgResetVals(){
   if(_fgA3)toggleA3();if(_fgA4)toggleA4();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
   _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
-  _padRef=null;_padDismissed='';_padShowNote(''); // se corta el vínculo con el padrón
+  _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // se corta el vínculo con el padrón
   var n=_optN(_fgOpt),c=_fgOptCache[n];
   if(c)delete c.legalEdited;
   var base=(c&&typeof c.legal==='string'&&c.legal.trim())?c.legal:(window.LEGAL_DEFAULT||'');
@@ -3076,14 +3076,24 @@ function _fgEnsurePadronBtn(){
       '.pad-item:hover,.pad-item.on{background:rgba(198,40,40,.07)}'+
       '.pad-emp{display:block;font-size:.82rem;font-weight:600}'+
       '.pad-sub{display:block;font-size:.66rem;color:var(--gray,#888);margin-top:2px}'+
-      '.pad-empty{padding:16px 12px;font-size:.76rem;color:var(--gray,#888);text-align:center;line-height:1.5}';
+      '.pad-empty{padding:16px 12px;font-size:.76rem;color:var(--gray,#888);text-align:center;line-height:1.5}'+
+      '.pad-more{padding:7px 12px;font-size:.64rem;color:var(--gray,#888);text-align:center;'+
+        'border-top:1px solid rgba(128,128,128,.16)}'+
+      '#pad-sug{box-sizing:border-box;width:auto}';
     document.head.appendChild(st);
   }
   var wrap=document.createElement('div');wrap.className='fg-pad-wrap';
   inp.parentNode.insertBefore(wrap,inp);
   wrap.appendChild(inp);
   wrap.insertAdjacentHTML('beforeend',
-    '<button type="button" id="fg-pad-btn" onclick="openPadronPop()" title="Buscar en el padrón (razón social o CUIT)">&#128269;</button>');
+    '<button type="button" id="fg-pad-btn" onclick="openPadronPop()" title="Ver todo el padrón (razón social o CUIT)">&#128269;</button>');
+  // typeahead: mientras escribís el nombre te va diciendo si ya está en el padrón
+  inp.setAttribute('autocomplete','off');
+  inp.addEventListener('input',_padSugRender);
+  inp.addEventListener('keydown',_padSugKey);
+  inp.addEventListener('focus',function(){if(inp.value.trim())_padSugRender();});
+  window.addEventListener('resize',_padSugPos);
+  window.addEventListener('scroll',_padSugPos,true);
   loadPadron(false); // precarga para que la primera búsqueda salga instantánea
 }
 function openPadronPop(){
@@ -3099,8 +3109,9 @@ function openPadronPop(){
   var r=anchor.getBoundingClientRect(),w=pop.offsetWidth;
   pop.style.top=Math.min(r.bottom+5,window.innerHeight-60)+'px';
   pop.style.left=Math.max(10,Math.min(r.right-w,window.innerWidth-w-10))+'px';
-  var q=document.getElementById('pad-q');
-  if(q){q.value=(document.getElementById('empresa')||{}).value||'';q.focus();q.select();}
+  // arranca vacía, mostrando TODAS: la lupa es el buscador completo (el filtro
+  // rápido mientras tipeás lo hace el typeahead del campo empresa)
+  var q=document.getElementById('pad-q');if(q)q.focus();
   _padSel=0;
   loadPadron(false,function(){renderPadronPop();});
   setTimeout(function(){document.addEventListener('click',_padCloseOutside);},0);
@@ -3142,22 +3153,20 @@ function renderPadronPop(){
     list.innerHTML='<div class="pad-empty">Sin resultados para "'+_escHtml(q)+'".</div>';return;
   }
   list.innerHTML=_padHits.map(function(r,i){
-    var sub=[];
-    if(r.cuits.length)sub.push(r.cuits.map(_padFmtCuit).join('  ·  '));
-    var tail=[];
-    if(r.config)tail.push(r.config);
-    tail.push(_padAsesoresLbl(r));
-    sub.push(tail.join('  ·  '));
     return '<div class="pad-item'+(i===0?' on':'')+'" onclick="applyPadronRow('+i+')">'+
       '<span class="pad-emp">'+_escHtml(r.empresa||'(sin razón social)')+'</span>'+
-      (sub.length?'<span class="pad-sub">'+_escHtml(sub.join('  —  '))+'</span>':'')+'</div>';
+      '<span class="pad-sub">'+_escHtml(_padSubtitulo(r))+'</span></div>';
   }).join('');
 }
 // Completa TODO: razón social, montos (config) y los oficiales del padrón.
 // EL PADRÓN MANDA: si la empresa no tiene oficiales asignados, se respeta y los
 // campos quedan vacíos (no se arrastran los del flyer anterior) + aviso visible.
 function applyPadronRow(i){
-  var r=_padHits&&_padHits[i];if(!r)return;
+  var r=_padHits&&_padHits[i];if(r)_padApply(r);
+}
+// Carga una fila del padrón en el formulario. La usan la lupa y el typeahead.
+function _padApply(r){
+  if(!r)return;
   var e=document.getElementById('empresa');if(e)e.value=r.empresa||'';
   if(typeof setCfg==='function'&&typeof cfgIdx==='function')setCfg(cfgIdx(r.config||''));
   var tiene=_padNumAsesores(r);
@@ -3177,7 +3186,7 @@ function applyPadronRow(i){
   _fgRefreshAddBtn();
   _padRef=r;_padDismissed='';   // desde acá se vigilan los cambios contra el padrón
   _padShowNote(tiene?'':'Esta empresa no tiene oficiales asignados en el padrón.');
-  closePadronPop();
+  closePadronPop();_padCloseSug();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
   showToast('"'+(r.empresa||'Empresa')+'" cargada del padrón — '+_padAsesoresLbl(r));
@@ -3451,6 +3460,98 @@ function _padAfterFlyer(){
     }
     setTimeout(_padAskUpdate,350);
   }catch(e){console.warn('padron:',e);}
+}
+// ── PADRÓN: sugerencias mientras escribís el nombre de la empresa ────────────
+// Dos herramientas distintas sobre el mismo padrón:
+//   · typeahead (esto): escribís y te va mostrando si la empresa ya está cargada,
+//     sin tener que abrir nada. Sirve para "¿la tengo o no la tengo?".
+//   · lupa (openPadronPop): arranca mostrando TODAS y filtrás adentro. Es el
+//     buscador completo, para explorar.
+var _padSug=[],_padSugSel=0,_padSugMas=false;
+var _PAD_SUG_MAX=8;
+
+function _padCloseSug(){
+  var b=document.getElementById('pad-sug');
+  if(b&&b.parentNode)b.parentNode.removeChild(b);
+  _padSug=[];_padSugSel=0;_padSugMas=false;
+  document.removeEventListener('click',_padSugOutside);
+}
+function _padSugOutside(e){
+  var b=document.getElementById('pad-sug'),i=document.getElementById('empresa');
+  if(b&&!b.contains(e.target)&&e.target!==i)_padCloseSug();
+}
+function _padSugPos(){
+  var b=document.getElementById('pad-sug'),i=document.getElementById('empresa');
+  if(!b||!i)return;
+  var r=i.getBoundingClientRect();
+  b.style.top=(r.bottom+4)+'px';
+  b.style.left=r.left+'px';
+  b.style.width=r.width+'px';
+}
+// Arranca a sugerir con 2 letras, o con 3 dígitos si estás pegando un CUIT.
+function _padSugQuery(q){
+  var t=(q||'').trim();
+  if(!_padron||!_padron.length||!t)return null;
+  if(t.length<2&&_padDigits(t).length<3)return null;
+  return t;
+}
+function _padSugRender(){
+  var inp=document.getElementById('empresa');if(!inp)return;
+  var t=_padSugQuery(inp.value);
+  if(!t){_padCloseSug();return;}
+  var res=padronSearch(t,_PAD_SUG_MAX+1);
+  // si ya cargaste esa empresa y el texto es exactamente su razón social, no molesto
+  if(_padRef&&_padNorm(inp.value)===_padNorm(_padRef.empresa)){_padCloseSug();return;}
+  if(!res.length){_padCloseSug();return;}
+  _padSugMas=res.length>_PAD_SUG_MAX;
+  _padSug=res.slice(0,_PAD_SUG_MAX);
+  _padSugSel=0;
+  var b=document.getElementById('pad-sug');
+  if(!b){
+    b=document.createElement('div');b.id='pad-sug';b.className='pad-pop';
+    document.body.appendChild(b);
+    setTimeout(function(){document.addEventListener('click',_padSugOutside);},0);
+  }
+  b.innerHTML='<div class="pad-list">'+_padSug.map(function(r,i){
+      return '<div class="pad-item'+(i===0?' on':'')+'" onclick="_padPickSug('+i+')">'+
+        '<span class="pad-emp">'+_escHtml(r.empresa||'(sin razón social)')+'</span>'+
+        '<span class="pad-sub">'+_escHtml(_padSubtitulo(r))+'</span></div>';
+    }).join('')+'</div>'+
+    (_padSugMas?'<div class="pad-more">Hay m&aacute;s coincidencias &mdash; abr&iacute; la lupa para verlas todas</div>':'');
+  _padSugPos();
+}
+function _padSugMark(){
+  var it=document.querySelectorAll('#pad-sug .pad-item');
+  Array.prototype.forEach.call(it,function(x,i){x.classList.toggle('on',i===_padSugSel);});
+  if(it[_padSugSel]&&it[_padSugSel].scrollIntoView)it[_padSugSel].scrollIntoView({block:'nearest'});
+}
+function _padPickSug(i){
+  var r=_padSug&&_padSug[i];if(!r)return;
+  _padCloseSug();
+  _padApply(r);
+}
+function _padSugKey(e){
+  if(!_padSug.length){
+    if(e.key==='ArrowDown')_padSugRender();
+    return;
+  }
+  if(e.key==='Escape'){_padCloseSug();return;}
+  if(e.key==='Enter'){e.preventDefault();_padPickSug(_padSugSel);return;}
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    _padSugSel=Math.max(0,Math.min(_padSug.length-1,_padSugSel+(e.key==='ArrowDown'?1:-1)));
+    _padSugMark();
+  }
+}
+// Subtítulo compartido por el typeahead y la lupa: CUITs — cashback · oficiales.
+function _padSubtitulo(r){
+  var p=[];
+  if(r.cuits&&r.cuits.length)p.push(r.cuits.map(_padFmtCuit).join('  ·  '));
+  var t=[];
+  if(r.config)t.push(r.config);
+  t.push(_padAsesoresLbl(r));
+  p.push(t.join('  ·  '));
+  return p.join('  —  ');
 }
 
 </script></head>
