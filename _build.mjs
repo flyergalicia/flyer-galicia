@@ -528,6 +528,8 @@ const checks = {
   'padron: excel': _authSrc.includes('function importPadron(') && _authSrc.includes('function dlPadron(') && _authSrc.includes('function dlPadronTemplate('),
   'padron: lupita solo admin': _authSrc.includes('_fgEnsurePadronBtn();') && _authSrc.includes('function applyPadronRow('),
   'padron: solapa Varios': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
+  'padron: sin oficiales asignados': _authSrc.includes('function _padAsesoresLbl(') && _authSrc.includes('sin oficiales asignados') && _authSrc.includes('function _padShowNote('),
+  'padron: actualizar al generar': _authSrc.includes('function _padDiff(') && _authSrc.includes('function _padAskUpdate(') && _authSrc.includes('_padAfterFlyer();'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);

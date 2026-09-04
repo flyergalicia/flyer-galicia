@@ -1687,6 +1687,7 @@ function fgLoadHistory(i){
       s('email'+i,h.v['email'+i]||'');
     });
     _fgSyncAsesorBlocks(); // muestra los bloques que el flyer del historial tenía
+    _padRef=null;_padDismissed='';_padShowNote(''); // el historial no es una fila del padrón
     if(typeof setCfg==='function')setCfg(h.ac||0);
     if(typeof switchTab==='function')switchTab('individual');
     showToast('Datos cargados');
@@ -1702,6 +1703,7 @@ function fgResetVals(){
   if(_fgA3)toggleA3();if(_fgA4)toggleA4();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
   _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
+  _padRef=null;_padDismissed='';_padShowNote(''); // se corta el vínculo con el padrón
   var n=_optN(_fgOpt),c=_fgOptCache[n];
   if(c)delete c.legalEdited;
   var base=(c&&typeof c.legal==='string'&&c.legal.trim())?c.legal:(window.LEGAL_DEFAULT||'');
@@ -2165,6 +2167,7 @@ function fgSavePDF(fc,v){
   pdf.save(fn+'.pdf');
   addHistory(v,fn,fc);
   logFlyerToSupabase(v,fn,'pdf');
+  _padAfterFlyer();
 }
 function fgSavePNG(fc,v){
   var a=document.createElement('a');
@@ -2172,6 +2175,7 @@ function fgSavePNG(fc,v){
   a.download=fn+'.png';a.href=fc.toDataURL('image/png');a.click();
   addHistory(v,fn,fc);
   logFlyerToSupabase(v,fn,'png');
+  _padAfterFlyer();
 }
 // MASIVO con hasta 4 asesores. Pisa genAll de _source.html (que sólo mapea 1 y 2).
 // Los Excel viejos (sin columnas 3/4) siguen funcionando igual.
@@ -2628,7 +2632,6 @@ function renderPadronAdmin(force){
     prev.innerHTML='<p style="font-size:.68rem;color:var(--gray);margin:10px 0 6px">'+
         (q?('Coincidencias: '+res.length+(res.length>=25?'+':'')):('Primeras '+res.length+' de '+rows.length))+'</p>'+
       res.map(function(r){
-        var na=r.asesores.filter(function(a){return a.nombre;}).length;
         return '<div class="usr-row" style="align-items:flex-start">'+
           '<div style="flex:1;min-width:0">'+
             '<div style="font-weight:600;font-size:.82rem">'+_escHtml(r.empresa||'(sin razón social)')+'</div>'+
@@ -2636,7 +2639,8 @@ function renderPadronAdmin(force){
               (r.cuits.length?_escHtml(r.cuits.map(_padFmtCuit).join('  ·  ')):'sin CUIT')+'</div>'+
           '</div>'+
           '<span style="font-size:.68rem;color:var(--gray);white-space:nowrap">'+
-            _escHtml(r.config||'BAU')+' &nbsp;·&nbsp; '+na+' asesor'+(na===1?'':'es')+'</span>'+
+            _escHtml(r.config||'BAU')+' &nbsp;·&nbsp; '+
+            (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+'</span>'+
         '</div>';
       }).join('');
   });
@@ -2740,40 +2744,187 @@ function renderPadronPop(){
   list.innerHTML=_padHits.map(function(r,i){
     var sub=[];
     if(r.cuits.length)sub.push(r.cuits.map(_padFmtCuit).join('  ·  '));
-    var na=r.asesores.filter(function(a){return a.nombre;}).length;
     var tail=[];
     if(r.config)tail.push(r.config);
-    if(na)tail.push(na+' asesor'+(na>1?'es':''));
-    if(tail.length)sub.push(tail.join('  ·  '));
+    tail.push(_padAsesoresLbl(r));
+    sub.push(tail.join('  ·  '));
     return '<div class="pad-item'+(i===0?' on':'')+'" onclick="applyPadronRow('+i+')">'+
       '<span class="pad-emp">'+_escHtml(r.empresa||'(sin razón social)')+'</span>'+
       (sub.length?'<span class="pad-sub">'+_escHtml(sub.join('  —  '))+'</span>':'')+'</div>';
   }).join('');
 }
-// Completa TODO: razón social, montos (config) y los asesores del padrón.
-// Si la fila no trae asesores, deja los que ya tenías cargados.
+// Completa TODO: razón social, montos (config) y los oficiales del padrón.
+// EL PADRÓN MANDA: si la empresa no tiene oficiales asignados, se respeta y los
+// campos quedan vacíos (no se arrastran los del flyer anterior) + aviso visible.
 function applyPadronRow(i){
   var r=_padHits&&_padHits[i];if(!r)return;
   var e=document.getElementById('empresa');if(e)e.value=r.empresa||'';
-  if(r.config&&typeof setCfg==='function'&&typeof cfgIdx==='function')setCfg(cfgIdx(r.config));
-  var tiene=r.asesores.filter(function(a){return (a.nombre||'').trim();}).length;
-  if(tiene){
-    for(var n=1;n<=4;n++){
-      var a=r.asesores[n-1]||{},sfx=(n===1)?'':String(n);
-      var hay=!!(a.nombre||'').trim();
-      _setVal('nombre'+sfx,hay?a.nombre:'');
-      _setVal('celular'+sfx,hay?a.celular:'');
-      _setVal('email'+sfx,hay?(a.email||_fgMailFromName(a.nombre)):'');
-      var mEl=document.getElementById('email'+sfx);
-      // si el padrón trae el mail, manda el padrón: corto la sugerencia automática
-      if(mEl)mEl.dataset.fgManual=(hay&&a.email)?'1':'';
-      _fgSetAsesorOn(n,hay);
-      if(n>1)_fgShowBlock(n,hay);
-    }
-    _fgRefreshAddBtn();
+  if(typeof setCfg==='function'&&typeof cfgIdx==='function')setCfg(cfgIdx(r.config||''));
+  var tiene=_padNumAsesores(r);
+  for(var n=1;n<=4;n++){
+    var a=(r.asesores&&r.asesores[n-1])||{},sfx=(n===1)?'':String(n);
+    var hay=!!(a.nombre||'').trim();
+    _setVal('nombre'+sfx,hay?a.nombre:'');
+    _setVal('celular'+sfx,hay?a.celular:'');
+    _setVal('email'+sfx,hay?(a.email||_fgMailFromName(a.nombre)):'');
+    var mEl=document.getElementById('email'+sfx);
+    // si el padrón trae el mail, manda el padrón: corto la sugerencia automática
+    if(mEl)mEl.dataset.fgManual=(hay&&a.email)?'1':'';
+    // el bloque 1 queda siempre abierto (aunque vacío) para poder cargarlo a mano
+    if(n===1)_fgSetAsesorOn(1,true);
+    else{_fgSetAsesorOn(n,hay);_fgShowBlock(n,hay);}
   }
+  _fgRefreshAddBtn();
+  _padRef=r;_padDismissed='';   // desde acá se vigilan los cambios contra el padrón
+  _padShowNote(tiene?'':'Esta empresa no tiene oficiales asignados en el padrón.');
   closePadronPop();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
-  showToast('"'+(r.empresa||'Empresa')+'" cargada del padrón'+(tiene?(' ('+tiene+' asesor'+(tiene>1?'es':'')+')'):''));
+  showToast('"'+(r.empresa||'Empresa')+'" cargada del padrón — '+_padAsesoresLbl(r));
+}
+// ── PADRÓN: "sin oficiales asignados" + actualizar el padrón al generar ───────
+// El padrón MANDA: si una empresa no tiene oficiales asignados, se respeta y los
+// campos quedan vacíos (no se arrastran los del flyer anterior), con un aviso
+// visible debajo del nombre de la empresa.
+function _padNumAsesores(r){
+  return ((r&&r.asesores)||[]).filter(function(a){return (a.nombre||'').trim();}).length;
+}
+function _padAsesoresLbl(r){
+  var n=_padNumAsesores(r);
+  return n?(n+' oficial'+(n>1?'es':'')):'sin oficiales asignados';
+}
+// Aviso debajo del campo empresa (se limpia solo al cargar otra empresa).
+function _padShowNote(msg){
+  var wrap=document.querySelector('.fg-pad-wrap');if(!wrap||!wrap.parentNode)return;
+  var el=document.getElementById('fg-pad-note');
+  if(!el){
+    wrap.insertAdjacentHTML('afterend','<div id="fg-pad-note"></div>');
+    el=document.getElementById('fg-pad-note');
+  }
+  if(!el)return;
+  el.innerHTML=msg?('&#9888; '+_escHtml(msg)):'';
+  el.style.display=msg?'block':'none';
+}
+
+// ── ¿Cambió algo respecto del padrón? ────────────────────────────────────────
+var _padRef=null,_padDismissed='';
+function _padCfgIdx(raw){
+  return (typeof cfgIdx==='function')?cfgIdx(raw||''):0;
+}
+function _padCfgName(i){
+  return (typeof CNAMES!=='undefined'&&CNAMES[i])?CNAMES[i]:'BAU';
+}
+// Asesores tal como están HOY en el formulario. Un bloque apagado cuenta como vacío
+// (no se dibuja en el flyer, así que para el padrón es "no asignado").
+function _padFormAsesores(){
+  var out=[];
+  for(var n=1;n<=4;n++){
+    var sfx=(n===1)?'':String(n);
+    var on=_fgAsesorOn(n),nom=on?(_gv('nombre'+sfx)||'').trim():'';
+    out.push({nombre:nom,
+      celular:nom?(_gv('celular'+sfx)||'').trim():'',
+      email  :nom?(_gv('email'+sfx)||'').trim():''});
+  }
+  return out;
+}
+function _padClean(a){
+  return {nombre:(a&&a.nombre||'').trim(),celular:(a&&a.celular||'').trim(),email:(a&&a.email||'').trim()};
+}
+// Devuelve null si no hay nada que actualizar, o {row,empresa,config,asesores,cambios[]}.
+function _padDiff(){
+  if(!_admin||!_padRef||!_padron||_padron.indexOf(_padRef)<0)return null;
+  var emp=(_gv('empresa')||'').trim();
+  if(!emp)return null; // sin razón social no tiene sentido pisar la fila
+  var ci=(typeof ac!=='undefined')?ac:0;
+  var oi=_padCfgIdx(_padRef.config);
+  var cur=_padFormAsesores(),old=[],chg=[];
+  for(var k=0;k<4;k++)old.push(_padClean((_padRef.asesores||[])[k]));
+  // Un mail DEDUCIDO del nombre (el padrón no traía ninguno) NO cuenta como cambio:
+  // si no, cada empresa sin mail cargado dispararía el popup sin que toques nada.
+  for(var k=0;k<4;k++){
+    var cc=cur[k],oo=old[k];
+    if(!oo.email&&cc.nombre&&cc.email&&cc.email===_fgMailFromName(cc.nombre))cc.email='';
+  }
+  if(emp!==(_padRef.empresa||'').trim())
+    chg.push('Raz&oacute;n social: '+_escHtml(_padRef.empresa||'(vac&iacute;a)')+' &rarr; <strong>'+_escHtml(emp)+'</strong>');
+  if(ci!==oi)
+    chg.push('Cashback: '+_escHtml(_padCfgName(oi))+' &rarr; <strong>'+_escHtml(_padCfgName(ci))+'</strong>');
+  for(var n=1;n<=4;n++){
+    var o=old[n-1],c=cur[n-1],lbl='Oficial '+n;
+    if(!o.nombre&&!c.nombre)continue;
+    if(!o.nombre){chg.push(lbl+': <strong>+ '+_escHtml(c.nombre)+'</strong>');continue;}
+    if(!c.nombre){chg.push(lbl+': <strong>&minus; '+_escHtml(o.nombre)+'</strong> (se quita)');continue;}
+    if(o.nombre!==c.nombre)chg.push(lbl+': '+_escHtml(o.nombre)+' &rarr; <strong>'+_escHtml(c.nombre)+'</strong>');
+    if(o.celular!==c.celular)chg.push(lbl+' &middot; celular: '+_escHtml(o.celular||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.celular||'(vac&iacute;o)')+'</strong>');
+    if(o.email!==c.email)chg.push(lbl+' &middot; mail: '+_escHtml(o.email||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.email||'(vac&iacute;o)')+'</strong>');
+  }
+  if(!chg.length)return null;
+  return {row:_padRef,empresa:emp,config:_padCfgName(ci),asesores:cur,cambios:chg};
+}
+// Firma del cambio: si decís "no" y después no tocás nada más, no vuelve a preguntar.
+function _padSig(d){return d.empresa+'|'+d.config+'|'+JSON.stringify(d.asesores);}
+
+// ── Popup "¿actualizar el padrón?" al generar el flyer ───────────────────────
+function _padAskUpdate(){
+  var d=_padDiff();if(!d)return;
+  var sig=_padSig(d);if(sig===_padDismissed)return;
+  if(document.getElementById('pad-upd'))return;
+  if(!document.getElementById('pad-upd-style')){
+    var st=document.createElement('style');st.id='pad-upd-style';
+    st.textContent=
+      '#fg-pad-note{display:none;margin-top:6px;font-size:.7rem;line-height:1.4;color:#b06000;'+
+        'background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.5);border-radius:7px;padding:6px 9px}'+
+      '#pad-upd-ov{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:10000;display:flex;'+
+        'align-items:center;justify-content:center;padding:16px}'+
+      '#pad-upd{background:#fff;border-radius:14px;width:min(430px,100%);max-height:86vh;overflow:auto;'+
+        'box-shadow:0 18px 50px rgba(0,0,0,.3)}'+
+      'html.dark #pad-upd{background:#23262c;color:#e8e8e8}'+
+      '#pad-upd h3{margin:0;padding:16px 18px 6px;font-size:.95rem}'+
+      '#pad-upd .pu-sub{padding:0 18px;font-size:.76rem;color:var(--gray,#888);line-height:1.5}'+
+      '#pad-upd ul{margin:12px 18px;padding:0 0 0 4px;list-style:none}'+
+      '#pad-upd li{font-size:.76rem;line-height:1.55;padding:5px 0 5px 12px;border-left:2px solid rgba(198,40,40,.35)}'+
+      '#pad-upd .pu-foot{display:flex;gap:8px;justify-content:flex-end;padding:8px 18px 16px}'+
+      '#pad-upd button{border:none;border-radius:8px;padding:9px 15px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}'+
+      '#pad-upd .pu-no{background:rgba(128,128,128,.16);color:inherit}'+
+      '#pad-upd .pu-si{background:var(--red,#c62828);color:#fff}';
+    document.head.appendChild(st);
+  }
+  var ov=document.createElement('div');ov.id='pad-upd-ov';
+  ov.innerHTML='<div id="pad-upd">'+
+    '<h3>&#128260; Actualizar el padr&oacute;n</h3>'+
+    '<p class="pu-sub">Generaste el flyer de <strong>'+_escHtml(d.empresa)+'</strong> con datos distintos a los que tiene el padr&oacute;n:</p>'+
+    '<ul><li>'+d.cambios.join('</li><li>')+'</li></ul>'+
+    '<p class="pu-sub">Si lo actualiz&aacute;s, queda guardado para todos y la pr&oacute;xima vez que busques esta empresa ya sale con estos datos. Acord&aacute;te de <strong>bajarte el padr&oacute;n</strong> si quer&eacute;s tener el Excel de tu computadora al d&iacute;a.</p>'+
+    '<div class="pu-foot">'+
+      '<button class="pu-no" onclick="_padCloseUpdate(1)">No, dejarlo como est&aacute;</button>'+
+      '<button class="pu-si" onclick="_padDoUpdate()">Actualizar padr&oacute;n</button>'+
+    '</div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){if(e.target===ov)_padCloseUpdate(1);});
+}
+function _padCloseUpdate(dismiss){
+  var ov=document.getElementById('pad-upd-ov');
+  if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
+  if(dismiss){var d=_padDiff();if(d)_padDismissed=_padSig(d);}
+}
+function _padDoUpdate(){
+  var d=_padDiff();
+  if(!d){_padCloseUpdate(0);return;}
+  var btn=document.querySelector('#pad-upd .pu-si');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  d.row.empresa=d.empresa;
+  d.row.config=d.config;
+  d.row.asesores=d.asesores.map(function(a){return {nombre:a.nombre,celular:a.celular,email:a.email};});
+  savePadron(_padron,function(ok){
+    _padCloseUpdate(0);
+    if(ok){
+      _padDismissed='';
+      _padShowNote(_padNumAsesores(d.row)?'':'Esta empresa no tiene oficiales asignados en el padrón.');
+      showToast('Padrón actualizado: '+d.empresa);
+    }
+  });
+}
+// Se llama después de descargar el PDF/PNG individual (nunca en el masivo).
+function _padAfterFlyer(){
+  try{if(_admin&&_padRef)setTimeout(_padAskUpdate,350);}catch(e){console.warn('padron:',e);}
 }
