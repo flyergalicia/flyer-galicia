@@ -543,6 +543,7 @@ const checks = {
   'historial: aplica los 4 asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)'),
   'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
+  'sin cashback: fondo muestreado': _authSrc.includes('function _bgDe(') && _authSrc.includes('c.fillStyle=v.nocb?_bgDe(mx,mw,mh):M.bg'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);

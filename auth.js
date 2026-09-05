@@ -1302,12 +1302,29 @@ function fgDrawEmpresa(c,s,empresa){
 function fgDrawMontos(c,s,v){
   var M=_fgCfg().montos,se=_fgSE(s);
   var my=Math.round(M.y*se),fs=Math.round(M.fs*se);
-  // "sin cashback": mantengo las cajas de fondo (por si el flyer trae importes
-  // impresos debajo) pero no escribo ningún número.
+  // "sin cashback": hay que TAPAR igual la zona (por si el flyer trae importes
+  // impresos debajo) pero sin escribir número y sin que se vean cuatro cajitas
+  // vacías: pinto con el color real del fondo, muestreado del margen izquierdo
+  // a la misma altura. Si el canvas no deja leer píxeles, caigo en M.bg.
   var vals=v.nocb?['','','','']:[v.m1,v.m2,v.m3,v.m4];
+  // Color de fondo REAL justo arriba de cada caja (mediana de 5 muestras, para
+  // que un píxel de texto suelto no lo desvíe). Así, sin cashback, la zona queda
+  // tapada pero indistinguible del fondo en vez de mostrar 4 cajitas vacías.
+  function _bgDe(mx,mw,mh){
+    try{
+      var y=Math.max(1,my-Math.round(mh/2)-Math.max(4,Math.round(5*se)));
+      var rs=[],gs=[],bs=[];
+      for(var k=0;k<5;k++){
+        var x=Math.max(1,Math.round(mx-mw/2+mw*(k+0.5)/5));
+        var d=c.getImageData(x,y,1,1).data;rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);
+      }
+      function med(a){a.sort(function(p,q){return p-q;});return a[2];}
+      return 'rgb('+med(rs)+','+med(gs)+','+med(bs)+')';
+    }catch(e){return M.bg;}
+  }
   M.boxes.forEach(function(m,i){
     var mx=Math.round(m.xc*se),mw=Math.round(m.ew*se),mh=Math.round(M.mh*se);
-    c.fillStyle=M.bg;c.fillRect(mx-mw/2,my-mh/2,mw,mh);
+    c.fillStyle=v.nocb?_bgDe(mx,mw,mh):M.bg;c.fillRect(mx-mw/2,my-mh/2,mw,mh);
     c.font="bold "+fs+"px Arial,sans-serif";
     c.fillStyle=m.col;c.textAlign="center";c.textBaseline="middle";
     c.fillText(vals[i],mx,my);
