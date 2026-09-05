@@ -538,6 +538,11 @@ const checks = {
   'padron: sin cashback': _authSrc.includes('function _padCfgOf(') && _authSrc.includes('function _fgSetNoCB(') && _authSrc.includes('window.setCfg=fgSetCfg') && _authSrc.includes("var vals=v.nocb?['','','','']"),
   'padron: SIN explicito + nombre de archivo': _authSrc.includes('function _padCfgSin(') && _authSrc.includes('function _padAvisoSinCB(') && _authSrc.includes("_fn.value='Flyer_'+(r.empresa||'')"),
   '3 asesores: banda ancha': _authSrc.includes('ew3:1140') && _authSrc.includes('xs=[bx+bw/6,bx+bw/2,bx+5*bw/6];colW=bw/3;'),
+  // Bugs encontrados en la revision general (ver tests en scratchpad)
+  'padron: filas saneadas al cargar': _authSrc.includes('function _padSane(') && _authSrc.includes('_padron=_padSane(d&&d.rows)'),
+  'historial: aplica los 4 asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)'),
+  'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
+  'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);

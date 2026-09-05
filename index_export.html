@@ -2089,17 +2089,19 @@ function fgLoadHistory(i){
   var h=flyerHistory[i];if(!h)return;
   _fgWithOpt(h.opt||1,function(){
     var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
-    s('empresa',h.v.empresa||'');s('nombre',h.v.nombre||'');
-    s('celular',(h.v.celular||'').replace('Cel: ',''));s('email',h.v.email||'');
+    s('empresa',h.v.empresa||'');
     if(h.v.legal)s('legal-text',h.v.legal);
-    if(h.v.has2){if(typeof a2!=='undefined'&&!a2&&typeof toggleA2==='function')toggleA2();
-      s('nombre2',h.v.nombre2||'');s('celular2',(h.v.celular2||'').replace('Cel: ',''));s('email2',h.v.email2||'');}
-    [3,4].forEach(function(i){
-      if(!h.v['has'+i])return;
-      if(i===3&&!_fgA3)toggleA3();if(i===4&&!_fgA4)toggleA4();
-      s('nombre'+i,h.v['nombre'+i]||'');
-      s('celular'+i,(h.v['celular'+i]||'').replace('Cel: ',''));
-      s('email'+i,h.v['email'+i]||'');
+    // Los 4 asesores se aplican SIEMPRE, los tuviera o no el flyer guardado.
+    // Antes sólo se tocaban los que el ítem tenía, así que cargar un flyer de 1
+    // asesor después de uno de 3 dejaba pegados los otros dos del anterior.
+    [1,2,3,4].forEach(function(k){
+      var sfx=(k===1)?'':String(k);
+      var hay=(k===1&&h.v.has1===undefined)?!!(h.v.nombre||'').trim():!!h.v['has'+k];
+      s('nombre'+sfx,hay?(h.v['nombre'+sfx]||''):'');
+      s('celular'+sfx,hay?((h.v['celular'+sfx]||'').replace('Cel: ','')):'');
+      s('email'+sfx,hay?(h.v['email'+sfx]||''):'');
+      if(k===1)_fgSetAsesorOn(1,true);   // el bloque 1 queda siempre abierto
+      else _fgSetAsesorOn(k,hay);
     });
     _fgSyncAsesorBlocks(); // muestra los bloques que el flyer del historial tenía
     _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // el historial no es una fila del padrón
@@ -2137,6 +2139,7 @@ function _installFlyerEngine(){
   window.redlPDF=fgRedlPDF;window.loadHistory=fgLoadHistory;
   window.resetVals=fgResetVals;
   window.getVals=fgGetVals;                                // hasta 4 asesores
+  window.buildFn=fgBuildFn;                                // nombre de archivo seguro
   window.setCfg=fgSetCfg;                                  // + estado "sin cashback"
   window.toggleA3=toggleA3;window.toggleA4=toggleA4;
   window.genAll=fgGenAll;window.dlTemplate=fgDlTemplate;   // masivo + plantilla con 3 y 4
@@ -2595,11 +2598,36 @@ function fgSavePNG(fc,v){
   logFlyerToSupabase(v,fn,'png');
   _padAfterFlyer();
 }
+// ── NOMBRES DE ARCHIVO ───────────────────────────────────────────────────────
+// Windows no acepta \ / : * ? " < > | en un nombre de archivo, y en el ZIP del
+// masivo una "/" en la razón social creaba una CARPETA (el flyer quedaba adentro
+// de un directorio en vez de suelto). Se sanea todo por acá.
+function _fgSafeName(s){
+  var t=(s==null?'':String(s))
+    .replace(/[\\/:*?"<>|]+/g,'-')
+    .replace(/[\x00-\x1f]+/g,'')
+    .replace(/\s+/g,' ')
+    .replace(/[. ]+$/,'')
+    .trim();
+  return t.slice(0,120)||'flyer';
+}
+// Pisa buildFn de _source.html: sanea el nombre y usa v.config (que ya sabe de
+// "Sin cashback"), en vez de leer CNAMES[ac], que se quedaba desactualizado.
+function fgBuildFn(pattern,v){
+  var d=new Date();
+  var fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var cfg=(v&&v.config)||((typeof CNAMES!=='undefined'&&typeof ac!=='undefined'&&CNAMES[ac])?CNAMES[ac]:'BAU');
+  return _fgSafeName((pattern||'Flyer {empresa}')
+    .replace(/{empresa}/g,(v&&v.empresa)||'flyer')
+    .replace(/{asesor}/g,(v&&v.nombre)||'asesor')
+    .replace(/{config}/g,cfg)
+    .replace(/{fecha}/g,fecha));
+}
 // MASIVO con hasta 4 asesores. Pisa genAll de _source.html (que sólo mapea 1 y 2).
 // Los Excel viejos (sin columnas 3/4) siguen funcionando igual.
 function fgGenAll(){
   if(!window.excelData||!excelData.length)return;
-  var total=excelData.length,cur=0,zip=new JSZip();
+  var total=excelData.length,cur=0,zip=new JSZip(),usados={};
   var legalText=document.getElementById('legal-text').value;
   logFlyerBulkToSupabase(total);
   var pb=document.getElementById('prog-bar'),pf=document.getElementById('prog-fill'),
@@ -2643,7 +2671,12 @@ function fgGenAll(){
     var pw=210,ph=(fc.height/fc.width)*pw;
     var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
     pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
-    zip.file('Flyer '+v.empresa+'.pdf',pdf.output('arraybuffer'));
+    // Dos filas con la misma razón social generaban el MISMO nombre y la segunda
+    // pisaba a la primera: el ZIP salía con menos flyers de los que decía.
+    var base='Flyer '+_fgSafeName(v.empresa),nom=base;
+    usados[base]=(usados[base]||0)+1;
+    if(usados[base]>1)nom=base+' ('+usados[base]+')';
+    zip.file(nom+'.pdf',pdf.output('arraybuffer'));
     cur++;
     if(pf)pf.style.width=Math.round((cur/total)*100)+'%';
     if(pt)pt.textContent=cur<total?('Generando '+(cur+1)+' de '+total+'...'):'Finalizando...';
@@ -2930,26 +2963,51 @@ function padronSearch(q,limit){
   var dig=_padDigits(q),toks=t.split(' ').filter(Boolean),out=[];
   for(var i=0;i<rows.length&&out.length<lim;i++){
     var r=rows[i],hit=false;
-    if(dig.length>=3){
+    if(!r)continue;
+    if(dig.length>=3&&r.cuits){
       for(var j=0;j<r.cuits.length;j++){if(r.cuits[j].indexOf(dig)>=0){hit=true;break;}}
     }
     if(!hit){
       var e=_padNorm(r.empresa);
-      hit=toks.every(function(k){return e.indexOf(k)>=0;});
+      hit=!!e&&toks.every(function(k){return e.indexOf(k)>=0;});
     }
     if(hit)out.push(r);
   }
   return out;
 }
 function _padCuitCount(rows){
-  var n=0;(rows||[]).forEach(function(r){n+=(r.cuits||[]).length;});return n;
+  var n=0;(rows||[]).forEach(function(r){n+=((r&&r.cuits)||[]).length;});return n;
+}
+// El padrón viene de un JSON del bucket: si alguna fila llega incompleta (una
+// versión vieja, un archivo editado a mano, un guardado a medias) el resto del
+// código se caía. Se sanea UNA vez al cargar y de ahí en más la forma es fija.
+function _padSane(rows){
+  var out=[];
+  (rows||[]).forEach(function(r){
+    if(!r||typeof r!=='object')return;
+    var cu=[],seen={};
+    (Array.isArray(r.cuits)?r.cuits:_padCuits(r.cuits)).forEach(function(x){
+      var d=_padDigits(x);if(d&&!seen[d]){seen[d]=1;cu.push(d);}
+    });
+    var as=[];
+    for(var n=0;n<4;n++){
+      var a=(Array.isArray(r.asesores)?r.asesores[n]:null)||{};
+      as.push({nombre :(a.nombre==null?'':String(a.nombre)).trim(),
+               celular:(a.celular==null?'':String(a.celular)).trim(),
+               email  :(a.email==null?'':String(a.email)).trim()});
+    }
+    var emp=(r.empresa==null?'':String(r.empresa)).trim();
+    if(!emp&&!cu.length)return;
+    out.push({empresa:emp,cuits:cu,config:(r.config==null?'':String(r.config)).trim(),asesores:as});
+  });
+  return out;
 }
 function loadPadron(force,cb){
   if(_padron&&!force){if(cb)cb(_padron);return;}
   fetch(FLYERS_PUBLIC+_PADRON_FILE+'?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
     .then(function(d){
-      _padron=(d&&Array.isArray(d.rows))?d.rows:[];
+      _padron=_padSane(d&&d.rows);
       _padronAt=(d&&d.updated_at)||'';
       if(cb)cb(_padron);
     }).catch(function(){_padron=_padron||[];if(cb)cb(_padron);});
@@ -3330,7 +3388,7 @@ var _padNewDismissed='',_padPending=null;
 // si la cargaste a mano en vez de con la lupa.
 function _padFindByName(name){
   var t=_padNorm(name);if(!t||!_padron)return null;
-  for(var i=0;i<_padron.length;i++){if(_padNorm(_padron[i].empresa)===t)return _padron[i];}
+  for(var i=0;i<_padron.length;i++){if(_padron[i]&&_padNorm(_padron[i].empresa)===t)return _padron[i];}
   return null;
 }
 function _padStyle(){
