@@ -536,6 +536,8 @@ const checks = {
   'padron: el nombre identifica la empresa': _authSrc.includes('function _padCuitDupes(') && _authSrc.includes('if(_padNorm(emp)!==_padNorm(_padRef.empresa))return null;') && !_authSrc.includes('d.row.empresa=d.empresa;'),
   'padron: cashback tolerante + informe': _authSrc.includes('function _padCfgParse(') && _authSrc.includes('function _padValidate(') && _authSrc.includes('_padAskImport(informe)') && !_authSrc.includes('cfgIdx(row.config||row.Config'),
   'padron: sin cashback': _authSrc.includes('function _padCfgOf(') && _authSrc.includes('function _fgSetNoCB(') && _authSrc.includes('window.setCfg=fgSetCfg') && _authSrc.includes("var vals=v.nocb?['','','','']"),
+  'padron: SIN explicito + nombre de archivo': _authSrc.includes('function _padCfgSin(') && _authSrc.includes('function _padAvisoSinCB(') && _authSrc.includes("_fn.value='Flyer_'+(r.empresa||'')"),
+  '3 asesores: banda ancha': _authSrc.includes('ew3:1140') && _authSrc.includes('xs=[bx+bw/6,bx+bw/2,bx+5*bw/6];colW=bw/3;'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
