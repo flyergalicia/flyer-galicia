@@ -544,6 +544,11 @@ const checks = {
   'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
   'sin cashback: fondo muestreado': _authSrc.includes('function _bgDe(') && _authSrc.includes('c.fillStyle=v.nocb?_bgDe(mx,mw,mh):M.bg'),
+  // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN
+  'pegar: parser': _authSrc.includes('function _fgParseContacto(') && _authSrc.includes('function _fgPartirTel(') && _authSrc.includes('function _fgVerificaTel('),
+  'pegar: prioriza mail de Galicia': _authSrc.includes("x.indexOf('@'+_PAD_DOMINIO)") && _authSrc.includes("_PAD_DOMINIO='bancogalicia.com.ar'"),
+  'pegar: boton por asesor, solo admin': _authSrc.includes('function _fgEnsurePasteBtns(') && _authSrc.includes('if(!_admin)return;') && _authSrc.includes('_fgEnsurePasteBtns();'),
+  'pegar: aplica/limpia/deshace': _authSrc.includes('function _fgApplyParsed(') && _authSrc.includes('function _fgUndoPaste(') && _authSrc.includes('esPersona'),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);

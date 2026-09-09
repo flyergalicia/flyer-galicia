@@ -806,6 +806,7 @@ function checkProfile(user){
     var _ddName=document.getElementById('hdr-dd-name');if(_ddName)_ddName.textContent=_myName;
     var _ddRole=document.getElementById('hdr-dd-role');if(_ddRole)_ddRole.innerHTML=_roleBadge(p.role);
     if(_canNotes)_initAsesoresUI();
+    if(_admin)_fgEnsurePasteBtns(); // boton de pegado por asesor: solo admin
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});
@@ -1903,6 +1904,7 @@ function _fgEnsureAsesores34(){
     if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
   });
   if(_canNotes)_initAsesoresUI(); // engancha el popover de asesores guardados en 3 y 4
+  if(_admin)_fgEnsurePasteBtns(); // botones de pegado en los asesores 3 y 4 recien creados
 }
 // ── AUTOCOMPLETAR EL MAIL DESDE EL NOMBRE ─────────────────────────────────────
 // Patrón Galicia: nombre.apellido@bancogalicia.com.ar
@@ -3878,6 +3880,352 @@ function fgSetCfg(n){
   });
   var btns=document.querySelectorAll('.cfg-btn');
   Array.prototype.forEach.call(btns,function(b,i){b.classList.toggle('active',i===n);});
+  if(typeof redraw==='function')redraw();
+}
+
+// ── PEGAR DATOS DEL OFICIAL (nombre / celular / mail desde un texto pegado) ──
+// Botón "⚡ Pegar" al lado del título de CADA asesor (Asesor 1..4), SOLO ADMIN.
+// Pegás el mensaje/firma/dato suelto que te mandaron y completa Nombre, Celular
+// y Mail solos, estandarizando el formato SIN tocar los dígitos reales del cel.
+// Vive entero en auth.js (sobrevive a que se regenere _source.html).
+//
+// Reglas (decididas con el usuario):
+//  · Nombre → Primera letra de cada palabra en mayúscula, resto minúscula.
+//    Las iniciales ("A.") quedan como iniciales.
+//  · Celular → formato fijo "11 3617-9603" (área · espacio · número con guión).
+//    Se sacan prefijos de discado (+54, 0, 9, 15) pero NUNCA se toca un dígito
+//    real del número: se verifica reconstruyendo el original.
+//  · Mail → sólo se normaliza a minúscula. Si hay varios mails en el texto, se
+//    prioriza SIEMPRE el que termina en @bancogalicia.com.ar (puede no coincidir
+//    con el nombre, y está bien: no se inventa, se toma tal cual está escrito).
+//  · Si no hay celular en el texto, se completan sólo Nombre y Mail (no es error).
+//  · Si detecta una PERSONA (nombre o mail) y no encuentra alguno de los otros
+//    campos, LIMPIA ese campo (para no mezclar datos de dos personas distintas)
+//    y lo avisa. EXCEPCIÓN: si sólo hay un teléfono suelto en el texto (sin
+//    nombre ni mail), sólo completa el celular y no toca nombre/mail.
+
+var _PAD_DOMINIO='bancogalicia.com.ar';
+
+// Title Case respetando iniciales ("A." -> "A.", no "A.")
+function _fgTitleCase(s){
+  return (s||'').trim().split(/\s+/).map(function(w){
+    if(/^[A-Za-zÁÉÍÓÚÑáéíóúñ]\.$/.test(w))return w.charAt(0).toUpperCase()+'.';
+    return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+// Códigos de área argentinos de 3 dígitos (el resto son 2 -CABA/GBA- o 4).
+var _FG_AREAS3=['220','221','223','230','236','237','249','260','261','263','264',
+  '266','280','291','297','299','341','342','343','345','348','351','353','358',
+  '362','364','370','376','379','380','381','383','385','387','388'];
+
+// Separa prefijos de discado SIN tocar el número real; guarda en "quitados" cada
+// pedazo que sacó y en qué posición estaba, para poder RECONSTRUIR el original
+// y verificar que no se alteró ningún dígito (_fgVerificaTel).
+function _fgPartirTel(d0){
+  var d=d0,quit=[];
+  function cortaIni(n,etq){quit.push({pos:0,dig:d.slice(0,n),etq:etq});d=d.slice(n);}
+  if(d.indexOf('0054')===0)cortaIni(4,'+54');
+  else if(d.indexOf('54')===0&&d.length>10)cortaIni(2,'+54');
+  if(d.charAt(0)==='0')cortaIni(1,'0');
+  if(d.length===11&&d.charAt(0)==='9')cortaIni(1,'9');
+  if(d.length===12){ // el "15" va DESPUÉS del código de área: 11 15 3617 9603
+    var m=d.match(/^(\d{2,4})15(\d{6,8})$/);
+    if(m){quit.push({pos:m[1].length,dig:'15',etq:'15'});d=m[1]+m[2];}
+  }
+  if(d.length!==10)return null;
+  var area=d.indexOf('11')===0?2:(_FG_AREAS3.indexOf(d.slice(0,3))>=0?3:4);
+  return {area:d.slice(0,area),numero:d.slice(area),quitados:quit,digitos:d,original:d0};
+}
+// GARANTÍA: vuelvo a insertar lo que saqué, en su posición exacta, y tiene que
+// dar EXACTAMENTE el texto original. Si no da, no se usa ese teléfono.
+function _fgVerificaTel(t){
+  var d=t.digitos;
+  for(var i=t.quitados.length-1;i>=0;i--){
+    var q=t.quitados[i];
+    d=d.slice(0,q.pos)+q.dig+d.slice(q.pos);
+  }
+  return d===t.original;
+}
+function _fgFmtCel(t){return t.area+' '+t.numero.slice(0,t.numero.length-4)+'-'+t.numero.slice(-4);}
+
+var _FG_PC_MOVIL=/(cel|celular|m[oó]vil|whatsapp|wsp|\bm\s*[.:])\s*[^\d]{0,3}$/i;
+var _FG_PC_FIJO=/(tel[eé]fono|\btel\b|\bt\s*[.:]|l[ií]nea|conmutador|interno|\bint\b|fax)\s*[^\d]{0,3}$/i;
+var _FG_PC_FRASE={};
+['me','te','se','nos','es','son','era','fue','un','una','unos','unas','con','para',
+ 'por','que','al','en','su','sus','mi','tu','este','esta','esto','eso','hola','buenas',
+ 'buenos','gracias','saludos','abrazo','cualquier','cosa','avisas','aviso','paso','pasa',
+ 'dejo','adjunto','escribio','pidiendo','pide','necesito','flyer','reunion','cliente',
+ 'empresa','banco','galicia','negocios','empresas','sucursal','interno','senior','junior',
+ 'gerente','ok','dale','ahi','aca','alli','mail','email','correo','cel','celular','tel',
+ 'telefono','telefonos','movil','whatsapp','wsp','cuit','cuil','dni','int','fax','sa',
+ 'srl','sas','sociedad','anonima','s','datos','contacto','nombre','asesor','asesora',
+ 'oficial','ejecutivo','ejecutiva'].forEach(function(w){_FG_PC_FRASE[w]=1;});
+var _FG_PC_PARTIC={};
+['de','del','la','las','los','le','di','da','do','van','von','mac','mc','san','santa','y']
+  .forEach(function(w){_FG_PC_PARTIC[w]=1;});
+var _FG_PC_ROLES='nombre|asesor|asesora|oficial|ejecutivo|ejecutiva|contacto|referente|responsable';
+
+function _fgLimpiarPrefijoNombre(l){
+  var s=l.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ]+/,'');
+  s=s.replace(new RegExp('^(el|la|su|mi|nuestro|nuestra)?\\s*('+_FG_PC_ROLES+')\\s*(es|seria|sería)?\\s*[:\\-]?\\s*','i'),'');
+  return s.trim();
+}
+
+// Extrae {nombre, celular, email, avisos:[], ignorado:[], celOriginal, celQuitados:[]}
+// de un texto pegado (mensaje, firma, dato suelto, chat desordenado...).
+function _fgParseContacto(texto){
+  var out={nombre:'',celular:'',email:'',avisos:[],ignorado:[]};
+  var t=String(texto||'');
+
+  // 1) MAIL — prefiero SIEMPRE @bancogalicia.com.ar; puede NO derivar del nombre.
+  var reMail=/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+  var mails=(t.match(reMail)||[]).map(function(x){return x.toLowerCase();});
+  var gal=mails.filter(function(x){return x.indexOf('@'+_PAD_DOMINIO)===(x.length-('@'+_PAD_DOMINIO).length);});
+  if(gal.length){
+    out.email=gal[0];
+    var otros=mails.filter(function(x){return x!==out.email;});
+    if(otros.length)out.ignorado.push(otros.length+' mail(s) ajenos a Galicia');
+    if(gal.length>1)out.avisos.push('hay '+gal.length+' mails de Galicia, tomé el primero');
+  }else if(mails.length){
+    out.email=mails[0];
+    out.avisos.push('el mail no termina en @'+_PAD_DOMINIO+' — revisalo');
+  }
+  var sinMail=t.replace(reMail,' ');
+
+  // 2) CELULAR — puede no haber ninguno, es válido.
+  var cands=[],reTel=/(?:[+(]?\d[\d\s().\-/]{6,}\d)/g,m; // [+(]? también captura el "(" de apertura, para mostrar el original completo
+  while((m=reTel.exec(sinMail))){
+    var bruto=m[0].trim(),dig=_padDigits(bruto);
+    if(dig.length<8||dig.length>15)continue;
+    if(/\d{2}-\d{8}-\d/.test(bruto)){out.ignorado.push('un CUIT');continue;}
+    if(/^\d{1,2}[/.]\d{1,2}[/.]\d{2,4}$/.test(bruto)){out.ignorado.push('una fecha');continue;}
+    var i=sinMail.indexOf(bruto),antes=sinMail.slice(Math.max(0,i-18),i);
+    cands.push({bruto:bruto,dig:dig,puntos:(_FG_PC_MOVIL.test(antes)?10:0)-(_FG_PC_FIJO.test(antes)?10:0)});
+  }
+  var ok=cands.map(function(c){return {bruto:c.bruto,dig:c.dig,puntos:c.puntos,t:_fgPartirTel(c.dig)};})
+    .filter(function(c){return c.t;}).sort(function(a,b){return b.puntos-a.puntos;});
+  if(ok.length){
+    var c=ok[0];
+    if(!_fgVerificaTel(c.t))out.avisos.push('no pude verificar el número — lo dejé como estaba');
+    else{out.celular=_fgFmtCel(c.t);out.celOriginal=c.bruto;out.celQuitados=c.t.quitados.map(function(q){return q.etq;});}
+    ok.slice(1).forEach(function(x){out.ignorado.push('otro número ('+x.bruto+')');});
+  }else if(cands.length){
+    out.avisos.push('"'+cands[0].bruto+'" no parece un celular argentino');
+  }
+  var sinTel=sinMail.replace(reTel,' ');
+
+  // 3) NOMBRE — el mail es una PISTA para UBICARLO en el texto, no un requisito
+  //    (el mail puede no derivar del nombre real de la persona).
+  var usuario=out.email?_padNorm(out.email.split('@')[0]):'';
+  var partes=usuario?usuario.split(/[._\-0-9]+/).filter(function(p){return p.length>2;}):[];
+  var palabras=sinTel.split(/[^A-Za-zÁÉÍÓÚÑáéíóúñ'’.]+/).filter(Boolean);
+  function esPal(w){return /^[A-Za-zÁÉÍÓÚÑáéíóúñ'’]+\.?$/.test(w);}
+  function esFrase(w){var k=_padNorm(w).replace(/\./g,'');return _FG_PC_FRASE[k]&&!_FG_PC_PARTIC[k];}
+
+  var elegido='',via='';
+  if(partes.length){
+    var mejorV=null;
+    for(var pi=0;pi<palabras.length;pi++){
+      if(!esPal(palabras[pi])||esFrase(palabras[pi]))continue;
+      for(var n=2;n<=5&&pi+n<=palabras.length;n++){
+        var win=palabras.slice(pi,pi+n);
+        var todasPal=win.every(esPal),algunaFrase=win.some(esFrase);
+        if(!todasPal||algunaFrase)break; // corto la ventana en la primera "no-palabra"
+        if(win.every(function(w){return _FG_PC_PARTIC[_padNorm(w)];}))continue;
+        var k=_padNorm(win.join('')).replace(/[^a-z]/g,'');
+        var p=0;
+        partes.forEach(function(x){if(k.indexOf(x)>=0)p+=10;});
+        if(!p)continue;
+        p-=n*2; // premio la ventana más corta
+        if(!mejorV||p>mejorV.p)mejorV={c:win.join(' '),p:p};
+      }
+    }
+    if(mejorV){elegido=mejorV.c;via='ubicado por el mail';}
+  }
+  if(!elegido){
+    var lineas=sinTel.split(/[\n\r;|,]+/).map(function(x){return x.trim();}).filter(Boolean);
+    var mejorL=null;
+    lineas.forEach(function(l,k2){
+      var c2=_fgLimpiarPrefijoNombre(l);
+      var w2=c2.split(/\s+/).filter(Boolean);
+      if(w2.length<2||w2.length>5)return;
+      if(!w2.every(esPal))return;
+      if(w2.some(esFrase))return;
+      if(w2.every(function(x){return _FG_PC_PARTIC[_padNorm(x)];}))return;
+      var p2=Math.max(0,3-k2);
+      if(new RegExp('^(el|la|su)?\\s*('+_FG_PC_ROLES+')','i').test(l.trim()))p2+=5;
+      if(!mejorL||p2>mejorL.p)mejorL={c:c2,p:p2};
+    });
+    if(mejorL){elegido=mejorL.c;via='deducido del texto — verificalo';}
+  }
+  if(elegido){out.nombre=_fgTitleCase(elegido);out.avisos.push(via);}
+  return out;
+}
+
+// ── UI: botón "⚡ Pegar" + panel por cada asesor (1..4) — SOLO ADMIN ─────────
+var _fgPasteState={};
+function _fgPasteStyle(){
+  if(document.getElementById('fg-paste-style'))return;
+  var st=document.createElement('style');st.id='fg-paste-style';
+  st.textContent=
+    '.fg-paste-btn{display:inline-flex;align-items:center;gap:3px;margin-left:8px;'+
+      'font-size:.62rem;font-weight:700;text-transform:none;letter-spacing:0;'+
+      'color:var(--gray,#888);background:rgba(128,128,128,.12);border:1px solid transparent;'+
+      'border-radius:999px;padding:2px 8px;cursor:pointer;transition:.15s;vertical-align:middle}'+
+    '.fg-paste-btn:hover{color:var(--red,#c62828);background:rgba(198,40,40,.1)}'+
+    '.fg-paste-btn.on{color:#fff;background:var(--red,#c62828)}'+
+    '.fg-paste-wrap{margin:2px 0 10px;padding:8px 9px;border:1.5px dashed rgba(128,128,128,.4);'+
+      'border-radius:8px;background:rgba(128,128,128,.05)}'+
+    '.fg-paste-hint{font-size:.66rem;color:var(--gray,#888);line-height:1.4;margin-bottom:6px}'+
+    '.fg-paste-ta{width:100%;box-sizing:border-box;min-height:52px;padding:7px 9px;'+
+      'border:1.5px solid var(--border,#ddd);border-radius:7px;font-family:"DM Sans",sans-serif;'+
+      'font-size:.78rem;background:var(--light,#fafafa);outline:none;resize:vertical;'+
+      'color:inherit;transition:border-color .2s}'+
+    '.fg-paste-ta:focus{border-color:var(--red,#c62828);background:#fff}'+
+    '.fg-paste-res{margin-top:7px;font-size:.68rem;line-height:1.5}'+
+    '.fg-paste-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:3px}'+
+    '.fg-paste-chip{padding:1px 7px;border-radius:999px;background:rgba(128,128,128,.14);'+
+      'color:var(--gray,#888);font-weight:600}'+
+    '.fg-paste-chip.ok{background:rgba(46,125,50,.14);color:#2e7d32}'+
+    '.fg-paste-lines{color:var(--gray,#777);margin-bottom:2px}'+
+    '.fg-paste-ign{color:var(--gray,#999);font-style:italic;margin-bottom:2px}'+
+    '.fg-paste-warn{color:#b06000}'+
+    '.fg-paste-undone{color:var(--gray,#888)}'+
+    '.fg-paste-undo{margin-top:2px;border:none;background:none;color:var(--gray,#888);'+
+      'text-decoration:underline;font-size:.66rem;cursor:pointer;padding:0}'+
+    '.fg-paste-undo:hover{color:var(--red,#c62828)}';
+  document.head.appendChild(st);
+}
+// Inyecta el botón "⚡ Pegar" en el título de cada asesor y el panel dentro de
+// su bloque de campos (así se muestra/oculta solo junto con el bloque). Sólo
+// para ADMIN; idempotente (dataset.fgPaste evita duplicar si se llama de nuevo.
+function _fgEnsurePasteBtns(){
+  if(!_admin)return;
+  _fgPasteStyle();
+  for(var n=1;n<=4;n++){
+    var b=_fgBlock(n);if(!b||b.sec.dataset.fgPaste)continue;
+    b.sec.dataset.fgPaste='1';
+    b.sec.insertAdjacentHTML('beforeend',
+      ' <span class="fg-paste-btn" id="fg-paste-btn-'+n+'" '+
+      'onclick="event.stopPropagation();_fgTogglePaste('+n+')" '+
+      'title="Pegar los datos del oficial (nombre, celular, mail) y completarlos solo">'+
+      '⚡ Pegar</span>');
+    b.fields.insertAdjacentHTML('afterbegin',
+      '<div class="fg-paste-wrap" id="fg-paste-'+n+'" style="display:none">'+
+        '<div class="fg-paste-hint">Pegá acá el mensaje, la firma o los datos sueltos del oficial.</div>'+
+        '<textarea class="fg-paste-ta" id="fg-paste-ta-'+n+'" rows="3" '+
+          'placeholder="Ej: Julieta A. De Santis, 11 3617-9603, julieta.desantis@bancogalicia.com.ar" '+
+          'oninput="_fgPasteHandle('+n+')"></textarea>'+
+        '<div class="fg-paste-res" id="fg-paste-res-'+n+'"></div>'+
+      '</div>');
+  }
+}
+function _fgTogglePaste(n){
+  var w=document.getElementById('fg-paste-'+n);if(!w)return;
+  var btn=document.getElementById('fg-paste-btn-'+n);
+  var abrir=(w.style.display==='none'||!w.style.display);
+  w.style.display=abrir?'block':'none';
+  if(btn)btn.classList.toggle('on',abrir);
+  if(abrir){
+    // arranca en limpio cada vez que se abre: nueva "sesión" de pegado
+    _fgPasteState[n]={snapshot:null,timer:null};
+    var ta=document.getElementById('fg-paste-ta-'+n);
+    var res=document.getElementById('fg-paste-res-'+n);
+    if(res)res.innerHTML='';
+    if(ta){ta.value='';setTimeout(function(){ta.focus();},0);}
+  }
+}
+function _fgPasteHandle(n){
+  var st=_fgPasteState[n]||(_fgPasteState[n]={});
+  clearTimeout(st.timer);
+  st.timer=setTimeout(function(){_fgPasteRun(n);},180);
+}
+function _fgPasteRun(n){
+  var st=_fgPasteState[n]||(_fgPasteState[n]={});
+  var ta=document.getElementById('fg-paste-ta-'+n);if(!ta)return;
+  var texto=ta.value;
+  var res=document.getElementById('fg-paste-res-'+n);
+  if(!texto.trim()){if(res)res.innerHTML='';return;}
+  if(!st.snapshot){ // primer parseo de esta "sesión": guardo el ANTES para poder deshacer
+    var sfx0=(n===1)?'':String(n);
+    var mEl0=document.getElementById('email'+sfx0);
+    st.snapshot={nombre:_gv('nombre'+sfx0),celular:_gv('celular'+sfx0),email:_gv('email'+sfx0),
+      mailManual:mEl0?mEl0.dataset.fgManual:''};
+  }
+  var r=_fgParseContacto(texto);
+  _fgApplyParsed(n,r);
+}
+// Aplica lo detectado. Si reconoce una PERSONA (nombre o mail), completa lo que
+// encontró y LIMPIA lo que no (para no mezclar el celular de una persona con el
+// nombre de otra). Si sólo hay un teléfono suelto (sin nombre ni mail), completa
+// nada más que el celular y no toca el resto.
+function _fgApplyParsed(n,r){
+  var sfx=(n===1)?'':String(n);
+  if(!r.nombre&&!r.celular&&!r.email){
+    _fgPasteRenderRes(n,null,'No reconocí ningún dato. Revisá el texto pegado.');
+    return;
+  }
+  var esPersona=!!(r.nombre||r.email);
+  if(esPersona){
+    var antesN=_gv('nombre'+sfx),antesC=_gv('celular'+sfx),antesE=_gv('email'+sfx);
+    _setVal('nombre'+sfx,r.nombre||'');
+    if(!r.nombre&&antesN)r.avisos.push('Nombre: no encontré — lo dejé vacío');
+    _setVal('celular'+sfx,r.celular||'');
+    if(!r.celular&&antesC)r.avisos.push('Celular: no encontré — lo dejé vacío');
+    var mailFinal=r.email;
+    if(!mailFinal&&r.nombre){
+      mailFinal=_fgMailFromName(r.nombre);
+      if(mailFinal)r.avisos.push('mail sugerido a partir del nombre (no vino en el texto)');
+    }
+    _setVal('email'+sfx,mailFinal||'');
+    if(!mailFinal&&antesE)r.avisos.push('Mail: no encontré — lo dejé vacío');
+    var mEl=document.getElementById('email'+sfx);
+    if(mEl)mEl.dataset.fgManual=r.email?'1':'';
+    _fgSetAsesorOn(n,true);
+    if(n>1)_fgShowBlock(n,true);
+    r.email=mailFinal; // para que el chip/resumen refleje lo que quedó cargado
+  }else if(r.celular){
+    _setVal('celular'+sfx,r.celular);
+  }
+  if(typeof _fgRefreshAddBtn==='function')_fgRefreshAddBtn();
+  if(typeof updateFnPreview==='function')updateFnPreview();
+  if(typeof redraw==='function')redraw();
+  _fgPasteRenderRes(n,r,null);
+}
+function _fgPasteRenderRes(n,r,errMsg){
+  var res=document.getElementById('fg-paste-res-'+n);if(!res)return;
+  if(errMsg){res.innerHTML='<div class="fg-paste-warn">⚠ '+_escHtml(errMsg)+'</div>';return;}
+  var chips=
+    '<span class="fg-paste-chip'+(r.nombre?' ok':'')+'">'+(r.nombre?'✓':'—')+' Nombre</span>'+
+    '<span class="fg-paste-chip'+(r.celular?' ok':'')+'">'+(r.celular?'✓':'—')+' Celular</span>'+
+    '<span class="fg-paste-chip'+(r.email?' ok':'')+'">'+(r.email?'✓':'—')+' Mail</span>';
+  var lineas=[];
+  if(r.celular&&r.celOriginal&&r.celOriginal.replace(/\D/g,'')!==r.celular.replace(/\D/g,'')){
+    lineas.push('Celular: pegaste "'+r.celOriginal+'" → quedó "'+r.celular+'"'+
+      (r.celQuitados&&r.celQuitados.length?' (saqué: '+r.celQuitados.join(' ')+')':''));
+  }
+  (r.avisos||[]).forEach(function(a){lineas.push(a.charAt(0).toUpperCase()+a.slice(1));});
+  var lineasHtml=lineas.length?('<div class="fg-paste-lines">'+
+    lineas.map(function(l){return _escHtml(l);}).join('<br>')+'</div>'):'';
+  var ignHtml=(r.ignorado&&r.ignorado.length)?
+    ('<div class="fg-paste-ign">Ignoré: '+_escHtml(r.ignorado.join(', '))+'</div>'):'';
+  res.innerHTML='<div class="fg-paste-chips">'+chips+'</div>'+lineasHtml+ignHtml+
+    '<button type="button" class="fg-paste-undo" onclick="event.stopPropagation();_fgUndoPaste('+n+')">Deshacer</button>';
+}
+function _fgUndoPaste(n){
+  var st=_fgPasteState[n];if(!st||!st.snapshot)return;
+  var sfx=(n===1)?'':String(n);
+  _setVal('nombre'+sfx,st.snapshot.nombre);
+  _setVal('celular'+sfx,st.snapshot.celular);
+  _setVal('email'+sfx,st.snapshot.email);
+  var mEl=document.getElementById('email'+sfx);
+  if(mEl)mEl.dataset.fgManual=st.snapshot.mailManual||'';
+  st.snapshot=null;
+  var ta=document.getElementById('fg-paste-ta-'+n);if(ta)ta.value='';
+  var res=document.getElementById('fg-paste-res-'+n);
+  if(res)res.innerHTML='<div class="fg-paste-undone">Deshecho — volviste a los datos de antes.</div>';
+  if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
 }
 
