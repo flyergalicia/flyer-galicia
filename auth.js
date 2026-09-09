@@ -3533,17 +3533,31 @@ function _fgPartirTel(d0){
     var m=d.match(/^(\d{2,4})15(\d{6,8})$/);
     if(m){quit.push({pos:m[1].length,dig:'15',etq:'15'});d=m[1]+m[2];}
   }
+  // Formato informal MUY común en Argentina: pasar el celular como "15 3617-9603",
+  // SIN código de área, dando por sobreentendido que es el 11 (CABA/GBA). Ningún
+  // código de área real empieza con "1" salvo el "11" mismo (todos son 2xx/3xx),
+  // así que un número de 10 dígitos que empieza con "15" NUNCA es "área 15 + 8
+  // dígitos" válido: es el marcador de celular "15" + los 8 dígitos del abonado,
+  // con área 11 implícita. Antes esto se interpretaba como área "1536" (inventada)
+  // y daba un número completamente inválido.
+  if(d.length===10&&d.slice(0,2)==='15'){
+    quit.push({pos:0,dig:'15',etq:'15',len:2}); // len:2 = reemplaza (no inserta) al reconstruir
+    d='11'+d.slice(2);
+  }
   if(d.length!==10)return null;
   var area=d.indexOf('11')===0?2:(_FG_AREAS3.indexOf(d.slice(0,3))>=0?3:4);
   return {area:d.slice(0,area),numero:d.slice(area),quitados:quit,digitos:d,original:d0};
 }
 // GARANTÍA: vuelvo a insertar lo que saqué, en su posición exacta, y tiene que
 // dar EXACTAMENTE el texto original. Si no da, no se usa ese teléfono.
+// q.len (sólo en el caso "15 sin área"): cuántos caracteres de "digitos" hay que
+// REEMPLAZAR (no sólo insertar) para volver al original — reconstruye "15..."
+// a partir del "11..." que se guardó como número real.
 function _fgVerificaTel(t){
   var d=t.digitos;
   for(var i=t.quitados.length-1;i>=0;i--){
     var q=t.quitados[i];
-    d=d.slice(0,q.pos)+q.dig+d.slice(q.pos);
+    d=d.slice(0,q.pos)+q.dig+d.slice(q.pos+(q.len||0));
   }
   return d===t.original;
 }

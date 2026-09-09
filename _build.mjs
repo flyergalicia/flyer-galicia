@@ -549,6 +549,7 @@ const checks = {
   'pegar: prioriza mail de Galicia': _authSrc.includes("x.indexOf('@'+_PAD_DOMINIO)") && _authSrc.includes("_PAD_DOMINIO='bancogalicia.com.ar'"),
   'pegar: boton por asesor, solo admin': _authSrc.includes('function _fgEnsurePasteBtns(') && _authSrc.includes('if(!_admin)return;') && _authSrc.includes('_fgEnsurePasteBtns();'),
   'pegar: aplica/limpia/deshace': _authSrc.includes('function _fgApplyParsed(') && _authSrc.includes('function _fgUndoPaste(') && _authSrc.includes('esPersona'),
+  'pegar: celular sin codigo de area (15+8)': _authSrc.includes("d.slice(0,2)==='15'") && _authSrc.includes("d.slice(q.pos+(q.len||0))"),
 };
 for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
