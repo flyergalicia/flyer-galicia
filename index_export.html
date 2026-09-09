@@ -3963,6 +3963,62 @@ function _fgVerificaTel(t){
 }
 function _fgFmtCel(t){return t.area+' '+t.numero.slice(0,t.numero.length-4)+'-'+t.numero.slice(-4);}
 
+// Separadores que pueden ir DENTRO de un teléfono. NUNCA un salto de línea: dos
+// números en renglones distintos son dos números distintos.
+var _FG_TEL_SEP=/^[ \t.\-()/]{0,3}$/;
+var _FG_LETRA=/[A-Za-zÁÉÍÓÚÑáéíóúñ]/;
+// Busca teléfonos combinando GRUPOS de dígitos consecutivos, en vez de con un
+// único regex glotón. El glotón fusionaba un legajo pegado a letras
+// ("EMREN050215") con el teléfono del renglón siguiente y armaba un número
+// imposible de 16 dígitos que después se descartaba: el celular se perdía entero.
+// Ahora cada combinación se valida con _fgPartirTel, así que sólo sobreviven
+// combinaciones que son un teléfono argentino de verdad.
+function _fgTelCandidatos(txt){
+  var ign=[],t=String(txt||'');
+  function tapar(re,que){
+    t=t.replace(re,function(m){
+      if(ign.indexOf(que)<0)ign.push(que);
+      return new Array(m.length+1).join(' '); // mismas posiciones, sin los dígitos
+    });
+  }
+  // Un CUIT SÍ hay que taparlo: "30-71234567-8" da "30"+"71234567" = 10 dígitos,
+  // que pasaría como teléfono válido con un código de área inventado.
+  tapar(/\b\d{2}\s?-\s?\d{8}\s?-\s?\d\b/g,'un CUIT');
+  tapar(/(?:cuit|cuil)\s*[:.]?\s*\d[\d.\- ]{8,}\d/gi,'un CUIT');
+  tapar(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g,'una fecha');
+  var gr=[],re=/\d+/g,m;
+  while((m=re.exec(t))){
+    var gi=m.index;
+    gr.push({d:m[0],ini:gi,fin:gi+m[0].length,
+      // pegado a letras => es un código/legajo (EMREN050215), no un teléfono
+      pegado:_FG_LETRA.test(t.charAt(gi-1)||' ')});
+  }
+  var cands=[],vistos={},invalido='';
+  for(var i=0;i<gr.length;i++){
+    if(gr[i].pegado)continue;
+    var ini=gr[i].ini,pre=txt.charAt(ini-1);
+    if(pre==='+'||pre==='(')ini--; // para mostrar el original tal cual se pegó
+    var dig='';
+    for(var j=i;j<gr.length;j++){
+      if(j>i){
+        if(gr[j].pegado)break;
+        if(!_FG_TEL_SEP.test(t.slice(gr[j-1].fin,gr[j].ini)))break;
+      }
+      dig+=gr[j].d;
+      if(dig.length>15)break;
+      var tel=_fgPartirTel(dig);
+      if(tel&&_fgVerificaTel(tel)){
+        if(!vistos[tel.digitos]){
+          vistos[tel.digitos]=1;
+          cands.push({bruto:txt.slice(ini,gr[j].fin).trim(),ini:gr[i].ini,t:tel});
+        }
+      }else if(dig.length>=7&&dig.length>_padDigits(invalido).length){
+        invalido=txt.slice(ini,gr[j].fin).trim();
+      }
+    }
+  }
+  return {cands:cands,ignorado:ign,invalido:invalido};
+}
 var _FG_PC_MOVIL=/(cel|celular|m[oó]vil|whatsapp|wsp|\bm\s*[.:])\s*[^\d]{0,3}$/i;
 var _FG_PC_FIJO=/(tel[eé]fono|\btel\b|\bt\s*[.:]|l[ií]nea|conmutador|interno|\bint\b|fax)\s*[^\d]{0,3}$/i;
 var _FG_PC_FRASE={};
@@ -4008,26 +4064,23 @@ function _fgParseContacto(texto){
   var sinMail=t.replace(reMail,' ');
 
   // 2) CELULAR — puede no haber ninguno, es válido.
-  var cands=[],reTel=/(?:[+(]?\d[\d\s().\-/]{6,}\d)/g,m; // [+(]? también captura el "(" de apertura, para mostrar el original completo
-  while((m=reTel.exec(sinMail))){
-    var bruto=m[0].trim(),dig=_padDigits(bruto);
-    if(dig.length<8||dig.length>15)continue;
-    if(/\d{2}-\d{8}-\d/.test(bruto)){out.ignorado.push('un CUIT');continue;}
-    if(/^\d{1,2}[/.]\d{1,2}[/.]\d{2,4}$/.test(bruto)){out.ignorado.push('una fecha');continue;}
-    var i=sinMail.indexOf(bruto),antes=sinMail.slice(Math.max(0,i-18),i);
-    cands.push({bruto:bruto,dig:dig,puntos:(_FG_PC_MOVIL.test(antes)?10:0)-(_FG_PC_FIJO.test(antes)?10:0)});
-  }
-  var ok=cands.map(function(c){return {bruto:c.bruto,dig:c.dig,puntos:c.puntos,t:_fgPartirTel(c.dig)};})
-    .filter(function(c){return c.t;}).sort(function(a,b){return b.puntos-a.puntos;});
+  var tc=_fgTelCandidatos(sinMail);
+  tc.ignorado.forEach(function(x){out.ignorado.push(x);});
+  var ok=tc.cands;
+  ok.forEach(function(c){
+    var antes=sinMail.slice(Math.max(0,c.ini-18),c.ini);
+    c.puntos=(_FG_PC_MOVIL.test(antes)?10:0)-(_FG_PC_FIJO.test(antes)?10:0);
+  });
+  ok.sort(function(a,b){return b.puntos-a.puntos;}); // el rotulado "Cel"/"M." gana al "Tel"/conmutador
   if(ok.length){
     var c=ok[0];
-    if(!_fgVerificaTel(c.t))out.avisos.push('no pude verificar el número — lo dejé como estaba');
-    else{out.celular=_fgFmtCel(c.t);out.celOriginal=c.bruto;out.celQuitados=c.t.quitados.map(function(q){return q.etq;});}
+    out.celular=_fgFmtCel(c.t);out.celOriginal=c.bruto;
+    out.celQuitados=c.t.quitados.map(function(q){return q.etq;});
     ok.slice(1).forEach(function(x){out.ignorado.push('otro número ('+x.bruto+')');});
-  }else if(cands.length){
-    out.avisos.push('"'+cands[0].bruto+'" no parece un celular argentino');
+  }else if(tc.invalido){
+    out.avisos.push('"'+tc.invalido+'" no parece un celular argentino');
   }
-  var sinTel=sinMail.replace(reTel,' ');
+  var sinTel=sinMail.replace(/\d+/g,' '); // para buscar el nombre, fuera los números
 
   // 3) NOMBRE — el mail es una PISTA para UBICARLO en el texto, no un requisito
   //    (el mail puede no derivar del nombre real de la persona).
