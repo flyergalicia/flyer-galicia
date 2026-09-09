@@ -399,6 +399,7 @@ function checkProfile(user){
       return;
     }
     _me=user;_admin=(p.role==='admin');_canNotes=(p.role==='admin'||p.role==='vip');_myName=p.full_name||p.email_asesor||user.email;
+    loadCashback(false,function(){if(typeof redraw==='function')redraw();}); // monto vigente, aunque el admin lo haya cambiado
     // Menú: "Cambiar mi clave" se oculta para admin (lo hace desde el panel);
     // "Bloc de notas" solo para admin y VIP.
     var _ddPass=document.getElementById('hdr-dd-pass');if(_ddPass)_ddPass.style.display=_admin?'none':'flex';
@@ -541,7 +542,7 @@ function closeAdminPanel(){
 function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel-row"></div>';return s;}
 
 function switchAdminTab(el,t){
-  ['dashboard','usuarios','subir','registros','legales','varios'].forEach(function(tab){
+  ['dashboard','usuarios','subir','registros','legales','cashback','varios'].forEach(function(tab){
     var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
   });
   // :not(.ltab) para no pisar las sub-solapas de legales (Opción 1 / Opción 2)
@@ -550,10 +551,74 @@ function switchAdminTab(el,t){
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
+  if(t==='cashback')loadCashback(true,renderCashbackAdmin);
   if(t==='varios')renderPadronAdmin(true);
   if(t==='legales'){
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
   }
+}
+
+// ── CASHBACK: montos de BAU/Config 1-4 guardados en la nube (Supabase Storage) ──
+// Así, cuando cambia un parámetro, el admin lo edita una vez y le pega a todos
+// los usuarios (asesor/VIP/admin) la próxima vez que entren o generen un flyer.
+var CASHBACK_FILE='_cashback.json',_cashbackLoaded=false;
+function loadCashback(force,cb){
+  if(_cashbackLoaded&&!force){if(cb)cb();return;}
+  fetch(FLYERS_PUBLIC+CASHBACK_FILE+'?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){
+      if(d&&Array.isArray(d.configs)&&typeof CONFIGS!=='undefined'){
+        d.configs.forEach(function(c,i){
+          if(!c||!CONFIGS[i])return;
+          [1,2,3,4].forEach(function(n){if(c['m'+n]!=null)CONFIGS[i]['m'+n]=String(c['m'+n]);});
+        });
+      }
+      _cashbackLoaded=true;
+      if(cb)cb();
+    }).catch(function(){_cashbackLoaded=true;if(cb)cb();});
+}
+function saveCashback(configs,cb){
+  var meta=JSON.stringify({configs:configs,updated_at:new Date().toISOString()});
+  return _sb.storage.from('flyers')
+    .upload(CASHBACK_FILE,new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+    .then(function(r){
+      if(r&&r.error){showToast('Error al guardar el cashback: '+r.error.message);if(cb)cb(false);return;}
+      _cashbackLoaded=true;
+      if(cb)cb(true);
+    });
+}
+function renderCashbackAdmin(){
+  if(typeof _padEditStyle==='function')_padEditStyle(); // reutiliza el estilo de tarjeta (.pad-erow)
+  var host=document.getElementById('cashback-list');if(!host||typeof CONFIGS==='undefined')return;
+  host.innerHTML=CONFIGS.map(function(c,i){
+    var nombre=(typeof CNAMES!=='undefined'&&CNAMES[i])?CNAMES[i]:('Config '+i);
+    return '<div class="pad-erow">'+
+      '<div style="font-weight:700;font-size:.82rem;margin-bottom:8px">'+_escHtml(nombre)+'</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'+
+        [1,2,3,4].map(function(n){
+          return '<div><label class="login-lbl">Monto '+n+'</label>'+
+            '<input class="login-inp" style="margin-bottom:0" value="'+_escAttr(c['m'+n]||'')+'" oninput="_cbField('+i+','+n+',this.value)"></div>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function _cbField(i,n,v){
+  if(typeof CONFIGS==='undefined'||!CONFIGS[i])return;
+  CONFIGS[i]['m'+n]=v;
+  if(typeof ac!=='undefined'&&ac===i&&typeof redraw==='function')redraw(); // preview en vivo si es la config activa
+}
+function saveCashbackChanges(){
+  if(typeof CONFIGS==='undefined')return;
+  var btn=document.getElementById('cashback-save');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  var configs=CONFIGS.map(function(c){return {m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4};});
+  saveCashback(configs,function(ok){
+    if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+    if(!ok)return;
+    showToast('Montos de cashback actualizados para todos');
+    if(typeof redraw==='function')redraw();
+  });
 }
 
 // ── LEGAL GLOBAL (términos y condiciones para todos) ──────────────────────────────
@@ -2741,6 +2806,120 @@ function renderPadronAdmin(force){
             (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+'</span>'+
         '</div>';
       }).join('');
+  });
+}
+// ── PADRÓN: editor en línea (alta/baja/edición sin pasar por Excel) ──────────
+// Trabaja sobre una copia (_padEdit) y sólo pega al padrón real (savePadron,
+// que ya sube a Supabase Storage) cuando tocás "Guardar cambios".
+var _padEdit=null,_padEditAsOpen={};
+function _escAttr(s){return _escHtml(s).replace(/"/g,'&quot;');}
+function togglePadronEditor(){if(_padEdit){closePadronEditor();}else{openPadronEditor();}}
+function _padEditRowNew(){return {empresa:'',cuits:[],config:'',asesores:[{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''}]};}
+function _padCloneRow(r){
+  return {empresa:r.empresa||'',cuits:(r.cuits||[]).slice(),config:r.config||'',
+    asesores:[0,1,2,3].map(function(n){var a=(r.asesores&&r.asesores[n])||{};return {nombre:a.nombre||'',celular:a.celular||'',email:a.email||''};})};
+}
+function openPadronEditor(){
+  loadPadron(false,function(rows){
+    _padEdit=(rows||[]).map(_padCloneRow);
+    _padEditAsOpen={};
+    var vn=document.getElementById('padron-view-normal');if(vn)vn.style.display='none';
+    var btn=document.getElementById('padron-edit-btn');if(btn)btn.innerHTML='&#10005; Cerrar editor';
+    var ed=document.getElementById('padron-editor');if(ed)ed.style.display='block';
+    renderPadronEditor();
+  });
+}
+function closePadronEditor(){
+  if(_padEdit&&_padEdit.length&&!confirm('¿Salir del editor? Los cambios sin guardar se pierden.'))return;
+  _padEditClose();
+}
+function _padEditClose(){
+  _padEdit=null;_padEditAsOpen={};
+  var vn=document.getElementById('padron-view-normal');if(vn)vn.style.display='block';
+  var btn=document.getElementById('padron-edit-btn');if(btn)btn.innerHTML='&#9998; Editar en l&iacute;nea';
+  var ed=document.getElementById('padron-editor');if(ed){ed.style.display='none';ed.innerHTML='';}
+}
+function _padEditStyle(){
+  if(document.getElementById('pad-edit-style'))return;
+  var st=document.createElement('style');st.id='pad-edit-style';
+  st.textContent=
+    '.pad-erow{border:1px solid var(--border,#e2e2e2);border-radius:9px;padding:9px;margin-bottom:8px}'+
+    '.pad-erow-main{display:grid;grid-template-columns:1.6fr 1.3fr 0.9fr auto auto;gap:6px;align-items:center}'+
+    '.pad-erow-main .login-inp,.pad-erow-main select{margin-bottom:0;font-size:.78rem;padding:7px 8px}'+
+    '.pad-eas{display:grid;grid-template-columns:1fr;gap:5px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border,#e2e2e2)}'+
+    '.pad-eas-row{display:grid;grid-template-columns:1.2fr 0.9fr 1.3fr;gap:6px}'+
+    '.pad-eas-row .login-inp{margin-bottom:0;font-size:.76rem;padding:6px 8px}'+
+    '@media(max-width:760px){.pad-erow-main,.pad-eas-row{grid-template-columns:1fr}}';
+  document.head.appendChild(st);
+}
+function renderPadronEditor(){
+  _padEditStyle();
+  var ed=document.getElementById('padron-editor');if(!ed)return;
+  var rows=_padEdit||[];
+  var html='<p style="font-size:.72rem;color:var(--gray);margin-bottom:10px">Los cambios quedan guardados en la nube reci&eacute;n cuando tocas <strong>Guardar cambios</strong>.</p>'+
+    '<div class="pad-elist">'+rows.map(_padEditRowHtml).join('')+'</div>'+
+    (rows.length?'':'<p style="font-size:.78rem;color:var(--gray)">Todav&iacute;a no hay empresas. Agreg&aacute; la primera abajo.</p>')+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
+      '<button type="button" class="usr-btn edit" onclick="_padEditAddRow()">&#43; Agregar empresa</button>'+
+      '<button type="button" class="btn-submit" onclick="_padEditSave()" style="padding:8px 16px">Guardar cambios</button>'+
+      '<button type="button" class="usr-btn del" onclick="closePadronEditor()">Cancelar</button>'+
+    '</div>';
+  ed.innerHTML=html;
+}
+function _padEditRowHtml(r,i){
+  var cfgOpts=[['','Sin cashback']].concat((typeof CNAMES!=='undefined'?CNAMES:['BAU','Config 1','Config 2','Config 3','Config 4']).map(function(n){return [n,n];}));
+  var cfgSel='<select onchange="_padEditField('+i+',\'config\',this.value)">'+
+    cfgOpts.map(function(o){return '<option value="'+_escAttr(o[0])+'"'+(r.config===o[0]?' selected':'')+'>'+_escHtml(o[1])+'</option>';}).join('')+
+    '</select>';
+  var nAs=_padNumAsesores(r),open=!!_padEditAsOpen[i];
+  var asHtml=r.asesores.map(function(a,n){
+    return '<div class="pad-eas-row">'+
+      '<input class="login-inp" placeholder="Oficial '+(n+1)+': nombre" value="'+_escAttr(a.nombre)+'" oninput="_padEditAs('+i+','+n+',\'nombre\',this.value)">'+
+      '<input class="login-inp" placeholder="Celular" value="'+_escAttr(a.celular)+'" oninput="_padEditAs('+i+','+n+',\'celular\',this.value)">'+
+      '<input class="login-inp" placeholder="Email" value="'+_escAttr(a.email)+'" oninput="_padEditAs('+i+','+n+',\'email\',this.value)">'+
+    '</div>';
+  }).join('');
+  return '<div class="pad-erow">'+
+    '<div class="pad-erow-main">'+
+      '<input class="login-inp" placeholder="Raz&oacute;n social" value="'+_escAttr(r.empresa)+'" oninput="_padEditField('+i+',\'empresa\',this.value)">'+
+      '<input class="login-inp" placeholder="CUIT (separados por coma)" value="'+_escAttr(r.cuits.map(_padFmtCuit).join(', '))+'" oninput="_padEditCuits('+i+',this.value)">'+
+      cfgSel+
+      '<button type="button" class="usr-btn edit" onclick="_padEditToggleAs('+i+')">'+(open?'&#9650;':'&#9660;')+' Oficiales ('+nAs+')</button>'+
+      '<button type="button" class="usr-btn del" onclick="_padEditRemoveRow('+i+')" title="Eliminar empresa">&#10005;</button>'+
+    '</div>'+
+    '<div class="pad-eas" style="display:'+(open?'grid':'none')+'">'+asHtml+'</div>'+
+  '</div>';
+}
+function _padEditField(i,k,v){if(_padEdit&&_padEdit[i])_padEdit[i][k]=v;}
+function _padEditCuits(i,v){if(_padEdit&&_padEdit[i])_padEdit[i].cuits=_padCuits(v);}
+function _padEditAs(i,n,k,v){if(_padEdit&&_padEdit[i]&&_padEdit[i].asesores[n])_padEdit[i].asesores[n][k]=v;}
+function _padEditToggleAs(i){_padEditAsOpen[i]=!_padEditAsOpen[i];renderPadronEditor();}
+function _padEditAddRow(){
+  if(!_padEdit)return;
+  _padEdit.push(_padEditRowNew());
+  renderPadronEditor();
+  var rows=document.querySelectorAll('#padron-editor .pad-erow-main input');
+  var last=rows[rows.length-2];if(last)last.focus();
+}
+function _padEditRemoveRow(i){
+  if(!_padEdit||!_padEdit[i])return;
+  var r=_padEdit[i],label=r.empresa||'esta empresa';
+  if(!confirm('¿Eliminar '+label+' del padrón?'))return;
+  _padEdit.splice(i,1);
+  delete _padEditAsOpen[i];
+  renderPadronEditor();
+}
+function _padEditSave(){
+  if(!_padEdit)return;
+  var rows=_padSane(_padEdit);
+  var btn=document.querySelector('#padron-editor .btn-submit');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  savePadron(rows,function(ok){
+    if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+    if(!ok)return;
+    showToast('Padrón actualizado: '+rows.length+' empresas');
+    _padEditClose();
+    renderPadronAdmin(true);
   });
 }
 // ── PADRÓN: lupita + popover de búsqueda en el armador (SOLO ADMIN) ───────────
