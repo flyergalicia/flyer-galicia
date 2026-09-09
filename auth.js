@@ -2811,7 +2811,7 @@ function renderPadronAdmin(force){
 // ── PADRÓN: editor en línea (alta/baja/edición sin pasar por Excel) ──────────
 // Trabaja sobre una copia (_padEdit) y sólo pega al padrón real (savePadron,
 // que ya sube a Supabase Storage) cuando tocás "Guardar cambios".
-var _padEdit=null,_padEditAsOpen={};
+var _padEdit=null,_padEditAsOpen={},_padEditQ='';
 function _escAttr(s){return _escHtml(s).replace(/"/g,'&quot;');}
 function togglePadronEditor(){if(_padEdit){closePadronEditor();}else{openPadronEditor();}}
 function _padEditRowNew(){return {empresa:'',cuits:[],config:'',asesores:[{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''}]};}
@@ -2822,11 +2822,12 @@ function _padCloneRow(r){
 function openPadronEditor(){
   loadPadron(false,function(rows){
     _padEdit=(rows||[]).map(_padCloneRow);
-    _padEditAsOpen={};
+    _padEditAsOpen={};_padEditQ='';
     var vn=document.getElementById('padron-view-normal');if(vn)vn.style.display='none';
     var btn=document.getElementById('padron-edit-btn');if(btn)btn.innerHTML='&#10005; Cerrar editor';
     var ed=document.getElementById('padron-editor');if(ed)ed.style.display='block';
-    renderPadronEditor();
+    _padEditRenderShell();
+    _padEditRenderList();
   });
 }
 function closePadronEditor(){
@@ -2834,7 +2835,7 @@ function closePadronEditor(){
   _padEditClose();
 }
 function _padEditClose(){
-  _padEdit=null;_padEditAsOpen={};
+  _padEdit=null;_padEditAsOpen={};_padEditQ='';
   var vn=document.getElementById('padron-view-normal');if(vn)vn.style.display='block';
   var btn=document.getElementById('padron-edit-btn');if(btn)btn.innerHTML='&#9998; Editar en l&iacute;nea';
   var ed=document.getElementById('padron-editor');if(ed){ed.style.display='none';ed.innerHTML='';}
@@ -2852,19 +2853,59 @@ function _padEditStyle(){
     '@media(max-width:760px){.pad-erow-main,.pad-eas-row{grid-template-columns:1fr}}';
   document.head.appendChild(st);
 }
-function renderPadronEditor(){
+// El shell (filtro + botones) se dibuja UNA sola vez al abrir el editor: si se
+// reescribiera en cada tecla, el input de filtro perdería el foco al tipear.
+// Sólo la lista (#padron-edit-list) se refresca en cada cambio.
+function _padEditRenderShell(){
   _padEditStyle();
   var ed=document.getElementById('padron-editor');if(!ed)return;
-  var rows=_padEdit||[];
-  var html='<p style="font-size:.72rem;color:var(--gray);margin-bottom:10px">Los cambios quedan guardados en la nube reci&eacute;n cuando tocas <strong>Guardar cambios</strong>.</p>'+
-    '<div class="pad-elist">'+rows.map(_padEditRowHtml).join('')+'</div>'+
-    (rows.length?'':'<p style="font-size:.78rem;color:var(--gray)">Todav&iacute;a no hay empresas. Agreg&aacute; la primera abajo.</p>')+
+  ed.innerHTML=
+    '<p style="font-size:.72rem;color:var(--gray);margin-bottom:10px">Los cambios quedan guardados en la nube reci&eacute;n cuando tocas <strong>Guardar cambios</strong>.</p>'+
+    '<input type="text" class="login-inp" id="padron-edit-q" placeholder="Filtrar: raz&oacute;n social o CUIT..." autocomplete="off" oninput="_padEditFilter(this.value)" style="margin-bottom:10px">'+
+    '<div class="pad-elist" id="padron-edit-list"></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
       '<button type="button" class="usr-btn edit" onclick="_padEditAddRow()">&#43; Agregar empresa</button>'+
       '<button type="button" class="btn-submit" onclick="_padEditSave()" style="padding:8px 16px">Guardar cambios</button>'+
       '<button type="button" class="usr-btn del" onclick="closePadronEditor()">Cancelar</button>'+
     '</div>';
-  ed.innerHTML=html;
+}
+// Igual criterio que padronSearch: por CUIT (3+ dígitos) o todas las palabras
+// de la razón social, en cualquier orden. Devuelve índices reales de _padEdit
+// (no posiciones filtradas), así cada fila sigue editando el registro correcto.
+function _padEditMatchIdxs(){
+  var rows=_padEdit||[],q=_padEditQ||'',t=_padNorm(q);
+  if(!t)return rows.map(function(_,i){return i;});
+  var dig=_padDigits(q),toks=t.split(' ').filter(Boolean),out=[];
+  rows.forEach(function(r,i){
+    var hit=false;
+    if(dig.length>=3&&r.cuits){for(var j=0;j<r.cuits.length;j++){if(r.cuits[j].indexOf(dig)>=0){hit=true;break;}}}
+    if(!hit){var e=_padNorm(r.empresa);hit=!!e&&toks.every(function(k){return e.indexOf(k)>=0;});}
+    if(hit)out.push(i);
+  });
+  return out;
+}
+function _padEditFilter(v){_padEditQ=v;_padEditRenderList();}
+function _padEditRenderList(){
+  var host=document.getElementById('padron-edit-list');if(!host)return;
+  var rows=_padEdit||[];
+  if(!rows.length){
+    host.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Todav&iacute;a no hay empresas. Agreg&aacute; la primera abajo.</p>';
+    return;
+  }
+  var idxs=_padEditMatchIdxs();
+  if(!idxs.length){
+    host.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Sin resultados para "'+_escHtml(_padEditQ)+'".</p>';
+    return;
+  }
+  host.innerHTML=
+    (_padEditQ?'<p style="font-size:.68rem;color:var(--gray);margin-bottom:6px">Mostrando '+idxs.length+' de '+rows.length+'.</p>':'')+
+    idxs.map(function(i){return _padEditRowHtml(_padEdit[i],i);}).join('');
+}
+// Mantiene compatibilidad con los llamadores existentes (toggle/agregar/eliminar):
+// si el shell ya está armado sólo refresca la lista, sin tocar el filtro en foco.
+function renderPadronEditor(){
+  if(!document.getElementById('padron-edit-list'))_padEditRenderShell();
+  _padEditRenderList();
 }
 function _padEditRowHtml(r,i){
   var cfgOpts=[['','Sin cashback']].concat((typeof CNAMES!=='undefined'?CNAMES:['BAU','Config 1','Config 2','Config 3','Config 4']).map(function(n){return [n,n];}));
@@ -2893,12 +2934,16 @@ function _padEditRowHtml(r,i){
 function _padEditField(i,k,v){if(_padEdit&&_padEdit[i])_padEdit[i][k]=v;}
 function _padEditCuits(i,v){if(_padEdit&&_padEdit[i])_padEdit[i].cuits=_padCuits(v);}
 function _padEditAs(i,n,k,v){if(_padEdit&&_padEdit[i]&&_padEdit[i].asesores[n])_padEdit[i].asesores[n][k]=v;}
-function _padEditToggleAs(i){_padEditAsOpen[i]=!_padEditAsOpen[i];renderPadronEditor();}
+function _padEditToggleAs(i){_padEditAsOpen[i]=!_padEditAsOpen[i];_padEditRenderList();}
 function _padEditAddRow(){
   if(!_padEdit)return;
   _padEdit.push(_padEditRowNew());
-  renderPadronEditor();
-  var rows=document.querySelectorAll('#padron-editor .pad-erow-main input');
+  if(_padEditQ){ // si hay un filtro puesto, la fila nueva (vacía) no matchearía: lo limpio
+    _padEditQ='';
+    var q=document.getElementById('padron-edit-q');if(q)q.value='';
+  }
+  _padEditRenderList();
+  var rows=document.querySelectorAll('#padron-edit-list .pad-erow-main input');
   var last=rows[rows.length-2];if(last)last.focus();
 }
 function _padEditRemoveRow(i){
@@ -2907,7 +2952,7 @@ function _padEditRemoveRow(i){
   if(!confirm('¿Eliminar '+label+' del padrón?'))return;
   _padEdit.splice(i,1);
   delete _padEditAsOpen[i];
-  renderPadronEditor();
+  _padEditRenderList();
 }
 function _padEditSave(){
   if(!_padEdit)return;
