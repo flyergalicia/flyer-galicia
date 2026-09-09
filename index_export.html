@@ -3295,6 +3295,9 @@ function _padApply(r){
   _padRef=r;_padDismissed='';   // desde acá se vigilan los cambios contra el padrón
   _padShowNote(tiene?'':'Esta empresa no tiene oficiales asignados en el padrón.');
   closePadronPop();_padCloseSug();
+  // los asesores acaban de completarse desde el padrón: el cuadro de pegado
+  // abierto ya no aporta nada y tapa el formulario
+  if(typeof _fgClosePasteAll==='function')_fgClosePasteAll();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
   showToast('"'+(r.empresa||'Empresa')+'" cargada del padrón — '+_padAsesoresLbl(r));
@@ -4188,12 +4191,32 @@ function _fgEnsurePasteBtns(){
       '</div>');
   }
 }
+// Cierra el cuadro de pegado de UN asesor. Lo usa el toggle y, sobre todo,
+// _padApply: si traés una empresa del padrón los asesores se completan solos,
+// así que el cuadro abierto ya no sirve y sólo estorba la vista.
+function _fgClosePaste(n){
+  var w=document.getElementById('fg-paste-'+n);if(!w)return false;
+  if(w.style.display==='none'||!w.style.display)return false;
+  w.style.display='none';
+  var btn=document.getElementById('fg-paste-btn-'+n);
+  if(btn)btn.classList.remove('on');
+  var ta=document.getElementById('fg-paste-ta-'+n);if(ta)ta.value='';
+  var res=document.getElementById('fg-paste-res-'+n);if(res)res.innerHTML='';
+  _fgPasteState[n]={snapshot:null,timer:null}; // se corta el Deshacer: los datos ya no son los pegados
+  return true;
+}
+function _fgClosePasteAll(){
+  var hubo=false;
+  for(var n=1;n<=4;n++)if(_fgClosePaste(n))hubo=true;
+  return hubo;
+}
 function _fgTogglePaste(n){
   var w=document.getElementById('fg-paste-'+n);if(!w)return;
   var btn=document.getElementById('fg-paste-btn-'+n);
   var abrir=(w.style.display==='none'||!w.style.display);
-  w.style.display=abrir?'block':'none';
-  if(btn)btn.classList.toggle('on',abrir);
+  if(!abrir){_fgClosePaste(n);return;}
+  w.style.display='block';
+  if(btn)btn.classList.add('on');
   if(abrir){
     // arranca en limpio cada vez que se abre: nueva "sesión" de pegado
     _fgPasteState[n]={snapshot:null,timer:null};
