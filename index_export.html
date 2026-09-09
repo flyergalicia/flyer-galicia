@@ -4083,7 +4083,12 @@ function _fgParseContacto(texto){
   }else if(tc.invalido){
     out.avisos.push('"'+tc.invalido+'" no parece un celular argentino');
   }
-  var sinTel=sinMail.replace(/\d+/g,' '); // para buscar el nombre, fuera los números
+  // Para buscar el nombre saco los números. Ojo con los códigos internos que
+  // MEZCLAN letras y dígitos (legajo "EMREN050215", "SUC0082"): si sólo saco los
+  // dígitos queda "EMREN" suelto y se cuela como apellido. Van enteros a la basura.
+  var sinTel=sinMail
+    .replace(/[A-Za-zÁÉÍÓÚÑáéíóúñ]*\d[\dA-Za-zÁÉÍÓÚÑáéíóúñ]*/g,' ')
+    .replace(/\d+/g,' ');
 
   // 3) NOMBRE — el mail es una PISTA para UBICARLO en el texto, no un requisito
   //    (el mail puede no derivar del nombre real de la persona).
@@ -4263,13 +4268,14 @@ function _fgApplyParsed(n,r){
     if(!r.nombre&&antesN)r.avisos.push('Nombre: no encontré — lo dejé vacío');
     _setVal('celular'+sfx,r.celular||'');
     if(!r.celular&&antesC)r.avisos.push('Celular: no encontré — lo dejé vacío');
+    // El mail se toma SOLO si viene escrito con arroba en el texto pegado, y
+    // TEXTUAL: nunca se deduce del nombre (en el banco muchos no derivan de él).
+    // Lo único que se toca es el formato (minúsculas y sin espacios sueltos).
     var mailFinal=r.email;
-    if(!mailFinal&&r.nombre){
-      mailFinal=_fgMailFromName(r.nombre);
-      if(mailFinal)r.avisos.push('mail sugerido a partir del nombre (no vino en el texto)');
-    }
     _setVal('email'+sfx,mailFinal||'');
-    if(!mailFinal&&antesE)r.avisos.push('Mail: no encontré — lo dejé vacío');
+    if(!mailFinal)r.avisos.push(antesE
+      ?'Mail: no venía en el texto — lo dejé vacío'
+      :'Mail: no venía en el texto — cargalo a mano');
     var mEl=document.getElementById('email'+sfx);
     if(mEl)mEl.dataset.fgManual=r.email?'1':'';
     _fgSetAsesorOn(n,true);

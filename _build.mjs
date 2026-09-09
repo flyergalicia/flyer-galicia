@@ -551,6 +551,8 @@ const checks = {
   'pegar: aplica/limpia/deshace': _authSrc.includes('function _fgApplyParsed(') && _authSrc.includes('function _fgUndoPaste(') && _authSrc.includes('esPersona'),
   'pegar: celular sin codigo de area (15+8)': _authSrc.includes("d.slice(0,2)==='15'") && _authSrc.includes("d.slice(q.pos+(q.len||0))"),
   'pegar: el cuadro se cierra al traer del padron': _authSrc.includes('function _fgClosePasteAll(') && _authSrc.includes("if(typeof _fgClosePasteAll==='function')_fgClosePasteAll();"),
+  'pegar: el mail solo si tiene arroba, textual': _authSrc.includes('El mail se toma SOLO si viene escrito con arroba') && !_authSrc.includes('mailFinal=_fgMailFromName('),
+  'pegar: el legajo no se cuela en el nombre': _authSrc.includes('MEZCLAN letras y dígitos'),
   'pegar: telefono por grupos de digitos': _authSrc.includes('function _fgTelCandidatos(') && _authSrc.includes('_FG_TEL_SEP') && !_authSrc.includes('reTel=/(?:[+(]?'),
 };
 for (const [k, v] of Object.entries(checks)) {
