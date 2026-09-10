@@ -1364,16 +1364,41 @@ function _promosSetSyncInfo(meta){
 // Trae el catálogo completo a memoria + la metadata de sincronización. Si la
 // copia tiene más de 26hs (o nunca se sincronizó), dispara un sync solo antes
 // de mostrar nada, así el asesor no tiene que acordarse de apretar "Actualizar".
+// PostgREST corta cada consulta en 1000 filas. El catálogo tiene ~1700, así
+// que una sola select devolvía apenas las primeras 1000 y TODA marca que
+// cayera más abajo (SushiClub, Starbucks, Freddo, Volta...) parecía "no
+// existir". Por eso hay que traerlo por tandas hasta que una venga incompleta.
+var _PROMOS_PAGINA=1000;
+function _promosTraerTodo(desde,acc,cb){
+  // El .order('id') es imprescindible: sin un orden estable, paginar con
+  // .range() puede repetir o saltearse filas entre tandas.
+  _sb.from('promos_galicia_cache')
+    .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion')
+    .order('id',{ascending:true})
+    .range(desde,desde+_PROMOS_PAGINA-1)
+    .then(function(r){
+      if(r&&r.error){cb(r.error,acc);return;}
+      var filas=(r&&r.data)||[];
+      acc=acc.concat(filas);
+      // Si vino una tanda completa puede haber más; si vino corta, terminó.
+      if(filas.length===_PROMOS_PAGINA)_promosTraerTodo(desde+_PROMOS_PAGINA,acc,cb);
+      else cb(null,acc);
+    })
+    .catch(function(e){cb(e,acc);});
+}
+
 function loadPromosCatalogo(cb){
   _promosCatLoading=true;
   Promise.all([
-    _sb.from('promos_galicia_cache').select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion'),
+    new Promise(function(resolve){
+      _promosTraerTodo(0,[],function(error,filas){resolve({data:filas,error:error});});
+    }),
     _sb.from('promos_galicia_meta').select('last_sync_at,total').eq('id',1).single()
   ]).then(function(res){
     var catRes=res[0],metaRes=res[1];
     if(catRes&&catRes.error){
       console.error('promos_galicia_cache select:',catRes.error);
-      showToast('No se pudo leer el catálogo de promociones: '+catRes.error.message);
+      showToast('No se pudo leer el catálogo de promociones: '+(catRes.error.message||catRes.error));
     }
     _promosCat=(catRes&&catRes.data)||[];
     var meta=metaRes&&metaRes.data;
@@ -1385,6 +1410,13 @@ function loadPromosCatalogo(cb){
     if(!_promosCat.length&&meta&&meta.total>0&&!(catRes&&catRes.error)){
       console.error('promos_galicia_cache: la consulta no devolvió error pero trajo 0 filas, aunque meta dice total='+meta.total+'. Probable problema de sesión/RLS.');
       showToast('No se pudo leer el catálogo (0 resultados pero debería haber '+meta.total+'). Probá recargar la página o volver a iniciar sesión.');
+    }
+    // Aviso si llegó INCOMPLETO (fue exactamente este el bug del corte en 1000):
+    // sin esto, la mitad del catálogo faltaba en silencio y las marcas de la cola
+    // parecían no existir.
+    else if(meta&&meta.total>0&&_promosCat.length<meta.total){
+      console.error('Catálogo incompleto: llegaron '+_promosCat.length+' de '+meta.total+' promociones.');
+      showToast('Atención: el catálogo llegó incompleto ('+_promosCat.length+' de '+meta.total+'). Puede que falten marcas.');
     }
     _promosSetSyncInfo(meta);
     _promosCatLoading=false;
