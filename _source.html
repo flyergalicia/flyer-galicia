@@ -252,6 +252,8 @@ canvas{display:block;max-width:100%;}
     <div class="promos-results-head">
       <div class="promos-summary" id="promos-summary"></div>
       <div class="promos-search-box" id="promos-search-box" style="display:none">
+        <label class="promos-sort-lbl">Ordenar por</label>
+        <select id="promos-orden-sel" class="promos-sort-sel" onchange="_promoOrdenarSel(this.value)"></select>
         <input type="search" id="promos-buscar" class="promos-search" placeholder="Buscar en los resultados..." oninput="_promoFiltrar('global',this.value)">
       </div>
     </div>

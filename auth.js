@@ -1218,6 +1218,32 @@ function _promoOrdenar(campo){
   else{_promosOrden.campo='';_promosOrden.dir=1;}
   renderPromosResultados();
 }
+// Opciones del selector "Ordenar por". Clave: "campo" o "campo:desc".
+// Existe además del click en el encabezado porque ese gesto no se descubre
+// solo; las dos vías comparten el mismo estado (_promosOrden).
+var _PROMO_ORDEN_OPTS=[
+  ['','Orden en que las pegué'],
+  ['estado','Estado (primero lo que hay que corregir)'],
+  ['estado:desc','Estado (primero las vigentes)'],
+  ['marca','Marca (A → Z)'],
+  ['marca:desc','Marca (Z → A)'],
+  ['match','Coincidencia en Galicia (A → Z)'],
+  ['cat','Categoría (A → Z)'],
+  ['hasta','Vencimiento (la que vence primero)'],
+  ['hasta:desc','Vencimiento (la que vence último)'],
+  ['desde','Inicio (la más antigua)'],
+  ['logo','Con logo primero']
+];
+function _promoOrdenClave(){
+  if(!_promosOrden.campo)return '';
+  return _promosOrden.campo+(_promosOrden.dir===-1?':desc':'');
+}
+function _promoOrdenarSel(v){
+  var p=String(v||'').split(':');
+  _promosOrden.campo=p[0]||'';
+  _promosOrden.dir=(p[1]==='desc')?-1:1;
+  renderPromosResultados();
+}
 // Valor por el que se compara cada columna. Las fechas usan el dato crudo
 // (aaaa-mm-dd), que ordena cronológicamente aunque en pantalla se vea dd/mm/aaaa.
 function _promoValorOrden(r,campo){
@@ -1324,6 +1350,15 @@ function renderPromosResultados(){
   }
   if(actions)actions.style.display='flex';
   if(searchBox)searchBox.style.display='';
+  // Selector "Ordenar por": refleja siempre el orden vigente, se haya elegido
+  // desde acá o clickeando el encabezado de una columna.
+  var ordSel=document.getElementById('promos-orden-sel');
+  if(ordSel){
+    var clave=_promoOrdenClave();
+    ordSel.innerHTML=_PROMO_ORDEN_OPTS.map(function(o){
+      return '<option value="'+o[0]+'"'+(o[0]===clave?' selected':'')+'>'+_escHtml(o[1])+'</option>';
+    }).join('');
+  }
 
   var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0};
   resultados.forEach(function(r){if(!r.excluir)conteo[r.estado]=(conteo[r.estado]||0)+1;});

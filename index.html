@@ -503,8 +503,14 @@ html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 .promos-orden{font-size:0.85em;}
 .promos-orden.apagada{opacity:0.25;}
 .promos-th-orden:hover .promos-orden.apagada{opacity:0.6;}
+/* Selector "Ordenar por" de la tabla de promociones */
+.promos-search-box{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.promos-sort-lbl{font-size:0.7rem;color:var(--gray);font-weight:600;white-space:nowrap;}
+.promos-sort-sel{padding:7px 10px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.73rem;background:var(--card);outline:none;cursor:pointer;max-width:250px;}
+.promos-sort-sel:focus{border-color:var(--red);}
+html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=cfb9bf164b"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=f3423faaf1"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
@@ -701,6 +707,8 @@ html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
     <div class="promos-results-head">
       <div class="promos-summary" id="promos-summary"></div>
       <div class="promos-search-box" id="promos-search-box" style="display:none">
+        <label class="promos-sort-lbl">Ordenar por</label>
+        <select id="promos-orden-sel" class="promos-sort-sel" onchange="_promoOrdenarSel(this.value)"></select>
         <input type="search" id="promos-buscar" class="promos-search" placeholder="Buscar en los resultados..." oninput="_promoFiltrar('global',this.value)">
       </div>
     </div>
