@@ -396,6 +396,18 @@ html.dark .as-pop{background:#22262c;border-color:#333840;}
 html.dark .as-item:hover,html.dark .as-act{background:#2a2f36;color:#e9eaec;}
 html.dark .as-act{border-color:#3a4049;}
 html.dark .as-pop-foot{border-color:#333840;}
+/* ===== PANEL ADMIN: 3 PILARES (Admin/Data/Config) + SUB-SOLAPAS ===== */
+.stabs{display:flex;gap:6px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--border);overflow-x:auto;}
+.stab{border-radius:999px;padding:6px 14px;font-family:"Syne",sans-serif;font-size:.7rem;font-weight:700;color:var(--gray);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
+.stab:hover{background:#faf6f6;color:var(--dark);}
+.stab.active{background:var(--red);color:#fff;}
+.stab.active:hover{background:var(--red);color:#fff;}
+.stabs.stabs-in{padding:0;background:none;border-bottom:none;}
+.stabs.stabs-in .stab{font-size:.66rem;padding:5px 12px;}
+.atab[data-group]{position:relative;}
+.atab.has-dot::after{content:"";position:absolute;top:8px;right:14px;width:7px;height:7px;border-radius:50%;background:var(--red);}
+html.dark .stabs{background:#22262c;border-color:#333840;}
+html.dark .stab:hover{background:#2a2f36;color:#e9eaec;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
@@ -862,6 +874,10 @@ function _refreshPendingBadge(){
   _sb.from('profiles').select('id',{count:'exact',head:true}).in('status',['pending','reset_pending']).then(function(r){
     var n=r.count||0;
     ab.innerHTML='&#9881; Admin'+(n>0?' <span style="background:#fff;color:var(--red);border-radius:10px;padding:0 6px;font-size:.66rem;font-weight:800;margin-left:2px">'+n+'</span>':'');
+    // "Usuarios" quedó un nivel más abajo (dentro del pilar Admin): un puntito
+    // avisa que hay algo pendiente sin tener que entrar a mirar.
+    var pa=document.querySelector('.atab[data-group="admin"]');
+    if(pa)pa.classList.toggle('has-dot',n>0);
   });
 }
 
@@ -941,12 +957,27 @@ function closeAdminPanel(){
 }
 function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel-row"></div>';return s;}
 
+// El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
+// _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
+var _AP_GROUPS={admin:['dashboard','usuarios','registros'],data:['varios'],config:['subir','cashback','legales']};
+var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
+function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
-  ['dashboard','usuarios','subir','registros','legales','cashback','varios'].forEach(function(tab){
-    var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
+  Object.keys(_AP_GROUPS).forEach(function(g){
+    _AP_GROUPS[g].forEach(function(tab){
+      var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
+    });
   });
   // :not(.ltab) para no pisar las sub-solapas de legales (Opción 1 / Opción 2)
-  document.querySelectorAll('.atab:not(.ltab)').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
+  document.querySelectorAll('.stab:not(.ltab)').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
+  var g=_apGroupOf(t);
+  if(g){
+    _apLast[g]=t;
+    Object.keys(_AP_GROUPS).forEach(function(g2){
+      var sg=document.getElementById('sg-'+g2);if(sg)sg.style.display=g2===g?'flex':'none';
+    });
+    document.querySelectorAll('.atab[data-group]').forEach(function(x){x.classList.toggle('active',x.dataset.group===g);});
+  }
   if(t==='usuarios')loadUsers();
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
@@ -956,6 +987,10 @@ function switchAdminTab(el,t){
   if(t==='legales'){
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
   }
+}
+// Click en un pilar (Admin/Data/Config): va a la última hoja vista de ese pilar.
+function switchAdminGroup(el,g){
+  switchAdminTab(null,_apLast[g]||_AP_GROUPS[g][0]);
 }
 
 // ── CASHBACK: montos de BAU/Config 1-4 guardados en la nube (Supabase Storage) ──
@@ -5302,13 +5337,22 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
     <button class="ap-close" onclick="closeAdminPanel()">&#10005;</button>
   </div>
   <div class="atabs">
-    <div class="atab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
-    <div class="atab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
-    <div class="atab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
-    <div class="atab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
-    <div class="atab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Subir Flyer</div>
-    <div class="atab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
-    <div class="atab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Data</div>
+    <div class="atab active" data-group="admin" onclick="switchAdminGroup(this,'admin')">Admin</div>
+    <div class="atab" data-group="data" onclick="switchAdminGroup(this,'data')">Data</div>
+    <div class="atab" data-group="config" onclick="switchAdminGroup(this,'config')">Config</div>
+  </div>
+  <div class="stabs" id="sg-admin">
+    <div class="stab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
+    <div class="stab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
+    <div class="stab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
+  </div>
+  <div class="stabs" id="sg-data" style="display:none">
+    <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Padr&oacute;n</div>
+  </div>
+  <div class="stabs" id="sg-config" style="display:none">
+    <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
+    <div class="stab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
+    <div class="stab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
   </div>
   <div class="ap-body">
 
@@ -5411,10 +5455,10 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
     <div id="at-legales" style="display:none">
       <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
       <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
-      <div class="atabs" style="margin-bottom:14px">
-        <div class="atab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
-        <div class="atab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
-        <div class="atab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
+      <div class="stabs stabs-in" style="margin-bottom:14px">
+        <div class="stab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
+        <div class="stab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
+        <div class="stab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
       </div>
       <div id="lt-1">
         <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>

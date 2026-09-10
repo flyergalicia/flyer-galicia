@@ -143,13 +143,22 @@ const adminPanel = `<div id="admin-panel">
     <button class="ap-close" onclick="closeAdminPanel()">&#10005;</button>
   </div>
   <div class="atabs">
-    <div class="atab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
-    <div class="atab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
-    <div class="atab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
-    <div class="atab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
-    <div class="atab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Subir Flyer</div>
-    <div class="atab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
-    <div class="atab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Data</div>
+    <div class="atab active" data-group="admin" onclick="switchAdminGroup(this,'admin')">Admin</div>
+    <div class="atab" data-group="data" onclick="switchAdminGroup(this,'data')">Data</div>
+    <div class="atab" data-group="config" onclick="switchAdminGroup(this,'config')">Config</div>
+  </div>
+  <div class="stabs" id="sg-admin">
+    <div class="stab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
+    <div class="stab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
+    <div class="stab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
+  </div>
+  <div class="stabs" id="sg-data" style="display:none">
+    <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Padr&oacute;n</div>
+  </div>
+  <div class="stabs" id="sg-config" style="display:none">
+    <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
+    <div class="stab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
+    <div class="stab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
   </div>
   <div class="ap-body">
 
@@ -252,10 +261,10 @@ const adminPanel = `<div id="admin-panel">
     <div id="at-legales" style="display:none">
       <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
       <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
-      <div class="atabs" style="margin-bottom:14px">
-        <div class="atab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
-        <div class="atab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
-        <div class="atab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
+      <div class="stabs stabs-in" style="margin-bottom:14px">
+        <div class="stab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
+        <div class="stab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
+        <div class="stab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
       </div>
       <div id="lt-1">
         <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>
@@ -544,7 +553,8 @@ const checks = {
   'padron: lupita solo admin': _authSrc.includes('_fgEnsurePadronBtn();') && _authSrc.includes('function applyPadronRow('),
   'padron: solapa Varios': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
   'padron: editor en linea': html.includes('id="padron-edit-btn"') && html.includes('id="padron-editor"') && _authSrc.includes('function openPadronEditor(') && _authSrc.includes('function _padEditSave('),
-  'solapa Data (ex Varios)': html.includes('data-tab="varios"') && html.includes('>Data<'),
+  'panel admin: 3 pilares': html.includes('data-group="admin"') && html.includes('data-group="data"') && html.includes('data-group="config"') && _authSrc.includes('function switchAdminGroup('),
+  'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
   'cashback: solapa + guardado en la nube': html.includes('id="at-cashback"') && html.includes('id="cashback-list"') && _authSrc.includes('function loadCashback(') && _authSrc.includes('function saveCashback(') && _authSrc.includes('function renderCashbackAdmin('),
   'cashback: se aplica a todos al loguear': _authSrc.includes("loadCashback(false,function(){if(typeof redraw==='function')redraw();});"),
   'padron: sin oficiales asignados': _authSrc.includes('function _padAsesoresLbl(') && _authSrc.includes('sin oficiales asignados') && _authSrc.includes('function _padShowNote('),

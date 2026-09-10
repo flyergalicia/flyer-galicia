@@ -462,6 +462,10 @@ function _refreshPendingBadge(){
   _sb.from('profiles').select('id',{count:'exact',head:true}).in('status',['pending','reset_pending']).then(function(r){
     var n=r.count||0;
     ab.innerHTML='&#9881; Admin'+(n>0?' <span style="background:#fff;color:var(--red);border-radius:10px;padding:0 6px;font-size:.66rem;font-weight:800;margin-left:2px">'+n+'</span>':'');
+    // "Usuarios" quedó un nivel más abajo (dentro del pilar Admin): un puntito
+    // avisa que hay algo pendiente sin tener que entrar a mirar.
+    var pa=document.querySelector('.atab[data-group="admin"]');
+    if(pa)pa.classList.toggle('has-dot',n>0);
   });
 }
 
@@ -541,12 +545,27 @@ function closeAdminPanel(){
 }
 function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel-row"></div>';return s;}
 
+// El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
+// _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
+var _AP_GROUPS={admin:['dashboard','usuarios','registros'],data:['varios'],config:['subir','cashback','legales']};
+var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
+function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
-  ['dashboard','usuarios','subir','registros','legales','cashback','varios'].forEach(function(tab){
-    var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
+  Object.keys(_AP_GROUPS).forEach(function(g){
+    _AP_GROUPS[g].forEach(function(tab){
+      var el2=document.getElementById('at-'+tab);if(el2)el2.style.display=tab===t?'block':'none';
+    });
   });
   // :not(.ltab) para no pisar las sub-solapas de legales (Opción 1 / Opción 2)
-  document.querySelectorAll('.atab:not(.ltab)').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
+  document.querySelectorAll('.stab:not(.ltab)').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
+  var g=_apGroupOf(t);
+  if(g){
+    _apLast[g]=t;
+    Object.keys(_AP_GROUPS).forEach(function(g2){
+      var sg=document.getElementById('sg-'+g2);if(sg)sg.style.display=g2===g?'flex':'none';
+    });
+    document.querySelectorAll('.atab[data-group]').forEach(function(x){x.classList.toggle('active',x.dataset.group===g);});
+  }
   if(t==='usuarios')loadUsers();
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
@@ -556,6 +575,10 @@ function switchAdminTab(el,t){
   if(t==='legales'){
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
   }
+}
+// Click en un pilar (Admin/Data/Config): va a la última hoja vista de ese pilar.
+function switchAdminGroup(el,g){
+  switchAdminTab(null,_apLast[g]||_AP_GROUPS[g][0]);
 }
 
 // ── CASHBACK: montos de BAU/Config 1-4 guardados en la nube (Supabase Storage) ──
