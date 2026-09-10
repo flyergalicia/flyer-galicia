@@ -315,7 +315,18 @@ function initApp(){
   });
   var prevEl=document.querySelector('.prev');
   if(prevEl){
-    prevEl.addEventListener('wheel',function(e){e.preventDefault();if(e.deltaY<0)zoomIn();else zoomOut();},{passive:false});
+    prevEl.addEventListener('wheel',function(e){
+      e.preventDefault();
+      var cvRectBefore=cv.getBoundingClientRect();
+      var fx=(e.clientX-cvRectBefore.left)/cvRectBefore.width;
+      var fy=(e.clientY-cvRectBefore.top)/cvRectBefore.height;
+      fx=Math.min(Math.max(fx,0),1);
+      fy=Math.min(Math.max(fy,0),1);
+      if(e.deltaY<0)zoomIn();else zoomOut();
+      var cvRectAfter=cv.getBoundingClientRect();
+      prevEl.scrollLeft+=(cvRectAfter.left+fx*cvRectAfter.width)-e.clientX;
+      prevEl.scrollTop+=(cvRectAfter.top+fy*cvRectAfter.height)-e.clientY;
+    },{passive:false});
     var _pd=false,_px,_py,_psx,_psy;
     prevEl.addEventListener('mousedown',function(e){
       if(e.button!==0||e.target.closest('.zoom-bar')||e.target.tagName==='BUTTON')return;
