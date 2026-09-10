@@ -4,7 +4,7 @@ var SUPA_ANON='sb_publishable_M62msRVQkNbl0zk91r0zUw_q-gUDnJi';
 // pasan por la Edge Function auth-admin, que la guarda del lado servidor.
 var FN_URL=SUPA_URL+'/functions/v1/auth-admin';
 var _sb=window.supabase.createClient(SUPA_URL,SUPA_ANON);
-var _me=null,_admin=false,_canNotes=false,_allUsers=[],_editUid=null,_myName='';
+var _me=null,_admin=false,_allUsers=[],_editUid=null,_myName='';
 var FLYERS_PUBLIC='https://cajyjnxjbobdpltflgnb.supabase.co/storage/v1/object/public/flyers/';
 var _activeFlyerUrl=null,_activeFlyerName='';
 
@@ -78,7 +78,7 @@ function _loadNotes(){
 function _saveNotes(){try{localStorage.setItem(_notesKey(),JSON.stringify(_notes));}catch(e){}}
 function _noteId(){return 'n'+Date.now()+Math.random().toString(36).slice(2,6);}
 function openNotes(){
-  if(!_canNotes)return;
+  if(!_can('notas'))return;
   _loadNotes();
   if(!_notes.length)_notes.push({id:_noteId(),title:'Nota 1',body:'',updated:Date.now()});
   _noteActive=_notes[0].id;
@@ -151,7 +151,7 @@ function _setVal(id,v){var el=document.getElementById(id);if(el)el.value=(v||'')
 
 // Hace clickeables los títulos "Asesor 1" y "Asesor 2" (vienen de _source.html).
 function _initAsesoresUI(){
-  if(!_canNotes)return; // ADMIN y VIP
+  if(!_can('asesores_guardados'))return;
   var secs=document.querySelectorAll('#tab-individual .sec');
   Array.prototype.forEach.call(secs,function(sec){
     var t=(sec.textContent||'').toLowerCase();
@@ -248,11 +248,11 @@ function importAsesores(input){
   reader.readAsBinaryString(file);
 }
 
-// Devuelve el badge HTML del rol (admin / vip / asesor).
+// Devuelve el badge HTML del rol (admin / vip / pro / asesor).
+var _ROLE_LBL={admin:'Admin',vip:'VIP',pro:'Pro',asesor:'Asesor'};
 function _roleBadge(role){
-  var cls=role==='admin'?'admin':(role==='vip'?'vip':'asesor');
-  var lbl=role==='admin'?'Admin':(role==='vip'?'VIP':'Asesor');
-  return '<span class="badge badge-'+cls+'">'+lbl+'</span>';
+  var cls=_ROLE_LBL[role]?role:'asesor';
+  return '<span class="badge badge-'+cls+'">'+_ROLE_LBL[cls]+'</span>';
 }
 
 // ── PARSER DE EXCEL ROBUSTO (override) ──────────────────────────────────────────
@@ -398,16 +398,14 @@ function checkProfile(user){
       showLoginView('login');
       return;
     }
-    _me=user;_admin=(p.role==='admin');_canNotes=(p.role==='admin'||p.role==='vip');_myName=p.full_name||p.email_asesor||user.email;
+    _me=user;_admin=(p.role==='admin');_myRole=p.role||'asesor';_myName=p.full_name||p.email_asesor||user.email;
     loadCashback(false,function(){if(typeof redraw==='function')redraw();}); // monto vigente, aunque el admin lo haya cambiado
-    // Menú: "Cambiar mi clave" se oculta para admin (lo hace desde el panel);
-    // "Bloc de notas" solo para admin y VIP.
-    var _ddPass=document.getElementById('hdr-dd-pass');if(_ddPass)_ddPass.style.display=_admin?'none':'flex';
-    var _ddNotes=document.getElementById('hdr-dd-notes');if(_ddNotes)_ddNotes.style.display=_canNotes?'flex':'none';
+    // El gating de la interfaz depende de la matriz de facultades, que viene de
+    // la nube: por eso se aplica dentro del callback y no acá suelto. Corre en
+    // paralelo con _fetchActiveFlyer, que es quien recién muestra la app.
+    loadFacultades(false,_applyFacultades);
     var _ddName=document.getElementById('hdr-dd-name');if(_ddName)_ddName.textContent=_myName;
     var _ddRole=document.getElementById('hdr-dd-role');if(_ddRole)_ddRole.innerHTML=_roleBadge(p.role);
-    if(_canNotes)_initAsesoresUI();
-    if(_admin)_fgEnsurePasteBtns(); // boton de pegado por asesor: solo admin
     var upd={last_login:new Date().toISOString()};
     if(!p.email_asesor&&user.email&&!_admin)upd.email_asesor=user.email;
     _sb.from('profiles').update(upd).eq('id',user.id).then(function(){});
@@ -424,7 +422,7 @@ function checkProfile(user){
     _applyGlobalLegalToForm(1); // trae los T&C globales de la Opción 1
     document.getElementById('hdr-user').textContent=_myName;
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
-    if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();} // selector + padron: SOLO admin
+    if(_admin)_refreshPendingBadge(); // el panel admin sigue siendo exclusivo del admin
     // Aplicar imagen del flyer activo (Opción 1)
     _fetchActiveFlyer(function(imageUrl){
       _showApp();
@@ -547,7 +545,7 @@ function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel
 
 // El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
 // _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
-var _AP_GROUPS={admin:['dashboard','usuarios','registros'],data:['varios'],config:['subir','cashback','legales']};
+var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios'],config:['subir','cashback','legales']};
 var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
 function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
@@ -571,6 +569,7 @@ function switchAdminTab(el,t){
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
   if(t==='cashback')loadCashback(true,renderCashbackAdmin);
+  if(t==='facultades')loadFacultades(true,renderFacultades);
   if(t==='varios')renderPadronAdmin(true);
   if(t==='legales'){
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
@@ -579,6 +578,115 @@ function switchAdminTab(el,t){
 // Click en un pilar (Admin/Data/Config): va a la última hoja vista de ese pilar.
 function switchAdminGroup(el,g){
   switchAdminTab(null,_apLast[g]||_AP_GROUPS[g][0]);
+}
+
+// ── FACULTADES: qué funcionalidades tiene cada rol (editable desde el panel) ───
+// Antes cada funcionalidad estaba cableada al rol en el código. Ahora la matriz
+// vive en la nube y el admin la edita en Admin → Facultades.
+// OJO: esto gobierna la INTERFAZ (qué botones ve cada uno), no es una barrera de
+// seguridad: crear/borrar usuarios lo valida la Edge Function y escribir la
+// configuración global lo restringen las policies de storage, ambas sólo admin.
+var FACULTADES_FILE='_facultades.json',_facLoaded=false,_FAC=null,_myRole='asesor';
+// Los defaults reproducen EXACTAMENTE el comportamiento previo a esta pantalla:
+// asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
+// existe en la nube, nadie nota ningún cambio.
+var _FAC_DEF={
+  asesor:{padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:false,asesores_guardados:false},
+  vip:   {padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:true, asesores_guardados:true},
+  pro:   {padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:true, asesores_guardados:true}
+};
+// Etiquetas de la pantalla. El orden acá es el orden de las filas.
+var _FAC_LABELS=[
+  ['padron_buscar','Buscar empresas con la lupa','Bot&oacute;n de b&uacute;squeda junto a "Nombre de la empresa": busca por raz&oacute;n social o CUIT y completa los datos.'],
+  ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.'],
+  ['opciones_armador','Elegir Opci&oacute;n 1 / 2 / 3','Barra para cambiar de armador cuando hay m&aacute;s de un flyer activo.'],
+  ['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.'],
+  ['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']
+];
+var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro']];
+// Mezcla lo guardado sobre los defaults: así una facultad NUEVA agregada más
+// adelante arranca con un valor sano aunque el JSON viejo no la tenga.
+function _facMerge(saved){
+  var out={};
+  _FAC_ROLES.forEach(function(r){
+    var role=r[0],def=_FAC_DEF[role]||{},got=(saved&&saved[role])||{};
+    out[role]={};
+    _FAC_LABELS.forEach(function(f){
+      out[role][f[0]]=(got[f[0]]===undefined)?!!def[f[0]]:!!got[f[0]];
+    });
+  });
+  return out;
+}
+function loadFacultades(force,cb){
+  if(_facLoaded&&!force){if(cb)cb();return;}
+  fetch(FLYERS_PUBLIC+FACULTADES_FILE+'?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){
+      _FAC=_facMerge(d&&d.roles);
+      _facLoaded=true;
+      if(cb)cb();
+    }).catch(function(){_FAC=_facMerge(null);_facLoaded=true;if(cb)cb();});
+}
+function saveFacultades(roles,cb){
+  var meta=JSON.stringify({roles:roles,updated_at:new Date().toISOString()});
+  return _sb.storage.from('flyers')
+    .upload(FACULTADES_FILE,new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+    .then(function(r){
+      if(r&&r.error){showToast('Error al guardar las facultades: '+r.error.message);if(cb)cb(false);return;}
+      _FAC=_facMerge(roles);_facLoaded=true;
+      if(cb)cb(true);
+    });
+}
+// El admin siempre puede todo: su fila de la matriz es fija.
+function _can(f){return _admin||!!((_FAC&&_FAC[_myRole]||{})[f]);}
+// Aplica el gating de la interfaz según las facultades del rol. Se llama recién
+// cuando la matriz ya está cargada (ver checkProfile) y es seguro repetirla: las
+// funciones _fgEnsureX salen temprano si el elemento ya existe.
+function _applyFacultades(){
+  var dp=document.getElementById('hdr-dd-pass');if(dp)dp.style.display=_admin?'none':'flex';
+  var dn=document.getElementById('hdr-dd-notes');if(dn)dn.style.display=_can('notas')?'flex':'none';
+  if(_can('asesores_guardados'))_initAsesoresUI();
+  if(_can('pegar_oficial'))_fgEnsurePasteBtns();
+  if(_can('opciones_armador'))_fgEnsureOptBar();
+  if(_can('padron_buscar'))_fgEnsurePadronBtn();
+}
+
+// Panel admin → Admin → Facultades. Trabaja sobre una copia (_facEdit) y sólo
+// pega a la nube cuando se toca "Guardar cambios".
+var _facEdit=null;
+function renderFacultades(){
+  if(typeof _padEditStyle==='function')_padEditStyle(); // reutiliza el estilo de tarjeta (.pad-erow)
+  var host=document.getElementById('fac-grid');if(!host)return;
+  _facEdit=_facMerge(_FAC);
+  var cols='1.7fr repeat('+(_FAC_ROLES.length+1)+',minmax(64px,.6fr))';
+  var head='<div class="fac-row fac-head" style="grid-template-columns:'+cols+'">'+
+    '<div>Funcionalidad</div><div>Admin</div>'+
+    _FAC_ROLES.map(function(r){return '<div>'+_escHtml(r[1])+'</div>';}).join('')+'</div>';
+  var rows=_FAC_LABELS.map(function(f){
+    var id=f[0];
+    return '<div class="fac-row" style="grid-template-columns:'+cols+'">'+
+      '<div><div class="fac-name">'+f[1]+'</div><div class="fac-desc">'+f[2]+'</div></div>'+
+      '<div><input type="checkbox" checked disabled title="El administrador siempre tiene todas las facultades"></div>'+
+      _FAC_ROLES.map(function(r){
+        var on=_facEdit[r[0]]&&_facEdit[r[0]][id];
+        return '<div><input type="checkbox"'+(on?' checked':'')+
+          ' onchange="_facField(\''+r[0]+'\',\''+id+'\',this.checked)"></div>';
+      }).join('')+
+    '</div>';
+  }).join('');
+  host.innerHTML='<div class="fac-grid">'+head+rows+'</div>';
+}
+function _facField(role,f,v){if(_facEdit&&_facEdit[role])_facEdit[role][f]=!!v;}
+function saveFacultadesChanges(){
+  if(!_facEdit)return;
+  var btn=document.getElementById('fac-save');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  saveFacultades(_facEdit,function(ok){
+    if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+    if(!ok)return;
+    showToast('Facultades actualizadas');
+    _applyFacultades(); // que el propio admin vea el efecto sin recargar
+  });
 }
 
 // ── CASHBACK: montos de BAU/Config 1-4 guardados en la nube (Supabase Storage) ──
@@ -1107,7 +1215,7 @@ function _fgStashLegal(){
   c.legalEdited=el.value;
 }
 function switchFlyerOption(opt,cb){
-  if(!_admin)return; // gating: sólo admin puede cambiar de armador
+  if(!_can('opciones_armador'))return; // gating real, no sólo visual
   opt=_optN(opt);
   _fgStashLegal();
   _fgOpt=opt;_fgRenderOptBar();
@@ -1147,7 +1255,7 @@ function _fgApplyOption(cache){
 function _fgInvalidateOpt(opt){
   opt=_optN(opt);
   delete _fgOptCache[opt];
-  if(_admin&&+_fgOpt===opt)switchFlyerOption(opt);
+  if(_can('opciones_armador')&&+_fgOpt===opt)switchFlyerOption(opt);
 }
 // Pregunta a qué opción corresponde una acción (subir / activar / calibrar).
 function _askOption(title,cb){
@@ -1591,8 +1699,8 @@ function _fgEnsureAsesores34(){
     var e=document.getElementById(id);
     if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
   });
-  if(_canNotes)_initAsesoresUI(); // engancha el popover de asesores guardados en 3 y 4
-  if(_admin)_fgEnsurePasteBtns(); // botones de pegado en los asesores 3 y 4 recien creados
+  if(_can('asesores_guardados'))_initAsesoresUI(); // popover de asesores guardados en 3 y 4
+  if(_can('pegar_oficial'))_fgEnsurePasteBtns(); // botones de pegado en los asesores 3 y 4 recien creados
 }
 // ── AUTOCOMPLETAR EL MAIL DESDE EL NOMBRE ─────────────────────────────────────
 // Patrón Galicia: nombre.apellido@bancogalicia.com.ar
@@ -1785,7 +1893,7 @@ function fgRenderHistory(){
 // cargar los datos: si no, saldría con el flyer equivocado.
 function _fgWithOpt(o,fn2){
   o=_optN(o);
-  if(_admin&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,fn2);}
+  if(_can('opciones_armador')&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,fn2);}
   else fn2();
 }
 function fgRedlPDF(i){
@@ -4023,7 +4131,7 @@ function _fgPasteStyle(){
 // su bloque de campos (así se muestra/oculta solo junto con el bloque). Sólo
 // para ADMIN; idempotente (dataset.fgPaste evita duplicar si se llama de nuevo.
 function _fgEnsurePasteBtns(){
-  if(!_admin)return;
+  if(!_can('pegar_oficial'))return;
   _fgPasteStyle();
   for(var n=1;n<=4;n++){
     var b=_fgBlock(n);if(!b||b.sec.dataset.fgPaste)continue;

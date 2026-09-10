@@ -151,6 +151,7 @@ const adminPanel = `<div id="admin-panel">
     <div class="stab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
     <div class="stab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
     <div class="stab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
+    <div class="stab" data-tab="facultades" onclick="switchAdminTab(this,'facultades')">Facultades</div>
   </div>
   <div class="stabs" id="sg-data" style="display:none">
     <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Padr&oacute;n</div>
@@ -295,6 +296,16 @@ const adminPanel = `<div id="admin-panel">
       </div>
     </div>
 
+    <div id="at-facultades" style="display:none">
+      <p class="ap-sec">Facultades por perfil</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren. El <strong>administrador siempre tiene todo</strong>, por eso su columna no se puede editar.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
+      <div id="fac-grid"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn-submit" id="fac-save" onclick="saveFacultadesChanges()" style="padding:8px 16px">Guardar cambios</button>
+        <button class="usr-btn edit" onclick="loadFacultades(true,renderFacultades)">Recargar</button>
+      </div>
+    </div>
+
     <div id="at-cashback" style="display:none">
       <p class="ap-sec">Montos de cashback</p>
       <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Edit&aacute; los 4 montos de cada configuraci&oacute;n (BAU, Config 1 a 4). Al guardar, el cambio <strong>impacta para todos los usuarios</strong> la pr&oacute;xima vez que entren o generen un flyer &mdash; no hace falta tocar nada m&aacute;s.</p>
@@ -352,6 +363,7 @@ const userModal = `<div id="user-modal">
           <select id="um-role" class="login-inp">
             <option value="asesor">Asesor</option>
             <option value="vip">VIP</option>
+            <option value="pro">Pro</option>
             <option value="admin">Administrador</option>
           </select>
         </div>
@@ -555,6 +567,11 @@ const checks = {
   'padron: editor en linea': html.includes('id="padron-edit-btn"') && html.includes('id="padron-editor"') && _authSrc.includes('function openPadronEditor(') && _authSrc.includes('function _padEditSave('),
   'panel admin: 3 pilares': html.includes('data-group="admin"') && html.includes('data-group="data"') && html.includes('data-group="config"') && _authSrc.includes('function switchAdminGroup('),
   'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
+  // Facultades por perfil: la matriz vive en la nube y gobierna el gating de la UI
+  'facultades: matriz por rol': html.includes('id="at-facultades"') && html.includes('id="fac-grid"') && _authSrc.includes('function _can(') && _authSrc.includes('function loadFacultades(') && _authSrc.includes('function _applyFacultades('),
+  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:true, asesores_guardados:true}') && !_authSrc.includes('_canNotes'),
+  'facultades: gating aplicado tras cargar la matriz': _authSrc.includes('loadFacultades(false,_applyFacultades);') && !_authSrc.includes('if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();}'),
+  'rol Pro': html.includes('<option value="pro">Pro</option>') && _authSrc.includes("pro:'Pro'"),
   'cashback: solapa + guardado en la nube': html.includes('id="at-cashback"') && html.includes('id="cashback-list"') && _authSrc.includes('function loadCashback(') && _authSrc.includes('function saveCashback(') && _authSrc.includes('function renderCashbackAdmin('),
   'cashback: se aplica a todos al loguear': _authSrc.includes("loadCashback(false,function(){if(typeof redraw==='function')redraw();});"),
   'padron: sin oficiales asignados': _authSrc.includes('function _padAsesoresLbl(') && _authSrc.includes('sin oficiales asignados') && _authSrc.includes('function _padShowNote('),
@@ -576,7 +593,7 @@ const checks = {
   // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN
   'pegar: parser': _authSrc.includes('function _fgParseContacto(') && _authSrc.includes('function _fgPartirTel(') && _authSrc.includes('function _fgVerificaTel('),
   'pegar: prioriza mail de Galicia': _authSrc.includes("x.indexOf('@'+_PAD_DOMINIO)") && _authSrc.includes("_PAD_DOMINIO='bancogalicia.com.ar'"),
-  'pegar: boton por asesor, solo admin': _authSrc.includes('function _fgEnsurePasteBtns(') && _authSrc.includes('if(!_admin)return;') && _authSrc.includes('_fgEnsurePasteBtns();'),
+  'pegar: boton por asesor, segun facultad': _authSrc.includes('function _fgEnsurePasteBtns(') && _authSrc.includes("if(!_can('pegar_oficial'))return;") && _authSrc.includes('_fgEnsurePasteBtns();'),
   'pegar: aplica/limpia/deshace': _authSrc.includes('function _fgApplyParsed(') && _authSrc.includes('function _fgUndoPaste(') && _authSrc.includes('esPersona'),
   'pegar: celular sin codigo de area (15+8)': _authSrc.includes("d.slice(0,2)==='15'") && _authSrc.includes("d.slice(q.pos+(q.len||0))"),
   'pegar: el cuadro se cierra al traer del padron': _authSrc.includes('function _fgClosePasteAll(') && _authSrc.includes("if(typeof _fgClosePasteAll==='function')_fgClosePasteAll();"),
