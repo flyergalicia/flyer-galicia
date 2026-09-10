@@ -496,6 +496,13 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-count{font-size:0.72rem;color:var(--gray);align-self:center;}
 html.dark .promos-search,html.dark .promos-filrow th{background:#22262c;border-color:#333840;color:#e9eaec;}
 html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
+/* Encabezados ordenables de la tabla de promociones */
+.promos-th-orden{cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s;}
+.promos-th-orden:hover{color:var(--red);}
+.promos-th-orden.ordenando{color:var(--red);}
+.promos-orden{font-size:0.85em;}
+.promos-orden.apagada{opacity:0.25;}
+.promos-th-orden:hover .promos-orden.apagada{opacity:0.6;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
@@ -1590,8 +1597,10 @@ function validarPromos(){
 
   _promosResultados=resultados;
   // Filtros en cero: si quedaban de la validación anterior, esconderían parte
-  // de los resultados nuevos y parecería que "faltan" marcas.
+  // de los resultados nuevos y parecería que "faltan" marcas. El orden también
+  // vuelve al natural (el de la lista recién pegada).
   for(var k in _promosFiltros)_promosFiltros[k]='';
+  _promosOrden={campo:'',dir:1};
   var _bq=document.getElementById('promos-buscar');if(_bq)_bq.value='';
   renderPromosResultados();
 
@@ -1702,11 +1711,56 @@ function _promoCoincideFiltro(r){
   }
   return true;
 }
+// ── Orden de la tabla ───────────────────────────────────────────────────────
+// campo vacío = orden natural (el de la lista pegada por el usuario).
+var _promosOrden={campo:'',dir:1};
+// El estado NO se ordena alfabéticamente: se ordena por urgencia, que es como
+// se mira este reporte (primero lo que hay que arreglar en el flyer).
+var _PROMO_ORDEN_ESTADO={VENCIDA:0,VENCE_ESTE_MES:1,REVISAR:2,NO_ENCONTRADA:3,SIN_FECHA:4,VIGENTE:5};
+// Cada click sobre la misma columna avanza: ascendente → descendente → sin
+// orden (vuelve al orden en que el usuario pegó las marcas).
+function _promoOrdenar(campo){
+  if(_promosOrden.campo!==campo){_promosOrden.campo=campo;_promosOrden.dir=1;}
+  else if(_promosOrden.dir===1){_promosOrden.dir=-1;}
+  else{_promosOrden.campo='';_promosOrden.dir=1;}
+  renderPromosResultados();
+}
+// Valor por el que se compara cada columna. Las fechas usan el dato crudo
+// (aaaa-mm-dd), que ordena cronológicamente aunque en pantalla se vea dd/mm/aaaa.
+function _promoValorOrden(r,campo){
+  var c=_promoCampos(r);
+  if(campo==='estado')return _PROMO_ORDEN_ESTADO[r.estado]!==undefined?_PROMO_ORDEN_ESTADO[r.estado]:99;
+  if(campo==='logo')return c.tieneLogo?0:1;
+  if(campo==='desde')return (r.promo&&r.fechaDesde)?String(r.fechaDesde).slice(0,10):'9999';
+  if(campo==='hasta')return (r.promo&&r.promo.fecha_hasta)?String(r.promo.fecha_hasta).slice(0,10):'9999';
+  // Los vacíos (sin coincidencia) van al final, no al principio: ordenar por
+  // categoría es para agrupar lo que sí se encontró, no para que lo que falta
+  // encabece la tabla. El caracter alto asegura que queden últimos.
+  var v=(c[campo]||'').toLowerCase();
+  return v||'￿';
+}
+// Encabezado clickeable, con la flecha de la columna por la que se ordena.
+function _promoTh(campo,titulo){
+  var act=_promosOrden.campo===campo;
+  var flecha=act?(_promosOrden.dir===1?' <span class="promos-orden">▲</span>':' <span class="promos-orden">▼</span>'):
+    ' <span class="promos-orden apagada">↕</span>';
+  return '<th class="promos-th-orden'+(act?' ordenando':'')+'" onclick="_promoOrdenar(\''+campo+'\')" '+
+    'title="Ordenar por '+_escAttr(titulo)+'">'+_escHtml(titulo)+flecha+'</th>';
+}
 // Las filas que hoy pasan el filtro (con su índice original, que es el que
-// usan los handlers de excluir / elegir candidato).
+// usan los handlers de excluir / elegir candidato), ya ordenadas.
 function _promosFilasVisibles(){
   var out=[];
   (_promosResultados||[]).forEach(function(r,i){if(_promoCoincideFiltro(r))out.push({r:r,i:i});});
+  if(_promosOrden.campo){
+    var campo=_promosOrden.campo,dir=_promosOrden.dir;
+    out.sort(function(a,b){
+      var va=_promoValorOrden(a.r,campo),vb=_promoValorOrden(b.r,campo);
+      if(va<vb)return -dir;
+      if(va>vb)return dir;
+      return a.i-b.i; // empate: se respeta el orden en que las pegó el usuario
+    });
+  }
   return out;
 }
 
@@ -1807,7 +1861,9 @@ function renderPromosResultados(){
 
   host.innerHTML='<div class="promos-table-wrap"><table class="promos-table"><thead>'+
     '<tr>'+
-      '<th></th><th>Logo</th><th>Marca (flyer)</th><th>Coincidencia en Galicia</th><th>Categoría</th><th>Desde</th><th>Hasta</th><th>Estado</th>'+
+      '<th></th>'+
+      _promoTh('logo','Logo')+_promoTh('marca','Marca (flyer)')+_promoTh('match','Coincidencia en Galicia')+
+      _promoTh('cat','Categoría')+_promoTh('desde','Desde')+_promoTh('hasta','Hasta')+_promoTh('estado','Estado')+
     '</tr>'+
     '<tr class="promos-filrow">'+
       '<th></th>'+

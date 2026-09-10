@@ -385,3 +385,10 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-count{font-size:0.72rem;color:var(--gray);align-self:center;}
 html.dark .promos-search,html.dark .promos-filrow th{background:#22262c;border-color:#333840;color:#e9eaec;}
 html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
+/* Encabezados ordenables de la tabla de promociones */
+.promos-th-orden{cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s;}
+.promos-th-orden:hover{color:var(--red);}
+.promos-th-orden.ordenando{color:var(--red);}
+.promos-orden{font-size:0.85em;}
+.promos-orden.apagada{opacity:0.25;}
+.promos-th-orden:hover .promos-orden.apagada{opacity:0.6;}
