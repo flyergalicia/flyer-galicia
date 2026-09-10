@@ -893,10 +893,19 @@ function loadPromosCatalogo(cb){
     }
     _promosCat=(catRes&&catRes.data)||[];
     var meta=metaRes&&metaRes.data;
+    // RLS filtrando en silencio no cuenta como "error" de PostgREST: la fila
+    // simplemente no vuelve. Si la metadata dice que hay catálogo pero la
+    // select trajo 0, es casi seguro un problema de sesión/permisos, no que
+    // el catálogo esté realmente vacío — se lo marca aparte para no confundirlo
+    // con un "todavía no sincronizó nunca".
+    if(!_promosCat.length&&meta&&meta.total>0&&!(catRes&&catRes.error)){
+      console.error('promos_galicia_cache: la consulta no devolvió error pero trajo 0 filas, aunque meta dice total='+meta.total+'. Probable problema de sesión/RLS.');
+      showToast('No se pudo leer el catálogo (0 resultados pero debería haber '+meta.total+'). Probá recargar la página o volver a iniciar sesión.');
+    }
     _promosSetSyncInfo(meta);
     _promosCatLoading=false;
     var vencida=!meta||!meta.last_sync_at||(Date.now()-new Date(meta.last_sync_at).getTime())>26*3600*1000;
-    if(vencida&&!(catRes&&catRes.error)){syncPromosCatalogo(false);}
+    if(vencida&&!(catRes&&catRes.error)&&_promosCat.length){syncPromosCatalogo(false);}
     if(cb)cb();
   }).catch(function(e){
     console.error('loadPromosCatalogo:',e);
