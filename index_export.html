@@ -8,6 +8,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- ExcelJS: sólo lo usa el Excel de "Buscador Promociones", que necesita el logo
+     incrustado en la celda (SheetJS/xlsx Community no soporta imágenes). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap");
 :root{--red:#e30613;--dark:#111;--light:#f5f5f0;--gray:#666;--border:#e0e0e0;--green:#1a9c50;--card:#fff;}
@@ -434,6 +437,36 @@ html.dark .fac-head{background:#1b1e23;}
 #fac-simbar button{background:#fff;color:#111;border:none;border-radius:7px;padding:6px 14px;
   font-family:"Syne",sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
+
+/* ===== BUSCADOR PROMOCIONES ===== */
+.promos-sync-box{margin-top:14px;padding:10px 12px;background:var(--light);border-radius:9px;border:1px solid var(--border);}
+#promos-sync-info{font-size:0.7rem;color:var(--gray);line-height:1.4;}
+.promos-modal{width:960px;max-width:95vw;}
+.promos-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.promos-chip{padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;font-family:"Syne",sans-serif;}
+.promos-chip.c-vigente{background:#e2f5e8;color:#1a7a3f;}
+.promos-chip.c-vence{background:#fff2cc;color:#8a6300;}
+.promos-chip.c-vencida{background:#fde3e2;color:#a3241a;}
+.promos-chip.c-revisar{background:#fff0e0;color:#a35a00;}
+.promos-chip.c-no{background:#ececec;color:#666;}
+.promos-table-wrap{overflow-x:auto;}
+.promos-table{width:100%;border-collapse:collapse;font-size:0.74rem;}
+.promos-table th{text-align:left;padding:7px 8px;background:var(--light);border-bottom:2px solid var(--border);font-family:"Syne",sans-serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--gray);}
+.promos-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.promos-table tr.excluida{opacity:0.4;}
+.promos-logo{width:30px;height:30px;object-fit:contain;border-radius:5px;background:#fafafa;border:1px solid var(--border);}
+.promos-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:0.66rem;font-weight:700;white-space:nowrap;}
+.promos-badge.b-vigente{background:#e2f5e8;color:#1a7a3f;}
+.promos-badge.b-vence{background:#fff2cc;color:#8a6300;}
+.promos-badge.b-vencida{background:#fde3e2;color:#a3241a;}
+.promos-badge.b-revisar{background:#fff0e0;color:#a35a00;}
+.promos-badge.b-no{background:#ececec;color:#666;}
+.promos-cand-sel{font-size:0.7rem;padding:3px 5px;border-radius:6px;border:1.5px solid var(--border);max-width:220px;}
+.promos-excl{cursor:pointer;}
+html.dark .promos-sync-box{background:#1b1e23;border-color:#333840;}
+html.dark .promos-table th{background:#1b1e23;color:#9aa0a8;}
+html.dark .promos-table td{border-color:#333840;}
+html.dark .promos-logo{background:#22262c;border-color:#333840;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
@@ -445,6 +478,8 @@ var _sb=window.supabase.createClient(SUPA_URL,SUPA_ANON);
 var _me=null,_admin=false,_allUsers=[],_editUid=null,_myName='';
 var FLYERS_PUBLIC='https://cajyjnxjbobdpltflgnb.supabase.co/storage/v1/object/public/flyers/';
 var _activeFlyerUrl=null,_activeFlyerName='';
+// Edge Function para el Buscador de Promociones (ver _callPromosFn más abajo).
+var FN_URL_PROMOS=SUPA_URL+'/functions/v1/promos-galicia';
 
 // Llama a la Edge Function auth-admin. Adjunta el JWT de la sesión si existe
 // (necesario para las acciones de admin). cb(err, data).
@@ -455,6 +490,22 @@ function _callFn(action,payload,cb){
     if(tok)headers['Authorization']='Bearer '+tok;
     var b={action:action};for(var k in payload)if(payload.hasOwnProperty(k))b[k]=payload[k];
     fetch(FN_URL,{method:'POST',headers:headers,body:JSON.stringify(b)})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
+      .then(function(res){cb(res.ok?null:(res.d&&res.d.error||'Error'),res.d);})
+      .catch(function(e){cb(e.message||'Error de red');});
+  });
+}
+
+// Igual que _callFn pero contra la Edge Function promos-galicia (puente hacia
+// el buscador de promociones de Galicia: ver comentario en esa función sobre
+// por qué no se puede llamar directo desde el navegador).
+function _callPromosFn(action,payload,cb){
+  _sb.auth.getSession().then(function(s){
+    var headers={'apikey':SUPA_ANON,'Content-Type':'application/json'};
+    var tok=s&&s.data&&s.data.session&&s.data.session.access_token;
+    if(tok)headers['Authorization']='Bearer '+tok;
+    var b={action:action};for(var k in payload)if(payload.hasOwnProperty(k))b[k]=payload[k];
+    fetch(FN_URL_PROMOS,{method:'POST',headers:headers,body:JSON.stringify(b)})
       .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
       .then(function(res){cb(res.ok?null:(res.d&&res.d.error||'Error'),res.d);})
       .catch(function(e){cb(e.message||'Error de red');});
@@ -1045,9 +1096,9 @@ var FACULTADES_FILE='_facultades.json',_facLoaded=false,_FAC=null,_myRole='aseso
 // asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
 // existe en la nube, nadie nota ningún cambio.
 var _FAC_DEF={
-  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false},
-  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true},
-  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true}
+  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false},
+  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false},
+  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -1069,6 +1120,7 @@ function _facRows(){
   });
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
   rows.push(['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']);
+  rows.push(['promos_buscar','Buscador de promociones','Agrega la pesta&ntilde;a "Promociones": pega las marcas del flyer y las cruza contra el buscador oficial de Galicia, con logo, fechas de vigencia y estado (vigente / vence este mes / vencida).']);
   return rows;
 }
 var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro']];
@@ -1136,6 +1188,16 @@ function _applyFacultades(){
   var pb=document.getElementById('fg-pad-btn');if(pb)pb.style.display=_can('padron_buscar')?'':'none';
 
   _facSyncOptBar();
+
+  // Pestaña "Promociones": si el perfil pierde la facultad estando parado
+  // ahí (o durante la vista previa de otro rol), lo vuelve a Individual.
+  var canPromos=_can('promos_buscar');
+  var ptab=document.getElementById('tab-btn-promos');
+  if(ptab){
+    ptab.style.display=canPromos?'':'none';
+    var pcontent=document.getElementById('tab-promos');
+    if(!canPromos&&pcontent&&pcontent.classList.contains('active')&&typeof switchTab==='function')switchTab('individual');
+  }
 }
 // Los títulos "Asesor 1..4" quedan clickeables o no. El listener ya está puesto,
 // pero openAsPop revalida la facultad, así que alcanza con el cambio visual.
@@ -1230,6 +1292,313 @@ function saveFacultadesChanges(){
     if(!ok)return;
     showToast('Facultades actualizadas');
     _applyFacultades(); // que el propio admin vea el efecto sin recargar
+  });
+}
+
+// ── BUSCADOR DE PROMOCIONES ──────────────────────────────────────────────────
+// Pega las marcas del flyer, las cruza contra una copia local del catálogo
+// oficial de Galicia (tabla promos_galicia_cache, sincronizada por la Edge
+// Function promos-galicia) y arma un reporte de vigencia con logo, fechas y
+// estado, exportable a Excel.
+//
+// El catálogo completo (~1700 promos) se trae una sola vez a memoria al abrir
+// la pestaña y el matching corre en el cliente; sólo se le pide a la Edge
+// Function la fechaDesde (que no viene en el listado) de las marcas que sí
+// matchearon, para no pagar ese costo por las 1700.
+var PROMO_LOGO_BASE='https://www.galicia.ar/content/dam/galicia/banco-galicia/personas/promociones/catalogo-de-beneficios/';
+var _promosCat=null,_promosCatLoading=false,_promosResultados=null,_promosMesRef=null;
+
+// Primera vez que se entra a la pestaña: pone el mes actual por default y
+// dispara la carga del catálogo (que a su vez sincroniza sola si está vieja).
+function initPromosTab(){
+  var mesInp=document.getElementById('promos-mes');
+  if(mesInp&&!mesInp.value){
+    var d=new Date();
+    mesInp.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  }
+  if(!_promosCat&&!_promosCatLoading)loadPromosCatalogo();
+}
+
+function _promosFmtFecha(iso){
+  if(!iso)return '-';
+  var p=String(iso).slice(0,10).split('-');
+  return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):iso;
+}
+function _promosSetSyncInfo(meta){
+  var el=document.getElementById('promos-sync-info');if(!el)return;
+  if(!meta||!meta.last_sync_at){
+    el.textContent='Catálogo todavía no sincronizado. Se va a actualizar solo.';
+    return;
+  }
+  var d=new Date(meta.last_sync_at);
+  el.textContent='Catálogo actualizado: '+d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+
+    ' — '+(meta.total||0)+' promociones.';
+}
+
+// Trae el catálogo completo a memoria + la metadata de sincronización. Si la
+// copia tiene más de 26hs (o nunca se sincronizó), dispara un sync solo antes
+// de mostrar nada, así el asesor no tiene que acordarse de apretar "Actualizar".
+function loadPromosCatalogo(cb){
+  _promosCatLoading=true;
+  Promise.all([
+    _sb.from('promos_galicia_cache').select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion'),
+    _sb.from('promos_galicia_meta').select('last_sync_at,total').eq('id',1).single()
+  ]).then(function(res){
+    var catRes=res[0],metaRes=res[1];
+    _promosCat=(catRes&&catRes.data)||[];
+    var meta=metaRes&&metaRes.data;
+    _promosSetSyncInfo(meta);
+    _promosCatLoading=false;
+    var vencida=!meta||!meta.last_sync_at||(Date.now()-new Date(meta.last_sync_at).getTime())>26*3600*1000;
+    if(vencida){syncPromosCatalogo(false);}
+    if(cb)cb();
+  }).catch(function(){
+    _promosCat=_promosCat||[];
+    _promosCatLoading=false;
+    if(cb)cb();
+  });
+}
+
+function syncPromosCatalogo(manual){
+  var btn=document.getElementById('promos-sync-btn');
+  if(btn){btn.disabled=true;btn.textContent='Sincronizando...';}
+  _callPromosFn('sync',{},function(err,d){
+    if(btn){btn.disabled=false;btn.textContent='↻ Actualizar catálogo ahora';}
+    if(err){
+      if(manual)showToast('No se pudo actualizar el catálogo: '+err);
+      return;
+    }
+    if(manual)showToast('Catálogo actualizado: '+((d&&d.data&&d.data.total)||0)+' promociones');
+    loadPromosCatalogo();
+  });
+}
+
+// ── Matching: marca del flyer -> promo del catálogo ─────────────────────────
+function _promoNormalizar(s){
+  return String(s||'').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'') // saca acentos
+    .replace(/['’´]/g,'') // saca apóstrofos sin dejar espacio (mcdonald's -> mcdonalds)
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim();
+}
+function _promoTokens(s){return s.split(' ').filter(Boolean);}
+// Busca candidatos de una marca en el catálogo, con un puntaje de confianza.
+// Devuelve como mucho un candidato por título único (una marca puede tener
+// varias promos, una por tarjeta: no son "candidatos distintos" compitiendo).
+function _promoBuscarCandidatos(marca,catalogo){
+  var nMarca=_promoNormalizar(marca),tokensMarca=_promoTokens(nMarca);
+  var scored=catalogo.map(function(p){
+    var nTitulo=_promoNormalizar(p.titulo),tokensTitulo=_promoTokens(nTitulo),score=0;
+    if(nTitulo===nMarca)score=100;
+    else if(tokensMarca.length>1&&tokensMarca.every(function(t){return tokensTitulo.indexOf(t)>=0;}))score=85;
+    else if(tokensTitulo.length>1&&tokensTitulo.every(function(t){return tokensMarca.indexOf(t)>=0;}))score=80;
+    else if(tokensMarca.length===1&&tokensTitulo[0]&&tokensTitulo[0]===tokensMarca[0])score=75;
+    else{
+      // palabra completa compartida (min 4 letras, para no pescar "de","on",etc.)
+      var compartidas=tokensMarca.filter(function(t){return t.length>=4&&tokensTitulo.indexOf(t)>=0;});
+      if(compartidas.length>0)score=40;
+    }
+    return{promo:p,score:score};
+  }).filter(function(c){return c.score>0;});
+  var porTitulo={};
+  scored.forEach(function(c){
+    var key=_promoNormalizar(c.promo.titulo);
+    var actual=porTitulo[key];
+    if(!actual||c.score>actual.score||(c.score===actual.score&&(c.promo.fecha_hasta||'')>(actual.promo.fecha_hasta||'')))porTitulo[key]=c;
+  });
+  var out=[];for(var k in porTitulo)out.push(porTitulo[k]);
+  out.sort(function(a,b){return b.score-a.score;});
+  return out;
+}
+function _promoEstado(fechaHasta,mesRef){
+  if(!fechaHasta)return 'SIN_FECHA';
+  var fin=new Date(fechaHasta+'T23:59:59');
+  var finDelMes=new Date(mesRef.getFullYear(),mesRef.getMonth()+1,0,23,59,59);
+  if(fin<mesRef)return 'VENCIDA';
+  if(fin<=finDelMes)return 'VENCE_ESTE_MES';
+  return 'VIGENTE';
+}
+var _PROMO_ESTADO_LBL={VIGENTE:'Vigente',VENCE_ESTE_MES:'Vence este mes',VENCIDA:'Vencida',REVISAR:'Revisar',NO_ENCONTRADA:'No encontrada',SIN_FECHA:'Sin fecha informada'};
+var _PROMO_ESTADO_CSS={VIGENTE:'vigente',VENCE_ESTE_MES:'vence',VENCIDA:'vencida',REVISAR:'revisar',NO_ENCONTRADA:'no',SIN_FECHA:'no'};
+
+function validarPromos(){
+  var raw=(document.getElementById('promos-marcas').value||'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  if(!raw.length){showToast('Pegá al menos una marca');return;}
+  if(!_promosCat||!_promosCat.length){
+    showToast('El catálogo todavía se está cargando, esperá un instante e intentá de nuevo');
+    if(!_promosCatLoading)loadPromosCatalogo();
+    return;
+  }
+  var mesVal=document.getElementById('promos-mes').value;
+  var mesRef=mesVal?new Date(parseInt(mesVal.slice(0,4),10),parseInt(mesVal.slice(5,7),10)-1,1):new Date();
+  _promosMesRef=mesRef;
+
+  var resultados=raw.map(function(marca){
+    var candidatos=_promoBuscarCandidatos(marca,_promosCat);
+    if(!candidatos.length)return{marca:marca,estado:'NO_ENCONTRADA',promo:null,candidatos:[],excluir:false};
+    var mejor=candidatos[0];
+    var ambiguo=candidatos.length>1&&candidatos[1].score>=75&&candidatos[1].score>=mejor.score-10;
+    var debil=mejor.score<75;
+    var necesitaRevision=ambiguo||debil;
+    return{
+      marca:marca,
+      estado:necesitaRevision?'REVISAR':_promoEstado(mejor.promo.fecha_hasta,mesRef),
+      promo:mejor.promo,
+      candidatos:candidatos.slice(0,5),
+      necesitaRevision:necesitaRevision,
+      excluir:false
+    };
+  });
+
+  _promosResultados=resultados;
+  renderPromosModal();
+  openPromosModal();
+
+  // Pide fechaDesde (no viene en el listado) sólo de los matches confirmados,
+  // que son los que se van a mostrar como certeros.
+  var ids=resultados.filter(function(r){return r.promo&&!r.necesitaRevision;}).map(function(r){return r.promo.id;});
+  if(ids.length){
+    _callPromosFn('detalle',{ids:ids},function(err,d){
+      if(err||!d||!d.data)return;
+      resultados.forEach(function(r){
+        if(r.promo&&d.data[r.promo.id]!==undefined)r.fechaDesde=d.data[r.promo.id];
+      });
+      renderPromosModal();
+    });
+  }
+}
+
+// El usuario elige a mano un candidato (o "ninguna coincide") para una fila
+// ambigua/débil. sel es el índice en r.candidatos, o -1.
+function _promoElegirCandidato(i,sel){
+  var r=_promosResultados&&_promosResultados[i];if(!r)return;
+  sel=parseInt(sel,10);
+  if(sel<0||!r.candidatos[sel]){
+    r.promo=null;r.estado='NO_ENCONTRADA';r.necesitaRevision=false;r.fechaDesde=null;
+  }else{
+    r.promo=r.candidatos[sel].promo;
+    r.necesitaRevision=false;
+    r.estado=_promoEstado(r.promo.fecha_hasta,_promosMesRef||new Date());
+    r.fechaDesde=null;
+    // el detalle (fechaDesde) de esta única fila recién confirmada
+    _callPromosFn('detalle',{ids:[r.promo.id]},function(err,d){
+      if(!err&&d&&d.data&&d.data[r.promo.id]!==undefined){r.fechaDesde=d.data[r.promo.id];renderPromosModal();}
+    });
+  }
+  renderPromosModal();
+}
+function _promoToggleExcluir(i,on){
+  var r=_promosResultados&&_promosResultados[i];if(!r)return;
+  r.excluir=!!on;
+  renderPromosModal();
+}
+
+function openPromosModal(){document.getElementById('modal-promos').classList.add('show');}
+function closePromosModal(){document.getElementById('modal-promos').classList.remove('show');}
+
+function renderPromosModal(){
+  var resultados=_promosResultados||[];
+  var host=document.getElementById('promos-table');
+  var sumHost=document.getElementById('promos-summary');
+  if(!host||!sumHost)return;
+
+  var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0};
+  resultados.forEach(function(r){if(!r.excluir)conteo[r.estado]=(conteo[r.estado]||0)+1;});
+  var chipDefs=[['VIGENTE','c-vigente'],['VENCE_ESTE_MES','c-vence'],['VENCIDA','c-vencida'],['REVISAR','c-revisar'],['NO_ENCONTRADA','c-no']];
+  sumHost.innerHTML=chipDefs.map(function(c){
+    return '<span class="promos-chip '+c[1]+'">'+_PROMO_ESTADO_LBL[c[0]]+': '+(conteo[c[0]]||0)+'</span>';
+  }).join('');
+
+  var rowsHtml=resultados.map(function(r,i){
+    var css=_PROMO_ESTADO_CSS[r.estado]||'no';
+    var logo=r.promo&&r.promo.imagen?
+      '<img class="promos-logo" src="'+_escAttr(PROMO_LOGO_BASE+r.promo.imagen)+'" onerror="this.style.visibility=\'hidden\'" alt="">':
+      '<div class="promos-logo"></div>';
+    var candSel='';
+    if(r.necesitaRevision||r.estado==='NO_ENCONTRADA'){
+      var opts=(r.candidatos||[]).map(function(c,ci){
+        return '<option value="'+ci+'"'+(r.promo&&c.promo.id===r.promo.id?' selected':'')+'>'+_escHtml(c.promo.titulo)+'</option>';
+      }).join('');
+      candSel='<select class="promos-cand-sel" onchange="_promoElegirCandidato('+i+',this.value)">'+
+        '<option value="-1"'+(!r.promo?' selected':'')+'>— Elegir coincidencia —</option>'+opts+'</select>';
+    }
+    return '<tr class="'+(r.excluir?'excluida':'')+'">'+
+      '<td><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
+        ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>'+
+      '<td>'+logo+'</td>'+
+      '<td>'+_escHtml(r.marca)+'</td>'+
+      '<td>'+(r.promo?_escHtml(r.promo.titulo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+      '<td>'+(r.promo?_escHtml(r.promo.subtitulo||'-'):'-')+'</td>'+
+      '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
+      '<td>'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
+      '<td><span class="promos-badge b-'+css+'">'+_PROMO_ESTADO_LBL[r.estado]+'</span></td>'+
+    '</tr>';
+  }).join('');
+
+  host.innerHTML='<table class="promos-table"><thead><tr>'+
+    '<th></th><th>Logo</th><th>Marca (flyer)</th><th>Coincidencia en Galicia</th><th>Categoría</th><th>Desde</th><th>Hasta</th><th>Estado</th>'+
+    '</tr></thead><tbody>'+rowsHtml+'</tbody></table>';
+}
+
+// Excel con el logo incrustado por celda. SheetJS (usado en el resto de la
+// app) no soporta imágenes en la edición Community, así que acá se usa
+// ExcelJS sólo para este export.
+function descargarExcelPromos(){
+  if(!_promosResultados||!_promosResultados.length)return;
+  var btn=document.getElementById('promos-dl-btn');
+  if(btn){btn.disabled=true;btn.textContent='Generando...';}
+
+  var wb=new ExcelJS.Workbook();
+  var ws=wb.addWorksheet('Promociones');
+  ws.columns=[
+    {header:'Logo',key:'logo',width:12},
+    {header:'Marca (flyer)',key:'marca',width:24},
+    {header:'Coincidencia en Galicia',key:'match',width:28},
+    {header:'Categoría',key:'cat',width:18},
+    {header:'Desde',key:'desde',width:12},
+    {header:'Hasta',key:'hasta',width:12},
+    {header:'Estado',key:'estado',width:16}
+  ];
+  ws.getRow(1).font={bold:true};
+  var fills={VIGENTE:'FFDFF5E1',VENCE_ESTE_MES:'FFFFF1CC',VENCIDA:'FFFCE0DF',REVISAR:'FFFFE7D1',NO_ENCONTRADA:'FFECECEC',SIN_FECHA:'FFECECEC'};
+
+  var incluidos=_promosResultados.filter(function(r){return !r.excluir;});
+  var pendientes=incluidos.map(function(r,i){
+    var rowIdx=i+2;
+    var row=ws.addRow({
+      marca:r.marca,
+      match:r.promo?r.promo.titulo:'-',
+      cat:r.promo?(r.promo.subtitulo||'-'):'-',
+      desde:r.promo?_promosFmtFecha(r.fechaDesde):'-',
+      hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
+      estado:_PROMO_ESTADO_LBL[r.estado]||r.estado
+    });
+    row.height=32;
+    row.eachCell(function(cell){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fills[r.estado]||'FFFFFFFF'}};});
+    if(!r.promo||!r.promo.imagen)return Promise.resolve();
+    return fetch(PROMO_LOGO_BASE+r.promo.imagen).then(function(resp){
+      return resp.ok?resp.arrayBuffer():null;
+    }).then(function(buf){
+      if(!buf)return;
+      var ext=/\.jpe?g$/i.test(r.promo.imagen)?'jpeg':'png';
+      var imgId=wb.addImage({buffer:buf,extension:ext});
+      ws.addImage(imgId,{tl:{col:0,row:rowIdx-1},ext:{width:26,height:26},editAs:'oneCell'});
+    }).catch(function(){/* si el logo no carga, la fila igual queda con sus datos */});
+  });
+
+  Promise.all(pendientes).then(function(){
+    return wb.xlsx.writeBuffer();
+  }).then(function(buf){
+    var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='promociones_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(a.href);},4000);
+    if(btn){btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
+  }).catch(function(e){
+    showToast('Error generando el Excel: '+((e&&e.message)||e));
+    if(btn){btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
   });
 }
 
@@ -5024,6 +5393,20 @@ function _fgUndoPaste(n){
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-promos">
+  <div class="modal promos-modal">
+    <div class="modal-header"><h3>Validación de promociones</h3><button class="modal-close" onclick="closePromosModal()">&#10005;</button></div>
+    <div class="modal-body">
+      <div class="promos-summary" id="promos-summary"></div>
+      <div class="promos-table-wrap"><div id="promos-table"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn bp" style="flex:1" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
+      <button class="btn bg" onclick="closePromosModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="layout" id="layout" style="display:none">
   <div class="panel">
     <div class="ptitle">Flyer Galicia 5.5</div>
@@ -5031,6 +5414,7 @@ function _fgUndoPaste(n){
       <div class="tab active" onclick="switchTab('individual')">&#9998; Individual</div>
       <div class="tab" onclick="switchTab('masivo')">&#128196; Masivo</div>
       <div class="tab" onclick="switchTab('historial')">&#128337; Historial</div>
+      <div class="tab" id="tab-btn-promos" style="display:none" onclick="switchTab('promos')">&#128269; Promociones</div>
     </div>
 
     <!-- INDIVIDUAL -->
@@ -5122,6 +5506,20 @@ function _fgUndoPaste(n){
     <div id="tab-historial" class="tab-content">
       <div id="history-list"></div>
     </div>
+
+    <!-- PROMOCIONES -->
+    <div id="tab-promos" class="tab-content">
+      <p style="font-size:0.74rem;color:var(--gray);margin-bottom:10px;">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
+      <div class="sec">Marcas del flyer</div>
+      <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
+      <div class="sec">Mes a validar</div>
+      <div class="field"><input type="month" id="promos-mes"></div>
+      <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
+      <div class="promos-sync-box">
+        <div id="promos-sync-info">Cargando estado del catálogo...</div>
+        <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
+      </div>
+    </div>
   </div>
 
   <div class="prev">
@@ -5176,11 +5574,12 @@ document.addEventListener("DOMContentLoaded", function(){ initApp();
 
 // ── TABS ─────────────────────────────────────────────────
 function switchTab(t){
-  ["individual","masivo","historial"].forEach(function(id,i){
+  ["individual","masivo","historial","promos"].forEach(function(id,i){
     document.getElementById("tab-"+id).classList.toggle("active",id===t);
     document.querySelectorAll(".tab")[i].classList.toggle("active",id===t);
   });
   if(t==="historial") renderHistory();
+  if(t==="promos" && typeof initPromosTab==="function") initPromosTab();
 }
 
 // ── TOGGLES ──────────────────────────────────────────────
@@ -5484,6 +5883,7 @@ function closeModal(){document.getElementById("modal").classList.remove("show");
 function modalDlPDF(){if(modalCanvas){savePDF(modalCanvas,getVals());closeModal();}}
 function modalDlPNG(){if(modalCanvas){savePNG(modalCanvas,getVals());closeModal();}}
 document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
+document.getElementById("modal-promos").addEventListener("click",function(e){if(e.target===this)closePromosModal();});
 
 // ── DESCARGA ─────────────────────────────────────────────
 function savePDF(fc,v){

@@ -1,7 +1,9 @@
 import { readFileSync } from 'fs';
 const TOKEN = process.env.SB_TOKEN;
 const REF = 'cajyjnxjbobdpltflgnb';
-const SLUG = 'auth-admin';
+// Slug opcional como 3er argumento: `node _deployfn.mjs deploy promos-galicia`.
+// Sin argumento se comporta exactamente como antes (auth-admin).
+const SLUG = process.argv[3] || 'auth-admin';
 const API = 'https://api.supabase.com';
 const H = { 'Authorization': 'Bearer ' + TOKEN };
 
@@ -23,7 +25,7 @@ if (mode === 'info') {
   try { verifyJwt = !!JSON.parse(cur.body).verify_jwt; } catch {}
   console.log('verify_jwt actual:', verifyJwt);
 
-  const code = readFileSync(new URL('./functions/auth-admin/index.ts', import.meta.url), 'utf8');
+  const code = readFileSync(new URL(`./functions/${SLUG}/index.ts`, import.meta.url), 'utf8');
   const fd = new FormData();
   fd.append('metadata', JSON.stringify({
     name: SLUG,

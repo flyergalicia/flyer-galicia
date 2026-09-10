@@ -326,3 +326,33 @@ html.dark .fac-head{background:#1b1e23;}
 #fac-simbar button{background:#fff;color:#111;border:none;border-radius:7px;padding:6px 14px;
   font-family:"Syne",sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
+
+/* ===== BUSCADOR PROMOCIONES ===== */
+.promos-sync-box{margin-top:14px;padding:10px 12px;background:var(--light);border-radius:9px;border:1px solid var(--border);}
+#promos-sync-info{font-size:0.7rem;color:var(--gray);line-height:1.4;}
+.promos-modal{width:960px;max-width:95vw;}
+.promos-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.promos-chip{padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;font-family:"Syne",sans-serif;}
+.promos-chip.c-vigente{background:#e2f5e8;color:#1a7a3f;}
+.promos-chip.c-vence{background:#fff2cc;color:#8a6300;}
+.promos-chip.c-vencida{background:#fde3e2;color:#a3241a;}
+.promos-chip.c-revisar{background:#fff0e0;color:#a35a00;}
+.promos-chip.c-no{background:#ececec;color:#666;}
+.promos-table-wrap{overflow-x:auto;}
+.promos-table{width:100%;border-collapse:collapse;font-size:0.74rem;}
+.promos-table th{text-align:left;padding:7px 8px;background:var(--light);border-bottom:2px solid var(--border);font-family:"Syne",sans-serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--gray);}
+.promos-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.promos-table tr.excluida{opacity:0.4;}
+.promos-logo{width:30px;height:30px;object-fit:contain;border-radius:5px;background:#fafafa;border:1px solid var(--border);}
+.promos-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:0.66rem;font-weight:700;white-space:nowrap;}
+.promos-badge.b-vigente{background:#e2f5e8;color:#1a7a3f;}
+.promos-badge.b-vence{background:#fff2cc;color:#8a6300;}
+.promos-badge.b-vencida{background:#fde3e2;color:#a3241a;}
+.promos-badge.b-revisar{background:#fff0e0;color:#a35a00;}
+.promos-badge.b-no{background:#ececec;color:#666;}
+.promos-cand-sel{font-size:0.7rem;padding:3px 5px;border-radius:6px;border:1.5px solid var(--border);max-width:220px;}
+.promos-excl{cursor:pointer;}
+html.dark .promos-sync-box{background:#1b1e23;border-color:#333840;}
+html.dark .promos-table th{background:#1b1e23;color:#9aa0a8;}
+html.dark .promos-table td{border-color:#333840;}
+html.dark .promos-logo{background:#22262c;border-color:#333840;}

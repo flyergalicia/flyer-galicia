@@ -8,6 +8,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- ExcelJS: sólo lo usa el Excel de "Buscador Promociones", que necesita el logo
+     incrustado en la celda (SheetJS/xlsx Community no soporta imágenes). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap");
 :root{--red:#e30613;--dark:#111;--light:#f5f5f0;--gray:#666;--border:#e0e0e0;--green:#1a9c50;--card:#fff;}
@@ -434,8 +437,38 @@ html.dark .fac-head{background:#1b1e23;}
 #fac-simbar button{background:#fff;color:#111;border:none;border-radius:7px;padding:6px 14px;
   font-family:"Syne",sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
+
+/* ===== BUSCADOR PROMOCIONES ===== */
+.promos-sync-box{margin-top:14px;padding:10px 12px;background:var(--light);border-radius:9px;border:1px solid var(--border);}
+#promos-sync-info{font-size:0.7rem;color:var(--gray);line-height:1.4;}
+.promos-modal{width:960px;max-width:95vw;}
+.promos-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.promos-chip{padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;font-family:"Syne",sans-serif;}
+.promos-chip.c-vigente{background:#e2f5e8;color:#1a7a3f;}
+.promos-chip.c-vence{background:#fff2cc;color:#8a6300;}
+.promos-chip.c-vencida{background:#fde3e2;color:#a3241a;}
+.promos-chip.c-revisar{background:#fff0e0;color:#a35a00;}
+.promos-chip.c-no{background:#ececec;color:#666;}
+.promos-table-wrap{overflow-x:auto;}
+.promos-table{width:100%;border-collapse:collapse;font-size:0.74rem;}
+.promos-table th{text-align:left;padding:7px 8px;background:var(--light);border-bottom:2px solid var(--border);font-family:"Syne",sans-serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--gray);}
+.promos-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.promos-table tr.excluida{opacity:0.4;}
+.promos-logo{width:30px;height:30px;object-fit:contain;border-radius:5px;background:#fafafa;border:1px solid var(--border);}
+.promos-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:0.66rem;font-weight:700;white-space:nowrap;}
+.promos-badge.b-vigente{background:#e2f5e8;color:#1a7a3f;}
+.promos-badge.b-vence{background:#fff2cc;color:#8a6300;}
+.promos-badge.b-vencida{background:#fde3e2;color:#a3241a;}
+.promos-badge.b-revisar{background:#fff0e0;color:#a35a00;}
+.promos-badge.b-no{background:#ececec;color:#666;}
+.promos-cand-sel{font-size:0.7rem;padding:3px 5px;border-radius:6px;border:1.5px solid var(--border);max-width:220px;}
+.promos-excl{cursor:pointer;}
+html.dark .promos-sync-box{background:#1b1e23;border-color:#333840;}
+html.dark .promos-table th{background:#1b1e23;color:#9aa0a8;}
+html.dark .promos-table td{border-color:#333840;}
+html.dark .promos-logo{background:#22262c;border-color:#333840;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=32c7d60561"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=f8e0470f1a"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
@@ -506,6 +539,20 @@ html.dark .fac-head{background:#1b1e23;}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-promos">
+  <div class="modal promos-modal">
+    <div class="modal-header"><h3>Validación de promociones</h3><button class="modal-close" onclick="closePromosModal()">&#10005;</button></div>
+    <div class="modal-body">
+      <div class="promos-summary" id="promos-summary"></div>
+      <div class="promos-table-wrap"><div id="promos-table"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn bp" style="flex:1" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
+      <button class="btn bg" onclick="closePromosModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="layout" id="layout" style="display:none">
   <div class="panel">
     <div class="ptitle">Flyer Galicia 5.5</div>
@@ -513,6 +560,7 @@ html.dark .fac-head{background:#1b1e23;}
       <div class="tab active" onclick="switchTab('individual')">&#9998; Individual</div>
       <div class="tab" onclick="switchTab('masivo')">&#128196; Masivo</div>
       <div class="tab" onclick="switchTab('historial')">&#128337; Historial</div>
+      <div class="tab" id="tab-btn-promos" style="display:none" onclick="switchTab('promos')">&#128269; Promociones</div>
     </div>
 
     <!-- INDIVIDUAL -->
@@ -604,6 +652,20 @@ html.dark .fac-head{background:#1b1e23;}
     <div id="tab-historial" class="tab-content">
       <div id="history-list"></div>
     </div>
+
+    <!-- PROMOCIONES -->
+    <div id="tab-promos" class="tab-content">
+      <p style="font-size:0.74rem;color:var(--gray);margin-bottom:10px;">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
+      <div class="sec">Marcas del flyer</div>
+      <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
+      <div class="sec">Mes a validar</div>
+      <div class="field"><input type="month" id="promos-mes"></div>
+      <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
+      <div class="promos-sync-box">
+        <div id="promos-sync-info">Cargando estado del catálogo...</div>
+        <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
+      </div>
+    </div>
   </div>
 
   <div class="prev">
@@ -658,11 +720,12 @@ document.addEventListener("DOMContentLoaded", function(){ initApp();
 
 // ── TABS ─────────────────────────────────────────────────
 function switchTab(t){
-  ["individual","masivo","historial"].forEach(function(id,i){
+  ["individual","masivo","historial","promos"].forEach(function(id,i){
     document.getElementById("tab-"+id).classList.toggle("active",id===t);
     document.querySelectorAll(".tab")[i].classList.toggle("active",id===t);
   });
   if(t==="historial") renderHistory();
+  if(t==="promos" && typeof initPromosTab==="function") initPromosTab();
 }
 
 // ── TOGGLES ──────────────────────────────────────────────
@@ -966,6 +1029,7 @@ function closeModal(){document.getElementById("modal").classList.remove("show");
 function modalDlPDF(){if(modalCanvas){savePDF(modalCanvas,getVals());closeModal();}}
 function modalDlPNG(){if(modalCanvas){savePNG(modalCanvas,getVals());closeModal();}}
 document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
+document.getElementById("modal-promos").addEventListener("click",function(e){if(e.target===this)closePromosModal();});
 
 // ── DESCARGA ─────────────────────────────────────────────
 function savePDF(fc,v){
