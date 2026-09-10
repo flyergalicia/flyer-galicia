@@ -481,9 +481,11 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-logo-err::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:0.8rem;}
 .promos-logo-empty{opacity:0.35;}
 /* Filtros por columna + buscador de la tabla de resultados */
-.promos-results-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
-.promos-results-head .promos-summary{margin-bottom:0;flex:1;}
-.promos-search-box{margin-left:auto;}
+.promos-results-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+/* Los chips van en su PROPIA fila completa: compitiendo por el ancho con el
+   buscador y el selector, el ultimo (No encontradas) se salia de la vista. */
+.promos-results-head .promos-summary{margin-bottom:0;flex:1 0 100%;}
+
 .promos-search{width:230px;padding:7px 11px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.74rem;background:var(--card);outline:none;transition:border-color .15s;}
 .promos-search:focus{border-color:var(--red);}
 .promos-chip{cursor:pointer;transition:box-shadow .15s,transform .1s;}
@@ -509,6 +511,8 @@ html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 .promos-sort-sel{padding:7px 10px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.73rem;background:var(--card);outline:none;cursor:pointer;max-width:250px;}
 .promos-sort-sel:focus{border-color:var(--red);}
 html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec;}
+/* El buscador y el selector de orden quedan a la derecha, en su propia fila */
+.promos-results-head .promos-search-box{margin-left:auto;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
@@ -1722,7 +1726,10 @@ function _promoCoincideFiltro(r){
 var _promosOrden={campo:'',dir:1};
 // El estado NO se ordena alfabéticamente: se ordena por urgencia, que es como
 // se mira este reporte (primero lo que hay que arreglar en el flyer).
-var _PROMO_ORDEN_ESTADO={VENCIDA:0,VENCE_ESTE_MES:1,REVISAR:2,NO_ENCONTRADA:3,SIN_FECHA:4,VIGENTE:5};
+// Primero las que NO están en el catálogo (hay que sacarlas del flyer), después
+// las vencidas, las que vencen este mes, las dudosas, y al final las que ya
+// están bien.
+var _PROMO_ORDEN_ESTADO={NO_ENCONTRADA:0,VENCIDA:1,VENCE_ESTE_MES:2,REVISAR:3,SIN_FECHA:4,VIGENTE:5};
 // Cada click sobre la misma columna avanza: ascendente → descendente → sin
 // orden (vuelve al orden en que el usuario pegó las marcas).
 function _promoOrdenar(campo){
@@ -1876,7 +1883,10 @@ function renderPromosResultados(){
   var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0};
   resultados.forEach(function(r){if(!r.excluir)conteo[r.estado]=(conteo[r.estado]||0)+1;});
   // Los chips también filtran: tocar "Vencidas" deja sólo esas.
-  var chipDefs=[['VIGENTE','c-vigente'],['VENCE_ESTE_MES','c-vence'],['VENCIDA','c-vencida'],['REVISAR','c-revisar'],['NO_ENCONTRADA','c-no']];
+  // Mismo criterio que el orden por estado: primero lo que hay que corregir en
+  // el flyer (una marca que no está en el catálogo hay que sacarla), último lo
+  // que ya está bien.
+  var chipDefs=[['NO_ENCONTRADA','c-no'],['VENCIDA','c-vencida'],['VENCE_ESTE_MES','c-vence'],['REVISAR','c-revisar'],['VIGENTE','c-vigente']];
   sumHost.innerHTML=chipDefs.map(function(c){
     var act=_promosFiltros.estado===c[0]?' activo':'';
     return '<span class="promos-chip '+c[1]+act+'" title="Filtrar por '+_escAttr(_PROMO_ESTADO_LBL[c[0]])+'" '+

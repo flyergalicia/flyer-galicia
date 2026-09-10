@@ -370,9 +370,11 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-logo-err::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:0.8rem;}
 .promos-logo-empty{opacity:0.35;}
 /* Filtros por columna + buscador de la tabla de resultados */
-.promos-results-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
-.promos-results-head .promos-summary{margin-bottom:0;flex:1;}
-.promos-search-box{margin-left:auto;}
+.promos-results-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+/* Los chips van en su PROPIA fila completa: compitiendo por el ancho con el
+   buscador y el selector, el ultimo (No encontradas) se salia de la vista. */
+.promos-results-head .promos-summary{margin-bottom:0;flex:1 0 100%;}
+
 .promos-search{width:230px;padding:7px 11px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.74rem;background:var(--card);outline:none;transition:border-color .15s;}
 .promos-search:focus{border-color:var(--red);}
 .promos-chip{cursor:pointer;transition:box-shadow .15s,transform .1s;}
@@ -398,3 +400,5 @@ html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 .promos-sort-sel{padding:7px 10px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.73rem;background:var(--card);outline:none;cursor:pointer;max-width:250px;}
 .promos-sort-sel:focus{border-color:var(--red);}
 html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec;}
+/* El buscador y el selector de orden quedan a la derecha, en su propia fila */
+.promos-results-head .promos-search-box{margin-left:auto;}

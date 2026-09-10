@@ -1209,7 +1209,10 @@ function _promoCoincideFiltro(r){
 var _promosOrden={campo:'',dir:1};
 // El estado NO se ordena alfabéticamente: se ordena por urgencia, que es como
 // se mira este reporte (primero lo que hay que arreglar en el flyer).
-var _PROMO_ORDEN_ESTADO={VENCIDA:0,VENCE_ESTE_MES:1,REVISAR:2,NO_ENCONTRADA:3,SIN_FECHA:4,VIGENTE:5};
+// Primero las que NO están en el catálogo (hay que sacarlas del flyer), después
+// las vencidas, las que vencen este mes, las dudosas, y al final las que ya
+// están bien.
+var _PROMO_ORDEN_ESTADO={NO_ENCONTRADA:0,VENCIDA:1,VENCE_ESTE_MES:2,REVISAR:3,SIN_FECHA:4,VIGENTE:5};
 // Cada click sobre la misma columna avanza: ascendente → descendente → sin
 // orden (vuelve al orden en que el usuario pegó las marcas).
 function _promoOrdenar(campo){
@@ -1363,7 +1366,10 @@ function renderPromosResultados(){
   var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0};
   resultados.forEach(function(r){if(!r.excluir)conteo[r.estado]=(conteo[r.estado]||0)+1;});
   // Los chips también filtran: tocar "Vencidas" deja sólo esas.
-  var chipDefs=[['VIGENTE','c-vigente'],['VENCE_ESTE_MES','c-vence'],['VENCIDA','c-vencida'],['REVISAR','c-revisar'],['NO_ENCONTRADA','c-no']];
+  // Mismo criterio que el orden por estado: primero lo que hay que corregir en
+  // el flyer (una marca que no está en el catálogo hay que sacarla), último lo
+  // que ya está bien.
+  var chipDefs=[['NO_ENCONTRADA','c-no'],['VENCIDA','c-vencida'],['VENCE_ESTE_MES','c-vence'],['REVISAR','c-revisar'],['VIGENTE','c-vigente']];
   sumHost.innerHTML=chipDefs.map(function(c){
     var act=_promosFiltros.estado===c[0]?' activo':'';
     return '<span class="promos-chip '+c[1]+act+'" title="Filtrar por '+_escAttr(_PROMO_ESTADO_LBL[c[0]])+'" '+

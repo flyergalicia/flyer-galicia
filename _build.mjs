@@ -609,7 +609,9 @@ const checks = {
   'promos: filtros por columna + buscador': html.includes('id="promos-buscar"') && html.includes('id="promos-search-box"') && _authSrc.includes('var _promosFiltros=') && _authSrc.includes('function _promoCoincideFiltro(') && _authSrc.includes('function _promosPintarFilas(') && _authSrc.includes("id=\"promos-tbody\"") && _authSrc.includes('function _promoLimpiarFiltros('),
   // Orden por columna: el estado NO va alfabetico sino por urgencia, y los
   // vacios (sin coincidencia) caen al final en vez de encabezar la tabla.
-  'promos: orden por columna': _authSrc.includes('function _promoOrdenar(') && _authSrc.includes('var _PROMO_ORDEN_ESTADO=') && _authSrc.includes('function _promoValorOrden(') && _authSrc.includes('function _promoTh(') && _authSrc.includes('VENCIDA:0,VENCE_ESTE_MES:1'),
+  // El estado ordena por urgencia: primero lo que hay que corregir en el flyer
+  // (una marca que no esta en el catalogo hay que sacarla), ultimo lo vigente.
+  'promos: orden por columna': _authSrc.includes('function _promoOrdenar(') && _authSrc.includes('var _PROMO_ORDEN_ESTADO=') && _authSrc.includes('function _promoValorOrden(') && _authSrc.includes('function _promoTh(') && _authSrc.includes('NO_ENCONTRADA:0,VENCIDA:1,VENCE_ESTE_MES:2,REVISAR:3') && _authSrc.includes("chipDefs=[['NO_ENCONTRADA'"),
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
   'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOpts().map(') && !_authSrc.includes('opciones_armador'),
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
