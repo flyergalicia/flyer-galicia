@@ -154,7 +154,8 @@ const adminPanel = `<div id="admin-panel">
     <div class="stab" data-tab="facultades" onclick="switchAdminTab(this,'facultades')">Facultades</div>
   </div>
   <div class="stabs" id="sg-data" style="display:none">
-    <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Padr&oacute;n</div>
+    <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Mi padr&oacute;n</div>
+    <div class="stab" data-tab="padronotros" onclick="switchAdminTab(this,'padronotros')">Padr&oacute;n Asesores</div>
   </div>
   <div class="stabs" id="sg-config" style="display:none">
     <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
@@ -317,8 +318,8 @@ const adminPanel = `<div id="admin-panel">
     </div>
 
     <div id="at-varios" style="display:none">
-      <p class="ap-sec">Padr&oacute;n de empresas</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>El padr&oacute;n <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.<br><br><strong>Cashback:</strong> la columna se llama <code>config</code> y acepta <code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>, <code>Config 3</code> o <code>Config 4</code> (tambi&eacute;n vale escribir s&oacute;lo el n&uacute;mero). Si la celda queda <strong>vac&iacute;a</strong> (o dice algo que no reconozco), esa empresa sale <strong>sin cashback</strong>: el flyer se genera con los importes en blanco. As&iacute; se marcan las pocas empresas a las que no les corresponde. Al subir el Excel te muestro un informe con todo lo que detect&eacute;, antes de guardar nada.</p>
+      <p class="ap-sec">Mi padr&oacute;n de empresas</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5"><strong>Este padr&oacute;n es tuyo y privado.</strong> Ning&uacute;n otro usuario &mdash;ni el otro administrador&mdash; puede ver ni editar tus empresas: lo impide el servidor, no el navegador. Cada usuario con la facultad de padr&oacute;n tiene el suyo, separado del tuyo.<br><br>Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>El padr&oacute;n <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.<br><br><strong>Cashback:</strong> la columna se llama <code>config</code> y acepta <code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>, <code>Config 3</code> o <code>Config 4</code> (tambi&eacute;n vale escribir s&oacute;lo el n&uacute;mero). Si la celda queda <strong>vac&iacute;a</strong> (o dice algo que no reconozco), esa empresa sale <strong>sin cashback</strong>: el flyer se genera con los importes en blanco. As&iacute; se marcan las pocas empresas a las que no les corresponde. Al subir el Excel te muestro un informe con todo lo que detect&eacute;, antes de guardar nada.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn-submit" onclick="document.getElementById('padron-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
         <button class="usr-btn edit" id="padron-edit-btn" onclick="togglePadronEditor()">&#9998; Editar en l&iacute;nea</button>
@@ -333,6 +334,21 @@ const adminPanel = `<div id="admin-panel">
         <div id="padron-prev"></div>
       </div>
       <div id="padron-editor" style="display:none"></div>
+    </div>
+
+    <div id="at-padronotros" style="display:none">
+      <p class="ap-sec">Padr&oacute;n de otros usuarios</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada usuario tiene su <strong>padr&oacute;n privado</strong>: nadie puede ver ni editar el de otro. Desde ac&aacute; pod&eacute;s <strong>consultar y descargar</strong> el de los asesores, VIP y Pro, pero <strong>no modificarlo</strong>.<br><br>El padr&oacute;n de un administrador es privado incluso para los dem&aacute;s administradores, as&iacute; que no aparece en esta lista.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <select id="po-user" class="login-inp" style="margin-bottom:0;max-width:320px" onchange="renderPadronOtros()">
+          <option value="">Eleg&iacute; un usuario...</option>
+        </select>
+        <button class="usr-btn edit" id="po-dl" onclick="dlPadronDe()" style="display:none">&#11015; Descargar Excel</button>
+        <button class="usr-btn edit" onclick="loadPadronOtrosUsers(true)">Recargar</button>
+      </div>
+      <p style="font-size:.76rem;color:var(--gray);margin-bottom:12px" id="po-stat"></p>
+      <input type="text" id="po-q" class="login-inp" placeholder="Filtrar: raz&oacute;n social o CUIT..." autocomplete="off" oninput="renderPadronOtrosList()" style="margin-bottom:0;display:none">
+      <div id="po-list"></div>
     </div>
 
   </div>
@@ -560,7 +576,11 @@ const checks = {
   'autocompletar mail': _authSrc.includes('function _fgMailFromName(') && _authSrc.includes('_fgAutoMail();'),
   'alta progresiva asesores': _authSrc.includes('function _fgAddNextAsesor(') && _authSrc.includes('id="fg-add-asesor"') && _authSrc.includes('function _fgRemoveAsesor('),
   // Padron de empresas: Excel precargado + buscador por razon social / CUIT (solo admin)
-  'padron: motor': _authSrc.includes('function padronSearch(') && _authSrc.includes('_PADRON_FILE') && _authSrc.includes('function _padCuits('),
+  // Padron PRIVADO por usuario: vive en la tabla padron_empresas con RLS, ya no
+  // en el JSON publico del bucket (que se leia sin login).
+  'padron: privado por usuario (tabla, no archivo)': _authSrc.includes("var _PADRON_TABLE='padron_empresas'") && _authSrc.includes(".eq('user_id',_me.id)") && _authSrc.includes("_sb.rpc('padron_replace'") && !_authSrc.includes("_PADRON_FILE"),
+  'padron: solapa Padron Asesores (solo lectura)': html.includes('id="at-padronotros"') && html.includes('id="po-user"') && _authSrc.includes('function loadPadronDe(') && _authSrc.includes('function dlPadronDe(') && _authSrc.includes(".neq('role','admin')"),
+  'padron: motor': _authSrc.includes('function padronSearch(') && _authSrc.includes('_PADRON_TABLE') && _authSrc.includes('function _padCuits('),
   'padron: excel': _authSrc.includes('function importPadron(') && _authSrc.includes('function dlPadron(') && _authSrc.includes('function dlPadronTemplate('),
   'padron: lupita solo admin': _authSrc.includes('_fgEnsurePadronBtn();') && _authSrc.includes('function applyPadronRow('),
   'padron: solapa Varios': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
@@ -589,7 +609,7 @@ const checks = {
   'padron: SIN explicito + nombre de archivo': _authSrc.includes('function _padCfgSin(') && _authSrc.includes('function _padAvisoSinCB(') && _authSrc.includes("_fn.value='Flyer_'+(r.empresa||'')"),
   '3 asesores: banda ancha': _authSrc.includes('ew3:1140') && _authSrc.includes('xs=[bx+bw/6,bx+bw/2,bx+5*bw/6];colW=bw/3;'),
   // Bugs encontrados en la revision general (ver tests en scratchpad)
-  'padron: filas saneadas al cargar': _authSrc.includes('function _padSane(') && _authSrc.includes('_padron=_padSane(d&&d.rows)'),
+  'padron: filas saneadas al cargar': _authSrc.includes('function _padSane(') && _authSrc.includes('_padron=_padSane(r.data)'),
   'historial: aplica los 4 asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)'),
   'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),

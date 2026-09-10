@@ -549,7 +549,7 @@ function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel
 
 // El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
 // _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
-var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios'],config:['subir','cashback','legales']};
+var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','padronotros'],config:['subir','cashback','legales']};
 var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
 function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
@@ -575,6 +575,7 @@ function switchAdminTab(el,t){
   if(t==='cashback')loadCashback(true,renderCashbackAdmin);
   if(t==='facultades')loadFacultades(true,renderFacultades);
   if(t==='varios')renderPadronAdmin(true);
+  if(t==='padronotros')loadPadronOtrosUsers(false);
   if(t==='legales'){
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
   }
@@ -611,7 +612,7 @@ function _facDefault(role,key){
 // Filas de la pantalla, en orden.
 function _facRows(){
   var rows=[
-    ['padron_buscar','Buscar empresas con la lupa','Bot&oacute;n de b&uacute;squeda junto a "Nombre de la empresa": busca por raz&oacute;n social o CUIT y completa los datos. <strong>No les da un padr&oacute;n propio</strong>: consultan el que carg&aacute;s vos.'],
+    ['padron_buscar','Padr&oacute;n propio de empresas','Le da <strong>su propio padr&oacute;n privado</strong>: carga sus empresas y las busca con la lupa por raz&oacute;n social o CUIT. <strong>Nadie m&aacute;s puede ver ni editar lo que cargue</strong>; vos s&iacute; pod&eacute;s consultarlo desde Data &rarr; Padr&oacute;n Asesores.'],
     ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.']
   ];
   _facOptList().forEach(function(o){
@@ -2819,7 +2820,6 @@ function _fmtDate(iso){
 // se va generando: la fuente de verdad es el Excel del admin. Es el MISMO formato
 // que la plantilla del masivo + la columna cuit (que el masivo ignora), así un solo
 // archivo sirve para las dos cosas.
-var _PADRON_FILE='_padron.json';
 var _padron=null,_padronAt='',_padHits=[];
 var _PAD_HEAD=(function(){
   var h=['empresa','cuit','config'];
@@ -2911,24 +2911,47 @@ function _padSane(rows){
   });
   return out;
 }
+// El padrón es PRIVADO de cada usuario y vive en la tabla padron_empresas, no en
+// un archivo del bucket (que era público: cualquiera con la URL lo leía sin
+// loguearse). Quién ve qué lo hace cumplir el servidor con RLS, no el cliente:
+// cada uno sólo ve lo suyo, y un admin puede LEER el de los no-admin.
+var _PADRON_TABLE='padron_empresas',_PADRON_COLS='empresa,cuits,config,asesores,created_at';
+function _padUltimo(rows){
+  var t='';(rows||[]).forEach(function(r){if(r&&r.created_at&&r.created_at>t)t=r.created_at;});
+  return t;
+}
 function loadPadron(force,cb){
   if(_padron&&!force){if(cb)cb(_padron);return;}
-  fetch(FLYERS_PUBLIC+_PADRON_FILE+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(d){
-      _padron=_padSane(d&&d.rows);
-      _padronAt=(d&&d.updated_at)||'';
+  if(!_me){_padron=_padron||[];if(cb)cb(_padron);return;}
+  _sb.from(_PADRON_TABLE).select(_PADRON_COLS).eq('user_id',_me.id).order('empresa',{ascending:true})
+    .then(function(r){
+      if(r.error){
+        showToast('No se pudo cargar tu padrón: '+r.error.message);
+        _padron=_padron||[];if(cb)cb(_padron);return;
+      }
+      _padron=_padSane(r.data);
+      _padronAt=_padUltimo(r.data);
       if(cb)cb(_padron);
-    }).catch(function(){_padron=_padron||[];if(cb)cb(_padron);});
+    });
 }
+// Reemplaza el padrón propio de una sola vez. Va por la función padron_replace,
+// que hace el borrado y la carga dentro de una transacción: si algo falla, el
+// padrón queda como estaba en vez de vaciarse a medias.
 function savePadron(rows,cb){
-  var meta=JSON.stringify({rows:rows,count:rows.length,updated_at:new Date().toISOString()});
-  return _sb.storage.from('flyers')
-    .upload(_PADRON_FILE,new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+  return _sb.rpc('padron_replace',{p_rows:rows||[]})
     .then(function(r){
       if(r&&r.error){showToast('Error al guardar el padrón: '+r.error.message);if(cb)cb(false);return;}
       _padron=rows;_padronAt=new Date().toISOString();
       if(cb)cb(true);
+    });
+}
+// Padrón de OTRO usuario, para la solapa "Padrón Asesores" (sólo lectura: si el
+// servidor no lo permite, devuelve vacío y no hay nada que mostrar).
+function loadPadronDe(uid,cb){
+  _sb.from(_PADRON_TABLE).select(_PADRON_COLS).eq('user_id',uid).order('empresa',{ascending:true})
+    .then(function(r){
+      if(r.error){showToast('No se pudo cargar ese padrón: '+r.error.message);cb([]);return;}
+      cb(_padSane(r.data));
     });
 }
 // ── PADRÓN: Excel (importar / exportar / plantilla) ───────────────────────────
@@ -3192,6 +3215,92 @@ function _padEditSave(){
     renderPadronAdmin(true);
   });
 }
+// ── PADRÓN ASESORES: el admin consulta (sin editar) el padrón de otros ───────
+// Los admin no figuran en la lista: su padrón es privado incluso entre ellos, y
+// el servidor lo hace cumplir igual aunque alguien fuerce el id acá.
+var _poUsers=null,_poRows=null,_poNombre='';
+function loadPadronOtrosUsers(force){
+  var sel=document.getElementById('po-user');if(!sel)return;
+  if(_poUsers&&!force){_poFillSelect();return;}
+  _sb.from('profiles').select('id,full_name,email_asesor,role')
+    .neq('role','admin').order('full_name',{ascending:true})
+    .then(function(r){
+      if(r.error){showToast('No se pudo cargar la lista: '+r.error.message);return;}
+      _poUsers=r.data||[];
+      _poFillSelect();
+    });
+}
+function _poFillSelect(){
+  var sel=document.getElementById('po-user');if(!sel)return;
+  var prev=sel.value;
+  sel.innerHTML='<option value="">Eleg&iacute; un usuario...</option>'+
+    (_poUsers||[]).map(function(u){
+      var nom=u.full_name||u.email_asesor||'(sin nombre)';
+      return '<option value="'+_escAttr(u.id)+'">'+_escHtml(nom)+' &middot; '+_escHtml(_ROLE_LBL[u.role]||u.role)+'</option>';
+    }).join('');
+  if(prev)sel.value=prev;
+  if(!(_poUsers||[]).length){
+    var st=document.getElementById('po-stat');
+    if(st)st.innerHTML='No hay usuarios (adem&aacute;s de los administradores) todav&iacute;a.';
+  }
+}
+function renderPadronOtros(){
+  var sel=document.getElementById('po-user'),st=document.getElementById('po-stat');
+  var q=document.getElementById('po-q'),dl=document.getElementById('po-dl');
+  var uid=sel?sel.value:'';
+  _poRows=null;
+  var u=(_poUsers||[]).filter(function(x){return x.id===uid;})[0];
+  _poNombre=u?(u.full_name||u.email_asesor||'usuario'):'';
+  if(!uid){
+    if(st)st.innerHTML='';if(q)q.style.display='none';if(dl)dl.style.display='none';
+    var l0=document.getElementById('po-list');if(l0)l0.innerHTML='';
+    return;
+  }
+  if(st)st.innerHTML='<span style="color:var(--gray)">Cargando...</span>';
+  loadPadronDe(uid,function(rows){
+    _poRows=rows;
+    if(st){
+      st.innerHTML=rows.length
+        ?('<strong>'+rows.length+'</strong> empresas &nbsp;&middot;&nbsp; <strong>'+_padCuitCount(rows)+'</strong> CUIT &nbsp;&middot;&nbsp; s&oacute;lo lectura')
+        :'Este usuario todav&iacute;a no carg&oacute; ninguna empresa.';
+    }
+    if(q){q.style.display=rows.length?'':'none';q.value='';}
+    if(dl)dl.style.display=rows.length?'':'none';
+    renderPadronOtrosList();
+  });
+}
+function renderPadronOtrosList(){
+  var host=document.getElementById('po-list');if(!host)return;
+  var rows=_poRows||[];
+  if(!rows.length){host.innerHTML='';return;}
+  var q=(document.getElementById('po-q')||{}).value||'';
+  var t=_padNorm(q),dig=_padDigits(q),toks=t.split(' ').filter(Boolean);
+  var res=!t?rows:rows.filter(function(r){
+    if(dig.length>=3&&r.cuits){for(var j=0;j<r.cuits.length;j++)if(r.cuits[j].indexOf(dig)>=0)return true;}
+    var e=_padNorm(r.empresa);return !!e&&toks.every(function(k){return e.indexOf(k)>=0;});
+  });
+  if(!res.length){host.innerHTML='<p style="font-size:.78rem;color:var(--gray);margin-top:10px">Sin resultados para "'+_escHtml(q)+'".</p>';return;}
+  host.innerHTML='<p style="font-size:.68rem;color:var(--gray);margin:10px 0 6px">'+
+      (t?('Coincidencias: '+res.length):('Mostrando '+res.length))+'</p>'+
+    res.map(function(r){
+      return '<div class="usr-row" style="align-items:flex-start">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:600;font-size:.82rem">'+_escHtml(r.empresa||'(sin razón social)')+'</div>'+
+          '<div style="font-size:.68rem;color:var(--gray);margin-top:2px">'+
+            (r.cuits.length?_escHtml(r.cuits.map(_padFmtCuit).join('  ·  ')):'sin CUIT')+'</div>'+
+        '</div>'+
+        '<span style="font-size:.68rem;color:var(--gray);white-space:nowrap">'+
+          _escHtml(_padCfgName(_padCfgOf(r.config)))+' &nbsp;·&nbsp; '+
+          (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+'</span>'+
+      '</div>';
+    }).join('');
+}
+function dlPadronDe(){
+  if(!_poRows||!_poRows.length){showToast('No hay empresas para descargar');return;}
+  _padXlsx(_poRows,'Padron_'+_fgSafeName(_poNombre||'usuario')+'.xlsx');
+  showToast('Padrón descargado ('+_poRows.length+' empresas)');
+}
+
 // ── PADRÓN: lupita + popover de búsqueda en el armador (SOLO ADMIN) ───────────
 // Se inyecta al lado del input "Nombre de la empresa". Para asesores y VIP la
 // pantalla queda exactamente como hoy (no se llama nunca a esta función).
@@ -3416,7 +3525,7 @@ function _padClean(a){
 }
 // Devuelve null si no hay nada que actualizar, o {row,empresa,config,asesores,cambios[]}.
 function _padDiff(){
-  if(!_adminNow()||!_padRef||!_padron||_padron.indexOf(_padRef)<0)return null;
+  if(!_can('padron_buscar')||!_padRef||!_padron||_padron.indexOf(_padRef)<0)return null;
   var emp=(_gv('empresa')||'').trim();
   if(!emp)return null; // sin razón social no tiene sentido pisar la fila
   // La razón social IDENTIFICA a la fila y nunca se renombra desde acá: si la
@@ -3639,7 +3748,7 @@ function _padCloseUpdate(dismiss){
 // Si la empresa está en el padrón → ofrece actualizarla; si no → darla de alta.
 function _padAfterFlyer(){
   try{
-    if(!_adminNow()||!_padron)return;
+    if(!_can('padron_buscar')||!_padron)return;
     var emp=(_gv('empresa')||'').trim();
     if(!emp){_padRef=null;return;}
     // Se re-engancha por NOMBRE cuando: no había fila, el padrón se recargó
