@@ -59,7 +59,11 @@ html = html.replace('<div class="layout">', '<div class="layout" id="layout" sty
 // aunque cambie el número de versión en una regeneración del HTML.
 html = html.replace(
   /<h1>(Flyer Galicia[^<]*)<\/h1><\/header>/,
-  '<div class="header-text"><h1>$1</h1><span>ARMADOR</span></div>' +
+  // Dos solapas de primer nivel (no una dentro de la otra): "Flyer Galicia" y
+  // "Promociones", esta última oculta hasta que _applyFacultades la habilite
+  // (facultad promos_buscar). switchApp() las intercambia en auth.js.
+  '<div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp(\'flyer\')"><h1>$1</h1><span>ARMADOR</span></div>' +
+  '<div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp(\'promos\')"><h1>Promociones</h1><span>BUSCADOR</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
     '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
@@ -592,7 +596,7 @@ const checks = {
   'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false}') && !_authSrc.includes('_canNotes'),
   // Buscador de promociones: pestaña nueva, gateada por facultad (default false
   // para todos los roles: sólo el admin la ve hasta que se la habiliten a otro perfil).
-  'promos: pestaña + facultad + matching + excel': html.includes('id="tab-btn-promos"') && html.includes('id="tab-promos"') && html.includes('id="modal-promos"') && _authSrc.includes("rows.push(['promos_buscar',") && _authSrc.includes('function _promoBuscarCandidatos(') && _authSrc.includes('function validarPromos(') && _authSrc.includes('function descargarExcelPromos(') && _authSrc.includes('function _callPromosFn('),
+  'promos: solapa de primer nivel + facultad + matching + excel': html.includes('id="apptab-promos"') && html.includes('id="view-promos"') && html.includes('onclick="switchApp(') && _authSrc.includes('function switchApp(') && _authSrc.includes("rows.push(['promos_buscar',") && _authSrc.includes('function _promoBuscarCandidatos(') && _authSrc.includes('function validarPromos(') && _authSrc.includes('function descargarExcelPromos(') && _authSrc.includes('function _callPromosFn('),
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
   'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOpts().map(') && !_authSrc.includes('opciones_armador'),
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),

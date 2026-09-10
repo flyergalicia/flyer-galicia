@@ -328,9 +328,19 @@ html.dark .fac-head{background:#1b1e23;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
 
 /* ===== BUSCADOR PROMOCIONES ===== */
+/* Solapas de primer nivel en el header ("Flyer Galicia" / "Promociones"). */
+.app-tab{cursor:pointer;opacity:0.55;transition:opacity .15s;}
+.app-tab:hover{opacity:0.85;}
+.app-tab.active{opacity:1;}
+/* Vista "Promociones": mismo esquema panel+resultado que el armador (ver
+   .layout/.panel/.prev), pero como sección de primer nivel independiente. */
+.promos-view{display:grid;grid-template-columns:420px 1fr;height:calc(100vh - 62px);overflow:hidden;}
+.promos-results{padding:20px;overflow:auto;background:#e8e8e3;height:100%;}
+.promos-empty{font-size:0.8rem;color:var(--gray);text-align:center;margin-top:60px;}
+.promos-actions{display:flex;gap:8px;margin-top:14px;}
+html.dark .promos-results{background:#1b1e23;}
 .promos-sync-box{margin-top:14px;padding:10px 12px;background:var(--light);border-radius:9px;border:1px solid var(--border);}
 #promos-sync-info{font-size:0.7rem;color:var(--gray);line-height:1.4;}
-.promos-modal{width:960px;max-width:95vw;}
 .promos-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
 .promos-chip{padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;font-family:"Syne",sans-serif;}
 .promos-chip.c-vigente{background:#e2f5e8;color:#1a7a3f;}
@@ -356,3 +366,6 @@ html.dark .promos-sync-box{background:#1b1e23;border-color:#333840;}
 html.dark .promos-table th{background:#1b1e23;color:#9aa0a8;}
 html.dark .promos-table td{border-color:#333840;}
 html.dark .promos-logo{background:#22262c;border-color:#333840;}
+.promos-logo-err{position:relative;}
+.promos-logo-err::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:0.8rem;}
+.promos-logo-empty{opacity:0.35;}

@@ -126,20 +126,6 @@ canvas{display:block;max-width:100%;}
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-promos">
-  <div class="modal promos-modal">
-    <div class="modal-header"><h3>Validación de promociones</h3><button class="modal-close" onclick="closePromosModal()">&#10005;</button></div>
-    <div class="modal-body">
-      <div class="promos-summary" id="promos-summary"></div>
-      <div class="promos-table-wrap"><div id="promos-table"></div></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn bp" style="flex:1" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
-      <button class="btn bg" onclick="closePromosModal()">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <div class="layout">
   <div class="panel">
     <div class="ptitle">Flyer Galicia 5.5</div>
@@ -147,7 +133,6 @@ canvas{display:block;max-width:100%;}
       <div class="tab active" onclick="switchTab('individual')">&#9998; Individual</div>
       <div class="tab" onclick="switchTab('masivo')">&#128196; Masivo</div>
       <div class="tab" onclick="switchTab('historial')">&#128337; Historial</div>
-      <div class="tab" id="tab-btn-promos" style="display:none" onclick="switchTab('promos')">&#128269; Promociones</div>
     </div>
 
     <!-- INDIVIDUAL -->
@@ -239,20 +224,6 @@ canvas{display:block;max-width:100%;}
     <div id="tab-historial" class="tab-content">
       <div id="history-list"></div>
     </div>
-
-    <!-- PROMOCIONES -->
-    <div id="tab-promos" class="tab-content">
-      <p style="font-size:0.74rem;color:var(--gray);margin-bottom:10px;">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
-      <div class="sec">Marcas del flyer</div>
-      <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
-      <div class="sec">Mes a validar</div>
-      <div class="field"><input type="month" id="promos-mes"></div>
-      <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
-      <div class="promos-sync-box">
-        <div id="promos-sync-info">Cargando estado del catálogo...</div>
-        <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
-      </div>
-    </div>
   </div>
 
   <div class="prev">
@@ -260,6 +231,34 @@ canvas{display:block;max-width:100%;}
     <div class="cw"><canvas id="cv"></canvas></div>
   </div>
 </div>
+
+<!-- PROMOCIONES: vista de primer nivel, hermana de "Flyer Galicia" (ver
+     switchApp en auth.js). Oculta hasta que switchApp('promos') la muestre. -->
+<div class="promos-view" id="view-promos" style="display:none">
+  <div class="panel">
+    <div class="ptitle">Buscador de Promociones</div>
+    <p class="legal-hint">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
+    <div class="sec">Marcas del flyer</div>
+    <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
+    <div class="sec">Mes a validar</div>
+    <div class="field"><input type="month" id="promos-mes"></div>
+    <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
+    <div class="promos-sync-box">
+      <div id="promos-sync-info">Cargando estado del catálogo...</div>
+      <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
+    </div>
+  </div>
+  <div class="promos-results">
+    <div class="promos-summary" id="promos-summary"></div>
+    <div id="promos-table">
+      <p class="promos-empty">Pegá las marcas a la izquierda y tocá "Validar vigencia" para ver el resultado acá.</p>
+    </div>
+    <div class="promos-actions" id="promos-actions" style="display:none">
+      <button class="btn bp" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast-el"></div>
 
 <script>
@@ -307,12 +306,11 @@ document.addEventListener("DOMContentLoaded", function(){
 
 // ── TABS ─────────────────────────────────────────────────
 function switchTab(t){
-  ["individual","masivo","historial","promos"].forEach(function(id,i){
+  ["individual","masivo","historial"].forEach(function(id,i){
     document.getElementById("tab-"+id).classList.toggle("active",id===t);
     document.querySelectorAll(".tab")[i].classList.toggle("active",id===t);
   });
   if(t==="historial") renderHistory();
-  if(t==="promos" && typeof initPromosTab==="function") initPromosTab();
 }
 
 // ── TOGGLES ──────────────────────────────────────────────
@@ -617,7 +615,6 @@ function closeModal(){document.getElementById("modal").classList.remove("show");
 function modalDlPDF(){if(modalCanvas){savePDF(modalCanvas,getVals());closeModal();}}
 function modalDlPNG(){if(modalCanvas){savePNG(modalCanvas,getVals());closeModal();}}
 document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
-document.getElementById("modal-promos").addEventListener("click",function(e){if(e.target===this)closePromosModal();});
 
 // ── DESCARGA ─────────────────────────────────────────────
 function savePDF(fc,v){

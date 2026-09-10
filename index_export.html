@@ -439,9 +439,19 @@ html.dark .fac-head{background:#1b1e23;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
 
 /* ===== BUSCADOR PROMOCIONES ===== */
+/* Solapas de primer nivel en el header ("Flyer Galicia" / "Promociones"). */
+.app-tab{cursor:pointer;opacity:0.55;transition:opacity .15s;}
+.app-tab:hover{opacity:0.85;}
+.app-tab.active{opacity:1;}
+/* Vista "Promociones": mismo esquema panel+resultado que el armador (ver
+   .layout/.panel/.prev), pero como sección de primer nivel independiente. */
+.promos-view{display:grid;grid-template-columns:420px 1fr;height:calc(100vh - 62px);overflow:hidden;}
+.promos-results{padding:20px;overflow:auto;background:#e8e8e3;height:100%;}
+.promos-empty{font-size:0.8rem;color:var(--gray);text-align:center;margin-top:60px;}
+.promos-actions{display:flex;gap:8px;margin-top:14px;}
+html.dark .promos-results{background:#1b1e23;}
 .promos-sync-box{margin-top:14px;padding:10px 12px;background:var(--light);border-radius:9px;border:1px solid var(--border);}
 #promos-sync-info{font-size:0.7rem;color:var(--gray);line-height:1.4;}
-.promos-modal{width:960px;max-width:95vw;}
 .promos-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
 .promos-chip{padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;font-family:"Syne",sans-serif;}
 .promos-chip.c-vigente{background:#e2f5e8;color:#1a7a3f;}
@@ -467,6 +477,9 @@ html.dark .promos-sync-box{background:#1b1e23;border-color:#333840;}
 html.dark .promos-table th{background:#1b1e23;color:#9aa0a8;}
 html.dark .promos-table td{border-color:#333840;}
 html.dark .promos-logo{background:#22262c;border-color:#333840;}
+.promos-logo-err{position:relative;}
+.promos-logo-err::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:0.8rem;}
+.promos-logo-empty{opacity:0.35;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
@@ -1189,15 +1202,28 @@ function _applyFacultades(){
 
   _facSyncOptBar();
 
-  // Pestaña "Promociones": si el perfil pierde la facultad estando parado
-  // ahí (o durante la vista previa de otro rol), lo vuelve a Individual.
+  // Solapa de primer nivel "Promociones": si el perfil pierde la facultad
+  // estando parado ahí (o durante la vista previa de otro rol), lo vuelve a
+  // la vista del flyer.
   var canPromos=_can('promos_buscar');
-  var ptab=document.getElementById('tab-btn-promos');
-  if(ptab){
-    ptab.style.display=canPromos?'':'none';
-    var pcontent=document.getElementById('tab-promos');
-    if(!canPromos&&pcontent&&pcontent.classList.contains('active')&&typeof switchTab==='function')switchTab('individual');
+  var atab=document.getElementById('apptab-promos');
+  if(atab){
+    atab.style.display=canPromos?'':'none';
+    if(!canPromos&&atab.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
   }
+}
+
+// Solapas de primer nivel del header: "Flyer Galicia" (layout existente) y
+// "Promociones" (vista propia, gateada por la facultad promos_buscar).
+function switchApp(view){
+  var lay=document.getElementById('layout'),pv=document.getElementById('view-promos');
+  var tf=document.getElementById('apptab-flyer'),tp=document.getElementById('apptab-promos');
+  if(view==='promos'&&!_can('promos_buscar'))view='flyer'; // por si lo llaman sin permiso
+  if(lay)lay.style.display=(view==='flyer')?'grid':'none';
+  if(pv)pv.style.display=(view==='promos')?'grid':'none';
+  if(tf)tf.classList.toggle('active',view==='flyer');
+  if(tp)tp.classList.toggle('active',view==='promos');
+  if(view==='promos'&&typeof initPromosTab==='function')initPromosTab();
 }
 // Los títulos "Asesor 1..4" quedan clickeables o no. El listener ya está puesto,
 // pero openAsPop revalida la facultad, así que alcanza con el cambio visual.
@@ -1345,14 +1371,20 @@ function loadPromosCatalogo(cb){
     _sb.from('promos_galicia_meta').select('last_sync_at,total').eq('id',1).single()
   ]).then(function(res){
     var catRes=res[0],metaRes=res[1];
+    if(catRes&&catRes.error){
+      console.error('promos_galicia_cache select:',catRes.error);
+      showToast('No se pudo leer el catálogo de promociones: '+catRes.error.message);
+    }
     _promosCat=(catRes&&catRes.data)||[];
     var meta=metaRes&&metaRes.data;
     _promosSetSyncInfo(meta);
     _promosCatLoading=false;
     var vencida=!meta||!meta.last_sync_at||(Date.now()-new Date(meta.last_sync_at).getTime())>26*3600*1000;
-    if(vencida){syncPromosCatalogo(false);}
+    if(vencida&&!(catRes&&catRes.error)){syncPromosCatalogo(false);}
     if(cb)cb();
-  }).catch(function(){
+  }).catch(function(e){
+    console.error('loadPromosCatalogo:',e);
+    showToast('Error cargando el catálogo de promociones: '+((e&&e.message)||e));
     _promosCat=_promosCat||[];
     _promosCatLoading=false;
     if(cb)cb();
@@ -1365,7 +1397,11 @@ function syncPromosCatalogo(manual){
   _callPromosFn('sync',{},function(err,d){
     if(btn){btn.disabled=false;btn.textContent='↻ Actualizar catálogo ahora';}
     if(err){
-      if(manual)showToast('No se pudo actualizar el catálogo: '+err);
+      console.error('promos sync:',err);
+      // Si es manual siempre avisa; si fue el auto-sync en segundo plano, avisa
+      // igual cuando no hay NADA cargado (si no, el usuario se queda mirando un
+      // catálogo vacío sin ninguna pista de por qué).
+      if(manual||!_promosCat||!_promosCat.length)showToast('No se pudo actualizar el catálogo de promociones: '+err);
       return;
     }
     if(manual)showToast('Catálogo actualizado: '+((d&&d.data&&d.data.total)||0)+' promociones');
@@ -1374,9 +1410,19 @@ function syncPromosCatalogo(manual){
 }
 
 // ── Matching: marca del flyer -> promo del catálogo ─────────────────────────
+// Galicia guarda algunos títulos con entidades HTML sin decodificar (ej. "Le
+// Club Libros &amp; Música"). Se decodifican las comunes antes de comparar o
+// mostrar; si no, "amp" quedaba colado como palabra en el normalizado y el
+// nombre se veía mal en pantalla/Excel.
+var _PROMO_ENTITIES={'&amp;':'&','&aacute;':'á','&eacute;':'é','&iacute;':'í','&oacute;':'ó','&uacute;':'ú','&ntilde;':'ñ','&Ntilde;':'Ñ','&quot;':'"','&#39;':"'",'&apos;':"'"};
+function _promoDecodeEntities(s){
+  s=String(s||'');
+  for(var k in _PROMO_ENTITIES)s=s.split(k).join(_PROMO_ENTITIES[k]);
+  return s;
+}
 function _promoNormalizar(s){
-  return String(s||'').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g,'') // saca acentos
+  return _promoDecodeEntities(s).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'') // saca acentos (rango de marcas diacríticas combinantes)
     .replace(/['’´]/g,'') // saca apóstrofos sin dejar espacio (mcdonald's -> mcdonalds)
     .replace(/[^a-z0-9]+/g,' ')
     .trim();
@@ -1451,19 +1497,19 @@ function validarPromos(){
   });
 
   _promosResultados=resultados;
-  renderPromosModal();
-  openPromosModal();
+  renderPromosResultados();
 
   // Pide fechaDesde (no viene en el listado) sólo de los matches confirmados,
   // que son los que se van a mostrar como certeros.
   var ids=resultados.filter(function(r){return r.promo&&!r.necesitaRevision;}).map(function(r){return r.promo.id;});
   if(ids.length){
     _callPromosFn('detalle',{ids:ids},function(err,d){
-      if(err||!d||!d.data)return;
+      if(err){console.error('promos detalle:',err);return;}
+      if(!d||!d.data)return;
       resultados.forEach(function(r){
         if(r.promo&&d.data[r.promo.id]!==undefined)r.fechaDesde=d.data[r.promo.id];
       });
-      renderPromosModal();
+      renderPromosResultados();
     });
   }
 }
@@ -1482,25 +1528,33 @@ function _promoElegirCandidato(i,sel){
     r.fechaDesde=null;
     // el detalle (fechaDesde) de esta única fila recién confirmada
     _callPromosFn('detalle',{ids:[r.promo.id]},function(err,d){
-      if(!err&&d&&d.data&&d.data[r.promo.id]!==undefined){r.fechaDesde=d.data[r.promo.id];renderPromosModal();}
+      if(!err&&d&&d.data&&d.data[r.promo.id]!==undefined){r.fechaDesde=d.data[r.promo.id];renderPromosResultados();}
     });
   }
-  renderPromosModal();
+  renderPromosResultados();
 }
 function _promoToggleExcluir(i,on){
   var r=_promosResultados&&_promosResultados[i];if(!r)return;
   r.excluir=!!on;
-  renderPromosModal();
+  renderPromosResultados();
 }
 
-function openPromosModal(){document.getElementById('modal-promos').classList.add('show');}
-function closePromosModal(){document.getElementById('modal-promos').classList.remove('show');}
-
-function renderPromosModal(){
+// Pinta la sección de resultados de la vista "Promociones" (ya no es un
+// modal: es la mitad derecha de esa vista de primer nivel, siempre visible).
+function renderPromosResultados(){
   var resultados=_promosResultados||[];
   var host=document.getElementById('promos-table');
   var sumHost=document.getElementById('promos-summary');
+  var actions=document.getElementById('promos-actions');
   if(!host||!sumHost)return;
+
+  if(!resultados.length){
+    sumHost.innerHTML='';
+    host.innerHTML='<p class="promos-empty">Pegá las marcas a la izquierda y tocá "Validar vigencia" para ver el resultado acá.</p>';
+    if(actions)actions.style.display='none';
+    return;
+  }
+  if(actions)actions.style.display='flex';
 
   var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0};
   resultados.forEach(function(r){if(!r.excluir)conteo[r.estado]=(conteo[r.estado]||0)+1;});
@@ -1512,12 +1566,12 @@ function renderPromosModal(){
   var rowsHtml=resultados.map(function(r,i){
     var css=_PROMO_ESTADO_CSS[r.estado]||'no';
     var logo=r.promo&&r.promo.imagen?
-      '<img class="promos-logo" src="'+_escAttr(PROMO_LOGO_BASE+r.promo.imagen)+'" onerror="this.style.visibility=\'hidden\'" alt="">':
-      '<div class="promos-logo"></div>';
+      '<img class="promos-logo" src="'+_escAttr(PROMO_LOGO_BASE+r.promo.imagen)+'" onerror="this.classList.add(\'promos-logo-err\');this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'promos-logo promos-logo-err\',title:\'No se pudo cargar el logo\'}))" alt="">':
+      '<div class="promos-logo promos-logo-empty" title="Sin coincidencia"></div>';
     var candSel='';
     if(r.necesitaRevision||r.estado==='NO_ENCONTRADA'){
       var opts=(r.candidatos||[]).map(function(c,ci){
-        return '<option value="'+ci+'"'+(r.promo&&c.promo.id===r.promo.id?' selected':'')+'>'+_escHtml(c.promo.titulo)+'</option>';
+        return '<option value="'+ci+'"'+(r.promo&&c.promo.id===r.promo.id?' selected':'')+'>'+_escHtml(_promoDecodeEntities(c.promo.titulo))+'</option>';
       }).join('');
       candSel='<select class="promos-cand-sel" onchange="_promoElegirCandidato('+i+',this.value)">'+
         '<option value="-1"'+(!r.promo?' selected':'')+'>— Elegir coincidencia —</option>'+opts+'</select>';
@@ -1527,7 +1581,7 @@ function renderPromosModal(){
         ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>'+
       '<td>'+logo+'</td>'+
       '<td>'+_escHtml(r.marca)+'</td>'+
-      '<td>'+(r.promo?_escHtml(r.promo.titulo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+      '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
       '<td>'+(r.promo?_escHtml(r.promo.subtitulo||'-'):'-')+'</td>'+
       '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
       '<td>'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
@@ -1535,9 +1589,9 @@ function renderPromosModal(){
     '</tr>';
   }).join('');
 
-  host.innerHTML='<table class="promos-table"><thead><tr>'+
+  host.innerHTML='<div class="promos-table-wrap"><table class="promos-table"><thead><tr>'+
     '<th></th><th>Logo</th><th>Marca (flyer)</th><th>Coincidencia en Galicia</th><th>Categoría</th><th>Desde</th><th>Hasta</th><th>Estado</th>'+
-    '</tr></thead><tbody>'+rowsHtml+'</tbody></table>';
+    '</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
 }
 
 // Excel con el logo incrustado por celda. SheetJS (usado en el resto de la
@@ -1567,8 +1621,8 @@ function descargarExcelPromos(){
     var rowIdx=i+2;
     var row=ws.addRow({
       marca:r.marca,
-      match:r.promo?r.promo.titulo:'-',
-      cat:r.promo?(r.promo.subtitulo||'-'):'-',
+      match:r.promo?_promoDecodeEntities(r.promo.titulo):'-',
+      cat:r.promo?_promoDecodeEntities(r.promo.subtitulo||'-'):'-',
       desde:r.promo?_promosFmtFecha(r.fechaDesde):'-',
       hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
       estado:_PROMO_ESTADO_LBL[r.estado]||r.estado
@@ -5379,7 +5433,7 @@ function _fgUndoPaste(n){
 
   </div>
 </div>
-<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Modo oscuro</span></button><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Bloc de notas</span></button><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button></div></header>
+<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp('flyer')"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp('promos')"><h1>Promociones</h1><span>BUSCADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Modo oscuro</span></button><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Bloc de notas</span></button><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button></div></header>
 
 <div class="modal-overlay" id="modal">
   <div class="modal">
@@ -5393,20 +5447,6 @@ function _fgUndoPaste(n){
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-promos">
-  <div class="modal promos-modal">
-    <div class="modal-header"><h3>Validación de promociones</h3><button class="modal-close" onclick="closePromosModal()">&#10005;</button></div>
-    <div class="modal-body">
-      <div class="promos-summary" id="promos-summary"></div>
-      <div class="promos-table-wrap"><div id="promos-table"></div></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn bp" style="flex:1" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
-      <button class="btn bg" onclick="closePromosModal()">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <div class="layout" id="layout" style="display:none">
   <div class="panel">
     <div class="ptitle">Flyer Galicia 5.5</div>
@@ -5414,7 +5454,6 @@ function _fgUndoPaste(n){
       <div class="tab active" onclick="switchTab('individual')">&#9998; Individual</div>
       <div class="tab" onclick="switchTab('masivo')">&#128196; Masivo</div>
       <div class="tab" onclick="switchTab('historial')">&#128337; Historial</div>
-      <div class="tab" id="tab-btn-promos" style="display:none" onclick="switchTab('promos')">&#128269; Promociones</div>
     </div>
 
     <!-- INDIVIDUAL -->
@@ -5506,20 +5545,6 @@ function _fgUndoPaste(n){
     <div id="tab-historial" class="tab-content">
       <div id="history-list"></div>
     </div>
-
-    <!-- PROMOCIONES -->
-    <div id="tab-promos" class="tab-content">
-      <p style="font-size:0.74rem;color:var(--gray);margin-bottom:10px;">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
-      <div class="sec">Marcas del flyer</div>
-      <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
-      <div class="sec">Mes a validar</div>
-      <div class="field"><input type="month" id="promos-mes"></div>
-      <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
-      <div class="promos-sync-box">
-        <div id="promos-sync-info">Cargando estado del catálogo...</div>
-        <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
-      </div>
-    </div>
   </div>
 
   <div class="prev">
@@ -5527,6 +5552,34 @@ function _fgUndoPaste(n){
     <div class="zoom-bar"><button class="zoom-btn" onclick="zoomOut()" title="Alejar">&#8722;</button><span class="zoom-pct" id="zoom-pct">100%</span><button class="zoom-btn" onclick="zoomIn()" title="Acercar">&#43;</button><button class="zoom-btn" onclick="zoomReset()" title="Restablecer zoom" style="font-size:.75rem">&#10226;</button></div><div class="cw"><canvas id="cv"></canvas></div>
   </div>
 </div>
+
+<!-- PROMOCIONES: vista de primer nivel, hermana de "Flyer Galicia" (ver
+     switchApp en auth.js). Oculta hasta que switchApp('promos') la muestre. -->
+<div class="promos-view" id="view-promos" style="display:none">
+  <div class="panel">
+    <div class="ptitle">Buscador de Promociones</div>
+    <p class="legal-hint">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
+    <div class="sec">Marcas del flyer</div>
+    <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
+    <div class="sec">Mes a validar</div>
+    <div class="field"><input type="month" id="promos-mes"></div>
+    <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
+    <div class="promos-sync-box">
+      <div id="promos-sync-info">Cargando estado del catálogo...</div>
+      <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
+    </div>
+  </div>
+  <div class="promos-results">
+    <div class="promos-summary" id="promos-summary"></div>
+    <div id="promos-table">
+      <p class="promos-empty">Pegá las marcas a la izquierda y tocá "Validar vigencia" para ver el resultado acá.</p>
+    </div>
+    <div class="promos-actions" id="promos-actions" style="display:none">
+      <button class="btn bp" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast-el"></div>
 
 <script>
@@ -5574,12 +5627,11 @@ document.addEventListener("DOMContentLoaded", function(){ initApp();
 
 // ── TABS ─────────────────────────────────────────────────
 function switchTab(t){
-  ["individual","masivo","historial","promos"].forEach(function(id,i){
+  ["individual","masivo","historial"].forEach(function(id,i){
     document.getElementById("tab-"+id).classList.toggle("active",id===t);
     document.querySelectorAll(".tab")[i].classList.toggle("active",id===t);
   });
   if(t==="historial") renderHistory();
-  if(t==="promos" && typeof initPromosTab==="function") initPromosTab();
 }
 
 // ── TOGGLES ──────────────────────────────────────────────
@@ -5883,7 +5935,6 @@ function closeModal(){document.getElementById("modal").classList.remove("show");
 function modalDlPDF(){if(modalCanvas){savePDF(modalCanvas,getVals());closeModal();}}
 function modalDlPNG(){if(modalCanvas){savePNG(modalCanvas,getVals());closeModal();}}
 document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
-document.getElementById("modal-promos").addEventListener("click",function(e){if(e.target===this)closePromosModal();});
 
 // ── DESCARGA ─────────────────────────────────────────────
 function savePDF(fc,v){

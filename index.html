@@ -439,9 +439,19 @@ html.dark .fac-head{background:#1b1e23;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
 
 /* ===== BUSCADOR PROMOCIONES ===== */
+/* Solapas de primer nivel en el header ("Flyer Galicia" / "Promociones"). */
+.app-tab{cursor:pointer;opacity:0.55;transition:opacity .15s;}
+.app-tab:hover{opacity:0.85;}
+.app-tab.active{opacity:1;}
+/* Vista "Promociones": mismo esquema panel+resultado que el armador (ver
+   .layout/.panel/.prev), pero como sección de primer nivel independiente. */
+.promos-view{display:grid;grid-template-columns:420px 1fr;height:calc(100vh - 62px);overflow:hidden;}
+.promos-results{padding:20px;overflow:auto;background:#e8e8e3;height:100%;}
+.promos-empty{font-size:0.8rem;color:var(--gray);text-align:center;margin-top:60px;}
+.promos-actions{display:flex;gap:8px;margin-top:14px;}
+html.dark .promos-results{background:#1b1e23;}
 .promos-sync-box{margin-top:14px;padding:10px 12px;background:var(--light);border-radius:9px;border:1px solid var(--border);}
 #promos-sync-info{font-size:0.7rem;color:var(--gray);line-height:1.4;}
-.promos-modal{width:960px;max-width:95vw;}
 .promos-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
 .promos-chip{padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;font-family:"Syne",sans-serif;}
 .promos-chip.c-vigente{background:#e2f5e8;color:#1a7a3f;}
@@ -467,8 +477,11 @@ html.dark .promos-sync-box{background:#1b1e23;border-color:#333840;}
 html.dark .promos-table th{background:#1b1e23;color:#9aa0a8;}
 html.dark .promos-table td{border-color:#333840;}
 html.dark .promos-logo{background:#22262c;border-color:#333840;}
+.promos-logo-err{position:relative;}
+.promos-logo-err::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:0.8rem;}
+.promos-logo-empty{opacity:0.35;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=f8e0470f1a"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=9b7ae1d389"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
@@ -525,7 +538,7 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 
   </div>
 </div>
-<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Modo oscuro</span></button><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Bloc de notas</span></button><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button></div></header>
+<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp('flyer')"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp('promos')"><h1>Promociones</h1><span>BUSCADOR</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Modo oscuro</span></button><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Bloc de notas</span></button><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button></div></header>
 
 <div class="modal-overlay" id="modal">
   <div class="modal">
@@ -539,20 +552,6 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-promos">
-  <div class="modal promos-modal">
-    <div class="modal-header"><h3>Validación de promociones</h3><button class="modal-close" onclick="closePromosModal()">&#10005;</button></div>
-    <div class="modal-body">
-      <div class="promos-summary" id="promos-summary"></div>
-      <div class="promos-table-wrap"><div id="promos-table"></div></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn bp" style="flex:1" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
-      <button class="btn bg" onclick="closePromosModal()">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <div class="layout" id="layout" style="display:none">
   <div class="panel">
     <div class="ptitle">Flyer Galicia 5.5</div>
@@ -560,7 +559,6 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
       <div class="tab active" onclick="switchTab('individual')">&#9998; Individual</div>
       <div class="tab" onclick="switchTab('masivo')">&#128196; Masivo</div>
       <div class="tab" onclick="switchTab('historial')">&#128337; Historial</div>
-      <div class="tab" id="tab-btn-promos" style="display:none" onclick="switchTab('promos')">&#128269; Promociones</div>
     </div>
 
     <!-- INDIVIDUAL -->
@@ -652,20 +650,6 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
     <div id="tab-historial" class="tab-content">
       <div id="history-list"></div>
     </div>
-
-    <!-- PROMOCIONES -->
-    <div id="tab-promos" class="tab-content">
-      <p style="font-size:0.74rem;color:var(--gray);margin-bottom:10px;">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
-      <div class="sec">Marcas del flyer</div>
-      <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
-      <div class="sec">Mes a validar</div>
-      <div class="field"><input type="month" id="promos-mes"></div>
-      <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
-      <div class="promos-sync-box">
-        <div id="promos-sync-info">Cargando estado del catálogo...</div>
-        <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
-      </div>
-    </div>
   </div>
 
   <div class="prev">
@@ -673,6 +657,34 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
     <div class="zoom-bar"><button class="zoom-btn" onclick="zoomOut()" title="Alejar">&#8722;</button><span class="zoom-pct" id="zoom-pct">100%</span><button class="zoom-btn" onclick="zoomIn()" title="Acercar">&#43;</button><button class="zoom-btn" onclick="zoomReset()" title="Restablecer zoom" style="font-size:.75rem">&#10226;</button></div><div class="cw"><canvas id="cv"></canvas></div>
   </div>
 </div>
+
+<!-- PROMOCIONES: vista de primer nivel, hermana de "Flyer Galicia" (ver
+     switchApp en auth.js). Oculta hasta que switchApp('promos') la muestre. -->
+<div class="promos-view" id="view-promos" style="display:none">
+  <div class="panel">
+    <div class="ptitle">Buscador de Promociones</div>
+    <p class="legal-hint">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
+    <div class="sec">Marcas del flyer</div>
+    <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
+    <div class="sec">Mes a validar</div>
+    <div class="field"><input type="month" id="promos-mes"></div>
+    <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
+    <div class="promos-sync-box">
+      <div id="promos-sync-info">Cargando estado del catálogo...</div>
+      <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>
+    </div>
+  </div>
+  <div class="promos-results">
+    <div class="promos-summary" id="promos-summary"></div>
+    <div id="promos-table">
+      <p class="promos-empty">Pegá las marcas a la izquierda y tocá "Validar vigencia" para ver el resultado acá.</p>
+    </div>
+    <div class="promos-actions" id="promos-actions" style="display:none">
+      <button class="btn bp" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast-el"></div>
 
 <script>
@@ -720,12 +732,11 @@ document.addEventListener("DOMContentLoaded", function(){ initApp();
 
 // ── TABS ─────────────────────────────────────────────────
 function switchTab(t){
-  ["individual","masivo","historial","promos"].forEach(function(id,i){
+  ["individual","masivo","historial"].forEach(function(id,i){
     document.getElementById("tab-"+id).classList.toggle("active",id===t);
     document.querySelectorAll(".tab")[i].classList.toggle("active",id===t);
   });
   if(t==="historial") renderHistory();
-  if(t==="promos" && typeof initPromosTab==="function") initPromosTab();
 }
 
 // ── TOGGLES ──────────────────────────────────────────────
@@ -1029,7 +1040,6 @@ function closeModal(){document.getElementById("modal").classList.remove("show");
 function modalDlPDF(){if(modalCanvas){savePDF(modalCanvas,getVals());closeModal();}}
 function modalDlPNG(){if(modalCanvas){savePNG(modalCanvas,getVals());closeModal();}}
 document.getElementById("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
-document.getElementById("modal-promos").addEventListener("click",function(e){if(e.target===this)closePromosModal();});
 
 // ── DESCARGA ─────────────────────────────────────────────
 function savePDF(fc,v){
