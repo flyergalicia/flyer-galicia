@@ -4,9 +4,19 @@
 //
 // Acciones:
 //   register       (público)  -> crea cuenta confirmada en estado pending
-//   request_reset  (público)  -> setea nueva clave y deja la cuenta en reset_pending
+//   request_reset  (público)  -> guarda un PEDIDO de nueva clave y deja la
+//                                 cuenta en reset_pending. No toca la clave
+//                                 real todavía (ver approve_reset).
+//   approve_reset  (admin)    -> aplica el pedido de nueva clave guardado
+//   deny_reset     (admin)    -> descarta el pedido y reactiva la cuenta
 //   create_user    (admin)    -> crea usuario con rol/estado elegido por el admin
 //   set_password   (admin)    -> cambia la clave de un usuario
+//
+// request_reset NUNCA cambia la clave real en el momento: si lo hiciera,
+// cualquiera sin sesión podría pisarle la contraseña a otra persona con solo
+// saber su mail, dejándola bloqueada (o tomada, si el admin aprueba sin
+// verificar). El cambio real sólo ocurre en approve_reset, después de que un
+// admin lo revisa.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -75,12 +85,46 @@ Deno.serve(async (req: Request) => {
       const email = String(body.email || "").trim();
       const password = String(body.password || "");
       if (!email || password.length < 8) return json({ error: "Datos inválidos" }, 400);
+      // Misma respuesta exista o no la cuenta: no le da a un desconocido forma
+      // de averiguar qué mails tienen usuario acá.
+      const generic = { ok: true };
       const { data: prof } = await admin
-        .from("profiles").select("id").eq("email", email).maybeSingle();
-      if (!prof) return json({ error: "No existe una cuenta con ese email." }, 404);
-      const { error: pErr } = await admin.auth.admin.updateUserById(prof.id, { password });
-      if (pErr) return json({ error: pErr.message }, 400);
-      await admin.from("profiles").update({ status: "reset_pending" }).eq("id", prof.id);
+        .from("profiles").select("id,last_reset_request_at").eq("email", email).maybeSingle();
+      if (!prof) return json(generic);
+      // Rate-limit silencioso: un pedido nuevo por cuenta cada 15 minutos.
+      const last = prof.last_reset_request_at ? new Date(prof.last_reset_request_at).getTime() : 0;
+      if (Date.now() - last < 15 * 60 * 1000) return json(generic);
+      // Guarda el pedido; NO toca la clave real todavía (ver approve_reset).
+      await admin.from("pending_password_resets").upsert(
+        { user_id: prof.id, new_password: password, requested_at: new Date().toISOString() },
+        { onConflict: "user_id" },
+      );
+      await admin.from("profiles")
+        .update({ status: "reset_pending", last_reset_request_at: new Date().toISOString() })
+        .eq("id", prof.id);
+      return json(generic);
+    }
+
+    if (action === "approve_reset") {
+      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const uid = String(body.uid || "");
+      if (!uid) return json({ error: "Datos inválidos" }, 400);
+      const { data: pending } = await admin
+        .from("pending_password_resets").select("new_password").eq("user_id", uid).maybeSingle();
+      if (!pending) return json({ error: "No hay un cambio de clave pendiente para este usuario." }, 404);
+      const { error } = await admin.auth.admin.updateUserById(uid, { password: pending.new_password });
+      if (error) return json({ error: error.message }, 400);
+      await admin.from("pending_password_resets").delete().eq("user_id", uid);
+      await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+      return json({ ok: true });
+    }
+
+    if (action === "deny_reset") {
+      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const uid = String(body.uid || "");
+      if (!uid) return json({ error: "Datos inválidos" }, 400);
+      await admin.from("pending_password_resets").delete().eq("user_id", uid);
+      await admin.from("profiles").update({ status: "active" }).eq("id", uid);
       return json({ ok: true });
     }
 

@@ -1408,8 +1408,8 @@ function filterUsers(){
       actionBtns='<button class="usr-btn ok" onclick="approveUser(this,\''+u.id+'\')">Aprobar</button>'+
         '<button class="usr-btn warn" onclick="setUStatus(this,\''+u.id+'\',\'inactive\')">Rechazar</button>';
     } else if(isReset){
-      actionBtns='<button class="usr-btn ok" onclick="approveUser(this,\''+u.id+'\')" title="Aprobar el cambio de contraseña">Aprobar cambio</button>'+
-        '<button class="usr-btn warn" onclick="setUStatus(this,\''+u.id+'\',\'inactive\')">Rechazar</button>';
+      actionBtns='<button class="usr-btn ok" onclick="approveReset(this,\''+u.id+'\')" title="Aplica la nueva clave que pidió el usuario">Aprobar cambio</button>'+
+        '<button class="usr-btn warn" onclick="denyReset(this,\''+u.id+'\')" title="Descarta el pedido, la cuenta sigue con su clave anterior">Rechazar</button>';
     } else {
       actionBtns=(u.status==='active'
         ?'<button class="usr-btn warn" onclick="setUStatus(this,\''+u.id+'\',\'inactive\')">Desactivar</button>'
@@ -1449,6 +1449,27 @@ function approveUser(btn,uid){
   btn.disabled=true;
   _sb.from('profiles').update({status:'active'}).eq('id',uid).then(function(){
     loadUsers();loadStats();_refreshPendingBadge();showToast('Usuario aprobado');
+  });
+}
+
+// Aplica la clave que el usuario pidió (guardada en pending_password_resets)
+// recién ahora, vía la Edge Function. Antes de este arreglo la clave real se
+// pisaba apenas alguien pedía el reset, sin que un admin la revisara.
+function approveReset(btn,uid){
+  btn.disabled=true;
+  _callFn('approve_reset',{uid:uid},function(err){
+    if(err){btn.disabled=false;showToast('Error: '+err);return;}
+    loadUsers();loadStats();_refreshPendingBadge();showToast('Cambio de contraseña aprobado');
+  });
+}
+
+// Descarta el pedido de nueva clave y reactiva la cuenta con la clave que ya
+// tenía (nunca se tocó). Antes esto desactivaba al usuario por error.
+function denyReset(btn,uid){
+  btn.disabled=true;
+  _callFn('deny_reset',{uid:uid},function(err){
+    if(err){btn.disabled=false;showToast('Error: '+err);return;}
+    loadUsers();loadStats();_refreshPendingBadge();showToast('Cambio de contraseña rechazado');
   });
 }
 
