@@ -369,3 +369,19 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-logo-err{position:relative;}
 .promos-logo-err::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:0.8rem;}
 .promos-logo-empty{opacity:0.35;}
+/* Filtros por columna + buscador de la tabla de resultados */
+.promos-results-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.promos-results-head .promos-summary{margin-bottom:0;flex:1;}
+.promos-search-box{margin-left:auto;}
+.promos-search{width:230px;padding:7px 11px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.74rem;background:var(--card);outline:none;transition:border-color .15s;}
+.promos-search:focus{border-color:var(--red);}
+.promos-chip{cursor:pointer;transition:box-shadow .15s,transform .1s;}
+.promos-chip:hover{box-shadow:0 2px 8px rgba(0,0,0,.14);}
+.promos-chip.activo{box-shadow:0 0 0 2px var(--dark) inset;}
+.promos-filrow th{padding:4px 6px;background:var(--card);border-bottom:2px solid var(--border);}
+.promos-fil{width:100%;min-width:70px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:"DM Sans",sans-serif;font-size:0.68rem;background:var(--light);outline:none;}
+.promos-fil:focus{border-color:var(--red);background:var(--card);}
+.promos-sinfiltro{text-align:center;color:var(--gray);font-size:0.76rem;padding:22px 8px;}
+.promos-count{font-size:0.72rem;color:var(--gray);align-self:center;}
+html.dark .promos-search,html.dark .promos-filrow th{background:#22262c;border-color:#333840;color:#e9eaec;}
+html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}

@@ -1089,6 +1089,10 @@ function validarPromos(){
   });
 
   _promosResultados=resultados;
+  // Filtros en cero: si quedaban de la validación anterior, esconderían parte
+  // de los resultados nuevos y parecería que "faltan" marcas.
+  for(var k in _promosFiltros)_promosFiltros[k]='';
+  var _bq=document.getElementById('promos-buscar');if(_bq)_bq.value='';
   renderPromosResultados();
 
   // Aviso proactivo: el nombre del flyer y el del catálogo no siempre coinciden
@@ -1150,6 +1154,110 @@ function _promoToggleExcluir(i,on){
   renderPromosResultados();
 }
 
+// ── Filtros de la tabla de resultados ───────────────────────────────────────
+// Estado de los filtros: uno por columna + el buscador general de arriba a la
+// derecha (busca en marca, coincidencia y categoría a la vez).
+var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',desde:'',hasta:'',estado:''};
+function _promoHayFiltros(){
+  for(var k in _promosFiltros)if(_promosFiltros[k])return true;
+  return false;
+}
+function _promoFiltrar(campo,valor){
+  _promosFiltros[campo]=valor||'';
+  _promosPintarFilas(); // sólo repinta el cuerpo: no pierde el foco del input
+}
+function _promoLimpiarFiltros(){
+  for(var k in _promosFiltros)_promosFiltros[k]='';
+  var b=document.getElementById('promos-buscar');if(b)b.value='';
+  renderPromosResultados();
+}
+// Texto de cada campo tal como se ve en pantalla (para que filtrar por lo que
+// se lee funcione, incluyendo fechas en formato dd/mm/aaaa).
+function _promoCampos(r){
+  return {
+    marca:r.marca||'',
+    match:r.promo?_promoDecodeEntities(r.promo.titulo||''):'',
+    cat:r.promo?_promoDecodeEntities(r.promo.subtitulo||''):'',
+    desde:r.promo?_promosFmtFecha(r.fechaDesde):'',
+    hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'',
+    estado:r.estado||'',
+    tieneLogo:!!(r.promo&&r.promo.imagen)
+  };
+}
+function _promoCoincideFiltro(r){
+  var f=_promosFiltros,c=_promoCampos(r);
+  function contiene(txt,q){return !q||String(txt).toLowerCase().indexOf(String(q).toLowerCase())>=0;}
+  if(f.logo==='con'&&!c.tieneLogo)return false;
+  if(f.logo==='sin'&&c.tieneLogo)return false;
+  if(!contiene(c.marca,f.marca))return false;
+  if(!contiene(c.match,f.match))return false;
+  if(f.cat&&c.cat!==f.cat)return false;
+  if(!contiene(c.desde,f.desde))return false;
+  if(!contiene(c.hasta,f.hasta))return false;
+  if(f.estado&&c.estado!==f.estado)return false;
+  if(f.global){
+    var enAlguno=contiene(c.marca,f.global)||contiene(c.match,f.global)||contiene(c.cat,f.global)||
+      contiene(_PROMO_ESTADO_LBL[c.estado]||'',f.global);
+    if(!enAlguno)return false;
+  }
+  return true;
+}
+// Las filas que hoy pasan el filtro (con su índice original, que es el que
+// usan los handlers de excluir / elegir candidato).
+function _promosFilasVisibles(){
+  var out=[];
+  (_promosResultados||[]).forEach(function(r,i){if(_promoCoincideFiltro(r))out.push({r:r,i:i});});
+  return out;
+}
+
+function _promoFilaHtml(r,i){
+  var css=_PROMO_ESTADO_CSS[r.estado]||'no';
+  var logo=r.promo&&r.promo.imagen?
+    '<img class="promos-logo" src="'+_escAttr(PROMO_LOGO_BASE+r.promo.imagen)+'" onerror="this.classList.add(\'promos-logo-err\');this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'promos-logo promos-logo-err\',title:\'No se pudo cargar el logo\'}))" alt="">':
+    '<div class="promos-logo promos-logo-empty" title="Sin coincidencia"></div>';
+  var candSel='';
+  if(r.necesitaRevision||r.estado==='NO_ENCONTRADA'){
+    var opts=(r.candidatos||[]).map(function(c,ci){
+      return '<option value="'+ci+'"'+(r.promo&&c.promo.id===r.promo.id?' selected':'')+'>'+_escHtml(_promoDecodeEntities(c.promo.titulo))+'</option>';
+    }).join('');
+    candSel='<select class="promos-cand-sel" onchange="_promoElegirCandidato('+i+',this.value)">'+
+      '<option value="-1"'+(!r.promo?' selected':'')+'>— Elegir coincidencia —</option>'+opts+'</select>';
+  }
+  return '<tr class="'+(r.excluir?'excluida':'')+'">'+
+    '<td><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
+      ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>'+
+    '<td>'+logo+'</td>'+
+    '<td>'+_escHtml(r.marca)+'</td>'+
+    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
+    '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
+    '<td>'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
+    '<td><span class="promos-badge b-'+css+'">'+_PROMO_ESTADO_LBL[r.estado]+'</span></td>'+
+  '</tr>';
+}
+
+// Repinta SÓLO el cuerpo de la tabla (+ contadores). Separado del armado de la
+// tabla para que escribir en un filtro no lo desenfoque en cada tecla.
+function _promosPintarFilas(){
+  var tbody=document.getElementById('promos-tbody');if(!tbody)return;
+  var visibles=_promosFilasVisibles();
+  tbody.innerHTML=visibles.length?
+    visibles.map(function(v){return _promoFilaHtml(v.r,v.i);}).join(''):
+    '<tr><td colspan="8" class="promos-sinfiltro">Ninguna fila coincide con el filtro.</td></tr>';
+
+  var total=(_promosResultados||[]).length;
+  var cnt=document.getElementById('promos-count');
+  if(cnt)cnt.textContent=_promoHayFiltros()?('Mostrando '+visibles.length+' de '+total):'';
+  var clr=document.getElementById('promos-clear-btn');
+  if(clr)clr.style.display=_promoHayFiltros()?'':'none';
+
+  // El Excel baja lo que se está viendo (filtrado y sin las excluidas), y el
+  // botón dice cuántas filas son para que no haya sorpresas.
+  var aExportar=visibles.filter(function(v){return !v.r.excluir;}).length;
+  var dl=document.getElementById('promos-dl-btn');
+  if(dl&&!dl.disabled)dl.textContent='⬇ Descargar Excel ('+aExportar+')';
+}
+
 // Pinta la sección de resultados de la vista "Promociones" (ya no es un
 // modal: es la mitad derecha de esa vista de primer nivel, siempre visible).
 function renderPromosResultados(){
@@ -1157,52 +1265,74 @@ function renderPromosResultados(){
   var host=document.getElementById('promos-table');
   var sumHost=document.getElementById('promos-summary');
   var actions=document.getElementById('promos-actions');
+  var searchBox=document.getElementById('promos-search-box');
   if(!host||!sumHost)return;
 
   if(!resultados.length){
     sumHost.innerHTML='';
     host.innerHTML='<p class="promos-empty">Pegá las marcas a la izquierda y tocá "Validar vigencia" para ver el resultado acá.</p>';
     if(actions)actions.style.display='none';
+    if(searchBox)searchBox.style.display='none';
     return;
   }
   if(actions)actions.style.display='flex';
+  if(searchBox)searchBox.style.display='';
 
   var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0};
   resultados.forEach(function(r){if(!r.excluir)conteo[r.estado]=(conteo[r.estado]||0)+1;});
+  // Los chips también filtran: tocar "Vencidas" deja sólo esas.
   var chipDefs=[['VIGENTE','c-vigente'],['VENCE_ESTE_MES','c-vence'],['VENCIDA','c-vencida'],['REVISAR','c-revisar'],['NO_ENCONTRADA','c-no']];
   sumHost.innerHTML=chipDefs.map(function(c){
-    return '<span class="promos-chip '+c[1]+'">'+_PROMO_ESTADO_LBL[c[0]]+': '+(conteo[c[0]]||0)+'</span>';
+    var act=_promosFiltros.estado===c[0]?' activo':'';
+    return '<span class="promos-chip '+c[1]+act+'" title="Filtrar por '+_escAttr(_PROMO_ESTADO_LBL[c[0]])+'" '+
+      'onclick="_promoFiltroEstadoChip(\''+c[0]+'\')">'+_PROMO_ESTADO_LBL[c[0]]+': '+(conteo[c[0]]||0)+'</span>';
   }).join('');
 
-  var rowsHtml=resultados.map(function(r,i){
-    var css=_PROMO_ESTADO_CSS[r.estado]||'no';
-    var logo=r.promo&&r.promo.imagen?
-      '<img class="promos-logo" src="'+_escAttr(PROMO_LOGO_BASE+r.promo.imagen)+'" onerror="this.classList.add(\'promos-logo-err\');this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'promos-logo promos-logo-err\',title:\'No se pudo cargar el logo\'}))" alt="">':
-      '<div class="promos-logo promos-logo-empty" title="Sin coincidencia"></div>';
-    var candSel='';
-    if(r.necesitaRevision||r.estado==='NO_ENCONTRADA'){
-      var opts=(r.candidatos||[]).map(function(c,ci){
-        return '<option value="'+ci+'"'+(r.promo&&c.promo.id===r.promo.id?' selected':'')+'>'+_escHtml(_promoDecodeEntities(c.promo.titulo))+'</option>';
-      }).join('');
-      candSel='<select class="promos-cand-sel" onchange="_promoElegirCandidato('+i+',this.value)">'+
-        '<option value="-1"'+(!r.promo?' selected':'')+'>— Elegir coincidencia —</option>'+opts+'</select>';
-    }
-    return '<tr class="'+(r.excluir?'excluida':'')+'">'+
-      '<td><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
-        ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>'+
-      '<td>'+logo+'</td>'+
-      '<td>'+_escHtml(r.marca)+'</td>'+
-      '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
-      '<td>'+(r.promo?_escHtml(r.promo.subtitulo||'-'):'-')+'</td>'+
-      '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
-      '<td>'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
-      '<td><span class="promos-badge b-'+css+'">'+_PROMO_ESTADO_LBL[r.estado]+'</span></td>'+
-    '</tr>';
+  // Categorías presentes, para el desplegable de esa columna.
+  var cats={};
+  resultados.forEach(function(r){
+    if(r.promo&&r.promo.subtitulo)cats[_promoDecodeEntities(r.promo.subtitulo)]=1;
+  });
+  var catOpts=Object.keys(cats).sort().map(function(c){
+    return '<option value="'+_escAttr(c)+'"'+(_promosFiltros.cat===c?' selected':'')+'>'+_escHtml(c)+'</option>';
   }).join('');
+  // Estados presentes, para el desplegable de esa columna.
+  var estOpts=Object.keys(conteo).filter(function(e){return conteo[e]>0||_promosFiltros.estado===e;}).map(function(e){
+    return '<option value="'+e+'"'+(_promosFiltros.estado===e?' selected':'')+'>'+_PROMO_ESTADO_LBL[e]+'</option>';
+  }).join('');
+  function inp(campo,ph){
+    return '<input type="text" class="promos-fil" placeholder="'+ph+'" value="'+_escAttr(_promosFiltros[campo])+'" '+
+      'oninput="_promoFiltrar(\''+campo+'\',this.value)">';
+  }
 
-  host.innerHTML='<div class="promos-table-wrap"><table class="promos-table"><thead><tr>'+
-    '<th></th><th>Logo</th><th>Marca (flyer)</th><th>Coincidencia en Galicia</th><th>Categoría</th><th>Desde</th><th>Hasta</th><th>Estado</th>'+
-    '</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+  host.innerHTML='<div class="promos-table-wrap"><table class="promos-table"><thead>'+
+    '<tr>'+
+      '<th></th><th>Logo</th><th>Marca (flyer)</th><th>Coincidencia en Galicia</th><th>Categoría</th><th>Desde</th><th>Hasta</th><th>Estado</th>'+
+    '</tr>'+
+    '<tr class="promos-filrow">'+
+      '<th></th>'+
+      '<th><select class="promos-fil" onchange="_promoFiltrar(\'logo\',this.value)">'+
+        '<option value="">Todos</option>'+
+        '<option value="con"'+(_promosFiltros.logo==='con'?' selected':'')+'>Con logo</option>'+
+        '<option value="sin"'+(_promosFiltros.logo==='sin'?' selected':'')+'>Sin logo</option>'+
+      '</select></th>'+
+      '<th>'+inp('marca','Filtrar...')+'</th>'+
+      '<th>'+inp('match','Filtrar...')+'</th>'+
+      '<th><select class="promos-fil" onchange="_promoFiltrar(\'cat\',this.value)">'+
+        '<option value="">Todas</option>'+catOpts+'</select></th>'+
+      '<th>'+inp('desde','dd/mm')+'</th>'+
+      '<th>'+inp('hasta','dd/mm')+'</th>'+
+      '<th><select class="promos-fil" onchange="_promoFiltrar(\'estado\',this.value)">'+
+        '<option value="">Todos</option>'+estOpts+'</select></th>'+
+    '</tr>'+
+    '</thead><tbody id="promos-tbody"></tbody></table></div>';
+
+  _promosPintarFilas();
+}
+// Chip de estado: hace de atajo del filtro de esa columna (y lo saca si ya estaba).
+function _promoFiltroEstadoChip(estado){
+  _promosFiltros.estado=(_promosFiltros.estado===estado)?'':estado;
+  renderPromosResultados();
 }
 
 // Excel con el logo incrustado por celda. SheetJS (usado en el resto de la
@@ -1227,7 +1357,13 @@ function descargarExcelPromos(){
   ws.getRow(1).font={bold:true};
   var fills={VIGENTE:'FFDFF5E1',VENCE_ESTE_MES:'FFFFF1CC',VENCIDA:'FFFCE0DF',REVISAR:'FFFFE7D1',NO_ENCONTRADA:'FFECECEC',SIN_FECHA:'FFECECEC'};
 
-  var incluidos=_promosResultados.filter(function(r){return !r.excluir;});
+  // Baja lo que se está viendo: filtros aplicados y sin las marcadas "excluir".
+  var incluidos=_promosFilasVisibles().map(function(v){return v.r;}).filter(function(r){return !r.excluir;});
+  if(!incluidos.length){
+    showToast('No hay filas para exportar con el filtro actual');
+    if(btn){btn.disabled=false;_promosPintarFilas();}
+    return;
+  }
   var pendientes=incluidos.map(function(r,i){
     var rowIdx=i+2;
     var row=ws.addRow({
@@ -1260,10 +1396,10 @@ function descargarExcelPromos(){
     a.download='promociones_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     setTimeout(function(){URL.revokeObjectURL(a.href);},4000);
-    if(btn){btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
+    if(btn){btn.disabled=false;_promosPintarFilas();}
   }).catch(function(e){
     showToast('Error generando el Excel: '+((e&&e.message)||e));
-    if(btn){btn.disabled=false;btn.textContent='⬇ Descargar Excel';}
+    if(btn){btn.disabled=false;_promosPintarFilas();}
   });
 }
 

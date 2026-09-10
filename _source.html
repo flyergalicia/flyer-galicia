@@ -249,12 +249,19 @@ canvas{display:block;max-width:100%;}
     </div>
   </div>
   <div class="promos-results">
-    <div class="promos-summary" id="promos-summary"></div>
+    <div class="promos-results-head">
+      <div class="promos-summary" id="promos-summary"></div>
+      <div class="promos-search-box" id="promos-search-box" style="display:none">
+        <input type="search" id="promos-buscar" class="promos-search" placeholder="Buscar en los resultados..." oninput="_promoFiltrar('global',this.value)">
+      </div>
+    </div>
     <div id="promos-table">
       <p class="promos-empty">Pegá las marcas a la izquierda y tocá "Validar vigencia" para ver el resultado acá.</p>
     </div>
     <div class="promos-actions" id="promos-actions" style="display:none">
       <button class="btn bp" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
+      <button class="btn bg" id="promos-clear-btn" style="display:none" onclick="_promoLimpiarFiltros()">&#10005; Limpiar filtros</button>
+      <span class="promos-count" id="promos-count"></span>
     </div>
   </div>
 </div>
