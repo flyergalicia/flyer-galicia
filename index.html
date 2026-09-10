@@ -481,7 +481,7 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-logo-err::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:0.8rem;}
 .promos-logo-empty{opacity:0.35;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=4df488c8ad"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js?v=2307c83699"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
@@ -668,7 +668,7 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
     <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
     <div class="sec">Mes a validar</div>
     <div class="field"><input type="month" id="promos-mes"></div>
-    <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
+    <button class="btn bp" id="promos-validar-btn" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
     <div class="promos-sync-box">
       <div id="promos-sync-info">Cargando estado del catálogo...</div>
       <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>

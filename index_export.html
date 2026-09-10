@@ -1437,21 +1437,41 @@ function _promoNormalizar(s){
     .trim();
 }
 function _promoTokens(s){return s.split(' ').filter(Boolean);}
+// Igual que normalizar pero SIN espacios: el catálogo de Galicia escribe
+// algunas marcas pegadas ("SushiClub") y el flyer las escribe separadas
+// ("Sushi Club"). Comparando sin espacios las dos formas son la misma marca.
+function _promoSinEspacios(s){return _promoNormalizar(s).replace(/ /g,'');}
+// Palabras demasiado genéricas para sostener una coincidencia por sí solas:
+// hay decenas de "Golf Club", "Niceto Club", "Hotel ...", y sin esta lista
+// "Sushi Club" se colgaba de cualquiera de ellas y devolvía una marca ajena.
+var _PROMO_STOPWORDS=['club','hotel','bar','rest','resto','restaurant','restaurante','cafe','coffee','golf','casa','shop','store','tienda','centro','center','grupo','argentino','argentina','sede','local','espacio','salon','studio','store'];
+function _promoEsGenerica(t){return _PROMO_STOPWORDS.indexOf(t)>=0;}
 // Busca candidatos de una marca en el catálogo, con un puntaje de confianza.
 // Devuelve como mucho un candidato por título único (una marca puede tener
 // varias promos, una por tarjeta: no son "candidatos distintos" compitiendo).
 function _promoBuscarCandidatos(marca,catalogo){
   var nMarca=_promoNormalizar(marca),tokensMarca=_promoTokens(nMarca);
+  var sinEspMarca=_promoSinEspacios(marca);
   var scored=catalogo.map(function(p){
     var nTitulo=_promoNormalizar(p.titulo),tokensTitulo=_promoTokens(nTitulo),score=0;
+    var sinEspTitulo=_promoSinEspacios(p.titulo);
     if(nTitulo===nMarca)score=100;
+    // "SushiClub" == "Sushi Club": misma marca escrita distinto.
+    else if(sinEspMarca&&sinEspMarca===sinEspTitulo)score=95;
     else if(tokensMarca.length>1&&tokensMarca.every(function(t){return tokensTitulo.indexOf(t)>=0;}))score=85;
     else if(tokensTitulo.length>1&&tokensTitulo.every(function(t){return tokensMarca.indexOf(t)>=0;}))score=80;
     else if(tokensMarca.length===1&&tokensTitulo[0]&&tokensTitulo[0]===tokensMarca[0])score=75;
+    // Uno contiene al otro ignorando espacios ("Starbucks" en "StarbucksCoffee").
+    // Se pide un mínimo de 5 caracteres para no pescar coincidencias casuales.
+    else if(sinEspMarca.length>=5&&sinEspTitulo.indexOf(sinEspMarca)>=0)score=70;
+    else if(sinEspTitulo.length>=5&&sinEspMarca.indexOf(sinEspTitulo)>=0)score=65;
     else{
-      // palabra completa compartida (min 4 letras, para no pescar "de","on",etc.)
-      var compartidas=tokensMarca.filter(function(t){return t.length>=4&&tokensTitulo.indexOf(t)>=0;});
-      if(compartidas.length>0)score=40;
+      // palabra completa compartida (min 4 letras y que no sea genérica)
+      var compartidas=tokensMarca.filter(function(t){
+        return t.length>=4&&!_promoEsGenerica(t)&&tokensTitulo.indexOf(t)>=0;
+      });
+      if(compartidas.length>1)score=55;       // dos o más palabras propias en común
+      else if(compartidas.length===1)score=40; // una sola: sugerencia débil, va a "revisar"
     }
     return{promo:p,score:score};
   }).filter(function(c){return c.score>0;});
@@ -1476,14 +1496,29 @@ function _promoEstado(fechaHasta,mesRef){
 var _PROMO_ESTADO_LBL={VIGENTE:'Vigente',VENCE_ESTE_MES:'Vence este mes',VENCIDA:'Vencida',REVISAR:'Revisar',NO_ENCONTRADA:'No encontrada',SIN_FECHA:'Sin fecha informada'};
 var _PROMO_ESTADO_CSS={VIGENTE:'vigente',VENCE_ESTE_MES:'vence',VENCIDA:'vencida',REVISAR:'revisar',NO_ENCONTRADA:'no',SIN_FECHA:'no'};
 
+// Reintento pendiente: si el catálogo no estaba listo cuando tocaron
+// "Validar", en vez de obligar a acordarse de tocarlo de nuevo, valida sola
+// apenas termina de cargar. Sin esto, cualquier marca (no importa cuál)
+// podía "no encontrarse" simplemente por haber llegado un poco rápido.
+var _promosValidarPendiente=false;
+function _promosValidarBtn(){return document.getElementById('promos-validar-btn');}
 function validarPromos(){
   var raw=(document.getElementById('promos-marcas').value||'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
   if(!raw.length){showToast('Pegá al menos una marca');return;}
   if(!_promosCat||!_promosCat.length){
-    showToast('El catálogo todavía se está cargando, esperá un instante e intentá de nuevo');
-    if(!_promosCatLoading)loadPromosCatalogo();
+    _promosValidarPendiente=true;
+    var btn=_promosValidarBtn();
+    if(btn){btn.disabled=true;btn.textContent='Cargando catálogo...';}
+    if(!_promosCatLoading){
+      loadPromosCatalogo(function(){
+        if(btn){btn.disabled=false;btn.textContent='🔍 Validar vigencia';}
+        if(_promosValidarPendiente&&_promosCat&&_promosCat.length){_promosValidarPendiente=false;validarPromos();}
+        else if(!_promosCat||!_promosCat.length){showToast('No se pudo cargar el catálogo de promociones. Probá recargar la página.');}
+      });
+    }
     return;
   }
+  _promosValidarPendiente=false;
   var mesVal=document.getElementById('promos-mes').value;
   var mesRef=mesVal?new Date(parseInt(mesVal.slice(0,4),10),parseInt(mesVal.slice(5,7),10)-1,1):new Date();
   _promosMesRef=mesRef;
@@ -1507,6 +1542,25 @@ function validarPromos(){
 
   _promosResultados=resultados;
   renderPromosResultados();
+
+  // Aviso proactivo: el nombre del flyer y el del catálogo no siempre coinciden
+  // ("Sushi Club" vs "SushiClub", "Alta Volta" vs "Volta"). Si algo quedó dudoso
+  // o sin encontrar, se avisa con la propuesta ("Alta Volta → ¿Volta?") en vez de
+  // esperar que lo descubra mirando la tabla fila por fila.
+  var aRevisar=resultados.filter(function(r){return r.necesitaRevision;});
+  var noHallada=resultados.filter(function(r){return r.estado==='NO_ENCONTRADA';});
+  if(aRevisar.length||noHallada.length){
+    var partes=[];
+    if(aRevisar.length){
+      partes.push(aRevisar.length+' para revisar: '+aRevisar.slice(0,3).map(function(r){
+        return r.marca+' → ¿'+_promoDecodeEntities(r.promo?r.promo.titulo:'?')+'?';
+      }).join(', ')+(aRevisar.length>3?'...':''));
+    }
+    if(noHallada.length){
+      partes.push(noHallada.length+' sin coincidencia: '+noHallada.slice(0,4).map(function(r){return r.marca;}).join(', ')+(noHallada.length>4?'...':''));
+    }
+    showToast(partes.join(' · '));
+  }
 
   // Pide fechaDesde (no viene en el listado) sólo de los matches confirmados,
   // que son los que se van a mostrar como certeros.
@@ -5572,7 +5626,7 @@ function _fgUndoPaste(n){
     <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
     <div class="sec">Mes a validar</div>
     <div class="field"><input type="month" id="promos-mes"></div>
-    <button class="btn bp" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
+    <button class="btn bp" id="promos-validar-btn" style="width:100%" onclick="validarPromos()">&#128269; Validar vigencia</button>
     <div class="promos-sync-box">
       <div id="promos-sync-info">Cargando estado del catálogo...</div>
       <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)">&#8635; Actualizar catálogo ahora</button>

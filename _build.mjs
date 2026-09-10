@@ -597,6 +597,10 @@ const checks = {
   // Buscador de promociones: pestaña nueva, gateada por facultad (default false
   // para todos los roles: sólo el admin la ve hasta que se la habiliten a otro perfil).
   'promos: solapa de primer nivel + facultad + matching + excel': html.includes('id="apptab-promos"') && html.includes('id="view-promos"') && html.includes('onclick="switchApp(') && _authSrc.includes('function switchApp(') && _authSrc.includes("rows.push(['promos_buscar',") && _authSrc.includes('function _promoBuscarCandidatos(') && _authSrc.includes('function validarPromos(') && _authSrc.includes('function descargarExcelPromos(') && _authSrc.includes('function _callPromosFn('),
+  // Nombres que difieren entre el flyer y el catálogo: "Sushi Club"/"SushiClub"
+  // (sin espacios) y palabras genéricas que no deben sostener una coincidencia
+  // ("Golf Club", "Niceto Club" se colgaban de cualquier "... Club").
+  'promos: match tolerante a espacios y palabras genericas': _authSrc.includes('function _promoSinEspacios(') && _authSrc.includes('var _PROMO_STOPWORDS=') && _authSrc.includes('function _promoEsGenerica(') && _authSrc.includes('sinEspMarca===sinEspTitulo') && html.includes('id="promos-validar-btn"') && _authSrc.includes('function _promosValidarBtn('),
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
   'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOpts().map(') && !_authSrc.includes('opciones_armador'),
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
