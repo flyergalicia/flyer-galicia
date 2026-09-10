@@ -422,6 +422,18 @@ html.dark .stab:hover{background:#2a2f36;color:#e9eaec;}
 .fac-row input[type=checkbox]:disabled{cursor:not-allowed;opacity:.45;}
 html.dark .fac-grid,html.dark .fac-row{border-color:#333840;}
 html.dark .fac-head{background:#1b1e23;}
+.fac-sim{cursor:pointer;padding:3px 7px;border-radius:6px;transition:background .15s,color .15s;white-space:nowrap;}
+.fac-sim:hover{background:var(--red);color:#fff;}
+.fac-eye{font-size:.72em;opacity:.65;}
+.fac-sim:hover .fac-eye{opacity:1;}
+/* Barra de vista previa: el admin viendo la app como otro perfil */
+#fac-simbar{position:fixed;left:0;right:0;bottom:0;z-index:2000;display:flex;align-items:center;
+  justify-content:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:#111;color:#fff;
+  font-family:"DM Sans",sans-serif;font-size:.8rem;box-shadow:0 -4px 18px rgba(0,0,0,.3);}
+#fac-simbar strong{color:#ffb3ba;}
+#fac-simbar button{background:#fff;color:#111;border:none;border-radius:7px;padding:6px 14px;
+  font-family:"Syne",sans-serif;font-size:.72rem;font-weight:700;cursor:pointer;}
+#fac-simbar button:hover{background:var(--red);color:#fff;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
@@ -600,6 +612,7 @@ function _asListHtml(slot){
     :'<div class="as-empty">No tenés asesores guardados todavía.</div>';
 }
 function openAsPop(slot,anchor){
+  if(!_can('asesores_guardados'))return; // el listener queda puesto; la facultad se revalida acá
   closeAsPop();
   _loadAsesores();
   var pop=document.createElement('div');
@@ -852,6 +865,9 @@ function checkProfile(user){
     // Aplicar imagen del flyer activo (Opción 1)
     _fetchActiveFlyer(function(imageUrl){
       _showApp();
+      // Con la app ya visible, re-aplico: es idempotente, y recién acá puede
+      // corregir la opción activa si este perfil no tiene habilitada la 1.
+      if(_facLoaded)_applyFacultades();
       // Cacheo la Opción 1 para que volver a ella sea instantáneo
       _fgOptCache[1]={loaded:true,cfg:window.FLYER_CFG||null,imageUrl:imageUrl,
         name:_activeFlyerName,legal:null,img:null};
@@ -1017,28 +1033,42 @@ var FACULTADES_FILE='_facultades.json',_facLoaded=false,_FAC=null,_myRole='aseso
 // asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
 // existe en la nube, nadie nota ningún cambio.
 var _FAC_DEF={
-  asesor:{padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:false,asesores_guardados:false},
-  vip:   {padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:true, asesores_guardados:true},
-  pro:   {padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:true, asesores_guardados:true}
+  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false},
+  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true},
+  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true}
 };
-// Etiquetas de la pantalla. El orden acá es el orden de las filas.
-var _FAC_LABELS=[
-  ['padron_buscar','Buscar empresas con la lupa','Bot&oacute;n de b&uacute;squeda junto a "Nombre de la empresa": busca por raz&oacute;n social o CUIT y completa los datos.'],
-  ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.'],
-  ['opciones_armador','Elegir Opci&oacute;n 1 / 2 / 3','Barra para cambiar de armador cuando hay m&aacute;s de un flyer activo.'],
-  ['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.'],
-  ['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']
-];
+// Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
+// así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
+// cuando se sume una Opción 4, su fila aparece sola en la pantalla.
+function _facOptList(){return (typeof _FG_OPTS!=='undefined'&&_FG_OPTS.length)?_FG_OPTS:[1,2,3];}
+// Default de las opciones: hoy todos ven la Opción 1 y nadie más puede cambiarla.
+function _facDefault(role,key){
+  if(key.indexOf('opcion_')===0)return key==='opcion_1';
+  return !!((_FAC_DEF[role]||{})[key]);
+}
+// Filas de la pantalla, en orden.
+function _facRows(){
+  var rows=[
+    ['padron_buscar','Buscar empresas con la lupa','Bot&oacute;n de b&uacute;squeda junto a "Nombre de la empresa": busca por raz&oacute;n social o CUIT y completa los datos. <strong>No les da un padr&oacute;n propio</strong>: consultan el que carg&aacute;s vos.'],
+    ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.']
+  ];
+  _facOptList().forEach(function(o){
+    rows.push(['opcion_'+o,'Ver la Opci&oacute;n '+o,'Habilita el armador de la Opci&oacute;n '+o+'. El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.']);
+  });
+  rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
+  rows.push(['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']);
+  return rows;
+}
 var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro']];
 // Mezcla lo guardado sobre los defaults: así una facultad NUEVA agregada más
 // adelante arranca con un valor sano aunque el JSON viejo no la tenga.
 function _facMerge(saved){
   var out={};
   _FAC_ROLES.forEach(function(r){
-    var role=r[0],def=_FAC_DEF[role]||{},got=(saved&&saved[role])||{};
+    var role=r[0],got=(saved&&saved[role])||{};
     out[role]={};
-    _FAC_LABELS.forEach(function(f){
-      out[role][f[0]]=(got[f[0]]===undefined)?!!def[f[0]]:!!got[f[0]];
+    _facRows().forEach(function(f){
+      out[role][f[0]]=(got[f[0]]===undefined)?_facDefault(role,f[0]):!!got[f[0]];
     });
   });
   return out;
@@ -1063,18 +1093,90 @@ function saveFacultades(roles,cb){
       if(cb)cb(true);
     });
 }
-// El admin siempre puede todo: su fila de la matriz es fija.
-function _can(f){return _admin||!!((_FAC&&_FAC[_myRole]||{})[f]);}
-// Aplica el gating de la interfaz según las facultades del rol. Se llama recién
-// cuando la matriz ya está cargada (ver checkProfile) y es seguro repetirla: las
-// funciones _fgEnsureX salen temprano si el elemento ya existe.
+// ── VISTA PREVIA: ver la app como la ve otro perfil ──────────────────────────
+// _simRole no es null mientras el admin está simulando. Mientras dura, _can deja
+// de darle el bypass de admin: ve exactamente lo que vería ese perfil.
+var _simRole=null;
+function _can(f){
+  if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);
+  return _admin||!!((_FAC&&_FAC[_myRole]||{})[f]);
+}
+// "¿Es admin AHORA?" — false mientras se simula, para que la vista previa sea fiel.
+function _adminNow(){return _admin&&!_simRole;}
+// Opciones del armador habilitadas para el rol vigente.
+function _facOpts(){return _facOptList().filter(function(o){return _can('opcion_'+o);});}
+
+// Aplica el gating de la interfaz. Es BIDIRECCIONAL (muestra y oculta) y seguro
+// de repetir: hace falta así para que al quitar una facultad desaparezca sin
+// recargar, y para que la vista previa pueda entrar y salir.
 function _applyFacultades(){
-  var dp=document.getElementById('hdr-dd-pass');if(dp)dp.style.display=_admin?'none':'flex';
+  var dp=document.getElementById('hdr-dd-pass');if(dp)dp.style.display=_adminNow()?'none':'flex';
+  var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_adminNow()?'inline-flex':'none';
   var dn=document.getElementById('hdr-dd-notes');if(dn)dn.style.display=_can('notas')?'flex':'none';
+
   if(_can('asesores_guardados'))_initAsesoresUI();
+  _facShowAsesores(_can('asesores_guardados'));
+
   if(_can('pegar_oficial'))_fgEnsurePasteBtns();
-  if(_can('opciones_armador'))_fgEnsureOptBar();
+  _facShowPaste(_can('pegar_oficial'));
+
   if(_can('padron_buscar'))_fgEnsurePadronBtn();
+  var pb=document.getElementById('fg-pad-btn');if(pb)pb.style.display=_can('padron_buscar')?'':'none';
+
+  _facSyncOptBar();
+}
+// Los títulos "Asesor 1..4" quedan clickeables o no. El listener ya está puesto,
+// pero openAsPop revalida la facultad, así que alcanza con el cambio visual.
+function _facShowAsesores(on){
+  var secs=document.querySelectorAll('#tab-individual .sec');
+  Array.prototype.forEach.call(secs,function(sec){
+    if(!sec.dataset.asLinked)return;
+    sec.classList.toggle('sec-clickable',!!on);
+    var c=sec.querySelector('.sec-caret');if(c)c.style.display=on?'':'none';
+  });
+}
+function _facShowPaste(on){
+  for(var n=1;n<=4;n++){
+    var b=document.getElementById('fg-paste-btn-'+n);if(b)b.style.display=on?'':'none';
+    if(!on){var w=document.getElementById('fg-paste-'+n);if(w)w.style.display='none';}
+  }
+}
+// La barra de opciones depende de CUÁLES tiene habilitadas, así que se reconstruye.
+// Se muestra sólo si hay más de una: con una sola no hay nada que elegir.
+function _facSyncOptBar(){
+  var bar=document.getElementById('fg-optbar');
+  if(bar&&bar.parentNode)bar.parentNode.removeChild(bar);
+  var opts=_facOpts();
+  if(opts.length>1)_fgEnsureOptBar();
+  // Si quedó parado en una opción que este perfil no tiene, lo muevo a la primera
+  // que sí. Sólo con la app ya visible, para no pisar la carga inicial del flyer.
+  var lay=document.getElementById('layout');
+  if(opts.length&&lay&&lay.style.display==='grid'&&opts.indexOf(_optN(_fgOpt))<0)switchFlyerOption(opts[0]);
+}
+// Entra/sale de la vista previa de un perfil.
+function startFacSim(role){
+  if(!_admin)return;
+  _simRole=role;
+  closeAdminPanel();
+  _facSimBar();
+  _applyFacultades();
+  showToast('Vista previa: estás viendo la app como '+(_ROLE_LBL[role]||role));
+}
+function stopFacSim(){
+  _simRole=null;
+  _facSimBar();
+  _applyFacultades();
+}
+function _facSimBar(){
+  var b=document.getElementById('fac-simbar');
+  if(!_simRole){if(b&&b.parentNode)b.parentNode.removeChild(b);return;}
+  if(!b){
+    b=document.createElement('div');b.id='fac-simbar';
+    document.body.appendChild(b);
+  }
+  b.innerHTML='<span>Vista previa: <strong>'+_escHtml(_ROLE_LBL[_simRole]||_simRole)+'</strong>. '+
+    'As&iacute; ve la app este perfil.</span>'+
+    '<button onclick="stopFacSim()">Salir de la vista previa</button>';
 }
 
 // Panel admin → Admin → Facultades. Trabaja sobre una copia (_facEdit) y sólo
@@ -1085,10 +1187,14 @@ function renderFacultades(){
   var host=document.getElementById('fac-grid');if(!host)return;
   _facEdit=_facMerge(_FAC);
   var cols='1.7fr repeat('+(_FAC_ROLES.length+1)+',minmax(64px,.6fr))';
+  // Los títulos de perfil son botones: abren la vista previa de ese perfil.
   var head='<div class="fac-row fac-head" style="grid-template-columns:'+cols+'">'+
     '<div>Funcionalidad</div><div>Admin</div>'+
-    _FAC_ROLES.map(function(r){return '<div>'+_escHtml(r[1])+'</div>';}).join('')+'</div>';
-  var rows=_FAC_LABELS.map(function(f){
+    _FAC_ROLES.map(function(r){
+      return '<div><span class="fac-sim" onclick="startFacSim(\''+r[0]+'\')" '+
+        'title="Ver la app como la ve un '+_escAttr(r[1])+'">'+_escHtml(r[1])+' <span class="fac-eye">&#128065;</span></span></div>';
+    }).join('')+'</div>';
+  var rows=_facRows().map(function(f){
     var id=f[0];
     return '<div class="fac-row" style="grid-template-columns:'+cols+'">'+
       '<div><div class="fac-name">'+f[1]+'</div><div class="fac-desc">'+f[2]+'</div></div>'+
@@ -1615,7 +1721,7 @@ function _fgEnsureOptBar(){
     'html.dark #fg-optbar .fgo.on{background:#2c2f36}';
   document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
-  bar.innerHTML=_FG_OPTS.map(function(o){
+  bar.innerHTML=_facOpts().map(function(o){
     return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">Opción '+o+'</div>';
   }).join('');
   tabs.parentNode.insertBefore(bar,tabs);
@@ -1641,7 +1747,7 @@ function _fgStashLegal(){
   c.legalEdited=el.value;
 }
 function switchFlyerOption(opt,cb){
-  if(!_can('opciones_armador'))return; // gating real, no sólo visual
+  if(!_can('opcion_'+_optN(opt)))return; // gating real, no sólo visual
   opt=_optN(opt);
   _fgStashLegal();
   _fgOpt=opt;_fgRenderOptBar();
@@ -1681,7 +1787,7 @@ function _fgApplyOption(cache){
 function _fgInvalidateOpt(opt){
   opt=_optN(opt);
   delete _fgOptCache[opt];
-  if(_can('opciones_armador')&&+_fgOpt===opt)switchFlyerOption(opt);
+  if(_can('opcion_'+_optN(opt))&&+_fgOpt===opt)switchFlyerOption(opt);
 }
 // Pregunta a qué opción corresponde una acción (subir / activar / calibrar).
 function _askOption(title,cb){
@@ -2319,7 +2425,7 @@ function fgRenderHistory(){
 // cargar los datos: si no, saldría con el flyer equivocado.
 function _fgWithOpt(o,fn2){
   o=_optN(o);
-  if(_can('opciones_armador')&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,fn2);}
+  if(_can('opcion_'+o)&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,fn2);}
   else fn2();
 }
 function fgRedlPDF(i){
@@ -3748,7 +3854,7 @@ function _padClean(a){
 }
 // Devuelve null si no hay nada que actualizar, o {row,empresa,config,asesores,cambios[]}.
 function _padDiff(){
-  if(!_admin||!_padRef||!_padron||_padron.indexOf(_padRef)<0)return null;
+  if(!_adminNow()||!_padRef||!_padron||_padron.indexOf(_padRef)<0)return null;
   var emp=(_gv('empresa')||'').trim();
   if(!emp)return null; // sin razón social no tiene sentido pisar la fila
   // La razón social IDENTIFICA a la fila y nunca se renombra desde acá: si la
@@ -3971,7 +4077,7 @@ function _padCloseUpdate(dismiss){
 // Si la empresa está en el padrón → ofrece actualizarla; si no → darla de alta.
 function _padAfterFlyer(){
   try{
-    if(!_admin||!_padron)return;
+    if(!_adminNow()||!_padron)return;
     var emp=(_gv('empresa')||'').trim();
     if(!emp){_padRef=null;return;}
     // Se re-engancha por NOMBRE cuando: no había fila, el padrón se recargó
@@ -5614,7 +5720,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
 
     <div id="at-facultades" style="display:none">
       <p class="ap-sec">Facultades por perfil</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren. El <strong>administrador siempre tiene todo</strong>, por eso su columna no se puede editar.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren. El <strong>administrador siempre tiene todo</strong>, por eso su columna no se puede editar.<br><br>Toc&aacute; el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesi&oacute;n. Para volver, us&aacute; el bot&oacute;n de la barra de abajo.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
       <div id="fac-grid"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="btn-submit" id="fac-save" onclick="saveFacultadesChanges()" style="padding:8px 16px">Guardar cambios</button>

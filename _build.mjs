@@ -298,7 +298,7 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-facultades" style="display:none">
       <p class="ap-sec">Facultades por perfil</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren. El <strong>administrador siempre tiene todo</strong>, por eso su columna no se puede editar.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren. El <strong>administrador siempre tiene todo</strong>, por eso su columna no se puede editar.<br><br>Toc&aacute; el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesi&oacute;n. Para volver, us&aacute; el bot&oacute;n de la barra de abajo.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
       <div id="fac-grid"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="btn-submit" id="fac-save" onclick="saveFacultadesChanges()" style="padding:8px 16px">Guardar cambios</button>
@@ -569,7 +569,11 @@ const checks = {
   'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
   // Facultades por perfil: la matriz vive en la nube y gobierna el gating de la UI
   'facultades: matriz por rol': html.includes('id="at-facultades"') && html.includes('id="fac-grid"') && _authSrc.includes('function _can(') && _authSrc.includes('function loadFacultades(') && _authSrc.includes('function _applyFacultades('),
-  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,opciones_armador:false,notas:true, asesores_guardados:true}') && !_authSrc.includes('_canNotes'),
+  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true}') && !_authSrc.includes('_canNotes'),
+  // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
+  'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOpts().map(') && !_authSrc.includes('opciones_armador'),
+  'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
+  'facultades: gating bidireccional (quitar tambien saca)': _authSrc.includes('function _facShowPaste(') && _authSrc.includes('function _facShowAsesores(') && _authSrc.includes('function _facSyncOptBar('),
   'facultades: gating aplicado tras cargar la matriz': _authSrc.includes('loadFacultades(false,_applyFacultades);') && !_authSrc.includes('if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();}'),
   'rol Pro': html.includes('<option value="pro">Pro</option>') && _authSrc.includes("pro:'Pro'"),
   'cashback: solapa + guardado en la nube': html.includes('id="at-cashback"') && html.includes('id="cashback-list"') && _authSrc.includes('function loadCashback(') && _authSrc.includes('function saveCashback(') && _authSrc.includes('function renderCashbackAdmin('),
