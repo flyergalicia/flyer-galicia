@@ -222,6 +222,7 @@ const adminPanel = `<div id="admin-panel">
     <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
     <div class="stab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
     <div class="stab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
+    <div class="stab" data-tab="opciones" onclick="switchAdminTab(this,'opciones')">Opciones</div>
   </div>
   <div class="ap-body">
 
@@ -325,38 +326,23 @@ const adminPanel = `<div id="admin-panel">
     <div id="at-legales" style="display:none">
       <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
       <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
-      <div class="stabs stabs-in" style="margin-bottom:14px">
-        <div class="stab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
-        <div class="stab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
-        <div class="stab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
+      <!-- Una sub-solapa y un editor por opción: los arma _legalesRender() (auth.js)
+           a partir de la lista de opciones (Config → Opciones), con los mismos ids
+           de siempre: lt-N, glegal-text[N], glegal-err[N], glegal-ok[N]. -->
+      <div class="stabs stabs-in" id="legales-tabs" style="margin-bottom:14px"></div>
+      <div id="legales-panes"></div>
+    </div>
+
+    <div id="at-opciones" style="display:none">
+      <p class="ap-sec">Opciones del armador</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada opci&oacute;n es un <strong>armador completo</strong>: tiene su propio flyer activo, su propio legal y su calibraci&oacute;n. Ac&aacute; agreg&aacute;s opciones nuevas y les pon&eacute;s nombre y color. Al agregar una, <strong>aparece sola en Facultades</strong> (para decidir qu&eacute; perfil la ve), en Legales, en Subir flyer y en el selector del armador. La <strong>Opci&oacute;n 1</strong> es la de todos los asesores y no se puede quitar.</p>
+      <div id="opciones-list"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="usr-btn edit" onclick="_opcAgregar()">+ Agregar opci&oacute;n</button>
+        <button class="btn-submit" id="opciones-save" onclick="_opcGuardar()" style="padding:8px 16px">Guardar cambios</button>
+        <button class="usr-btn edit" onclick="renderOpcionesAdmin(true)">Recargar</button>
       </div>
-      <div id="lt-1">
-        <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>
-        <div class="login-err" id="glegal-err" style="margin-top:6px"></div>
-        <div class="login-ok" id="glegal-ok" style="margin-top:6px"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn-submit" id="glegal-save" onclick="saveGlobalLegal(1)">Guardar y aplicar a todos</button>
-          <button class="usr-btn edit" onclick="loadGlobalLegal(true,1)">Recargar</button>
-        </div>
-      </div>
-      <div id="lt-2" style="display:none">
-        <textarea id="glegal-text2" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 2..."></textarea>
-        <div class="login-err" id="glegal-err2" style="margin-top:6px"></div>
-        <div class="login-ok" id="glegal-ok2" style="margin-top:6px"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn-submit" id="glegal-save2" onclick="saveGlobalLegal(2)">Guardar y aplicar a todos</button>
-          <button class="usr-btn edit" onclick="loadGlobalLegal(true,2)">Recargar</button>
-        </div>
-      </div>
-      <div id="lt-3" style="display:none">
-        <textarea id="glegal-text3" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 3..."></textarea>
-        <div class="login-err" id="glegal-err3" style="margin-top:6px"></div>
-        <div class="login-ok" id="glegal-ok3" style="margin-top:6px"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn-submit" id="glegal-save3" onclick="saveGlobalLegal(3)">Guardar y aplicar a todos</button>
-          <button class="usr-btn edit" onclick="loadGlobalLegal(true,3)">Recargar</button>
-        </div>
-      </div>
+      <p style="font-size:.72rem;color:var(--gray);margin-top:10px;line-height:1.5">Quitar una opci&oacute;n la saca de la vista de todos, pero <strong>no borra</strong> su flyer ni su legal guardados: si la volv&eacute;s a agregar con el mismo n&uacute;mero, reaparecen.</p>
     </div>
 
     <div id="at-facultades" style="display:none">
@@ -644,7 +630,10 @@ const checks = {
   // Dos armadores: Opcion 1 / Opcion 2 (selector solo ADMIN)
   'selector 3 opciones': _authSrc.includes('function switchFlyerOption(') && _authSrc.includes('var _FG_OPTS=[1,2,3]'),
   'archivos por opcion': _authSrc.includes("'_active'+n+'.json'") && _authSrc.includes("'_legal'+n+'.json'"),
-  'legales 3 solapas': html.includes('id="glegal-text2"') && html.includes('id="glegal-text3"') && html.includes('saveGlobalLegal(3)'),
+  'legales: una solapa por opcion (dinamico)': html.includes('id="legales-tabs"') && html.includes('id="legales-panes"') && _authSrc.includes('function _legalesRender(') && !html.includes('id="glegal-text2"'),
+  // Config → Opciones: la lista de armadores vive en _opciones.json (nombre, color) y
+  // alimenta facultades, barra del armador, legales, subir flyer y registros.
+  'opciones configurables': html.includes('id="at-opciones"') && html.includes('data-tab="opciones"') && _authSrc.includes("var OPCIONES_FILE='_opciones.json'") && _authSrc.includes('function loadOpciones(') && _authSrc.includes('function saveOpciones(') && _authSrc.includes('function renderOpcionesAdmin(') && _authSrc.includes("loadOpciones(false,function(){_loadFacultadesRaw(force,cb);});") && _authSrc.includes("'opciones'") && !_authSrc.includes("'Opción '+o+'</div>'"),
   'preguntar opcion al subir': _authSrc.includes('function _askOption(') && _authSrc.includes('function _startUpload('),
   // El log estaba muerto (nadie llamaba a logFlyerToSupabase): sin esto no se registra nada
   'registro de descargas': _authSrc.includes('window.savePDF=fgSavePDF') && _authSrc.includes("logFlyerToSupabase(v,fn,'pdf')"),

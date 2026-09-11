@@ -1005,7 +1005,9 @@ function checkProfile(user){
     // El gating de la interfaz depende de la matriz de facultades, que viene de
     // la nube: por eso se aplica dentro del callback y no acá suelto. Corre en
     // paralelo con _fetchActiveFlyer, que es quien recién muestra la app.
-    loadFacultades(false,_applyFacultades);
+    // La lista de opciones va ANTES que las facultades: las filas opcion_N de la
+    // matriz se generan a partir de ella.
+    loadOpciones(false,function(){loadFacultades(false,_applyFacultades);});
     var _ddName=document.getElementById('hdr-dd-name');if(_ddName)_ddName.textContent=_myName;
     var _ddRole=document.getElementById('hdr-dd-role');if(_ddRole)_ddRole.innerHTML=_roleBadge(p.role);
     var upd={last_login:new Date().toISOString()};
@@ -1151,7 +1153,7 @@ function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel
 
 // El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
 // _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
-var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','padronotros'],config:['subir','cashback','legales']};
+var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','padronotros'],config:['subir','cashback','legales','opciones']};
 var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
 function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
@@ -1179,8 +1181,10 @@ function switchAdminTab(el,t){
   if(t==='varios')renderPadronAdmin(true);
   if(t==='padronotros')loadPadronOtrosUsers(false);
   if(t==='legales'){
+    _legalesRender();
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
   }
+  if(t==='opciones')renderOpcionesAdmin(true);
 }
 // Click en un pilar (Admin/Data/Config): va a la última hoja vista de ese pilar.
 function switchAdminGroup(el,g){
@@ -1218,7 +1222,7 @@ function _facRows(){
     ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.']
   ];
   _facOptList().forEach(function(o){
-    rows.push(['opcion_'+o,'Ver la Opci&oacute;n '+o,'Habilita el armador de la Opci&oacute;n '+o+'. El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.']);
+    rows.push(['opcion_'+o,'Ver &laquo;'+_escHtml(_optLabel(o))+'&raquo; (opci&oacute;n '+o+')','Habilita ese armador (flyer + legal propios; se administra en Config &rarr; Opciones). El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.']);
   });
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
   rows.push(['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']);
@@ -1240,7 +1244,11 @@ function _facMerge(saved){
   });
   return out;
 }
+// Siempre después de la lista de opciones: la matriz tiene una fila por opción.
 function loadFacultades(force,cb){
+  loadOpciones(false,function(){_loadFacultadesRaw(force,cb);});
+}
+function _loadFacultadesRaw(force,cb){
   if(_facLoaded&&!force){if(cb)cb();return;}
   fetch(FLYERS_PUBLIC+FACULTADES_FILE+'?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
@@ -2237,6 +2245,29 @@ function _applyGlobalLegalToForm(opt){
 }
 // Sub-solapas de legales en el panel admin.
 function _glegalId(opt){var n=_optN(opt);return n===1?'glegal-text':'glegal-text'+n;}
+// Arma una sub-solapa + un editor por opción (antes eran 3 bloques fijos en el
+// HTML). Conserva los ids históricos: la Opción 1 sin sufijo, el resto con N.
+// Idempotente: si cambia la lista de opciones se vuelve a llamar y rehace todo.
+function _legalesRender(){
+  var tabs=document.getElementById('legales-tabs'),panes=document.getElementById('legales-panes');
+  if(!tabs||!panes)return;
+  var act=document.querySelector('.ltab.active'),actual=act?+act.getAttribute('data-ltab'):1;
+  if(_FG_OPTS.indexOf(actual)<0)actual=_FG_OPTS[0];
+  tabs.innerHTML=_FG_OPTS.map(function(o){
+    return '<div class="stab ltab'+(o===actual?' active':'')+'" data-ltab="'+o+'" onclick="switchLegalTab(this,'+o+')">'+_escHtml(_optLabel(o))+'</div>';
+  }).join('');
+  panes.innerHTML=_FG_OPTS.map(function(o){
+    var s=(o===1)?'':String(o);
+    return '<div id="lt-'+o+'"'+(o===actual?'':' style="display:none"')+'>'+
+      '<textarea id="glegal-text'+s+'" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de '+_escHtml(_optLabel(o))+'..."></textarea>'+
+      '<div class="login-err" id="glegal-err'+s+'" style="margin-top:6px"></div>'+
+      '<div class="login-ok" id="glegal-ok'+s+'" style="margin-top:6px"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:8px">'+
+        '<button class="btn-submit" id="glegal-save'+s+'" onclick="saveGlobalLegal('+o+')">Guardar y aplicar a todos</button>'+
+        '<button class="usr-btn edit" onclick="loadGlobalLegal(true,'+o+')">Recargar</button>'+
+      '</div></div>';
+  }).join('');
+}
 function switchLegalTab(el,n){
   n=_optN(n);
   _FG_OPTS.forEach(function(o){var d=document.getElementById('lt-'+o);if(d)d.style.display=(o===n)?'block':'none';});
@@ -2636,6 +2667,51 @@ function deleteUpload(btn,name){
 // Al cambiar de opción se intercambian baseImg + FLYER_CFG + #legal-text; por eso el
 // armador individual, el MASIVO (genAll usa legal-text + fullRes) y las descargas
 // funcionan igual en las dos sin tocar nada más.
+// La LISTA de opciones (cuántas hay, cómo se llaman, de qué color) vive en la
+// nube: _opciones.json en el bucket. El admin la edita desde Config → Opciones.
+// Sin archivo (o mientras carga) rige el default de siempre: 1, 2 y 3.
+// Al sumar una opción N aparece sola en Facultades (fila opcion_N), en la barra
+// del armador (para quien la tenga habilitada), en Legales, en "subir flyer",
+// en el calibrador y en los registros — todo sale de _FG_OPTS y _optLabel().
+var OPCIONES_FILE='_opciones.json',_opcLoaded=false,_OPC={};
+var _OPC_PALETA=['#1d4070','#0e8a5f','#8e44ad','#b26a00','#c2185b','#00838f','#5d4037','#455a64'];
+function _opcDefault(){return [{n:1,nombre:'Opción 1'},{n:2,nombre:'Opción 2'},{n:3,nombre:'Opción 3'}];}
+// Normaliza lo que venga del archivo: números enteros ≥1 únicos, ordenados, la 1
+// siempre presente (es la de los asesores), nombres recortados.
+function _opcSane(list){
+  var out=[],vistos={};
+  (Array.isArray(list)?list:[]).forEach(function(o){
+    var n=parseInt(o&&o.n,10);if(!(n>=1)||vistos[n])return;vistos[n]=1;
+    out.push({n:n,nombre:String((o&&o.nombre)||'').replace(/[<>]/g,'').trim().slice(0,40)||('Opción '+n),
+      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():''});
+  });
+  if(!vistos[1])out.unshift({n:1,nombre:'Opción 1',color:''});
+  out.sort(function(a,b){return a.n-b.n;});
+  return out;
+}
+function _aplicarOpciones(list){
+  var l=_opcSane(list&&list.length?list:_opcDefault());
+  _OPC={};l.forEach(function(o){_OPC[o.n]=o;});
+  _FG_OPTS=l.map(function(o){return o.n;});
+}
+function loadOpciones(force,cb){
+  if(_opcLoaded&&!force){if(cb)cb();return;}
+  fetch(FLYERS_PUBLIC+OPCIONES_FILE+'?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){_aplicarOpciones(d&&d.opts);_opcLoaded=true;if(cb)cb();})
+    .catch(function(){_aplicarOpciones(null);_opcLoaded=true;if(cb)cb();});
+}
+function saveOpciones(list,cb){
+  var l=_opcSane(list);
+  var meta=JSON.stringify({opts:l,updated_at:new Date().toISOString()});
+  return _sb.storage.from('flyers')
+    .upload(OPCIONES_FILE,new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+    .then(function(r){
+      if(r&&r.error){showToast('Error al guardar las opciones: '+r.error.message);if(cb)cb(false);return;}
+      _aplicarOpciones(l);_opcLoaded=true;
+      if(cb)cb(true);
+    });
+}
 var _FG_OPTS=[1,2,3];
 var _fgOpt=1,_fgOptCache={},_fgHistMeta={};
 function _optN(opt){var n=+opt;return (_FG_OPTS.indexOf(n)!==-1)?n:1;}
@@ -2643,13 +2719,13 @@ function _optN(opt){var n=+opt;return (_FG_OPTS.indexOf(n)!==-1)?n:1;}
 // para los asesores; las demás agregan el número.
 function _activeFile(opt){var n=_optN(opt);return n===1?'_active.json':'_active'+n+'.json';}
 function _legalFile(opt){var n=_optN(opt);return n===1?'_legal.json':'_legal'+n+'.json';}
-function _optLabel(opt){return 'Opción '+_optN(opt);}
+function _optLabel(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].nombre)||('Opción '+n);}
 // Color por opción: se usa igual en registros, historial y badges (control visual).
-function _optColor(opt){var n=_optN(opt);return n===2?'#0e8a5f':(n===3?'#8e44ad':'#1d4070');}
+function _optColor(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].color)||_OPC_PALETA[(n-1)%_OPC_PALETA.length];}
 function _optBadge(opt,extraCss){
   var n=_optN(opt),c=_optColor(n);
   return '<span class="badge" style="font-size:.56rem;padding:3px 7px;background:'+c+
-    ';color:#fff;letter-spacing:.3px;'+(extraCss||'')+'">OP.'+n+'</span>';
+    ';color:#fff;letter-spacing:.3px;'+(extraCss||'')+'" title="'+_escHtml(_optLabel(n))+'">OP.'+n+'</span>';
 }
 function _fetchActiveMeta(opt,cb){
   fetch(FLYERS_PUBLIC+_activeFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
@@ -2674,7 +2750,7 @@ function _fgEnsureOptBar(){
   if(!document.getElementById('fg-optbar-style'))document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
   bar.innerHTML=_facOpts().map(function(o){
-    return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">Opción '+o+'</div>';
+    return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">'+_escHtml(_optLabel(o))+'</div>';
   }).join('');
   tabs.parentNode.insertBefore(bar,tabs);
   _fgRenderOptBar();
@@ -2758,7 +2834,7 @@ function _askOption(title,cb){
     '<p>Eleg&iacute; a qu&eacute; armador corresponde.</p>'+
     '<div style="display:flex;gap:8px">'+
       _FG_OPTS.map(function(o){
-        return '<button class="btn-submit" style="flex:1;background:'+_optColor(o)+'" data-o="'+o+'">Opci&oacute;n '+o+'</button>';
+        return '<button class="btn-submit" style="flex:1;background:'+_optColor(o)+'" data-o="'+o+'">'+_escHtml(_optLabel(o))+'</button>';
       }).join('')+'</div>'+
     '<button class="btn-cancel" style="width:100%;margin-top:8px" data-o="0">Cancelar</button></div>';
   d.addEventListener('click',function(e){
@@ -6289,6 +6365,107 @@ function _tourAutoStart(){
   setTimeout(function(){if(_me&&!_tour)_tourStart();},900);
 }
 
+// ── CONFIG → OPCIONES: alta/baja/nombre/color de los armadores ────────────────
+// Trabaja sobre una copia (_opcEdit) y recién al tocar "Guardar cambios" sube
+// _opciones.json y rearma todo lo que depende de la lista: matriz de
+// facultades (fila opcion_N), barra del armador, sub-solapas de Legales, etc.
+var _opcEdit=null,_opcActivos={};
+function _opcStyle(){
+  if(document.getElementById('opc-style'))return;
+  var st=document.createElement('style');st.id='opc-style';
+  st.textContent=
+    '.opc-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border,#e5e5e5);border-radius:10px;margin-bottom:8px;flex-wrap:wrap}'+
+    'html.dark .opc-row{border-color:#3a3e46}'+
+    '.opc-num{width:34px;height:34px;border-radius:9px;color:#fff;font-family:"Syne",sans-serif;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}'+
+    '.opc-row input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:8px 10px;font-size:.84rem;font-family:inherit;background:none;color:inherit;outline:none}'+
+    '.opc-row input[type=text]:focus{border-color:var(--red,#c62828)}'+
+    'html.dark .opc-row input[type=text]{border-color:#3a3e46}'+
+    '.opc-row input[type=color]{width:38px;height:34px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:2px;background:none;cursor:pointer}'+
+    '.opc-est{font-size:.68rem;color:var(--gray,#888);flex-basis:100%;padding-left:44px}'+
+    '.opc-est b{color:var(--green,#1a9c50)}';
+  document.head.appendChild(st);
+}
+function renderOpcionesAdmin(force){
+  _opcStyle();
+  var host=document.getElementById('opciones-list');if(!host)return;
+  if(force||!_opcEdit){
+    host.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando...</p>';
+    loadOpciones(!!force,function(){
+      _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n)};});
+      _opcPintar();
+      // qué tiene cada una (flyer activo o no), para que quitar sea con información
+      _opcEdit.forEach(function(o){
+        _fetchActiveMeta(o.n,function(d){_opcActivos[o.n]=d&&d.imageUrl?(d.name||'flyer activo'):'';_opcPintarEstado(o.n);});
+      });
+    });
+    return;
+  }
+  _opcPintar();
+}
+function _opcPintar(){
+  var host=document.getElementById('opciones-list');if(!host||!_opcEdit)return;
+  host.innerHTML=_opcEdit.map(function(o,i){
+    return '<div class="opc-row" data-n="'+o.n+'">'+
+      '<div class="opc-num" style="background:'+_escHtml(o.color)+'">'+o.n+'</div>'+
+      '<input type="text" maxlength="40" value="'+_escHtml(o.nombre)+'" placeholder="Nombre de la opci&oacute;n" oninput="_opcSet('+i+',\'nombre\',this.value)">'+
+      '<input type="color" value="'+_escHtml(o.color)+'" title="Color" oninput="_opcSet('+i+',\'color\',this.value)">'+
+      (o.n===1?'<span style="font-size:.66rem;color:var(--gray)">La de todos los asesores</span>':
+        '<button type="button" class="usr-btn warn" onclick="_opcQuitar('+i+')">Quitar</button>')+
+      '<div class="opc-est" id="opc-est-'+o.n+'"></div>'+
+    '</div>';
+  }).join('');
+  _opcEdit.forEach(function(o){_opcPintarEstado(o.n);});
+}
+function _opcPintarEstado(n){
+  var el=document.getElementById('opc-est-'+n);if(!el)return;
+  var a=_opcActivos[n];
+  if(a===undefined){el.innerHTML='';return;}
+  el.innerHTML=a?('Flyer activo: <b>'+_escHtml(a)+'</b>'):'Sin flyer activo todav&iacute;a (se sube desde Config &rarr; Flyer).';
+}
+function _opcSet(i,k,v){
+  if(!_opcEdit||!_opcEdit[i])return;
+  _opcEdit[i][k]=v;
+  if(k==='color'){var row=document.querySelector('.opc-row[data-n="'+_opcEdit[i].n+'"] .opc-num');if(row)row.style.background=v;}
+}
+function _opcAgregar(){
+  if(!_opcEdit)return;
+  var max=_opcEdit.reduce(function(m,o){return Math.max(m,o.n);},0);
+  var n=max+1;
+  _opcEdit.push({n:n,nombre:'Opción '+n,color:_OPC_PALETA[(n-1)%_OPC_PALETA.length]});
+  _opcActivos[n]=_opcActivos[n]||'';
+  _opcPintar();
+  var inp=document.querySelector('.opc-row[data-n="'+n+'"] input[type=text]');if(inp){inp.focus();inp.select();}
+}
+function _opcQuitar(i){
+  var o=_opcEdit&&_opcEdit[i];if(!o||o.n===1)return;
+  var msg='¿Quitar "'+o.nombre+'"?\n\nDeja de verse para todos los perfiles. Su flyer y su legal quedan guardados por si la volvés a agregar con el mismo número ('+o.n+').';
+  if(_opcActivos[o.n])msg+='\n\nOjo: hoy tiene un flyer activo ('+_opcActivos[o.n]+').';
+  if(!confirm(msg))return;
+  _opcEdit.splice(i,1);
+  _opcPintar();
+}
+function _opcGuardar(){
+  if(!_opcEdit)return;
+  var btn=document.getElementById('opciones-save');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  var antes=_FG_OPTS.slice();
+  saveOpciones(_opcEdit,function(ok){
+    if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+    if(!ok)return;
+    // Todo lo que se deriva de la lista se rearma acá mismo (sin recargar):
+    _FAC=_facMerge(_FAC);            // aparece/desaparece la fila opcion_N
+    if(document.getElementById('fac-grid')&&document.getElementById('at-facultades').style.display!=='none')renderFacultades();
+    _legalesRender();                // sub-solapas de Legales
+    _facSyncOptBar();                // barra del armador (y salta de una opción quitada)
+    _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n)};});
+    _opcPintar();
+    var nuevas=_FG_OPTS.filter(function(n){return antes.indexOf(n)<0;});
+    showToast(nuevas.length
+      ?('Opciones guardadas. Para que un perfil vea la nueva, habilitala en Admin → Facultades.')
+      :'Opciones guardadas');
+  });
+}
+
 </script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
@@ -7097,6 +7274,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
     <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
     <div class="stab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
     <div class="stab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
+    <div class="stab" data-tab="opciones" onclick="switchAdminTab(this,'opciones')">Opciones</div>
   </div>
   <div class="ap-body">
 
@@ -7200,38 +7378,23 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
     <div id="at-legales" style="display:none">
       <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
       <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
-      <div class="stabs stabs-in" style="margin-bottom:14px">
-        <div class="stab ltab active" data-ltab="1" onclick="switchLegalTab(this,1)">Opci&oacute;n 1</div>
-        <div class="stab ltab" data-ltab="2" onclick="switchLegalTab(this,2)">Opci&oacute;n 2</div>
-        <div class="stab ltab" data-ltab="3" onclick="switchLegalTab(this,3)">Opci&oacute;n 3</div>
+      <!-- Una sub-solapa y un editor por opción: los arma _legalesRender() (auth.js)
+           a partir de la lista de opciones (Config → Opciones), con los mismos ids
+           de siempre: lt-N, glegal-text[N], glegal-err[N], glegal-ok[N]. -->
+      <div class="stabs stabs-in" id="legales-tabs" style="margin-bottom:14px"></div>
+      <div id="legales-panes"></div>
+    </div>
+
+    <div id="at-opciones" style="display:none">
+      <p class="ap-sec">Opciones del armador</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada opci&oacute;n es un <strong>armador completo</strong>: tiene su propio flyer activo, su propio legal y su calibraci&oacute;n. Ac&aacute; agreg&aacute;s opciones nuevas y les pon&eacute;s nombre y color. Al agregar una, <strong>aparece sola en Facultades</strong> (para decidir qu&eacute; perfil la ve), en Legales, en Subir flyer y en el selector del armador. La <strong>Opci&oacute;n 1</strong> es la de todos los asesores y no se puede quitar.</p>
+      <div id="opciones-list"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="usr-btn edit" onclick="_opcAgregar()">+ Agregar opci&oacute;n</button>
+        <button class="btn-submit" id="opciones-save" onclick="_opcGuardar()" style="padding:8px 16px">Guardar cambios</button>
+        <button class="usr-btn edit" onclick="renderOpcionesAdmin(true)">Recargar</button>
       </div>
-      <div id="lt-1">
-        <textarea id="glegal-text" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 1..."></textarea>
-        <div class="login-err" id="glegal-err" style="margin-top:6px"></div>
-        <div class="login-ok" id="glegal-ok" style="margin-top:6px"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn-submit" id="glegal-save" onclick="saveGlobalLegal(1)">Guardar y aplicar a todos</button>
-          <button class="usr-btn edit" onclick="loadGlobalLegal(true,1)">Recargar</button>
-        </div>
-      </div>
-      <div id="lt-2" style="display:none">
-        <textarea id="glegal-text2" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 2..."></textarea>
-        <div class="login-err" id="glegal-err2" style="margin-top:6px"></div>
-        <div class="login-ok" id="glegal-ok2" style="margin-top:6px"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn-submit" id="glegal-save2" onclick="saveGlobalLegal(2)">Guardar y aplicar a todos</button>
-          <button class="usr-btn edit" onclick="loadGlobalLegal(true,2)">Recargar</button>
-        </div>
-      </div>
-      <div id="lt-3" style="display:none">
-        <textarea id="glegal-text3" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de la Opci&oacute;n 3..."></textarea>
-        <div class="login-err" id="glegal-err3" style="margin-top:6px"></div>
-        <div class="login-ok" id="glegal-ok3" style="margin-top:6px"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn-submit" id="glegal-save3" onclick="saveGlobalLegal(3)">Guardar y aplicar a todos</button>
-          <button class="usr-btn edit" onclick="loadGlobalLegal(true,3)">Recargar</button>
-        </div>
-      </div>
+      <p style="font-size:.72rem;color:var(--gray);margin-top:10px;line-height:1.5">Quitar una opci&oacute;n la saca de la vista de todos, pero <strong>no borra</strong> su flyer ni su legal guardados: si la volv&eacute;s a agregar con el mismo n&uacute;mero, reaparecen.</p>
     </div>
 
     <div id="at-facultades" style="display:none">
