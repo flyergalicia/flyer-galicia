@@ -187,6 +187,10 @@ html{height:100%;overflow:hidden;}
 .usr-btn{transition:all 0.15s;}
 .usr-btn.danger{background:#fff0f0;color:#c00;padding:5px 9px;font-size:0.78rem;line-height:1;}
 .usr-btn.danger:hover{background:#c00;color:#fff;}
+/* "del": Cancelar / quitar fila en el editor del padrón (antes no tenía estilo y salía como botón crudo) */
+.usr-btn.del{background:#f3f3f3;color:#666;}
+.usr-btn.del:hover{background:#c00;color:#fff;}
+html.dark .usr-btn.del{background:#2c2f36;color:#bbb;}
 .usr-search-inp,.usr-filter-sel{box-shadow:0 1px 2px rgba(0,0,0,0.03);}
 .reg-filter{box-shadow:0 1px 3px rgba(0,0,0,0.04);}
 /* ===== DARK MODE ===== */

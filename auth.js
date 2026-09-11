@@ -12,33 +12,26 @@ var FN_URL_PROMOS=SUPA_URL+'/functions/v1/promos-galicia';
 
 // Llama a la Edge Function auth-admin. Adjunta el JWT de la sesión si existe
 // (necesario para las acciones de admin). cb(err, data).
-function _callFn(action,payload,cb){
-  _sb.auth.getSession().then(function(s){
-    var headers={'apikey':SUPA_ANON,'Content-Type':'application/json'};
-    var tok=s&&s.data&&s.data.session&&s.data.session.access_token;
-    if(tok)headers['Authorization']='Bearer '+tok;
-    var b={action:action};for(var k in payload)if(payload.hasOwnProperty(k))b[k]=payload[k];
-    fetch(FN_URL,{method:'POST',headers:headers,body:JSON.stringify(b)})
-      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
-      .then(function(res){cb(res.ok?null:(res.d&&res.d.error||'Error'),res.d);})
-      .catch(function(e){cb(e.message||'Error de red');});
-  });
-}
+function _callFn(action,payload,cb){_callEdgeFn(FN_URL,action,payload,cb);}
 
 // Igual que _callFn pero contra la Edge Function promos-galicia (puente hacia
 // el buscador de promociones de Galicia: ver comentario en esa función sobre
 // por qué no se puede llamar directo desde el navegador).
-function _callPromosFn(action,payload,cb){
+function _callPromosFn(action,payload,cb){_callEdgeFn(FN_URL_PROMOS,action,payload,cb);}
+
+// Cuerpo común de las dos. El .catch del getSession importa: si la sesión no se
+// puede leer, antes el cb no corría nunca y el botón que disparó la llamada
+// quedaba deshabilitado para siempre.
+function _callEdgeFn(url,action,payload,cb){
   _sb.auth.getSession().then(function(s){
     var headers={'apikey':SUPA_ANON,'Content-Type':'application/json'};
     var tok=s&&s.data&&s.data.session&&s.data.session.access_token;
     if(tok)headers['Authorization']='Bearer '+tok;
     var b={action:action};for(var k in payload)if(payload.hasOwnProperty(k))b[k]=payload[k];
-    fetch(FN_URL_PROMOS,{method:'POST',headers:headers,body:JSON.stringify(b)})
+    return fetch(url,{method:'POST',headers:headers,body:JSON.stringify(b)})
       .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
-      .then(function(res){cb(res.ok?null:(res.d&&res.d.error||'Error'),res.d);})
-      .catch(function(e){cb(e.message||'Error de red');});
-  });
+      .then(function(res){cb(res.ok?null:(res.d&&res.d.error||'Error'),res.d);});
+  }).catch(function(e){cb((e&&e.message)||'Error de red');});
 }
 
 // ── TEMA CLARO / OSCURO ─────────────────────────────────────────────────────────
@@ -82,7 +75,13 @@ function _closeUserMenuOutside(e){
   if(menu&&!menu.contains(e.target))closeUserMenu();
 }
 
-function _escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// Escapa TODO lo que pueda romper HTML, incluidas las comillas: así el mismo
+// helper sirve para texto y para atributos, y un dato que llegó de otro usuario
+// (nombre, empresa, mail) nunca puede convertirse en código al pintarse.
+// Tolera números/null (antes, un valor numérico rompía con ".replace is not a function").
+function _escHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // ── BLOC DE NOTAS MÚLTIPLE (solo ADMIN y VIP) ─────────────────────────────────────
 // Varias notas por usuario, con crear/eliminar. Se guardan en localStorage por
@@ -226,9 +225,11 @@ function applyAsesor(id,slot){
   closeAsPop();showToast('Asesor "'+(a.name||a.nombre)+'" cargado');
 }
 function saveAsesor(slot){
-  var n=slot===2?_gv('nombre2'):_gv('nombre');
-  var c=slot===2?_gv('celular2'):_gv('celular');
-  var m=slot===2?_gv('email2'):_gv('email');
+  // Mismo sufijo que usa applyAsesor: '' para el 1, '2'/'3'/'4' para el resto.
+  // Antes sólo distinguía el 2, así que "Guardar el actual" desde el Asesor 3
+  // o 4 guardaba en silencio los datos del Asesor 1.
+  var sfx=(slot>1)?String(slot):'';
+  var n=_gv('nombre'+sfx),c=_gv('celular'+sfx),m=_gv('email'+sfx);
   if(!n&&!c&&!m){showToast('Completá el asesor antes de guardar');return;}
   var name=prompt('Nombre para guardar este asesor:',n||'');
   if(name===null)return;name=(name||n||'').trim();if(!name){showToast('Poné un nombre');return;}
@@ -311,6 +312,41 @@ function _robustLoadExcel(input){
   reader.readAsBinaryString(file);
 }
 
+// Port 1:1 del validateExcel del template, con una diferencia: todo lo que viene
+// del Excel (nombres de columna, celdas, el valor de "config") se ESCAPA antes
+// de pintarlo en la vista previa. En el template iba crudo al innerHTML, así que
+// una celda con HTML se ejecutaba en la página. Pisa a window.validateExcel en
+// _installFlyerEngine (mismo mecanismo que _robustLoadExcel).
+function fgValidateExcel(rows){
+  rows=rows||[];
+  if(!rows.length){showToast('Archivo vacío');return;}
+  var errors=[],warnings=[];
+  var validCfgs=['bau','config 1','config 2','config 3','config 4','1','2','3','4',''];
+  rows.forEach(function(r,i){
+    var n=i+2;
+    if(!String(r.empresa||r.Empresa||'').trim())errors.push('Fila '+n+': empresa vacía');
+    var mail=String(r.asesor1_email||r.email||'');
+    if(mail&&mail.indexOf('@')<0)warnings.push('Fila '+n+': email sin @');
+    var cfg=String(r.config||'').toLowerCase().trim();
+    if(cfg&&validCfgs.indexOf(cfg)<0)warnings.push('Fila '+n+': config "'+_escHtml(cfg)+'" inválida');
+  });
+  var vs=document.getElementById('val-sum'),gen=document.getElementById('btn-gen');
+  if(vs){
+    vs.style.display='block';
+    if(errors.length){vs.className='val-summary err';vs.innerHTML='&#10007; '+errors.join('<br>');}
+    else if(warnings.length){vs.className='val-summary warn';vs.innerHTML='&#9888; '+warnings.join('<br>');}
+    else{vs.className='val-summary ok';vs.innerHTML='&#10003; Todo OK — '+rows.length+' flyer'+(rows.length>1?'s':'');}
+  }
+  if(gen)gen.disabled=errors.length>0;
+  var info=document.getElementById('excel-info');if(info)info.style.display='block';
+  var rc=document.getElementById('row-count');if(rc)rc.textContent=rows.length+' fila'+(rows.length>1?'s':'');
+  var keys=Object.keys(rows[0]);
+  var tbl='<table><tr>'+keys.map(function(k){return '<th>'+_escHtml(k)+'</th>';}).join('')+'</tr>';
+  rows.slice(0,5).forEach(function(r){tbl+='<tr>'+keys.map(function(k){return '<td>'+_escHtml(r[k]||'')+'</td>';}).join('')+'</tr>';});
+  if(rows.length>5)tbl+='<tr><td colspan="'+keys.length+'" style="color:var(--gray);text-align:center">...y '+(rows.length-5)+' más</td></tr>';
+  var prev=document.getElementById('excel-preview');if(prev)prev.innerHTML=tbl+'</table>';
+}
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function initApp(){
   _initTheme();
@@ -327,6 +363,10 @@ function initApp(){
   _fgSyncAsesorBlocks(); // arranca mostrando sólo el Asesor 1
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
+    // Sesión cerrada por afuera (venció el refresh token, logout desde otra
+    // pestaña): sin esto la app seguía "logueada" con _me seteado, y cada
+    // guardado/registro fallaba en silencio. Recargar la lleva al login.
+    if(event==='SIGNED_OUT'&&_me){_me=null;location.reload();}
   });
   _sb.auth.getSession().then(function(r){
     if(r.data&&r.data.session){checkProfile(r.data.session.user);}
@@ -401,7 +441,10 @@ function doRegister(){
   var okEl=document.getElementById('reg-ok');
   errEl.textContent='';okEl.textContent='';
   if(!name||!email||!pass){errEl.textContent='Completá todos los campos.';return;}
-  if(pass.length<6){errEl.textContent='La contraseña debe tener al menos 6 caracteres.';return;}
+  // Sólo mails del banco (la Edge Function lo vuelve a exigir del lado servidor;
+  // acá es para avisar antes de mandar nada).
+  if(!/^[^@\s]+@bancogalicia\.com\.ar$/i.test(email)){errEl.textContent='Sólo se aceptan mails @bancogalicia.com.ar.';return;}
+  if(pass.length<8){errEl.textContent='La contraseña debe tener al menos 8 caracteres.';return;}
   var btn=document.getElementById('reg-btn');btn.textContent='Creando cuenta...';btn.disabled=true;
   // La Edge Function crea la cuenta confirmada en estado pending (sin email de
   // confirmación, que no se entrega a dominios corporativos).
@@ -411,21 +454,29 @@ function doRegister(){
     document.getElementById('reg-name').value='';
     document.getElementById('reg-email').value='';
     document.getElementById('reg-pass').value='';
-    okEl.textContent='✅ ¡Cuenta creada con éxito! Tu acceso queda pendiente de aprobación del administrador.';
+    // Texto neutro a propósito: el servidor responde lo mismo exista o no ya una
+    // cuenta con ese mail, para no revelar qué mails tienen usuario acá.
+    okEl.textContent='✅ Listo. Si el mail es válido, tu acceso queda pendiente de aprobación del administrador.';
   });
 }
 
 function checkProfile(user){
   _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status').eq('id',user.id).single().then(function(r){
-    if(r.error){document.getElementById('login-err').textContent='Error: '+r.error.message;return;}
     var p=r.data;
-    if(!p||p.status!=='active'){
+    if(r.error||!p||p.status!=='active'){
       var msg;
-      if(p&&p.status==='pending')msg='Tu cuenta está pendiente de aprobación del administrador.';
+      if(r.error)msg='Error: '+r.error.message;
+      else if(p&&p.status==='pending')msg='Tu cuenta está pendiente de aprobación del administrador.';
       else if(p&&p.status==='reset_pending')msg='Tu cambio de contraseña está pendiente de aprobación del administrador.';
       else msg='Cuenta inactiva. Contactá al administrador.';
-      document.getElementById('login-err').textContent=msg;
+      // Orden importa: showLoginView limpia login-err, así que el mensaje va
+      // DESPUÉS (antes se borraba en el mismo tick y el usuario no veía nada).
       showLoginView('login');
+      document.getElementById('login-err').textContent=msg;
+      // Y la sesión de Supabase se cierra: una cuenta pendiente/inactiva no
+      // tiene que quedarse con un token vigente en el navegador.
+      _me=null;
+      _sb.auth.signOut().catch(function(){});
       return;
     }
     _me=user;_admin=(p.role==='admin');_myRole=p.role||'asesor';_myName=p.full_name||p.email_asesor||user.email;
@@ -903,7 +954,17 @@ function _promosTraerTodo(desde,acc,cb){
     .catch(function(e){cb(e,acc);});
 }
 
+// Quienes esperan a que termine la carga en curso. Antes, si "Validar" se
+// tocaba mientras initPromosTab ya estaba cargando (sin callback), el botón
+// quedaba en "Cargando catálogo..." para siempre: nadie lo volvía a habilitar.
+var _promosCatWaiters=[];
+function _promosCatDone(){
+  var ws=_promosCatWaiters;_promosCatWaiters=[];
+  ws.forEach(function(f){try{f();}catch(e){console.error('promos waiter:',e);}});
+}
 function loadPromosCatalogo(cb){
+  if(cb)_promosCatWaiters.push(cb);
+  if(_promosCatLoading)return; // ya hay una carga en vuelo: se suma a la espera
   _promosCatLoading=true;
   Promise.all([
     new Promise(function(resolve){
@@ -937,21 +998,32 @@ function loadPromosCatalogo(cb){
     _promosSetSyncInfo(meta);
     _promosCatLoading=false;
     var vencida=!meta||!meta.last_sync_at||(Date.now()-new Date(meta.last_sync_at).getTime())>26*3600*1000;
-    if(vencida&&!(catRes&&catRes.error)&&_promosCat.length){syncPromosCatalogo(false);}
-    if(cb)cb();
+    // Auto-sync si la copia está vieja o si nunca se sincronizó (catálogo
+    // vacío y meta sin fecha). No se dispara cuando el vacío se explica por un
+    // error o por RLS (meta dice que hay filas): ahí sincronizar no arregla nada.
+    var nuncaSync=!_promosCat.length&&!(meta&&meta.total>0);
+    if(!(catRes&&catRes.error)&&((vencida&&_promosCat.length)||nuncaSync)&&!_promosSyncing){syncPromosCatalogo(false);}
+    _promosCatDone();
   }).catch(function(e){
     console.error('loadPromosCatalogo:',e);
     showToast('Error cargando el catálogo de promociones: '+((e&&e.message)||e));
     _promosCat=_promosCat||[];
     _promosCatLoading=false;
-    if(cb)cb();
+    _promosCatDone();
   });
 }
 
+// Un solo auto-sync por carga de página: si Galicia falla, la recarga del
+// catálogo que sigue al sync no tiene que volver a disparar otro sync (loop).
+var _promosSyncing=false,_promosAutoSynced=false;
 function syncPromosCatalogo(manual){
+  if(_promosSyncing)return;
+  if(!manual){if(_promosAutoSynced)return;_promosAutoSynced=true;}
+  _promosSyncing=true;
   var btn=document.getElementById('promos-sync-btn');
   if(btn){btn.disabled=true;btn.textContent='Sincronizando...';}
   _callPromosFn('sync',{},function(err,d){
+    _promosSyncing=false;
     if(btn){btn.disabled=false;btn.textContent='↻ Actualizar catálogo ahora';}
     if(err){
       console.error('promos sync:',err);
@@ -1054,16 +1126,21 @@ function validarPromos(){
   var raw=(document.getElementById('promos-marcas').value||'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
   if(!raw.length){showToast('Pegá al menos una marca');return;}
   if(!_promosCat||!_promosCat.length){
-    _promosValidarPendiente=true;
     var btn=_promosValidarBtn();
+    if(_promosValidarPendiente)return; // ya hay un reintento encolado
+    _promosValidarPendiente=true;
     if(btn){btn.disabled=true;btn.textContent='Cargando catálogo...';}
-    if(!_promosCatLoading){
-      loadPromosCatalogo(function(){
-        if(btn){btn.disabled=false;btn.textContent='🔍 Validar vigencia';}
-        if(_promosValidarPendiente&&_promosCat&&_promosCat.length){_promosValidarPendiente=false;validarPromos();}
-        else if(!_promosCat||!_promosCat.length){showToast('No se pudo cargar el catálogo de promociones. Probá recargar la página.');}
-      });
-    }
+    // loadPromosCatalogo encola el callback aunque ya haya una carga en vuelo,
+    // así el botón siempre se vuelve a habilitar.
+    loadPromosCatalogo(function(){
+      _promosValidarPendiente=false;
+      if(btn){btn.disabled=false;btn.textContent='🔍 Validar vigencia';}
+      if(_promosCat&&_promosCat.length){validarPromos();return;}
+      // Vacío de verdad (nunca sincronizado y el auto-sync no pudo): el remedio
+      // es sincronizar, no recargar la página.
+      if(_promosSyncing)showToast('El catálogo se está sincronizando por primera vez; volvé a tocar Validar en unos segundos.');
+      else showToast('El catálogo de promociones está vacío. Tocá "Actualizar catálogo ahora" y volvé a validar.');
+    });
     return;
   }
   _promosValidarPendiente=false;
@@ -1119,16 +1196,33 @@ function validarPromos(){
   // Pide fechaDesde (no viene en el listado) sólo de los matches confirmados,
   // que son los que se van a mostrar como certeros.
   var ids=resultados.filter(function(r){return r.promo&&!r.necesitaRevision;}).map(function(r){return r.promo.id;});
-  if(ids.length){
-    _callPromosFn('detalle',{ids:ids},function(err,d){
-      if(err){console.error('promos detalle:',err);return;}
-      if(!d||!d.data)return;
-      resultados.forEach(function(r){
-        if(r.promo&&d.data[r.promo.id]!==undefined)r.fechaDesde=d.data[r.promo.id];
-      });
-      renderPromosResultados();
+  if(ids.length)_promosPedirDetalle(ids,resultados);
+}
+
+// La Edge Function atiende hasta 80 ids por llamada (protege a Galicia de una
+// ráfaga): un flyer con más marcas confirmadas va en tandas, una tras otra, y
+// la columna "Desde" se va completando. Si una tanda falla se avisa (antes sólo
+// quedaba un "-" en la columna, sin ninguna pista).
+var _PROMOS_DETALLE_LOTE=80;
+function _promosPedirDetalle(ids,resultados){
+  var falló=false;
+  function tanda(desde){
+    if(desde>=ids.length){
+      if(falló)showToast('No se pudo traer la fecha "Desde" de algunas promociones (la columna queda con "-").');
+      return;
+    }
+    _callPromosFn('detalle',{ids:ids.slice(desde,desde+_PROMOS_DETALLE_LOTE)},function(err,d){
+      if(err||!d||!d.data){console.error('promos detalle:',err||d);falló=true;}
+      else{
+        resultados.forEach(function(r){
+          if(r.promo&&d.data[r.promo.id]!==undefined)r.fechaDesde=d.data[r.promo.id];
+        });
+        if(_promosResultados===resultados)renderPromosResultados();
+      }
+      tanda(desde+_PROMOS_DETALLE_LOTE);
     });
   }
+  tanda(0);
 }
 
 // El usuario elige a mano un candidato (o "ninguna coincide") para una fila
@@ -1430,6 +1524,12 @@ function _promoFiltroEstadoChip(estado){
 // ExcelJS sólo para este export.
 function descargarExcelPromos(){
   if(!_promosResultados||!_promosResultados.length)return;
+  // ExcelJS llega por CDN: si no cargó (red corporativa, bloqueo), sin este
+  // guard el ReferenceError era sincrónico y el botón quedaba en "Generando...".
+  if(typeof ExcelJS==='undefined'||!ExcelJS.Workbook){
+    showToast('No se pudo cargar la librería de Excel (ExcelJS). Recargá la página e intentá de nuevo.');
+    return;
+  }
   var btn=document.getElementById('promos-dl-btn');
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
 
@@ -1454,6 +1554,7 @@ function descargarExcelPromos(){
     if(btn){btn.disabled=false;_promosPintarFilas();}
     return;
   }
+  var logosPuestos=0,logosSinPoner=0;
   var pendientes=incluidos.map(function(r,i){
     var rowIdx=i+2;
     var row=ws.addRow({
@@ -1467,19 +1568,27 @@ function descargarExcelPromos(){
     row.height=32;
     row.eachCell(function(cell){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fills[r.estado]||'FFFFFFFF'}};});
     if(!r.promo||!r.promo.imagen)return Promise.resolve();
+    // ExcelJS sólo incrusta jpeg/png/gif; otros formatos se saltean.
+    var ext=/\.jpe?g$/i.test(r.promo.imagen)?'jpeg':(/\.png$/i.test(r.promo.imagen)?'png':(/\.gif$/i.test(r.promo.imagen)?'gif':null));
+    if(!ext){logosSinPoner++;return Promise.resolve();}
     return fetch(PROMO_LOGO_BASE+r.promo.imagen).then(function(resp){
       return resp.ok?resp.arrayBuffer():null;
     }).then(function(buf){
-      if(!buf)return;
-      var ext=/\.jpe?g$/i.test(r.promo.imagen)?'jpeg':'png';
+      if(!buf){logosSinPoner++;return;}
       var imgId=wb.addImage({buffer:buf,extension:ext});
       ws.addImage(imgId,{tl:{col:0,row:rowIdx-1},ext:{width:26,height:26},editAs:'oneCell'});
-    }).catch(function(){/* si el logo no carga, la fila igual queda con sus datos */});
+      logosPuestos++;
+    }).catch(function(){logosSinPoner++;/* si el logo no carga, la fila igual queda con sus datos */});
   });
 
   Promise.all(pendientes).then(function(){
     return wb.xlsx.writeBuffer();
   }).then(function(buf){
+    // Si NINGÚN logo entró (típico: el CDN de Galicia no habilita CORS para
+    // descargarlos por fetch), se avisa en vez de entregar el Excel "sin logos"
+    // en silencio; los datos van completos igual.
+    if(logosSinPoner&&!logosPuestos)showToast('Excel generado sin logos (no se pudieron descargar desde Galicia). Los datos están completos.');
+    else if(logosSinPoner)showToast('Excel generado; '+logosSinPoner+' logo(s) no se pudieron descargar.');
     var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     var a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
@@ -1632,9 +1741,9 @@ function loadStats(){
         var col=_avatarColor(u.id||mail);
         var roleB=_roleBadge(u.role);
         return '<div class="recent-row">'+
-          '<div class="usr-avatar sm" style="background:'+col+'">'+ini+'</div>'+
-          '<div class="recent-info"><strong>'+(u.full_name||mail||'Usuario')+'</strong>'+
-          '<small>'+mail+'</small></div>'+
+          '<div class="usr-avatar sm" style="background:'+col+'">'+_escHtml(ini)+'</div>'+
+          '<div class="recent-info"><strong>'+_escHtml(u.full_name||mail||'Usuario')+'</strong>'+
+          '<small>'+_escHtml(mail)+'</small></div>'+
           roleB+
           '<span class="recent-time">'+_fmtDate(u.last_login)+'</span>'+
           '</div>';
@@ -1688,12 +1797,15 @@ function filterUsers(){
         '<button class="usr-btn edit" onclick="openEditUser(\''+u.id+'\')">Editar</button>';
     }
     var rowStyle=(isPend||isReset)?' style="border-color:#f5c542"':'';
-    var nameEsc=(u.full_name||mail||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    var delBtn=(_me&&u.id===_me.id)?'':'<button class="usr-btn danger" onclick="deleteUser(this,\''+u.id+'\',\''+nameEsc+'\')" title="Eliminar usuario definitivamente">&#128465;</button>';
+    // En los onclick va SOLO el id: el nombre lo resuelve deleteUser desde
+    // _allUsers. Interpolar texto de otro usuario dentro de un atributo onclick
+    // no se puede escapar de forma segura (el navegador decodifica las
+    // entidades HTML antes de ejecutar el JS).
+    var delBtn=(_me&&u.id===_me.id)?'':'<button class="usr-btn danger" onclick="deleteUser(this,\''+_escHtml(u.id)+'\')" title="Eliminar usuario definitivamente">&#128465;</button>';
     return '<div class="usr-row"'+rowStyle+'>'+
-      '<div class="usr-avatar" style="background:'+col+'">'+ini+'</div>'+
-      '<div class="usr-info"><strong>'+(u.full_name||mail||'Sin nombre')+'</strong>'+
-      '<small>'+mail+' &nbsp;&middot;&nbsp; &Uacute;lt. acceso: '+lastLogin+'</small></div>'+
+      '<div class="usr-avatar" style="background:'+col+'">'+_escHtml(ini)+'</div>'+
+      '<div class="usr-info"><strong>'+_escHtml(u.full_name||mail||'Sin nombre')+'</strong>'+
+      '<small>'+_escHtml(mail)+' &nbsp;&middot;&nbsp; &Uacute;lt. acceso: '+lastLogin+'</small></div>'+
       '<div class="usr-badges">'+roleB+statusB+'</div>'+
       '<div class="usr-btns">'+actionBtns+delBtn+'</div></div>';
   }).join('');
@@ -1701,12 +1813,15 @@ function filterUsers(){
 
 function setUStatus(btn,uid,status){
   btn.disabled=true;
-  _sb.from('profiles').update({status:status}).eq('id',uid).then(function(){
-    loadUsers();loadStats();showToast(status==='active'?'Usuario activado':'Usuario desactivado');
+  _sb.from('profiles').update({status:status}).eq('id',uid).then(function(r){
+    if(r&&r.error){btn.disabled=false;showToast('No se pudo cambiar el estado: '+r.error.message);return;}
+    loadUsers();loadStats();_refreshPendingBadge();showToast(status==='active'?'Usuario activado':'Usuario desactivado');
   });
 }
 
-function deleteUser(btn,uid,name){
+function deleteUser(btn,uid){
+  var u=_allUsers.find(function(x){return x.id===uid;});
+  var name=u?(u.full_name||u.email_asesor||''):'';
   if(!confirm('¿Eliminar definitivamente a '+(name||'este usuario')+'?\n\nSe borrará su cuenta de acceso y su perfil. Esta acción no se puede deshacer.'))return;
   btn.disabled=true;var _h=btn.innerHTML;btn.innerHTML='…';
   _callFn('delete_user',{uid:uid},function(err){
@@ -1718,7 +1833,8 @@ function deleteUser(btn,uid,name){
 
 function approveUser(btn,uid){
   btn.disabled=true;
-  _sb.from('profiles').update({status:'active'}).eq('id',uid).then(function(){
+  _sb.from('profiles').update({status:'active'}).eq('id',uid).then(function(r){
+    if(r&&r.error){btn.disabled=false;showToast('No se pudo aprobar: '+r.error.message);return;}
     loadUsers();loadStats();_refreshPendingBadge();showToast('Usuario aprobado');
   });
 }
@@ -1914,18 +2030,32 @@ function loadUploadHistory(){
     _fetchActiveMeta(o,function(d){_fgHistMeta[o]=d;if(--pend===0)_renderUploadHistory(histEl);});
   });
 }
+// Archivos de la última lista de versiones. Los botones de cada fila reciben el
+// ÍNDICE en este array (ver _upAct/_upCal/_upVer/_upDel), nunca el nombre del
+// archivo: un nombre con comillas dentro de un onclick rompe (o ejecuta) código.
+var _uploadFiles=[];
+function _upFile(i){return _uploadFiles[i]||null;}
+function _upAct(i,btn,opt){var f=_upFile(i);if(!f)return;(f.isImg?activateImageFlyer:activateFlyer)(f.url,f.name,btn,opt);}
+function _upCal(i){var f=_upFile(i);if(f)_calFromList(f.url,f.name);}
+function _upVer(i){var f=_upFile(i);if(f)window.open(f.url,'_blank','noopener');}
+function _upDel(btn,i){var f=_upFile(i);if(f)deleteUpload(btn,f.name);}
+// Sólo se linkea un HTML activo si vive en nuestro bucket: _active.json lo
+// escribe el admin, pero un href arbitrario (javascript:, otro dominio) no
+// tiene por qué colarse en el panel.
+function _upSafeUrl(u){return (typeof u==='string'&&u.indexOf(FLYERS_PUBLIC)===0)?u:null;}
 function _renderUploadHistory(histEl){
   _sb.storage.from('flyers').list('',{limit:50,sortBy:{column:'created_at',order:'desc'}}).then(function(r){
     var files=(r.data||[]).filter(function(f){return !f.name.startsWith('_');});
+    _uploadFiles=files.map(function(f){return{name:f.name,url:FLYERS_PUBLIC+f.name,isImg:/\.(png|jpe?g)$/i.test(f.name)};});
     var banner=_FG_OPTS.map(function(o){
       var d=_fgHistMeta[o],has=!!(d&&d.imageUrl);
       if(!has)return '<div class="af-banner af-banner-empty">'+_optLabel(o)+': sin flyer activo.</div>';
-      var hUrl=(d&&d.htmlUrl)||null;
+      var hUrl=_upSafeUrl(d&&d.htmlUrl);
       return '<div class="af-banner"><div class="af-banner-info">'+
         _optBadge(o,'font-size:.62rem;padding:4px 8px')+
         '<span class="af-banner-name">'+_escHtml(d.name||'')+'</span></div>'+
         '<div style="display:flex;gap:6px">'+
-        (hUrl?'<a href="'+hUrl+'" target="_blank" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
+        (hUrl?'<a href="'+_escHtml(hUrl)+'" target="_blank" rel="noopener noreferrer" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
         '<button class="usr-btn warn" onclick="deactivateFlyer(this,'+o+')" style="font-size:.65rem;padding:5px 10px">Desactivar</button>'+
         '</div></div>';
     }).join('');
@@ -1934,31 +2064,29 @@ function _renderUploadHistory(histEl){
       return;
     }
     histEl.innerHTML=banner+'<p class="ap-sec" style="margin-top:16px;margin-bottom:8px">Versiones disponibles</p>'+
-      files.map(function(f){
-        var url=FLYERS_PUBLIC+f.name;
+      files.map(function(f,i){
         var ts=f.created_at?_fmtDate(f.created_at):'';
         var kb=f.metadata&&f.metadata.size?Math.round(f.metadata.size/1024)+' KB':'';
         var actIn=_FG_OPTS.filter(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===f.name;});
         var isAct=actIn.length>0;
-        var isImg=/\.(png|jpe?g)$/i.test(f.name);
-        var fn=isImg?'activateImageFlyer':'activateFlyer';
+        var isImg=_uploadFiles[i].isImg;
         var tag=isImg?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
         var actTags=actIn.map(function(o){return _optBadge(o,'margin-left:5px');}).join('');
         function ab(o){
           if(actIn.indexOf(o)!==-1)return '';
           return '<button class="usr-btn ok" title="Activar en '+_optLabel(o)+'" style="border-color:'+_optColor(o)+';color:'+_optColor(o)+
-            '" onclick="'+fn+'(\''+url+'\',\''+f.name+'\',this,'+o+')">Op.'+o+'</button>';
+            '" onclick="_upAct('+i+',this,'+o+')">Op.'+o+'</button>';
         }
-        var calBtn=isImg?'<button class="usr-btn edit" onclick="_calFromList(\''+url+'\',\''+f.name+'\')">Calibrar</button>':'';
+        var calBtn=isImg?'<button class="usr-btn edit" onclick="_upCal('+i+')">Calibrar</button>':'';
         return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
           '<div class="usr-info">'+
-            '<strong style="font-size:.78rem">'+f.name+tag+actTags+'</strong>'+
+            '<strong style="font-size:.78rem">'+_escHtml(f.name)+tag+actTags+'</strong>'+
             '<small>'+ts+(kb?' &middot; '+kb:'')+'</small>'+
           '</div>'+
           '<div class="usr-btns">'+
             _FG_OPTS.map(ab).join('')+calBtn+
-            '<button class="usr-btn edit" onclick="window.open(\''+url+'\',\'_blank\')">Ver</button>'+
-            '<button class="usr-btn warn" onclick="deleteUpload(this,\''+f.name+'\')"'+(isAct?' disabled title="Desactivá primero"':'')+'>Borrar</button>'+
+            '<button class="usr-btn edit" onclick="_upVer('+i+')">Ver</button>'+
+            '<button class="usr-btn warn" onclick="_upDel(this,'+i+')"'+(isAct?' disabled title="Desactivá primero"':'')+'>Borrar</button>'+
           '</div></div>';
       }).join('');
   });
@@ -1968,7 +2096,10 @@ function deleteUpload(btn,name){
   var inUse=_FG_OPTS.some(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===name;});
   if(inUse){showToast('Desactivá el flyer antes de borrarlo.');return;}
   btn.disabled=true;
-  _sb.storage.from('flyers').remove([name]).then(function(){loadUploadHistory();showToast('Archivo eliminado');});
+  _sb.storage.from('flyers').remove([name]).then(function(r){
+    if(r&&r.error){btn.disabled=false;showToast('No se pudo borrar: '+r.error.message);return;}
+    loadUploadHistory();showToast('Archivo eliminado');
+  });
 }
 
 // ── DOS ARMADORES: Opción 1 / Opción 2 (selector SOLO para ADMIN) ───────────────
@@ -2012,7 +2143,8 @@ function _fgEnsureOptBar(){
     'html.dark #fg-optbar .fgo:hover{color:#ddd}'+
     '#fg-optbar .fgo.on{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}'+
     'html.dark #fg-optbar .fgo.on{background:#2c2f36}';
-  document.head.appendChild(st);
+  // La barra se destruye y recrea al cambiar facultades; el estilo se agrega una vez.
+  if(!document.getElementById('fg-optbar-style'))document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
   bar.innerHTML=_facOpts().map(function(o){
     return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">Opción '+o+'</div>';
@@ -2185,12 +2317,16 @@ function deactivateFlyer(btn,opt){
   if(btn){btn.disabled=true;btn.textContent='Desactivando...';}
   var data=JSON.stringify({name:'',imageUrl:null,updated_at:new Date().toISOString()});
   _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([data],{type:'application/json'}),{contentType:'application/json',upsert:true})
-    .then(function(){
+    .then(function(r){
       if(btn){btn.disabled=false;btn.textContent='Desactivar';}
+      // storage.upload no rechaza: devuelve {error}. Sin mirarlo se decía
+      // "desactivada" aunque el guardado hubiera fallado.
+      if(r&&r.error){showToast('No se pudo desactivar: '+r.error.message);return;}
       if(opt===1){_activeFlyerUrl=null;_activeFlyerName='';}
       showToast(_optLabel(opt)+' desactivada.');
       _fgInvalidateOpt(opt);loadUploadHistory();
-    });
+    })
+    .catch(function(e){if(btn){btn.disabled=false;btn.textContent='Desactivar';}showToast('No se pudo desactivar: '+((e&&e.message)||e));});
 }
 
 // ── MOTOR DE DIBUJADO DEL FLYER (config-driven, durable) ─────────────────────────
@@ -2787,6 +2923,8 @@ function _installFlyerEngine(){
   window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
   window.splitBoldRegular=fgSplitBold;
   window.redraw=fgRedraw;window.fullRes=fgFullRes; // recorte responsive del blanco inferior
+  window.showToast=fgShowToast;                    // toast con debounce (el template lo pisaba)
+  window.validateExcel=fgValidateExcel;            // vista previa del Excel con escape
 }
 // Lee el "mapa" embebido en el propio documento (para flyers armados con ese bloque).
 function _readDocCfg(){
@@ -2814,16 +2952,34 @@ function _finishRaster(cvs,cb){
 }
 function _fgLoadPdfJs(cb){
   if(window.pdfjsLib&&window.pdfjsLib.getDocument){cb();return;}
+  // Integridad (SRI) fijada a la versión exacta, igual que los scripts del <head>:
+  // si el CDN devolviera otro contenido, el navegador no lo ejecuta.
   var s=document.createElement('script');
   s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  s.integrity='sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+  s.crossOrigin='anonymous';
   s.onload=function(){
     var wsrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var wsri='sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
+    function fallback(){
+      try{
+        // Worker cross-origin robusto: blob mismo-origen que importa el worker real (cdnjs manda CORS).
+        var blob=new Blob(['importScripts('+JSON.stringify(wsrc)+');'],{type:'application/javascript'});
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
+      }catch(e){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=wsrc;}catch(_){}}
+      cb();
+    }
+    // importScripts no soporta integrity, pero fetch sí: se baja el worker con su
+    // hash verificado y se lo sirve desde un blob. Si algo falla, el camino de antes.
     try{
-      // Worker cross-origin robusto: blob mismo-origen que importa el worker real (cdnjs manda CORS).
-      var blob=new Blob(['importScripts('+JSON.stringify(wsrc)+');'],{type:'application/javascript'});
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
-    }catch(e){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=wsrc;}catch(_){}}
-    cb();
+      fetch(wsrc,{integrity:wsri,mode:'cors'})
+        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+        .then(function(code){
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([code],{type:'application/javascript'}));
+          cb();
+        })
+        .catch(function(e){console.warn('pdf.js worker con SRI falló, uso importScripts:',e);fallback();});
+    }catch(e){fallback();}
   };
   s.onerror=function(){showToast('No se pudo cargar el lector de PDF');};
   document.head.appendChild(s);
@@ -2899,7 +3055,7 @@ function _saveFlyerCfg(name,cfg,cb){
   _loadFlyerCfgs(function(m){
     m[name]=cfg;
     _sb.storage.from('flyers').upload('_flyer_cfgs.json',new Blob([JSON.stringify(m)],{type:'application/json'}),{contentType:'application/json',upsert:true})
-      .then(function(){cb&&cb();}).catch(function(){cb&&cb();});
+      .then(function(r){cb&&cb((r&&r.error)||null);}).catch(function(e){cb&&cb(e||new Error('Error de red'));});
   });
 }
 // Activa un flyer basado en imagen (usa su calibración guardada, o el default si no tiene).
@@ -2912,13 +3068,14 @@ function activateImageFlyer(url,name,btn,opt){
     var imageUrl=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
     var meta=JSON.stringify({name:name,imageUrl:imageUrl,cfg:cfg,updated_at:new Date().toISOString()});
     _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
-      .then(function(){
+      .then(function(r){
         if(btn){btn.disabled=false;btn.textContent=lbl;}
+        if(r&&r.error){showToast('Error al activar: '+r.error.message);return;}
         if(opt===1)_activeFlyerName=name;
         showToast('"'+name+'" activado en '+_optLabel(opt));
         _fgInvalidateOpt(opt);loadUploadHistory();
       })
-      .catch(function(){if(btn){btn.disabled=false;btn.textContent=lbl;}showToast('Error al activar');});
+      .catch(function(e){if(btn){btn.disabled=false;btn.textContent=lbl;}showToast('Error al activar: '+((e&&e.message)||e));});
   });
 }
 // Abre el calibrador desde la lista: si el flyer ya está activo en una sola opción usa
@@ -3083,9 +3240,18 @@ function _calKey(e){
   if(e.key==='ArrowUp')dy=-step;else if(e.key==='ArrowDown')dy=step;else if(e.key==='ArrowLeft')dx=-step;else if(e.key==='ArrowRight')dx=step;else return;
   e.preventDefault();_calApply({zone:_cal.sel,handle:null},dx,dy);_calDraw();
 }
+function _calBadKey(k){return k==='__proto__'||k==='constructor'||k==='prototype';}
 function _calMergeCfg(base,saved){
+  // Sólo claves propias y nunca __proto__/constructor: un JSON con esas claves
+  // contaminaría Object.prototype para toda la app (prototype pollution).
   for(var k in saved){
-    if(saved[k]&&typeof saved[k]==='object'&&!Array.isArray(saved[k])&&base[k])for(var j in saved[k])base[k][j]=saved[k][j];
+    if(!Object.prototype.hasOwnProperty.call(saved,k)||_calBadKey(k))continue;
+    if(saved[k]&&typeof saved[k]==='object'&&!Array.isArray(saved[k])&&base[k]){
+      for(var j in saved[k]){
+        if(!Object.prototype.hasOwnProperty.call(saved[k],j)||_calBadKey(j))continue;
+        base[k][j]=saved[k][j];
+      }
+    }
     else base[k]=saved[k];
   }
 }
@@ -3119,16 +3285,20 @@ function _calClose(){var m=document.getElementById('cal-modal');if(m)m.classList
 function _calSave(){
   if(!_cal)return;var name=_cal.name,url=_cal.url,cfg=_cal.cfg,opt=_optN(_cal.opt);
   showToast('Guardando calibración...');
-  _saveFlyerCfg(name,cfg,function(){
+  _saveFlyerCfg(name,cfg,function(err){
+    // El calibrador queda abierto si algo falló: así no se pierde el ajuste
+    // recién hecho y se puede reintentar.
+    if(err){showToast('Error al guardar la calibración: '+(err.message||err));return;}
     var imageUrl=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
     var meta=JSON.stringify({name:name,imageUrl:imageUrl,cfg:cfg,updated_at:new Date().toISOString()});
     _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
-      .then(function(){
+      .then(function(r){
+        if(r&&r.error){showToast('Error al activar la calibración: '+r.error.message);return;}
         if(opt===1)_activeFlyerName=name;
         showToast('¡Calibración guardada y activada en '+_optLabel(opt)+'!');
         _calClose();_fgInvalidateOpt(opt);loadUploadHistory();
       })
-      .catch(function(){showToast('Error al guardar la calibración');});
+      .catch(function(e){showToast('Error al guardar la calibración: '+((e&&e.message)||e));});
   });
 }
 
@@ -3137,7 +3307,12 @@ function _calSave(){
 // del textarea, para que drawLegal las dibuje en negrita. Se engancha a #legal-text
 // y al editor de legales del panel.
 function _htmlBoldToMarkers(html){
-  var d=document.createElement('div');d.innerHTML=html;
+  // DOMParser en vez de div.innerHTML: el HTML del portapapeles viene de
+  // afuera (un mail, una web) y con innerHTML un <img onerror> se ejecuta aunque
+  // el div nunca entre al documento. El documento parseado es inerte.
+  var d;
+  try{d=new DOMParser().parseFromString(String(html||''),'text/html').body;}
+  catch(e){d=document.createElement('div');d.textContent=String(html||'');}
   function isBold(n){
     if(!n||!n.tagName)return false;
     var t=n.tagName.toLowerCase();
@@ -3364,7 +3539,7 @@ function loadRegistros(){
   if(qfrom)query=query.gte('created_at',qfrom+'T00:00:00');
   if(qto)query=query.lte('created_at',qto+'T23:59:59');
   query.limit(300).then(function(r){
-    if(r.error){container.innerHTML='<p style="color:var(--red);font-size:.8rem">Error: '+r.error.message+'</p>';return;}
+    if(r.error){container.innerHTML='<p style="color:var(--red);font-size:.8rem">Error: '+_escHtml(r.error.message)+'</p>';return;}
     _loadProfileMap(function(profileMap){
       var data=(r.data||[]).filter(function(row){return row.user_id;});
       if(qusr.trim()){
@@ -3381,21 +3556,24 @@ function loadRegistros(){
         var nombre=profileMap[row.user_id]||row.user_id||'Usuario';
         var ini=_initials(nombre,'');
         var col=_avatarColor(row.user_id||'x');
-        var fmtBadge=row.format?'<span class="badge badge-asesor" style="font-size:.58rem">'+row.format.toUpperCase()+'</span>':'';
-        var ex={};try{if(row.flyer_type)ex=JSON.parse(row.flyer_type);}catch(e){}
+        // Todo lo que viene de flyer_logs lo escribió un usuario (empresa, asesor,
+        // config...): se escapa siempre antes de pintarlo en el panel del admin.
+        var fmtBadge=row.format?'<span class="badge badge-asesor" style="font-size:.58rem">'+_escHtml(String(row.format).toUpperCase())+'</span>':'';
+        var ex={};try{if(row.flyer_type)ex=JSON.parse(row.flyer_type)||{};}catch(e){}
+        if(typeof ex!=='object'||Array.isArray(ex))ex={};
         // Opción usada (control de visibilidad). Registros viejos no la tienen.
         var optBadge=ex.opcion?_optBadge(ex.opcion,'font-size:.58rem;margin-left:4px'):'';
         var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">MASIVO</span>':'';
-        var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+ex.config+'</span>':'';
+        var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+_escHtml(ex.config)+'</span>':'';
         var cfgWrap=cfgHtml?'<div class="reg-montos">'+cfgHtml+'</div>':'';
-        var asesorHtml=ex.nombre?'<div style="font-size:.68rem;color:#555;margin-top:3px"><b>Asesor:</b> '+ex.nombre+(ex.celular?' &middot; '+ex.celular:'')+(ex.email?' &middot; '+ex.email:'')+'</div>':'';
+        var asesorHtml=ex.nombre?'<div style="font-size:.68rem;color:#555;margin-top:3px"><b>Asesor:</b> '+_escHtml(ex.nombre)+(ex.celular?' &middot; '+_escHtml(ex.celular):'')+(ex.email?' &middot; '+_escHtml(ex.email):'')+'</div>':'';
         return '<div class="reg-row">'+
-          '<div class="usr-avatar sm" style="background:'+col+';flex-shrink:0">'+ini+'</div>'+
+          '<div class="usr-avatar sm" style="background:'+col+';flex-shrink:0">'+_escHtml(ini)+'</div>'+
           '<div class="reg-info">'+
-            '<div class="reg-top"><span class="reg-empresa">'+(row.empresa||'—')+'</span>'+fmtBadge+optBadge+bulkBadge+'</div>'+
+            '<div class="reg-top"><span class="reg-empresa">'+_escHtml(row.empresa||'—')+'</span>'+fmtBadge+optBadge+bulkBadge+'</div>'+
             cfgWrap+
             asesorHtml+
-            '<div class="reg-mid"><span class="reg-lbl">Generado por</span> '+nombre+'</div>'+
+            '<div class="reg-mid"><span class="reg-lbl">Generado por</span> '+_escHtml(nombre)+'</div>'+
           '</div>'+
           '<span class="reg-fecha">'+_fmtDate(row.created_at)+'</span>'+
           '</div>';
@@ -3469,10 +3647,10 @@ function loadFlyerLogs(){
           var nombre=profileMap[row.user_id]||row.user_id||'Usuario';
           var ini=_initials(nombre,'');
           var col=_avatarColor(row.user_id||'x');
-          var det=(row.empresa||'Sin empresa')+(row.config_name?' &nbsp;&middot;&nbsp; '+row.config_name:'');
+          var det=_escHtml(row.empresa||'Sin empresa')+(row.config_name?' &nbsp;&middot;&nbsp; '+_escHtml(row.config_name):'');
           return '<div class="recent-row">'+
-            '<div class="usr-avatar sm" style="background:'+col+'">'+ini+'</div>'+
-            '<div class="recent-info"><strong>'+nombre+'</strong>'+
+            '<div class="usr-avatar sm" style="background:'+col+'">'+_escHtml(ini)+'</div>'+
+            '<div class="recent-info"><strong>'+_escHtml(nombre)+'</strong>'+
             '<small>'+det+'</small></div>'+
             '<span class="recent-time">'+_fmtDate(row.created_at)+'</span>'+
             '</div>';
@@ -3517,11 +3695,20 @@ function zoomOut(){ZOOM=Math.max(ZOOM/1.25,0.2);calcSC();redraw();_updateZoomPct
 function zoomReset(){ZOOM=1.0;calcSC();redraw();_updateZoomPct();}
 function calcSC(){var p=document.querySelector('.prev');if(!p||!baseImg.width)return;var pw=Math.max(p.clientWidth-40,200);var baseSC=Math.min(0.55,pw/baseImg.width);SC=baseSC*ZOOM;cv.width=Math.round(baseImg.width*SC);cv.height=Math.round(baseImg.height*SC);cv.style.width='';cv.style.height='';}
 
-function showToast(msg){
-  var t=document.getElementById('toast');if(!t)return;
-  t.textContent=msg;t.style.opacity='1';
-  clearTimeout(t._tid);t._tid=setTimeout(function(){t.style.opacity='0';},2500);
+// El template también declara showToast (con #toast-el y sin debounce) y, al
+// cargarse después, pisaba a ésta. _installFlyerEngine vuelve a fijar
+// window.showToast=fgShowToast, así que la que corre es siempre esta versión:
+// soporta los dos contenedores y reinicia el temporizador en cada aviso (antes,
+// dos toasts seguidos hacían que el segundo desapareciera casi al instante).
+function fgShowToast(msg){
+  var t=document.getElementById('toast-el')||document.getElementById('toast');if(!t)return;
+  t.textContent=msg;
+  var usaClase=t.id==='toast-el';
+  if(usaClase)t.classList.add('show');else t.style.opacity='1';
+  clearTimeout(t._tid);
+  t._tid=setTimeout(function(){if(usaClase)t.classList.remove('show');else t.style.opacity='0';},3000);
 }
+function showToast(msg){fgShowToast(msg);}
 
 function _initials(name,email){
   if(name&&name.trim()){var p=name.trim().split(' ');return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():p[0].substring(0,2).toUpperCase();}

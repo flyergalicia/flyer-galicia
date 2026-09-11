@@ -3,10 +3,14 @@
 // desde el cliente. La service_role NUNCA sale del servidor.
 //
 // Acciones:
-//   register       (público)  -> crea cuenta confirmada en estado pending
+//   register       (público)  -> crea cuenta confirmada en estado pending.
+//                                 Sólo mails @bancogalicia.com.ar; si el mail ya
+//                                 existe responde igual que un alta (no filtra).
 //   request_reset  (público)  -> guarda un PEDIDO de nueva clave y deja la
 //                                 cuenta en reset_pending. No toca la clave
-//                                 real todavía (ver approve_reset).
+//                                 real todavía (ver approve_reset). Sólo para
+//                                 cuentas activas: una inactiva/pending no se
+//                                 reactiva por esta vía.
 //   approve_reset  (admin)    -> aplica el pedido de nueva clave guardado
 //   deny_reset     (admin)    -> descarta el pedido y reactiva la cuenta
 //   create_user    (admin)    -> crea usuario con rol/estado elegido por el admin
@@ -41,6 +45,8 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// Admin Y activo: un admin desactivado (o con un reset pendiente) no opera
+// hasta que otro admin lo reactive. Antes alcanzaba con el rol.
 async function requireAdmin(req: Request): Promise<boolean> {
   const auth = req.headers.get("Authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "");
@@ -48,12 +54,26 @@ async function requireAdmin(req: Request): Promise<boolean> {
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data?.user) return false;
   const { data: prof } = await admin
-    .from("profiles").select("role").eq("id", data.user.id).single();
-  return !!prof && prof.role === "admin";
+    .from("profiles").select("role,status").eq("id", data.user.id).single();
+  return !!prof && prof.role === "admin" && prof.status === "active";
 }
 
+function isDup(m: string): boolean {
+  return /already|registered|exists/i.test(m);
+}
 function dupMsg(m: string): string {
-  return /already|registered|exists/i.test(m) ? "Ya existe una cuenta con ese email." : m;
+  return isDup(m) ? "Ya existe una cuenta con ese email." : m;
+}
+
+// Sólo mails del banco pueden autorregistrarse (decisión del usuario, 2026-09-11).
+// El admin sigue pudiendo crear cualquier cuenta desde el panel (create_user).
+const DOMINIO_RE = /^[^@\s]+@bancogalicia\.com\.ar$/;
+const ROLES = ["admin", "vip", "pro", "asesor"];
+const ESTADOS_ALTA = ["active", "inactive"];
+// Nombre visible: largo acotado y sin < > (defensa en profundidad: el cliente
+// además escapa todo lo que pinta, pero no hay por qué guardar HTML en la base).
+function limpiarNombre(s: unknown): string {
+  return String(s || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
 Deno.serve(async (req: Request) => {
@@ -66,31 +86,44 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (action === "register") {
-      const email = String(body.email || "").trim();
+      const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
-      const full_name = String(body.full_name || "").trim();
-      if (!email || !full_name || password.length < 6) return json({ error: "Datos inválidos" }, 400);
+      const full_name = limpiarNombre(body.full_name);
+      if (!email || !full_name || password.length < 8) return json({ error: "Datos inválidos" }, 400);
+      if (!DOMINIO_RE.test(email)) return json({ error: "Sólo se aceptan mails @bancogalicia.com.ar." }, 400);
       const { data, error } = await admin.auth.admin.createUser({
         email, password, email_confirm: true, user_metadata: { full_name },
       });
-      if (error) return json({ error: dupMsg(error.message) }, 400);
+      if (error) {
+        // Mail ya registrado: misma respuesta que un alta exitosa, sin tocar la
+        // cuenta existente. Antes se avisaba "ya existe una cuenta", lo que
+        // permitía averiguar qué mails tienen usuario acá.
+        if (isDup(error.message)) return json({ ok: true });
+        return json({ error: error.message }, 400);
+      }
+      // `email` también: request_reset busca el perfil por esa columna.
       await admin.from("profiles").upsert(
-        { id: data.user.id, full_name, email_asesor: email, status: "pending", role: "asesor" },
+        { id: data.user.id, full_name, email, email_asesor: email, status: "pending", role: "asesor" },
         { onConflict: "id" },
       );
       return json({ ok: true });
     }
 
     if (action === "request_reset") {
-      const email = String(body.email || "").trim();
+      const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
       if (!email || password.length < 8) return json({ error: "Datos inválidos" }, 400);
       // Misma respuesta exista o no la cuenta: no le da a un desconocido forma
       // de averiguar qué mails tienen usuario acá.
       const generic = { ok: true };
       const { data: prof } = await admin
-        .from("profiles").select("id,last_reset_request_at").eq("email", email).maybeSingle();
+        .from("profiles").select("id,status,last_reset_request_at").eq("email", email).maybeSingle();
       if (!prof) return json(generic);
+      // Sólo cuentas activas (o con un pedido ya en curso) pueden pedir cambio
+      // de clave. Una cuenta desactivada o nunca aprobada NO: si se dejara,
+      // aprobar/rechazar el pedido la ponía en "active" y se colaba una
+      // reactivación por la puerta de "olvidé mi contraseña".
+      if (prof.status !== "active" && prof.status !== "reset_pending") return json(generic);
       // Rate-limit silencioso: un pedido nuevo por cuenta cada 15 minutos.
       const last = prof.last_reset_request_at ? new Date(prof.last_reset_request_at).getTime() : 0;
       if (Date.now() - last < 15 * 60 * 1000) return json(generic);
@@ -130,12 +163,14 @@ Deno.serve(async (req: Request) => {
 
     if (action === "create_user") {
       if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
-      const email = String(body.email || "").trim();
+      const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
-      const full_name = String(body.full_name || "").trim();
+      const full_name = limpiarNombre(body.full_name);
       const role = String(body.role || "asesor");
       const status = String(body.status || "active");
       if (!email || password.length < 8) return json({ error: "Datos inválidos" }, 400);
+      if (!ROLES.includes(role)) return json({ error: "Rol inválido" }, 400);
+      if (!ESTADOS_ALTA.includes(status)) return json({ error: "Estado inválido" }, 400);
       const { data, error } = await admin.auth.admin.createUser({
         email, password, email_confirm: true, user_metadata: { full_name },
       });

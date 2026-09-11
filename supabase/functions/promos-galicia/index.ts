@@ -46,8 +46,11 @@ async function requireCan(req: Request): Promise<boolean> {
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data?.user) return false;
   const { data: prof } = await admin
-    .from("profiles").select("role").eq("id", data.user.id).single();
-  const role = prof?.role || "";
+    .from("profiles").select("role,status").eq("id", data.user.id).single();
+  // Sólo cuentas activas: una desactivada/pendiente conserva el JWT hasta que
+  // vence, pero no tiene que poder disparar consultas hacia Galicia.
+  if (!prof || prof.status !== "active") return false;
+  const role = prof.role || "";
   if (role === "admin") return true;
   try {
     const r = await fetch(SUPABASE_URL + "/storage/v1/object/public/flyers/_facultades.json");

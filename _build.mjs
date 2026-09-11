@@ -46,10 +46,60 @@ html = html.replace('</style>', newCSS + '</style>');
 html = html.replace(/<img src="data:image[^"]*" alt="Galicia" class="header-logo">/, headerIso);
 
 // ── SDK SUPABASE + auth.js EXTERNO ─────────────────────────────────────────
+// Versión FIJA de supabase-js (antes era "@2" flotante: cualquier release nueva
+// del CDN entraba sola a producción y no se podía verificar su integridad).
+const SUPABASE_JS_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
 html = html.replace(
   '</head>',
-  '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="auth.js"></script></head>'
+  `<script src="${SUPABASE_JS_URL}"></script><script src="auth.js"></script></head>`
 );
+
+// ── SRI: integridad de TODOS los scripts que llegan por CDN ─────────────────
+// El navegador compara el hash del archivo descargado con el que va acá; si el
+// CDN devolviera otro contenido (compromiso, cambio silencioso), NO lo ejecuta.
+// Los hashes se calculan una vez por versión:
+//   curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A
+// Al subir la versión de una librería hay que actualizar la URL y su hash acá.
+// El build se aplica sobre _source.html (que el usuario regenera seguido), así
+// que los atributos se inyectan en el build en vez de escribirse a mano allá.
+const SRI = {
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js': 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw',
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js': 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG',
+  'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js': 'sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz',
+  [SUPABASE_JS_URL]: 'sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP',
+};
+const _scriptsSinSri = [];
+html = html.replace(/<script src="(https:\/\/[^"]+)"><\/script>/g, (tag, url) => {
+  const h = SRI[url];
+  if (!h) { _scriptsSinSri.push(url); return tag; }
+  return `<script src="${url}" integrity="${h}" crossorigin="anonymous"></script>`;
+});
+
+// ── CSP (Content-Security-Policy) ───────────────────────────────────────────
+// GitHub Pages no deja mandar headers, así que va como <meta>. 'unsafe-inline'
+// en script/style es inevitable (la app usa onclick/style inline en todo el
+// HTML); el valor real está en cerrar las SALIDAS: connect-src e img-src son
+// listas cerradas (nada puede mandar datos a un dominio ajeno), object-src
+// 'none' y base-uri 'self'. Sólo va en index.html: index_export.html se abre
+// desde file:// o desde el bucket y no tiene que quedar atado a estos orígenes.
+// Nota esperable: pdf.js prueba `new Function` al rasterizar y cae a su ruta
+// sin eval; el "Refused to evaluate" en consola es inofensivo.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:",
+  "worker-src blob:",
+  "connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com",
+  "img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+const CSP_META = `<meta http-equiv="Content-Security-Policy" content="${CSP}">`;
+// Tiene que ir ANTES del primer <script> para cubrirlos a todos.
+html = html.replace('<meta charset="UTF-8">', '<meta charset="UTF-8">\n' + CSP_META);
 
 // ── LAYOUT ID + oculto ─────────────────────────────────────────────────────
 html = html.replace('<div class="layout">', '<div class="layout" id="layout" style="display:none">');
@@ -125,7 +175,7 @@ const loginOverlay = `<div id="login-ov">
       <label class="login-lbl">Email</label>
       <input type="email" id="reg-email" class="login-inp" placeholder="tu@bancogalicia.com.ar">
       <label class="login-lbl">Contrase&ntilde;a</label>
-      <input type="password" id="reg-pass" class="login-inp" placeholder="M&iacute;nimo 6 caracteres">
+      <input type="password" id="reg-pass" class="login-inp" placeholder="M&iacute;nimo 8 caracteres">
       <div class="login-err" id="reg-err"></div>
       <div class="login-ok" id="reg-ok"></div>
       <button class="login-submit" id="reg-btn" onclick="doRegister()">Crear cuenta</button>
@@ -198,6 +248,7 @@ const adminPanel = `<div id="admin-panel">
           <option value="active">Activos</option>
           <option value="inactive">Inactivos</option>
           <option value="pending">Pendientes</option>
+          <option value="reset_pending">Cambio de clave</option>
         </select>
       </div>
       <div id="users-list"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></div>
@@ -532,13 +583,34 @@ const _authSrc = readFileSync('auth.js', 'utf8');
 const _authHash = createHash('sha1').update(_authSrc).digest('hex').slice(0, 10);
 const AUTH_TAG = `<script src="auth.js?v=${_authHash}"></script>`;
 html = html.replace('<script src="auth.js"></script>', AUTH_TAG);
+// index_export.html se deriva de html: auth.js inlineado y SIN la meta CSP.
+const exportHtml = html
+  .replace(AUTH_TAG, '<script>\n' + _authSrc + '\n</script>')
+  .replace(CSP_META + '\n', '');
+const _cdnTags = html.match(/<script src="https:\/\/[^"]+"[^>]*>/g) || [];
 const checks = {
   'CSS full-screen': html.includes('height:100vh;overflow:hidden'),
   'layout height': html.includes('height:calc(100vh - 62px)'),
-  'panel height': html.includes('height:100%'),
-  'Supabase SDK': html.includes('supabase.js'),
-  'auth.js': html.includes('auth.js'),
+  'panel height': html.includes('.panel{') && html.includes('overflow-y:auto;height:100%;}'),
+  'Supabase SDK (version fija)': html.includes(SUPABASE_JS_URL) && /supabase-js@\d+\.\d+\.\d+\//.test(SUPABASE_JS_URL),
+  'auth.js': html.includes('<script src="auth.js?v='),
   'cache-busting auth.js': html.includes('auth.js?v=') && !html.includes('<script src="auth.js"></script>'),
+  // ── Seguridad del front (SRI + CSP) ──
+  'SRI: todos los scripts CDN con integrity': _cdnTags.length >= 5 && _cdnTags.every(t => /integrity="sha384-[A-Za-z0-9+/=]+"/.test(t) && t.includes('crossorigin="anonymous"')) && _scriptsSinSri.length === 0,
+  'SRI: pdf.js dinamico con integrity': _authSrc.includes("s.integrity='sha384-") && _authSrc.includes('fetch(wsrc,{integrity:wsri'),
+  'CSP: en index.html, no en export': html.includes(CSP_META) && html.indexOf(CSP_META) < html.indexOf('<script src=') && !exportHtml.includes('Content-Security-Policy'),
+  'export: auth.js inlineado': !exportHtml.includes('auth.js?v=') && !_authSrc.includes('</script>'),
+  // ── Hardening del cliente (auditoria 2026-09-11) ──
+  'escape: helper con comillas': _authSrc.includes("replace(/\"/g,'&quot;').replace(/'/g,'&#39;')"),
+  'escape: panel usuarios/registros': _authSrc.includes("_escHtml(u.full_name||mail||'Sin nombre')") && _authSrc.includes("_escHtml(row.empresa||'—')") && _authSrc.includes("_escHtml(row.empresa||'Sin empresa')"),
+  'onclick solo con ids (versiones/eliminar)': _authSrc.includes('function _upAct(') && _authSrc.includes("onclick=\"_upDel(this,'+i+')\"") && _authSrc.includes("onclick=\"deleteUser(this,\\''+_escHtml(u.id)+'\\')\"") && !_authSrc.includes("deleteUpload(this,\\''+f.name"),
+  'sesion: signOut si la cuenta no esta activa': _authSrc.includes("_sb.auth.signOut().catch(function(){});") && _authSrc.includes("if(event==='SIGNED_OUT'&&_me)"),
+  'portapapeles: DOMParser': _authSrc.includes("new DOMParser().parseFromString(String(html||''),'text/html').body"),
+  'excel: vista previa escapada': _authSrc.includes('function fgValidateExcel(') && _authSrc.includes('window.validateExcel=fgValidateExcel'),
+  'toast: unico (debounce)': _authSrc.includes('function fgShowToast(') && _authSrc.includes('window.showToast=fgShowToast'),
+  'promos: espera de catalogo en vuelo': _authSrc.includes('var _promosCatWaiters=') && _authSrc.includes('function _promosPedirDetalle(') && _authSrc.includes("typeof ExcelJS==='undefined'"),
+  'registro: solo dominio del banco': _authSrc.includes('@bancogalicia\\.com\\.ar$/i.test(email)') && html.includes('placeholder="M&iacute;nimo 8 caracteres"'),
+  'asesores guardados: slot 3/4': _authSrc.includes("var n=_gv('nombre'+sfx),c=_gv('celular'+sfx),m=_gv('email'+sfx);"),
   'layout hidden': html.includes('id="layout" style="display:none"'),
   'login-ov': html.includes('id="login-ov"'),
   'admin-panel': html.includes('id="admin-panel"'),
@@ -647,18 +719,25 @@ const checks = {
   'pegar: el legajo no se cuela en el nombre': _authSrc.includes('MEZCLAN letras y dígitos'),
   'pegar: telefono por grupos de digitos': _authSrc.includes('function _fgTelCandidatos(') && _authSrc.includes('_FG_TEL_SEP') && !_authSrc.includes('reTel=/(?:[+(]?'),
 };
+let _fallos = 0;
 for (const [k, v] of Object.entries(checks)) {
+  if (!v) _fallos++;
   console.log(`${v ? '✓' : '✗'} ${k}`);
 }
+if (_scriptsSinSri.length) console.log('  scripts CDN sin hash SRI:', _scriptsSinSri.join(', '));
 
-writeFileSync('index.html', html, 'utf8');
-console.log(`\nindex.html guardado: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
+// Un check en ✗ significa que algún feature quedó roto (o un script sin
+// integridad). Antes se escribía igual y el index.html roto quedaba listo para
+// commitear; ahora el build se detiene y no toca los archivos generados.
+if (_fallos) {
+  console.error(`\n✗ ${_fallos} check(s) fallaron: NO se escribió index.html ni index_export.html.`);
+  process.exitCode = 1;
+} else {
+  writeFileSync('index.html', html, 'utf8');
+  console.log(`\nindex.html guardado: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
 
-// ── EXPORT SELF-CONTAINED (para subir a Supabase Storage) ───────────────────
-// index_export.html tiene auth.js inlineado → funciona desde cualquier dominio
-const exportHtml = html.replace(
-  AUTH_TAG,
-  '<script>\n' + _authSrc + '\n</script>'
-);
-writeFileSync('index_export.html', exportHtml, 'utf8');
-console.log(`index_export.html guardado: ${(exportHtml.length / 1024 / 1024).toFixed(2)} MB  ← subir este a Supabase`);
+  // ── EXPORT SELF-CONTAINED (para subir a Supabase Storage) ─────────────────
+  // index_export.html tiene auth.js inlineado → funciona desde cualquier dominio
+  writeFileSync('index_export.html', exportHtml, 'utf8');
+  console.log(`index_export.html guardado: ${(exportHtml.length / 1024 / 1024).toFixed(2)} MB  ← subir este a Supabase`);
+}
