@@ -766,6 +766,10 @@ function _applyFacultades(){
 
   if(_can('padron_buscar'))_fgEnsurePadronBtn();
   var pb=document.getElementById('fg-pad-btn');if(pb)pb.style.display=_can('padron_buscar')?'':'none';
+  // "Mi padrón" en el menú del nombre: subir Excel, editar en línea, descargar.
+  // Mismo criterio que la lupa: quien puede buscar, puede administrar el suyo.
+  var dpad=document.getElementById('hdr-dd-padron');if(dpad)dpad.style.display=_can('padron_buscar')?'flex':'none';
+  if(!_can('padron_buscar')&&document.getElementById('pad-mine-ov'))closeMiPadron();
 
   _facSyncOptBar();
 
@@ -4269,10 +4273,78 @@ function _fgEnsurePadronBtn(){
   window.addEventListener('scroll',_padSugPos,true);
   loadPadron(false); // precarga para que la primera búsqueda salga instantánea
 }
+// ── "MI PADRÓN": administrar el padrón propio sin ser admin ───────────────────
+// El bloque de subir/editar/descargar (#at-varios) vive dentro del panel Admin,
+// que sólo el admin puede abrir: un asesor con la facultad padron_buscar tenía
+// la lupa pero NINGUNA forma de cargar su padrón (y la lupa le decía "subilo
+// desde Panel Administrador → Varios"). Este modal toma ese mismo bloque —el
+// nodo real, con sus ids y sus funciones— y lo muestra a quien tenga la
+// facultad; al cerrar lo devuelve a su lugar. Así hay UNA sola implementación
+// del padrón para todos, y la privacidad la sigue garantizando RLS (cada uno
+// sólo ve y toca sus filas).
+var _padMineHome=null;
+function _padMineStyle(){
+  if(document.getElementById('pad-mine-style'))return;
+  var st=document.createElement('style');st.id='pad-mine-style';
+  st.textContent=
+    '#pad-mine-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9990;display:flex;'+
+      'align-items:center;justify-content:center;padding:14px}'+
+    '#pad-mine{background:#fff;color:var(--dark,#111);border-radius:14px;width:min(860px,100%);max-height:92vh;'+
+      'display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden}'+
+    'html.dark #pad-mine{background:#23262c;color:#e8e8e8}'+
+    '#pad-mine .pm-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;'+
+      'border-bottom:1px solid var(--border,#e5e5e5);font-family:"Syne",sans-serif;font-weight:800;font-size:1rem}'+
+    'html.dark #pad-mine .pm-head{border-color:#3a3e46}'+
+    '#pad-mine .pm-x{cursor:pointer;font-size:1rem;color:var(--gray,#888);padding:2px 6px}'+
+    '#pad-mine .pm-x:hover{color:var(--red,#c62828)}'+
+    '#pad-mine .pm-body{overflow:auto;padding:16px 18px 20px}'+
+    '#pad-mine .pm-body #at-varios{display:block!important}'+
+    '.pad-head .pad-adm{font-size:.64rem;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;'+
+      'color:var(--red,#c62828);margin-left:auto;margin-right:10px}'+
+    '.pad-head .pad-adm:hover{text-decoration:underline}'+
+    '.pad-empty .usr-btn{margin-top:10px}';
+  document.head.appendChild(st);
+}
+function openMiPadron(){
+  if(!_can('padron_buscar')){showToast('No tenés habilitado el padrón de empresas.');return;}
+  if(document.getElementById('pad-mine-ov'))return;
+  var blk=document.getElementById('at-varios');if(!blk){showToast('No se encontró el bloque del padrón.');return;}
+  _padMineStyle();
+  closePadronPop();
+  _padMineHome={parent:blk.parentNode,next:blk.nextSibling,display:blk.style.display};
+  var ov=document.createElement('div');ov.id='pad-mine-ov';
+  ov.innerHTML='<div id="pad-mine" role="dialog" aria-label="Mi padrón de empresas">'+
+    '<div class="pm-head"><span>&#128193; Mi padr&oacute;n de empresas</span>'+
+      '<span class="pm-x" onclick="closeMiPadron()" title="Cerrar">&#10005;</span></div>'+
+    '<div class="pm-body"></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('.pm-body').appendChild(blk);
+  renderPadronAdmin(true);
+  document.addEventListener('keydown',_padMineEsc);
+}
+function _padMineEsc(e){if(e.key==='Escape')closeMiPadron();}
+function closeMiPadron(){
+  // Editor en línea abierto con cambios: closePadronEditor pregunta; si el
+  // usuario se arrepiente (_padEdit sigue vivo) no se cierra nada.
+  if(_padEdit){closePadronEditor();if(_padEdit)return;}
+  var ov=document.getElementById('pad-mine-ov'),blk=document.getElementById('at-varios');
+  if(blk&&_padMineHome&&_padMineHome.parent){
+    _padMineHome.parent.insertBefore(blk,_padMineHome.next&&_padMineHome.next.parentNode===_padMineHome.parent?_padMineHome.next:null);
+    blk.style.display=_padMineHome.display||'none';
+  }
+  _padMineHome=null;
+  if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
+  document.removeEventListener('keydown',_padMineEsc);
+  // el padrón pudo cambiar: el typeahead/lupa y la referencia de la fila cargada
+  // se rearman con la copia nueva
+  _padRef=null;
+}
 function openPadronPop(){
   closePadronPop();
   var pop=document.createElement('div');pop.id='pad-pop';pop.className='pad-pop';
+  _padMineStyle();
   pop.innerHTML='<div class="pad-head"><span>Padr&oacute;n de empresas</span>'+
+      '<span class="pad-adm" onclick="openMiPadron()" title="Subir Excel, editar en l&iacute;nea o descargar tu padr&oacute;n">&#9998; Administrar</span>'+
       '<span class="pad-x" onclick="closePadronPop()">&#10005;</span></div>'+
     '<input type="text" id="pad-q" class="pad-q" placeholder="Raz&oacute;n social o CUIT..." autocomplete="off" '+
       'oninput="renderPadronPop()" onkeydown="_padKeyNav(event)">'+
@@ -4317,7 +4389,8 @@ function renderPadronPop(){
   if(!_padron){list.innerHTML='<div class="pad-empty">Cargando padr&oacute;n...</div>';return;}
   if(!_padron.length){
     list.innerHTML='<div class="pad-empty">Todav&iacute;a no hay padr&oacute;n cargado.<br>'+
-      'Sub&iacute; el Excel desde <strong>Panel Administrador &rarr; Varios</strong>.</div>';
+      'Sub&iacute; un Excel o carg&aacute; tus empresas a mano desde <strong>tu nombre &rarr; Mi padr&oacute;n</strong>.<br>'+
+      '<button type="button" class="usr-btn edit" onclick="openMiPadron()">&#8593; Cargar mi padr&oacute;n</button></div>';
     _padHits=[];return;
   }
   var q=(document.getElementById('pad-q')||{}).value||'';
