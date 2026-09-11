@@ -18,6 +18,7 @@ const ICO_LOCK = _svgIco('<rect x="3" y="11" width="18" height="11" rx="2"/><pat
 const ICO_MOON = _svgIco('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>');
 const ICO_DOC  = _svgIco('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>');
 const ICO_DB   = _svgIco('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>');
+const ICO_HELP = _svgIco('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>');
 const ICO_OUT  = _svgIco('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>');
 
 // ── CSS FIXES ──────────────────────────────────────────────────────────────
@@ -127,6 +128,8 @@ html = html.replace(
       // Mi padrón: subir Excel / editar en línea / descargar el padrón propio.
       // Lo muestra _applyFacultades a quien tenga la facultad padron_buscar.
       '<button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none">' + ICO_DB + '<span>Mi padr&oacute;n</span></button>' +
+      // Tutorial guiado (para todos). El menú se cierra desde el propio tour.
+      '<button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()">' + ICO_HELP + '<span>Ver tutorial</span></button>' +
       '<div class="hdr-dd-sep"></div>' +
       '<button class="hdr-dd-item danger" onclick="doLogout()">' + ICO_OUT + '<span>Salir</span></button>' +
     '</div>' +
@@ -672,7 +675,10 @@ const checks = {
   'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
   // Facultades por perfil: la matriz vive en la nube y gobierna el gating de la UI
   'facultades: matriz por rol': html.includes('id="at-facultades"') && html.includes('id="fac-grid"') && _authSrc.includes('function _can(') && _authSrc.includes('function loadFacultades(') && _authSrc.includes('function _applyFacultades('),
-  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false}') && !_authSrc.includes('_canNotes'),
+  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false}') && !_authSrc.includes('_canNotes'),
+  // Tutorial guiado: "Ver tutorial" en el menú para todos; el arranque
+  // automático al primer ingreso es una facultad (apagada por default).
+  'tutorial guiado': html.includes('id="hdr-dd-tour"') && _authSrc.includes('function _tourStart(') && _authSrc.includes('function _tourEnd(') && _authSrc.includes('function _tourCapitulos(') && _authSrc.includes("rows.push(['tutorial_auto',") && _authSrc.includes('_tourAutoStart();') && _authSrc.includes("_can('tutorial_auto')"),
   // Buscador de promociones: pestaña nueva, gateada por facultad (default false
   // para todos los roles: sólo el admin la ve hasta que se la habiliten a otro perfil).
   'promos: solapa de primer nivel + facultad + matching + excel': html.includes('id="apptab-promos"') && html.includes('id="view-promos"') && html.includes('onclick="switchApp(') && _authSrc.includes('function switchApp(') && _authSrc.includes("rows.push(['promos_buscar',") && _authSrc.includes('function _promoBuscarCandidatos(') && _authSrc.includes('function validarPromos(') && _authSrc.includes('function descargarExcelPromos(') && _authSrc.includes('function _callPromosFn('),

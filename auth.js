@@ -509,7 +509,8 @@ function checkProfile(user){
       _showApp();
       // Con la app ya visible, re-aplico: es idempotente, y recién acá puede
       // corregir la opción activa si este perfil no tiene habilitada la 1.
-      if(_facLoaded)_applyFacultades();
+      if(_facLoaded){_applyFacultades();_tourAutoStart();}
+      else loadFacultades(false,function(){_applyFacultades();_tourAutoStart();});
       // Cacheo la Opción 1 para que volver a ella sea instantáneo
       _fgOptCache[1]={loaded:true,cfg:window.FLYER_CFG||null,imageUrl:imageUrl,
         name:_activeFlyerName,legal:null,img:null};
@@ -676,9 +677,9 @@ var FACULTADES_FILE='_facultades.json',_facLoaded=false,_FAC=null,_myRole='aseso
 // asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
 // existe en la nube, nadie nota ningún cambio.
 var _FAC_DEF={
-  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false},
-  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false},
-  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false}
+  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false},
+  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false},
+  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -701,6 +702,7 @@ function _facRows(){
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
   rows.push(['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']);
   rows.push(['promos_buscar','Buscador de promociones','Agrega la pesta&ntilde;a "Promociones": pega las marcas del flyer y las cruza contra el buscador oficial de Galicia, con logo, fechas de vigencia y estado (vigente / vence este mes / vencida).']);
+  rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
   return rows;
 }
 var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro']];
@@ -5471,4 +5473,297 @@ function _fgUndoPaste(n){
   if(res)res.innerHTML='<div class="fg-paste-undone">Deshecho — volviste a los datos de antes.</div>';
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
+}
+
+// ── TUTORIAL GUIADO ("tour") ──────────────────────────────────────────────────
+// Recorrido didáctico sobre la pantalla REAL: se oscurece todo, se ilumina el
+// botón del que se habla y un globo con flecha explica qué hace. Por capítulos
+// (cada uno se puede saltar entero), con Anterior/Siguiente/Cerrar y teclado.
+// Los pasos se filtran por perfil: si un usuario no tiene "Pegar", ese paso no
+// existe para él. Disponible para todos desde el menú del nombre ("Ver
+// tutorial"); el arranque automático al primer ingreso es la facultad
+// tutorial_auto, que el admin prende por perfil cuando quiera.
+var _tour=null; // estado: {pasos:[...], i, caps:[...]}
+function _tourKey(){return 'fg_tour_done_'+(_me?_me.id:'anon');}
+function _tourMarcarVisto(){try{localStorage.setItem(_tourKey(),'1');}catch(e){}}
+function _tourYaVisto(){try{return !!localStorage.getItem(_tourKey());}catch(e){return false;}}
+function _tourStyle(){
+  if(document.getElementById('fg-tour-style'))return;
+  var st=document.createElement('style');st.id='fg-tour-style';
+  st.textContent=
+    // El oscurecido es el overlay con un AGUJERO (clip-path evenodd) sobre el
+    // elemento: más predecible que un box-shadow gigante alrededor del spotlight.
+    '#fg-tour-ov{position:fixed;inset:0;z-index:20000;background:rgba(10,10,12,.58)}'+
+    '#fg-tour-hl{position:fixed;z-index:20001;border-radius:10px;pointer-events:none;'+
+      'box-shadow:0 0 0 3px rgba(227,6,19,.85),0 0 22px rgba(227,6,19,.45);'+
+      'transition:top .18s ease,left .18s ease,width .18s ease,height .18s ease}'+
+    '#fg-tour-tip{position:fixed;z-index:20002;width:min(360px,calc(100vw - 24px));background:#fff;color:#111;'+
+      'border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.35);padding:14px 16px 12px;font-family:"DM Sans",sans-serif;'+
+      'animation:fgTourIn .18s ease}'+
+    'html.dark #fg-tour-tip{background:#23262c;color:#e8e8e8}'+
+    '@keyframes fgTourIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}'+
+    '#fg-tour-tip .ft-arrow{position:absolute;width:16px;height:16px;background:inherit;transform:rotate(45deg);'+
+      'box-shadow:-3px -3px 8px rgba(0,0,0,.06)}'+
+    '#fg-tour-tip .ft-caps{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;padding-right:18px}'+
+    '#fg-tour-tip .ft-cap{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;'+
+      'border-radius:20px;background:rgba(128,128,128,.14);color:var(--gray,#777);cursor:pointer;user-select:none}'+
+    '#fg-tour-tip .ft-cap.on{background:var(--red,#e30613);color:#fff}'+
+    '#fg-tour-tip .ft-cap:hover:not(.on){background:rgba(128,128,128,.26)}'+
+    '#fg-tour-tip h4{margin:0 0 6px;font-family:"Syne",sans-serif;font-size:.98rem;font-weight:800;line-height:1.25}'+
+    '#fg-tour-tip p{margin:0;font-size:.8rem;line-height:1.55;color:#333}'+
+    'html.dark #fg-tour-tip p{color:#cfd2d8}'+
+    '#fg-tour-tip .ft-foot{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}'+
+    '#fg-tour-tip .ft-n{font-size:.66rem;color:var(--gray,#888);margin-right:auto}'+
+    '#fg-tour-tip .ft-btn{border:none;border-radius:8px;padding:7px 11px;font-family:"Syne",sans-serif;font-size:.68rem;'+
+      'font-weight:700;cursor:pointer;background:rgba(128,128,128,.14);color:inherit;transition:.15s}'+
+    '#fg-tour-tip .ft-btn:hover{background:rgba(128,128,128,.28)}'+
+    '#fg-tour-tip .ft-btn.main{background:var(--red,#e30613);color:#fff}'+
+    '#fg-tour-tip .ft-btn.main:hover{background:#b8000f}'+
+    '#fg-tour-tip .ft-btn:disabled{opacity:.4;cursor:default}'+
+    '#fg-tour-tip .ft-x{position:absolute;top:8px;right:10px;font-size:.85rem;color:var(--gray,#888);cursor:pointer;padding:2px 5px}'+
+    '#fg-tour-tip .ft-x:hover{color:var(--red,#e30613)}'+
+    '#fg-tour-tip .ft-skip{font-size:.66rem;color:var(--gray,#888);cursor:pointer;text-decoration:underline;margin-left:4px}'+
+    '#fg-tour-tip kbd{font-family:inherit;font-size:.7rem;background:rgba(128,128,128,.16);border-radius:4px;padding:1px 5px}';
+  document.head.appendChild(st);
+}
+// Capítulos y pasos. target: selector o función → elemento. cond: si aplica al
+// perfil. antes: deja la pantalla lista para que el elemento sea visible.
+function _tourCapitulos(){
+  var puedePad=_can('padron_buscar'),puedePegar=_can('pegar_oficial'),puedeNotas=_can('notas'),
+      puedeAs=_can('asesores_guardados'),puedePromos=_can('promos_buscar'),varias=_facOpts().length>1;
+  function irIndividual(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('individual');}
+  function irMasivo(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('masivo');}
+  function irHistorial(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('historial');}
+  function irPromos(){closeUserMenu();if(typeof switchApp==='function')switchApp('promos');}
+  return [
+    {id:'flyer',titulo:'Armar un flyer',pasos:[
+      {target:'#empresa',titulo:'Empez&aacute; por la empresa',
+       texto:'Escrib&iacute; la raz&oacute;n social: el flyer de la derecha se actualiza al instante y el <strong>nombre del archivo</strong> se arma solo con ese nombre.'+(puedePad?' Si la empresa ya est&aacute; en tu padr&oacute;n, mientras tipe&aacute;s te la sugiere.':''),
+       antes:irIndividual},
+      {target:'#fg-pad-btn',cond:puedePad,titulo:'La lupa: tu padr&oacute;n de empresas',
+       texto:'Busc&aacute; por <strong>raz&oacute;n social o CUIT</strong> y se completa todo de una: empresa, cashback y hasta 4 oficiales. Desde "Administrar" (o tu nombre &rarr; <strong>Mi padr&oacute;n</strong>) sub&iacute;s un Excel o lo edit&aacute;s a mano.',
+       antes:irIndividual},
+      {target:function(){var b=_fgBlock(1);return b&&b.sec;},titulo:'Datos del oficial',
+       texto:'Nombre, celular y mail del asesor que va al pie del flyer. Al escribir el nombre, el <strong>mail se sugiere solo</strong> (nombre.apellido@bancogalicia.com.ar); si es distinto, corregilo.'+(puedeAs?' <strong>Tocando este t&iacute;tulo</strong> eleg&iacute;s un asesor guardado y lo carg&aacute;s con un click.':''),
+       antes:irIndividual},
+      {target:'#fg-paste-btn-1',cond:puedePegar,titulo:'&#9889; Pegar: sin tipear nada',
+       texto:'Copi&aacute; la firma de un mail o un mensaje con los datos del oficial y pegalo ac&aacute;: detecta <strong>nombre, celular y mail</strong> y los acomoda al formato correcto. Si algo no cierra, <em>Deshacer</em>.',
+       antes:irIndividual},
+      {target:'#fg-add-asesor',titulo:'Hasta 4 asesores',
+       texto:'Agreg&aacute; un segundo, tercer o cuarto oficial: el flyer los acomoda solo (2 lado a lado, 3 en fila, 4 en dos filas). "&#10005; Quitar" lo saca sin borrar lo que escribiste.',
+       antes:irIndividual},
+      {target:'.cfg-btns',titulo:'Cashback',
+       texto:'Eleg&iacute; la configuraci&oacute;n de montos que le corresponde a la empresa (<strong>BAU</strong> o <strong>Config 1 a 4</strong>). Los importes vigentes los carga el administrador; ac&aacute; solo eleg&iacute;s cu&aacute;l.',
+       antes:irIndividual},
+      {target:'#legal-text',titulo:'Texto legal',
+       texto:'Viene precargado con los t&eacute;rminos del mes. Pod&eacute;s ajustar una fecha o un dato: lo que va entre <kbd>**dobles asteriscos**</kbd> sale en <strong>negrita</strong>. Si peg&aacute;s desde Word, la negrita se conserva sola.',
+       antes:irIndividual},
+      {target:'.zoom-bar',titulo:'Vista previa',
+       texto:'Acerc&aacute; o alej&aacute; con <kbd>+</kbd> / <kbd>&minus;</kbd> (o la rueda del mouse) y <strong>arrastr&aacute;</strong> la imagen para recorrerla. Lo que ves ac&aacute; es exactamente lo que se descarga.',
+       antes:irIndividual},
+      {target:'.btns .btn.bp',titulo:'Descargar',
+       texto:'<strong>PDF</strong> para mandar por mail o WhatsApp, <strong>PNG</strong> si necesit&aacute;s la imagen suelta. Cada descarga queda en la solapa <em>Historial</em> por si la ten&eacute;s que repetir.',
+       antes:irIndividual},
+      {target:'.btns .btn.bg',titulo:'Restaurar',
+       texto:'Limpia empresa y asesores y vuelve el legal al texto guardado, para arrancar el pr&oacute;ximo flyer de cero.',
+       antes:irIndividual}
+    ]},
+    {id:'masivo',titulo:'Masivo',pasos:[
+      {target:'.template-btn',titulo:'Muchas empresas de una vez',
+       texto:'Baj&aacute; la <strong>plantilla Excel</strong>: una fila por empresa (raz&oacute;n social, cashback y hasta 4 asesores). Es el mismo formato que el padr&oacute;n.',
+       antes:irMasivo},
+      {target:'#excel-drop',titulo:'Sub&iacute; el Excel y gener&aacute;',
+       texto:'Arrastralo ac&aacute; o hac&eacute; click para elegirlo. Te muestra una vista previa y avisa si alguna fila tiene un problema (empresa vac&iacute;a, cashback que no reconoce). Despu&eacute;s, el bot&oacute;n <strong>&#9889; Generar ZIP</strong> arma <strong>un PDF por empresa</strong> y los baja todos juntos.',
+       antes:irMasivo}
+    ]},
+    {id:'historial',titulo:'Historial',pasos:[
+      {target:function(){return document.querySelectorAll('.tabs .tab')[2]||null;},titulo:'Lo que generaste en esta sesi&oacute;n',
+       texto:'Cada flyer descargado queda listado ac&aacute;: pod&eacute;s <strong>volver a bajar el PDF</strong> o <strong>recargar</strong> sus datos en el formulario para retocarlo. Se vac&iacute;a al cerrar la pesta&ntilde;a del navegador.',
+       antes:irHistorial}
+    ]},
+    {id:'menu',titulo:'Tu men&uacute;',pasos:[
+      {target:'#hdr-dd-padron',cond:puedePad,titulo:'Mi padr&oacute;n',
+       texto:'Sub&iacute; un Excel con tus empresas (carga masiva), editalas en l&iacute;nea, descarg&aacute; el padr&oacute;n o la plantilla vac&iacute;a. Es <strong>privado</strong>: nadie m&aacute;s puede editarlo.',
+       antes:_tourAbrirMenu},
+      {target:'#hdr-dd-notes',cond:puedeNotas,titulo:'Bloc de notas',
+       texto:'Anotaciones r&aacute;pidas que quedan guardadas en este navegador, por si necesit&aacute;s tener algo a mano mientras arm&aacute;s flyers.',
+       antes:_tourAbrirMenu},
+      {target:'#hdr-dd-theme',titulo:'Modo oscuro',
+       texto:'Cambi&aacute; entre tema claro y oscuro. Se recuerda para la pr&oacute;xima vez.',antes:_tourAbrirMenu},
+      {target:'#hdr-dd-pass',cond:!_adminNow(),titulo:'Cambiar mi clave',
+       texto:'Cambi&aacute; tu contrase&ntilde;a cuando quieras (te pide la actual). Si la olvidaste, desde el login ped&iacute;s una nueva y el administrador la aprueba.',
+       antes:_tourAbrirMenu},
+      {target:'#hdr-dd-tour',titulo:'Ver tutorial',
+       texto:'Este recorrido queda siempre ac&aacute; para repasarlo cuando quieras.',antes:_tourAbrirMenu}
+    ]},
+    {id:'promos',titulo:'Promociones',cond:puedePromos,pasos:[
+      {target:'#promos-marcas',titulo:'&iquest;Qu&eacute; marcas siguen vigentes?',
+       texto:'Peg&aacute; la lista de marcas del flyer, <strong>una por l&iacute;nea</strong>. Se cruzan contra el buscador oficial de promociones de Galicia.',
+       antes:irPromos},
+      {target:'#promos-mes',titulo:'Mes a validar',
+       texto:'El mes del flyer: una promo que vence dentro de ese mes se marca <em>"vence este mes"</em>, y una ya vencida, <em>"vencida"</em>.',
+       antes:irPromos},
+      {target:'#promos-validar-btn',titulo:'Validar vigencia',
+       texto:'Devuelve una tabla con logo, nombre en Galicia, fechas desde/hasta y estado. Las dudosas quedan como <strong>Revisar</strong> con las opciones para elegir a mano; las que no est&aacute;n, como <strong>No encontrada</strong>. Con el bot&oacute;n <strong>Descargar Excel</strong> te llev&aacute;s el resultado con el logo de cada marca.',
+       antes:irPromos}
+    ]},
+    {id:'opciones',titulo:'Opciones',cond:varias,pasos:[
+      {target:'#fg-optbar',titulo:'Varios armadores',
+       texto:'Cada opci&oacute;n tiene su propio flyer y su propio legal. Cambi&aacute;s ac&aacute; y todo lo dem&aacute;s (individual, masivo, historial) usa el flyer de esa opci&oacute;n. Los datos que cargaste no se pierden al cambiar.',
+       antes:irIndividual}
+    ]}
+  ];
+}
+function _tourAbrirMenu(){
+  if(typeof switchApp==='function')switchApp('flyer');
+  var dd=document.getElementById('hdr-dropdown');
+  if(dd&&!dd.classList.contains('open'))toggleUserMenu();
+}
+function _tourEl(t){
+  if(!t)return null;
+  var el=(typeof t==='function')?t():document.querySelector(t);
+  if(!el)return null;
+  var r=el.getBoundingClientRect();
+  return (r.width>0&&r.height>0&&getComputedStyle(el).visibility!=='hidden')?el:null;
+}
+// Arma la lista plana de pasos aplicables (cond + elemento presente en el DOM,
+// aunque esté en otra solapa: la visibilidad real se chequea al ir al paso).
+function _tourPlan(){
+  var caps=_tourCapitulos().filter(function(c){return c.cond!==false;});
+  var pasos=[];
+  caps.forEach(function(c){
+    c.pasos.forEach(function(p){
+      if(p.cond===false)return;
+      var el=(typeof p.target==='function')?p.target():document.querySelector(p.target);
+      if(!el)return;
+      p.cap=c.id;pasos.push(p);
+    });
+  });
+  return {caps:caps.filter(function(c){return pasos.some(function(p){return p.cap===c.id;});}),pasos:pasos};
+}
+function _tourStart(capId){
+  if(!_me){showToast('Ingresá primero para ver el tutorial');return;}
+  _tourEnd(true);
+  var plan=_tourPlan();
+  if(!plan.pasos.length){showToast('No hay nada para mostrar');return;}
+  _tourStyle();
+  var ov=document.createElement('div');ov.id='fg-tour-ov';document.body.appendChild(ov);
+  var hl=document.createElement('div');hl.id='fg-tour-hl';document.body.appendChild(hl);
+  var tip=document.createElement('div');tip.id='fg-tour-tip';document.body.appendChild(tip);
+  _tour={caps:plan.caps,pasos:plan.pasos,i:0};
+  var i0=0;
+  if(capId){for(var k=0;k<plan.pasos.length;k++)if(plan.pasos[k].cap===capId){i0=k;break;}}
+  document.addEventListener('keydown',_tourTecla);
+  window.addEventListener('resize',_tourPos);
+  window.addEventListener('scroll',_tourPos,true);
+  _tourGo(i0);
+}
+function _tourTecla(e){
+  if(!_tour)return;
+  if(e.key==='Escape'){e.preventDefault();_tourEnd();}
+  else if(e.key==='ArrowRight'){e.preventDefault();_tourNext();}
+  else if(e.key==='ArrowLeft'){e.preventDefault();_tourPrev();}
+}
+function _tourNext(){if(!_tour)return;if(_tour.i>=_tour.pasos.length-1){_tourEnd();return;}_tourGo(_tour.i+1);}
+function _tourPrev(){if(!_tour||_tour.i<=0)return;_tourGo(_tour.i-1);}
+// Salta al primer paso del capítulo siguiente (o termina si era el último).
+function _tourSaltarCap(){
+  if(!_tour)return;
+  var cap=_tour.pasos[_tour.i].cap;
+  for(var k=_tour.i+1;k<_tour.pasos.length;k++)if(_tour.pasos[k].cap!==cap){_tourGo(k);return;}
+  _tourEnd();
+}
+function _tourIrCap(capId){
+  if(!_tour)return;
+  for(var k=0;k<_tour.pasos.length;k++)if(_tour.pasos[k].cap===capId){_tourGo(k);return;}
+}
+function _tourGo(i){
+  if(!_tour)return;
+  var p=_tour.pasos[i];if(!p){_tourEnd();return;}
+  _tour.i=i;
+  try{if(p.antes)p.antes();}catch(e){console.warn('tour antes():',e);}
+  // si con la pantalla preparada el elemento sigue sin verse, se saltea el paso
+  var el=_tourEl(p.target);
+  if(!el){
+    _tour.pasos.splice(i,1);
+    if(!_tour.pasos.length){_tourEnd();return;}
+    _tourGo(Math.min(i,_tour.pasos.length-1));return;
+  }
+  if(el.scrollIntoView)try{el.scrollIntoView({block:'center',inline:'nearest'});}catch(e){}
+  var tip=document.getElementById('fg-tour-tip');if(!tip)return;
+  var n=i+1,tot=_tour.pasos.length;
+  tip.innerHTML=
+    '<span class="ft-x" onclick="_tourEnd()" title="Cerrar (Esc)">&#10005;</span>'+
+    '<div class="ft-caps">'+_tour.caps.map(function(c){
+      return '<span class="ft-cap'+(c.id===p.cap?' on':'')+'" onclick="_tourIrCap(\''+c.id+'\')">'+c.titulo+'</span>';
+    }).join('')+'</div>'+
+    '<h4>'+p.titulo+'</h4><p>'+p.texto+'</p>'+
+    '<div class="ft-foot"><span class="ft-n">'+n+' / '+tot+'</span>'+
+      '<button type="button" class="ft-btn" onclick="_tourPrev()"'+(i===0?' disabled':'')+'>&larr; Anterior</button>'+
+      '<button type="button" class="ft-btn main" onclick="_tourNext()">'+(i===tot-1?'Terminar &#10003;':'Siguiente &rarr;')+'</button>'+
+      (_tour.caps.length>1&&i<tot-1?'<span class="ft-skip" onclick="_tourSaltarCap()">Omitir cap&iacute;tulo</span>':'')+
+    '</div><div class="ft-arrow"></div>';
+  _tourPos();
+  // el cambio de solapa/scroll puede reacomodar el layout un frame después
+  requestAnimationFrame(function(){_tourPos();setTimeout(_tourPos,250);});
+}
+// Ubica el spotlight sobre el elemento y el globo al costado que mejor entre,
+// con la flecha apuntando al elemento.
+function _tourPos(){
+  if(!_tour)return;
+  var p=_tour.pasos[_tour.i];var el=_tourEl(p&&p.target);
+  var hl=document.getElementById('fg-tour-hl'),tip=document.getElementById('fg-tour-tip');
+  if(!el||!hl||!tip)return;
+  var r=el.getBoundingClientRect(),m=6;
+  hl.style.top=(r.top-m)+'px';hl.style.left=(r.left-m)+'px';
+  hl.style.width=(r.width+2*m)+'px';hl.style.height=(r.height+2*m)+'px';
+  // agujero en el overlay: rectángulo exterior + rectángulo del elemento (evenodd)
+  var ov=document.getElementById('fg-tour-ov');
+  if(ov){
+    var x1=Math.round(r.left-m),y1=Math.round(r.top-m),x2=Math.round(r.right+m),y2=Math.round(r.bottom+m);
+    ov.style.clipPath='polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, '+
+      x1+'px '+y1+'px, '+x1+'px '+y2+'px, '+x2+'px '+y2+'px, '+x2+'px '+y1+'px, '+x1+'px '+y1+'px)';
+  }
+  var W=window.innerWidth,H=window.innerHeight,tw=tip.offsetWidth,th=tip.offsetHeight,gap=16;
+  var side,top,left;
+  if(r.right+gap+tw<=W-10)side='right';
+  else if(r.left-gap-tw>=10)side='left';
+  else if(r.bottom+gap+th<=H-10)side='bottom';
+  else side='top';
+  if(side==='right'||side==='left'){
+    left=side==='right'?r.right+gap:r.left-gap-tw;
+    top=Math.max(10,Math.min(H-th-10,r.top+r.height/2-th/2));
+  }else{
+    top=side==='bottom'?r.bottom+gap:r.top-gap-th;
+    left=Math.max(10,Math.min(W-tw-10,r.left+r.width/2-tw/2));
+  }
+  tip.style.top=top+'px';tip.style.left=left+'px';
+  // flecha: en el borde del globo que mira al elemento, alineada con su centro
+  var a=tip.querySelector('.ft-arrow');if(!a)return;
+  var cx=r.left+r.width/2-left,cy=r.top+r.height/2-top;
+  a.style.top='';a.style.left='';a.style.right='';a.style.bottom='';
+  if(side==='right'){a.style.left='-8px';a.style.top=Math.max(12,Math.min(th-24,cy-8))+'px';}
+  else if(side==='left'){a.style.right='-8px';a.style.top=Math.max(12,Math.min(th-24,cy-8))+'px';}
+  else if(side==='bottom'){a.style.top='-8px';a.style.left=Math.max(12,Math.min(tw-24,cx-8))+'px';}
+  else{a.style.bottom='-8px';a.style.left=Math.max(12,Math.min(tw-24,cx-8))+'px';}
+}
+// silencioso=true: reinicio interno (no marca visto ni restaura la pantalla)
+function _tourEnd(silencioso){
+  ['fg-tour-ov','fg-tour-hl','fg-tour-tip'].forEach(function(id){var e=document.getElementById(id);if(e&&e.parentNode)e.parentNode.removeChild(e);});
+  document.removeEventListener('keydown',_tourTecla);
+  window.removeEventListener('resize',_tourPos);
+  window.removeEventListener('scroll',_tourPos,true);
+  var habia=!!_tour;_tour=null;
+  if(silencioso||!habia)return;
+  _tourMarcarVisto();
+  closeUserMenu();
+  if(typeof switchApp==='function')switchApp('flyer');
+  if(typeof switchTab==='function')switchTab('individual');
+}
+// Arranque automático al primer ingreso: sólo si el perfil tiene la facultad
+// tutorial_auto (el admin la prende por rol), nunca para el admin ni durante la
+// vista previa de otro perfil, y una sola vez por cuenta y navegador.
+function _tourAutoStart(){
+  if(_adminNow()||_simRole||!_can('tutorial_auto')||_tourYaVisto())return;
+  setTimeout(function(){if(_me&&!_tour)_tourStart();},900);
 }
