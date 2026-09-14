@@ -217,6 +217,7 @@ const adminPanel = `<div id="admin-panel">
   <div class="stabs" id="sg-data" style="display:none">
     <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Mi padr&oacute;n</div>
     <div class="stab" data-tab="padronotros" onclick="switchAdminTab(this,'padronotros')">Padr&oacute;n Asesores</div>
+    <div class="stab" data-tab="padronlog" onclick="switchAdminTab(this,'padronlog')">Cambios del padr&oacute;n</div>
   </div>
   <div class="stabs" id="sg-config" style="display:none">
     <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
@@ -347,7 +348,7 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-facultades" style="display:none">
       <p class="ap-sec">Facultades por perfil</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren. El <strong>administrador siempre tiene todo</strong>, por eso su columna no se puede editar.<br><br>Toc&aacute; el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesi&oacute;n. Para volver, us&aacute; el bot&oacute;n de la barra de abajo.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren.<br><br>La columna <strong>Vos</strong> es <strong>tu propia cuenta</strong>: destild&aacute; lo que no uses (por ejemplo, una opci&oacute;n del armador que no te sirve) y la app se te simplifica. No afecta al otro administrador ni al Panel Administrador, que siempre queda disponible; pod&eacute;s volver a tildarlo cuando quieras.<br><br>Toc&aacute; el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesi&oacute;n. Para volver, us&aacute; el bot&oacute;n de la barra de abajo.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
       <div id="fac-grid"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="btn-submit" id="fac-save" onclick="saveFacultadesChanges()" style="padding:8px 16px">Guardar cambios</button>
@@ -397,6 +398,47 @@ const adminPanel = `<div id="admin-panel">
       <p style="font-size:.76rem;color:var(--gray);margin-bottom:12px" id="po-stat"></p>
       <input type="text" id="po-q" class="login-inp" placeholder="Filtrar: raz&oacute;n social o CUIT..." autocomplete="off" oninput="renderPadronOtrosList()" style="margin-bottom:0;display:none">
       <div id="po-list"></div>
+    </div>
+
+    <div id="at-padronlog" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <p class="ap-sec" style="margin:0">Cambios del padr&oacute;n</p>
+        <button class="usr-btn ok" id="btn-export-plog" onclick="exportPadronLog()" style="font-size:.72rem;padding:5px 12px">&#11015; Exportar Excel</button>
+      </div>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada vez que alguien guarda su padr&oacute;n (subiendo un Excel, con el editor en l&iacute;nea o desde el armador), queda constancia de <strong>qu&eacute; empresas se agregaron, cu&aacute;les se modificaron</strong> (y qu&eacute; cambi&oacute;: CUIT, cashback u oficiales) <strong>y cu&aacute;les se borraron</strong>, con fecha, hora y qui&eacute;n lo hizo. Un cambio de raz&oacute;n social aparece como una baja m&aacute;s un alta. Ves tus propios cambios y los de asesores, VIP y Pro; los de otro administrador no.</p>
+      <div class="reg-filter">
+        <div class="reg-filter-group">
+          <label>Usuario</label>
+          <input type="text" id="plog-q-user" placeholder="Filtrar usuario...">
+        </div>
+        <div class="reg-filter-group">
+          <label>Empresa</label>
+          <input type="text" id="plog-q-empresa" placeholder="Filtrar empresa...">
+        </div>
+        <div class="reg-filter-group">
+          <label>Acci&oacute;n</label>
+          <select id="plog-q-accion">
+            <option value="">Todas</option>
+            <option value="alta">Altas</option>
+            <option value="modificacion">Modificaciones</option>
+            <option value="baja">Bajas</option>
+          </select>
+        </div>
+        <div class="reg-filter-group">
+          <label>Desde</label>
+          <input type="date" id="plog-q-from">
+        </div>
+        <div class="reg-filter-group">
+          <label>Hasta</label>
+          <input type="date" id="plog-q-to">
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end">
+          <button class="btn-submit" onclick="loadPadronLog()" style="padding:7px 14px;font-size:.72rem">Buscar</button>
+          <button class="btn-cancel" onclick="['plog-q-user','plog-q-empresa','plog-q-accion','plog-q-from','plog-q-to'].forEach(function(i){document.getElementById(i).value='';});loadPadronLog();" style="padding:7px 10px;font-size:.72rem">&#10005;</button>
+        </div>
+      </div>
+      <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="plog-count"></p>
+      <div id="plog-list"></div>
     </div>
 
   </div>
@@ -689,6 +731,11 @@ const checks = {
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
   'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOpts().map(') && !_authSrc.includes('opciones_armador'),
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
+  // El admin se puede destildar cosas a sí mismo (columna "Vos", guardada por
+  // cuenta en profiles.facultades): ya no hay bypass fijo en _can.
+  'facultades: columna Vos del admin (profiles.facultades)': _authSrc.includes('function _facMe(') && _authSrc.includes('if(_admin)return _facMe(f);') && _authSrc.includes("update({facultades:me})") && _authSrc.includes('function _facFieldMe(') && _authSrc.includes(',facultades\').eq(\'id\',user.id)') && !_authSrc.includes('checked disabled title="El administrador siempre tiene todas') && !html.includes('por eso su columna no se puede editar'),
+  // Data → Cambios del padrón: lo escribe padron_replace (servidor, migración 007).
+  'padron: log de cambios (solapa Data)': html.includes('id="at-padronlog"') && html.includes('data-tab="padronlog"') && html.includes('id="plog-list"') && _authSrc.includes('function loadPadronLog(') && _authSrc.includes('function exportPadronLog(') && _authSrc.includes("'padronlog'") && _authSrc.includes("if(t==='padronlog')loadPadronLog();") && _authSrc.includes("_sb.from('padron_log')"),
   'facultades: gating bidireccional (quitar tambien saca)': _authSrc.includes('function _facShowPaste(') && _authSrc.includes('function _facShowAsesores(') && _authSrc.includes('function _facSyncOptBar('),
   'facultades: gating aplicado tras cargar la matriz': _authSrc.includes('loadFacultades(false,_applyFacultades);') && !_authSrc.includes('if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();}'),
   'rol Pro': html.includes('<option value="pro">Pro</option>') && _authSrc.includes("pro:'Pro'"),

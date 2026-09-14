@@ -461,7 +461,7 @@ function doRegister(){
 }
 
 function checkProfile(user){
-  _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status').eq('id',user.id).single().then(function(r){
+  _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades').eq('id',user.id).single().then(function(r){
     var p=r.data;
     if(r.error||!p||p.status!=='active'){
       var msg;
@@ -480,6 +480,8 @@ function checkProfile(user){
       return;
     }
     _me=user;_admin=(p.role==='admin');_myRole=p.role||'asesor';_myName=p.full_name||p.email_asesor||user.email;
+    // Facultades propias del admin (columna "Vos" en Facultades): null = todo.
+    _myFac=(_admin&&p.facultades&&typeof p.facultades==='object'&&!Array.isArray(p.facultades))?p.facultades:null;
     loadCashback(false,function(){if(typeof redraw==='function')redraw();}); // monto vigente, aunque el admin lo haya cambiado
     // El gating de la interfaz depende de la matriz de facultades, que viene de
     // la nube: por eso se aplica dentro del callback y no acá suelto. Corre en
@@ -632,7 +634,7 @@ function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel
 
 // El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
 // _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
-var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','padronotros'],config:['subir','cashback','legales','opciones']};
+var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','padronotros','padronlog'],config:['subir','cashback','legales','opciones']};
 var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
 function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
@@ -659,6 +661,7 @@ function switchAdminTab(el,t){
   if(t==='facultades')loadFacultades(true,renderFacultades);
   if(t==='varios')renderPadronAdmin(true);
   if(t==='padronotros')loadPadronOtrosUsers(false);
+  if(t==='padronlog')loadPadronLog();
   if(t==='legales'){
     _legalesRender();
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
@@ -672,11 +675,23 @@ function switchAdminGroup(el,g){
 
 // ── FACULTADES: qué funcionalidades tiene cada rol (editable desde el panel) ───
 // Antes cada funcionalidad estaba cableada al rol en el código. Ahora la matriz
-// vive en la nube y el admin la edita en Admin → Facultades.
+// vive en la nube y el admin la edita en Admin → Facultades. El admin mismo no
+// pasa por la matriz: ve todo, salvo lo que se destilde en su columna "Vos"
+// (ver _facMe más abajo).
 // OJO: esto gobierna la INTERFAZ (qué botones ve cada uno), no es una barrera de
 // seguridad: crear/borrar usuarios lo valida la Edge Function y escribir la
 // configuración global lo restringen las policies de storage, ambas sólo admin.
 var FACULTADES_FILE='_facultades.json',_facLoaded=false,_FAC=null,_myRole='asesor';
+// El admin no usa la matriz por rol: tiene todo, salvo lo que ÉL MISMO se
+// destilde en la columna "Vos" (profiles.facultades, por cuenta: lo que se saque
+// un admin no afecta al otro). null o clave ausente = habilitada, así una
+// facultad nueva arranca prendida. Nunca gobierna el acceso al panel (eso es
+// _admin/_adminNow), sólo qué ve en el armador.
+var _myFac=null;
+function _facMe(f){
+  if(!_myFac||_myFac[f]===undefined||_myFac[f]===null)return true;
+  return !!_myFac[f];
+}
 // Los defaults reproducen EXACTAMENTE el comportamiento previo a esta pantalla:
 // asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
 // existe en la nube, nadie nota ningún cambio.
@@ -753,7 +768,8 @@ function saveFacultades(roles,cb){
 var _simRole=null;
 function _can(f){
   if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);
-  return _admin||!!((_FAC&&_FAC[_myRole]||{})[f]);
+  if(_admin)return _facMe(f); // todo, menos lo que se destildó a sí mismo
+  return !!((_FAC&&_FAC[_myRole]||{})[f]);
 }
 // "¿Es admin AHORA?" — false mientras se simula, para que la vista previa sea fiel.
 function _adminNow(){return _admin&&!_simRole;}
@@ -862,24 +878,33 @@ function _facSimBar(){
 
 // Panel admin → Admin → Facultades. Trabaja sobre una copia (_facEdit) y sólo
 // pega a la nube cuando se toca "Guardar cambios".
-var _facEdit=null;
+var _facEdit=null,_facEditMe=null;
 function renderFacultades(){
   if(typeof _padEditStyle==='function')_padEditStyle(); // reutiliza el estilo de tarjeta (.pad-erow)
   var host=document.getElementById('fac-grid');if(!host)return;
   _facEdit=_facMerge(_FAC);
+  // Copia editable de la columna "Vos": todas las claves explícitas, para que
+  // lo guardado en profiles.facultades sea completo y legible.
+  _facEditMe={};
+  _facRows().forEach(function(f){_facEditMe[f[0]]=_facMe(f[0]);});
   var cols='1.7fr repeat('+(_FAC_ROLES.length+1)+',minmax(64px,.6fr))';
   // Los títulos de perfil son botones: abren la vista previa de ese perfil.
   var head='<div class="fac-row fac-head" style="grid-template-columns:'+cols+'">'+
-    '<div>Funcionalidad</div><div>Admin</div>'+
+    '<div>Funcionalidad</div><div title="Tu propia cuenta: lo que destildes ac&aacute; no afecta al otro administrador">Vos<br><span style="font-weight:400;font-size:.62rem;opacity:.7">(tu cuenta)</span></div>'+
     _FAC_ROLES.map(function(r){
       return '<div><span class="fac-sim" onclick="startFacSim(\''+r[0]+'\')" '+
         'title="Ver la app como la ve un '+_escAttr(r[1])+'">'+_escHtml(r[1])+' <span class="fac-eye">&#128065;</span></span></div>';
     }).join('')+'</div>';
   var rows=_facRows().map(function(f){
     var id=f[0];
+    // El tutorial automático nunca corre para el admin (_tourAutoStart corta
+    // por _adminNow): en su columna no hay nada que decidir.
+    var meCell=(id==='tutorial_auto')
+      ?'<div title="No aplica al administrador: pod&eacute;s verlo desde tu nombre &rarr; Ver tutorial" style="color:var(--gray)">&mdash;</div>'
+      :'<div><input type="checkbox"'+(_facEditMe[id]?' checked':'')+' onchange="_facFieldMe(\''+id+'\',this)"></div>';
     return '<div class="fac-row" style="grid-template-columns:'+cols+'">'+
       '<div><div class="fac-name">'+f[1]+'</div><div class="fac-desc">'+f[2]+'</div></div>'+
-      '<div><input type="checkbox" checked disabled title="El administrador siempre tiene todas las facultades"></div>'+
+      meCell+
       _FAC_ROLES.map(function(r){
         var on=_facEdit[r[0]]&&_facEdit[r[0]][id];
         return '<div><input type="checkbox"'+(on?' checked':'')+
@@ -890,15 +915,32 @@ function renderFacultades(){
   host.innerHTML='<div class="fac-grid">'+head+rows+'</div>';
 }
 function _facField(role,f,v){if(_facEdit&&_facEdit[role])_facEdit[role][f]=!!v;}
+// Columna "Vos". No deja quedarse sin ninguna opción del armador: sin opciones
+// no habría flyer que armar.
+function _facFieldMe(f,cb){
+  if(!_facEditMe)return;
+  var v=!!cb.checked;
+  if(!v&&f.indexOf('opcion_')===0){
+    var quedan=_facOptList().filter(function(o){return 'opcion_'+o!==f&&_facEditMe['opcion_'+o];});
+    if(!quedan.length){cb.checked=true;showToast('Dejá al menos una opción del armador habilitada.');return;}
+  }
+  _facEditMe[f]=v;
+}
 function saveFacultadesChanges(){
   if(!_facEdit)return;
   var btn=document.getElementById('fac-save');
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  var me=_facEditMe;
   saveFacultades(_facEdit,function(ok){
-    if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
-    if(!ok)return;
-    showToast('Facultades actualizadas');
-    _applyFacultades(); // que el propio admin vea el efecto sin recargar
+    if(!ok){if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}return;}
+    // Segundo paso: la columna "Vos" va al perfil propio (RLS: sólo la fila propia).
+    _sb.from('profiles').update({facultades:me}).eq('id',_me.id).then(function(r){
+      if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+      if(r&&r.error){showToast('Los perfiles se guardaron, pero tu columna "Vos" no: '+r.error.message);return;}
+      _myFac=me;
+      showToast('Facultades actualizadas');
+      _applyFacultades(); // que el propio admin vea el efecto sin recargar
+    });
   });
 }
 
@@ -3711,6 +3753,125 @@ function exportRegistros(){
       XLSX.writeFile(wb,'registros_flyers_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx');
       showToast('Excel descargado');
     });
+  });
+}
+
+// ── DATA → CAMBIOS DEL PADRÓN ────────────────────────────────────────────────
+// Tabla padron_log: la escribe padron_replace (servidor) comparando el padrón
+// viejo con el nuevo en cada guardado: una fila por empresa (alta / modificación
+// / baja) con qué cambió. La RLS decide qué ve cada uno (lo propio + lo de los
+// no-admin para el admin), así que acá sólo se filtra y se pinta.
+var _PLOG_LBL={alta:'Alta',modificacion:'Modificación',baja:'Baja'};
+function _plogFiltros(){
+  var g=function(id){return ((document.getElementById(id)||{}).value||'').trim();};
+  return {user:g('plog-q-user'),emp:g('plog-q-empresa'),acc:g('plog-q-accion'),from:g('plog-q-from'),to:g('plog-q-to')};
+}
+function _plogQuery(f,limit){
+  var q=_sb.from('padron_log').select('id,user_id,usuario,accion,empresa,cambios,total,created_at')
+    .order('created_at',{ascending:false}).order('id',{ascending:false});
+  if(f.emp)q=q.ilike('empresa','%'+f.emp+'%');
+  if(f.acc)q=q.eq('accion',f.acc);
+  if(f.from)q=q.gte('created_at',f.from+'T00:00:00');
+  if(f.to)q=q.lte('created_at',f.to+'T23:59:59');
+  if(limit)q=q.limit(limit);
+  return q;
+}
+// El nombre viene como snapshot en la fila (sobrevive al borrado del usuario):
+// se filtra en el cliente, sin mapa de perfiles.
+function _plogFiltraUser(rows,f){
+  if(!f.user)return rows;
+  var ql=f.user.toLowerCase();
+  return rows.filter(function(r){return (r.usuario||'').toLowerCase().indexOf(ql)!==-1;});
+}
+function _plogCuits(v){
+  return (Array.isArray(v)?v:[]).map(_padFmtCuit).filter(Boolean).join(', ')||'sin CUIT';
+}
+function _plogConfig(v){return (v&&String(v).trim())?String(v):'sin cashback';}
+function _plogAsesores(v){
+  var n=_padNumAsesores({asesores:Array.isArray(v)?v:[]});
+  return n?(n+' oficial'+(n>1?'es':'')):'sin oficiales';
+}
+// Texto humano de "cambios": [['CUIT','30-... → 30-...'],['Cashback','BAU → Config 2'],...]
+function _plogDetalle(row){
+  var c=row.cambios;if(!c||typeof c!=='object')c={};
+  var out=[],alta=row.accion==='alta',baja=row.accion==='baja';
+  var uno=function(lbl,k,fmt){
+    if(!c[k])return;
+    var a=c[k].antes,d=c[k].despues;
+    if(alta)out.push([lbl,fmt(d)]);
+    else if(baja)out.push([lbl,fmt(a)]);
+    else out.push([lbl,fmt(a)+' → '+fmt(d)]);
+  };
+  uno('CUIT','cuits',_plogCuits);
+  uno('Cashback','config',_plogConfig);
+  uno('Oficiales','asesores',_plogAsesores);
+  return out;
+}
+function _plogDetalleTxt(row){
+  return _plogDetalle(row).map(function(p){return p[0]+': '+p[1];}).join(' · ');
+}
+function loadPadronLog(){
+  var container=document.getElementById('plog-list');
+  if(!container)return;
+  container.innerHTML=skelRows(4);
+  var f=_plogFiltros();
+  _plogQuery(f,500).then(function(r){
+    if(r.error){container.innerHTML='<p style="color:var(--red);font-size:.8rem">Error: '+_escHtml(r.error.message)+'</p>';return;}
+    var data=_plogFiltraUser(r.data||[],f);
+    var countEl=document.getElementById('plog-count');
+    if(countEl)countEl.textContent=data.length+' cambio'+(data.length!==1?'s':'')+(data.length>=500?' (se muestran los últimos 500; para ver todo, exportá a Excel)':'');
+    if(!data.length){container.innerHTML='<p style="color:var(--gray);font-size:.8rem">Sin cambios registrados todav&iacute;a. Cada vez que alguien guarde su padr&oacute;n (Excel, editor en l&iacute;nea o desde el armador), las altas, modificaciones y bajas aparecen ac&aacute;.</p>';return;}
+    // Todo lo que viene de padron_log lo escribió un usuario (razón social,
+    // oficiales...): se escapa siempre antes de pintarlo.
+    container.innerHTML=data.map(function(row){
+      var nombre=row.usuario||'Usuario';
+      var ini=_initials(nombre,'');
+      var col=_avatarColor(row.user_id||nombre);
+      var acc=row.accion,badge;
+      if(acc==='alta')badge='<span class="badge badge-active" style="font-size:.58rem">Alta</span>';
+      else if(acc==='baja')badge='<span class="badge badge-inactive" style="font-size:.58rem">Baja</span>';
+      else badge='<span class="badge" style="font-size:.58rem;background:#eef0ff;color:#3a3a8c">Modificaci&oacute;n</span>';
+      var det=_plogDetalle(row).map(function(p){
+        return '<span class="reg-monto" style="background:#f4f4f4;color:#444"><b>'+_escHtml(p[0])+':</b> '+_escHtml(p[1])+'</span>';
+      }).join('');
+      var detWrap=det?'<div class="reg-montos">'+det+'</div>':'';
+      return '<div class="reg-row">'+
+        '<div class="usr-avatar sm" style="background:'+col+';flex-shrink:0">'+_escHtml(ini)+'</div>'+
+        '<div class="reg-info">'+
+          '<div class="reg-top"><span class="reg-empresa">'+_escHtml(row.empresa||'—')+'</span>'+badge+'</div>'+
+          detWrap+
+          '<div class="reg-mid"><span class="reg-lbl">Por</span> '+_escHtml(nombre)+
+            (row.total!=null?' &nbsp;&middot;&nbsp; <span class="reg-lbl">Padr&oacute;n:</span> '+(+row.total)+' empresa'+(+row.total!==1?'s':''):'')+'</div>'+
+        '</div>'+
+        '<span class="reg-fecha" title="'+_escAttr(row.created_at?new Date(row.created_at).toLocaleString('es-AR'):'')+'">'+_fmtDate(row.created_at)+'</span>'+
+        '</div>';
+    }).join('');
+  });
+}
+function exportPadronLog(){
+  var btn=document.getElementById('btn-export-plog');
+  if(btn){btn.textContent='Exportando...';btn.disabled=true;}
+  var f=_plogFiltros();
+  _plogQuery(f,0).then(function(r){
+    if(btn){btn.innerHTML='&#11015; Exportar Excel';btn.disabled=false;}
+    var data=_plogFiltraUser(r.data||[],f);
+    if(r.error||!data.length){showToast(r.error?('Error: '+r.error.message):'Sin datos para exportar');return;}
+    var rows=data.map(function(row){
+      return{
+        'Fecha/Hora':row.created_at?new Date(row.created_at).toLocaleString('es-AR'):'',
+        'Usuario':row.usuario||'',
+        'Acción':_PLOG_LBL[row.accion]||row.accion||'',
+        'Empresa':row.empresa||'',
+        'Detalle':_plogDetalleTxt(row),
+        'Empresas en el padrón':row.total!=null?+row.total:''
+      };
+    });
+    var ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:22},{wch:28},{wch:14},{wch:36},{wch:70},{wch:12}];
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Cambios del padron');
+    XLSX.writeFile(wb,'cambios_padron_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    showToast('Excel descargado');
   });
 }
 

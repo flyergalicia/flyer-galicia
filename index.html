@@ -229,8 +229,8 @@ html{height:100%;overflow:hidden;}
 .reg-filter{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;padding:12px 14px;background:white;border-radius:10px;border:1.5px solid var(--border);}
 .reg-filter-group{display:flex;flex-direction:column;gap:3px;}
 .reg-filter-group label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray);font-family:"Syne",sans-serif;}
-.reg-filter-group input{padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"DM Sans",sans-serif;font-size:.78rem;outline:none;transition:border-color .2s;}
-.reg-filter-group input:focus{border-color:var(--red);}
+.reg-filter-group input,.reg-filter-group select{padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"DM Sans",sans-serif;font-size:.78rem;outline:none;transition:border-color .2s;background:white;}
+.reg-filter-group input:focus,.reg-filter-group select:focus{border-color:var(--red);}
 .zoom-bar{display:flex;align-items:center;gap:6px;margin-bottom:14px;background:rgba(255,255,255,0.85);border-radius:10px;padding:5px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);backdrop-filter:blur(4px);position:sticky;top:0;z-index:10;}
 .zoom-btn{background:white;border:1.5px solid var(--border);border-radius:6px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--dark);line-height:1;font-family:"DM Sans",sans-serif;}
 .zoom-btn:hover{background:var(--light);border-color:#bbb;}
@@ -313,7 +313,7 @@ html.dark body{background:#16181c;color:#e9eaec;}
 html.dark label,html.dark .login-lbl{color:#c2c6cc;}
 html.dark input[type=text],html.dark textarea{background:#1b1e23;color:#e9eaec;}
 html.dark input[type=text]:focus,html.dark textarea:focus{background:#22262c;}
-html.dark .login-inp,html.dark .usr-search-inp,html.dark .usr-filter-sel,html.dark .reg-filter-group input{background:#1b1e23;color:#e9eaec;border-color:#333840;}
+html.dark .login-inp,html.dark .usr-search-inp,html.dark .usr-filter-sel,html.dark .reg-filter-group input,html.dark .reg-filter-group select{background:#1b1e23;color:#e9eaec;border-color:#333840;}
 html.dark .login-inp:disabled{background:#15171a;color:#777;}
 html.dark #login-ov{background:#16181c;}
 html.dark .login-card{background:#22262c !important;border-color:#333840;}
@@ -519,7 +519,7 @@ html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec
 /* El buscador y el selector de orden quedan a la derecha, en su propia fila */
 .promos-results-head .promos-search-box{margin-left:auto;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=51af440381"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=e88aea618f"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
@@ -1322,6 +1322,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
   <div class="stabs" id="sg-data" style="display:none">
     <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Mi padr&oacute;n</div>
     <div class="stab" data-tab="padronotros" onclick="switchAdminTab(this,'padronotros')">Padr&oacute;n Asesores</div>
+    <div class="stab" data-tab="padronlog" onclick="switchAdminTab(this,'padronlog')">Cambios del padr&oacute;n</div>
   </div>
   <div class="stabs" id="sg-config" style="display:none">
     <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
@@ -1452,7 +1453,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
 
     <div id="at-facultades" style="display:none">
       <p class="ap-sec">Facultades por perfil</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren. El <strong>administrador siempre tiene todo</strong>, por eso su columna no se puede editar.<br><br>Toc&aacute; el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesi&oacute;n. Para volver, us&aacute; el bot&oacute;n de la barra de abajo.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren.<br><br>La columna <strong>Vos</strong> es <strong>tu propia cuenta</strong>: destild&aacute; lo que no uses (por ejemplo, una opci&oacute;n del armador que no te sirve) y la app se te simplifica. No afecta al otro administrador ni al Panel Administrador, que siempre queda disponible; pod&eacute;s volver a tildarlo cuando quieras.<br><br>Toc&aacute; el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesi&oacute;n. Para volver, us&aacute; el bot&oacute;n de la barra de abajo.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
       <div id="fac-grid"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="btn-submit" id="fac-save" onclick="saveFacultadesChanges()" style="padding:8px 16px">Guardar cambios</button>
@@ -1502,6 +1503,47 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
       <p style="font-size:.76rem;color:var(--gray);margin-bottom:12px" id="po-stat"></p>
       <input type="text" id="po-q" class="login-inp" placeholder="Filtrar: raz&oacute;n social o CUIT..." autocomplete="off" oninput="renderPadronOtrosList()" style="margin-bottom:0;display:none">
       <div id="po-list"></div>
+    </div>
+
+    <div id="at-padronlog" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <p class="ap-sec" style="margin:0">Cambios del padr&oacute;n</p>
+        <button class="usr-btn ok" id="btn-export-plog" onclick="exportPadronLog()" style="font-size:.72rem;padding:5px 12px">&#11015; Exportar Excel</button>
+      </div>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada vez que alguien guarda su padr&oacute;n (subiendo un Excel, con el editor en l&iacute;nea o desde el armador), queda constancia de <strong>qu&eacute; empresas se agregaron, cu&aacute;les se modificaron</strong> (y qu&eacute; cambi&oacute;: CUIT, cashback u oficiales) <strong>y cu&aacute;les se borraron</strong>, con fecha, hora y qui&eacute;n lo hizo. Un cambio de raz&oacute;n social aparece como una baja m&aacute;s un alta. Ves tus propios cambios y los de asesores, VIP y Pro; los de otro administrador no.</p>
+      <div class="reg-filter">
+        <div class="reg-filter-group">
+          <label>Usuario</label>
+          <input type="text" id="plog-q-user" placeholder="Filtrar usuario...">
+        </div>
+        <div class="reg-filter-group">
+          <label>Empresa</label>
+          <input type="text" id="plog-q-empresa" placeholder="Filtrar empresa...">
+        </div>
+        <div class="reg-filter-group">
+          <label>Acci&oacute;n</label>
+          <select id="plog-q-accion">
+            <option value="">Todas</option>
+            <option value="alta">Altas</option>
+            <option value="modificacion">Modificaciones</option>
+            <option value="baja">Bajas</option>
+          </select>
+        </div>
+        <div class="reg-filter-group">
+          <label>Desde</label>
+          <input type="date" id="plog-q-from">
+        </div>
+        <div class="reg-filter-group">
+          <label>Hasta</label>
+          <input type="date" id="plog-q-to">
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end">
+          <button class="btn-submit" onclick="loadPadronLog()" style="padding:7px 14px;font-size:.72rem">Buscar</button>
+          <button class="btn-cancel" onclick="['plog-q-user','plog-q-empresa','plog-q-accion','plog-q-from','plog-q-to'].forEach(function(i){document.getElementById(i).value='';});loadPadronLog();" style="padding:7px 10px;font-size:.72rem">&#10005;</button>
+        </div>
+      </div>
+      <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="plog-count"></p>
+      <div id="plog-list"></div>
     </div>
 
   </div>
