@@ -2546,25 +2546,54 @@ var FLYER_CFG_DEFAULT = {
     xSingle:619,xLeft:310,xRight:930,fnBold:24,frReg:21,color:"#111"},
   legal:{x0:39,yStart:5595,yEnd:6300,maxW:1162,fs:12,lh:17,gap:5,
     minFs:7,minLh:10,minGap:3,color:"#222222",bg:"#ffffff"},
-  // Flyer Rubros: las dos líneas del cuadro "Beneficio exclusivo". Se dibujan
-  // ENTERAS (pre + valor + post) — el PDF limpio viene sin esas líneas, así el
-  // importe puede tener cualquier largo. SÓLO se inyecta el texto: no se tapa
-  // nada (tapar:false), para no pisar el arte del cuadro; tapar:true (en el
-  // calibrador) queda para un PDF que traiga la línea impresa, y en ese caso el
-  // color se muestrea del propio flyer (bg es el fallback).
-  // Tipografía: Figtree (Google Fonts, la carga _fgBenefFont) con peso 800 en
-  // el título y 500 en el tope — comparada sobre el PDF real contra 14
-  // candidatas, es la que calza con la letra del flyer ("25% de ahorro...").
-  // Ancladas arriba (el cuadro está en la mitad superior). x = borde izquierdo
-  // si align:left, centro si align:center. Posiciones, tamaños y colores
-  // medidos sobre los PDFs reales (SIEMENS combustible/supermercado,
-  // rasterizados a 1240px); el admin los termina de acomodar en el calibrador.
-  benef:{
-    titulo:{x:390,y:2630,fs:42,mw:780,h:52,pad:24,peso:800,tapar:false,bg:"#f7e6dc",align:"left",color:"#fa6400",pre:"¡Beneficio exclusivo ",post:"!"},
-    tope:{x:640,y:2757,fs:17,mw:560,h:26,pad:24,peso:500,tapar:false,bg:"#f7e6dc",align:"center",color:"#000000",pre:"Tope de reintegro mensual ",post:""}
-  }
+  // Flyer Rubros: el cuadro "Beneficio exclusivo" ENTERO lo dibuja la app (el
+  // PDF limpio viene con el cuadro vacío, sólo el dibujo). Así todas las líneas
+  // comparten tipografía y no se nota cuál es la inyectada: probamos inyectar
+  // sólo el nombre y el tope y, pegadas a las líneas impresas, se notaba la
+  // diferencia de trazo. Cada línea: t (texto con {nombre} y {importe};
+  // **así** = color2/peso2, para el "25% de ahorro" naranja), x/y (px base,
+  // anclado arriba; x = borde izquierdo si align:left, centro si center), fs,
+  // peso (400..800), color, mw (ancho máximo: si no entra, se achica).
+  // Tipografía Figtree (Google Fonts, la carga _fgBenefFont): comparada sobre el
+  // PDF real contra 14 candidatas es la que calza con la letra del flyer.
+  // Las plantillas (_BENEF_PLANTILLAS) están medidas sobre los PDFs reales
+  // (SIEMENS combustible/supermercado rasterizados a 1240px); el admin las
+  // elige y ajusta en el calibrador.
+  benef:{color2:"#fa6400",peso2:800,lineas:null}
 };
 var _FG_BENEF_FONT='Figtree';
+var _BENEF_LINEA_DEF={t:'',x:640,y:2700,fs:17,peso:500,color:'#000000',align:'center',mw:820};
+var _BENEF_PLANTILLAS={
+  combustible:{nombre:'Combustible',lineas:[
+    {t:'¡Beneficio exclusivo {nombre}!',x:390,y:2630,fs:42,peso:800,color:'#fa6400',align:'left',mw:800},
+    {t:'**25% de ahorro** en combustible',x:388,y:2675,fs:42,peso:500,color:'#000000',align:'left',mw:800},
+    {t:'Los domingos',x:640,y:2735,fs:21,peso:700,color:'#000000',align:'center',mw:800},
+    {t:'Tope de reintegro mensual {importe} (5)',x:640,y:2758,fs:16.5,peso:500,color:'#000000',align:'center',mw:800},
+    {t:'Válido en todas las estaciones del país',x:640,y:2803,fs:16,peso:500,color:'#000000',align:'center',mw:800},
+    {t:'Medio de pago: Tarjeta de débito física',x:640,y:2827,fs:16,peso:500,color:'#000000',align:'center',mw:800}
+  ]},
+  supermercado:{nombre:'Supermercado',lineas:[
+    {t:'Beneficio exclusivo {nombre} !',x:365,y:2627,fs:42,peso:800,color:'#fa6400',align:'left',mw:820},
+    {t:'**25% de ahorro** en Supermercados',x:363,y:2703,fs:46,peso:500,color:'#000000',align:'left',mw:820},
+    {t:'Los Martes',x:688,y:2739,fs:21,peso:700,color:'#000000',align:'center',mw:800},
+    {t:'Tope de reintegro mensual {importe} (10)',x:688,y:2764,fs:16.5,peso:500,color:'#000000',align:'center',mw:800},
+    {t:'Medio de pago: Tarjeta de débito física',x:688,y:2788,fs:16,peso:500,color:'#000000',align:'center',mw:800}
+  ]}
+};
+// Líneas del cartel a partir de lo guardado: lista propia si la hay; si la
+// calibración es de la versión anterior (titulo/tope sueltos) se convierte a
+// dos líneas con sus posiciones; si no hay nada, la plantilla de combustible.
+function _fgBenefLineas(cb){
+  var src=null;
+  if(cb&&Array.isArray(cb.lineas)&&cb.lineas.length)src=cb.lineas;
+  else if(cb&&(cb.titulo||cb.tope)){
+    src=[];
+    if(cb.titulo){var T=cb.titulo;src.push({t:(T.pre!=null?T.pre:'¡Beneficio exclusivo ')+'{nombre}'+(T.post!=null?T.post:'!'),x:T.x,y:T.y,fs:T.fs,peso:800,color:T.color,align:T.align||'left',mw:T.mw});}
+    if(cb.tope){var Pp=cb.tope;src.push({t:(Pp.pre!=null?Pp.pre:'Tope de reintegro mensual ')+'{importe}'+(Pp.post!=null?Pp.post:''),x:Pp.x,y:Pp.y,fs:16.5,peso:500,color:Pp.color,align:Pp.align||'center',mw:Pp.mw});}
+  }
+  else src=_BENEF_PLANTILLAS.combustible.lineas;
+  return src.map(function(l){var o=_fgMerge(_BENEF_LINEA_DEF,l);if(!(o.fs>0))o.fs=_BENEF_LINEA_DEF.fs;if(!(o.peso>=100))o.peso=_BENEF_LINEA_DEF.peso;return o;});
+}
 // Carga la tipografía del cartel (Google Fonts) y, cuando está lista, redibuja:
 // el canvas usa la que tenga disponible al momento de dibujar, así que sin
 // esto el primer flyer saldría en Arial. Idempotente.
@@ -2573,29 +2602,14 @@ function _fgBenefFont(){
   try{
     if(!document.getElementById('fg-benef-font')){
       var l=document.createElement('link');l.id='fg-benef-font';l.rel='stylesheet';
-      l.href='https://fonts.googleapis.com/css2?family=Figtree:wght@500;800&display=swap';
+      l.href='https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap';
       document.head.appendChild(l);
     }
     if(document.fonts&&document.fonts.load){
-      Promise.all([document.fonts.load('800 42px "'+_FG_BENEF_FONT+'"'),document.fonts.load('500 17px "'+_FG_BENEF_FONT+'"')])
+      Promise.all([400,500,600,700,800].map(function(w){return document.fonts.load(w+' 20px "'+_FG_BENEF_FONT+'"');}))
         .then(function(){if(typeof redraw==='function')redraw();}).catch(function(){});
     }
   }catch(e){}
-}
-// Calibraciones guardadas con los colores del primer default (antes de medir
-// los PDFs reales): se traducen al color real para que el flyer salga bien sin
-// tener que recalibrar. Muta el objeto que recibe.
-function _fgBenefMigra(B){
-  if(!B)return B;
-  if(B.titulo){
-    if(B.titulo.color==='#f5921e')B.titulo.color='#fa6400';
-    if(!B.titulo.peso){B.titulo.peso=800;if(B.titulo.fs===44)B.titulo.fs=42;} // tamaño con Arial → Figtree
-  }
-  if(B.tope){
-    if(B.tope.color==='#222222')B.tope.color='#000000';
-    if(!B.tope.peso){B.tope.peso=500;if(B.tope.fs===19||B.tope.fs===20)B.tope.fs=17;}
-  }
-  return B;
 }
 function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if(b[k2]!=null)o[k2]=b[k2];return o;}
 function _fgCfg(){
@@ -2605,7 +2619,7 @@ function _fgCfg(){
     bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
     empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
     contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal),
-    benef:{titulo:_fgMerge(d.benef.titulo,_fgBenefMigra(cb).titulo),tope:_fgMerge(d.benef.tope,cb.tope)}};
+    benef:{color2:cb.color2||d.benef.color2,peso2:cb.peso2||d.benef.peso2,lineas:_fgBenefLineas(cb)}};
 }
 // Escala efectiva: ajusta por el ancho real de la imagen. Mismo template (ancho=imgW) => se=s.
 function _fgSE(s){var C=_fgCfg();var iw=C.imgW||1240;return (window.baseImg&&baseImg.width)?s*baseImg.width/iw:s;}
@@ -2707,50 +2721,39 @@ function fgDrawEmpresa(c,s,empresa){
     c.fillText(empresa,xc,yc+Math.round(lh*0.5));
   }
 }
-// Flyer Rubros: "¡Beneficio exclusivo NOMBRE!" y "Tope de reintegro mensual $24.000".
-// Cada línea escribe pre+valor+post; si no entra en mw se achica la letra (como
-// el nombre de empresa). Sin importe, la línea del tope no se escribe.
-// Sólo si Z.tapar está prendido se pinta antes un rectángulo: el color se
-// MUESTREA del flyer (mediana de 10 píxeles justo arriba y abajo), así el parche
-// es indistinguible del panel. Si el canvas no deja leer píxeles, cae en Z.bg.
-function _fgBenefBg(c,Z,x0,y0,w,h,se){
-  try{
-    var m=Math.max(3,Math.round(4*se)),rs=[],gs=[],bs=[];
-    [y0-m,y0+h+m].forEach(function(y){
-      y=Math.max(0,y);
-      for(var k=0;k<5;k++){
-        var x=Math.max(0,Math.round(x0+w*(k+0.5)/5));
-        var d=c.getImageData(x,y,1,1).data;rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);
-      }
-    });
-    function med(a){a.sort(function(p,q){return p-q;});return Math.round((a[4]+a[5])/2);}
-    return 'rgb('+med(rs)+','+med(gs)+','+med(bs)+')';
-  }catch(e){return Z.bg||'#ffffff';}
+// Flyer Rubros: dibuja TODAS las líneas del cartel "Beneficio exclusivo" (ver
+// FLYER_CFG_DEFAULT.benef). {nombre}/{importe} se reemplazan por lo cargado; una
+// línea que usa {importe} sin importe no se escribe. **segmento** va en
+// color2/peso2 (el "25% de ahorro" naranja). Si la línea no entra en mw se
+// achica la letra (como el nombre de empresa).
+function _fgBenefSegs(t){
+  var out=[],re=/\*\*([^*]+)\*\*/g,m,last=0;
+  while((m=re.exec(t))!==null){if(m.index>last)out.push({t:t.slice(last,m.index),f:false});out.push({t:m[1],f:true});last=m.index+m[0].length;}
+  if(last<t.length)out.push({t:t.slice(last),f:false});
+  return out;
 }
 function fgDrawBenef(c,s,v){
-  var B=_fgCfg().benef,se=_fgSE(s);
-  function linea(Z,valor){
-    var x=Math.round(Z.x*se),y=Math.round(Z.y*se),mw=Math.round(Z.mw*se),h=Math.round(Z.h*se),fs=Math.round(Z.fs*se);
-    var center=(Z.align==='center');
-    if(Z.tapar){
-      // el parche tapa un margen extra a cada lado: un desfase chico no deja restos
-      var pad=Math.round((Z.pad!=null?Z.pad:24)*se);
-      var x0=(center?x-Math.round(mw/2):x)-pad,y0=y-Math.round(h/2),pw=mw+pad*2;
-      c.fillStyle=_fgBenefBg(c,Z,x0,y0,pw,h,se);c.fillRect(x0,y0,pw,h);
-    }
-    if(valor==null||String(valor).trim()==='')return;
-    var txt=(Z.pre||'')+valor+(Z.post||'');
-    // peso numérico (800/500) con Figtree; si la fuente no cargó, el navegador cae en Arial
-    var peso=(Z.peso||(Z.bold===false?500:800)),fam='"'+_FG_BENEF_FONT+'",Arial,sans-serif';
-    c.font=peso+" "+fs+"px "+fam;
-    var w=c.measureText(txt).width;
-    if(w>mw&&w>0){fs=Math.max(Math.floor(fs*mw/w),Math.max(1,Math.round(8*se)));c.font=peso+" "+fs+"px "+fam;}
-    c.fillStyle=Z.color||'#111';c.textBaseline="middle";
-    c.textAlign=center?"center":"left";
-    c.fillText(txt,x,y);
-  }
-  linea(B.titulo,v.benefNombre||v.empresa||'');
-  linea(B.tope,v.importe||'');
+  var B=_fgCfg().benef,se=_fgSE(s),fam='"'+_FG_BENEF_FONT+'",Arial,sans-serif';
+  var nombre=v.benefNombre||v.empresa||'',importe=v.importe||'';
+  (B.lineas||[]).forEach(function(L){
+    var t=String(L.t||'');
+    if(t.indexOf('{importe}')>=0&&!importe.trim())return;
+    if(t.indexOf('{nombre}')>=0&&!nombre.trim())return;
+    t=t.replace(/\{nombre\}/g,nombre).replace(/\{importe\}/g,importe);
+    if(!t.trim())return;
+    var segs=_fgBenefSegs(t),fs=Math.round(L.fs*se*2)/2,mw=Math.round(L.mw*se);
+    function font(seg,size){return (seg.f?(B.peso2||800):(L.peso||500))+' '+size+'px '+fam;}
+    function ancho(size){var w=0;segs.forEach(function(sg){c.font=font(sg,size);w+=c.measureText(sg.t).width;});return w;}
+    var w=ancho(fs);
+    if(w>mw&&w>0){fs=Math.max(Math.floor(fs*mw/w*2)/2,Math.max(1,Math.round(8*se)));w=ancho(fs);}
+    var x=Math.round(L.x*se),y=Math.round(L.y*se);
+    var cx=(L.align==='center')?x-w/2:x;
+    c.textBaseline='middle';c.textAlign='left';
+    segs.forEach(function(sg){
+      c.font=font(sg,fs);c.fillStyle=sg.f?(B.color2||'#fa6400'):(L.color||'#000');
+      c.fillText(sg.t,cx,y);cx+=c.measureText(sg.t).width;
+    });
+  });
 }
 function fgDrawMontos(c,s,v){
   var M=_fgCfg().montos,se=_fgSE(s);
@@ -3457,12 +3460,23 @@ var _CAL_ZONES=[
   {id:'legal',label:'Legales',color:'#0e8a5f'}
 ];
 // Zonas extra del cartel "Beneficio exclusivo": sólo para opciones de Flyer Rubros.
-var _CAL_ZONES_RUBROS=[
-  {id:'benefTitulo',label:'Título beneficio',color:'#f5921e'},
-  {id:'benefTope',label:'Tope',color:'#b26a00'}
-];
+// Flyer Rubros: una zona por línea del cartel (bl0, bl1, ...) más "Cartel" (blAll)
+// que mueve todas juntas. Las líneas viven en _cal.cfg.benef.lineas.
+var _BENEF_ZONE_COLORS=['#f5921e','#b26a00','#7b4a12','#c0392b','#8e44ad','#2c3e50','#16a085','#d35400'];
 function _calEsRubros(){return !!(_cal&&_optSolapa(_cal.opt)==='rubros');}
-function _calZones(){return _calEsRubros()?_CAL_ZONES_RUBROS.concat(_CAL_ZONES):_CAL_ZONES;}
+function _calBenefLineas(){
+  if(!_cal)return [];
+  if(!_cal.cfg.benef)_cal.cfg.benef={};
+  if(!Array.isArray(_cal.cfg.benef.lineas))_cal.cfg.benef.lineas=_fgBenefLineas(_cal.cfg.benef).map(function(l){return _fgMerge({},l);});
+  return _cal.cfg.benef.lineas;
+}
+function _calZones(){
+  if(!_calEsRubros())return _CAL_ZONES;
+  var ls=_calBenefLineas();
+  var z=[{id:'blAll',label:'Cartel (todo)',color:'#e30613'}];
+  ls.forEach(function(l,i){var t=String(l.t||'').replace(/\*\*/g,'').replace('{nombre}','NOMBRE').replace('{importe}','$');z.push({id:'bl'+i,label:(t.length>18?t.slice(0,17)+'…':t)||('Línea '+(i+1)),color:_BENEF_ZONE_COLORS[i%_BENEF_ZONE_COLORS.length]});});
+  return z.concat(_CAL_ZONES);
+}
 var _CAL_SAMPLE_LEGAL="Ejemplo de términos y condiciones del flyer. **Bonificación de comisiones** por 6 meses para nuevos clientes. Promociones sujetas a disponibilidad y a las bases y condiciones vigentes.\nPARA MÁS INFORMACIÓN O LIMITACIONES APLICABLES, CONSULTE EN: www.bancogalicia.com.ar";
 function _calSampleVals(){
   var rub=_calEsRubros();
@@ -3495,12 +3509,16 @@ function _calEnsureDom(){
     // Textos fijos del cartel del beneficio (sólo Flyer Rubros)
     '#cal-benef-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.7rem}'+
     '#cal-benef-row.show{display:block}'+
-    '.cal-bl{display:grid;grid-template-columns:110px 1fr 1fr 64px 44px 52px;gap:6px;align-items:center;margin-bottom:5px}'+
-    '.cal-bl label{display:flex;align-items:center;gap:3px;font-size:.62rem;color:var(--gray,#777);cursor:pointer}'+
-    '.cal-bl b{font-size:.68rem}'+
-    '.cal-bl input{padding:4px 6px;font-size:.7rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;min-width:0}'+
-    '.cal-bl input[type=color]{padding:1px 2px;height:26px;cursor:pointer}'+
-    '.cal-bl-head{color:var(--gray,#777);font-size:.62rem;text-transform:uppercase;letter-spacing:.4px}';
+    '.cal-bl{display:grid;grid-template-columns:18px 1fr 58px 62px 36px 62px 22px;gap:5px;align-items:center;margin-bottom:4px}'+
+    '.cal-bl .dot{width:11px;height:11px;border-radius:3px;display:inline-block;cursor:pointer}'+
+    '.cal-bl input,.cal-bl select{padding:3px 5px;font-size:.68rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;min-width:0;font-family:inherit}'+
+    'html.dark .cal-bl select{background:#22242a}'+
+    '.cal-bl input[type=color]{padding:1px 2px;height:24px;cursor:pointer}'+
+    '.cal-bl .x{cursor:pointer;color:var(--gray,#888);font-size:.8rem;text-align:center}.cal-bl .x:hover{color:var(--red,#e30613)}'+
+    '.cal-bl-head{color:var(--gray,#777);font-size:.6rem;text-transform:uppercase;letter-spacing:.4px}'+
+    '.cal-bl-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:7px}'+
+    '.cal-bl-top select{padding:3px 6px;font-size:.7rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit}'+
+    'html.dark .cal-bl-top select{background:#22242a}';
   document.head.appendChild(st);
   var m=document.createElement('div');m.id='cal-modal';
   m.innerHTML=
@@ -3515,22 +3533,17 @@ function _calEnsureDom(){
         '<button class="usr-btn edit" style="font-size:.65rem;padding:4px 9px" onclick="document.getElementById(\'cal-height\').value=\'\';_calHeightChanged()">Auto</button>'+
         '<span style="color:var(--gray)">vac&iacute;o = corta solo despu&eacute;s de los legales (l&iacute;nea naranja)</span>'+
       '</div>'+
-      // Flyer Rubros: qué texto fijo va antes y después del nombre / del importe, y el tamaño de letra
+      // Flyer Rubros: las líneas del cartel (texto, tamaño, peso, color, alineación). Plantillas por rubro.
       '<div id="cal-benef-row">'+
-        '<div class="cal-bl cal-bl-head"><span>Cartel del beneficio</span><span>Texto antes</span><span>Texto despu&eacute;s</span><span>Letra px</span><span>Color</span><span>Tapar</span></div>'+
-        '<div class="cal-bl"><b style="color:#f5921e">T&iacute;tulo (+ nombre)</b>'+
-          '<input id="cal-bt-pre" placeholder="&iexcl;Beneficio exclusivo " oninput="_calBenefTexto(\'titulo\',\'pre\',this.value)">'+
-          '<input id="cal-bt-post" placeholder="!" oninput="_calBenefTexto(\'titulo\',\'post\',this.value)">'+
-          '<input id="cal-bt-fs" type="number" min="8" max="120" oninput="_calBenefTexto(\'titulo\',\'fs\',this.value)">'+
-          '<input id="cal-bt-col" type="color" title="Color del texto" oninput="_calBenefTexto(\'titulo\',\'color\',this.value)">'+
-          '<label title="Pintar el fondo antes de escribir (s&oacute;lo si el PDF trae la l&iacute;nea impresa)"><input id="cal-bt-tapar" type="checkbox" onchange="_calBenefTexto(\'titulo\',\'tapar\',this.checked)">fondo</label></div>'+
-        '<div class="cal-bl"><b style="color:#b26a00">Tope (+ importe)</b>'+
-          '<input id="cal-bp-pre" placeholder="Tope de reintegro mensual " oninput="_calBenefTexto(\'tope\',\'pre\',this.value)">'+
-          '<input id="cal-bp-post" placeholder=" (5)" oninput="_calBenefTexto(\'tope\',\'post\',this.value)">'+
-          '<input id="cal-bp-fs" type="number" min="8" max="120" oninput="_calBenefTexto(\'tope\',\'fs\',this.value)">'+
-          '<input id="cal-bp-col" type="color" title="Color del texto" oninput="_calBenefTexto(\'tope\',\'color\',this.value)">'+
-          '<label title="Pintar el fondo antes de escribir (s&oacute;lo si el PDF trae la l&iacute;nea impresa)"><input id="cal-bp-tapar" type="checkbox" onchange="_calBenefTexto(\'tope\',\'tapar\',this.checked)">fondo</label></div>'+
-        '<div style="color:var(--gray);font-size:.64rem">Ej.: para que salga &laquo;Tope de reintegro mensual $24.000 (5)&raquo;, texto despu&eacute;s = &laquo; (5)&raquo;. El nombre y el importe los carga cada asesor. S&oacute;lo se inyecta el texto; &laquo;fondo&raquo; pinta un parche del color del flyer, para un PDF que traiga la l&iacute;nea impresa.</div>'+
+        '<div class="cal-bl-top"><b style="font-size:.7rem">Cartel del beneficio</b>'+
+          '<span style="color:var(--gray)">Plantilla:</span><select id="cal-benef-plantilla">'+
+            Object.keys(_BENEF_PLANTILLAS).map(function(k){return '<option value="'+k+'">'+_escHtml(_BENEF_PLANTILLAS[k].nombre)+'</option>';}).join('')+
+          '</select><button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefPlantilla()">Cargar plantilla</button>'+
+          '<span class="sp" style="flex:1"></span>'+
+          '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefAgregar()">+ L&iacute;nea</button></div>'+
+        '<div class="cal-bl cal-bl-head"><span></span><span>Texto ({nombre}, {importe}, **naranja**)</span><span>Letra px</span><span>Peso</span><span>Color</span><span>Alinear</span><span></span></div>'+
+        '<div id="cal-benef-lineas"></div>'+
+        '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre} e {importe} los carga cada asesor; **as&iacute;** sale en naranja y negrita. Arrastr&aacute; cada l&iacute;nea en la imagen, o &laquo;Cartel (todo)&raquo; para mover el bloque entero.</div>'+
       '</div>'+
       '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
     '</div>';
@@ -3541,26 +3554,52 @@ function _calEnsureDom(){
   window.addEventListener('pointerup',_calUp);
   document.addEventListener('keydown',_calKey);
 }
-// Escribe pre/post/fs de una línea del cartel del beneficio y redibuja.
-function _calBenefTexto(zona,k,val){
-  if(!_cal||!_cal.cfg.benef||!_cal.cfg.benef[zona])return;
-  if(k==='fs'){var n=parseInt(val,10);if(!(n>=8))return;_cal.cfg.benef[zona].fs=n;}
-  else if(k==='color'){if(!/^#[0-9a-f]{6}$/i.test(val||''))return;_cal.cfg.benef[zona].color=String(val).toLowerCase();}
-  else if(k==='tapar')_cal.cfg.benef[zona].tapar=!!val;
-  else _cal.cfg.benef[zona][k]=String(val==null?'':val);
+// Edición de una línea del cartel desde la tabla del calibrador.
+function _calBenefLinea(i,k,val){
+  var ls=_calBenefLineas(),L=ls[i];if(!L)return;
+  if(k==='fs'){var n=parseFloat(val);if(!(n>=6))return;L.fs=n;}
+  else if(k==='peso'){var p=parseInt(val,10);if(!(p>=100))return;L.peso=p;}
+  else if(k==='color'){if(!/^#[0-9a-f]{6}$/i.test(val||''))return;L.color=String(val).toLowerCase();}
+  else if(k==='align')L.align=(val==='left')?'left':'center';
+  else if(k==='t'){L.t=String(val==null?'':val);_calRenderLegend();}
   _calDraw();
 }
-// Refleja el cfg en los inputs de textos (al abrir el calibrador) y muestra la fila sólo en Rubros.
+function _calBenefAgregar(){
+  var ls=_calBenefLineas(),ult=ls[ls.length-1];
+  ls.push(_fgMerge(_BENEF_LINEA_DEF,{t:'Nueva línea',x:ult?ult.x:640,y:(ult?ult.y:2700)+24,fs:ult?ult.fs:14.5,align:ult?ult.align:'center'}));
+  _cal.sel='bl'+(ls.length-1);_calBenefRowSync();_calRenderLegend();_calDraw();
+  var inp=document.querySelector('#cal-benef-lineas .cal-bl:last-child input[type=text]');if(inp){inp.focus();inp.select();}
+}
+function _calBenefQuitar(i){
+  var ls=_calBenefLineas();if(!ls[i])return;
+  ls.splice(i,1);if(_cal.sel&&_cal.sel.indexOf('bl')===0&&_cal.sel!=='blAll')_cal.sel=null;
+  _calBenefRowSync();_calRenderLegend();_calDraw();
+}
+function _calBenefPlantilla(){
+  var sel=document.getElementById('cal-benef-plantilla'),k=sel?sel.value:'',P=_BENEF_PLANTILLAS[k];if(!P||!_cal)return;
+  if(_calBenefLineas().length&&!confirm('¿Reemplazar las líneas actuales por la plantilla "'+P.nombre+'"?'))return;
+  _cal.cfg.benef.lineas=P.lineas.map(function(l){return _fgMerge(_BENEF_LINEA_DEF,l);});
+  _cal.sel=null;_calBenefRowSync();_calRenderLegend();_calDraw();
+}
+// Pinta la tabla de líneas (al abrir el calibrador y al agregar/quitar) y muestra la fila sólo en Rubros.
 function _calBenefRowSync(){
   var row=document.getElementById('cal-benef-row');if(!row)return;
   var rub=_calEsRubros();row.classList.toggle('show',rub);
-  if(!rub||!_cal.cfg.benef)return;
+  if(!rub)return;
   _fgBenefFont(); // que el preview use la tipografía real
-  var B=_fgBenefMigra(_cal.cfg.benef);
-  function s(id,v){var e=document.getElementById(id);if(e)e.value=(v==null?'':v);}
-  function ck(id,v){var e=document.getElementById(id);if(e)e.checked=!!v;}
-  s('cal-bt-pre',B.titulo.pre);s('cal-bt-post',B.titulo.post);s('cal-bt-fs',B.titulo.fs);s('cal-bt-col',B.titulo.color||'#000000');ck('cal-bt-tapar',B.titulo.tapar);
-  s('cal-bp-pre',B.tope.pre);s('cal-bp-post',B.tope.post);s('cal-bp-fs',B.tope.fs);s('cal-bp-col',B.tope.color||'#000000');ck('cal-bp-tapar',B.tope.tapar);
+  var host=document.getElementById('cal-benef-lineas');if(!host)return;
+  host.innerHTML=_calBenefLineas().map(function(L,i){
+    var col=_BENEF_ZONE_COLORS[i%_BENEF_ZONE_COLORS.length];
+    return '<div class="cal-bl">'+
+      '<span class="dot" style="background:'+col+'" title="Elegir esta l&iacute;nea en la imagen" onclick="_calSelect(\'bl'+i+'\')"></span>'+
+      '<input type="text" value="'+_escAttr(L.t||'')+'" oninput="_calBenefLinea('+i+',\'t\',this.value)">'+
+      '<input type="number" min="6" max="120" step="0.5" value="'+(+L.fs||17)+'" oninput="_calBenefLinea('+i+',\'fs\',this.value)">'+
+      '<select onchange="_calBenefLinea('+i+',\'peso\',this.value)">'+[400,500,600,700,800].map(function(p){return '<option value="'+p+'"'+(+L.peso===p?' selected':'')+'>'+p+(p===400?' fina':p===800?' negrita':'')+'</option>';}).join('')+'</select>'+
+      '<input type="color" value="'+_escAttr(L.color||'#000000')+'" title="Color" oninput="_calBenefLinea('+i+',\'color\',this.value)">'+
+      '<select onchange="_calBenefLinea('+i+',\'align\',this.value)"><option value="left"'+(L.align==='left'?' selected':'')+'>Izq.</option><option value="center"'+(L.align!=='left'?' selected':'')+'>Centro</option></select>'+
+      '<span class="x" title="Quitar l&iacute;nea" onclick="_calBenefQuitar('+i+')">&#10005;</span>'+
+    '</div>';
+  }).join('');
 }
 function _calRenderLegend(){
   var el=document.getElementById('cal-legend');if(!el)return;
@@ -3588,9 +3627,17 @@ function _calZoneRects(){
   r.montos={x:minx,y:M.y-M.mh/2,w:maxx-minx,h:M.mh};
   r.asesores={x:C.ex,y:C.ey+DBOT,w:C.ew,h:C.eh};
   r.legal={x:L.x0,y:L.yStart+DBOT,w:L.maxW,h:(L.yEnd-L.yStart)};
-  if(_calEsRubros()&&cfg.benef){
-    function bz(Z){return {x:(Z.align==='center')?Z.x-Z.mw/2:Z.x,y:Z.y-Z.h/2,w:Z.mw,h:Z.h};}
-    r.benefTitulo=bz(cfg.benef.titulo);r.benefTope=bz(cfg.benef.tope);
+  if(_calEsRubros()){
+    // ancho estimado del texto (sin canvas a mano): ~0.55em por carácter, tope mw
+    var all=null;
+    _calBenefLineas().forEach(function(L,i){
+      var t=String(L.t||'').replace(/\*\*/g,'').replace('{nombre}','EMPRESA EJEMPLO').replace('{importe}','$24.000');
+      var w=Math.min(L.mw||820,Math.max(40,Math.round(t.length*L.fs*0.55))),h=Math.round(L.fs*1.25);
+      var x=(L.align==='left')?L.x:L.x-w/2,y=L.y-h/2;
+      r['bl'+i]={x:x,y:y,w:w,h:h};
+      if(!all)all={x0:x,y0:y,x1:x+w,y1:y+h};else{all.x0=Math.min(all.x0,x);all.y0=Math.min(all.y0,y);all.x1=Math.max(all.x1,x+w);all.y1=Math.max(all.y1,y+h);}
+    });
+    if(all)r.blAll={x:all.x0-10,y:all.y0-8,w:all.x1-all.x0+20,h:all.y1-all.y0+16};
   }
   return r;
 }
@@ -3629,7 +3676,9 @@ function _calXY(e){var cv=document.getElementById('cal-cv');var rc=cv.getBoundin
 function _calHit(bx,by){
   var rects=_calZoneRects(),L=rects.legal;
   if(L&&Math.abs(bx-(L.x+L.w))<16&&Math.abs(by-(L.y+L.h))<16)return {zone:'legal',handle:'br'};
-  var order=['benefTitulo','benefTope','empresa','montos','asesores','legal'];
+  var order=[];
+  if(_calEsRubros()){_calBenefLineas().forEach(function(_l,i){order.push('bl'+i);});order.push('blAll');}
+  order=order.concat(['empresa','montos','asesores','legal']);
   for(var i=0;i<order.length;i++){var r=rects[order[i]];if(r&&bx>=r.x&&bx<=r.x+r.w&&by>=r.y&&by<=r.y+r.h)return {zone:order[i],handle:null};}
   return null;
 }
@@ -3648,8 +3697,8 @@ function _calMove(e){
 function _calUp(){if(_cal&&_cal.drag)_cal.drag=null;}
 function _calApply(drag,dx,dy){
   var cfg=_cal.cfg,E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal,B=cfg.benef;
-  if(drag.zone==='benefTitulo'&&B){B.titulo.x+=dx;B.titulo.y+=dy;}
-  else if(drag.zone==='benefTope'&&B){B.tope.x+=dx;B.tope.y+=dy;}
+  if(drag.zone==='blAll'){_calBenefLineas().forEach(function(l){l.x+=dx;l.y+=dy;});}
+  else if(/^bl\d+$/.test(drag.zone)){var bl=_calBenefLineas()[+drag.zone.slice(2)];if(bl){bl.x+=dx;bl.y+=dy;}}
   else if(drag.zone==='empresa'){E.yc+=dy;E.xc+=dx;E.ex+=dx;}
   else if(drag.zone==='montos'){M.y+=dy;M.boxes.forEach(function(b){b.xc+=dx;});}
   else if(drag.zone==='asesores'){C.ey+=dy;C.y1+=dy;C.y2+=dy;C.y3+=dy;C.xSingle+=dx;C.xLeft+=dx;C.xRight+=dx;}
@@ -3691,9 +3740,15 @@ function _calOpen(img,name,url,opt){
   _calRenderLegend();_calBenefRowSync();_calDraw();
   _loadFlyerCfgs(function(m){
     if(!_cal||_cal.name!==name)return; // se cerró o se abrió otro mientras cargaba
-    if(m&&m[name]){try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}}
+    if(m&&m[name]){
+      try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}
+      // calibración vieja del cartel (titulo/tope sueltos, sin lista de líneas):
+      // se descarta la lista provisoria para que _calBenefLineas la convierta
+      var sb=m[name].benef;
+      if(sb&&!Array.isArray(sb.lineas)&&(sb.titulo||sb.tope)&&_cal.cfg.benef)_cal.cfg.benef.lineas=null;
+    }
     var hi=document.getElementById('cal-height');if(hi)hi.value=_cal.cfg.cropH?_cal.cfg.cropH:'';
-    _calBenefRowSync();
+    _calRenderLegend();_calBenefRowSync();
     // preview con el legal REAL de esa opción, para ver cuánto ocupa
     loadGlobalLegal(false,opt).then(function(txt){
       if(_cal){_cal.legalText=(txt&&txt.trim())?txt:_CAL_SAMPLE_LEGAL;_calDraw();}

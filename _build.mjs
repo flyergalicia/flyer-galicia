@@ -268,7 +268,7 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-subir" style="display:none">
       <p class="ap-sec">Subir nueva versi&oacute;n del flyer</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Sub&iacute; el <strong>PDF limpio</strong> del flyer (sin los datos que completa cada asesor) &mdash; tambi&eacute;n vale PNG/JPG. Te pregunta a <strong>qu&eacute; opci&oacute;n</strong> va (las de Flyer Galicia y las de Flyer Rubros, seg&uacute;n Config &rarr; Opciones), se convierte solo y se abre el <strong>calibrador</strong> de esa opci&oacute;n para acomodar las zonas arrastrando. Para una opci&oacute;n de <strong>Flyer Rubros</strong> el PDF viene adem&aacute;s sin las dos l&iacute;neas del cuadro del beneficio (&laquo;&iexcl;Beneficio exclusivo EMPRESA!&raquo; y &laquo;Tope de reintegro mensual $24.000&raquo;): el calibrador suma esas dos zonas y sus textos fijos. Qu&eacute; opci&oacute;n ve cada perfil se define en Admin &rarr; Facultades. El HTML del build (<strong>index_export.html</strong>) tambi&eacute;n sirve como antes.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Sub&iacute; el <strong>PDF limpio</strong> del flyer (sin los datos que completa cada asesor) &mdash; tambi&eacute;n vale PNG/JPG. Te pregunta a <strong>qu&eacute; opci&oacute;n</strong> va (las de Flyer Galicia y las de Flyer Rubros, seg&uacute;n Config &rarr; Opciones), se convierte solo y se abre el <strong>calibrador</strong> de esa opci&oacute;n para acomodar las zonas arrastrando. Para una opci&oacute;n de <strong>Flyer Rubros</strong> el PDF viene adem&aacute;s con el <strong>cuadro del beneficio vac&iacute;o</strong> (s&oacute;lo el dibujo del surtidor/changuito, sin ninguna l&iacute;nea de texto): la app escribe todo el cuadro con la misma letra, y en el calibrador eleg&iacute;s la plantilla del rubro (Combustible / Supermercado), ajust&aacute;s textos y tama&ntilde;os y arrastr&aacute;s las l&iacute;neas. Qu&eacute; opci&oacute;n ve cada perfil se define en Admin &rarr; Facultades. El HTML del build (<strong>index_export.html</strong>) tambi&eacute;n sirve como antes.</p>
       <div id="upload-drop" class="upload-drop"
         onclick="document.getElementById('upload-file').click()"
         ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -623,7 +623,10 @@ const AUTH_TAG = `<script src="auth.js?v=${_authHash}"></script>`;
 html = html.replace('<script src="auth.js"></script>', AUTH_TAG);
 // index_export.html se deriva de html: auth.js inlineado y SIN la meta CSP.
 const exportHtml = html
-  .replace(AUTH_TAG, '<script>\n' + _authSrc + '\n</script>')
+  // Reemplazo por FUNCIÓN: con un string, "$'" / "$&" dentro de auth.js (ej. el
+  // '$'+importe del cartel de Rubros) se interpretan como patrones de replace y
+  // duplican el resto del HTML (el export pasó de 2,2 a 4,1 MB sin que nadie lo note).
+  .replace(AUTH_TAG, () => '<script>\n' + _authSrc + '\n</script>')
   .replace(CSP_META + '\n', '');
 const _cdnTags = html.match(/<script src="https:\/\/[^"]+"[^>]*>/g) || [];
 const checks = {
@@ -638,6 +641,8 @@ const checks = {
   'SRI: pdf.js dinamico con integrity': _authSrc.includes("s.integrity='sha384-") && _authSrc.includes('fetch(wsrc,{integrity:wsri'),
   'CSP: en index.html, no en export': html.includes(CSP_META) && html.indexOf(CSP_META) < html.indexOf('<script src=') && !exportHtml.includes('Content-Security-Policy'),
   'export: auth.js inlineado': !exportHtml.includes('auth.js?v=') && !_authSrc.includes('</script>'),
+  // Un "$'" en auth.js duplicaba el resto del HTML dentro del export (patrón de String.replace)
+  'export: sin HTML duplicado (una sola imagen base, un solo auth.js)': (exportHtml.match(/baseImg\.src="data:image/g) || []).length === 1 && (exportHtml.match(/function _installFlyerEngine\(/g) || []).length === 1 && exportHtml.length < html.length + _authSrc.length + 200,
   // ── Hardening del cliente (auditoria 2026-09-11) ──
   'escape: helper con comillas': _authSrc.includes("replace(/\"/g,'&quot;').replace(/'/g,'&#39;')"),
   'escape: panel usuarios/registros': _authSrc.includes("_escHtml(u.full_name||mail||'Sin nombre')") && _authSrc.includes("_escHtml(row.empresa||'—')") && _authSrc.includes("_escHtml(row.empresa||'Sin empresa')"),
@@ -737,7 +742,7 @@ const checks = {
   // `solapa` ('flyer'|'rubros'); las de rubros dibujan el cartel "¡Beneficio
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
   // textos fijos editables) y muestran los dos campos en el formulario.
-  'rubros: solapa + opciones por solapa + cartel del beneficio': html.includes('id="apptab-rubros"') && html.indexOf('id="apptab-rubros"') > html.indexOf('id="apptab-flyer"') && html.indexOf('id="apptab-rubros"') < html.indexOf('id="apptab-promos"') && _authSrc.includes('function _optSolapa(') && _authSrc.includes('function _facOptsDe(') && _authSrc.includes('function _fgSyncVista(') && _authSrc.includes('function fgDrawBenef(') && _authSrc.includes('if(v.benef)fgDrawBenef(c,s,v);') && _authSrc.includes('function _fgEnsureBenefFields(') && _authSrc.includes('function _fgFmtImporte(') && _authSrc.includes('function _calZones(') && _authSrc.includes('function _calBenefTexto(') && _authSrc.includes('id="cal-benef-row"') && _authSrc.includes('class="opc-sol"') && _authSrc.includes("solapa:sol") && html.includes('Flyer Rubros'),
+  'rubros: solapa + opciones por solapa + cartel del beneficio': html.includes('id="apptab-rubros"') && html.indexOf('id="apptab-rubros"') > html.indexOf('id="apptab-flyer"') && html.indexOf('id="apptab-rubros"') < html.indexOf('id="apptab-promos"') && _authSrc.includes('function _optSolapa(') && _authSrc.includes('function _facOptsDe(') && _authSrc.includes('function _fgSyncVista(') && _authSrc.includes('function fgDrawBenef(') && _authSrc.includes('if(v.benef)fgDrawBenef(c,s,v);') && _authSrc.includes('function _fgEnsureBenefFields(') && _authSrc.includes('function _fgFmtImporte(') && _authSrc.includes('function _calZones(') && _authSrc.includes('function _calBenefLinea(') && _authSrc.includes('var _BENEF_PLANTILLAS=') && _authSrc.includes('function _fgBenefLineas(') && _authSrc.includes('id="cal-benef-row"') && _authSrc.includes('class="opc-sol"') && _authSrc.includes("solapa:sol") && html.includes('Flyer Rubros'),
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
   // El admin se puede destildar cosas a sí mismo (columna "Vos", guardada por
   // cuenta en profiles.facultades): ya no hay bypass fijo en _can.
