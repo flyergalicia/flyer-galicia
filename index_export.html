@@ -3079,26 +3079,31 @@ var FLYER_CFG_DEFAULT = {
   // PDF real contra 14 candidatas es la que calza con la letra del flyer.
   // Las plantillas (_BENEF_PLANTILLAS) están medidas sobre los PDFs reales
   // (SIEMENS combustible/supermercado rasterizados a 1240px); el admin las
-  // elige y ajusta en el calibrador.
+  // elige y ajusta en el calibrador. Todas las líneas van centradas sobre un
+  // mismo eje (el centro del área de texto, a la derecha del dibujo): en el PDF
+  // del banco el título va alineado a la izquierda, pero con un nombre de
+  // empresa más corto o más largo que SIEMENS quedaba descentrado. Al abrir el
+  // calibrador o cargar una plantilla, _calBenefCentrar detecta el cuadro en la
+  // imagen y ubica el bloque solo; estos x/y son el respaldo si no lo encuentra.
   benef:{color2:"#fa6400",peso2:800,lineas:null}
 };
 var _FG_BENEF_FONT='Figtree';
 var _BENEF_LINEA_DEF={t:'',x:640,y:2700,fs:17,peso:500,color:'#000000',align:'center',mw:820};
 var _BENEF_PLANTILLAS={
   combustible:{nombre:'Combustible',lineas:[
-    {t:'¡Beneficio exclusivo {nombre}!',x:390,y:2630,fs:42,peso:800,color:'#fa6400',align:'left',mw:800},
-    {t:'**25% de ahorro** en combustible',x:388,y:2675,fs:42,peso:500,color:'#000000',align:'left',mw:800},
-    {t:'Los domingos',x:640,y:2735,fs:21,peso:700,color:'#000000',align:'center',mw:800},
-    {t:'Tope de reintegro mensual {importe} (5)',x:640,y:2758,fs:16.5,peso:500,color:'#000000',align:'center',mw:800},
-    {t:'Válido en todas las estaciones del país',x:640,y:2803,fs:16,peso:500,color:'#000000',align:'center',mw:800},
-    {t:'Medio de pago: Tarjeta de débito física',x:640,y:2827,fs:16,peso:500,color:'#000000',align:'center',mw:800}
+    {t:'¡Beneficio exclusivo {nombre}!',x:723,y:2630,fs:42,peso:800,color:'#fa6400',align:'center',mw:800},
+    {t:'**25% de ahorro** en combustible',x:723,y:2675,fs:42,peso:500,color:'#000000',align:'center',mw:800},
+    {t:'Los domingos',x:723,y:2735,fs:21,peso:700,color:'#000000',align:'center',mw:800},
+    {t:'Tope de reintegro mensual {importe} (5)',x:723,y:2758,fs:16.5,peso:500,color:'#000000',align:'center',mw:800},
+    {t:'Válido en todas las estaciones del país',x:723,y:2803,fs:16,peso:500,color:'#000000',align:'center',mw:800},
+    {t:'Medio de pago: Tarjeta de débito física',x:723,y:2827,fs:16,peso:500,color:'#000000',align:'center',mw:800}
   ]},
   supermercado:{nombre:'Supermercado',lineas:[
-    {t:'Beneficio exclusivo {nombre} !',x:365,y:2627,fs:42,peso:800,color:'#fa6400',align:'left',mw:820},
-    {t:'**25% de ahorro** en Supermercados',x:363,y:2703,fs:46,peso:500,color:'#000000',align:'left',mw:820},
-    {t:'Los Martes',x:688,y:2739,fs:21,peso:700,color:'#000000',align:'center',mw:800},
-    {t:'Tope de reintegro mensual {importe} (10)',x:688,y:2764,fs:16.5,peso:500,color:'#000000',align:'center',mw:800},
-    {t:'Medio de pago: Tarjeta de débito física',x:688,y:2788,fs:16,peso:500,color:'#000000',align:'center',mw:800}
+    {t:'Beneficio exclusivo {nombre} !',x:739,y:2627,fs:42,peso:800,color:'#fa6400',align:'center',mw:820},
+    {t:'**25% de ahorro** en Supermercados',x:739,y:2703,fs:46,peso:500,color:'#000000',align:'center',mw:820},
+    {t:'Los Martes',x:739,y:2739,fs:21,peso:700,color:'#000000',align:'center',mw:800},
+    {t:'Tope de reintegro mensual {importe} (10)',x:739,y:2764,fs:16.5,peso:500,color:'#000000',align:'center',mw:800},
+    {t:'Medio de pago: Tarjeta de débito física',x:739,y:2788,fs:16,peso:500,color:'#000000',align:'center',mw:800}
   ]}
 };
 // Líneas del cartel a partir de lo guardado: lista propia si la hay; si la
@@ -3131,6 +3136,60 @@ function _fgBenefFont(){
         .then(function(){if(typeof redraw==='function')redraw();}).catch(function(){});
     }
   }catch(e){}
+}
+// Busca el cuadro del beneficio en la imagen base para centrar el cartel
+// automáticamente (el admin pedía que "por default venga centrado": ubicar seis
+// líneas a mano, una por una, es engorroso). Devuelve, en px base (1240 de
+// ancho), {top,bottom,left,right,textoX0,cx,cy}: el panel, el borde derecho del
+// dibujo (textoX0) y el centro del área de texto. null si no lo encuentra.
+// Cómo: sondea el color del panel al 90% del ancho, a la altura aproximada del
+// cartel (ySonda: donde están hoy las líneas; prueba también unas filas más
+// arriba/abajo por si cayó fuera). Desde ahí extiende por esa columna mientras
+// el color se mantenga (filas del panel) y por columna mide cuánto de la altura
+// del panel tiene ese color: el borde derecho es la última columna mayormente
+// panel; yendo hacia la izquierda, la primera zona densa que no es panel es el
+// dibujo (o su mancha de fondo); las letras sueltas no cuentan porque no son
+// densas a lo ancho. Sólo lee la franja 15%..75% de la altura. Falla (null) si
+// el canvas está "tainted" (imagen sin CORS) o la geometría no tiene sentido.
+function _fgBenefDetectarCuadro(img,ySonda){
+  try{
+    var W=_FG_TARGET_W,k=img.width/W,H=Math.round(img.height/k);
+    var y0=Math.round(H*0.15),y1=Math.round(H*0.75),bh=y1-y0;
+    var cv=document.createElement('canvas');cv.width=W;cv.height=bh;
+    var c=cv.getContext('2d',{willReadFrequently:true});
+    c.drawImage(img,0,y0*k,img.width,bh*k,0,0,W,bh);
+    var d=c.getImageData(0,0,W,bh).data;
+    function px(x,y){var i=(y*W+x)*4;return [d[i],d[i+1],d[i+2]];}
+    function cerca(p,q,t){return Math.abs(p[0]-q[0])<=t&&Math.abs(p[1]-q[1])<=t&&Math.abs(p[2]-q[2])<=t;}
+    var xp=Math.round(W*0.9),TOL=9,base=Math.round((ySonda||H*0.4)-y0);
+    for(var paso=0;paso<=5;paso++)for(var sg=-1;sg<=1;sg+=2){
+      var ys=base+sg*paso*40;if(paso===0&&sg>0)continue;
+      if(ys<0||ys>=bh)continue;
+      var bg=px(W-5,ys),col=px(xp,ys);
+      if(cerca(col,bg,10))continue; // fondo de página: la sonda no cayó en el panel
+      var top=ys,bot=ys,gap;
+      for(gap=0;top>0&&gap<=2;top--){if(cerca(px(xp,top-1),col,TOL))gap=0;else gap++;}
+      top+=gap;
+      for(gap=0;bot<bh-1&&gap<=2;bot++){if(cerca(px(xp,bot+1),col,TOL))gap=0;else gap++;}
+      bot-=gap;
+      var ph=bot-top;if(ph<80||ph>900)continue;
+      var ya=top+6,yb=bot-6,n=yb-ya+1,frac=new Array(W),x,y,m;
+      for(x=0;x<W;x++){m=0;for(y=ya;y<=yb;y++)if(cerca(px(x,y),col,TOL))m++;frac[x]=m/n;}
+      var right=-1,left=-1;
+      for(x=W-1;x>=0;x--)if(frac[x]>=0.5){right=x;break;}
+      for(x=0;x<W;x++)if(frac[x]>=0.5){left=x;break;}
+      if(right<0||left<0||right-left<300)continue;
+      var tx0=left;
+      for(x=right-40;x>left+20;x--){
+        if(frac[x]>=0.4)continue;
+        var s=0;for(var j=0;j<20;j++)s+=frac[x-j];
+        if(s/20<0.5){tx0=x+1;break;}
+      }
+      if(right-tx0<250)continue;
+      return {top:top+y0,bottom:bot+y0,left:left,right:right,textoX0:tx0,cx:Math.round((tx0+right)/2),cy:Math.round((top+bot)/2+y0)};
+    }
+    return null;
+  }catch(e){return null;}
 }
 function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if(b[k2]!=null)o[k2]=b[k2];return o;}
 function _fgCfg(){
@@ -3985,11 +4044,56 @@ var _CAL_ZONES=[
 // que mueve todas juntas. Las líneas viven en _cal.cfg.benef.lineas.
 var _BENEF_ZONE_COLORS=['#f5921e','#b26a00','#7b4a12','#c0392b','#8e44ad','#2c3e50','#16a085','#d35400'];
 function _calEsRubros(){return !!(_cal&&_optSolapa(_cal.opt)==='rubros');}
+// Plantilla que corresponde a la opción por su nombre ("Combustible" →
+// combustible); si ninguna calza, la primera.
+function _calBenefPlantillaPorOpcion(){
+  var lbl=String(_cal?_optLabel(_cal.opt):'').toLowerCase(),ks=Object.keys(_BENEF_PLANTILLAS);
+  for(var i=0;i<ks.length;i++){if(lbl.indexOf(String(_BENEF_PLANTILLAS[ks[i]].nombre).toLowerCase())>=0||lbl.indexOf(ks[i])>=0)return ks[i];}
+  return ks[0];
+}
+function _calBenefDePlantilla(k){
+  var P=_BENEF_PLANTILLAS[k]||_BENEF_PLANTILLAS[Object.keys(_BENEF_PLANTILLAS)[0]];
+  return P.lineas.map(function(l){return _fgMerge(_BENEF_LINEA_DEF,l);});
+}
+// Líneas del cartel en el calibrador. Sin líneas guardadas arranca con la
+// plantilla de la opción (la calibración vieja de dos líneas sueltas ya no
+// sirve: ahora la app dibuja el cartel entero). Quien las crea acá las centra
+// después con _calBenefCentrar (no se hace acá para no recursar).
 function _calBenefLineas(){
   if(!_cal)return [];
   if(!_cal.cfg.benef)_cal.cfg.benef={};
-  if(!Array.isArray(_cal.cfg.benef.lineas))_cal.cfg.benef.lineas=_fgBenefLineas(_cal.cfg.benef).map(function(l){return _fgMerge({},l);});
+  if(!Array.isArray(_cal.cfg.benef.lineas))_cal.cfg.benef.lineas=_calBenefDePlantilla(_calBenefPlantillaPorOpcion());
   return _cal.cfg.benef.lineas;
+}
+// Ancho estimado de una línea sin medir con canvas (~0.55em por carácter, tope mw).
+function _calBenefAnchoEst(L){
+  var t=String(L.t||'').replace(/\*\*/g,'').replace('{nombre}','EMPRESA EJEMPLO').replace('{importe}','$24.000');
+  return Math.min(L.mw||820,Math.max(40,Math.round(t.length*L.fs*0.55)));
+}
+// Centra el cartel en el cuadro de la imagen (_fgBenefDetectarCuadro): todas
+// las líneas sobre el eje central del área de texto y el bloque centrado en
+// vertical, conservando la separación de la plantilla (si el bloque es más
+// alto que el cuadro, se comprimen separación y letra). Si no encuentra el
+// cuadro, al menos alinea las líneas entre sí sobre un mismo eje (el promedio
+// de donde estaban) para que el admin mueva el bloque entero y listo.
+// Devuelve el cuadro detectado o null.
+function _calBenefCentrar(silencioso){
+  if(!_cal||!_calEsRubros())return null;
+  var ls=_calBenefLineas();if(!ls.length)return null;
+  var top=1e9,bot=-1e9,sx=0;
+  ls.forEach(function(l){top=Math.min(top,l.y-l.fs/2);bot=Math.max(bot,l.y+l.fs/2);sx+=(l.align==='left')?l.x+_calBenefAnchoEst(l)/2:l.x;});
+  var mid=(top+bot)/2,q=_fgBenefDetectarCuadro(_cal.img,mid);
+  var cx=q?q.cx:Math.round(sx/ls.length),cy=q?q.cy:mid,k=1;
+  if(q){var disp=(q.bottom-q.top)-16,h=bot-top;if(h>disp&&h>0)k=disp/h;}
+  var mwq=q?Math.max(200,q.right-q.textoX0-20):0;
+  ls.forEach(function(l){
+    l.align='center';l.x=cx;l.y=Math.round(cy+(l.y-mid)*k);
+    if(k<1)l.fs=Math.max(6,Math.round(l.fs*k*2)/2);
+    if(mwq&&l.mw>mwq)l.mw=mwq;
+  });
+  _calBenefRowSync();_calRenderLegend();_calDraw();
+  if(!silencioso)showToast(q?'Cartel centrado en el cuadro.':'No encontré el cuadro en la imagen: alineé las líneas entre sí. Movelas juntas con «Cartel (todo)».');
+  return q;
 }
 function _calZones(){
   if(!_calEsRubros())return _CAL_ZONES;
@@ -4060,11 +4164,12 @@ function _calEnsureDom(){
           '<span style="color:var(--gray)">Plantilla:</span><select id="cal-benef-plantilla">'+
             Object.keys(_BENEF_PLANTILLAS).map(function(k){return '<option value="'+k+'">'+_escHtml(_BENEF_PLANTILLAS[k].nombre)+'</option>';}).join('')+
           '</select><button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefPlantilla()">Cargar plantilla</button>'+
+          '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefCentrar(false)" title="Detecta el cuadro en la imagen y centra el bloque de l&iacute;neas ah&iacute;">&#8982; Centrar en el cuadro</button>'+
           '<span class="sp" style="flex:1"></span>'+
           '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefAgregar()">+ L&iacute;nea</button></div>'+
         '<div class="cal-bl cal-bl-head"><span></span><span>Texto ({nombre}, {importe}, **naranja**)</span><span>Letra px</span><span>Peso</span><span>Color</span><span>Alinear</span><span></span></div>'+
         '<div id="cal-benef-lineas"></div>'+
-        '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre} e {importe} los carga cada asesor; **as&iacute;** sale en naranja y negrita. Arrastr&aacute; cada l&iacute;nea en la imagen, o &laquo;Cartel (todo)&raquo; para mover el bloque entero.</div>'+
+        '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre} e {importe} los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
       '</div>'+
       '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
     '</div>';
@@ -4099,8 +4204,10 @@ function _calBenefQuitar(i){
 function _calBenefPlantilla(){
   var sel=document.getElementById('cal-benef-plantilla'),k=sel?sel.value:'',P=_BENEF_PLANTILLAS[k];if(!P||!_cal)return;
   if(_calBenefLineas().length&&!confirm('¿Reemplazar las líneas actuales por la plantilla "'+P.nombre+'"?'))return;
-  _cal.cfg.benef.lineas=P.lineas.map(function(l){return _fgMerge(_BENEF_LINEA_DEF,l);});
-  _cal.sel=null;_calBenefRowSync();_calRenderLegend();_calDraw();
+  _cal.cfg.benef.lineas=_calBenefDePlantilla(k);
+  _cal.sel=null;
+  var q=_calBenefCentrar(true); // ya redibuja
+  showToast(q?'Plantilla "'+P.nombre+'" cargada y centrada en el cuadro.':'Plantilla "'+P.nombre+'" cargada. No encontré el cuadro en la imagen: movela con «Cartel (todo)».');
 }
 // Pinta la tabla de líneas (al abrir el calibrador y al agregar/quitar) y muestra la fila sólo en Rubros.
 function _calBenefRowSync(){
@@ -4152,8 +4259,7 @@ function _calZoneRects(){
     // ancho estimado del texto (sin canvas a mano): ~0.55em por carácter, tope mw
     var all=null;
     _calBenefLineas().forEach(function(L,i){
-      var t=String(L.t||'').replace(/\*\*/g,'').replace('{nombre}','EMPRESA EJEMPLO').replace('{importe}','$24.000');
-      var w=Math.min(L.mw||820,Math.max(40,Math.round(t.length*L.fs*0.55))),h=Math.round(L.fs*1.25);
+      var w=_calBenefAnchoEst(L),h=Math.round(L.fs*1.25);
       var x=(L.align==='left')?L.x:L.x-w/2,y=L.y-h/2;
       r['bl'+i]={x:x,y:y,w:w,h:h};
       if(!all)all={x0:x,y0:y,x1:x+w,y1:y+h};else{all.x0=Math.min(all.x0,x);all.y0=Math.min(all.y0,y);all.x1=Math.max(all.x1,x+w);all.y1=Math.max(all.y1,y+h);}
@@ -4258,15 +4364,22 @@ function _calOpen(img,name,url,opt){
   document.getElementById('cal-modal').classList.add('show');
   var t=document.getElementById('cal-title');if(t)t.textContent='Calibrar flyer — '+_optLabel(opt)+(_calEsRubros()?' (Flyer Rubros)':'');
   var hInput=document.getElementById('cal-height');if(hInput)hInput.value='';
-  _calRenderLegend();_calBenefRowSync();_calDraw();
+  _calRenderLegend();_calBenefRowSync();
+  if(_calEsRubros()){
+    // arranca con la plantilla de la opción, centrada en el cuadro de la imagen;
+    // si hay líneas guardadas, las pisa la carga de abajo
+    var ps=document.getElementById('cal-benef-plantilla');if(ps)ps.value=_calBenefPlantillaPorOpcion();
+    _calBenefCentrar(true);
+  }
+  _calDraw();
   _loadFlyerCfgs(function(m){
     if(!_cal||_cal.name!==name)return; // se cerró o se abrió otro mientras cargaba
     if(m&&m[name]){
       try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}
-      // calibración vieja del cartel (titulo/tope sueltos, sin lista de líneas):
-      // se descarta la lista provisoria para que _calBenefLineas la convierta
-      var sb=m[name].benef;
-      if(sb&&!Array.isArray(sb.lineas)&&(sb.titulo||sb.tope)&&_cal.cfg.benef)_cal.cfg.benef.lineas=null;
+      // calibración vieja del cartel (titulo/tope sueltos): ya no aplica, la app
+      // dibuja el cartel entero; quedan las líneas de la plantilla ya centradas
+      var sb=_cal.cfg.benef;
+      if(sb){delete sb.titulo;delete sb.tope;}
     }
     var hi=document.getElementById('cal-height');if(hi)hi.value=_cal.cfg.cropH?_cal.cfg.cropH:'';
     _calRenderLegend();_calBenefRowSync();
@@ -4279,6 +4392,7 @@ function _calOpen(img,name,url,opt){
 function _calOpenFromUrl(url,name,opt){
   showToast('Cargando flyer...');
   var im=new Image();
+  im.crossOrigin='anonymous'; // sin esto el canvas queda "tainted" y _fgBenefDetectarCuadro no puede leer píxeles
   im.onload=function(){_calOpen(im,name,url,opt);};
   im.onerror=function(){showToast('No se pudo cargar la imagen del flyer');};
   im.src=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
