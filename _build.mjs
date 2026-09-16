@@ -111,10 +111,13 @@ html = html.replace('<div class="layout">', '<div class="layout" id="layout" sty
 // aunque cambie el número de versión en una regeneración del HTML.
 html = html.replace(
   /<h1>(Flyer Galicia[^<]*)<\/h1><\/header>/,
-  // Dos solapas de primer nivel (no una dentro de la otra): "Flyer Galicia" y
-  // "Promociones", esta última oculta hasta que _applyFacultades la habilite
-  // (facultad promos_buscar). switchApp() las intercambia en auth.js.
+  // Tres solapas de primer nivel (no una dentro de la otra): "Flyer Galicia",
+  // "Flyer Rubros" (mismo armador, opciones con el cartel "Beneficio exclusivo";
+  // se muestra si el perfil tiene alguna opción de esa solapa) y "Promociones"
+  // (oculta hasta que _applyFacultades la habilite por la facultad promos_buscar).
+  // switchApp() las intercambia en auth.js.
   '<div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp(\'flyer\')"><h1>$1</h1><span>ARMADOR</span></div>' +
+  '<div class="header-text app-tab" id="apptab-rubros" style="display:none" onclick="switchApp(\'rubros\')"><h1>Flyer Rubros</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp(\'promos\')"><h1>Promociones</h1><span>BUSCADOR</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
@@ -265,7 +268,7 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-subir" style="display:none">
       <p class="ap-sec">Subir nueva versi&oacute;n del flyer</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Sub&iacute; el <strong>PDF limpio</strong> del flyer (sin los datos que completa cada asesor) &mdash; tambi&eacute;n vale PNG/JPG. Te pregunta si va a la <strong>Opci&oacute;n 1</strong> o la <strong>Opci&oacute;n 2</strong>, se convierte solo y se abre el <strong>calibrador</strong> de esa opci&oacute;n para acomodar las zonas arrastrando. Ojo: los asesores y VIP siempre ven la <strong>Opci&oacute;n 1</strong>. El HTML del build (<strong>index_export.html</strong>) tambi&eacute;n sirve como antes.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:16px;line-height:1.5">Sub&iacute; el <strong>PDF limpio</strong> del flyer (sin los datos que completa cada asesor) &mdash; tambi&eacute;n vale PNG/JPG. Te pregunta a <strong>qu&eacute; opci&oacute;n</strong> va (las de Flyer Galicia y las de Flyer Rubros, seg&uacute;n Config &rarr; Opciones), se convierte solo y se abre el <strong>calibrador</strong> de esa opci&oacute;n para acomodar las zonas arrastrando. Para una opci&oacute;n de <strong>Flyer Rubros</strong> el PDF viene adem&aacute;s sin las dos l&iacute;neas del cuadro del beneficio (&laquo;&iexcl;Beneficio exclusivo EMPRESA!&raquo; y &laquo;Tope de reintegro mensual $24.000&raquo;): el calibrador suma esas dos zonas y sus textos fijos. Qu&eacute; opci&oacute;n ve cada perfil se define en Admin &rarr; Facultades. El HTML del build (<strong>index_export.html</strong>) tambi&eacute;n sirve como antes.</p>
       <div id="upload-drop" class="upload-drop"
         onclick="document.getElementById('upload-file').click()"
         ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -336,7 +339,7 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-opciones" style="display:none">
       <p class="ap-sec">Opciones del armador</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada opci&oacute;n es un <strong>armador completo</strong>: tiene su propio flyer activo, su propio legal y su calibraci&oacute;n. Ac&aacute; agreg&aacute;s opciones nuevas y les pon&eacute;s nombre y color. Al agregar una, <strong>aparece sola en Facultades</strong> (para decidir qu&eacute; perfil la ve), en Legales, en Subir flyer y en el selector del armador. La <strong>Opci&oacute;n 1</strong> es la de todos los asesores y no se puede quitar.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada opci&oacute;n es un <strong>armador completo</strong>: tiene su propio flyer activo, su propio legal y su calibraci&oacute;n. Ac&aacute; agreg&aacute;s opciones nuevas y les pon&eacute;s nombre y color. Al agregar una, <strong>aparece sola en Facultades</strong> (para decidir qu&eacute; perfil la ve), en Legales, en Subir flyer y en el selector del armador. La <strong>Opci&oacute;n 1</strong> es la de todos los asesores y no se puede quitar.<br><br>El selector <strong>Solapa</strong> dice en qu&eacute; solapa del header vive la opci&oacute;n: <strong>Flyer Galicia</strong> (el armador de siempre) o <strong>Flyer Rubros</strong> (el mismo armador, pero el flyer trae el cuadro &laquo;&iexcl;Beneficio exclusivo EMPRESA!&raquo; con un tope de reintegro editable: combustible, supermercado, etc.). Para sumar un rubro nuevo: agreg&aacute;s la opci&oacute;n, la pon&eacute;s en Flyer Rubros, sub&iacute;s su PDF limpio y lo calibr&aacute;s. La solapa Flyer Rubros aparece en el header de cada perfil que tenga habilitada al menos una de esas opciones.</p>
       <div id="opciones-list"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="usr-btn edit" onclick="_opcAgregar()">+ Agregar opci&oacute;n</button>
@@ -729,7 +732,12 @@ const checks = {
   // (una marca que no esta en el catalogo hay que sacarla), ultimo lo vigente.
   'promos: orden por columna': _authSrc.includes('function _promoOrdenar(') && _authSrc.includes('var _PROMO_ORDEN_ESTADO=') && _authSrc.includes('function _promoValorOrden(') && _authSrc.includes('function _promoTh(') && _authSrc.includes('NO_ENCONTRADA:0,VENCIDA:1,VENCE_ESTE_MES:2,REVISAR:3') && _authSrc.includes("chipDefs=[['NO_ENCONTRADA'"),
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
-  'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOpts().map(') && !_authSrc.includes('opciones_armador'),
+  'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOptsDe(_fgVista).map(') && !_authSrc.includes('opciones_armador'),
+  // Flyer Rubros: tercera solapa del header que reusa el armador. Cada opción tiene
+  // `solapa` ('flyer'|'rubros'); las de rubros dibujan el cartel "¡Beneficio
+  // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
+  // textos fijos editables) y muestran los dos campos en el formulario.
+  'rubros: solapa + opciones por solapa + cartel del beneficio': html.includes('id="apptab-rubros"') && html.indexOf('id="apptab-rubros"') > html.indexOf('id="apptab-flyer"') && html.indexOf('id="apptab-rubros"') < html.indexOf('id="apptab-promos"') && _authSrc.includes('function _optSolapa(') && _authSrc.includes('function _facOptsDe(') && _authSrc.includes('function _fgSyncVista(') && _authSrc.includes('function fgDrawBenef(') && _authSrc.includes('if(v.benef)fgDrawBenef(c,s,v);') && _authSrc.includes('function _fgEnsureBenefFields(') && _authSrc.includes('function _fgFmtImporte(') && _authSrc.includes('function _calZones(') && _authSrc.includes('function _calBenefTexto(') && _authSrc.includes('id="cal-benef-row"') && _authSrc.includes('class="opc-sol"') && _authSrc.includes("solapa:sol") && html.includes('Flyer Rubros'),
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
   // El admin se puede destildar cosas a sí mismo (columna "Vos", guardada por
   // cuenta en profiles.facultades): ya no hay bypass fijo en _can.

@@ -329,6 +329,8 @@ function fgValidateExcel(rows){
     if(mail&&mail.indexOf('@')<0)warnings.push('Fila '+n+': email sin @');
     var cfg=String(r.config||'').toLowerCase().trim();
     if(cfg&&validCfgs.indexOf(cfg)<0)warnings.push('Fila '+n+': config "'+_escHtml(cfg)+'" inválida');
+    // Flyer Rubros: sin importe en la fila se usa el del formulario (no es error)
+    if(_fgVista==='rubros'&&!_fgFmtImporte(r.importe||r.Importe||''))warnings.push('Fila '+n+': sin importe (se usa el tope del formulario)');
   });
   var vs=document.getElementById('val-sum'),gen=document.getElementById('btn-gen');
   if(vs){
@@ -360,6 +362,7 @@ function initApp(){
   _fgFixAsesorLabels();  // "Agregar asesor 1..4" en los cuatro switches
   _fgAutoMail();         // sugiere nombre.apellido@bancogalicia.com.ar al tipear
   _fgEnsureAddBtn();     // botón "+ Agregar asesor"
+  _fgEnsureBenefFields();// campos del beneficio exclusivo (solapa Flyer Rubros)
   _fgSyncAsesorBlocks(); // arranca mostrando sólo el Asesor 1
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
@@ -716,7 +719,10 @@ function _facRows(){
     ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.']
   ];
   _facOptList().forEach(function(o){
-    rows.push(['opcion_'+o,'Ver &laquo;'+_escHtml(_optLabel(o))+'&raquo; (opci&oacute;n '+o+')','Habilita ese armador (flyer + legal propios; se administra en Config &rarr; Opciones). El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.']);
+    var enRubros=_optSolapa(o)==='rubros';
+    rows.push(['opcion_'+o,'Ver &laquo;'+_escHtml(_optLabel(o))+'&raquo; (opci&oacute;n '+o+(enRubros?', solapa Flyer Rubros':'')+')',
+      'Habilita ese armador (flyer + legal propios; se administra en Config &rarr; Opciones). El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.'+
+      (enRubros?' Con al menos una opci&oacute;n de Rubros habilitada, el perfil ve la solapa <strong>Flyer Rubros</strong> en el header.':'')]);
   });
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
   rows.push(['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']);
@@ -775,6 +781,8 @@ function _can(f){
 function _adminNow(){return _admin&&!_simRole;}
 // Opciones del armador habilitadas para el rol vigente.
 function _facOpts(){return _facOptList().filter(function(o){return _can('opcion_'+o);});}
+// Idem, pero sólo las de una solapa del header ('flyer' | 'rubros').
+function _facOptsDe(solapa){return _facOpts().filter(function(o){return _optSolapa(o)===solapa;});}
 
 // Aplica el gating de la interfaz. Es BIDIRECCIONAL (muestra y oculta) y seguro
 // de repetir: hace falta así para que al quitar una facultad desaparezca sin
@@ -799,6 +807,15 @@ function _applyFacultades(){
 
   _facSyncOptBar();
 
+  // Solapa "Flyer Rubros": no tiene facultad propia, se ve si el perfil tiene
+  // habilitada al menos una opción de esa solapa (opcion_N en Facultades).
+  var rtab=document.getElementById('apptab-rubros');
+  if(rtab){
+    var hayRubros=_facOptsDe('rubros').length>0;
+    rtab.style.display=hayRubros?'':'none';
+    if(!hayRubros&&rtab.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
+  }
+
   // Solapa de primer nivel "Promociones": si el perfil pierde la facultad
   // estando parado ahí (o durante la vista previa de otro rol), lo vuelve a
   // la vista del flyer.
@@ -810,17 +827,49 @@ function _applyFacultades(){
   }
 }
 
-// Solapas de primer nivel del header: "Flyer Galicia" (layout existente) y
-// "Promociones" (vista propia, gateada por la facultad promos_buscar).
+// Solapas de primer nivel del header: "Flyer Galicia" y "Flyer Rubros" (las dos
+// usan el MISMO layout/armador: cambia qué opciones lista la barra y si se ven
+// los campos del beneficio) y "Promociones" (vista propia, gateada por la
+// facultad promos_buscar).
 function switchApp(view){
   var lay=document.getElementById('layout'),pv=document.getElementById('view-promos');
-  var tf=document.getElementById('apptab-flyer'),tp=document.getElementById('apptab-promos');
   if(view==='promos'&&!_can('promos_buscar'))view='flyer'; // por si lo llaman sin permiso
-  if(lay)lay.style.display=(view==='flyer')?'grid':'none';
+  if(view==='rubros'&&!_facOptsDe('rubros').length)view='flyer';
+  var arm=(view==='flyer'||view==='rubros');
+  if(lay)lay.style.display=arm?'grid':'none';
   if(pv)pv.style.display=(view==='promos')?'grid':'none';
-  if(tf)tf.classList.toggle('active',view==='flyer');
-  if(tp)tp.classList.toggle('active',view==='promos');
-  if(view==='promos'&&typeof initPromosTab==='function')initPromosTab();
+  var tp=document.getElementById('apptab-promos');if(tp)tp.classList.toggle('active',view==='promos');
+  if(view==='promos'){
+    ['apptab-flyer','apptab-rubros'].forEach(function(id){var t=document.getElementById(id);if(t)t.classList.remove('active');});
+    if(typeof initPromosTab==='function')initPromosTab();
+    return;
+  }
+  // Armador: si la opción activa no es de esta solapa, paso a la última que usé
+  // en ella (o a la primera habilitada). switchFlyerOption → _fgSyncVista marca
+  // la solapa y rearma la barra.
+  if(_optSolapa(_fgOpt)!==view){
+    var opts=_facOptsDe(view),ult=_fgUltOpt[view];
+    if(opts.length){switchFlyerOption(opts.indexOf(ult)>=0?ult:opts[0]);return;}
+  }
+  _fgSyncVista();
+}
+// Última opción usada en cada solapa, para volver a la misma al cambiar de solapa.
+var _fgUltOpt={flyer:1,rubros:null};
+// Deja la interfaz acorde a la opción activa: solapa del header marcada, barra
+// de opciones de ESA solapa, campos del beneficio visibles sólo en Rubros.
+function _fgSyncVista(){
+  var v=_optSolapa(_fgOpt),cambio=(v!==_fgVista);
+  _fgVista=v;_fgUltOpt[v]=_optN(_fgOpt);
+  var tf=document.getElementById('apptab-flyer'),tr=document.getElementById('apptab-rubros'),tp=document.getElementById('apptab-promos');
+  var lay=document.getElementById('layout'),enArmador=!!(lay&&lay.style.display==='grid');
+  if(enArmador){
+    if(tf)tf.classList.toggle('active',v==='flyer');
+    if(tr)tr.classList.toggle('active',v==='rubros');
+    if(tp)tp.classList.remove('active');
+  }
+  if(cambio)_facSyncOptBar();else _fgRenderOptBar();
+  var bf=document.getElementById('fg-benef-fields');if(bf)bf.style.display=(v==='rubros')?'':'none';
+  if(v==='rubros'&&typeof _fgBenefSyncNombre==='function')_fgBenefSyncNombre();
 }
 // Los títulos "Asesor 1..4" quedan clickeables o no. El listener ya está puesto,
 // pero openAsPop revalida la facultad, así que alcanza con el cambio visual.
@@ -843,12 +892,18 @@ function _facShowPaste(on){
 function _facSyncOptBar(){
   var bar=document.getElementById('fg-optbar');
   if(bar&&bar.parentNode)bar.parentNode.removeChild(bar);
-  var opts=_facOpts();
+  // La barra lista sólo las opciones de la solapa a la vista (Flyer Galicia o Flyer Rubros).
+  var opts=_facOptsDe(_fgVista);
   if(opts.length>1)_fgEnsureOptBar();
   // Si quedó parado en una opción que este perfil no tiene, lo muevo a la primera
-  // que sí. Sólo con la app ya visible, para no pisar la carga inicial del flyer.
+  // que sí (de la misma solapa; si la solapa quedó vacía, a cualquiera habilitada,
+  // y _fgSyncVista cambia de solapa). Sólo con la app ya visible, para no pisar
+  // la carga inicial del flyer.
   var lay=document.getElementById('layout');
-  if(opts.length&&lay&&lay.style.display==='grid'&&opts.indexOf(_optN(_fgOpt))<0)switchFlyerOption(opts[0]);
+  if(!lay||lay.style.display!=='grid')return;
+  var cur=_optN(_fgOpt);
+  if(opts.length){if(opts.indexOf(cur)<0)switchFlyerOption(opts[0]);}
+  else{var todas=_facOpts();if(todas.length&&todas.indexOf(cur)<0)switchFlyerOption(todas[0]);}
 }
 // Entra/sale de la vista previa de un perfil.
 function startFacSim(role){
@@ -2199,14 +2254,19 @@ var _OPC_PALETA=['#1d4070','#0e8a5f','#8e44ad','#b26a00','#c2185b','#00838f','#5
 function _opcDefault(){return [{n:1,nombre:'Opción 1'},{n:2,nombre:'Opción 2'},{n:3,nombre:'Opción 3'}];}
 // Normaliza lo que venga del archivo: números enteros ≥1 únicos, ordenados, la 1
 // siempre presente (es la de los asesores), nombres recortados.
+// solapa: en qué solapa del header vive la opción. 'flyer' = "Flyer Galicia"
+// (el armador de siempre); 'rubros' = "Flyer Rubros" (mismo armador + el cartel
+// "¡Beneficio exclusivo EMPRESA!" y el tope de reintegro). La 1 es siempre 'flyer'.
+var _OPC_SOLAPAS=['flyer','rubros'];
 function _opcSane(list){
   var out=[],vistos={};
   (Array.isArray(list)?list:[]).forEach(function(o){
     var n=parseInt(o&&o.n,10);if(!(n>=1)||vistos[n])return;vistos[n]=1;
+    var sol=(o&&o.solapa==='rubros'&&n!==1)?'rubros':'flyer';
     out.push({n:n,nombre:String((o&&o.nombre)||'').replace(/[<>]/g,'').trim().slice(0,40)||('Opción '+n),
-      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():''});
+      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():'',solapa:sol});
   });
-  if(!vistos[1])out.unshift({n:1,nombre:'Opción 1',color:''});
+  if(!vistos[1])out.unshift({n:1,nombre:'Opción 1',color:'',solapa:'flyer'});
   out.sort(function(a,b){return a.n-b.n;});
   return out;
 }
@@ -2241,6 +2301,12 @@ function _optN(opt){var n=+opt;return (_FG_OPTS.indexOf(n)!==-1)?n:1;}
 function _activeFile(opt){var n=_optN(opt);return n===1?'_active.json':'_active'+n+'.json';}
 function _legalFile(opt){var n=_optN(opt);return n===1?'_legal.json':'_legal'+n+'.json';}
 function _optLabel(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].nombre)||('Opción '+n);}
+// Solapa del header a la que pertenece la opción ('flyer' | 'rubros').
+function _optSolapa(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].solapa==='rubros')?'rubros':'flyer';}
+function _solapaLabel(s){return s==='rubros'?'Flyer Rubros':'Flyer Galicia';}
+// Solapa del armador que está a la vista. Se deriva SIEMPRE de la opción activa
+// (ver _fgSyncVista), así historial/registros que cambian de opción cambian de solapa solos.
+var _fgVista='flyer';
 // Color por opción: se usa igual en registros, historial y badges (control visual).
 function _optColor(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].color)||_OPC_PALETA[(n-1)%_OPC_PALETA.length];}
 function _optBadge(opt,extraCss){
@@ -2270,7 +2336,7 @@ function _fgEnsureOptBar(){
   // La barra se destruye y recrea al cambiar facultades; el estilo se agrega una vez.
   if(!document.getElementById('fg-optbar-style'))document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
-  bar.innerHTML=_facOpts().map(function(o){
+  bar.innerHTML=_facOptsDe(_fgVista).map(function(o){
     return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">'+_escHtml(_optLabel(o))+'</div>';
   }).join('');
   tabs.parentNode.insertBefore(bar,tabs);
@@ -2299,7 +2365,7 @@ function switchFlyerOption(opt,cb){
   if(!_can('opcion_'+_optN(opt)))return; // gating real, no sólo visual
   opt=_optN(opt);
   _fgStashLegal();
-  _fgOpt=opt;_fgRenderOptBar();
+  _fgOpt=opt;_fgSyncVista(); // solapa del header + barra + campos del beneficio
   var c=_fgOptCache[opt];
   if(c&&c.loaded){_fgApplyOption(c);if(cb)cb();return;}
   showToast('Cargando '+_optLabel(opt)+'...');
@@ -2351,12 +2417,20 @@ function _askOption(title,cb){
     document.head.appendChild(st);
   }
   var d=document.createElement('div');d.id='fg-askopt';
+  // Una fila por solapa del header (Flyer Galicia / Flyer Rubros), con rótulo
+  // sólo si hay opciones de las dos: así no se sube un PDF al armador equivocado.
+  function fila(sol,conRotulo){
+    var os=_FG_OPTS.filter(function(o){return _optSolapa(o)===sol;});
+    if(!os.length)return '';
+    return (conRotulo?'<div style="font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray,#777);margin:10px 0 5px">'+_escHtml(_solapaLabel(sol))+'</div>':'')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+os.map(function(o){
+        return '<button class="btn-submit" style="flex:1;min-width:110px;background:'+_optColor(o)+'" data-o="'+o+'">'+_escHtml(_optLabel(o))+'</button>';
+      }).join('')+'</div>';
+  }
+  var hayRubros=_FG_OPTS.some(function(o){return _optSolapa(o)==='rubros';});
   d.innerHTML='<div class="box"><h3>'+_escHtml(title)+'</h3>'+
     '<p>Eleg&iacute; a qu&eacute; armador corresponde.</p>'+
-    '<div style="display:flex;gap:8px">'+
-      _FG_OPTS.map(function(o){
-        return '<button class="btn-submit" style="flex:1;background:'+_optColor(o)+'" data-o="'+o+'">'+_escHtml(_optLabel(o))+'</button>';
-      }).join('')+'</div>'+
+    fila('flyer',hayRubros)+fila('rubros',hayRubros)+
     '<button class="btn-cancel" style="width:100%;margin-top:8px" data-o="0">Cancelar</button></div>';
   d.addEventListener('click',function(e){
     var b=e.target&&e.target.closest?e.target.closest('button[data-o]'):null;
@@ -2471,16 +2545,27 @@ var FLYER_CFG_DEFAULT = {
   contacto:{ex:150,ey:5330,ew:940,ew3:1140,eh:130,bg:"#ffffff",y1:5360,y2:5390,y3:5418,
     xSingle:619,xLeft:310,xRight:930,fnBold:24,frReg:21,color:"#111"},
   legal:{x0:39,yStart:5595,yEnd:6300,maxW:1162,fs:12,lh:17,gap:5,
-    minFs:7,minLh:10,minGap:3,color:"#222222",bg:"#ffffff"}
+    minFs:7,minLh:10,minGap:3,color:"#222222",bg:"#ffffff"},
+  // Flyer Rubros: las dos líneas del cuadro "Beneficio exclusivo". Se dibujan
+  // ENTERAS (pre + valor + post) sobre un rectángulo de fondo, así el PDF limpio
+  // viene sin esas líneas y el importe puede tener cualquier largo. Ancladas
+  // arriba (el cuadro está en la mitad superior). x = borde izquierdo si
+  // align:left, centro si align:center. Coordenadas estimadas: el admin las
+  // acomoda en el calibrador (zonas "Título beneficio" y "Tope").
+  benef:{
+    titulo:{x:330,y:2360,fs:40,mw:820,h:60,bg:"#f7f2ef",align:"left",color:"#f5921e",pre:"¡Beneficio exclusivo ",post:"!"},
+    tope:{x:760,y:2470,fs:20,mw:700,h:34,bg:"#f7f2ef",align:"center",color:"#222222",pre:"Tope de reintegro mensual ",post:""}
+  }
 };
 function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if(b[k2]!=null)o[k2]=b[k2];return o;}
 function _fgCfg(){
-  var d=FLYER_CFG_DEFAULT,c=window.FLYER_CFG||{};
+  var d=FLYER_CFG_DEFAULT,c=window.FLYER_CFG||{},cb=c.benef||{};
   return {imgW:c.imgW||d.imgW,imgH:c.imgH||d.imgH,
     cropH:c.cropH||0, // altura final fijada a mano (0 = automático)
     bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
     empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
-    contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal)};
+    contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal),
+    benef:{titulo:_fgMerge(d.benef.titulo,cb.titulo),tope:_fgMerge(d.benef.tope,cb.tope)}};
 }
 // Escala efectiva: ajusta por el ancho real de la imagen. Mismo template (ancho=imgW) => se=s.
 function _fgSE(s){var C=_fgCfg();var iw=C.imgW||1240;return (window.baseImg&&baseImg.width)?s*baseImg.width/iw:s;}
@@ -2558,6 +2643,7 @@ function fgDrawAll(c,s,v){
   }
   fgDrawEmpresa(c,s,v.empresa);
   fgDrawMontos(c,s,v);
+  if(v.benef)fgDrawBenef(c,s,v);      // Flyer Rubros: cartel del beneficio exclusivo
   var cb=fgDrawContacto(c,s,v)||0;   // fondo (px escalados) del bloque de asesores
   var lb=fgDrawLegal(c,s,v.legal)||0; // fondo (px escalados) del último renglón de legales
   var bottomScaled=Math.max(cb,lb);
@@ -2580,6 +2666,29 @@ function fgDrawEmpresa(c,s,empresa){
     if(ew>mw){efs=Math.floor(fs*(mw/ew));c.font="bold "+efs+"px Arial,sans-serif";}
     c.fillText(empresa,xc,yc+Math.round(lh*0.5));
   }
+}
+// Flyer Rubros: "¡Beneficio exclusivo NOMBRE!" y "Tope de reintegro mensual $24.000".
+// Cada línea tapa su zona con el color de fondo y escribe pre+valor+post; si no
+// entra en mw se achica la letra (como el nombre de empresa). Sin importe, la
+// línea del tope se tapa igual pero no se escribe.
+function fgDrawBenef(c,s,v){
+  var B=_fgCfg().benef,se=_fgSE(s);
+  function linea(Z,valor){
+    var x=Math.round(Z.x*se),y=Math.round(Z.y*se),mw=Math.round(Z.mw*se),h=Math.round(Z.h*se),fs=Math.round(Z.fs*se);
+    var center=(Z.align==='center');
+    var x0=center?x-Math.round(mw/2):x;
+    c.fillStyle=Z.bg;c.fillRect(x0,y-Math.round(h/2),mw,h);
+    if(valor==null||String(valor).trim()==='')return;
+    var txt=(Z.pre||'')+valor+(Z.post||'');
+    c.font="bold "+fs+"px Arial,sans-serif";
+    var w=c.measureText(txt).width;
+    if(w>mw&&w>0){fs=Math.max(Math.floor(fs*mw/w),Math.max(1,Math.round(8*se)));c.font="bold "+fs+"px Arial,sans-serif";}
+    c.fillStyle=Z.color||'#111';c.textBaseline="middle";
+    c.textAlign=center?"center":"left";
+    c.fillText(txt,x,y);
+  }
+  linea(B.titulo,v.benefNombre||v.empresa||'');
+  linea(B.tope,v.importe||'');
 }
 function fgDrawMontos(c,s,v){
   var M=_fgCfg().montos,se=_fgSE(s);
@@ -2733,6 +2842,7 @@ function _fgFinalHeightBase(){
 // Preview: dibuja en un canvas completo y copia sólo la franja útil al canvas visible.
 function fgRedraw(){
   if(!window.baseImg||!baseImg.width)return;
+  _fgBenefSyncNombre(); // la empresa puede cambiar sin evento input (padrón, historial)
   var v=getVals();
   _fgExtra=_fgExtraBaseFor(v); // el canvas tiene que contemplar el crecimiento
   var w=Math.round(baseImg.width*SC),fh=Math.round((baseImg.height+_fgExtra)*SC);
@@ -2899,6 +3009,57 @@ function _fgEnsureAddBtn(){
   f4.insertAdjacentHTML('afterend',
     '<button type="button" id="fg-add-asesor" onclick="_fgAddNextAsesor()">+ Agregar asesor</button>');
 }
+// ── FLYER RUBROS: campos del beneficio exclusivo ─────────────────────────────
+// Sólo se ven cuando la opción activa es de la solapa "Flyer Rubros" (ver
+// _fgSyncVista). El nombre se copia solo desde "Nombre de la empresa" hasta que
+// se toque a mano (si se borra, vuelve a copiarse), igual que el nombre de archivo.
+var _fgBenefManual=false;
+// "24000" / "24.000" / "$ 24.000" -> "$24.000". Sin dígitos -> ''.
+function _fgFmtImporte(raw){
+  var d=(raw==null?'':String(raw)).replace(/\D/g,'').replace(/^0+(?=\d)/,'');
+  if(!d)return '';
+  return '$'+d.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+function _fgBenefSyncNombre(){
+  var b=document.getElementById('benef-nombre'),e=document.getElementById('empresa');
+  if(!b||!e||_fgBenefManual)return;
+  if(b.value!==e.value)b.value=e.value;
+}
+function _fgEnsureBenefFields(){
+  if(document.getElementById('fg-benef-fields'))return;
+  var emp=document.getElementById('empresa');if(!emp)return;
+  // el .field contenedor (la lupa del padrón envuelve el input en .fg-pad-wrap)
+  var field=emp.closest?emp.closest('.field'):emp.parentNode;
+  if(!field||!field.parentNode)return;
+  if(!document.getElementById('fg-benef-style')){
+    var st=document.createElement('style');st.id='fg-benef-style';
+    st.textContent='#fg-benef-fields .fg-benef-hint{font-size:.66rem;color:var(--gray,#777);line-height:1.4;margin:-4px 0 8px}';
+    document.head.appendChild(st);
+  }
+  field.insertAdjacentHTML('afterend',
+    '<div id="fg-benef-fields" style="display:none">'+
+      '<div class="sec">Beneficio exclusivo</div>'+
+      '<div class="field"><label>Nombre en el beneficio</label>'+
+        '<input type="text" id="benef-nombre" placeholder="Se copia de la empresa" autocomplete="off"></div>'+
+      '<div class="fg-benef-hint">Sale como &laquo;&iexcl;Beneficio exclusivo <b>NOMBRE</b>!&raquo;. Se completa solo con la empresa; si lo cambi&aacute;s queda lo tuyo, si lo borr&aacute;s vuelve a copiarse.</div>'+
+      '<div class="field"><label>Tope de reintegro mensual</label>'+
+        '<input type="text" id="benef-importe" value="24.000" placeholder="24.000" inputmode="numeric" autocomplete="off"></div>'+
+    '</div>');
+  var bn=document.getElementById('benef-nombre'),bi=document.getElementById('benef-importe');
+  bn.addEventListener('input',function(){
+    _fgBenefManual=bn.value.trim()!=='';
+    if(!_fgBenefManual)_fgBenefSyncNombre();
+    if(typeof redraw==='function')redraw();
+  });
+  bi.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
+  bi.addEventListener('blur',function(){
+    var f=_fgFmtImporte(bi.value);
+    bi.value=f?f.slice(1):''; // en el campo va sin "$" (se agrega al dibujar)
+    if(typeof redraw==='function')redraw();
+  });
+  // el listener de #empresa del template ya redibuja; acá sólo copio el nombre antes
+  emp.addEventListener('input',_fgBenefSyncNombre);
+}
 // Deja visibles sólo los bloques que tienen datos (o están activos). Se usa al
 // iniciar y al Restaurar: nunca en medio de la edición.
 function _fgSyncAsesorBlocks(){
@@ -2941,7 +3102,12 @@ function fgGetVals(){
     nombre3:g('nombre3'),celular3:cel('celular3'),email3:g('email3'),
     has4:_fgA4&&g('nombre4').trim()!=='',
     nombre4:g('nombre4'),celular4:cel('celular4'),email4:g('email4'),
-    legal:g('legal-text')
+    legal:g('legal-text'),
+    // Flyer Rubros: el cartel "¡Beneficio exclusivo NOMBRE!" + tope. benef va en
+    // v (no en estado global) para que historial, masivo y calibrador rindan igual.
+    benef:_fgVista==='rubros',
+    benefNombre:(g('benef-nombre').trim()||g('empresa')),
+    importe:_fgFmtImporte(g('benef-importe'))
   };
 }
 
@@ -2991,6 +3157,13 @@ function fgLoadHistory(i){
     var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
     s('empresa',h.v.empresa||'');
     if(h.v.legal)s('legal-text',h.v.legal);
+    // Flyer Rubros: nombre del beneficio (manual sólo si difería de la empresa) y tope sin "$"
+    if(h.v.benef){
+      var bn=h.v.benefNombre||'';
+      _fgBenefManual=!!(bn&&bn!==(h.v.empresa||''));
+      s('benef-nombre',_fgBenefManual?bn:(h.v.empresa||''));
+      var imp=_fgFmtImporte(h.v.importe);s('benef-importe',imp?imp.slice(1):'');
+    }
     // Los 4 asesores se aplican SIEMPRE, los tuviera o no el flyer guardado.
     // Antes sólo se tocaban los que el ítem tenía, así que cargar un flyer de 1
     // asesor después de uno de 3 dejaba pegados los otros dos del anterior.
@@ -3018,6 +3191,7 @@ function fgResetVals(){
   ['empresa','nombre','celular','email','nombre2','celular2','email2',
    'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(id){s(id,'');});
   s('filename','Flyer {empresa}');
+  s('benef-nombre','');s('benef-importe','24.000');_fgBenefManual=false;
   if(_fgA3)toggleA3();if(_fgA4)toggleA4();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
   _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
@@ -3045,6 +3219,7 @@ function _installFlyerEngine(){
   window.genAll=fgGenAll;window.dlTemplate=fgDlTemplate;   // masivo + plantilla con 3 y 4
   window.drawAll=fgDrawAll;window.drawEmpresa=fgDrawEmpresa;window.drawMontos=fgDrawMontos;
   window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
+  window.drawBenef=fgDrawBenef;                    // Flyer Rubros
   window.splitBoldRegular=fgSplitBold;
   window.redraw=fgRedraw;window.fullRes=fgFullRes; // recorte responsive del blanco inferior
   window.showToast=fgShowToast;                    // toast con debounce (el template lo pisaba)
@@ -3218,13 +3393,22 @@ var _CAL_ZONES=[
   {id:'asesores',label:'Asesores',color:'#c0392b'},
   {id:'legal',label:'Legales',color:'#0e8a5f'}
 ];
+// Zonas extra del cartel "Beneficio exclusivo": sólo para opciones de Flyer Rubros.
+var _CAL_ZONES_RUBROS=[
+  {id:'benefTitulo',label:'Título beneficio',color:'#f5921e'},
+  {id:'benefTope',label:'Tope',color:'#b26a00'}
+];
+function _calEsRubros(){return !!(_cal&&_optSolapa(_cal.opt)==='rubros');}
+function _calZones(){return _calEsRubros()?_CAL_ZONES_RUBROS.concat(_CAL_ZONES):_CAL_ZONES;}
 var _CAL_SAMPLE_LEGAL="Ejemplo de términos y condiciones del flyer. **Bonificación de comisiones** por 6 meses para nuevos clientes. Promociones sujetas a disponibilidad y a las bases y condiciones vigentes.\nPARA MÁS INFORMACIÓN O LIMITACIONES APLICABLES, CONSULTE EN: www.bancogalicia.com.ar";
 function _calSampleVals(){
+  var rub=_calEsRubros();
   return {empresa:'EMPRESA EJEMPLO S.A.',
     m1:'$100.000',m2:'$80.000',m3:'$50.000',m4:'$30.000',
     has1:true,nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar',
     has2:true,nombre2:'Segundo Asesor',celular2:'11 8765 4321',email2:'segundo.asesor@bancogalicia.com.ar',
-    legal:(_cal&&_cal.legalText)||_CAL_SAMPLE_LEGAL};
+    legal:(_cal&&_cal.legalText)||_CAL_SAMPLE_LEGAL,
+    benef:rub,benefNombre:rub?'EMPRESA EJEMPLO':'',importe:rub?'$24.000':''};
 }
 function _calEnsureDom(){
   if(document.getElementById('cal-modal'))return;
@@ -3244,7 +3428,14 @@ function _calEnsureDom(){
     'html.dark .cal-body{background:#15161a}'+
     '.cal-body canvas{background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18);touch-action:none;align-self:flex-start;cursor:grab}'+
     '.cal-ft{padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);display:flex;gap:10px;align-items:center;font-size:.72rem;color:var(--gray,#777)}'+
-    '.cal-ft .sp{flex:1}';
+    '.cal-ft .sp{flex:1}'+
+    // Textos fijos del cartel del beneficio (sólo Flyer Rubros)
+    '#cal-benef-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.7rem}'+
+    '#cal-benef-row.show{display:block}'+
+    '.cal-bl{display:grid;grid-template-columns:110px 1fr 1fr 64px;gap:6px;align-items:center;margin-bottom:5px}'+
+    '.cal-bl b{font-size:.68rem}'+
+    '.cal-bl input{padding:4px 6px;font-size:.7rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;min-width:0}'+
+    '.cal-bl-head{color:var(--gray,#777);font-size:.62rem;text-transform:uppercase;letter-spacing:.4px}';
   document.head.appendChild(st);
   var m=document.createElement('div');m.id='cal-modal';
   m.innerHTML=
@@ -3259,6 +3450,19 @@ function _calEnsureDom(){
         '<button class="usr-btn edit" style="font-size:.65rem;padding:4px 9px" onclick="document.getElementById(\'cal-height\').value=\'\';_calHeightChanged()">Auto</button>'+
         '<span style="color:var(--gray)">vac&iacute;o = corta solo despu&eacute;s de los legales (l&iacute;nea naranja)</span>'+
       '</div>'+
+      // Flyer Rubros: qué texto fijo va antes y después del nombre / del importe, y el tamaño de letra
+      '<div id="cal-benef-row">'+
+        '<div class="cal-bl cal-bl-head"><span>Cartel del beneficio</span><span>Texto antes</span><span>Texto despu&eacute;s</span><span>Letra px</span></div>'+
+        '<div class="cal-bl"><b style="color:#f5921e">T&iacute;tulo (+ nombre)</b>'+
+          '<input id="cal-bt-pre" placeholder="&iexcl;Beneficio exclusivo " oninput="_calBenefTexto(\'titulo\',\'pre\',this.value)">'+
+          '<input id="cal-bt-post" placeholder="!" oninput="_calBenefTexto(\'titulo\',\'post\',this.value)">'+
+          '<input id="cal-bt-fs" type="number" min="8" max="120" oninput="_calBenefTexto(\'titulo\',\'fs\',this.value)"></div>'+
+        '<div class="cal-bl"><b style="color:#b26a00">Tope (+ importe)</b>'+
+          '<input id="cal-bp-pre" placeholder="Tope de reintegro mensual " oninput="_calBenefTexto(\'tope\',\'pre\',this.value)">'+
+          '<input id="cal-bp-post" placeholder=" (5)" oninput="_calBenefTexto(\'tope\',\'post\',this.value)">'+
+          '<input id="cal-bp-fs" type="number" min="8" max="120" oninput="_calBenefTexto(\'tope\',\'fs\',this.value)"></div>'+
+        '<div style="color:var(--gray);font-size:.64rem">Ej.: para que salga &laquo;Tope de reintegro mensual $24.000 (5)&raquo;, texto despu&eacute;s = &laquo; (5)&raquo;. El nombre y el importe los carga cada asesor.</div>'+
+      '</div>'+
       '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
     '</div>';
   document.body.appendChild(m);
@@ -3268,9 +3472,26 @@ function _calEnsureDom(){
   window.addEventListener('pointerup',_calUp);
   document.addEventListener('keydown',_calKey);
 }
+// Escribe pre/post/fs de una línea del cartel del beneficio y redibuja.
+function _calBenefTexto(zona,k,val){
+  if(!_cal||!_cal.cfg.benef||!_cal.cfg.benef[zona])return;
+  if(k==='fs'){var n=parseInt(val,10);if(!(n>=8))return;_cal.cfg.benef[zona].fs=n;}
+  else _cal.cfg.benef[zona][k]=String(val==null?'':val);
+  _calDraw();
+}
+// Refleja el cfg en los inputs de textos (al abrir el calibrador) y muestra la fila sólo en Rubros.
+function _calBenefRowSync(){
+  var row=document.getElementById('cal-benef-row');if(!row)return;
+  var rub=_calEsRubros();row.classList.toggle('show',rub);
+  if(!rub||!_cal.cfg.benef)return;
+  var B=_cal.cfg.benef;
+  function s(id,v){var e=document.getElementById(id);if(e)e.value=(v==null?'':v);}
+  s('cal-bt-pre',B.titulo.pre);s('cal-bt-post',B.titulo.post);s('cal-bt-fs',B.titulo.fs);
+  s('cal-bp-pre',B.tope.pre);s('cal-bp-post',B.tope.post);s('cal-bp-fs',B.tope.fs);
+}
 function _calRenderLegend(){
   var el=document.getElementById('cal-legend');if(!el)return;
-  el.innerHTML=_CAL_ZONES.map(function(z){
+  el.innerHTML=_calZones().map(function(z){
     var on=_cal&&_cal.sel===z.id;
     return '<span class="cal-chip'+(on?' on':'')+'" style="color:'+z.color+'" onclick="_calSelect(\''+z.id+'\')"><span class="dot" style="background:'+z.color+'"></span>'+z.label+'</span>';
   }).join('');
@@ -3294,6 +3515,10 @@ function _calZoneRects(){
   r.montos={x:minx,y:M.y-M.mh/2,w:maxx-minx,h:M.mh};
   r.asesores={x:C.ex,y:C.ey+DBOT,w:C.ew,h:C.eh};
   r.legal={x:L.x0,y:L.yStart+DBOT,w:L.maxW,h:(L.yEnd-L.yStart)};
+  if(_calEsRubros()&&cfg.benef){
+    function bz(Z){return {x:(Z.align==='center')?Z.x-Z.mw/2:Z.x,y:Z.y-Z.h/2,w:Z.mw,h:Z.h};}
+    r.benefTitulo=bz(cfg.benef.titulo);r.benefTope=bz(cfg.benef.tope);
+  }
   return r;
 }
 function _calDraw(){
@@ -3317,7 +3542,7 @@ function _calDraw(){
     g.restore();
   }
   var rects=_calZoneRects();
-  _CAL_ZONES.forEach(function(z){
+  _calZones().forEach(function(z){
     var r=rects[z.id];if(!r)return;var x=r.x*ds,y=r.y*ds,w=r.w*ds,h=r.h*ds,on=_cal.sel===z.id;
     g.save();g.strokeStyle=z.color;g.lineWidth=on?2.5:1.5;g.setLineDash(on?[]:[6,4]);
     g.strokeRect(x,y,w,h);g.setLineDash([]);
@@ -3331,7 +3556,7 @@ function _calXY(e){var cv=document.getElementById('cal-cv');var rc=cv.getBoundin
 function _calHit(bx,by){
   var rects=_calZoneRects(),L=rects.legal;
   if(L&&Math.abs(bx-(L.x+L.w))<16&&Math.abs(by-(L.y+L.h))<16)return {zone:'legal',handle:'br'};
-  var order=['empresa','montos','asesores','legal'];
+  var order=['benefTitulo','benefTope','empresa','montos','asesores','legal'];
   for(var i=0;i<order.length;i++){var r=rects[order[i]];if(r&&bx>=r.x&&bx<=r.x+r.w&&by>=r.y&&by<=r.y+r.h)return {zone:order[i],handle:null};}
   return null;
 }
@@ -3349,8 +3574,10 @@ function _calMove(e){
 }
 function _calUp(){if(_cal&&_cal.drag)_cal.drag=null;}
 function _calApply(drag,dx,dy){
-  var cfg=_cal.cfg,E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal;
-  if(drag.zone==='empresa'){E.yc+=dy;E.xc+=dx;E.ex+=dx;}
+  var cfg=_cal.cfg,E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal,B=cfg.benef;
+  if(drag.zone==='benefTitulo'&&B){B.titulo.x+=dx;B.titulo.y+=dy;}
+  else if(drag.zone==='benefTope'&&B){B.tope.x+=dx;B.tope.y+=dy;}
+  else if(drag.zone==='empresa'){E.yc+=dy;E.xc+=dx;E.ex+=dx;}
   else if(drag.zone==='montos'){M.y+=dy;M.boxes.forEach(function(b){b.xc+=dx;});}
   else if(drag.zone==='asesores'){C.ey+=dy;C.y1+=dy;C.y2+=dy;C.y3+=dy;C.xSingle+=dx;C.xLeft+=dx;C.xRight+=dx;}
   else if(drag.zone==='legal'){
@@ -3386,12 +3613,14 @@ function _calOpen(img,name,url,opt){
   _cal={img:img,name:name,url:url,opt:opt,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
     ds:Math.min(560,(window.innerWidth||600)-70)/_FG_TARGET_W};
   document.getElementById('cal-modal').classList.add('show');
-  var t=document.getElementById('cal-title');if(t)t.textContent='Calibrar flyer — '+_optLabel(opt);
+  var t=document.getElementById('cal-title');if(t)t.textContent='Calibrar flyer — '+_optLabel(opt)+(_calEsRubros()?' (Flyer Rubros)':'');
   var hInput=document.getElementById('cal-height');if(hInput)hInput.value='';
-  _calRenderLegend();_calDraw();
+  _calRenderLegend();_calBenefRowSync();_calDraw();
   _loadFlyerCfgs(function(m){
+    if(!_cal||_cal.name!==name)return; // se cerró o se abrió otro mientras cargaba
     if(m&&m[name]){try{_calMergeCfg(_cal.cfg,m[name]);}catch(e){}}
     var hi=document.getElementById('cal-height');if(hi)hi.value=_cal.cfg.cropH?_cal.cfg.cropH:'';
+    _calBenefRowSync();
     // preview con el legal REAL de esa opción, para ver cuánto ocupa
     loadGlobalLegal(false,opt).then(function(txt){
       if(_cal){_cal.legalText=(txt&&txt.trim())?txt:_CAL_SAMPLE_LEGAL;_calDraw();}
@@ -3488,6 +3717,7 @@ function logFlyerToSupabase(v,fn,fmt){
       if(v[k])extra[k]=v[k];
     });
     extra.asesores=_fgAsesores(v).length;
+    if(v.benef){extra.beneficio=v.benefNombre||'';extra.importe=v.importe||'';} // Flyer Rubros
   }
   _sb.from('flyer_logs').insert({
     user_id:_me.id,
@@ -3568,6 +3798,8 @@ function fgGenAll(){
   if(!window.excelData||!excelData.length)return;
   var total=excelData.length,cur=0,zip=new JSZip(),usados={};
   var legalText=document.getElementById('legal-text').value;
+  // Flyer Rubros: si la fila no trae importe, se usa el del formulario (uno para todos)
+  var enRubros=(_fgVista==='rubros'),impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||'');
   logFlyerBulkToSupabase(total);
   var pb=document.getElementById('prog-bar'),pf=document.getElementById('prog-fill'),
       pt=document.getElementById('prog-text'),bg=document.getElementById('btn-gen');
@@ -3599,6 +3831,11 @@ function fgGenAll(){
     var cfg=CONFIGS[ci<0?0:ci];
     var v={empresa:(row.empresa||row.Empresa||'flyer'+(cur+1)),
       nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
+    if(enRubros){
+      v.benef=true;
+      v.benefNombre=String(row.beneficio||row.Beneficio||'').trim()||v.empresa;
+      v.importe=_fgFmtImporte(row.importe||row.Importe||'')||impForm;
+    }
     [1,2,3,4].forEach(function(i){
       var sfx=(i===1)?'':String(i);
       var nom=pick(row,i,'nombre'),ce=pick(row,i,'celular'),ma=pick(row,i,'email');
@@ -3632,10 +3869,18 @@ function fgDlTemplate(){
   var data=[head,
     ['Empresa Ejemplo S.A.','Nombre Apellido','11 1234 5678','nombre.apellido@bancogalicia.com.ar','','','','','','','','','','BAU'],
     ['Empresa XYZ','Carlos Lopez','11 4444 5555','carlos.lopez@bancogalicia.com.ar','Ana Perez','11 5555 6666','ana.perez@bancogalicia.com.ar','','','','','','','Config 1']];
+  var cols=[{wch:22}].concat([1,2,3,4].reduce(function(a){return a.concat([{wch:22},{wch:16},{wch:38}]);},[]),[{wch:10}]);
+  // Flyer Rubros: nombre del cartel (vacío = la empresa) e importe del tope (vacío = el del formulario)
+  var enRubros=(_fgVista==='rubros');
+  if(enRubros){
+    head.push('beneficio','importe');
+    data[1].push('EMPRESA EJEMPLO','24.000');data[2].push('','24.000');
+    cols.push({wch:22},{wch:12});
+  }
   var ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:22}].concat([1,2,3,4].reduce(function(a){return a.concat([{wch:22},{wch:16},{wch:38}]);},[]),[{wch:10}]);
+  ws['!cols']=cols;
   XLSX.utils.book_append_sheet(wb,ws,'Flyers');
-  XLSX.writeFile(wb,'Plantilla_Flyers_Galicia.xlsx');
+  XLSX.writeFile(wb,enRubros?'Plantilla_Flyers_Rubros.xlsx':'Plantilla_Flyers_Galicia.xlsx');
   showToast('Plantilla descargada!');
 }
 
@@ -3689,6 +3934,9 @@ function loadRegistros(){
         var optBadge=ex.opcion?_optBadge(ex.opcion,'font-size:.58rem;margin-left:4px'):'';
         var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">MASIVO</span>':'';
         var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+_escHtml(ex.config)+'</span>':'';
+        // Flyer Rubros: tope del beneficio (y el nombre del cartel si difiere de la empresa)
+        if(ex.importe)cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Tope de reintegro del beneficio exclusivo">Tope '+_escHtml(ex.importe)+'</span>';
+        if(ex.beneficio&&ex.beneficio!==(row.empresa||''))cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Nombre en el cartel del beneficio">'+_escHtml(ex.beneficio)+'</span>';
         var cfgWrap=cfgHtml?'<div class="reg-montos">'+cfgHtml+'</div>':'';
         var asesorHtml=ex.nombre?'<div style="font-size:.68rem;color:#555;margin-top:3px"><b>Asesor:</b> '+_escHtml(ex.nombre)+(ex.celular?' &middot; '+_escHtml(ex.celular):'')+(ex.email?' &middot; '+_escHtml(ex.email):'')+'</div>':'';
         return '<div class="reg-row">'+
@@ -3737,6 +3985,9 @@ function exportRegistros(){
           'Usuario':profileMap[row.user_id]||row.user_id||'',
           'Empresa':row.empresa||'',
           'Configuración':ex.config||'',
+          'Opción':ex.opcion?_optLabel(ex.opcion):'',
+          'Beneficio (Rubros)':ex.beneficio||'',
+          'Tope (Rubros)':ex.importe||'',
           'Nombre Asesor 1':ex.nombre||'',
           'Cel Asesor 1':ex.celular||'',
           'Email Asesor 1':ex.email||'',
@@ -3747,7 +3998,7 @@ function exportRegistros(){
         };
       });
       var ws=XLSX.utils.json_to_sheet(rows);
-      ws['!cols']=[{wch:22},{wch:28},{wch:32},{wch:14},{wch:28},{wch:18},{wch:36},{wch:28},{wch:18},{wch:36},{wch:8}];
+      ws['!cols']=[{wch:22},{wch:28},{wch:32},{wch:14},{wch:16},{wch:24},{wch:14},{wch:28},{wch:18},{wch:36},{wch:28},{wch:18},{wch:36},{wch:8}];
       var wb=XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb,ws,'Registros');
       XLSX.writeFile(wb,'registros_flyers_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx');
@@ -5767,8 +6018,10 @@ function _tourStyle(){
 // perfil. antes: deja la pantalla lista para que el elemento sea visible.
 function _tourCapitulos(){
   var puedePad=_can('padron_buscar'),puedePegar=_can('pegar_oficial'),puedeNotas=_can('notas'),
-      puedeAs=_can('asesores_guardados'),puedePromos=_can('promos_buscar'),varias=_facOpts().length>1;
+      puedeAs=_can('asesores_guardados'),puedePromos=_can('promos_buscar'),varias=_facOptsDe('flyer').length>1,
+      puedeRubros=_facOptsDe('rubros').length>0;
   function irIndividual(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('individual');}
+  function irRubros(){closeUserMenu();if(typeof switchApp==='function')switchApp('rubros');if(typeof switchTab==='function')switchTab('individual');}
   function irMasivo(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('masivo');}
   function irHistorial(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('historial');}
   function irPromos(){closeUserMenu();if(typeof switchApp==='function')switchApp('promos');}
@@ -5848,6 +6101,14 @@ function _tourCapitulos(){
       {target:'#fg-optbar',titulo:'Varios armadores',
        texto:'Cada opci&oacute;n tiene su propio flyer y su propio legal. Cambi&aacute;s ac&aacute; y todo lo dem&aacute;s (individual, masivo, historial) usa el flyer de esa opci&oacute;n. Los datos que cargaste no se pierden al cambiar.',
        antes:irIndividual}
+    ]},
+    {id:'rubros',titulo:'Flyer Rubros',cond:puedeRubros,pasos:[
+      {target:'#apptab-rubros',titulo:'Flyers con beneficio exclusivo',
+       texto:'El mismo armador, pero con los flyers que traen el cuadro <strong>&laquo;&iexcl;Beneficio exclusivo EMPRESA!&raquo;</strong> (combustible, supermercado...). Eleg&iacute;s el rubro en la barra de arriba del formulario.',
+       antes:irRubros},
+      {target:'#fg-benef-fields',titulo:'Nombre y tope del beneficio',
+       texto:'El nombre del cartel se copia solo de la empresa (pod&eacute;s cambiarlo). El <strong>tope de reintegro</strong> lo escrib&iacute;s vos: &laquo;24000&raquo; sale como <strong>$24.000</strong>.',
+       antes:irRubros}
     ]}
   ];
 }
@@ -6021,6 +6282,9 @@ function _opcStyle(){
     '.opc-row input[type=text]:focus{border-color:var(--red,#c62828)}'+
     'html.dark .opc-row input[type=text]{border-color:#3a3e46}'+
     '.opc-row input[type=color]{width:38px;height:34px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:2px;background:none;cursor:pointer}'+
+    '.opc-row .opc-sol{height:34px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:0 8px;font-size:.76rem;font-family:inherit;background:none;color:inherit;cursor:pointer}'+
+    '.opc-row .opc-sol:disabled{opacity:.6;cursor:default}'+
+    'html.dark .opc-row .opc-sol{border-color:#3a3e46;background:#22242a}'+
     '.opc-est{font-size:.68rem;color:var(--gray,#888);flex-basis:100%;padding-left:44px}'+
     '.opc-est b{color:var(--green,#1a9c50)}';
   document.head.appendChild(st);
@@ -6031,7 +6295,7 @@ function renderOpcionesAdmin(force){
   if(force||!_opcEdit){
     host.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando...</p>';
     loadOpciones(!!force,function(){
-      _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n)};});
+      _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n),solapa:_optSolapa(n)};});
       _opcPintar();
       // qué tiene cada una (flyer activo o no), para que quitar sea con información
       _opcEdit.forEach(function(o){
@@ -6049,6 +6313,10 @@ function _opcPintar(){
       '<div class="opc-num" style="background:'+_escHtml(o.color)+'">'+o.n+'</div>'+
       '<input type="text" maxlength="40" value="'+_escHtml(o.nombre)+'" placeholder="Nombre de la opci&oacute;n" oninput="_opcSet('+i+',\'nombre\',this.value)">'+
       '<input type="color" value="'+_escHtml(o.color)+'" title="Color" oninput="_opcSet('+i+',\'color\',this.value)">'+
+      // Solapa del header en la que vive la opción. La 1 es siempre Flyer Galicia.
+      '<select class="opc-sol" title="En qu&eacute; solapa del header aparece" onchange="_opcSet('+i+',\'solapa\',this.value)"'+(o.n===1?' disabled':'')+'>'+
+        _OPC_SOLAPAS.map(function(s){return '<option value="'+s+'"'+(o.solapa===s?' selected':'')+'>'+_escHtml(_solapaLabel(s))+'</option>';}).join('')+
+      '</select>'+
       (o.n===1?'<span style="font-size:.66rem;color:var(--gray)">La de todos los asesores</span>':
         '<button type="button" class="usr-btn warn" onclick="_opcQuitar('+i+')">Quitar</button>')+
       '<div class="opc-est" id="opc-est-'+o.n+'"></div>'+
@@ -6071,7 +6339,7 @@ function _opcAgregar(){
   if(!_opcEdit)return;
   var max=_opcEdit.reduce(function(m,o){return Math.max(m,o.n);},0);
   var n=max+1;
-  _opcEdit.push({n:n,nombre:'Opción '+n,color:_OPC_PALETA[(n-1)%_OPC_PALETA.length]});
+  _opcEdit.push({n:n,nombre:'Opción '+n,color:_OPC_PALETA[(n-1)%_OPC_PALETA.length],solapa:'flyer'});
   _opcActivos[n]=_opcActivos[n]||'';
   _opcPintar();
   var inp=document.querySelector('.opc-row[data-n="'+n+'"] input[type=text]');if(inp){inp.focus();inp.select();}
@@ -6096,8 +6364,9 @@ function _opcGuardar(){
     _FAC=_facMerge(_FAC);            // aparece/desaparece la fila opcion_N
     if(document.getElementById('fac-grid')&&document.getElementById('at-facultades').style.display!=='none')renderFacultades();
     _legalesRender();                // sub-solapas de Legales
-    _facSyncOptBar();                // barra del armador (y salta de una opción quitada)
-    _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n)};});
+    _fgSyncVista();                  // la opción activa pudo cambiar de solapa
+    _applyFacultades();              // barra del armador (salta de una opción quitada) + solapa "Flyer Rubros" del header
+    _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n),solapa:_optSolapa(n)};});
     _opcPintar();
     var nuevas=_FG_OPTS.filter(function(n){return antes.indexOf(n)<0;});
     showToast(nuevas.length
