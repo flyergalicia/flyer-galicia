@@ -3068,27 +3068,54 @@ var FLYER_CFG_DEFAULT = {
   legal:{x0:39,yStart:5595,yEnd:6300,maxW:1162,fs:12,lh:17,gap:5,
     minFs:7,minLh:10,minGap:3,color:"#222222",bg:"#ffffff"},
   // Flyer Rubros: las dos líneas del cuadro "Beneficio exclusivo". Se dibujan
-  // ENTERAS (pre + valor + post) sobre un rectángulo que TAPA la zona, así el
-  // PDF limpio viene sin esas líneas y el importe puede tener cualquier largo.
-  // El color del rectángulo se MUESTREA del propio flyer al lado de la zona
-  // (bg es sólo el fallback): con un color fijo quedaba una franja visible
-  // porque el panel del cuadro es durazno (#f7e6dc), no crema. Ancladas arriba
-  // (el cuadro está en la mitad superior). x = borde izquierdo si align:left,
-  // centro si align:center. Posiciones, tamaños y colores medidos sobre los
-  // PDFs reales (SIEMENS combustible/supermercado, rasterizados a 1240px); el
-  // admin los termina de acomodar en el calibrador.
+  // ENTERAS (pre + valor + post) — el PDF limpio viene sin esas líneas, así el
+  // importe puede tener cualquier largo. SÓLO se inyecta el texto: no se tapa
+  // nada (tapar:false), para no pisar el arte del cuadro; tapar:true (en el
+  // calibrador) queda para un PDF que traiga la línea impresa, y en ese caso el
+  // color se muestrea del propio flyer (bg es el fallback).
+  // Tipografía: Figtree (Google Fonts, la carga _fgBenefFont) con peso 800 en
+  // el título y 500 en el tope — comparada sobre el PDF real contra 14
+  // candidatas, es la que calza con la letra del flyer ("25% de ahorro...").
+  // Ancladas arriba (el cuadro está en la mitad superior). x = borde izquierdo
+  // si align:left, centro si align:center. Posiciones, tamaños y colores
+  // medidos sobre los PDFs reales (SIEMENS combustible/supermercado,
+  // rasterizados a 1240px); el admin los termina de acomodar en el calibrador.
   benef:{
-    titulo:{x:380,y:2628,fs:44,mw:780,h:56,pad:24,bold:true,bg:"#f7e6dc",align:"left",color:"#fa6400",pre:"¡Beneficio exclusivo ",post:"!"},
-    tope:{x:660,y:2761,fs:19,mw:560,h:28,pad:24,bold:false,bg:"#f7e6dc",align:"center",color:"#000000",pre:"Tope de reintegro mensual ",post:""}
+    titulo:{x:390,y:2630,fs:42,mw:780,h:52,pad:24,peso:800,tapar:false,bg:"#f7e6dc",align:"left",color:"#fa6400",pre:"¡Beneficio exclusivo ",post:"!"},
+    tope:{x:640,y:2757,fs:17,mw:560,h:26,pad:24,peso:500,tapar:false,bg:"#f7e6dc",align:"center",color:"#000000",pre:"Tope de reintegro mensual ",post:""}
   }
 };
+var _FG_BENEF_FONT='Figtree';
+// Carga la tipografía del cartel (Google Fonts) y, cuando está lista, redibuja:
+// el canvas usa la que tenga disponible al momento de dibujar, así que sin
+// esto el primer flyer saldría en Arial. Idempotente.
+function _fgBenefFont(){
+  if(_fgBenefFont._done)return;_fgBenefFont._done=true;
+  try{
+    if(!document.getElementById('fg-benef-font')){
+      var l=document.createElement('link');l.id='fg-benef-font';l.rel='stylesheet';
+      l.href='https://fonts.googleapis.com/css2?family=Figtree:wght@500;800&display=swap';
+      document.head.appendChild(l);
+    }
+    if(document.fonts&&document.fonts.load){
+      Promise.all([document.fonts.load('800 42px "'+_FG_BENEF_FONT+'"'),document.fonts.load('500 17px "'+_FG_BENEF_FONT+'"')])
+        .then(function(){if(typeof redraw==='function')redraw();}).catch(function(){});
+    }
+  }catch(e){}
+}
 // Calibraciones guardadas con los colores del primer default (antes de medir
 // los PDFs reales): se traducen al color real para que el flyer salga bien sin
 // tener que recalibrar. Muta el objeto que recibe.
 function _fgBenefMigra(B){
   if(!B)return B;
-  if(B.titulo&&B.titulo.color==='#f5921e')B.titulo.color='#fa6400';
-  if(B.tope&&B.tope.color==='#222222')B.tope.color='#000000';
+  if(B.titulo){
+    if(B.titulo.color==='#f5921e')B.titulo.color='#fa6400';
+    if(!B.titulo.peso){B.titulo.peso=800;if(B.titulo.fs===44)B.titulo.fs=42;} // tamaño con Arial → Figtree
+  }
+  if(B.tope){
+    if(B.tope.color==='#222222')B.tope.color='#000000';
+    if(!B.tope.peso){B.tope.peso=500;if(B.tope.fs===19||B.tope.fs===20)B.tope.fs=17;}
+  }
   return B;
 }
 function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if(b[k2]!=null)o[k2]=b[k2];return o;}
@@ -3099,7 +3126,7 @@ function _fgCfg(){
     bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
     empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
     contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal),
-    benef:_fgBenefMigra({titulo:_fgMerge(d.benef.titulo,cb.titulo),tope:_fgMerge(d.benef.tope,cb.tope)})};
+    benef:{titulo:_fgMerge(d.benef.titulo,_fgBenefMigra(cb).titulo),tope:_fgMerge(d.benef.tope,cb.tope)}};
 }
 // Escala efectiva: ajusta por el ancho real de la imagen. Mismo template (ancho=imgW) => se=s.
 function _fgSE(s){var C=_fgCfg();var iw=C.imgW||1240;return (window.baseImg&&baseImg.width)?s*baseImg.width/iw:s;}
@@ -3202,12 +3229,11 @@ function fgDrawEmpresa(c,s,empresa){
   }
 }
 // Flyer Rubros: "¡Beneficio exclusivo NOMBRE!" y "Tope de reintegro mensual $24.000".
-// Cada línea tapa su zona y escribe pre+valor+post; si no entra en mw se achica
-// la letra (como el nombre de empresa). Sin importe, la línea del tope se tapa
-// igual pero no se escribe.
-// El color con que se tapa se MUESTREA del flyer (mediana de 10 píxeles justo
-// arriba y abajo del rectángulo): así el parche es indistinguible del panel,
-// venga del color que venga. Si el canvas no deja leer píxeles, cae en Z.bg.
+// Cada línea escribe pre+valor+post; si no entra en mw se achica la letra (como
+// el nombre de empresa). Sin importe, la línea del tope no se escribe.
+// Sólo si Z.tapar está prendido se pinta antes un rectángulo: el color se
+// MUESTREA del flyer (mediana de 10 píxeles justo arriba y abajo), así el parche
+// es indistinguible del panel. Si el canvas no deja leer píxeles, cae en Z.bg.
 function _fgBenefBg(c,Z,x0,y0,w,h,se){
   try{
     var m=Math.max(3,Math.round(4*se)),rs=[],gs=[],bs=[];
@@ -3226,15 +3252,20 @@ function fgDrawBenef(c,s,v){
   var B=_fgCfg().benef,se=_fgSE(s);
   function linea(Z,valor){
     var x=Math.round(Z.x*se),y=Math.round(Z.y*se),mw=Math.round(Z.mw*se),h=Math.round(Z.h*se),fs=Math.round(Z.fs*se);
-    var center=(Z.align==='center'),pad=Math.round((Z.pad!=null?Z.pad:24)*se);
-    // el parche tapa un margen extra a cada lado: un desfase chico no deja restos
-    var x0=(center?x-Math.round(mw/2):x)-pad,y0=y-Math.round(h/2),pw=mw+pad*2;
-    c.fillStyle=_fgBenefBg(c,Z,x0,y0,pw,h,se);c.fillRect(x0,y0,pw,h);
+    var center=(Z.align==='center');
+    if(Z.tapar){
+      // el parche tapa un margen extra a cada lado: un desfase chico no deja restos
+      var pad=Math.round((Z.pad!=null?Z.pad:24)*se);
+      var x0=(center?x-Math.round(mw/2):x)-pad,y0=y-Math.round(h/2),pw=mw+pad*2;
+      c.fillStyle=_fgBenefBg(c,Z,x0,y0,pw,h,se);c.fillRect(x0,y0,pw,h);
+    }
     if(valor==null||String(valor).trim()==='')return;
-    var txt=(Z.pre||'')+valor+(Z.post||''),peso=(Z.bold===false)?'':'bold ';
-    c.font=peso+fs+"px Arial,sans-serif";
+    var txt=(Z.pre||'')+valor+(Z.post||'');
+    // peso numérico (800/500) con Figtree; si la fuente no cargó, el navegador cae en Arial
+    var peso=(Z.peso||(Z.bold===false?500:800)),fam='"'+_FG_BENEF_FONT+'",Arial,sans-serif';
+    c.font=peso+" "+fs+"px "+fam;
     var w=c.measureText(txt).width;
-    if(w>mw&&w>0){fs=Math.max(Math.floor(fs*mw/w),Math.max(1,Math.round(8*se)));c.font=peso+fs+"px Arial,sans-serif";}
+    if(w>mw&&w>0){fs=Math.max(Math.floor(fs*mw/w),Math.max(1,Math.round(8*se)));c.font=peso+" "+fs+"px "+fam;}
     c.fillStyle=Z.color||'#111';c.textBaseline="middle";
     c.textAlign=center?"center":"left";
     c.fillText(txt,x,y);
@@ -4746,6 +4777,7 @@ function _fgEnsureBenefFields(){
   });
   // el listener de #empresa del template ya redibuja; acá sólo copio el nombre antes
   emp.addEventListener('input',_fgBenefSyncNombre);
+  _fgBenefFont(); // la tipografía del cartel, lista antes del primer flyer de Rubros
 }
 // Deja visibles sólo los bloques que tienen datos (o están activos). Se usa al
 // iniciar y al Restaurar: nunca en medio de la edición.
@@ -5119,7 +5151,8 @@ function _calEnsureDom(){
     // Textos fijos del cartel del beneficio (sólo Flyer Rubros)
     '#cal-benef-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.7rem}'+
     '#cal-benef-row.show{display:block}'+
-    '.cal-bl{display:grid;grid-template-columns:110px 1fr 1fr 64px 44px;gap:6px;align-items:center;margin-bottom:5px}'+
+    '.cal-bl{display:grid;grid-template-columns:110px 1fr 1fr 64px 44px 52px;gap:6px;align-items:center;margin-bottom:5px}'+
+    '.cal-bl label{display:flex;align-items:center;gap:3px;font-size:.62rem;color:var(--gray,#777);cursor:pointer}'+
     '.cal-bl b{font-size:.68rem}'+
     '.cal-bl input{padding:4px 6px;font-size:.7rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;min-width:0}'+
     '.cal-bl input[type=color]{padding:1px 2px;height:26px;cursor:pointer}'+
@@ -5140,18 +5173,20 @@ function _calEnsureDom(){
       '</div>'+
       // Flyer Rubros: qué texto fijo va antes y después del nombre / del importe, y el tamaño de letra
       '<div id="cal-benef-row">'+
-        '<div class="cal-bl cal-bl-head"><span>Cartel del beneficio</span><span>Texto antes</span><span>Texto despu&eacute;s</span><span>Letra px</span><span>Color</span></div>'+
+        '<div class="cal-bl cal-bl-head"><span>Cartel del beneficio</span><span>Texto antes</span><span>Texto despu&eacute;s</span><span>Letra px</span><span>Color</span><span>Tapar</span></div>'+
         '<div class="cal-bl"><b style="color:#f5921e">T&iacute;tulo (+ nombre)</b>'+
           '<input id="cal-bt-pre" placeholder="&iexcl;Beneficio exclusivo " oninput="_calBenefTexto(\'titulo\',\'pre\',this.value)">'+
           '<input id="cal-bt-post" placeholder="!" oninput="_calBenefTexto(\'titulo\',\'post\',this.value)">'+
           '<input id="cal-bt-fs" type="number" min="8" max="120" oninput="_calBenefTexto(\'titulo\',\'fs\',this.value)">'+
-          '<input id="cal-bt-col" type="color" title="Color del texto" oninput="_calBenefTexto(\'titulo\',\'color\',this.value)"></div>'+
+          '<input id="cal-bt-col" type="color" title="Color del texto" oninput="_calBenefTexto(\'titulo\',\'color\',this.value)">'+
+          '<label title="Pintar el fondo antes de escribir (s&oacute;lo si el PDF trae la l&iacute;nea impresa)"><input id="cal-bt-tapar" type="checkbox" onchange="_calBenefTexto(\'titulo\',\'tapar\',this.checked)">fondo</label></div>'+
         '<div class="cal-bl"><b style="color:#b26a00">Tope (+ importe)</b>'+
           '<input id="cal-bp-pre" placeholder="Tope de reintegro mensual " oninput="_calBenefTexto(\'tope\',\'pre\',this.value)">'+
           '<input id="cal-bp-post" placeholder=" (5)" oninput="_calBenefTexto(\'tope\',\'post\',this.value)">'+
           '<input id="cal-bp-fs" type="number" min="8" max="120" oninput="_calBenefTexto(\'tope\',\'fs\',this.value)">'+
-          '<input id="cal-bp-col" type="color" title="Color del texto" oninput="_calBenefTexto(\'tope\',\'color\',this.value)"></div>'+
-        '<div style="color:var(--gray);font-size:.64rem">Ej.: para que salga &laquo;Tope de reintegro mensual $24.000 (5)&raquo;, texto despu&eacute;s = &laquo; (5)&raquo;. El nombre y el importe los carga cada asesor. El fondo del parche se copia solo del flyer (no hay que elegirlo).</div>'+
+          '<input id="cal-bp-col" type="color" title="Color del texto" oninput="_calBenefTexto(\'tope\',\'color\',this.value)">'+
+          '<label title="Pintar el fondo antes de escribir (s&oacute;lo si el PDF trae la l&iacute;nea impresa)"><input id="cal-bp-tapar" type="checkbox" onchange="_calBenefTexto(\'tope\',\'tapar\',this.checked)">fondo</label></div>'+
+        '<div style="color:var(--gray);font-size:.64rem">Ej.: para que salga &laquo;Tope de reintegro mensual $24.000 (5)&raquo;, texto despu&eacute;s = &laquo; (5)&raquo;. El nombre y el importe los carga cada asesor. S&oacute;lo se inyecta el texto; &laquo;fondo&raquo; pinta un parche del color del flyer, para un PDF que traiga la l&iacute;nea impresa.</div>'+
       '</div>'+
       '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
     '</div>';
@@ -5167,6 +5202,7 @@ function _calBenefTexto(zona,k,val){
   if(!_cal||!_cal.cfg.benef||!_cal.cfg.benef[zona])return;
   if(k==='fs'){var n=parseInt(val,10);if(!(n>=8))return;_cal.cfg.benef[zona].fs=n;}
   else if(k==='color'){if(!/^#[0-9a-f]{6}$/i.test(val||''))return;_cal.cfg.benef[zona].color=String(val).toLowerCase();}
+  else if(k==='tapar')_cal.cfg.benef[zona].tapar=!!val;
   else _cal.cfg.benef[zona][k]=String(val==null?'':val);
   _calDraw();
 }
@@ -5175,10 +5211,12 @@ function _calBenefRowSync(){
   var row=document.getElementById('cal-benef-row');if(!row)return;
   var rub=_calEsRubros();row.classList.toggle('show',rub);
   if(!rub||!_cal.cfg.benef)return;
+  _fgBenefFont(); // que el preview use la tipografía real
   var B=_fgBenefMigra(_cal.cfg.benef);
   function s(id,v){var e=document.getElementById(id);if(e)e.value=(v==null?'':v);}
-  s('cal-bt-pre',B.titulo.pre);s('cal-bt-post',B.titulo.post);s('cal-bt-fs',B.titulo.fs);s('cal-bt-col',B.titulo.color||'#000000');
-  s('cal-bp-pre',B.tope.pre);s('cal-bp-post',B.tope.post);s('cal-bp-fs',B.tope.fs);s('cal-bp-col',B.tope.color||'#000000');
+  function ck(id,v){var e=document.getElementById(id);if(e)e.checked=!!v;}
+  s('cal-bt-pre',B.titulo.pre);s('cal-bt-post',B.titulo.post);s('cal-bt-fs',B.titulo.fs);s('cal-bt-col',B.titulo.color||'#000000');ck('cal-bt-tapar',B.titulo.tapar);
+  s('cal-bp-pre',B.tope.pre);s('cal-bp-post',B.tope.post);s('cal-bp-fs',B.tope.fs);s('cal-bp-col',B.tope.color||'#000000');ck('cal-bp-tapar',B.tope.tapar);
 }
 function _calRenderLegend(){
   var el=document.getElementById('cal-legend');if(!el)return;
