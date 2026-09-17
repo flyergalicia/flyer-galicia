@@ -336,14 +336,14 @@ function fgValidateExcel(rows){
   rows=rows||[];
   if(!rows.length){showToast('Archivo vacío');return;}
   var errors=[],warnings=[];
-  var validCfgs=['bau','config 1','config 2','config 3','config 4','1','2','3','4',''];
   rows.forEach(function(r,i){
     var n=i+2;
     if(!String(r.empresa||r.Empresa||'').trim())errors.push('Fila '+n+': empresa vacía');
     var mail=String(r.asesor1_email||r.email||'');
     if(mail&&mail.indexOf('@')<0)warnings.push('Fila '+n+': email sin @');
     var cfg=String(r.config||'').toLowerCase().trim();
-    if(cfg&&validCfgs.indexOf(cfg)<0)warnings.push('Fila '+n+': config "'+_escHtml(cfg)+'" inválida');
+    // misma lectura tolerante que el padrón y que genAll: vale cualquier config que exista hoy (Config → Cashback)
+    if(cfg&&_padCfgParse(cfg)<0&&!_padCfgSin(cfg))warnings.push('Fila '+n+': config "'+_escHtml(cfg)+'" inválida (sale sin cashback)');
     // Flyer Rubros: sin importe en la fila se usa el del formulario (no es error)
     if(_fgVista==='rubros'&&!_fgFmtImporte(_fgRowBenef(r).importe))warnings.push('Fila '+n+': sin importe (se usa el tope del formulario)');
   });
@@ -1728,21 +1728,53 @@ function descargarExcelPromos(){
   });
 }
 
-// ── CASHBACK: montos de BAU/Config 1-4 guardados en la nube (Supabase Storage) ──
+// ── CASHBACK: configs de montos (BAU, Config 1, 2, ...) guardadas en la nube ──
 // Así, cuando cambia un parámetro, el admin lo edita una vez y le pega a todos
 // los usuarios (asesor/VIP/admin) la próxima vez que entren o generen un flyer.
+// _cashback.json: {configs:[{nombre,m1,m2,m3,m4}, ...]}. La CANTIDAD de configs
+// también vive ahí: el admin agrega/quita desde Config → Cashback y los botones
+// del armador, el masivo y el padrón se rearman solos a partir de CONFIGS/CNAMES.
+// La primera (índice 0, "BAU") es la de fallback y no se puede quitar.
 var CASHBACK_FILE='_cashback.json',_cashbackLoaded=false;
+// Aplica una lista de configs sobre las globales CONFIGS/CNAMES de _source.html
+// (se editan EN EL LUGAR: el resto del código las referencia por variable).
+function _cbAplicar(list){
+  if(typeof CONFIGS==='undefined'||!Array.isArray(list)||!list.length)return;
+  var base=CONFIGS[0]||{m1:'',m2:'',m3:'',m4:''};
+  list.forEach(function(c,i){
+    if(!CONFIGS[i])CONFIGS[i]={m1:base.m1,m2:base.m2,m3:base.m3,m4:base.m4};
+    if(!c)return;
+    [1,2,3,4].forEach(function(n){if(c['m'+n]!=null)CONFIGS[i]['m'+n]=String(c['m'+n]);});
+    if(typeof CNAMES!=='undefined'){
+      var nom=String(c.nombre||'').replace(/[<>]/g,'').trim().slice(0,30);
+      CNAMES[i]=nom||(i===0?'BAU':('Config '+i));
+    }
+  });
+  CONFIGS.length=list.length;
+  if(typeof CNAMES!=='undefined')CNAMES.length=list.length;
+  // si la config activa dejó de existir, vuelvo a BAU
+  if(typeof ac!=='undefined'&&ac>=CONFIGS.length)window.ac=0;
+  _fgRenderCfgBtns();
+}
+// Botones "BAU / Config 1 / ..." del armador: se rearman según CONFIGS.
+function _fgRenderCfgBtns(){
+  var host=document.querySelector('.cfg-btns');if(!host||typeof CONFIGS==='undefined')return;
+  var cur=(typeof ac!=='undefined')?ac:0,noCB=(typeof _fgNoCB!=='undefined')&&_fgNoCB;
+  host.innerHTML=CONFIGS.map(function(c,i){
+    var nombre=(typeof CNAMES!=='undefined'&&CNAMES[i])?CNAMES[i]:(i===0?'BAU':'Config '+i);
+    return '<button class="cfg-btn'+((!noCB&&i===cur)?' active':'')+'" onclick="setCfg('+i+')">'+_escHtml(nombre)+'</button>';
+  }).join('');
+  if(!noCB&&CONFIGS[cur]){
+    ['d1','d2','d3','d4'].forEach(function(id,k){var e=document.getElementById(id);if(e)e.textContent=CONFIGS[cur]['m'+(k+1)];});
+  }
+}
 function loadCashback(force,cb){
   if(_cashbackLoaded&&!force){if(cb)cb();return;}
   fetch(FLYERS_PUBLIC+CASHBACK_FILE+'?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
     .then(function(d){
-      if(d&&Array.isArray(d.configs)&&typeof CONFIGS!=='undefined'){
-        d.configs.forEach(function(c,i){
-          if(!c||!CONFIGS[i])return;
-          [1,2,3,4].forEach(function(n){if(c['m'+n]!=null)CONFIGS[i]['m'+n]=String(c['m'+n]);});
-        });
-      }
+      if(d&&Array.isArray(d.configs)&&d.configs.length)_cbAplicar(d.configs);
+      else _fgRenderCfgBtns();
       _cashbackLoaded=true;
       if(cb)cb();
     }).catch(function(){_cashbackLoaded=true;if(cb)cb();});
@@ -1757,13 +1789,41 @@ function saveCashback(configs,cb){
       if(cb)cb(true);
     });
 }
+// Copia editable de las configs (lo que se ve en Config → Cashback). Se pisa
+// sobre CONFIGS/CNAMES recién al Guardar; mientras, la config activa se
+// previsualiza en vivo (ver _cbField).
+var _cbEdit=null;
+function _cbEditDesde(){
+  _cbEdit=CONFIGS.map(function(c,i){
+    return {nombre:(typeof CNAMES!=='undefined'&&CNAMES[i])?CNAMES[i]:(i===0?'BAU':'Config '+i),m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4};
+  });
+}
 function renderCashbackAdmin(){
   if(typeof _padEditStyle==='function')_padEditStyle(); // reutiliza el estilo de tarjeta (.pad-erow)
   var host=document.getElementById('cashback-list');if(!host||typeof CONFIGS==='undefined')return;
-  host.innerHTML=CONFIGS.map(function(c,i){
-    var nombre=(typeof CNAMES!=='undefined'&&CNAMES[i])?CNAMES[i]:('Config '+i);
-    return '<div class="pad-erow">'+
-      '<div style="font-weight:700;font-size:.82rem;margin-bottom:8px">'+_escHtml(nombre)+'</div>'+
+  if(!document.getElementById('cb-adm-style')){
+    var st=document.createElement('style');st.id='cb-adm-style';
+    st.textContent='.cb-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}'+
+      '.cb-title{font-weight:700;font-size:.86rem;cursor:text;padding:2px 6px;margin-left:-6px;border-radius:5px;border:1px dashed transparent}'+
+      '.cb-title:hover{border-color:var(--border,#ccc)}'+
+      '.cb-title-inp{font:inherit;font-weight:700;font-size:.86rem;padding:2px 6px;border:1px solid var(--red,#c33);border-radius:5px;background:#fff;color:inherit;max-width:220px}'+
+      'html.dark .cb-title-inp{background:#2c2f36}'+
+      '.cb-hint{font-size:.64rem;color:var(--gray,#777)}';
+    document.head.appendChild(st);
+  }
+  _cbEditDesde();
+  _cbPintar();
+}
+function _cbPintar(){
+  var host=document.getElementById('cashback-list');if(!host||!_cbEdit)return;
+  host.innerHTML=_cbEdit.map(function(c,i){
+    return '<div class="pad-erow" data-i="'+i+'">'+
+      '<div class="cb-head">'+
+        '<div class="cb-title" id="cb-title-'+i+'" title="Doble click para cambiar el nombre" ondblclick="_cbRenombrar('+i+')">'+_escHtml(c.nombre)+'</div>'+
+        '<span class="cb-hint">doble click para renombrar</span>'+
+        (i===0?'<span class="cb-hint" style="margin-left:auto">La de fallback: no se puede quitar</span>':
+          '<button type="button" class="usr-btn warn" style="margin-left:auto" onclick="_cbQuitar('+i+')">Quitar</button>')+
+      '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'+
         [1,2,3,4].map(function(n){
           return '<div><label class="login-lbl">Monto '+n+'</label>'+
@@ -1773,20 +1833,57 @@ function renderCashbackAdmin(){
     '</div>';
   }).join('');
 }
+// Doble click en el título → input en el lugar. Enter/salir del campo confirma,
+// Escape cancela. Se guarda en la nube recién con "Guardar cambios".
+function _cbRenombrar(i){
+  var c=_cbEdit&&_cbEdit[i],el=document.getElementById('cb-title-'+i);if(!c||!el)return;
+  var inp=document.createElement('input');inp.type='text';inp.maxLength=30;inp.className='cb-title-inp';inp.value=c.nombre;
+  var done=false;
+  function fin(ok){
+    if(done)return;done=true;
+    var v=inp.value.replace(/[<>]/g,'').trim();
+    if(ok&&v)c.nombre=v;
+    _cbPintar();
+  }
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();fin(true);}else if(e.key==='Escape'){fin(false);}});
+  inp.addEventListener('blur',function(){fin(true);});
+  el.replaceWith(inp);inp.focus();inp.select();
+}
+function _cbAgregar(){
+  if(!_cbEdit)_cbEditDesde();
+  var ult=_cbEdit[_cbEdit.length-1]||{m1:'',m2:'',m3:'',m4:''};
+  // arranca con los montos de la última, así sólo hay que retocar lo que cambia
+  _cbEdit.push({nombre:'Config '+_cbEdit.length,m1:ult.m1,m2:ult.m2,m3:ult.m3,m4:ult.m4});
+  _cbPintar();
+  var row=document.querySelector('#cashback-list .pad-erow[data-i="'+(_cbEdit.length-1)+'"]');
+  if(row){row.scrollIntoView({block:'nearest'});_cbRenombrar(_cbEdit.length-1);}
+}
+function _cbQuitar(i){
+  var c=_cbEdit&&_cbEdit[i];if(!c||i===0)return;
+  if(!confirm('¿Quitar "'+c.nombre+'"?\n\nDeja de aparecer en el armador para todos. Las empresas del padrón o filas del masivo que la tengan cargada van a salir SIN cashback hasta que les pongas otra.'))return;
+  _cbEdit.splice(i,1);
+  _cbPintar();
+}
 function _cbField(i,n,v){
-  if(typeof CONFIGS==='undefined'||!CONFIGS[i])return;
-  CONFIGS[i]['m'+n]=v;
-  if(typeof ac!=='undefined'&&ac===i&&typeof redraw==='function')redraw(); // preview en vivo si es la config activa
+  if(!_cbEdit||!_cbEdit[i])return;
+  _cbEdit[i]['m'+n]=v;
+  // preview en vivo si es la config activa
+  if(typeof CONFIGS!=='undefined'&&CONFIGS[i]&&typeof ac!=='undefined'&&ac===i){
+    CONFIGS[i]['m'+n]=v;var e=document.getElementById('d'+n);if(e&&!_fgNoCB)e.textContent=v;
+    if(typeof redraw==='function')redraw();
+  }
 }
 function saveCashbackChanges(){
-  if(typeof CONFIGS==='undefined')return;
+  if(typeof CONFIGS==='undefined'||!_cbEdit)return;
   var btn=document.getElementById('cashback-save');
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
-  var configs=CONFIGS.map(function(c){return {m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4};});
+  var configs=_cbEdit.map(function(c){return {nombre:c.nombre,m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4};});
   saveCashback(configs,function(ok){
     if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
     if(!ok)return;
-    showToast('Montos de cashback actualizados para todos');
+    _cbAplicar(configs);
+    _cbEditDesde();_cbPintar();
+    showToast('Cashback actualizado para todos ('+configs.length+' config'+(configs.length>1?'s':'')+')');
     if(typeof redraw==='function')redraw();
   });
 }
@@ -2149,7 +2246,7 @@ function uploadFile(file,opt){
   _upProg(true);showToast('Convirtiendo flyer...');
   _rasterizeFlyer(file,function(blob,cvs){
     if(!blob){_upProg(false);errEl.textContent='No se pudo procesar el archivo.';return;}
-    var imgName='flyer_'+Date.now()+'.jpg';
+    var imgName='flyer_'+Date.now()+'_op'+_optN(opt||1)+'.jpg'; // _opN: la opción queda en el nombre (ver _upOptDe)
     _sb.storage.from('flyers').upload(imgName,blob,{contentType:'image/jpeg',upsert:true}).then(function(r){
       _upProg(false);
       if(r.error){errEl.textContent='Error al subir: '+r.error.message;return;}
@@ -2192,6 +2289,22 @@ function _upDel(btn,i){var f=_upFile(i);if(f)deleteUpload(btn,f.name);}
 // escribe el admin, pero un href arbitrario (javascript:, otro dominio) no
 // tiene por qué colarse en el panel.
 function _upSafeUrl(u){return (typeof u==='string'&&u.indexOf(FLYERS_PUBLIC)===0)?u:null;}
+// Opción "de casa" de un archivo subido: en la que está activo; si no está
+// activo en ninguna, la que se eligió al subirlo (queda en el nombre del
+// archivo: flyer_<ts>_op<N>.jpg). Los archivos viejos sin sufijo no tienen.
+// Devuelve {act:[opciones donde está activo], home:N|0}.
+function _upOptDe(name){
+  var act=_FG_OPTS.filter(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===name;});
+  var home=act.length?act[0]:0;
+  if(!home){var m=/_op(\d+)\.[a-z0-9]+$/i.exec(name||'');if(m&&_FG_OPTS.indexOf(+m[1])!==-1)home=+m[1];}
+  return {act:act,home:home};
+}
+// "Replicar" el flyer en OTRA opción (cada flyer suele ser distinto, así que es
+// la excepción: por eso va en un botón chico aparte, no una fila de Op.1..Op.N).
+function _upActOtra(i){
+  var f=_upFile(i);if(!f)return;
+  _askOption('¿En qué otra opción activar "'+f.name+'"?',function(o){_upAct(i,null,o);});
+}
 function _renderUploadHistory(histEl){
   _sb.storage.from('flyers').list('',{limit:50,sortBy:{column:'created_at',order:'desc'}}).then(function(r){
     var files=(r.data||[]).filter(function(f){return !f.name.startsWith('_');});
@@ -2202,7 +2315,8 @@ function _renderUploadHistory(histEl){
       var hUrl=_upSafeUrl(d&&d.htmlUrl);
       return '<div class="af-banner"><div class="af-banner-info">'+
         _optBadge(o,'font-size:.62rem;padding:4px 8px')+
-        '<span class="af-banner-name">'+_escHtml(d.name||'')+'</span></div>'+
+        '<span class="af-banner-name" style="color:'+_optColor(o)+'">'+_escHtml(_optLabel(o))+'</span>'+
+        '<span class="af-banner-name" style="font-weight:400;color:var(--gray)">'+_escHtml(d.name||'')+'</span></div>'+
         '<div style="display:flex;gap:6px">'+
         (hUrl?'<a href="'+_escHtml(hUrl)+'" target="_blank" rel="noopener noreferrer" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
         '<button class="usr-btn warn" onclick="deactivateFlyer(this,'+o+')" style="font-size:.65rem;padding:5px 10px">Desactivar</button>'+
@@ -2212,28 +2326,36 @@ function _renderUploadHistory(histEl){
       histEl.innerHTML=banner+'<p style="color:var(--gray);font-size:.8rem;margin-top:12px">Sin versiones subidas aún.</p>';
       return;
     }
+    // Cada versión muestra a QUÉ OPCIÓN pertenece (nombre y color), que es lo que
+    // se necesita para saber cuál calibrar: el nombre del archivo solo no dice nada.
     histEl.innerHTML=banner+'<p class="ap-sec" style="margin-top:16px;margin-bottom:8px">Versiones disponibles</p>'+
       files.map(function(f,i){
         var ts=f.created_at?_fmtDate(f.created_at):'';
         var kb=f.metadata&&f.metadata.size?Math.round(f.metadata.size/1024)+' KB':'';
-        var actIn=_FG_OPTS.filter(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===f.name;});
-        var isAct=actIn.length>0;
+        var od=_upOptDe(f.name),isAct=od.act.length>0,home=od.home;
         var isImg=_uploadFiles[i].isImg;
         var tag=isImg?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
-        var actTags=actIn.map(function(o){return _optBadge(o,'margin-left:5px');}).join('');
-        function ab(o){
-          if(actIn.indexOf(o)!==-1)return '';
-          return '<button class="usr-btn ok" title="Activar en '+_optLabel(o)+'" style="border-color:'+_optColor(o)+';color:'+_optColor(o)+
-            '" onclick="_upAct('+i+',this,'+o+')">Op.'+o+'</button>';
+        var titulo;
+        if(home){
+          titulo=od.act.map(function(o){return _optBadge(o,'margin-right:5px');}).join('')+(isAct?'':_optBadge(home,'margin-right:5px;opacity:.55'))+
+            '<span style="color:'+_optColor(home)+'">'+_escHtml(_optLabel(home))+'</span>'+
+            (od.act.length>1?' <span style="font-weight:400;color:var(--gray)">+ '+od.act.slice(1).map(function(o){return _escHtml(_optLabel(o));}).join(', ')+'</span>':'')+
+            (isAct?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:var(--green,#2e7d32);color:#fff;margin-left:6px">ACTIVO</span>':
+              '<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eee;color:#666;margin-left:6px" title="Subido para esta opci&oacute;n, pero no es el flyer activo">NO ACTIVO</span>');
+        }else{
+          titulo='<span style="color:var(--gray)">Sin opci&oacute;n asignada</span>';
         }
-        var calBtn=isImg?'<button class="usr-btn edit" onclick="_upCal('+i+')">Calibrar</button>':'';
+        var btns='';
+        if(home&&!isAct)btns+='<button class="usr-btn ok" title="Activar en '+_escAttr(_optLabel(home))+'" style="border-color:'+_optColor(home)+';color:'+_optColor(home)+'" onclick="_upAct('+i+',this,'+home+')">Activar</button>';
+        if(!home)btns+='<button class="usr-btn ok" onclick="_upActOtra('+i+')">Activar en&hellip;</button>';
+        else btns+='<button class="usr-btn edit" title="Replicar este flyer en otra opci&oacute;n" style="opacity:.75" onclick="_upActOtra('+i+')">Otra opci&oacute;n&hellip;</button>';
+        if(isImg)btns+='<button class="usr-btn edit" onclick="_upCal('+i+')">Calibrar</button>';
         return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
           '<div class="usr-info">'+
-            '<strong style="font-size:.78rem">'+_escHtml(f.name)+tag+actTags+'</strong>'+
-            '<small>'+ts+(kb?' &middot; '+kb:'')+'</small>'+
+            '<strong style="font-size:.8rem">'+titulo+tag+'</strong>'+
+            '<small>'+_escHtml(f.name)+(ts?' &middot; '+ts:'')+(kb?' &middot; '+kb:'')+'</small>'+
           '</div>'+
-          '<div class="usr-btns">'+
-            _FG_OPTS.map(ab).join('')+calBtn+
+          '<div class="usr-btns">'+btns+
             '<button class="usr-btn edit" onclick="_upVer('+i+')">Ver</button>'+
             '<button class="usr-btn warn" onclick="_upDel(this,'+i+')"'+(isAct?' disabled title="Desactivá primero"':'')+'>Borrar</button>'+
           '</div></div>';
@@ -2267,7 +2389,7 @@ function deleteUpload(btn,name){
 var OPCIONES_FILE='_opciones.json',_opcLoaded=false,_OPC={};
 var _OPC_PALETA=['#1d4070','#0e8a5f','#8e44ad','#b26a00','#c2185b','#00838f','#5d4037','#455a64'];
 function _opcDefault(){return [{n:1,nombre:'Opción 1'},{n:2,nombre:'Opción 2'},{n:3,nombre:'Opción 3'}];}
-// Normaliza lo que venga del archivo: números enteros ≥1 únicos, ordenados, la 1
+// Normaliza lo que venga del archivo: números enteros ≥1 únicos, en el orden guardado, la 1
 // siempre presente (es la de los asesores), nombres recortados.
 // solapa: en qué solapa del header vive la opción. 'flyer' = "Flyer Galicia"
 // (el armador de siempre); 'rubros' = "Flyer Rubros" (mismo armador + el cartel
@@ -2278,11 +2400,14 @@ function _opcSane(list){
   (Array.isArray(list)?list:[]).forEach(function(o){
     var n=parseInt(o&&o.n,10);if(!(n>=1)||vistos[n])return;vistos[n]=1;
     var sol=(o&&o.solapa==='rubros'&&n!==1)?'rubros':'flyer';
+    // orden: posición elegida a mano (arrastrando en la barra). Sin orden va al final, por número.
+    var ord=(o&&typeof o.orden==='number'&&isFinite(o.orden))?o.orden:(1e6+n);
     out.push({n:n,nombre:String((o&&o.nombre)||'').replace(/[<>]/g,'').trim().slice(0,40)||('Opción '+n),
-      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():'',solapa:sol});
+      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():'',solapa:sol,orden:ord});
   });
-  if(!vistos[1])out.unshift({n:1,nombre:'Opción 1',color:'',solapa:'flyer'});
-  out.sort(function(a,b){return a.n-b.n;});
+  if(!vistos[1])out.unshift({n:1,nombre:'Opción 1',color:'',solapa:'flyer',orden:-1});
+  out.sort(function(a,b){return a.orden-b.orden||a.n-b.n;});
+  out.forEach(function(o,i){o.orden=i;});
   return out;
 }
 function _aplicarOpciones(list){
@@ -2335,7 +2460,10 @@ function _fetchActiveMeta(opt,cb){
     .then(function(d){cb(d||null);}).catch(function(){cb(null);});
 }
 // Barra de opciones: se inyecta arriba de los tabs Individual/Masivo/Historial.
-// Se llama sólo si _admin, así que para el resto el armador queda idéntico a hoy.
+// Se muestra si el perfil tiene más de una opción habilitada (ver _facSyncOptBar).
+// Para el admin, además: 4 toques seguidos sobre un título → renombrarlo en el
+// lugar; mantener apretado 5 segundos → se "levanta" y se arrastra para cambiar
+// el orden. Las dos cosas se guardan en _opciones.json (lo mismo que Config → Opciones).
 function _fgEnsureOptBar(){
   if(document.getElementById('fg-optbar'))return;
   var tabs=document.querySelector('.panel .tabs')||document.querySelector('.tabs');
@@ -2343,11 +2471,18 @@ function _fgEnsureOptBar(){
   var st=document.createElement('style');st.id='fg-optbar-style';
   st.textContent=
     '#fg-optbar{display:flex;gap:6px;margin:0 0 10px;padding:4px;background:rgba(128,128,128,.14);border-radius:9px}'+
-    '#fg-optbar .fgo{flex:1;text-align:center;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:.76rem;font-weight:600;color:var(--gray,#777);user-select:none;transition:.15s;background:none;border-bottom:2px solid transparent}'+
+    '#fg-optbar .fgo{flex:1;text-align:center;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:.76rem;font-weight:600;color:var(--gray,#777);user-select:none;-webkit-user-select:none;transition:.15s;background:none;border-bottom:2px solid transparent;touch-action:none;position:relative}'+
     '#fg-optbar .fgo:hover{color:#444}'+
     'html.dark #fg-optbar .fgo:hover{color:#ddd}'+
     '#fg-optbar .fgo.on{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}'+
-    'html.dark #fg-optbar .fgo.on{background:#2c2f36}';
+    'html.dark #fg-optbar .fgo.on{background:#2c2f36}'+
+    // mantener apretado: barrita que se llena en 5 s, para ver que "algo está pasando"
+    '#fg-optbar .fgo.hold::after{content:"";position:absolute;left:8px;right:8px;bottom:1px;height:2px;border-radius:2px;background:currentColor;opacity:.6;animation:fgoHold 5s linear forwards;transform-origin:left}'+
+    '@keyframes fgoHold{from{transform:scaleX(0)}to{transform:scaleX(1)}}'+
+    '#fg-optbar .fgo.lift{transform:scale(1.06) translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.22);z-index:2;cursor:grabbing;outline:2px dashed currentColor}'+
+    '#fg-optbar.reorder .fgo:not(.lift){opacity:.7}'+
+    '#fg-optbar .fgo input{font:inherit;font-weight:600;width:100%;box-sizing:border-box;text-align:center;border:1px solid var(--red,#c33);border-radius:5px;padding:2px 4px;background:#fff;color:#222}'+
+    'html.dark #fg-optbar .fgo input{background:#2c2f36;color:#eee}';
   // La barra se destruye y recrea al cambiar facultades; el estilo se agrega una vez.
   if(!document.getElementById('fg-optbar-style'))document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
@@ -2355,6 +2490,7 @@ function _fgEnsureOptBar(){
     return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">'+_escHtml(_optLabel(o))+'</div>';
   }).join('');
   tabs.parentNode.insertBefore(bar,tabs);
+  if(_admin)_fgOptBarGestos(bar);
   _fgRenderOptBar();
 }
 function _fgRenderOptBar(){
@@ -2365,6 +2501,113 @@ function _fgRenderOptBar(){
     // la opción activa se pinta con SU color (mismo que registros/historial)
     x.style.color=on?_optColor(o):'';
     x.style.borderBottomColor=on?_optColor(o):'transparent';
+  });
+}
+// Lista completa de opciones tal como está hoy, en orden, lista para saveOpciones.
+// `orden` es la posición: así la nube recuerda el orden que se armó a mano.
+function _opcListaActual(){
+  return _FG_OPTS.map(function(n,i){return {n:n,nombre:_optLabel(n),color:_optColor(n),solapa:_optSolapa(n),orden:i};});
+}
+// Guarda la lista y rearma todo lo que muestra nombres/orden de opciones.
+function _opcGuardarRapido(lista,msg){
+  saveOpciones(lista,function(ok){
+    if(!ok)return;
+    _opcEdit=null;                                   // Config → Opciones se relee al abrirla
+    if(typeof _legalesRender==='function')_legalesRender();
+    if(document.getElementById('fac-grid')&&typeof renderFacultades==='function'){var af=document.getElementById('at-facultades');if(af&&af.style.display!=='none')renderFacultades();}
+    _facSyncOptBar();_fgRenderOptBar();
+    var t=document.getElementById('cal-title');if(t&&_cal)t.textContent='Calibrar flyer — '+_optLabel(_cal.opt);
+    if(msg)showToast(msg);
+  });
+}
+// Renombrar en el lugar: el título pasa a ser un input. Enter/salir confirma, Escape cancela.
+function _fgOptRenombrar(el){
+  var o=+el.getAttribute('data-o');if(!o||el.querySelector('input'))return;
+  var prev=_optLabel(o);
+  var inp=document.createElement('input');inp.type='text';inp.maxLength=40;inp.value=prev;
+  el.textContent='';el.appendChild(inp);el.classList.add('editing');
+  var done=false;
+  function fin(ok){
+    if(done)return;done=true;
+    var v=inp.value.replace(/[<>]/g,'').trim();
+    el.classList.remove('editing');el.textContent=(ok&&v)?v:prev;
+    if(!ok||!v||v===prev)return;
+    var lista=_opcListaActual();
+    lista.forEach(function(x){if(x.n===o)x.nombre=v;});
+    el.textContent=v;
+    _opcGuardarRapido(lista,'Opción renombrada: '+v);
+  }
+  inp.addEventListener('keydown',function(e){e.stopPropagation();if(e.key==='Enter'){e.preventDefault();fin(true);}else if(e.key==='Escape'){fin(false);}});
+  inp.addEventListener('blur',function(){fin(true);});
+  // los clicks dentro del input no deben cambiar de opción ni contar como toques
+  inp.addEventListener('click',function(e){e.stopPropagation();});
+  inp.addEventListener('pointerdown',function(e){e.stopPropagation();});
+  inp.focus();inp.select();
+}
+// Nuevo orden de la barra (sólo lista las opciones de ESTA solapa) → orden global:
+// las de la otra solapa se quedan donde estaban, éstas se reacomodan en sus lugares.
+function _fgOptAplicarOrden(bar){
+  var visibles=Array.prototype.map.call(bar.querySelectorAll('.fgo'),function(x){return +x.getAttribute('data-o');});
+  var set={};visibles.forEach(function(n){set[n]=1;});
+  var k=0,nuevo=_FG_OPTS.map(function(n){return set[n]?visibles[k++]:n;});
+  if(nuevo.join(',')===_FG_OPTS.join(','))return;
+  var lista=nuevo.map(function(n,i){return {n:n,nombre:_optLabel(n),color:_optColor(n),solapa:_optSolapa(n),orden:i};});
+  _opcGuardarRapido(lista,'Orden de las opciones guardado');
+}
+var _FG_HOLD_MS=5000,_FG_TAPS=4,_FG_TAP_VENTANA=1600;
+function _fgOptBarGestos(bar){
+  var taps=0,tapsEl=null,tapsT=0;
+  var hold=null,lift=null,startX=0,startY=0;
+  function limpiarHold(){if(hold){clearTimeout(hold.t);hold.el.classList.remove('hold');hold=null;}}
+  function soltar(){
+    if(!lift)return;
+    lift.classList.remove('lift');bar.classList.remove('reorder');
+    lift=null;
+    _fgOptAplicarOrden(bar);
+  }
+  bar.addEventListener('pointerdown',function(e){
+    var el=e.target.closest?e.target.closest('.fgo'):null;
+    if(!el||el.classList.contains('editing'))return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    limpiarHold();
+    startX=e.clientX;startY=e.clientY;
+    hold={el:el,t:setTimeout(function(){
+      // 5 s apretado: se levanta y a partir de acá se arrastra
+      el.classList.remove('hold');el.classList.add('lift');bar.classList.add('reorder');
+      lift=el;hold=null;taps=0;
+      try{bar.setPointerCapture(e.pointerId);}catch(x){}
+      if(navigator.vibrate)try{navigator.vibrate(30);}catch(x){}
+      showToast('Arrastrá para cambiar el orden y soltá');
+    },_FG_HOLD_MS)};
+    el.classList.add('hold');
+  });
+  bar.addEventListener('pointermove',function(e){
+    // si se mueve el dedo/mouse antes de los 5 s, no es "mantener apretado"
+    if(hold&&(Math.abs(e.clientX-startX)>8||Math.abs(e.clientY-startY)>8))limpiarHold();
+    if(!lift)return;
+    e.preventDefault();
+    var otros=Array.prototype.filter.call(bar.querySelectorAll('.fgo'),function(x){return x!==lift;});
+    for(var i=0;i<otros.length;i++){
+      var r=otros[i].getBoundingClientRect();
+      if(e.clientX>=r.left&&e.clientX<=r.right){
+        var mid=r.left+r.width/2;
+        if(e.clientX<mid)bar.insertBefore(lift,otros[i]);else bar.insertBefore(lift,otros[i].nextSibling);
+        break;
+      }
+    }
+  });
+  bar.addEventListener('pointerup',function(){limpiarHold();soltar();});
+  bar.addEventListener('pointercancel',function(){limpiarHold();soltar();});
+  bar.addEventListener('pointerleave',function(){if(!lift)limpiarHold();});
+  bar.addEventListener('contextmenu',function(e){if(hold||lift)e.preventDefault();});
+  // 4 toques seguidos sobre el MISMO título → renombrar
+  bar.addEventListener('click',function(e){
+    var el=e.target.closest?e.target.closest('.fgo'):null;
+    if(!el||el.classList.contains('editing'))return;
+    var now=Date.now();
+    if(el!==tapsEl||now-tapsT>_FG_TAP_VENTANA)taps=0;
+    tapsEl=el;tapsT=now;taps++;
+    if(taps>=_FG_TAPS){taps=0;_fgOptRenombrar(el);}
   });
 }
 // Guarda en la opción que estoy dejando el legal TAL COMO LO EDITÉ, para que al volver
@@ -3627,8 +3870,9 @@ function activateImageFlyer(url,name,btn,opt){
 // Abre el calibrador desde la lista: si el flyer ya está activo en una sola opción usa
 // esa; si no, pregunta.
 function _calFromList(url,name){
-  var actIn=_FG_OPTS.filter(function(o){return _fgHistMeta[o]&&_fgHistMeta[o].name===name;});
-  if(actIn.length===1){_calOpenFromUrl(url,name,actIn[0]);return;}
+  var od=_upOptDe(name);
+  if(od.act.length===1){_calOpenFromUrl(url,name,od.act[0]);return;}
+  if(!od.act.length&&od.home){_calOpenFromUrl(url,name,od.home);return;} // subido para esa opción, todavía no activado
   _askOption('¿Qué opción querés calibrar?',function(o){_calOpenFromUrl(url,name,o);});
 }
 
@@ -6144,7 +6388,7 @@ function _padCfgParse(raw){
   var m=k.match(/([0-9]+)$/);
   if(m){
     var n=parseInt(m[1],10);
-    if(n>=0&&n<=4)return n;
+    if(n>=0&&n<(typeof CONFIGS!=='undefined'?CONFIGS.length:5))return n;
   }
   if(typeof CNAMES!=='undefined'){
     for(var i=0;i<CNAMES.length;i++)if(_padKey(CNAMES[i])===k)return i;
@@ -6313,7 +6557,7 @@ function _fgSetNoCB(on){
 }
 // Pisa setCfg de _source.html: elegir un cashback a mano siempre saca el "sin cashback".
 function fgSetCfg(n){
-  n=(n>=0&&n<=4)?n:0;
+  n=(n>=0&&n<CONFIGS.length)?n:0;
   window.ac=n;
   var c=CONFIGS[n]||CONFIGS[0];
   _fgNoCB=false;_fgNoCBBadge(false);
@@ -7096,7 +7340,7 @@ function renderOpcionesAdmin(force){
   if(force||!_opcEdit){
     host.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando...</p>';
     loadOpciones(!!force,function(){
-      _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n),solapa:_optSolapa(n)};});
+      _opcEdit=_opcListaActual();
       _opcPintar();
       // qué tiene cada una (flyer activo o no), para que quitar sea con información
       _opcEdit.forEach(function(o){
@@ -7167,7 +7411,7 @@ function _opcGuardar(){
     _legalesRender();                // sub-solapas de Legales
     _fgSyncVista();                  // la opción activa pudo cambiar de solapa
     _applyFacultades();              // barra del armador (salta de una opción quitada) + solapa "Flyer Rubros" del header
-    _opcEdit=_FG_OPTS.map(function(n){return {n:n,nombre:_optLabel(n),color:_optColor(n),solapa:_optSolapa(n)};});
+    _opcEdit=_opcListaActual();
     _opcPintar();
     var nuevas=_FG_OPTS.filter(function(n){return antes.indexOf(n)<0;});
     showToast(nuevas.length
