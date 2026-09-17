@@ -2657,7 +2657,12 @@ function _fgApplyOption(cache){
   var el=document.getElementById('legal-text');
   // prioridad: lo que dejé editado en esta sesión; si no, el legal guardado de la opción
   var txt=(typeof cache.legalEdited==='string')?cache.legalEdited:cache.legal;
-  if(el&&typeof txt==='string'&&txt.trim())el.value=txt;
+  // SIEMPRE refleja el legal real de ESTA opción, aunque esté vacío: si no, quedaba
+  // pegado el legal de la opción anterior (parecía que "se arrastraba" de otro flyer).
+  if(el&&typeof txt==='string'){
+    el.value=txt;
+    if(!txt.trim())showToast('⚠ '+_optLabel(_fgOpt)+' no tiene legal cargado — avisá a la central antes de generar el flyer.');
+  }
   if(typeof calcSC==='function')calcSC();
   if(typeof _fgBenefFieldsSync==='function')_fgBenefFieldsSync(); // segundo tope según el cartel de la opción
   if(typeof redraw==='function')redraw();
