@@ -3484,8 +3484,10 @@ function _fgAutoMail(){
     var nEl=document.getElementById('nombre'+sfx),mEl=document.getElementById('email'+sfx);
     if(!nEl||!mEl||nEl.dataset.fgMail)return;
     nEl.dataset.fgMail='1';
-    // si tocás el mail a mano, dejo de sugerir (salvo que lo borres)
-    mEl.addEventListener('input',function(){mEl.dataset.fgManual='1';});
+    // si tocás el mail a mano, dejo de sugerir; si lo dejás vacío, vuelvo a sugerir.
+    // (Antes la marca quedaba puesta con el mail vacío: la primera sugerencia entraba
+    // y ya no se actualizaba — quedaba "julian.vi@" al seguir tipeando el apellido.)
+    mEl.addEventListener('input',function(){mEl.dataset.fgManual=mEl.value.trim()?'1':'';});
     nEl.addEventListener('input',function(){
       if(mEl.dataset.fgManual==='1'&&mEl.value.trim()!=='')return;
       var m=_fgMailFromName(nEl.value);
