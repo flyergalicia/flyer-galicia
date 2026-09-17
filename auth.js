@@ -2788,12 +2788,29 @@ function fgDrawAll(c,s,v){
   // guardo el fondo del contenido en coords base para poder recortar el blanco sobrante
   window._fgContentBottomBase=(s>0?bottomScaled/s:bottomScaled);
 }
+// Color REAL del fondo del flyer en la fila y, muestreado en 5 puntos entre x0 y
+// x1 (mediana: un píxel de letra suelto no lo desvía). Las zonas que se tapan
+// antes de escribir (empresa, montos) usan esto en vez de un color fijo: el tono
+// del PDF cambia de una versión a otra y con color fijo se notaba el cuadrito.
+// Si el canvas no deja leer píxeles (imagen sin CORS), cae en fallback.
+function _fgBgMuestra(c,x0,x1,y,fallback){
+  try{
+    var rs=[],gs=[],bs=[];y=Math.max(1,Math.round(y));
+    for(var k=0;k<5;k++){
+      var x=Math.max(1,Math.round(x0+(x1-x0)*(k+0.5)/5));
+      var d=c.getImageData(x,y,1,1).data;rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);
+    }
+    function med(a){a.sort(function(p,q){return p-q;});return a[2];}
+    return 'rgb('+med(rs)+','+med(gs)+','+med(bs)+')';
+  }catch(e){return fallback;}
+}
 function fgDrawEmpresa(c,s,empresa){
   var E=_fgCfg().empresa,se=_fgSE(s);
   var xc=Math.round(E.xc*se),yc=Math.round(E.yc*se);
   var lh=Math.round(E.lh*se),mw=Math.round(E.mw*se),fs=Math.round(E.fs*se);
-  c.fillStyle=E.bg;
-  c.fillRect(Math.round(E.ex*se),yc-lh,mw,lh*2+Math.round(8*se));
+  var ex=Math.round(E.ex*se),ry=yc-lh;
+  c.fillStyle=_fgBgMuestra(c,ex,ex+mw,ry-Math.max(3,Math.round(4*se)),E.bg); // fondo real, justo arriba del recuadro
+  c.fillRect(ex,ry,mw,lh*2+Math.round(8*se));
   c.font="bold "+fs+"px Arial,sans-serif";
   c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";
   var full="Por ser parte de "+empresa;
@@ -2852,24 +2869,15 @@ function fgDrawMontos(c,s,v){
   // vacías: pinto con el color real del fondo, muestreado del margen izquierdo
   // a la misma altura. Si el canvas no deja leer píxeles, caigo en M.bg.
   var vals=v.nocb?['','','','']:[v.m1,v.m2,v.m3,v.m4];
-  // Color de fondo REAL justo arriba de cada caja (mediana de 5 muestras, para
-  // que un píxel de texto suelto no lo desvíe). Así, sin cashback, la zona queda
-  // tapada pero indistinguible del fondo en vez de mostrar 4 cajitas vacías.
+  // Color de fondo REAL justo arriba de cada caja (_fgBgMuestra), con o sin
+  // cashback: el tono del flyer cambia entre versiones del PDF y con M.bg fijo
+  // se notaba el recuadro alrededor de cada importe.
   function _bgDe(mx,mw,mh){
-    try{
-      var y=Math.max(1,my-Math.round(mh/2)-Math.max(4,Math.round(5*se)));
-      var rs=[],gs=[],bs=[];
-      for(var k=0;k<5;k++){
-        var x=Math.max(1,Math.round(mx-mw/2+mw*(k+0.5)/5));
-        var d=c.getImageData(x,y,1,1).data;rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);
-      }
-      function med(a){a.sort(function(p,q){return p-q;});return a[2];}
-      return 'rgb('+med(rs)+','+med(gs)+','+med(bs)+')';
-    }catch(e){return M.bg;}
+    return _fgBgMuestra(c,mx-mw/2,mx+mw/2,my-Math.round(mh/2)-Math.max(4,Math.round(5*se)),M.bg);
   }
   M.boxes.forEach(function(m,i){
     var mx=Math.round(m.xc*se),mw=Math.round(m.ew*se),mh=Math.round(M.mh*se);
-    c.fillStyle=v.nocb?_bgDe(mx,mw,mh):M.bg;c.fillRect(mx-mw/2,my-mh/2,mw,mh);
+    c.fillStyle=_bgDe(mx,mw,mh);c.fillRect(mx-mw/2,my-mh/2,mw,mh);
     c.font="bold "+fs+"px Arial,sans-serif";
     c.fillStyle=m.col;c.textAlign="center";c.textBaseline="middle";
     c.fillText(vals[i],mx,my);
@@ -3683,9 +3691,10 @@ function _calEnsureDom(){
     '.cal-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;cursor:pointer;border:1.5px solid transparent;font-size:.7rem;user-select:none}'+
     '.cal-chip .dot{width:11px;height:11px;border-radius:3px;display:inline-block}'+
     '.cal-chip.on{border-color:currentColor;font-weight:700}'+
-    '.cal-body{flex:1;overflow:auto;background:#e9e9e6;display:flex;justify-content:center;padding:16px}'+
+    '.cal-body{flex:1;overflow:auto;background:#e9e9e6;padding:16px}'+
     'html.dark .cal-body{background:#15161a}'+
-    '.cal-body canvas{background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18);touch-action:none;align-self:flex-start;cursor:grab}'+
+    '.cal-body canvas{display:block;margin:0 auto;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18);touch-action:none;cursor:grab}'+
+    '.cal-zoom{display:inline-flex;gap:4px;align-items:center}.cal-zoom button{padding:2px 8px;font-size:.72rem;border:1px solid rgba(128,128,128,.4);border-radius:6px;background:transparent;color:inherit;cursor:pointer}.cal-zoom button:hover{border-color:var(--orange,#f5921e)}'+
     '.cal-ft{padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);display:flex;gap:10px;align-items:center;font-size:.72rem;color:var(--gray,#777)}'+
     '.cal-ft .sp{flex:1}'+
     // Textos fijos del cartel del beneficio (sólo Flyer Rubros)
@@ -3728,11 +3737,13 @@ function _calEnsureDom(){
         '<div id="cal-benef-lineas"></div>'+
         '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre}, {importe} y {importe2} (segundo tope, cuadro &laquo;Ambos&raquo;) los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
       '</div>'+
-      '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
+      '<div class="cal-ft"><span>Eleg&iacute; una zona arriba (se ve s&oacute;lo esa; tocala de nuevo para ver todas) y arrastrala en la imagen. Flechas del teclado = ajuste fino (Shift = 10px). <b>Ctrl + rueda</b> = zoom.</span><span class="sp"></span>'+
+        '<span class="cal-zoom"><button type="button" onclick="_calZoom(1/1.25)" title="Alejar">&minus;</button><button type="button" id="cal-zoom-pct" onclick="_calZoom(0)" title="Volver al tama&ntilde;o inicial">100%</button><button type="button" onclick="_calZoom(1.25)" title="Acercar">+</button></span></div>'+
     '</div>';
   document.body.appendChild(m);
   var cv=document.getElementById('cal-cv');
   cv.addEventListener('pointerdown',_calDown);
+  cv.addEventListener('wheel',_calWheel,{passive:false});
   cv.addEventListener('pointermove',_calMove);
   window.addEventListener('pointerup',_calUp);
   document.addEventListener('keydown',_calKey);
@@ -3793,7 +3804,29 @@ function _calRenderLegend(){
     return '<span class="cal-chip'+(on?' on':'')+'" style="color:'+z.color+'" onclick="_calSelect(\''+z.id+'\')"><span class="dot" style="background:'+z.color+'"></span>'+z.label+'</span>';
   }).join('');
 }
-function _calSelect(id){if(!_cal)return;_cal.sel=id;_calRenderLegend();_calDraw();var s=document.getElementById('cal-sel');if(s)s.textContent='';}
+// Tocar el chip de la zona elegida la deselecciona (vuelven a verse todas).
+function _calSelect(id){if(!_cal)return;_cal.sel=(_cal.sel===id)?null:id;_calRenderLegend();_calDraw();var s=document.getElementById('cal-sel');if(s)s.textContent='';}
+// ── Zoom del calibrador ──────────────────────────────────────────────────────
+// factor>1 acerca, <1 aleja, 0 vuelve al tamaño inicial. Mantiene fijo el punto
+// (px base) que está bajo el cursor si se pasa, o el centro de lo visible.
+function _calZoom(factor,px,py){
+  if(!_cal)return;
+  var body=document.querySelector('#cal-modal .cal-body'),cv=document.getElementById('cal-cv');if(!body||!cv)return;
+  var ds=_cal.ds,nds=factor?Math.min(4,Math.max(0.12,ds*factor)):_cal.ds0;
+  if(Math.abs(nds-ds)<1e-6)return;
+  // punto fijo: si no viene, el centro del área visible
+  if(px==null){px=(body.scrollLeft+body.clientWidth/2-cv.offsetLeft)/ds;py=(body.scrollTop+body.clientHeight/2-cv.offsetTop)/ds;}
+  var offX=px*ds-body.scrollLeft+cv.offsetLeft,offY=py*ds-body.scrollTop+cv.offsetTop; // posición en pantalla del punto
+  _cal.ds=nds;_calDraw();
+  body.scrollLeft=px*nds+cv.offsetLeft-offX;body.scrollTop=py*nds+cv.offsetTop-offY;
+  var pct=document.getElementById('cal-zoom-pct');if(pct)pct.textContent=Math.round(nds/_cal.ds0*100)+'%';
+}
+function _calWheel(e){
+  if(!_cal||!e.ctrlKey)return; // la rueda sola sigue desplazando el flyer (es muy alto)
+  e.preventDefault();
+  var p=_calXY(e);
+  _calZoom(e.deltaY<0?1.15:1/1.15,p.x,p.y);
+}
 // Altura final del flyer exportado. Vacío/0 = automático (corta después de los legales).
 // OJO: NO toca imgH (esa es la altura de REFERENCIA del anclaje; cambiarla corre las zonas).
 function _calHeightChanged(){
@@ -3847,6 +3880,7 @@ function _calDraw(){
   }
   var rects=_calZoneRects();
   _calZones().forEach(function(z){
+    if(_cal.sel&&_cal.sel!==z.id)return; // con una zona elegida, las demás no se dibujan
     var r=rects[z.id];if(!r)return;var x=r.x*ds,y=r.y*ds,w=r.w*ds,h=r.h*ds,on=_cal.sel===z.id;
     g.save();g.strokeStyle=z.color;g.lineWidth=on?2.5:1.5;g.setLineDash(on?[]:[6,4]);
     g.strokeRect(x,y,w,h);g.setLineDash([]);
@@ -3859,6 +3893,11 @@ function _calDraw(){
 function _calXY(e){var cv=document.getElementById('cal-cv');var rc=cv.getBoundingClientRect();return {x:(e.clientX-rc.left)/_cal.ds,y:(e.clientY-rc.top)/_cal.ds};}
 function _calHit(bx,by){
   var rects=_calZoneRects(),L=rects.legal;
+  if(_cal.sel){ // con una zona elegida sólo se agarra esa (las demás están ocultas)
+    if(_cal.sel==='legal'&&L&&Math.abs(bx-(L.x+L.w))<16&&Math.abs(by-(L.y+L.h))<16)return {zone:'legal',handle:'br'};
+    var rs=rects[_cal.sel];
+    return (rs&&bx>=rs.x&&bx<=rs.x+rs.w&&by>=rs.y&&by<=rs.y+rs.h)?{zone:_cal.sel,handle:null}:null;
+  }
   if(L&&Math.abs(bx-(L.x+L.w))<16&&Math.abs(by-(L.y+L.h))<16)return {zone:'legal',handle:'br'};
   var order=[];
   if(_calEsRubros()){_calBenefLineas().forEach(function(_l,i){order.push('bl'+i);});order.push('blAll');}
@@ -3920,6 +3959,8 @@ function _calOpen(img,name,url,opt){
   var base=JSON.parse(JSON.stringify(FLYER_CFG_DEFAULT));
   _cal={img:img,name:name,url:url,opt:opt,cfg:base,sel:null,drag:null,lastX:0,lastY:0,legalText:null,
     ds:Math.min(560,(window.innerWidth||600)-70)/_FG_TARGET_W};
+  _cal.ds0=_cal.ds;
+  var zp=document.getElementById('cal-zoom-pct');if(zp)zp.textContent='100%';
   document.getElementById('cal-modal').classList.add('show');
   var t=document.getElementById('cal-title');if(t)t.textContent='Calibrar flyer — '+_optLabel(opt)+(_calEsRubros()?' (Flyer Rubros)':'');
   var hInput=document.getElementById('cal-height');if(hInput)hInput.value='';

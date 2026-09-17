@@ -769,7 +769,10 @@ const checks = {
   'historial: aplica los 4 asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)'),
   'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
-  'sin cashback: fondo muestreado': _authSrc.includes('function _bgDe(') && _authSrc.includes('c.fillStyle=v.nocb?_bgDe(mx,mw,mh):M.bg'),
+  // Empresa y montos tapan con el color REAL del flyer (muestreado), no con uno fijo:
+  // con color fijo se notaba el recuadro alrededor de cada importe.
+  'montos y empresa: fondo muestreado (sin cuadrito)': _authSrc.includes('function _fgBgMuestra(') && _authSrc.includes('c.fillStyle=_bgDe(mx,mw,mh);c.fillRect(') && _authSrc.includes('c.fillStyle=_fgBgMuestra(c,ex,ex+mw,') && !_authSrc.includes('c.fillStyle=E.bg;'),
+  'calibrador: zoom + zona elegida sola': _authSrc.includes('function _calZoom(') && _authSrc.includes('function _calWheel(') && _authSrc.includes("cv.addEventListener('wheel',_calWheel,{passive:false});") && _authSrc.includes('if(_cal.sel&&_cal.sel!==z.id)return;') && _authSrc.includes('id="cal-zoom-pct"'),
   // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN
   'pegar: parser': _authSrc.includes('function _fgParseContacto(') && _authSrc.includes('function _fgPartirTel(') && _authSrc.includes('function _fgVerificaTel('),
   'pegar: prioriza mail de Galicia': _authSrc.includes("x.indexOf('@'+_PAD_DOMINIO)") && _authSrc.includes("_PAD_DOMINIO='bancogalicia.com.ar'"),
