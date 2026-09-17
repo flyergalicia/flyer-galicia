@@ -317,6 +317,21 @@ function _robustLoadExcel(input){
 // de pintarlo en la vista previa. En el template iba crudo al innerHTML, así que
 // una celda con HTML se ejecutaba en la página. Pisa a window.validateExcel en
 // _installFlyerEngine (mismo mecanismo que _robustLoadExcel).
+// Columnas del cartel en el Excel del masivo, tolerantes al nombre: la plantilla
+// las llama "importe (Tope supermercado)" / "importe2 (Tope combustible…)" para
+// que se entienda cuál es cuál, y acá se reconocen por el prefijo normalizado.
+function _fgRowBenef(row){
+  var m={},k;
+  for(k in row){if(row.hasOwnProperty(k))m[_padKey(k)]=(row[k]==null?'':String(row[k])).trim();}
+  var out={beneficio:'',importe:'',importe2:''};
+  for(k in m){
+    if(!m[k])continue;
+    if(/^(importe2|tope2|importecombustible|topecombustible|segundo)/.test(k)){if(!out.importe2)out.importe2=m[k];}
+    else if(/^(importe|tope)/.test(k)){if(!out.importe)out.importe=m[k];}
+    else if(/^beneficio/.test(k)){if(!out.beneficio)out.beneficio=m[k];}
+  }
+  return out;
+}
 function fgValidateExcel(rows){
   rows=rows||[];
   if(!rows.length){showToast('Archivo vacío');return;}
@@ -330,7 +345,7 @@ function fgValidateExcel(rows){
     var cfg=String(r.config||'').toLowerCase().trim();
     if(cfg&&validCfgs.indexOf(cfg)<0)warnings.push('Fila '+n+': config "'+_escHtml(cfg)+'" inválida');
     // Flyer Rubros: sin importe en la fila se usa el del formulario (no es error)
-    if(_fgVista==='rubros'&&!_fgFmtImporte(r.importe||r.Importe||''))warnings.push('Fila '+n+': sin importe (se usa el tope del formulario)');
+    if(_fgVista==='rubros'&&!_fgFmtImporte(_fgRowBenef(r).importe))warnings.push('Fila '+n+': sin importe (se usa el tope del formulario)');
   });
   var vs=document.getElementById('val-sum'),gen=document.getElementById('btn-gen');
   if(vs){
@@ -3248,6 +3263,22 @@ function _fgBenefFieldsSync(){
   if(l1)l1.textContent=campos.importe||_BENEF_CAMPOS_DEF.importe;
   if(l2)l2.textContent=campos.importe2||_BENEF_CAMPOS_DEF.importe2;
   w.style.display=_fgBenefUsaImporte2()?'':'none';
+  _fgMasivoHint();
+}
+// Nota en la pestaña Masivo con las columnas del cartel de la opción activa.
+function _fgMasivoHint(){
+  var tab=document.getElementById('tab-masivo');if(!tab)return;
+  var h=document.getElementById('fg-masivo-hint');
+  if(!h){h=document.createElement('div');h.id='fg-masivo-hint';h.style.cssText='font-size:.7rem;color:var(--gray,#777);line-height:1.45;margin:6px 0 10px;padding:7px 10px;border-radius:8px;background:rgba(245,146,30,.08);border:1px solid rgba(245,146,30,.3)';
+    var btn=tab.querySelector('.template-btn');if(btn&&btn.parentNode)btn.parentNode.insertBefore(h,btn.nextSibling);else tab.appendChild(h);}
+  if(_fgVista!=='rubros'){h.style.display='none';return;}
+  var campos;try{campos=_fgCfg().benef.campos||{};}catch(e){campos={};}
+  var dos=_fgBenefUsaImporte2();
+  h.style.display='';
+  h.innerHTML='<b>Columnas del cartel en '+_escHtml(_optLabel(_fgOpt))+':</b> <code>beneficio</code> = nombre en &laquo;&iexcl;Beneficio exclusivo &hellip;!&raquo; (vac&iacute;o = la empresa, <code>-</code> = sin nombre) &middot; '+
+    '<code>importe</code> = <b>'+_escHtml(campos.importe||_BENEF_CAMPOS_DEF.importe)+'</b>'+
+    (dos?' &middot; <code>importe2</code> = <b>'+_escHtml(campos.importe2||_BENEF_CAMPOS_DEF.importe2)+'</b> (vac&iacute;o = igual al otro)':'')+
+    '. Sin importe en la fila se usa el del formulario.';
 }
 // Deja visibles sólo los bloques que tienen datos (o están activos). Se usa al
 // iniciar y al Restaurar: nunca en medio de la edición.
@@ -4096,13 +4127,14 @@ function logFlyerToSupabase(v,fn,fmt){
   }).catch(function(e){console.warn('flyer_logs insert failed:',e);});
 }
 // Log del MASIVO: un registro por corrida, con la opción usada.
-function logFlyerBulkToSupabase(n){
+function logFlyerBulkToSupabase(n,origen){
   if(!_me)return;
+  var pad=(origen==='padron');
   _sb.from('flyer_logs').insert({
     user_id:_me.id,
-    empresa:'Masivo ('+n+' flyers)',
+    empresa:(pad?'Padrón (':'Masivo (')+n+' flyers)',
     config_name:'',format:'pdf',is_bulk:true,bulk_count:n,
-    flyer_type:JSON.stringify({opcion:_optN(_fgOpt),masivo:true}),
+    flyer_type:JSON.stringify({opcion:_optN(_fgOpt),masivo:true,padron:pad}),
     created_at:new Date().toISOString()
   }).then(function(r){
     if(r&&r.error)console.warn('flyer_logs bulk error:',r.error.message);
@@ -4198,10 +4230,10 @@ function fgGenAll(){
       nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
     if(enRubros){
       v.benef=true;
-      var bnm=String(row.beneficio||row.Beneficio||'').trim();
+      var rb=_fgRowBenef(row),bnm=rb.beneficio;
       v.benefNombre=(bnm==='-')?'':(bnm||v.empresa); // "-" = sin nombre ("¡Beneficio exclusivo!")
-      v.importe=_fgFmtImporte(row.importe||row.Importe||'')||impForm;
-      v.importe2=_fgFmtImporte(row.importe2||row.Importe2||'')||imp2Form||v.importe;
+      v.importe=_fgFmtImporte(rb.importe)||impForm;
+      v.importe2=_fgFmtImporte(rb.importe2)||imp2Form||v.importe;
     }
     [1,2,3,4].forEach(function(i){
       var sfx=(i===1)?'':String(i);
@@ -4240,10 +4272,13 @@ function fgDlTemplate(){
   // Flyer Rubros: nombre del cartel (vacío = la empresa) e importe del tope (vacío = el del formulario)
   var enRubros=(_fgVista==='rubros');
   if(enRubros){
-    head.push('beneficio','importe');
+    // los encabezados llevan la etiqueta del tope de esta opción ("importe (Tope
+    // supermercado)"): _fgRowBenef los reconoce por el prefijo
+    var campos=_fgCfg().benef.campos||{},dos=_fgBenefUsaImporte2();
+    head.push('beneficio','importe'+(dos?' ('+campos.importe+')':''));
     data[1].push('EMPRESA EJEMPLO','24.000');data[2].push('-','24.000');
-    cols.push({wch:22},{wch:12});
-    if(_fgBenefUsaImporte2()){head.push('importe2');data[1].push('30.000');data[2].push('');cols.push({wch:12});}
+    cols.push({wch:22},{wch:dos?28:12});
+    if(dos){head.push('importe2 ('+campos.importe2+')');data[1].push('30.000');data[2].push('');cols.push({wch:34});}
   }
   var ws=XLSX.utils.aoa_to_sheet(data);
   ws['!cols']=cols;
@@ -4300,7 +4335,7 @@ function loadRegistros(){
         if(typeof ex!=='object'||Array.isArray(ex))ex={};
         // Opción usada (control de visibilidad). Registros viejos no la tienen.
         var optBadge=ex.opcion?_optBadge(ex.opcion,'font-size:.58rem;margin-left:4px'):'';
-        var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">MASIVO</span>':'';
+        var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">'+(ex.padron?'PADR&Oacute;N':'MASIVO')+'</span>':'';
         var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+_escHtml(ex.config)+'</span>':'';
         // Flyer Rubros: tope del beneficio (y el nombre del cartel si difiere de la empresa)
         if(ex.importe)cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Tope de reintegro del beneficio exclusivo">Tope '+_escHtml(ex.importe)+(ex.importe2&&ex.importe2!==ex.importe?' / '+_escHtml(ex.importe2):'')+'</span>';
@@ -4742,6 +4777,7 @@ function loadPadron(force,cb){
       }
       _padron=_padSane(r.data);
       _padronAt=_padUltimo(r.data);
+      _pgSel={}; // los índices del generador ya no valen
       if(cb)cb(_padron);
     });
 }
@@ -4753,6 +4789,7 @@ function savePadron(rows,cb){
     .then(function(r){
       if(r&&r.error){showToast('Error al guardar el padrón: '+r.error.message);if(cb)cb(false);return;}
       _padron=rows;_padronAt=new Date().toISOString();
+      _pgSel={};if(_pgOpen)_pgRender();
       if(cb)cb(true);
     });
 }
@@ -4851,6 +4888,7 @@ function renderPadronAdmin(force){
           ' &nbsp;&middot;&nbsp; actualizado '+_fmtDate(_padronAt))
         :'No hay padr&oacute;n cargado todav&iacute;a. Sub&iacute; un Excel para empezar.';
     }
+    if(_pgOpen)_pgRender();
     var prev=document.getElementById('padron-prev');if(!prev)return;
     if(!rows.length){prev.innerHTML='';return;}
     var q=(document.getElementById('padron-q')||{}).value||'';
@@ -5137,6 +5175,228 @@ function dlPadronDe(){
   showToast('Padrón descargado ('+_poRows.length+' empresas)');
 }
 
+// ── PADRÓN: generar los flyers de varias empresas de una (ZIP por formato) ───
+// Desde Data → Mi padrón: se eligen empresas (o todas) y sale un ZIP con el
+// flyer de cada una en SU formato: el rubro del padrón decide la opción (Flyer
+// Rubros → Combustible / Supermercado / Ambos…) y, sin rubro, va por el armador
+// común (la última opción usada de Flyer Galicia). Los datos salen del padrón
+// (oficiales, cashback, topes); el legal es el de cada opción. El ZIP trae una
+// carpeta por formato y un Resumen.txt, y al terminar se muestra el resumen.
+// Reusa el motor del masivo (fullRes + jsPDF) cambiando de opción por grupo.
+var _pgSel={},_pgOpen=false,_pgBusy=false,_pgQ='';
+function _pgToggle(){
+  if(_pgBusy)return;
+  _pgOpen=!_pgOpen;
+  var vn=document.getElementById('padron-view-normal'),pg=document.getElementById('padron-gen'),btn=document.getElementById('padron-gen-btn');
+  if(_pgOpen){
+    if(_padEdit)closePadronEditor();
+    if(_padEdit){_pgOpen=false;return;} // no quiso salir del editor
+    _pgOpen=true;
+    if(vn)vn.style.display='none';
+    if(pg)pg.style.display='block';
+    if(btn)btn.innerHTML='&#10005; Cerrar generador';
+    loadPadron(false,function(){_pgRender();});
+  }else{
+    if(vn)vn.style.display='';
+    if(pg){pg.style.display='none';pg.innerHTML='';}
+    if(btn)btn.innerHTML='&#9889; Generar flyers';
+  }
+}
+// Opción con la que se genera esa empresa: el rubro del padrón si está
+// habilitado para este perfil; sin rubro, la última opción usada del armador
+// común. Negativo = tiene rubro pero la opción no está habilitada; 0 = ninguna.
+function _pgOptDe(r){
+  var ru=_padRubroSane(r&&r.rubro);
+  if(ru.opcion)return (_FG_OPTS.indexOf(ru.opcion)>=0&&_can('opcion_'+ru.opcion))?ru.opcion:-ru.opcion;
+  var fl=_facOptsDe('flyer'),u=(typeof _fgUltOpt!=='undefined'&&_fgUltOpt)?_fgUltOpt.flyer:0;
+  if(u&&fl.indexOf(u)>=0)return u;
+  return fl[0]||0;
+}
+function _pgFormatoLbl(opt){return opt>0?(_solapaLabel(_optSolapa(opt))+' · '+_optLabel(opt)):'sin formato disponible';}
+function _pgAvisos(r,opt){
+  var a=[];
+  if(opt<0)a.push('rubro «'+_optLabel(-opt)+'» no habilitado para tu perfil');
+  else if(!opt)a.push('sin opción habilitada');
+  if(!_padNumAsesores(r))a.push('sin oficiales');
+  if(_padCfgOf(r.config)<0)a.push('sin cashback');
+  if(opt>0&&_optSolapa(opt)==='rubros'&&!_padRubroSane(r.rubro).importe)a.push('sin tope (se usa el del formulario o $24.000)');
+  return a;
+}
+function _pgFiltrados(){
+  if(!_padron)return [];
+  var rows=_pgQ?padronSearch(_pgQ,100000):_padron.slice();
+  return rows.map(function(r){return _padron.indexOf(r);}).filter(function(i){return i>=0;});
+}
+function _pgCount(){var n=0;for(var k in _pgSel)if(_pgSel[k]&&_padron&&_padron[k])n++;return n;}
+function _pgRender(){
+  var pg=document.getElementById('padron-gen');if(!pg||!_pgOpen)return;
+  if(!_padron||!_padron.length){pg.innerHTML='<p style="font-size:.78rem;color:var(--gray)">No hay empresas en el padr&oacute;n.</p>';return;}
+  if(!document.getElementById('pg-list')){
+    pg.innerHTML=
+      '<p style="font-size:.76rem;color:var(--gray);line-height:1.5;margin-bottom:10px">Tild&aacute; las empresas (o &laquo;Todas&raquo;) y gener&aacute; el ZIP: cada flyer sale en <strong>su formato</strong> seg&uacute;n el rubro del padr&oacute;n, con sus oficiales, cashback y topes. Al lado de cada empresa ves con qu&eacute; formato va a salir.</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'+
+        '<input type="text" id="pg-q" class="login-inp" placeholder="Filtrar por raz&oacute;n social o CUIT..." autocomplete="off" style="margin-bottom:0;flex:1;min-width:180px" oninput="_pgQ=this.value;_pgRender()">'+
+        '<button type="button" class="usr-btn edit" onclick="_pgTodas(true)">Todas</button>'+
+        '<button type="button" class="usr-btn edit" onclick="_pgTodas(false)">Ninguna</button>'+
+        '<select id="pg-fmt" class="login-inp" style="margin-bottom:0;width:auto;padding:6px 8px"><option value="pdf">PDF</option><option value="png">PNG</option></select>'+
+        '<button type="button" class="btn-submit" id="pg-btn" style="padding:8px 16px" onclick="_pgGenerar()">&#9889; Generar ZIP</button>'+
+      '</div>'+
+      '<div id="pg-count" style="font-size:.72rem;color:var(--gray);margin-bottom:6px"></div>'+
+      '<div id="pg-prog" style="display:none;margin:6px 0 10px"><div class="progress-bar" style="display:block"><div class="progress-fill" id="pg-fill" style="width:0%"></div></div><div class="progress-text" id="pg-text"></div></div>'+
+      '<div id="pg-list"></div>';
+    var q=document.getElementById('pg-q');if(q)q.value=_pgQ;
+  }
+  var idx=_pgFiltrados(),host=document.getElementById('pg-list');
+  var sel=_pgCount(),vis=idx.filter(function(i){return _pgSel[i];}).length;
+  var cnt=document.getElementById('pg-count');
+  if(cnt)cnt.innerHTML='<strong>'+sel+'</strong> de '+_padron.length+' empresa'+(_padron.length!==1?'s':'')+' seleccionada'+(sel!==1?'s':'')+(_pgQ?(' &middot; mostrando '+idx.length+' ('+vis+' tildada'+(vis!==1?'s':'')+')'):'');
+  if(!idx.length){host.innerHTML='<p style="font-size:.78rem;color:var(--gray);margin-top:10px">Sin resultados para "'+_escHtml(_pgQ)+'".</p>';return;}
+  host.innerHTML=idx.map(function(i){
+    var r=_padron[i],opt=_pgOptDe(r),av=_pgAvisos(r,opt);
+    var lbl=_pgFormatoLbl(opt),rub=_padRubroLabel(r);
+    return '<label class="usr-row" style="align-items:flex-start;cursor:pointer;gap:10px">'+
+      '<input type="checkbox" style="margin-top:3px;width:auto"'+(_pgSel[i]?' checked':'')+(opt>0?'':' disabled')+' onchange="_pgSet('+i+',this.checked)">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:600;font-size:.82rem">'+_escHtml(r.empresa||'(sin razón social)')+'</div>'+
+        '<div style="font-size:.68rem;color:var(--gray);margin-top:2px">'+
+          (r.cuits.length?_escHtml(r.cuits.map(_padFmtCuit).join('  ·  ')):'sin CUIT')+
+          ' &nbsp;·&nbsp; '+_escHtml(_padCfgName(_padCfgOf(r.config)))+' &nbsp;·&nbsp; '+_escHtml(_padAsesoresLbl(r))+
+          (rub?' &nbsp;·&nbsp; <span style="color:#b26a00">'+_escHtml(rub)+'</span>':'')+
+        '</div>'+
+        (av.length?'<div style="font-size:.66rem;color:#b06000;margin-top:2px">&#9888; '+_escHtml(av.join(' · '))+'</div>':'')+
+      '</div>'+
+      '<span style="font-size:.68rem;white-space:nowrap;padding:3px 8px;border-radius:12px;background:'+(opt>0?(_optSolapa(opt)==='rubros'?'#fff3e0':'#eef3fb'):'#f3f3f3')+';color:'+(opt>0?(_optSolapa(opt)==='rubros'?'#b26a00':'#1d4070'):'#999')+'">'+_escHtml(lbl)+'</span>'+
+    '</label>';
+  }).join('');
+}
+function _pgSet(i,on){if(on)_pgSel[i]=true;else delete _pgSel[i];_pgRender();}
+function _pgTodas(on){
+  _pgFiltrados().forEach(function(i){if(on&&_pgOptDe(_padron[i])>0)_pgSel[i]=true;else if(!on)delete _pgSel[i];});
+  _pgRender();
+}
+// Valores del flyer de una fila del padrón (mismo contrato v que el masivo).
+function _pgVals(r,opt,legal,impForm,res){
+  var ci=_padCfgOf(r.config),cfg=CONFIGS[ci<0?0:ci]||{};
+  var v={empresa:r.empresa||'',nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legal};
+  if(ci<0)res.sinCB.push(r.empresa);
+  if(!_padNumAsesores(r))res.sinOf.push(r.empresa);
+  for(var n=1;n<=4;n++){
+    var a=(r.asesores&&r.asesores[n-1])||{},nom=(a.nombre||'').trim(),sfx=(n===1)?'':String(n);
+    v['has'+n]=nom!=='';
+    v['nombre'+sfx]=nom;
+    v['celular'+sfx]=(a.celular||'').trim()?'Cel: '+String(a.celular).trim():'';
+    v['email'+sfx]=nom?((a.email||'').trim()||_fgMailFromName(nom)):'';
+  }
+  if(_optSolapa(opt)==='rubros'){
+    var ru=_padRubroSane(r.rubro);
+    v.benef=true;v.benefNombre=r.empresa||'';
+    v.importe=_fgFmtImporte(ru.importe);
+    if(!v.importe){v.importe=impForm;res.sinTope.push(r.empresa);}
+    v.importe2=_fgFmtImporte(ru.importe2)||v.importe;
+  }
+  return v;
+}
+function _pgGenerar(){
+  if(_pgBusy||!_padron)return;
+  var rows=[];Object.keys(_pgSel).forEach(function(k){if(_pgSel[k]&&_padron[k])rows.push(_padron[k]);});
+  if(!rows.length){showToast('Tildá al menos una empresa');return;}
+  var fmtEl=document.getElementById('pg-fmt'),fmt=(fmtEl&&fmtEl.value==='png')?'png':'pdf';
+  var grupos={},orden=[],res={total:0,fmt:fmt,fecha:new Date(),porOpt:{},sinOf:[],sinCB:[],sinTope:[],omitidas:[],errores:[],carpetas:{}};
+  rows.forEach(function(r){var o=_pgOptDe(r);if(o<=0){res.omitidas.push(r.empresa+(o<0?' (rubro '+_optLabel(-o)+' no habilitado)':' (sin opción habilitada)'));return;}if(!grupos[o]){grupos[o]=[];orden.push(o);}grupos[o].push(r);});
+  if(!orden.length){showToast('Ninguna de las empresas tildadas se puede generar con tu perfil');return;}
+  var origen=_optN(_fgOpt),zip=new JSZip(),n=rows.length-res.omitidas.length,hecho=0;
+  var impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||'')||'$24.000';
+  var prog=document.getElementById('pg-prog'),fill=document.getElementById('pg-fill'),txt=document.getElementById('pg-text'),btn=document.getElementById('pg-btn');
+  _pgBusy=true;if(prog)prog.style.display='block';if(fill)fill.style.width='0%';if(btn)btn.disabled=true;
+  if(txt)txt.textContent='Preparando...';
+  var gi=0;
+  function grupo(){
+    if(gi>=orden.length){fin();return;}
+    var opt=orden[gi++];
+    _fgWithOpt(opt,function(){
+      var legal=(document.getElementById('legal-text')||{}).value||'';
+      var lista=grupos[opt],k=0,carpeta=_fgSafeName(_pgFormatoLbl(opt).replace(' · ',' - ')),usados={};
+      res.carpetas[opt]=carpeta;
+      function uno(){
+        if(k>=lista.length){setTimeout(grupo,60);return;}
+        var r=lista[k++];
+        if(txt)txt.textContent='Generando '+(hecho+1)+' de '+n+' — '+_pgFormatoLbl(opt)+': '+(r.empresa||'');
+        try{
+          var v=_pgVals(r,opt,legal,impForm,res),fc=fullRes(v);
+          var base='Flyer '+_fgSafeName(v.empresa||'empresa'),nom=base;
+          usados[base]=(usados[base]||0)+1;if(usados[base]>1)nom=base+' ('+usados[base]+')';
+          if(fmt==='png')zip.file(carpeta+'/'+nom+'.png',fc.toDataURL('image/png').split(',')[1],{base64:true});
+          else{
+            var jsPDF=window.jspdf.jsPDF,pw=210,ph=(fc.height/fc.width)*pw;
+            var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
+            pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+            zip.file(carpeta+'/'+nom+'.pdf',pdf.output('arraybuffer'));
+          }
+          res.total++;res.porOpt[opt]=(res.porOpt[opt]||0)+1;
+        }catch(e){res.errores.push((r.empresa||'?')+': '+((e&&e.message)||e));}
+        hecho++;if(fill)fill.style.width=Math.round(hecho/n*100)+'%';
+        setTimeout(uno,120);
+      }
+      uno();
+    });
+  }
+  function fin(){
+    if(txt)txt.textContent='Empaquetando ZIP...';
+    var d=res.fecha,fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    res.zip='Flyers_Padron_'+fecha+'.zip';
+    zip.file('Resumen.txt',_pgResumenTxt(res));
+    zip.generateAsync({type:'blob'}).then(function(content){
+      var a=document.createElement('a');a.download=res.zip;a.href=URL.createObjectURL(content);a.click();
+      if(res.total)logFlyerBulkToSupabase(res.total,'padron');
+      if(txt)txt.textContent='✓ ZIP con '+res.total+' flyer'+(res.total!==1?'s':'')+'.';
+      if(btn)btn.disabled=false;_pgBusy=false;
+      if(origen!==_optN(_fgOpt)&&_can('opcion_'+origen))switchFlyerOption(origen);
+      _pgResumenModal(res);
+    }).catch(function(e){
+      if(txt)txt.textContent='Error al armar el ZIP: '+((e&&e.message)||e);
+      if(btn)btn.disabled=false;_pgBusy=false;
+      if(origen!==_optN(_fgOpt)&&_can('opcion_'+origen))switchFlyerOption(origen);
+    });
+  }
+  grupo();
+}
+function _pgLista(arr,max){
+  max=max||6;var out=arr.slice(0,max).join(', ');
+  if(arr.length>max)out+=' y '+(arr.length-max)+' más';
+  return out;
+}
+function _pgResumenTxt(res){
+  var L=['FLYERS GENERADOS DESDE EL PADRÓN','Fecha: '+_fmtDate(res.fecha.toISOString()),'Formato de archivo: '+res.fmt.toUpperCase(),'Total: '+res.total+' flyer'+(res.total!==1?'s':''),'',
+    'POR FORMATO'];
+  Object.keys(res.porOpt).forEach(function(o){L.push('  '+_pgFormatoLbl(+o)+': '+res.porOpt[o]+'  (carpeta "'+res.carpetas[o]+'")');});
+  L.push('','OBSERVACIONES');
+  var obs=0;
+  function ob(t,arr){if(arr.length){obs++;L.push('  '+arr.length+' '+t+': '+arr.join(', '));}}
+  ob('sin oficiales asignados (salen sin datos de contacto)',res.sinOf);
+  ob('sin cashback (importes en blanco)',res.sinCB);
+  ob('sin tope en el padrón (se usó el del formulario)',res.sinTope);
+  ob('no generadas',res.omitidas);
+  ob('con error',res.errores);
+  if(!obs)L.push('  Ninguna.');
+  return L.join('\n');
+}
+function _pgResumenModal(res){
+  var filas=Object.keys(res.porOpt).map(function(o){return '<tr><td>'+_escHtml(_pgFormatoLbl(+o))+'</td><td style="text-align:right"><strong>'+res.porOpt[o]+'</strong></td><td style="color:var(--gray)">'+_escHtml(res.carpetas[o]||'')+'/</td></tr>';}).join('');
+  var obs=[];
+  function ob(t,arr){if(arr.length)obs.push('<li><strong>'+arr.length+'</strong> '+t+': '+_escHtml(_pgLista(arr))+'</li>');}
+  ob('sin oficiales asignados (salen sin datos de contacto)',res.sinOf);
+  ob('sin cashback (importes en blanco)',res.sinCB);
+  ob('sin tope en el padr&oacute;n (se us&oacute; el del formulario)',res.sinTope);
+  ob('no generadas',res.omitidas);
+  ob('con error',res.errores);
+  _padPending=null;
+  _padModal('<h3>&#10003; Flyers generados desde el padr&oacute;n</h3>'+
+    '<p class="pu-sub"><strong>'+res.total+' flyer'+(res.total!==1?'s':'')+'</strong> en '+res.fmt.toUpperCase()+' &middot; <code>'+_escHtml(res.zip)+'</code> &middot; '+_escHtml(_fmtDate(res.fecha.toISOString()))+'</p>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin:8px 0"><thead><tr style="color:var(--gray);font-size:.68rem;text-transform:uppercase"><th style="text-align:left;padding:4px 0">Formato</th><th style="text-align:right;padding:4px 0">Cantidad</th><th style="text-align:left;padding:4px 8px">Carpeta</th></tr></thead><tbody>'+filas+'</tbody></table>'+
+    (obs.length?'<p class="pu-sub" style="margin-top:8px"><strong>Observaciones</strong></p><ul>'+obs.join('')+'</ul>':'<p class="pu-sub">Sin observaciones: todas las empresas ten&iacute;an oficiales, cashback y topes.</p>')+
+    '<p class="pu-hint">El mismo resumen va dentro del ZIP como <code>Resumen.txt</code>.</p>'+
+    '<div class="pu-foot"><button class="pu-si" onclick="_padCloseUpdate(0)">Cerrar</button></div>');
+}
 // ── PADRÓN: lupita + popover de búsqueda en el armador (SOLO ADMIN) ───────────
 // Se inyecta al lado del input "Nombre de la empresa". Para asesores y VIP la
 // pantalla queda exactamente como hoy (no se llama nunca a esta función).
