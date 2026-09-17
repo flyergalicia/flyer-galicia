@@ -78,6 +78,28 @@ html = html.replace(/<script src="(https:\/\/[^"]+)"><\/script>/g, (tag, url) =>
   return `<script src="${url}" integrity="${h}" crossorigin="anonymous"></script>`;
 });
 
+// ── LIBRERÍAS DE EXPORTACIÓN BAJO DEMANDA ───────────────────────────────────
+// jsPDF, SheetJS (xlsx), JSZip y ExcelJS suman ~2,2 MB y sólo se usan al
+// descargar PDF / Excel / ZIP. Antes se bajaban y ejecutaban en el arranque,
+// frenando la pantalla de login. Se sacan del <head> y la app las carga la
+// primera vez que hacen falta (_lib en auth.js), con el MISMO hash SRI. Aplica a
+// index.html y a index_export.html. supabase-js y auth.js siguen en el <head>.
+const LAZY_LIBS = {
+  jspdf:   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  xlsx:    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  jszip:   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  exceljs: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+};
+const _lazyMeta = {};
+for (const [name, url] of Object.entries(LAZY_LIBS)) {
+  if (!SRI[url]) throw new Error('LAZY_LIBS sin hash SRI: ' + url);
+  _lazyMeta[name] = { src: url, integrity: SRI[url] };
+  html = html.replace(`<script src="${url}" integrity="${SRI[url]}" crossorigin="anonymous"></script>\n`, '');
+}
+// El comentario del template sobre ExcelJS queda huérfano sin el <script>: se saca también.
+html = html.replace(/<!-- ExcelJS:[\s\S]*?-->\n/, '');
+html = html.replace('<meta name="viewport"', `<meta name="fg-libs" content='${JSON.stringify(_lazyMeta)}'>\n<meta name="viewport"`);
+
 // ── CSP (Content-Security-Policy) ───────────────────────────────────────────
 // GitHub Pages no deja mandar headers, así que va como <meta>. 'unsafe-inline'
 // en script/style es inevitable (la app usa onclick/style inline en todo el
@@ -639,6 +661,22 @@ const exportHtml = html
   // duplican el resto del HTML (el export pasó de 2,2 a 4,1 MB sin que nadie lo note).
   .replace(AUTH_TAG, () => '<script>\n' + _authSrc + '\n</script>')
   .replace(CSP_META + '\n', '');
+const _htmlLenConImagen = html.length;
+// ── IMAGEN BASE FUERA DE index.html ─────────────────────────────────────────
+// El template trae el flyer de ejemplo incrustado en base64 (~1,75 MB, más que
+// todas las librerías juntas). La app lo descarta al toque porque trae el flyer
+// activo desde Supabase, así que en index.html se saca y se guarda aparte como
+// flyer_default.jpg: se carga SOLO si no hay flyer activo (fallback, ver auth.js).
+// index_export.html lo conserva: sigue valiendo para subirlo como flyer (activateFlyer
+// extrae la imagen de ahí) y para usarlo standalone.
+const _imgRe = /baseImg\.src="data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)";?/;
+const _imgM = html.match(_imgRe);
+let _imgBuf = null, _imgFile = '';
+if (_imgM) {
+  _imgBuf = Buffer.from(_imgM[2], 'base64');
+  _imgFile = 'flyer_default.' + (_imgM[1] === 'jpeg' ? 'jpg' : _imgM[1]);
+  html = html.replace(_imgRe, () => `baseImg.dataset.fallback="${_imgFile}";`);
+}
 const _cdnTags = html.match(/<script src="https:\/\/[^"]+"[^>]*>/g) || [];
 const checks = {
   'CSS full-screen': html.includes('height:100vh;overflow:hidden'),
@@ -648,12 +686,16 @@ const checks = {
   'auth.js': html.includes('<script src="auth.js?v='),
   'cache-busting auth.js': html.includes('auth.js?v=') && !html.includes('<script src="auth.js"></script>'),
   // ── Seguridad del front (SRI + CSP) ──
-  'SRI: todos los scripts CDN con integrity': _cdnTags.length >= 5 && _cdnTags.every(t => /integrity="sha384-[A-Za-z0-9+/=]+"/.test(t) && t.includes('crossorigin="anonymous"')) && _scriptsSinSri.length === 0,
+  'SRI: todos los scripts CDN con integrity': _cdnTags.length >= 1 && _cdnTags.every(t => /integrity="sha384-[A-Za-z0-9+/=]+"/.test(t) && t.includes('crossorigin="anonymous"')) && _scriptsSinSri.length === 0,
+  'libs de exportacion bajo demanda (fuera del head, con SRI en la meta)': Object.values(LAZY_LIBS).every(u => !html.includes(`<script src="${u}"`)) && html.includes(`<meta name="fg-libs" content='`) && Object.values(_lazyMeta).every(l => /^sha384-/.test(l.integrity)) && _authSrc.includes("meta[name=fg-libs]") && _authSrc.includes('function _libWrap(') && ['savePDF', 'genAll', 'dlTemplate', 'loadExcel', 'importAsesores', 'importPadron', 'exportRegistros', 'exportPadronLog', 'exportFlyerLogsExcel', 'descargarExcelPromos', '_padXlsx', '_pgGenerarRows'].every(f => _authSrc.includes(`_libWrap('${f}'`)),
   'SRI: pdf.js dinamico con integrity': _authSrc.includes("s.integrity='sha384-") && _authSrc.includes('fetch(wsrc,{integrity:wsri'),
   'CSP: en index.html, no en export': html.includes(CSP_META) && html.indexOf(CSP_META) < html.indexOf('<script src=') && !exportHtml.includes('Content-Security-Policy'),
   'export: auth.js inlineado': !exportHtml.includes('auth.js?v=') && !_authSrc.includes('</script>'),
   // Un "$'" en auth.js duplicaba el resto del HTML dentro del export (patrón de String.replace)
-  'export: sin HTML duplicado (una sola imagen base, un solo auth.js)': (exportHtml.match(/baseImg\.src="data:image/g) || []).length === 1 && (exportHtml.match(/function _installFlyerEngine\(/g) || []).length === 1 && exportHtml.length < html.length + _authSrc.length + 200,
+  'export: sin HTML duplicado (una sola imagen base, un solo auth.js)': (exportHtml.match(/baseImg\.src="data:image/g) || []).length === 1 && (exportHtml.match(/function _installFlyerEngine\(/g) || []).length === 1 && exportHtml.length < _htmlLenConImagen + _authSrc.length + 200,
+  // La imagen de ejemplo del template no viaja en index.html: queda en flyer_default.jpg
+  // y la app la carga sólo si no hay flyer activo (index_export.html sí la conserva).
+  'imagen base fuera de index.html (fallback flyer_default)': !!_imgBuf && _imgBuf.length > 100000 && !html.includes('baseImg.src="data:image') && html.includes(`baseImg.dataset.fallback="${_imgFile}"`) && html.length < 400000 && _authSrc.includes('baseImg.dataset.fallback'),
   // ── Hardening del cliente (auditoria 2026-09-11) ──
   'escape: helper con comillas': _authSrc.includes("replace(/\"/g,'&quot;').replace(/'/g,'&#39;')"),
   'escape: panel usuarios/registros': _authSrc.includes("_escHtml(u.full_name||mail||'Sin nombre')") && _authSrc.includes("_escHtml(row.empresa||'—')") && _authSrc.includes("_escHtml(row.empresa||'Sin empresa')"),
@@ -814,6 +856,7 @@ if (_fallos) {
 } else {
   writeFileSync('index.html', html, 'utf8');
   writeFileSync('version.json', JSON.stringify({ v: BUILD_V }), 'utf8');
+  if (_imgBuf) { writeFileSync(_imgFile, _imgBuf); console.log(`${_imgFile} guardado: ${(_imgBuf.length / 1024 / 1024).toFixed(2)} MB (fallback, ya no viaja dentro de index.html)`); }
   console.log(`\nindex.html guardado: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
 
   // ── EXPORT SELF-CONTAINED (para subir a Supabase Storage) ─────────────────

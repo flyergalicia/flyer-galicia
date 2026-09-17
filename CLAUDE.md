@@ -17,8 +17,11 @@ No hay `package.json` ni gestor de paquetes: el único build tool es `_build.mjs
 - **`auth.js`** — toda la lógica de cliente: estado de la UI, llamadas a Supabase (auth, storage, tablas), armado del flyer, tema claro/oscuro, parseo de texto pegado (mail, celular, legajo, datos del oficial), etc. Es JS plano (sin build/transpile), pensado para correr tal cual en el navegador.
 - **`_build.mjs`** — script Node que genera los artefactos de salida a partir de las fuentes de arriba:
   - `index.html` → producción, referencia `auth.js` como `<script src>` externo con cache-busting por hash (`auth.js?v=<hash>`). Este es el que sirve GitHub Pages.
-  - `index_export.html` → misma app pero con `auth.js` **inlineado** en el HTML, para que funcione standalone desde cualquier dominio/archivo local.
-- Nunca editar `index.html` / `index_export.html` a mano: son generados. Cualquier cambio va en `_source.html`, `_newcss.txt` o `auth.js`, y después se corre el build.
+  - `index_export.html` → misma app pero con `auth.js` **inlineado** en el HTML, para que funcione standalone desde cualquier dominio/archivo local. Conserva la imagen del flyer de ejemplo incrustada (sirve para subirlo como flyer).
+  - `flyer_default.jpg` → la imagen de ejemplo del template, sacada de `index.html` (pesaba 1,75 MB dentro del HTML); la app la carga solo si no hay flyer activo.
+  - `version.json` → hash del build; la app lo compara con `<meta name="build-v">` y avisa "hay versión nueva" (GitHub Pages cachea `index.html` 10 min). Sin guion bajo a propósito: GitHub Pages no sirve archivos `_*`.
+  - Las librerías de exportación (jsPDF, xlsx, JSZip, ExcelJS) no van en el `<head>`: el build deja URL + hash SRI en `<meta name="fg-libs">` y `auth.js` las carga bajo demanda (`_lib`/`_libWrap`). Si se agrega una función que use alguna, envolverla en `_libInit`.
+- Nunca editar `index.html` / `index_export.html` / `version.json` / `flyer_default.jpg` a mano: son generados. Cualquier cambio va en `_source.html`, `_newcss.txt` o `auth.js`, y después se corre el build.
 
 ### Backend (Supabase)
 

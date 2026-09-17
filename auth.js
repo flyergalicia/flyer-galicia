@@ -365,6 +365,68 @@ function fgValidateExcel(rows){
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
+// ── LIBRERÍAS DE EXPORTACIÓN BAJO DEMANDA ────────────────────────────────────
+// jsPDF, SheetJS (XLSX), JSZip y ExcelJS (~2,2 MB) ya no vienen en el <head>: el
+// build deja sus URLs + hash SRI en <meta name="fg-libs"> y acá se inyectan la
+// primera vez que una función las necesita. Cada punto de entrada (botones de
+// descarga, inputs de Excel) se envuelve con _libWrap: si la librería ya está,
+// llama directo; si no, la carga y recién entonces llama con los mismos argumentos.
+// Vale para index.html e index_export.html (los dos llevan la meta). Si la meta no
+// está (HTML armado a mano con las libs en el <head>), los wrappers no hacen nada.
+var _LIBS=(function(){var m=document.querySelector('meta[name=fg-libs]');try{return m?JSON.parse(m.content):{};}catch(e){return {};}})();
+var _libP={};
+function _libReady(n){
+  if(n==='jspdf')return !!(window.jspdf&&window.jspdf.jsPDF);
+  if(n==='xlsx')return typeof XLSX!=='undefined';
+  if(n==='jszip')return typeof JSZip!=='undefined';
+  if(n==='exceljs')return typeof ExcelJS!=='undefined'&&!!ExcelJS.Workbook;
+  return true;
+}
+function _lib(names){
+  return Promise.all([].concat(names).map(function(n){
+    if(_libReady(n))return Promise.resolve();
+    if(_libP[n])return _libP[n];
+    var L=_LIBS[n];if(!L||!L.src)return Promise.reject(new Error('lib '+n));
+    _libP[n]=new Promise(function(res,rej){
+      var s=document.createElement('script');s.src=L.src;
+      if(L.integrity){s.integrity=L.integrity;s.crossOrigin='anonymous';}
+      s.onload=function(){_libReady(n)?res():rej(new Error(n));};
+      s.onerror=function(){_libP[n]=null;rej(new Error(n));};
+      document.head.appendChild(s);
+    });
+    return _libP[n];
+  }));
+}
+function _libWrap(fnName,libs){
+  var orig=window[fnName];if(typeof orig!=='function'||orig._libWrapped)return;
+  var w=function(){
+    var self=this,args=arguments;
+    if(libs.every(_libReady))return orig.apply(self,args);
+    showToast('Preparando la descarga…');
+    _lib(libs).then(function(){orig.apply(self,args);})
+      .catch(function(){showToast('No se pudo cargar la librería de '+libs.join('/')+'. Revisá la conexión e intentá de nuevo.');});
+  };
+  w._libWrapped=true;window[fnName]=w;
+}
+function _libInit(){
+  if(!_LIBS.jspdf)return; // sin meta: las libs están en el <head>, nada que envolver
+  _libWrap('savePDF',['jspdf']);                 // PDF individual, modal e historial
+  _libWrap('genAll',['jspdf','jszip']);          // masivo
+  _libWrap('_pgGenerarRows',['jspdf','jszip']);  // padrón / segmento
+  _libWrap('dlTemplate',['xlsx']);
+  _libWrap('loadExcel',['xlsx']);
+  _libWrap('importAsesores',['xlsx']);
+  _libWrap('importPadron',['xlsx']);
+  _libWrap('exportRegistros',['xlsx']);
+  _libWrap('exportPadronLog',['xlsx']);
+  _libWrap('exportFlyerLogsExcel',['xlsx']);
+  _libWrap('_padXlsx',['xlsx']);
+  _libWrap('descargarExcelPromos',['exceljs']);
+}
+// Bajar el PDF es la acción central de la app: apenas la pantalla queda quieta
+// después del login, jsPDF se trae en segundo plano para que el primer "Descargar"
+// no espere. Las de Excel/ZIP sólo se cargan si se usan.
+function _libPrefetch(){if(_LIBS.jspdf&&!_libReady('jspdf'))setTimeout(function(){_lib('jspdf').catch(function(){});},2500);}
 function initApp(){
   _initTheme();
   setTimeout(_updChk,4000);
@@ -381,6 +443,7 @@ function initApp(){
   _fgEnsureAddBtn();     // botón "+ Agregar asesor"
   _fgEnsureBenefFields();// campos del beneficio exclusivo (solapa Flyer Rubros)
   _fgSyncAsesorBlocks(); // arranca mostrando sólo el Asesor 1
+  _libInit();            // PDF/Excel/ZIP se cargan la primera vez que se usan (va después del motor: envuelve sus overrides)
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
     // Sesión cerrada por afuera (venció el refresh token, logout desde otra
@@ -564,14 +627,25 @@ function checkProfile(user){
         };
         _ni.onerror=function(){
           console.warn('Active flyer image failed:',imageUrl);
+          _fgBaseFallback();
         };
         _ni.src=imageUrl+'&_r='+Date.now();
-      }
+      }else _fgBaseFallback();
     });
   });
 }
 
+// index.html ya no trae la imagen de ejemplo incrustada (1,75 MB que se descartaban
+// al traer el flyer activo). El build la deja en flyer_default.jpg y la anota en
+// baseImg.dataset.fallback: se carga sólo si no hay flyer activo o falló su descarga.
+// En index_export.html la imagen sigue incrustada (baseImg.width>0) y esto no hace nada.
+function _fgBaseFallback(){
+  var b=window.baseImg;if(!b||b.width||!b.dataset||!b.dataset.fallback)return;
+  b.onload=function(){if(typeof calcSC==='function')calcSC();if(typeof redraw==='function')redraw();};
+  b.src=b.dataset.fallback;
+}
 function _showApp(){
+  _libPrefetch();
   document.getElementById('hdr-right').style.display='flex';
   document.getElementById('login-ov').style.display='none';
   document.getElementById('layout').style.display='grid';
