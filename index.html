@@ -524,23 +524,29 @@ html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec
    achica y el panel admin / modales / calibrador ocupan toda la pantalla.
    Nada cambia de 901px para arriba. */
 @media (max-width:900px){
+  /* el build fija body/.layout/.panel/.prev a 100vh con overflow:hidden (pantalla completa
+     de escritorio): en angosto se suelta todo para que la PÁGINA scrollee */
   html{overflow:auto;height:auto;}
-  body{min-height:100vh;}
-  header{padding:8px 12px;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:700;}
-  .header-logo{width:34px;height:34px;}
-  header h1,.app-tab h1{font-size:0.84rem;}
+  body{min-height:100vh;height:auto;overflow:visible;}
+  /* Header en dos filas: arriba logo + usuario + Admin; abajo las solapas (Flyer Galicia /
+     Flyer Rubros / Promociones) a todo el ancho, como pestañas. Debajo de los modales (z 200). */
+  header{padding:6px 12px 0;gap:0 10px;flex-wrap:wrap;position:sticky;top:0;z-index:150;height:auto;min-height:0;}
+  .header-logo{width:30px;height:30px;order:0;}
+  .header-right{order:1;flex:1 0 calc(100% - 42px);justify-content:flex-end;gap:4px;padding-bottom:6px;} /* llena la fila 1 => las solapas bajan a la fila 2 */
+  .app-tab{order:2;flex:1 1 0;min-width:0;overflow:hidden;text-align:center;padding:7px 4px 6px;border-bottom:2px solid transparent;margin-bottom:-3px;align-items:center;}
+  .app-tab.active{border-bottom-color:#fff;}
+  header h1,.app-tab h1{font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
   .header-text span{display:none;}
   .header-text{gap:0;}
-  .header-right{margin-left:auto;gap:4px;}
   .btn-hdr{padding:6px 8px;font-size:0.64rem;}
   .hdr-user-btn{padding:4px 6px;font-size:.72rem;}
   #hdr-user{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;}
   .hdr-dropdown{right:0;max-width:calc(100vw - 24px);}
-  .layout{grid-template-columns:1fr !important;min-height:0;}
-  .panel{border-right:none;border-bottom:1px solid var(--border);padding:14px 14px 22px;overflow:visible;max-height:none;}
-  .prev{padding:14px !important;overflow:visible;min-height:0;justify-content:flex-start;}
-  .plabel{position:static;margin:0 0 10px !important;align-self:flex-start;}
-  .zoom-bar{top:10px;right:10px;padding:4px 8px;}
+  .layout{grid-template-columns:1fr !important;grid-template-rows:auto auto;height:auto;min-height:0;overflow:visible;}
+  .panel{border-right:none;border-bottom:1px solid var(--border);padding:14px 14px 22px;overflow:visible;height:auto;max-height:none;}
+  .prev{padding:14px !important;overflow:visible;height:auto;min-height:0;justify-content:flex-start;}
+  .plabel{position:static;margin:0 0 8px !important;align-self:flex-start;}
+  .zoom-bar{position:static !important;margin:0 0 10px !important;align-self:flex-end;padding:4px 8px;}
   .cw{max-width:100%;}
   #cv{max-width:100%;height:auto;}
   .tabs{margin-bottom:12px;}
@@ -589,9 +595,10 @@ html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec
   .pad-pop{width:calc(100vw - 16px) !important;left:8px !important;right:8px !important;}
 }
 @media (max-width:480px){
-  header{gap:8px;}
   .header-logo{display:none;}
-  header h1,.app-tab h1{font-size:0.78rem;}
+  .header-right{flex-basis:100%;}
+  header h1,.app-tab h1{font-size:0.62rem;white-space:normal;line-height:1.15;text-overflow:clip;overflow:visible;}
+  .app-tab{padding:5px 2px 5px;}
   #hdr-user{max-width:70px;}
   .panel{padding:12px 12px 20px;}
   .prev{padding:10px !important;}
@@ -602,7 +609,7 @@ html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec
   .btns{gap:8px;}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=085682ad69"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=e3be41d191"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">

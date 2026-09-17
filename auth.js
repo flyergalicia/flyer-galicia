@@ -1811,7 +1811,9 @@ function renderCashbackAdmin(){
       '.cb-title:hover{border-color:var(--border,#ccc)}'+
       '.cb-title-inp{font:inherit;font-weight:700;font-size:.86rem;padding:2px 6px;border:1px solid var(--red,#c33);border-radius:5px;background:#fff;color:inherit;max-width:220px}'+
       'html.dark .cb-title-inp{background:#2c2f36}'+
-      '.cb-hint{font-size:.64rem;color:var(--gray,#777)}';
+      '.cb-hint{font-size:.64rem;color:var(--gray,#777)}'+
+      '.cb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}'+
+      '@media(max-width:900px){.cb-grid{grid-template-columns:1fr 1fr}.cb-head{flex-wrap:wrap}}';
     document.head.appendChild(st);
   }
   _cbEditDesde();
@@ -1827,7 +1829,7 @@ function _cbPintar(){
         (i===0?'<span class="cb-hint" style="margin-left:auto">La de fallback: no se puede quitar</span>':
           '<button type="button" class="usr-btn warn" style="margin-left:auto" onclick="_cbQuitar('+i+')">Quitar</button>')+
       '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'+
+      '<div class="cb-grid">'+
         [1,2,3,4].map(function(n){
           return '<div><label class="login-lbl">Monto '+n+'</label>'+
             '<input class="login-inp" style="margin-bottom:0" value="'+_escAttr(c['m'+n]||'')+'" oninput="_cbField('+i+','+n+',this.value)"></div>';
