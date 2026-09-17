@@ -367,6 +367,8 @@ function fgValidateExcel(rows){
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function initApp(){
   _initTheme();
+  setTimeout(_updChk,4000);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')_updChk();});
   // Pisa loadExcel del HTML por la versión robusta (ver _robustLoadExcel).
   window.loadExcel=_robustLoadExcel;
   // Motor de dibujado config-driven (coordenadas por flyer) + negritas al pegar.
@@ -5002,6 +5004,24 @@ function calcSC(){var p=document.querySelector('.prev');if(!p||!baseImg.width)re
 // window.showToast=fgShowToast, así que la que corre es siempre esta versión:
 // soporta los dos contenedores y reinicia el temporizador en cada aviso (antes,
 // dos toasts seguidos hacían que el segundo desapareciera casi al instante).
+// ── Aviso de versión nueva ────────────────────────────────────────────────────
+// GitHub Pages cachea index.html 10 min y ese index viejo apunta al auth.js viejo,
+// así que el admin seguía viendo código ya deployado. Se compara la meta build-v
+// con _version.json (pedido sin caché); si difieren, un cartel ofrece recargar con
+// ?v=nuevo, que saltea el index.html cacheado. En file:// o sin _version.json, nada.
+var _updUltimo=0;
+function _updChk(){
+  var m=document.querySelector('meta[name=build-v]');if(!m||location.protocol==='file:')return;
+  var ahora=Date.now();if(ahora-_updUltimo<5*60*1000)return;_updUltimo=ahora;
+  fetch('_version.json?t='+ahora,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
+    if(!j||!j.v||j.v===m.content||document.getElementById('upd-banner'))return;
+    var b=document.createElement('div');b.id='upd-banner';
+    b.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:100000;background:#f5921e;color:#111;font:600 .82rem/1.3 inherit;padding:10px 16px;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.35);cursor:pointer;max-width:92vw;text-align:center';
+    b.textContent='Hay una versión nueva de la app — tocá acá para actualizar';
+    b.onclick=function(){location.replace(location.pathname+'?v='+encodeURIComponent(j.v));};
+    document.body.appendChild(b);
+  }).catch(function(){});
+}
 function fgShowToast(msg){
   var t=document.getElementById('toast-el')||document.getElementById('toast');if(!t)return;
   t.textContent=msg;
