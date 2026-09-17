@@ -869,7 +869,7 @@ function _fgSyncVista(){
   }
   if(cambio)_facSyncOptBar();else _fgRenderOptBar();
   var bf=document.getElementById('fg-benef-fields');if(bf)bf.style.display=(v==='rubros')?'':'none';
-  if(v==='rubros'&&typeof _fgBenefSyncNombre==='function')_fgBenefSyncNombre();
+  if(v==='rubros'&&typeof _fgBenefSyncNombre==='function'){_fgBenefSyncNombre();_fgBenefFieldsSync();}
 }
 // Los títulos "Asesor 1..4" quedan clickeables o no. El listener ya está puesto,
 // pero openAsPop revalida la facultad, así que alcanza con el cambio visual.
@@ -2396,6 +2396,7 @@ function _fgApplyOption(cache){
   var txt=(typeof cache.legalEdited==='string')?cache.legalEdited:cache.legal;
   if(el&&typeof txt==='string'&&txt.trim())el.value=txt;
   if(typeof calcSC==='function')calcSC();
+  if(typeof _fgBenefFieldsSync==='function')_fgBenefFieldsSync(); // segundo tope según el cartel de la opción
   if(typeof redraw==='function')redraw();
 }
 // Fuerza recarga de una opción (después de activar/calibrar) y refresca el armador si toca.
@@ -2583,8 +2584,27 @@ var _BENEF_PLANTILLAS={
     {t:'Los Martes',x:739,y:2739,fs:21,peso:700,color:'#000000',align:'center',mw:800},
     {t:'Tope de reintegro mensual {importe} (10)',x:739,y:2764,fs:16.5,peso:500,color:'#000000',align:'center',mw:800},
     {t:'Medio de pago: Tarjeta de débito física',x:739,y:2788,fs:16,peso:500,color:'#000000',align:'center',mw:800}
+  ]},
+  // Cuadro con los dos rubros (PDF PMI): título y subtítulo centrados, y dos
+  // columnas alineadas a la izquierda. dx = corrimiento respecto del eje del
+  // bloque (lo aplica _calBenefCentrar; las líneas sin dx van centradas en el
+  // eje). {importe} = supermercado, {importe2} = combustible; `campos` son las
+  // etiquetas de los dos topes en el formulario.
+  ambos:{nombre:'Ambos (combustible y supermercado)',campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
+    {t:'¡Beneficio exclusivo {nombre}!',x:655,y:2529,fs:42,peso:800,color:'#fa6400',align:'center',mw:800},
+    {t:'**25% de ahorro** en combustible y supermercado',x:655,y:2573,fs:33,peso:500,color:'#000000',align:'center',mw:780},
+    {t:'**25% de ahorro**',x:303,dx:-352,y:2633,fs:37.5,peso:800,color:'#000000',align:'left',mw:330},
+    {t:'en supermercados',x:303,dx:-352,y:2669,fs:37.5,peso:500,color:'#000000',align:'left',mw:330},
+    {t:'Los martes y domingos',x:303,dx:-352,y:2717,fs:21,peso:700,color:'#000000',align:'left',mw:330},
+    {t:'Tope de reintegro mensual {importe} (5)',x:303,dx:-352,y:2739,fs:16.5,peso:500,color:'#000000',align:'left',mw:330},
+    {t:'**25% de ahorro**',x:679,dx:24,y:2633,fs:37.5,peso:800,color:'#000000',align:'left',mw:330},
+    {t:'en combustible',x:679,dx:24,y:2669,fs:37.5,peso:500,color:'#000000',align:'left',mw:330},
+    {t:'Los martes y domingos',x:679,dx:24,y:2717,fs:21,peso:700,color:'#000000',align:'left',mw:330},
+    {t:'Tope de reintegro mensual {importe2} (5)',x:679,dx:24,y:2739,fs:16.5,peso:500,color:'#000000',align:'left',mw:330}
   ]}
 };
+// Etiquetas de los campos del formulario según la plantilla del cartel activo.
+var _BENEF_CAMPOS_DEF={importe:'Tope de reintegro mensual',importe2:'Segundo tope (si es distinto)'};
 // Líneas del cartel a partir de lo guardado: lista propia si la hay; si la
 // calibración es de la versión anterior (titulo/tope sueltos) se convierte a
 // dos líneas con sus posiciones; si no hay nada, la plantilla de combustible.
@@ -2619,16 +2639,16 @@ function _fgBenefFont(){
 // Busca el cuadro del beneficio en la imagen base para centrar el cartel
 // automáticamente (el admin pedía que "por default venga centrado": ubicar seis
 // líneas a mano, una por una, es engorroso). Devuelve, en px base (1240 de
-// ancho), {top,bottom,left,right,textoX0,cx,cy}: el panel, el borde derecho del
-// dibujo (textoX0) y el centro del área de texto. null si no lo encuentra.
+// ancho), {top,bottom,left,right,textoX0,textoX1,cx,cy}: el panel, el área de
+// texto entre los dibujos (textoX0..textoX1) y su centro. null si no lo encuentra.
 // Cómo: sondea el color del panel al 90% del ancho, a la altura aproximada del
 // cartel (ySonda: donde están hoy las líneas; prueba también unas filas más
 // arriba/abajo por si cayó fuera). Desde ahí extiende por esa columna mientras
 // el color se mantenga (filas del panel) y por columna mide cuánto de la altura
-// del panel tiene ese color: el borde derecho es la última columna mayormente
-// panel; yendo hacia la izquierda, la primera zona densa que no es panel es el
-// dibujo (o su mancha de fondo); las letras sueltas no cuentan porque no son
-// densas a lo ancho. Sólo lee la franja 15%..75% de la altura. Falla (null) si
+// del panel tiene ese color: los bordes son las columnas extremas mayormente
+// panel, y el área de texto es el tramo más largo de columnas mayormente panel
+// (los dibujos, densos, lo cortan; las letras sueltas o una línea divisoria no,
+// porque son huecos cortos). Sólo lee la franja 15%..75% de la altura. Falla (null) si
 // el canvas está "tainted" (imagen sin CORS) o la geometría no tiene sentido.
 function _fgBenefDetectarCuadro(img,ySonda){
   try{
@@ -2640,9 +2660,11 @@ function _fgBenefDetectarCuadro(img,ySonda){
     var d=c.getImageData(0,0,W,bh).data;
     function px(x,y){var i=(y*W+x)*4;return [d[i],d[i+1],d[i+2]];}
     function cerca(p,q,t){return Math.abs(p[0]-q[0])<=t&&Math.abs(p[1]-q[1])<=t&&Math.abs(p[2]-q[2])<=t;}
-    var xp=Math.round(W*0.9),TOL=9,base=Math.round((ySonda||H*0.4)-y0);
-    for(var paso=0;paso<=5;paso++)for(var sg=-1;sg<=1;sg+=2){
-      var ys=base+sg*paso*40;if(paso===0&&sg>0)continue;
+    // Sondas en x: 90% del ancho, y si ahí hay un dibujo (cuadro con dibujos a
+    // los dos lados) el centro, 75% y 25%.
+    var XPS=[0.9,0.5,0.75,0.25].map(function(f){return Math.round(W*f);}),TOL=9,base=Math.round((ySonda||H*0.4)-y0);
+    for(var paso=0;paso<=5;paso++)for(var sg=-1;sg<=1;sg+=2)for(var xi=0;xi<XPS.length;xi++){
+      var ys=base+sg*paso*40,xp=XPS[xi];if(paso===0&&sg>0)continue;
       if(ys<0||ys>=bh)continue;
       var bg=px(W-5,ys),col=px(xp,ys);
       if(cerca(col,bg,10))continue; // fondo de página: la sonda no cayó en el panel
@@ -2658,14 +2680,17 @@ function _fgBenefDetectarCuadro(img,ySonda){
       for(x=W-1;x>=0;x--)if(frac[x]>=0.5){right=x;break;}
       for(x=0;x<W;x++)if(frac[x]>=0.5){left=x;break;}
       if(right<0||left<0||right-left<300)continue;
-      var tx0=left;
-      for(x=right-40;x>left+20;x--){
-        if(frac[x]>=0.4)continue;
-        var s=0;for(var j=0;j<20;j++)s+=frac[x-j];
-        if(s/20<0.5){tx0=x+1;break;}
+      // Área de texto: el tramo más largo de columnas mayormente panel entre
+      // los dibujos (puede haber uno a cada lado, como en el cuadro "Ambos").
+      // Los huecos cortos (letras sueltas, la línea divisoria) no cortan el tramo.
+      var GAPMAX=24,bx0=-1,bx1=-1,rx0=-1,rx1=-1,hueco=0;
+      for(x=left;x<=right;x++){
+        if(frac[x]>=0.6){if(rx0<0)rx0=x;rx1=x;hueco=0;}
+        else if(rx0>=0&&++hueco>GAPMAX){if(rx1-rx0>bx1-bx0){bx0=rx0;bx1=rx1;}rx0=-1;rx1=-1;hueco=0;}
       }
-      if(right-tx0<250)continue;
-      return {top:top+y0,bottom:bot+y0,left:left,right:right,textoX0:tx0,cx:Math.round((tx0+right)/2),cy:Math.round((top+bot)/2+y0)};
+      if(rx0>=0&&rx1-rx0>bx1-bx0){bx0=rx0;bx1=rx1;}
+      if(bx0<0||bx1-bx0<250)continue;
+      return {top:top+y0,bottom:bot+y0,left:left,right:right,textoX0:bx0,textoX1:bx1,cx:Math.round((bx0+bx1)/2),cy:Math.round((top+bot)/2+y0)};
     }
     return null;
   }catch(e){return null;}
@@ -2678,7 +2703,7 @@ function _fgCfg(){
     bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
     empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
     contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal),
-    benef:{color2:cb.color2||d.benef.color2,peso2:cb.peso2||d.benef.peso2,lineas:_fgBenefLineas(cb)}};
+    benef:{color2:cb.color2||d.benef.color2,peso2:cb.peso2||d.benef.peso2,lineas:_fgBenefLineas(cb),campos:_fgMerge(_BENEF_CAMPOS_DEF,cb.campos||null)}};
 }
 // Escala efectiva: ajusta por el ancho real de la imagen. Mismo template (ancho=imgW) => se=s.
 function _fgSE(s){var C=_fgCfg();var iw=C.imgW||1240;return (window.baseImg&&baseImg.width)?s*baseImg.width/iw:s;}
@@ -2793,12 +2818,17 @@ function _fgBenefSegs(t){
 }
 function fgDrawBenef(c,s,v){
   var B=_fgCfg().benef,se=_fgSE(s),fam='"'+_FG_BENEF_FONT+'",Arial,sans-serif';
-  var nombre=v.benefNombre||v.empresa||'',importe=v.importe||'';
+  // benefNombre puede venir vacío a propósito ("¡Beneficio exclusivo!" sin
+  // empresa): se saca el {nombre} con sus espacios y no queda espacio antes del
+  // signo. importe2 (segundo tope, cuadro "Ambos") cae en importe si no se cargó.
+  var nombre=(v.benefNombre==null?'':String(v.benefNombre)).trim(),importe=v.importe||'',importe2=v.importe2||importe;
   (B.lineas||[]).forEach(function(L){
     var t=String(L.t||'');
     if(t.indexOf('{importe}')>=0&&!importe.trim())return;
-    if(t.indexOf('{nombre}')>=0&&!nombre.trim())return;
-    t=t.replace(/\{nombre\}/g,nombre).replace(/\{importe\}/g,importe);
+    if(t.indexOf('{importe2}')>=0&&!importe2.trim())return;
+    if(nombre)t=t.replace(/\{nombre\}/g,function(){return nombre;});
+    else t=t.replace(/\s*\{nombre\}\s*/g,' ').replace(/\s+([!?.,;:])/g,'$1').replace(/\s{2,}/g,' ').trim();
+    t=t.replace(/\{importe2\}/g,function(){return importe2;}).replace(/\{importe\}/g,function(){return importe;});
     if(!t.trim())return;
     var segs=_fgBenefSegs(t),fs=Math.round(L.fs*se*2)/2,mw=Math.round(L.mw*se);
     function font(seg,size){return (seg.f?(B.peso2||800):(L.peso||500))+' '+size+'px '+fam;}
@@ -3157,33 +3187,59 @@ function _fgEnsureBenefFields(){
   if(!field||!field.parentNode)return;
   if(!document.getElementById('fg-benef-style')){
     var st=document.createElement('style');st.id='fg-benef-style';
-    st.textContent='#fg-benef-fields .fg-benef-hint{font-size:.66rem;color:var(--gray,#777);line-height:1.4;margin:-4px 0 8px}';
+    st.textContent='#fg-benef-fields .fg-benef-hint{font-size:.66rem;color:var(--gray,#777);line-height:1.4;margin:-4px 0 8px}'+
+      '#fg-benef-fields .fg-benef-nom{display:flex;gap:6px;align-items:center}#fg-benef-fields .fg-benef-nom input{flex:1;min-width:0}'+
+      '#benef-nombre-auto{flex:none;width:30px;height:30px;border-radius:7px;border:1px solid rgba(128,128,128,.4);background:transparent;color:inherit;cursor:pointer;font-size:1rem;line-height:1}#benef-nombre-auto:hover{border-color:var(--orange,#f5921e);color:var(--orange,#f5921e)}';
     document.head.appendChild(st);
   }
   field.insertAdjacentHTML('afterend',
     '<div id="fg-benef-fields" style="display:none">'+
       '<div class="sec">Beneficio exclusivo</div>'+
       '<div class="field"><label>Nombre en el beneficio</label>'+
-        '<input type="text" id="benef-nombre" placeholder="Se copia de la empresa" autocomplete="off"></div>'+
-      '<div class="fg-benef-hint">Sale como &laquo;&iexcl;Beneficio exclusivo <b>NOMBRE</b>!&raquo;. Se completa solo con la empresa; si lo cambi&aacute;s queda lo tuyo, si lo borr&aacute;s vuelve a copiarse.</div>'+
-      '<div class="field"><label>Tope de reintegro mensual</label>'+
+        '<div class="fg-benef-nom"><input type="text" id="benef-nombre" placeholder="Se copia de la empresa" autocomplete="off">'+
+        '<button type="button" id="benef-nombre-auto" title="Volver a copiar el nombre de la empresa" onclick="_fgBenefNombreAuto()">&#8635;</button></div></div>'+
+      '<div class="fg-benef-hint">Sale como &laquo;&iexcl;Beneficio exclusivo <b>NOMBRE</b>!&raquo;. Se completa solo con la empresa; si lo cambi&aacute;s queda lo tuyo. Borralo para que diga s&oacute;lo &laquo;&iexcl;Beneficio exclusivo!&raquo;; &#8635; vuelve a copiar la empresa.</div>'+
+      '<div class="field"><label id="benef-importe-lbl">Tope de reintegro mensual</label>'+
         '<input type="text" id="benef-importe" value="24.000" placeholder="24.000" inputmode="numeric" autocomplete="off"></div>'+
+      '<div class="field" id="fg-benef-imp2" style="display:none"><label id="benef-importe2-lbl">Segundo tope (si es distinto)</label>'+
+        '<input type="text" id="benef-importe2" placeholder="Igual al otro" inputmode="numeric" autocomplete="off"></div>'+
     '</div>');
-  var bn=document.getElementById('benef-nombre'),bi=document.getElementById('benef-importe');
+  var bn=document.getElementById('benef-nombre');
   bn.addEventListener('input',function(){
-    _fgBenefManual=bn.value.trim()!=='';
-    if(!_fgBenefManual)_fgBenefSyncNombre();
+    _fgBenefManual=true; // vaciarlo también vale: "¡Beneficio exclusivo!" sin empresa
     if(typeof redraw==='function')redraw();
   });
-  bi.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
-  bi.addEventListener('blur',function(){
-    var f=_fgFmtImporte(bi.value);
-    bi.value=f?f.slice(1):''; // en el campo va sin "$" (se agrega al dibujar)
-    if(typeof redraw==='function')redraw();
+  ['benef-importe','benef-importe2'].forEach(function(id){
+    var bi=document.getElementById(id);
+    bi.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
+    bi.addEventListener('blur',function(){
+      var f=_fgFmtImporte(bi.value);
+      bi.value=f?f.slice(1):''; // en el campo va sin "$" (se agrega al dibujar)
+      if(typeof redraw==='function')redraw();
+    });
   });
   // el listener de #empresa del template ya redibuja; acá sólo copio el nombre antes
   emp.addEventListener('input',_fgBenefSyncNombre);
+  _fgBenefFieldsSync();
   _fgBenefFont(); // la tipografía del cartel, lista antes del primer flyer de Rubros
+}
+function _fgBenefNombreAuto(){
+  _fgBenefManual=false;_fgBenefSyncNombre();
+  if(typeof redraw==='function')redraw();
+}
+// ¿El cartel de la opción activa usa un segundo tope ({importe2})?
+function _fgBenefUsaImporte2(){
+  try{return (_fgCfg().benef.lineas||[]).some(function(l){return String(l.t||'').indexOf('{importe2}')>=0;});}catch(e){return false;}
+}
+// Muestra el segundo tope sólo si el cartel lo usa, y pone las etiquetas que
+// trae la plantilla (p. ej. "Tope supermercado" / "Tope combustible").
+function _fgBenefFieldsSync(){
+  var w=document.getElementById('fg-benef-imp2');if(!w)return;
+  var campos;try{campos=_fgCfg().benef.campos||{};}catch(e){campos={};}
+  var l1=document.getElementById('benef-importe-lbl'),l2=document.getElementById('benef-importe2-lbl');
+  if(l1)l1.textContent=campos.importe||_BENEF_CAMPOS_DEF.importe;
+  if(l2)l2.textContent=campos.importe2||_BENEF_CAMPOS_DEF.importe2;
+  w.style.display=_fgBenefUsaImporte2()?'':'none';
 }
 // Deja visibles sólo los bloques que tienen datos (o están activos). Se usa al
 // iniciar y al Restaurar: nunca en medio de la edición.
@@ -3231,8 +3287,9 @@ function fgGetVals(){
     // Flyer Rubros: el cartel "¡Beneficio exclusivo NOMBRE!" + tope. benef va en
     // v (no en estado global) para que historial, masivo y calibrador rindan igual.
     benef:_fgVista==='rubros',
-    benefNombre:(g('benef-nombre').trim()||g('empresa')),
-    importe:_fgFmtImporte(g('benef-importe'))
+    benefNombre:g('benef-nombre').trim(), // vacío a propósito = "¡Beneficio exclusivo!" sin empresa
+    importe:_fgFmtImporte(g('benef-importe')),
+    importe2:_fgFmtImporte(g('benef-importe2'))||_fgFmtImporte(g('benef-importe'))
   };
 }
 
@@ -3274,7 +3331,7 @@ function _fgWithOpt(o,fn2){
 }
 function fgRedlPDF(i){
   var h=flyerHistory[i];if(!h)return;
-  _fgWithOpt(h.opt||1,function(){savePDF(fullRes(h.v),h.v);});
+  _fgWithOpt(h.opt||1,function(){savePDF(fullRes(h.v),h.v,true);}); // sin aviso de rubro: es un flyer ya hecho
 }
 function fgLoadHistory(i){
   var h=flyerHistory[i];if(!h)return;
@@ -3285,9 +3342,11 @@ function fgLoadHistory(i){
     // Flyer Rubros: nombre del beneficio (manual sólo si difería de la empresa) y tope sin "$"
     if(h.v.benef){
       var bn=h.v.benefNombre||'';
-      _fgBenefManual=!!(bn&&bn!==(h.v.empresa||''));
-      s('benef-nombre',_fgBenefManual?bn:(h.v.empresa||''));
-      var imp=_fgFmtImporte(h.v.importe);s('benef-importe',imp?imp.slice(1):'');
+      _fgBenefManual=(bn!==(h.v.empresa||'')); // vacío también es manual
+      s('benef-nombre',bn);
+      var imp=_fgFmtImporte(h.v.importe),imp2=_fgFmtImporte(h.v.importe2);
+      s('benef-importe',imp?imp.slice(1):'');
+      s('benef-importe2',(imp2&&imp2!==imp)?imp2.slice(1):'');
     }
     // Los 4 asesores se aplican SIEMPRE, los tuviera o no el flyer guardado.
     // Antes sólo se tocaban los que el ítem tenía, así que cargar un flyer de 1
@@ -3316,7 +3375,7 @@ function fgResetVals(){
   ['empresa','nombre','celular','email','nombre2','celular2','email2',
    'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(id){s(id,'');});
   s('filename','Flyer {empresa}');
-  s('benef-nombre','');s('benef-importe','24.000');_fgBenefManual=false;
+  s('benef-nombre','');s('benef-importe','24.000');s('benef-importe2','');_fgBenefManual=false;
   if(_fgA3)toggleA3();if(_fgA4)toggleA4();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
   _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
@@ -3526,12 +3585,23 @@ function _calEsRubros(){return !!(_cal&&_optSolapa(_cal.opt)==='rubros');}
 // Plantilla que corresponde a la opción por su nombre ("Combustible" →
 // combustible); si ninguna calza, la primera.
 function _calBenefPlantillaPorOpcion(){
-  var lbl=String(_cal?_optLabel(_cal.opt):'').toLowerCase(),ks=Object.keys(_BENEF_PLANTILLAS);
-  for(var i=0;i<ks.length;i++){if(lbl.indexOf(String(_BENEF_PLANTILLAS[ks[i]].nombre).toLowerCase())>=0||lbl.indexOf(ks[i])>=0)return ks[i];}
+  return _fgBenefPlantillaPorNombre(_cal?_optLabel(_cal.opt):'');
+}
+// "Combustible y supermercado" / "Ambos" → ambos; "Combustible" → combustible…
+function _fgBenefPlantillaPorNombre(nombre){
+  var lbl=_padNorm(nombre),ks=Object.keys(_BENEF_PLANTILLAS);
+  if(lbl.indexOf('ambos')>=0||(lbl.indexOf('combustible')>=0&&lbl.indexOf('super')>=0))return 'ambos';
+  for(var i=0;i<ks.length;i++){
+    var k=ks[i],nm=_padNorm(_BENEF_PLANTILLAS[k].nombre);
+    if(k==='ambos')continue;
+    if(lbl.indexOf(k)>=0||lbl.indexOf(nm)>=0||(lbl.length>=4&&(k.indexOf(lbl)>=0||nm.indexOf(lbl)>=0)))return k; // "Súper" → supermercado
+  }
   return ks[0];
 }
+// Copia las líneas de la plantilla (y sus etiquetas de campos a _cal.cfg.benef.campos).
 function _calBenefDePlantilla(k){
   var P=_BENEF_PLANTILLAS[k]||_BENEF_PLANTILLAS[Object.keys(_BENEF_PLANTILLAS)[0]];
+  if(_cal&&_cal.cfg&&_cal.cfg.benef)_cal.cfg.benef.campos=_fgMerge(_BENEF_CAMPOS_DEF,P.campos||null);
   return P.lineas.map(function(l){return _fgMerge(_BENEF_LINEA_DEF,l);});
 }
 // Líneas del cartel en el calibrador. Sin líneas guardadas arranca con la
@@ -3546,7 +3616,7 @@ function _calBenefLineas(){
 }
 // Ancho estimado de una línea sin medir con canvas (~0.55em por carácter, tope mw).
 function _calBenefAnchoEst(L){
-  var t=String(L.t||'').replace(/\*\*/g,'').replace('{nombre}','EMPRESA EJEMPLO').replace('{importe}','$24.000');
+  var t=String(L.t||'').replace(/\*\*/g,'').replace('{nombre}','EMPRESA EJEMPLO').replace('{importe2}','$30.000').replace('{importe}','$24.000');
   return Math.min(L.mw||820,Math.max(40,Math.round(t.length*L.fs*0.55)));
 }
 // Centra el cartel en el cuadro de la imagen (_fgBenefDetectarCuadro): todas
@@ -3559,16 +3629,24 @@ function _calBenefAnchoEst(L){
 function _calBenefCentrar(silencioso){
   if(!_cal||!_calEsRubros())return null;
   var ls=_calBenefLineas();if(!ls.length)return null;
-  var top=1e9,bot=-1e9,sx=0;
-  ls.forEach(function(l){top=Math.min(top,l.y-l.fs/2);bot=Math.max(bot,l.y+l.fs/2);sx+=(l.align==='left')?l.x+_calBenefAnchoEst(l)/2:l.x;});
-  var mid=(top+bot)/2,q=_fgBenefDetectarCuadro(_cal.img,mid);
-  var cx=q?q.cx:Math.round(sx/ls.length),cy=q?q.cy:mid,k=1;
-  if(q){var disp=(q.bottom-q.top)-16,h=bot-top;if(h>disp&&h>0)k=disp/h;}
-  var mwq=q?Math.max(200,q.right-q.textoX0-20):0;
+  // eje actual del bloque: centro de las líneas sin dx (las de columna, con dx,
+  // se ubican respecto del eje y no lo definen)
+  var top=1e9,bot=-1e9,sx=0,nx=0;
   ls.forEach(function(l){
-    l.align='center';l.x=cx;l.y=Math.round(cy+(l.y-mid)*k);
+    top=Math.min(top,l.y-l.fs/2);bot=Math.max(bot,l.y+l.fs/2);
+    var c=(l.align==='left')?l.x+_calBenefAnchoEst(l)/2:l.x;
+    if(l.dx!=null)c=l.x-l.dx;
+    sx+=c;nx++;
+  });
+  var mid=(top+bot)/2,q=_fgBenefDetectarCuadro(_cal.img,mid);
+  var cx=q?q.cx:Math.round(sx/nx),cy=q?q.cy:mid,k=1;
+  if(q){var disp=(q.bottom-q.top)-16,h=bot-top;if(h>disp&&h>0)k=disp/h;}
+  var mwq=q?Math.max(200,(q.textoX1-q.textoX0)-20):0;
+  ls.forEach(function(l){
+    if(l.dx!=null)l.x=cx+l.dx;else{l.align='center';l.x=cx;}
+    l.y=Math.round(cy+(l.y-mid)*k);
     if(k<1)l.fs=Math.max(6,Math.round(l.fs*k*2)/2);
-    if(mwq&&l.mw>mwq)l.mw=mwq;
+    if(mwq&&l.dx==null&&l.mw>mwq)l.mw=mwq;
   });
   _calBenefRowSync();_calRenderLegend();_calDraw();
   if(!silencioso)showToast(q?'Cartel centrado en el cuadro.':'No encontré el cuadro en la imagen: alineé las líneas entre sí. Movelas juntas con «Cartel (todo)».');
@@ -3578,7 +3656,7 @@ function _calZones(){
   if(!_calEsRubros())return _CAL_ZONES;
   var ls=_calBenefLineas();
   var z=[{id:'blAll',label:'Cartel (todo)',color:'#e30613'}];
-  ls.forEach(function(l,i){var t=String(l.t||'').replace(/\*\*/g,'').replace('{nombre}','NOMBRE').replace('{importe}','$');z.push({id:'bl'+i,label:(t.length>18?t.slice(0,17)+'…':t)||('Línea '+(i+1)),color:_BENEF_ZONE_COLORS[i%_BENEF_ZONE_COLORS.length]});});
+  ls.forEach(function(l,i){var t=String(l.t||'').replace(/\*\*/g,'').replace('{nombre}','NOMBRE').replace('{importe2}','$').replace('{importe}','$');z.push({id:'bl'+i,label:(t.length>18?t.slice(0,17)+'…':t)||('Línea '+(i+1)),color:_BENEF_ZONE_COLORS[i%_BENEF_ZONE_COLORS.length]});});
   return z.concat(_CAL_ZONES);
 }
 var _CAL_SAMPLE_LEGAL="Ejemplo de términos y condiciones del flyer. **Bonificación de comisiones** por 6 meses para nuevos clientes. Promociones sujetas a disponibilidad y a las bases y condiciones vigentes.\nPARA MÁS INFORMACIÓN O LIMITACIONES APLICABLES, CONSULTE EN: www.bancogalicia.com.ar";
@@ -3589,7 +3667,7 @@ function _calSampleVals(){
     has1:true,nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar',
     has2:true,nombre2:'Segundo Asesor',celular2:'11 8765 4321',email2:'segundo.asesor@bancogalicia.com.ar',
     legal:(_cal&&_cal.legalText)||_CAL_SAMPLE_LEGAL,
-    benef:rub,benefNombre:rub?'EMPRESA EJEMPLO':'',importe:rub?'$24.000':''};
+    benef:rub,benefNombre:rub?'EMPRESA EJEMPLO':'',importe:rub?'$24.000':'',importe2:rub?'$30.000':''};
 }
 function _calEnsureDom(){
   if(document.getElementById('cal-modal'))return;
@@ -3646,9 +3724,9 @@ function _calEnsureDom(){
           '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefCentrar(false)" title="Detecta el cuadro en la imagen y centra el bloque de l&iacute;neas ah&iacute;">&#8982; Centrar en el cuadro</button>'+
           '<span class="sp" style="flex:1"></span>'+
           '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefAgregar()">+ L&iacute;nea</button></div>'+
-        '<div class="cal-bl cal-bl-head"><span></span><span>Texto ({nombre}, {importe}, **naranja**)</span><span>Letra px</span><span>Peso</span><span>Color</span><span>Alinear</span><span></span></div>'+
+        '<div class="cal-bl cal-bl-head"><span></span><span>Texto ({nombre}, {importe}, {importe2}, **naranja**)</span><span>Letra px</span><span>Peso</span><span>Color</span><span>Alinear</span><span></span></div>'+
         '<div id="cal-benef-lineas"></div>'+
-        '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre} e {importe} los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
+        '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre}, {importe} y {importe2} (segundo tope, cuadro &laquo;Ambos&raquo;) los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
       '</div>'+
       '<div class="cal-ft"><span>Tocá una zona y arrastrá para moverla. Con la zona elegida, las flechas del teclado hacen ajuste fino (Shift = 10px).</span><span class="sp"></span><span id="cal-sel"></span></div>'+
     '</div>';
@@ -3804,7 +3882,9 @@ function _calUp(){if(_cal&&_cal.drag)_cal.drag=null;}
 function _calApply(drag,dx,dy){
   var cfg=_cal.cfg,E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal,B=cfg.benef;
   if(drag.zone==='blAll'){_calBenefLineas().forEach(function(l){l.x+=dx;l.y+=dy;});}
-  else if(/^bl\d+$/.test(drag.zone)){var bl=_calBenefLineas()[+drag.zone.slice(2)];if(bl){bl.x+=dx;bl.y+=dy;}}
+  // una línea de columna (con dx) arrastrada sola corre también su dx, así
+  // «Centrar en el cuadro» respeta el retoque
+  else if(/^bl\d+$/.test(drag.zone)){var bl=_calBenefLineas()[+drag.zone.slice(2)];if(bl){bl.x+=dx;bl.y+=dy;if(bl.dx!=null)bl.dx+=dx;}}
   else if(drag.zone==='empresa'){E.yc+=dy;E.xc+=dx;E.ex+=dx;}
   else if(drag.zone==='montos'){M.y+=dy;M.boxes.forEach(function(b){b.xc+=dx;});}
   else if(drag.zone==='asesores'){C.ey+=dy;C.y1+=dy;C.y2+=dy;C.y3+=dy;C.xSingle+=dx;C.xLeft+=dx;C.xRight+=dx;}
@@ -3959,7 +4039,7 @@ function logFlyerToSupabase(v,fn,fmt){
       if(v[k])extra[k]=v[k];
     });
     extra.asesores=_fgAsesores(v).length;
-    if(v.benef){extra.beneficio=v.benefNombre||'';extra.importe=v.importe||'';} // Flyer Rubros
+    if(v.benef){extra.beneficio=v.benefNombre||'';extra.importe=v.importe||'';if(_fgBenefUsaImporte2())extra.importe2=v.importe2||v.importe||'';} // Flyer Rubros
   }
   _sb.from('flyer_logs').insert({
     user_id:_me.id,
@@ -3990,7 +4070,8 @@ function logFlyerBulkToSupabase(n){
 // ── DESCARGAS: registro + historial con opción ────────────────────────────────
 // OJO: logFlyerToSupabase existía pero NADIE lo llamaba => no se registraba ninguna
 // descarga. Lo engancho acá pisando savePDF/savePNG de _source.html (que regenera).
-function fgSavePDF(fc,v){
+function fgSavePDF(fc,v,force){
+  if(!force&&_padCheckRubro(_padFilaActual(),'descarga',function(){fgSavePDF(fc,v,true);}))return;
   var jsPDF=window.jspdf.jsPDF;
   var pw=210,ph=(fc.height/fc.width)*pw;
   var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
@@ -4001,7 +4082,8 @@ function fgSavePDF(fc,v){
   logFlyerToSupabase(v,fn,'pdf');
   _padAfterFlyer();
 }
-function fgSavePNG(fc,v){
+function fgSavePNG(fc,v,force){
+  if(!force&&_padCheckRubro(_padFilaActual(),'descarga',function(){fgSavePNG(fc,v,true);}))return;
   var a=document.createElement('a');
   var fn=buildFn(document.getElementById('filename').value,v);
   a.download=fn+'.png';a.href=fc.toDataURL('image/png');a.click();
@@ -4041,7 +4123,7 @@ function fgGenAll(){
   var total=excelData.length,cur=0,zip=new JSZip(),usados={};
   var legalText=document.getElementById('legal-text').value;
   // Flyer Rubros: si la fila no trae importe, se usa el del formulario (uno para todos)
-  var enRubros=(_fgVista==='rubros'),impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||'');
+  var enRubros=(_fgVista==='rubros'),impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||''),imp2Form=_fgFmtImporte((document.getElementById('benef-importe2')||{}).value||'');
   logFlyerBulkToSupabase(total);
   var pb=document.getElementById('prog-bar'),pf=document.getElementById('prog-fill'),
       pt=document.getElementById('prog-text'),bg=document.getElementById('btn-gen');
@@ -4075,8 +4157,10 @@ function fgGenAll(){
       nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
     if(enRubros){
       v.benef=true;
-      v.benefNombre=String(row.beneficio||row.Beneficio||'').trim()||v.empresa;
+      var bnm=String(row.beneficio||row.Beneficio||'').trim();
+      v.benefNombre=(bnm==='-')?'':(bnm||v.empresa); // "-" = sin nombre ("¡Beneficio exclusivo!")
       v.importe=_fgFmtImporte(row.importe||row.Importe||'')||impForm;
+      v.importe2=_fgFmtImporte(row.importe2||row.Importe2||'')||imp2Form||v.importe;
     }
     [1,2,3,4].forEach(function(i){
       var sfx=(i===1)?'':String(i);
@@ -4116,8 +4200,9 @@ function fgDlTemplate(){
   var enRubros=(_fgVista==='rubros');
   if(enRubros){
     head.push('beneficio','importe');
-    data[1].push('EMPRESA EJEMPLO','24.000');data[2].push('','24.000');
+    data[1].push('EMPRESA EJEMPLO','24.000');data[2].push('-','24.000');
     cols.push({wch:22},{wch:12});
+    if(_fgBenefUsaImporte2()){head.push('importe2');data[1].push('30.000');data[2].push('');cols.push({wch:12});}
   }
   var ws=XLSX.utils.aoa_to_sheet(data);
   ws['!cols']=cols;
@@ -4177,7 +4262,7 @@ function loadRegistros(){
         var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">MASIVO</span>':'';
         var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+_escHtml(ex.config)+'</span>':'';
         // Flyer Rubros: tope del beneficio (y el nombre del cartel si difiere de la empresa)
-        if(ex.importe)cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Tope de reintegro del beneficio exclusivo">Tope '+_escHtml(ex.importe)+'</span>';
+        if(ex.importe)cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Tope de reintegro del beneficio exclusivo">Tope '+_escHtml(ex.importe)+(ex.importe2&&ex.importe2!==ex.importe?' / '+_escHtml(ex.importe2):'')+'</span>';
         if(ex.beneficio&&ex.beneficio!==(row.empresa||''))cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Nombre en el cartel del beneficio">'+_escHtml(ex.beneficio)+'</span>';
         var cfgWrap=cfgHtml?'<div class="reg-montos">'+cfgHtml+'</div>':'';
         var asesorHtml=ex.nombre?'<div style="font-size:.68rem;color:#555;margin-top:3px"><b>Asesor:</b> '+_escHtml(ex.nombre)+(ex.celular?' &middot; '+_escHtml(ex.celular):'')+(ex.email?' &middot; '+_escHtml(ex.email):'')+'</div>':'';
@@ -4230,6 +4315,7 @@ function exportRegistros(){
           'Opción':ex.opcion?_optLabel(ex.opcion):'',
           'Beneficio (Rubros)':ex.beneficio||'',
           'Tope (Rubros)':ex.importe||'',
+          'Tope 2 (Rubros)':ex.importe2||'',
           'Nombre Asesor 1':ex.nombre||'',
           'Cel Asesor 1':ex.celular||'',
           'Email Asesor 1':ex.email||'',
@@ -4298,6 +4384,7 @@ function _plogDetalle(row){
   uno('CUIT','cuits',_plogCuits);
   uno('Cashback','config',_plogConfig);
   uno('Oficiales','asesores',_plogAsesores);
+  uno('Rubro','rubro',function(v){return _padRubroLabel({rubro:v})||'—';});
   return out;
 }
 function _plogDetalleTxt(row){
@@ -4477,8 +4564,36 @@ var _padron=null,_padronAt='',_padHits=[];
 var _PAD_HEAD=(function(){
   var h=['empresa','cuit','config'];
   [1,2,3,4].forEach(function(i){h.push('asesor'+i+'_nombre','asesor'+i+'_celular','asesor'+i+'_email');});
+  h.push('rubro','tope','tope2'); // Flyer Rubros: opción del rubro y topes (ver _padRubroOf)
   return h;
 })();
+// ── Rubro por empresa (Flyer Rubros) ──────────────────────────────────────────
+// Cada empresa puede tener un beneficio por rubro: {opcion:N,importe,importe2}
+// (N = nº de opción de la solapa Rubros; 0 = sin rubro; importes en dígitos).
+// Lo usa _padApply para completar los topes y _padCheckRubro para avisar si el
+// flyer se arma en la solapa equivocada.
+function _padRubroSane(r){
+  r=(r&&typeof r==='object')?r:{};
+  var n=parseInt(r.opcion,10);if(!(n>0))n=0;
+  return {opcion:n,importe:_padDigits(r.importe),importe2:_padDigits(r.importe2)};
+}
+function _padRubroOpts(){return _FG_OPTS.filter(function(o){return _optSolapa(o)==='rubros';});}
+// "Ambos" / "combustible" / "5" → nº de opción de rubros (0 si no coincide)
+function _padRubroOf(txt){
+  var t=_padNorm(txt);if(!t||t==='-'||t==='no'||t==='sin rubro')return 0;
+  var opts=_padRubroOpts(),i;
+  if(/^\d+$/.test(t)){var n=parseInt(t,10);return opts.indexOf(n)>=0?n:0;}
+  for(i=0;i<opts.length;i++)if(_padNorm(_optLabel(opts[i]))===t)return opts[i];
+  for(i=0;i<opts.length;i++){var l=_padNorm(_optLabel(opts[i]));if(l.indexOf(t)>=0||t.indexOf(l)>=0)return opts[i];}
+  return 0;
+}
+function _padRubroLabel(r){
+  var ru=_padRubroSane(r&&r.rubro);if(!ru.opcion)return '';
+  var lbl=_optLabel(ru.opcion),imp=_fgFmtImporte(ru.importe),imp2=_fgFmtImporte(ru.importe2);
+  if(imp)lbl+=' · '+imp+((imp2&&imp2!==imp)?' / '+imp2:'');
+  return lbl;
+}
+function _padRubroIgual(a,b){a=_padRubroSane(a);b=_padRubroSane(b);return a.opcion===b.opcion&&(!a.opcion||(a.importe===b.importe&&(a.importe2||a.importe)===(b.importe2||b.importe)));}
 
 function _padNorm(s){
   return (s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -4495,6 +4610,7 @@ function _padFmtCuit(d){
   d=String(d||'');
   return d.length===11?(d.slice(0,2)+'-'+d.slice(2,10)+'-'+d.slice(10)):d;
 }
+function _padRubroTxt(r){var m={},k;for(k in r){if(r.hasOwnProperty(k))m[_padKey(k)]=(r[k]==null?'':String(r[k])).trim();}return m.rubro||m.rubros||m.beneficio||m.opcionrubro||'';}
 // Fila cruda del Excel → fila interna. Devuelve null si no tiene ni empresa ni CUIT.
 function _padRow(r){
   var m={},k;
@@ -4514,7 +4630,8 @@ function _padRow(r){
     });
   }
   if(!emp&&!cuits.length)return null;
-  return {empresa:emp,cuits:cuits,config:g('config','cashback','tipocashback','tipodecashback','tipo','configuracion'),asesores:as};
+  var rubro={opcion:_padRubroOf(g('rubro','rubros','beneficio','opcionrubro')),importe:_padDigits(g('tope','importe','tope1','importe1')),importe2:_padDigits(g('tope2','importe2'))};
+  return {empresa:emp,cuits:cuits,config:g('config','cashback','tipocashback','tipodecashback','tipo','configuracion'),asesores:as,rubro:rubro};
 }
 // Busca por CUIT (si hay 3+ dígitos) o por coincidencia parcial de la razón social:
 // todas las palabras que escribís tienen que estar en el nombre, en cualquier orden.
@@ -4560,7 +4677,7 @@ function _padSane(rows){
     }
     var emp=(r.empresa==null?'':String(r.empresa)).trim();
     if(!emp&&!cu.length)return;
-    out.push({empresa:emp,cuits:cu,config:(r.config==null?'':String(r.config)).trim(),asesores:as});
+    out.push({empresa:emp,cuits:cu,config:(r.config==null?'':String(r.config)).trim(),asesores:as,rubro:_padRubroSane(r.rubro)});
   });
   return out;
 }
@@ -4568,7 +4685,7 @@ function _padSane(rows){
 // un archivo del bucket (que era público: cualquiera con la URL lo leía sin
 // loguearse). Quién ve qué lo hace cumplir el servidor con RLS, no el cliente:
 // cada uno sólo ve lo suyo, y un admin puede LEER el de los no-admin.
-var _PADRON_TABLE='padron_empresas',_PADRON_COLS='empresa,cuits,config,asesores,created_at';
+var _PADRON_TABLE='padron_empresas',_PADRON_COLS='empresa,cuits,config,asesores,rubro,created_at';
 function _padUltimo(rows){
   var t='';(rows||[]).forEach(function(r){if(r&&r.created_at&&r.created_at>t)t=r.created_at;});
   return t;
@@ -4613,13 +4730,16 @@ function _padToAoa(rows){
   (rows||[]).forEach(function(r){
     var line=[r.empresa||'',(r.cuits||[]).map(_padFmtCuit).join(', '),r.config||''];
     for(var n=1;n<=4;n++){var a=(r.asesores&&r.asesores[n-1])||{};line.push(a.nombre||'',a.celular||'',a.email||'');}
+    var ru=_padRubroSane(r.rubro),f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
+    line.push(ru.opcion?_optLabel(ru.opcion):'',f1?f1.slice(1):'',(f2&&f2!==f1)?f2.slice(1):'');
     out.push(line);
   });
   return out;
 }
 function _padCols(){
   return [{wch:34},{wch:30},{wch:10}]
-    .concat([1,2,3,4].reduce(function(a){return a.concat([{wch:24},{wch:16},{wch:38}]);},[]));
+    .concat([1,2,3,4].reduce(function(a){return a.concat([{wch:24},{wch:16},{wch:38}]);},[]))
+    .concat([{wch:16},{wch:10},{wch:10}]);
 }
 function _padXlsx(rows,file,sheet){
   var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(_padToAoa(rows));
@@ -4666,7 +4786,9 @@ function dlPadron(){
 function dlPadronTemplate(){
   _padXlsx([
     {empresa:'Pharma Sur S.A.',cuits:['30712345678','30709876543'],config:'Config 2',
-     asesores:[{nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar'},{},{},{}]},
+     asesores:[{nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar'},{},{},{}],
+     // rubro = nombre de una opción de Flyer Rubros; tope2 sólo si difiere (cuadro "Ambos")
+     rubro:{opcion:_padRubroOpts()[0]||0,importe:'24000',importe2:''}},
     {empresa:'Empresa XYZ S.R.L.',cuits:['30711111111'],config:'BAU',
      asesores:[{nombre:'Carlos Lopez',celular:'11 4444 5555',email:'carlos.lopez@bancogalicia.com.ar'},
                {nombre:'Ana Perez',celular:'11 5555 6666',email:'ana.perez@bancogalicia.com.ar'},{},{}]},
@@ -4704,7 +4826,8 @@ function renderPadronAdmin(force){
           '</div>'+
           '<span style="font-size:.68rem;color:var(--gray);white-space:nowrap">'+
             _escHtml(_padCfgName(_padCfgOf(r.config)))+' &nbsp;·&nbsp; '+
-            (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+'</span>'+
+            (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+
+            (_padRubroLabel(r)?' &nbsp;·&nbsp; <span style="color:#b26a00" title="Beneficio por rubro (Flyer Rubros)">'+_escHtml(_padRubroLabel(r))+'</span>':'')+'</span>'+
         '</div>';
       }).join('');
   });
@@ -4715,10 +4838,11 @@ function renderPadronAdmin(force){
 var _padEdit=null,_padEditAsOpen={},_padEditQ='';
 function _escAttr(s){return _escHtml(s).replace(/"/g,'&quot;');}
 function togglePadronEditor(){if(_padEdit){closePadronEditor();}else{openPadronEditor();}}
-function _padEditRowNew(){return {empresa:'',cuits:[],config:'',asesores:[{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''}]};}
+function _padEditRowNew(){return {empresa:'',cuits:[],config:'',asesores:[{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''},{nombre:'',celular:'',email:''}],rubro:{opcion:0,importe:'',importe2:''}};}
 function _padCloneRow(r){
   return {empresa:r.empresa||'',cuits:(r.cuits||[]).slice(),config:r.config||'',
-    asesores:[0,1,2,3].map(function(n){var a=(r.asesores&&r.asesores[n])||{};return {nombre:a.nombre||'',celular:a.celular||'',email:a.email||''};})};
+    asesores:[0,1,2,3].map(function(n){var a=(r.asesores&&r.asesores[n])||{};return {nombre:a.nombre||'',celular:a.celular||'',email:a.email||''};}),
+    rubro:_padRubroSane(r.rubro)};
 }
 function openPadronEditor(){
   loadPadron(false,function(rows){
@@ -4747,6 +4871,7 @@ function _padEditStyle(){
   st.textContent=
     '.pad-erow{border:1px solid var(--border,#e2e2e2);border-radius:9px;padding:9px;margin-bottom:8px}'+
     '.pad-erow-main{display:grid;grid-template-columns:1.6fr 1.3fr 0.9fr auto auto;gap:6px;align-items:center}'+
+    '.pad-erow-main.con-rubro{grid-template-columns:1.6fr 1.3fr 0.9fr 1fr 0.6fr 0.6fr auto auto}'+
     '.pad-erow-main .login-inp,.pad-erow-main select{margin-bottom:0;font-size:.78rem;padding:7px 8px}'+
     '.pad-eas{display:grid;grid-template-columns:1fr;gap:5px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border,#e2e2e2)}'+
     '.pad-eas-row{display:grid;grid-template-columns:1.2fr 0.9fr 1.3fr;gap:6px}'+
@@ -4814,6 +4939,12 @@ function _padEditRowHtml(r,i){
     cfgOpts.map(function(o){return '<option value="'+_escAttr(o[0])+'"'+(r.config===o[0]?' selected':'')+'>'+_escHtml(o[1])+'</option>';}).join('')+
     '</select>';
   var nAs=_padNumAsesores(r),open=!!_padEditAsOpen[i];
+  // Flyer Rubros: rubro (opción) + topes; los topes sólo se habilitan con rubro
+  var ru=_padRubroSane(r.rubro),rOpts=_padRubroOpts(),f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
+  var rubSel=!rOpts.length?'':'<select title="Rubro (Flyer Rubros)" onchange="_padEditRubro('+i+',\'opcion\',this.value)">'+
+    '<option value="0">Sin rubro</option>'+rOpts.map(function(o){return '<option value="'+o+'"'+(ru.opcion===o?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
+    '<input class="login-inp pad-tope" placeholder="Tope" inputmode="numeric" value="'+_escAttr(f1?f1.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe\',this.value)">'+
+    '<input class="login-inp pad-tope" placeholder="Tope 2" title="Segundo tope, s&oacute;lo si difiere (cuadro Ambos)" inputmode="numeric" value="'+_escAttr((f2&&f2!==f1)?f2.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe2\',this.value)">';
   var asHtml=r.asesores.map(function(a,n){
     return '<div class="pad-eas-row">'+
       '<input class="login-inp" placeholder="Oficial '+(n+1)+': nombre" value="'+_escAttr(a.nombre)+'" oninput="_padEditAs('+i+','+n+',\'nombre\',this.value)">'+
@@ -4822,10 +4953,10 @@ function _padEditRowHtml(r,i){
     '</div>';
   }).join('');
   return '<div class="pad-erow">'+
-    '<div class="pad-erow-main">'+
+    '<div class="pad-erow-main'+(rubSel?' con-rubro':'')+'">'+
       '<input class="login-inp" placeholder="Raz&oacute;n social" value="'+_escAttr(r.empresa)+'" oninput="_padEditField('+i+',\'empresa\',this.value)">'+
       '<input class="login-inp" placeholder="CUIT (separados por coma)" value="'+_escAttr(r.cuits.map(_padFmtCuit).join(', '))+'" oninput="_padEditCuits('+i+',this.value)">'+
-      cfgSel+
+      cfgSel+rubSel+
       '<button type="button" class="usr-btn edit" onclick="_padEditToggleAs('+i+')">'+(open?'&#9650;':'&#9660;')+' Oficiales ('+nAs+')</button>'+
       '<button type="button" class="usr-btn del" onclick="_padEditRemoveRow('+i+')" title="Eliminar empresa">&#10005;</button>'+
     '</div>'+
@@ -4833,6 +4964,17 @@ function _padEditRowHtml(r,i){
   '</div>';
 }
 function _padEditField(i,k,v){if(_padEdit&&_padEdit[i])_padEdit[i][k]=v;}
+function _padEditRubro(i,k,v){
+  var r=_padEdit&&_padEdit[i];if(!r)return;
+  r.rubro=_padRubroSane(r.rubro);
+  if(k==='opcion'){
+    r.rubro.opcion=parseInt(v,10)||0;
+    // habilita/deshabilita los topes de esa fila sin repintar todo
+    var row=document.querySelectorAll('#padron-edit-list .pad-erow')[i];
+    if(row)row.querySelectorAll('.pad-tope').forEach(function(el){el.disabled=!r.rubro.opcion;});
+  }
+  else r.rubro[k]=_padDigits(v);
+}
 function _padEditCuits(i,v){if(_padEdit&&_padEdit[i])_padEdit[i].cuits=_padCuits(v);}
 function _padEditAs(i,n,k,v){if(_padEdit&&_padEdit[i]&&_padEdit[i].asesores[n])_padEdit[i].asesores[n][k]=v;}
 function _padEditToggleAs(i){_padEditAsOpen[i]=!_padEditAsOpen[i];_padEditRenderList();}
@@ -4844,8 +4986,7 @@ function _padEditAddRow(){
     var q=document.getElementById('padron-edit-q');if(q)q.value='';
   }
   _padEditRenderList();
-  var rows=document.querySelectorAll('#padron-edit-list .pad-erow-main input');
-  var last=rows[rows.length-2];if(last)last.focus();
+  var last=document.querySelector('#padron-edit-list .pad-erow:last-child .pad-erow-main input');if(last)last.focus();
 }
 function _padEditRemoveRow(i){
   if(!_padEdit||!_padEdit[i])return;
@@ -4944,7 +5085,8 @@ function renderPadronOtrosList(){
         '</div>'+
         '<span style="font-size:.68rem;color:var(--gray);white-space:nowrap">'+
           _escHtml(_padCfgName(_padCfgOf(r.config)))+' &nbsp;·&nbsp; '+
-          (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+'</span>'+
+          (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+
+          (_padRubroLabel(r)?' &nbsp;·&nbsp; <span style="color:#b26a00" title="Beneficio por rubro (Flyer Rubros)">'+_escHtml(_padRubroLabel(r))+'</span>':'')+'</span>'+
       '</div>';
     }).join('');
 }
@@ -5150,6 +5292,7 @@ function _padApply(r){
   var _ci=_padCfgOf(r.config);
   if(_ci<0)_fgSetNoCB(true);
   else if(typeof setCfg==='function')setCfg(_ci);
+  _padAplicarTopes(r); // Flyer Rubros: topes del padrón
   // El nombre del archivo lo actualiza un listener de _source.html que sólo corre
   // al TIPEAR: si seteo #empresa por código no se entera y queda el de la empresa
   // anterior. Lo replico acá (respetando que no lo hayas escrito vos a mano).
@@ -5182,6 +5325,77 @@ function _padApply(r){
   if(typeof redraw==='function')redraw();
   showToast('"'+(r.empresa||'Empresa')+'" cargada del padrón — '+_padAsesoresLbl(r));
   if(_ci<0)setTimeout(function(){_padAvisoSinCB(r);},120); // que no pase desapercibido
+  else setTimeout(function(){_padCheckRubro(r,'padron');},120);
+}
+// Completa los topes del cartel con los del padrón (si la empresa tiene rubro).
+function _padAplicarTopes(r){
+  var ru=_padRubroSane(r&&r.rubro);if(!ru.opcion)return;
+  var f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
+  if(f1)_setVal('benef-importe',f1.slice(1));
+  _setVal('benef-importe2',(f2&&f2!==f1)?f2.slice(1):'');
+}
+// ── Aviso de solapa equivocada ───────────────────────────────────────────────
+// El padrón dice en qué rubro va cada empresa. Si el flyer se arma en otra
+// opción (Flyer Galicia con una empresa con rubro, o Rubros con una empresa sin
+// rubro / de otro rubro) avisa y ofrece cambiar de opción conservando lo
+// cargado. Nunca bloquea: "Seguir acá" se recuerda por empresa+opción.
+// origen: 'padron' (al elegir la empresa) | 'descarga' (antes de bajar el
+// flyer; cont = qué hacer si igual quiere descargar). Devuelve true si mostró
+// el aviso (la descarga espera al botón).
+var _padRubroDismissed='';
+function _padCheckRubro(r,origen,cont){
+  try{
+    if(!r||!_can('padron_buscar'))return false;
+    var ru=_padRubroSane(r.rubro),act=_optN(_fgOpt),enRubros=(_fgVista==='rubros');
+    var quiere=ru.opcion&&_FG_OPTS.indexOf(ru.opcion)>=0&&_can('opcion_'+ru.opcion)?ru.opcion:0;
+    if(quiere===act)return false;
+    if(!quiere&&!enRubros)return false; // sin rubro en Flyer Galicia: todo bien
+    var firma=_padNorm(r.empresa)+'|'+quiere+'|'+act;
+    if(firma===_padRubroDismissed)return false;
+    if(document.getElementById('pad-upd'))return false;
+    var emp=_escHtml(r.empresa||'Esta empresa'),aca=_escHtml(_solapaLabel(_fgVista)+' · '+_optLabel(act));
+    var html,btn;
+    if(quiere){
+      html='<h3>&#128203; Beneficio por rubro</h3>'+
+        '<p class="pu-sub"><strong>'+emp+'</strong> tiene en el padr&oacute;n el beneficio <strong>'+_escHtml(_padRubroLabel(r))+'</strong>, '+
+          'y est&aacute;s armando el flyer en <strong>'+aca+'</strong>.</p>'+
+        '<p class="pu-sub">Si lo pas&aacute;s a <strong>Flyer Rubros &rarr; '+_escHtml(_optLabel(quiere))+'</strong> se conservan la empresa, los oficiales y los topes.</p>';
+      btn='<button class="pu-si" onclick="_padIrRubro('+quiere+')">Ir a '+_escHtml(_optLabel(quiere))+'</button>';
+    }else{
+      html='<h3>&#128203; Sin beneficio por rubro</h3>'+
+        '<p class="pu-sub"><strong>'+emp+'</strong> no tiene rubro cargado en el padr&oacute;n, y est&aacute;s armando el flyer en <strong>'+aca+'</strong>.</p>'+
+        '<p class="pu-sub">Si es correcto que lleve el cartel del beneficio, segu&iacute; ac&aacute;: al generar el flyer te ofrezco guardar el rubro en el padr&oacute;n.</p>';
+      btn='<button class="pu-si" onclick="_padIrRubro(0)">Ir a Flyer Galicia</button>';
+    }
+    _padPending=null;_padRubroCont=(origen==='descarga')?(cont||null):null;
+    _padModal(html+'<div class="pu-foot">'+
+      '<button class="pu-no" onclick="_padRubroSeguir()">'+(origen==='descarga'?'Descargar igual':'Seguir ac&aacute;')+'</button>'+btn+'</div>');
+    _padRubroDismissed=firma;
+    return true;
+  }catch(e){console.warn('padron rubro:',e);return false;}
+}
+var _padRubroCont=null;
+function _padRubroSeguir(){
+  var c=_padRubroCont;_padRubroCont=null;
+  _padCloseUpdate(0);
+  if(typeof c==='function')c();
+}
+function _padIrRubro(opt){
+  _padRubroCont=null;_padCloseUpdate(0);
+  _padRubroDismissed='';
+  if(opt)switchFlyerOption(opt,function(){
+    if(typeof _fgBenefSyncNombre==='function')_fgBenefSyncNombre();
+    if(typeof redraw==='function')redraw();
+    showToast('Cambiado a Flyer Rubros · '+_optLabel(opt)+'. Revis\u00e1 el cartel y descarg\u00e1 de nuevo.');
+  });
+  else{switchApp('flyer');showToast('Cambiado a Flyer Galicia. Descarg\u00e1 de nuevo.');}
+}
+// Fila del padrón que corresponde a la empresa del formulario (o null).
+function _padFilaActual(){
+  if(!_padron)return null;
+  var emp=(_gv('empresa')||'').trim();if(!emp)return null;
+  if(_padRef&&_padron.indexOf(_padRef)>=0&&_padNorm(_padRef.empresa)===_padNorm(emp))return _padRef;
+  return _padFindByName(emp);
 }
 // Aviso al traer del buscador una empresa marcada sin cashback.
 function _padAvisoSinCB(r){
@@ -5274,11 +5488,21 @@ function _padDiff(){
     if(o.celular!==c.celular)chg.push(lbl+' &middot; celular: '+_escHtml(o.celular||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.celular||'(vac&iacute;o)')+'</strong>');
     if(o.email!==c.email)chg.push(lbl+' &middot; mail: '+_escHtml(o.email||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.email||'(vac&iacute;o)')+'</strong>');
   }
+  // Flyer Rubros: el rubro/topes del formulario vs el padrón (en Flyer Galicia no se toca)
+  var rubro=_padRubroForm();
+  if(rubro&&!_padRubroIgual(rubro,_padRef.rubro))
+    chg.push('Rubro: '+(_padRubroLabel(_padRef)?_escHtml(_padRubroLabel(_padRef)):'&mdash;')+' &rarr; <strong>'+_escHtml(_padRubroLabel({rubro:rubro}))+'</strong>');
   if(!chg.length)return null;
-  return {row:_padRef,empresa:_padRef.empresa,config:_padCfgCell(ci),asesores:cur,cambios:chg};
+  return {row:_padRef,empresa:_padRef.empresa,config:_padCfgCell(ci),asesores:cur,rubro:rubro||_padRubroSane(_padRef.rubro),cambios:chg};
 }
 // Firma del cambio: si decís "no" y después no tocás nada más, no vuelve a preguntar.
-function _padSig(d){return d.empresa+'|'+d.config+'|'+JSON.stringify(d.asesores);}
+function _padSig(d){return d.empresa+'|'+d.config+'|'+JSON.stringify(d.asesores)+'|'+JSON.stringify(d.rubro||null);}
+// Rubro según el formulario: sólo en Flyer Rubros (opción activa + topes); null en Flyer Galicia.
+function _padRubroForm(){
+  if(_fgVista!=='rubros')return null;
+  var i1=_padDigits(_gv('benef-importe')),i2=_padDigits(_gv('benef-importe2'));
+  return _padRubroSane({opcion:_optN(_fgOpt),importe:i1,importe2:(i2&&i2!==i1)?i2:''});
+}
 
 // ── Popups del padrón al generar el flyer ────────────────────────────────────
 // Dos casos, mismo modal: la empresa YA está en el padrón y cambiaste algo
@@ -5380,6 +5604,8 @@ function _padResumen(as){
       (a.celular?(' &middot; '+_escHtml(a.celular)):''));
   });
   if(!n)li.push('<span style="color:#b06000">Sin oficiales asignados</span>');
+  var ru=_padRubroForm();
+  if(ru&&ru.opcion)li.push('Rubro: <strong>'+_escHtml(_padRubroLabel({rubro:ru}))+'</strong>');
   return '<ul><li>'+li.join('</li><li>')+'</li></ul>';
 }
 
@@ -5406,7 +5632,7 @@ function _padDoNew(){
   if(!emp||!_padron){_padCloseUpdate(0);return;}
   var el=document.getElementById('pad-cuit');
   var row={empresa:emp,cuits:_padCuits(el?el.value:''),
-    config:_padCfgCell(_padCfgActual()),asesores:_padFormAsesores()};
+    config:_padCfgCell(_padCfgActual()),asesores:_padFormAsesores(),rubro:_padRubroForm()||_padRubroSane(null)};
   var btn=document.querySelector('#pad-upd .pu-si');
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   _padron.push(row);
@@ -5446,6 +5672,7 @@ function _padDoUpdate(){
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   d.row.config=d.config;   // la razón social NO se toca nunca
   d.row.asesores=d.asesores.map(function(a){return {nombre:a.nombre,celular:a.celular,email:a.email};});
+  if(d.rubro)d.row.rubro=_padRubroSane(d.rubro);
   if(el)d.row.cuits=_padCuits(el.value); // el CUIT se puede completar acá mismo
   savePadron(_padron,function(ok){
     _padCloseUpdate(0);
@@ -5603,11 +5830,13 @@ function _padCfgParse(raw){
 // ── Validación del Excel ────────────────────────────────────────────────────
 var _PAD_COLS_EMPRESA=['empresa','razonsocial','razsocial','nombreempresa','company','cliente'];
 var _PAD_COLS_CONFIG=['config','cashback','tipocashback','tipodecashback','tipo','configuracion'];
+var _PAD_COLS_RUBRO=['rubro','rubros','beneficio','opcionrubro','tope','importe','tope1','importe1','tope2','importe2'];
 var _PAD_COLS_CUIT=['cuit','cuits','cuitgrupo','cuitsociedad'];
 var _PAD_COLS_A1=['nombre','asesornombre','celular','asesorcelular','cel','email','mail','asesoremail'];
 function _padColKnown(k){
   if(/^asesor[1-4](nombre|celular|email)$/.test(k))return true;
   if(/^cuit([1-9]|10)$/.test(k))return true;
+  if(_PAD_COLS_RUBRO.indexOf(k)>=0)return true;
   return _PAD_COLS_EMPRESA.indexOf(k)>=0||_PAD_COLS_CONFIG.indexOf(k)>=0||
          _PAD_COLS_CUIT.indexOf(k)>=0||_PAD_COLS_A1.indexOf(k)>=0;
 }
@@ -5622,11 +5851,13 @@ function _padValidate(raw){
     if(_PAD_COLS_CONFIG.indexOf(k)>=0)hasCfg=true;
     if(!_padColKnown(k))unknown.push(cols[k]);
   }
-  var badCfg=[],badCuit=[],sinNombre=[],sinCB=0;
+  var badCfg=[],badCuit=[],sinNombre=[],sinCB=0,badRub=[];
   raw.forEach(function(r,i){
     var o=_padRow(r);
     if(!o){desc++;return;}
     var fila=i+2; // +1 por el encabezado, +1 porque Excel empieza en 1
+    var rubTxt=_padRubroTxt(r);
+    if(rubTxt&&!o.rubro.opcion)badRub.push({fila:fila,val:rubTxt,emp:o.empresa});
     if(!o.empresa)sinNombre.push(fila);
     if(_padCfgOf(o.config)<0){
       if(_padCfgSin(o.config))sinCB++;                                    // marcada a propósito
@@ -5660,6 +5891,9 @@ function _padValidate(raw){
       prob.push({grave:false,txt:'<strong>'+sinCB+' empresa'+(sinCB>1?'s marcadas':' marcada')+' SIN cashback</strong> '+
         '(<code>SIN</code> o celda vac&iacute;a): su flyer sale con los importes en blanco. Si alguna no deber&iacute;a estar as&iacute;, pon&eacute;le el cashback que corresponda.'});
   }
+  if(badRub.length)
+    prob.push({grave:false,txt:'<strong>'+badRub.length+' rubro'+(badRub.length>1?'s que no reconozco':' que no reconozco')+'</strong> (queda'+(badRub.length>1?'n':'')+' <strong>sin rubro</strong>): '+
+      lista(badRub,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+'. Valores v&aacute;lidos: el nombre de una opci&oacute;n de Flyer Rubros ('+_escHtml(_padRubroOpts().map(_optLabel).join(', ')||'ninguna configurada')+').'});
   if(badCuit.length)
     prob.push({grave:false,txt:'<strong>'+badCuit.length+' CUIT sin 11 d&iacute;gitos</strong>: '+
       lista(badCuit,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+'. Se guardan igual, pero puede que no los encuentres al buscar.'});
