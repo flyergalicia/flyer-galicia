@@ -4253,7 +4253,11 @@ function _calZoneRects(){
 }
 function _calDraw(){
   if(!_cal)return;
-  var cv=document.getElementById('cal-cv');if(!cv)return;var g=cv.getContext('2d');var ds=_cal.ds;
+  // willReadFrequently: fgDrawEmpresa/fgDrawMontos leen píxeles de este mismo canvas
+  // (_fgBgMuestra) para tapar con el color real del flyer. Sin esto, cada getImageData
+  // fuerza al navegador a bajar TODO el canvas de la GPU — con el canvas agrandado por
+  // el zoom (arrastrar una zona redibuja en cada movimiento) se sentía trabado.
+  var cv=document.getElementById('cal-cv');if(!cv)return;var g=cv.getContext('2d',{willReadFrequently:true});var ds=_cal.ds;
   cv.width=Math.round(_FG_TARGET_W*ds);cv.height=Math.round(_cal.img.height*ds);
   cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
   var sb=window.baseImg,sc=window.FLYER_CFG,cutBase=0;
@@ -4305,12 +4309,30 @@ function _calDown(e){
   try{e.target.setPointerCapture&&e.target.setPointerCapture(e.pointerId);}catch(_){}
   _calRenderLegend();_calDraw();
 }
+// El navegador puede mandar más pointermove de los que da tiempo a redibujar
+// (sobre todo con zoom alto: el canvas es grande y cada redibujo lee píxeles del
+// flyer para tapar montos/empresa). Sin agrupar, arrastrar una zona zoomeado
+// se sentía trabado: los eventos se acumulaban y el redibujo iba cada vez más
+// atrás. Se aplica el movimiento siempre (es barato), pero el redibujo se
+// agrupa a como mucho uno por frame.
+var _calDrawPend=null;
+function _calScheduleDraw(){
+  if(_calDrawPend)return;
+  _calDrawPend=requestAnimationFrame(function(){_calDrawPend=null;_calDraw();});
+}
 function _calMove(e){
   if(!_cal||!_cal.drag)return;e.preventDefault();
   var p=_calXY(e),dx=p.x-_cal.lastX,dy=p.y-_cal.lastY;_cal.lastX=p.x;_cal.lastY=p.y;
-  _calApply(_cal.drag,dx,dy);_calDraw();
+  _calApply(_cal.drag,dx,dy);_calScheduleDraw();
 }
-function _calUp(){if(_cal&&_cal.drag)_cal.drag=null;}
+function _calUp(){
+  if(_cal&&_cal.drag){
+    _cal.drag=null;
+    // el arrastre terminó: si quedó un redibujo agrupado pendiente, se completa ya
+    // mismo (deja la zona exactamente donde se soltó, sin esperar el próximo frame).
+    if(_calDrawPend){cancelAnimationFrame(_calDrawPend);_calDrawPend=null;_calDraw();}
+  }
+}
 function _calApply(drag,dx,dy){
   var cfg=_cal.cfg,E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal,B=cfg.benef;
   if(drag.zone==='blAll'){_calBenefLineas().forEach(function(l){l.x+=dx;l.y+=dy;});}
@@ -4329,7 +4351,7 @@ function _calKey(e){
   if(!_cal||!_cal.sel)return;
   var step=e.shiftKey?10:1,dx=0,dy=0;
   if(e.key==='ArrowUp')dy=-step;else if(e.key==='ArrowDown')dy=step;else if(e.key==='ArrowLeft')dx=-step;else if(e.key==='ArrowRight')dx=step;else return;
-  e.preventDefault();_calApply({zone:_cal.sel,handle:null},dx,dy);_calDraw();
+  e.preventDefault();_calApply({zone:_cal.sel,handle:null},dx,dy);_calScheduleDraw(); // si se mantiene apretada, agrupa igual que el arrastre
 }
 function _calBadKey(k){return k==='__proto__'||k==='constructor'||k==='prototype';}
 function _calMergeCfg(base,saved){
