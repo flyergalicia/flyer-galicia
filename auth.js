@@ -2860,7 +2860,7 @@ function fgDrawBenef(c,s,v){
     if(t.indexOf('{importe2}')>=0&&!importe2.trim())return;
     if(nombre)t=t.replace(/\{nombre\}/g,function(){return nombre;});
     else t=t.replace(/\s*\{nombre\}\s*/g,' ').replace(/\s+([!?.,;:])/g,'$1').replace(/\s{2,}/g,' ').trim();
-    t=t.replace(/\{importe2\}/g,function(){return importe2;}).replace(/\{importe\}/g,function(){return importe;});
+    t=t.replace(/\{importe2\}/g,function(){return importe2;}).replace(/\{total\}/g,function(){return _fgImporteSuma(importe,importe2);}).replace(/\{importe\}/g,function(){return importe;});
     if(!t.trim())return;
     var segs=_fgBenefSegs(t),fs=Math.round(L.fs*se*2)/2,mw=Math.round(L.mw*se);
     function font(seg,size){return (seg.f?(B.peso2||800):(L.peso||500))+' '+size+'px '+fam;}
@@ -2959,13 +2959,19 @@ function fgDrawC1(c,s,xc,C,nom,cel,mail,dy,colW){
 // al tope sin editarlo a mano. Un marcador sin valor (p. ej. {importe} en Flyer
 // Galicia) se saca para que nunca quede impreso. El texto guardado y el del
 // textarea conservan el marcador. Replacer por función: el texto trae "$".
+// {total} = importe + importe2 ("$24.000" + "$30.000" → "$54.000"); vacío sin importes.
+function _fgImporteSuma(a,b){
+  var da=(a==null?'':String(a)).replace(/\D/g,''),db=(b==null?'':String(b)).replace(/\D/g,'');
+  if(!da&&!db)return '';
+  return _fgFmtImporte(String((parseInt(da||'0',10)||0)+(parseInt(db||'0',10)||0)));
+}
 function _fgLegalConValores(text,v){
   text=(text==null?'':String(text));
   if(text.indexOf('{')<0)return text;
   v=v||{};
   var imp=v.importe||'',imp2=v.importe2||imp,emp=v.empresa||'';
-  var vals={importe:imp,importe2:imp2,empresa:emp,nombre:emp};
-  return text.replace(/\{\s*(importe2|importe|empresa|nombre)\s*\}( ?)/gi,function(m,k,sp){
+  var vals={importe:imp,importe2:imp2,total:_fgImporteSuma(imp,imp2),empresa:emp,nombre:emp};
+  return text.replace(/\{\s*(importe2|importe|total|empresa|nombre)\s*\}( ?)/gi,function(_m,k,sp){
     var val=vals[k.toLowerCase()]||'';
     return val?val+sp:''; // sin valor: se va el marcador y el espacio que lo seguía
   });
@@ -3239,7 +3245,7 @@ function _fgEnsureBenefFields(){
       '<div class="field"><label>Nombre en el beneficio</label>'+
         '<div class="fg-benef-nom"><input type="text" id="benef-nombre" placeholder="Se copia de la empresa" autocomplete="off">'+
         '<button type="button" id="benef-nombre-auto" title="Volver a copiar el nombre de la empresa" onclick="_fgBenefNombreAuto()">&#8635;</button></div></div>'+
-      '<div class="fg-benef-hint">Sale como &laquo;&iexcl;Beneficio exclusivo <b>NOMBRE</b>!&raquo;. Se completa solo con la empresa; si lo cambi&aacute;s queda lo tuyo. Borralo para que diga s&oacute;lo &laquo;&iexcl;Beneficio exclusivo!&raquo;; &#8635; vuelve a copiar la empresa. En el legal, <code>{importe}</code>, <code>{importe2}</code> y <code>{empresa}</code> se reemplazan solos por lo cargado ac&aacute;.</div>'+
+      '<div class="fg-benef-hint">Sale como &laquo;&iexcl;Beneficio exclusivo <b>NOMBRE</b>!&raquo;. Se completa solo con la empresa; si lo cambi&aacute;s queda lo tuyo. Borralo para que diga s&oacute;lo &laquo;&iexcl;Beneficio exclusivo!&raquo;; &#8635; vuelve a copiar la empresa. En el legal, <code>{importe}</code>, <code>{importe2}</code>, <code>{total}</code> (la suma) y <code>{empresa}</code> se reemplazan solos por lo cargado ac&aacute;.</div>'+
       '<div class="field"><label id="benef-importe-lbl">Tope de reintegro mensual</label>'+
         '<input type="text" id="benef-importe" value="24.000" placeholder="24.000" inputmode="numeric" autocomplete="off"></div>'+
       '<div class="field" id="fg-benef-imp2" style="display:none"><label id="benef-importe2-lbl">Segundo tope (si es distinto)</label>'+
