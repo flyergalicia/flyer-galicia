@@ -393,17 +393,30 @@ function initApp(){
   });
   var prevEl=document.querySelector('.prev');
   if(prevEl){
+    // La rueda manda decenas de eventos por gesto; cada uno redibujaba el flyer entero
+    // de una y la pestaña se trababa. Se acumulan los pasos y se aplica un solo
+    // zoom+redibujo por cuadro, anclado a la última posición del cursor.
+    var _pwPend=null,_pwPasos=0,_pwX=0,_pwY=0;
     prevEl.addEventListener('wheel',function(e){
       e.preventDefault();
-      var cvRectBefore=cv.getBoundingClientRect();
-      var fx=(e.clientX-cvRectBefore.left)/cvRectBefore.width;
-      var fy=(e.clientY-cvRectBefore.top)/cvRectBefore.height;
-      fx=Math.min(Math.max(fx,0),1);
-      fy=Math.min(Math.max(fy,0),1);
-      if(e.deltaY<0)zoomIn();else zoomOut();
-      var cvRectAfter=cv.getBoundingClientRect();
-      prevEl.scrollLeft+=(cvRectAfter.left+fx*cvRectAfter.width)-e.clientX;
-      prevEl.scrollTop+=(cvRectAfter.top+fy*cvRectAfter.height)-e.clientY;
+      _pwPasos+=(e.deltaY<0?1:-1);_pwX=e.clientX;_pwY=e.clientY;
+      if(_pwPend)return;
+      _pwPend=requestAnimationFrame(function(){
+        _pwPend=null;
+        var pasos=_pwPasos;_pwPasos=0;if(!pasos)return;
+        var cvRectBefore=cv.getBoundingClientRect();
+        var fx=(_pwX-cvRectBefore.left)/cvRectBefore.width;
+        var fy=(_pwY-cvRectBefore.top)/cvRectBefore.height;
+        fx=Math.min(Math.max(fx,0),1);
+        fy=Math.min(Math.max(fy,0),1);
+        var z0=ZOOM;
+        for(var i=0;i<Math.abs(pasos);i++)ZOOM=pasos>0?Math.min(ZOOM*1.25,_ZOOM_MAX):Math.max(ZOOM/1.25,0.2);
+        if(ZOOM===z0)return;
+        calcSC();redraw();_updateZoomPct();
+        var cvRectAfter=cv.getBoundingClientRect();
+        prevEl.scrollLeft+=(cvRectAfter.left+fx*cvRectAfter.width)-_pwX;
+        prevEl.scrollTop+=(cvRectAfter.top+fy*cvRectAfter.height)-_pwY;
+      });
     },{passive:false});
     var _pd=false,_px,_py,_psx,_psy;
     prevEl.addEventListener('mousedown',function(e){
@@ -3380,16 +3393,23 @@ function _fgFinalHeightBase(){
   return h;
 }
 // Preview: dibuja en un canvas completo y copia sólo la franja útil al canvas visible.
+// El canvas completo se reutiliza entre redibujos (antes se creaba uno nuevo por cada
+// tecla/zoom: con zoom alto son ~150MB reservados y tirados cada vez) y su contexto
+// lleva willReadFrequently porque _fgBgMuestra le lee píxeles; sin eso cada lectura
+// baja el canvas entero de la GPU. Juntas, estas dos cosas trababan la vista previa.
+var _fgFullCv=null,_fgFullCtx=null;
 function fgRedraw(){
   if(!window.baseImg||!baseImg.width)return;
   _fgBenefSyncNombre(); // la empresa puede cambiar sin evento input (padrón, historial)
   var v=getVals();
   _fgExtra=_fgExtraBaseFor(v); // el canvas tiene que contemplar el crecimiento
   var w=Math.round(baseImg.width*SC),fh=Math.round((baseImg.height+_fgExtra)*SC);
-  var full=document.createElement('canvas');full.width=w;full.height=fh;
-  fgDrawAll(full.getContext('2d'),SC,v); // setea _fgContentBottomBase
+  if(!_fgFullCv){_fgFullCv=document.createElement('canvas');_fgFullCtx=_fgFullCv.getContext('2d',{willReadFrequently:true});}
+  var full=_fgFullCv;
+  if(full.width!==w||full.height!==fh){full.width=w;full.height=fh;}else _fgFullCtx.clearRect(0,0,w,fh);
+  fgDrawAll(_fgFullCtx,SC,v); // setea _fgContentBottomBase
   var h=Math.min(fh,Math.round(_fgFinalHeightBase()*SC));
-  cv.width=w;cv.height=h;
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}
   var cc=cv.getContext('2d');window.ctx=cc;
   cc.clearRect(0,0,w,h);cc.drawImage(full,0,0);
 }
@@ -4990,14 +5010,19 @@ function exportFlyerLogsExcel(){
 
 // ── UTILIDADES ────────────────────────────────────────────────────────────────
 var ZOOM=1.0;
+// Tope 130% (pedido del admin): el redibujo de la vista previa dibuja el flyer entero
+// a escala y con más zoom la página se ponía lenta y se trababa.
+var _ZOOM_MAX=1.3;
 function _updateZoomPct(){var el=document.getElementById('zoom-pct');if(el)el.textContent=Math.round(ZOOM*100)+'%';}
 // Celular/tablet: al girar la pantalla o cambiar el ancho, la vista previa se reencaja.
 var _fgResizeT=null;
 window.addEventListener('resize',function(){clearTimeout(_fgResizeT);_fgResizeT=setTimeout(function(){if(typeof calcSC==='function'&&typeof redraw==='function'&&window.baseImg&&baseImg.width){calcSC();redraw();}},150);});
-function zoomIn(){ZOOM=Math.min(ZOOM*1.25,4.0);calcSC();redraw();_updateZoomPct();}
+function zoomIn(){ZOOM=Math.min(ZOOM*1.25,_ZOOM_MAX);calcSC();redraw();_updateZoomPct();}
 function zoomOut(){ZOOM=Math.max(ZOOM/1.25,0.2);calcSC();redraw();_updateZoomPct();}
 function zoomReset(){ZOOM=1.0;calcSC();redraw();_updateZoomPct();}
-function calcSC(){var p=document.querySelector('.prev');if(!p||!baseImg.width)return;var pw=Math.max(p.clientWidth-40,200);var baseSC=Math.min(0.55,pw/baseImg.width);SC=baseSC*ZOOM;cv.width=Math.round(baseImg.width*SC);cv.height=Math.round(baseImg.height*SC);cv.style.width='';cv.style.height='';}
+// Sólo calcula la escala: el tamaño del canvas lo fija fgRedraw (siempre se llama después),
+// y asignarlo acá también reasignaba el buffer dos veces por paso de zoom.
+function calcSC(){var p=document.querySelector('.prev');if(!p||!baseImg.width)return;var pw=Math.max(p.clientWidth-40,200);var baseSC=Math.min(0.55,pw/baseImg.width);SC=baseSC*ZOOM;cv.style.width='';cv.style.height='';}
 
 // El template también declara showToast (con #toast-el y sin debounce) y, al
 // cargarse después, pisaba a ésta. _installFlyerEngine vuelve a fijar

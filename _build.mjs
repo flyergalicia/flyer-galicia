@@ -784,6 +784,7 @@ const checks = {
   // Empresa y montos tapan con el color REAL del flyer (muestreado), no con uno fijo:
   // con color fijo se notaba el recuadro alrededor de cada importe.
   'montos y empresa: fondo muestreado (sin cuadrito)': _authSrc.includes('function _fgBgMuestra(') && _authSrc.includes('c.fillStyle=_bgDe(mx,mw,mh);c.fillRect(') && _authSrc.includes('c.fillStyle=_fgBgMuestra(c,ex,ex+mw,') && !_authSrc.includes('c.fillStyle=E.bg;'),
+  'preview: zoom maximo 130% + full canvas reutilizado': _authSrc.includes('var _ZOOM_MAX=1.3;') && _authSrc.includes('ZOOM=Math.min(ZOOM*1.25,_ZOOM_MAX)') && _authSrc.includes('var _fgFullCv=null') && _authSrc.includes("_fgFullCv.getContext('2d',{willReadFrequently:true})"),
   'calibrador: zoom + zona elegida sola': _authSrc.includes('function _calZoom(') && _authSrc.includes('function _calWheel(') && _authSrc.includes("cv.addEventListener('wheel',_calWheel,{passive:false});") && _authSrc.includes('if(_cal.sel&&_cal.sel!==z.id)return;') && _authSrc.includes('id="cal-zoom-pct"'),
   // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN
   'pegar: parser': _authSrc.includes('function _fgParseContacto(') && _authSrc.includes('function _fgPartirTel(') && _authSrc.includes('function _fgVerificaTel('),
