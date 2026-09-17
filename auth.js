@@ -2798,7 +2798,7 @@ function fgDrawAll(c,s,v){
   fgDrawMontos(c,s,v);
   if(v.benef)fgDrawBenef(c,s,v);      // Flyer Rubros: cartel del beneficio exclusivo
   var cb=fgDrawContacto(c,s,v)||0;   // fondo (px escalados) del bloque de asesores
-  var lb=fgDrawLegal(c,s,v.legal)||0; // fondo (px escalados) del último renglón de legales
+  var lb=fgDrawLegal(c,s,_fgLegalConValores(v.legal,v))||0; // fondo (px escalados) del último renglón de legales
   var bottomScaled=Math.max(cb,lb);
   // guardo el fondo del contenido en coords base para poder recortar el blanco sobrante
   window._fgContentBottomBase=(s>0?bottomScaled/s:bottomScaled);
@@ -2951,6 +2951,24 @@ function fgDrawC1(c,s,xc,C,nom,cel,mail,dy,colW){
   c.font="bold "+f1+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(_fgBottomY(C.y1,s))+dy);
   if(cel){var f2=fit(cel,fr,false);c.font=f2+"px Arial,sans-serif";c.fillText(cel,cx,Math.round(_fgBottomY(C.y2,s))+dy);}
   if(mail){var f3=fit(mail,fr,false);c.font=f3+"px Arial,sans-serif";c.fillText(mail,cx,Math.round(_fgBottomY(C.y3,s))+dy);}
+}
+// Marcadores dentro del legal: {importe}, {importe2} y {empresa} (alias {nombre})
+// se reemplazan por los valores del flyer al dibujar (el legal lo escribe la app
+// desde el texto, así que es sólo texto: sin recuadros ni posiciones). Así el
+// legal de Rubros ("… $24.000 en Supermercados y $30.000 en Combustibles") sigue
+// al tope sin editarlo a mano. Un marcador sin valor (p. ej. {importe} en Flyer
+// Galicia) se saca para que nunca quede impreso. El texto guardado y el del
+// textarea conservan el marcador. Replacer por función: el texto trae "$".
+function _fgLegalConValores(text,v){
+  text=(text==null?'':String(text));
+  if(text.indexOf('{')<0)return text;
+  v=v||{};
+  var imp=v.importe||'',imp2=v.importe2||imp,emp=v.empresa||'';
+  var vals={importe:imp,importe2:imp2,empresa:emp,nombre:emp};
+  return text.replace(/\{\s*(importe2|importe|empresa|nombre)\s*\}( ?)/gi,function(m,k,sp){
+    var val=vals[k.toLowerCase()]||'';
+    return val?val+sp:''; // sin valor: se va el marcador y el espacio que lo seguía
+  });
 }
 function fgDrawLegal(c,s,text){
   if(!text||!text.trim())return 0;
@@ -3221,7 +3239,7 @@ function _fgEnsureBenefFields(){
       '<div class="field"><label>Nombre en el beneficio</label>'+
         '<div class="fg-benef-nom"><input type="text" id="benef-nombre" placeholder="Se copia de la empresa" autocomplete="off">'+
         '<button type="button" id="benef-nombre-auto" title="Volver a copiar el nombre de la empresa" onclick="_fgBenefNombreAuto()">&#8635;</button></div></div>'+
-      '<div class="fg-benef-hint">Sale como &laquo;&iexcl;Beneficio exclusivo <b>NOMBRE</b>!&raquo;. Se completa solo con la empresa; si lo cambi&aacute;s queda lo tuyo. Borralo para que diga s&oacute;lo &laquo;&iexcl;Beneficio exclusivo!&raquo;; &#8635; vuelve a copiar la empresa.</div>'+
+      '<div class="fg-benef-hint">Sale como &laquo;&iexcl;Beneficio exclusivo <b>NOMBRE</b>!&raquo;. Se completa solo con la empresa; si lo cambi&aacute;s queda lo tuyo. Borralo para que diga s&oacute;lo &laquo;&iexcl;Beneficio exclusivo!&raquo;; &#8635; vuelve a copiar la empresa. En el legal, <code>{importe}</code>, <code>{importe2}</code> y <code>{empresa}</code> se reemplazan solos por lo cargado ac&aacute;.</div>'+
       '<div class="field"><label id="benef-importe-lbl">Tope de reintegro mensual</label>'+
         '<input type="text" id="benef-importe" value="24.000" placeholder="24.000" inputmode="numeric" autocomplete="off"></div>'+
       '<div class="field" id="fg-benef-imp2" style="display:none"><label id="benef-importe2-lbl">Segundo tope (si es distinto)</label>'+

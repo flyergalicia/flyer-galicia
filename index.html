@@ -519,7 +519,7 @@ html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec
 /* El buscador y el selector de orden quedan a la derecha, en su propia fila */
 .promos-results-head .promos-search-box{margin-left:auto;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=e9ded1f6d0"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=34ca0796ab"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
@@ -1431,7 +1431,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
 
     <div id="at-legales" style="display:none">
       <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.<br><br><strong>Marcadores (Flyer Rubros):</strong> dentro del legal pod&eacute;s escribir <code>{importe}</code>, <code>{importe2}</code> (el segundo tope, cuadro &laquo;Ambos&raquo;) y <code>{empresa}</code>: al armar cada flyer se reemplazan por los valores cargados, as&iacute; el legal siempre dice el mismo tope que el cartel sin editarlo a mano. Ejemplo: <code>&hellip; es de {importe} en Supermercados y {importe2} en Combustibles.</code></p>
       <!-- Una sub-solapa y un editor por opción: los arma _legalesRender() (auth.js)
            a partir de la lista de opciones (Config → Opciones), con los mismos ids
            de siempre: lt-N, glegal-text[N], glegal-err[N], glegal-ok[N]. -->
