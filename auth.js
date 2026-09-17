@@ -507,6 +507,7 @@ function checkProfile(user){
     // La lista de opciones va ANTES que las facultades: las filas opcion_N de la
     // matriz se generan a partir de ella.
     loadOpciones(false,function(){loadFacultades(false,_applyFacultades);});
+    loadTitulos(_titGestos); // nombres de las solapas del header y del panel (editables por el admin)
     var _ddName=document.getElementById('hdr-dd-name');if(_ddName)_ddName.textContent=_myName;
     var _ddRole=document.getElementById('hdr-dd-role');if(_ddRole)_ddRole.innerHTML=_roleBadge(p.role);
     var upd={last_login:new Date().toISOString()};
@@ -819,6 +820,7 @@ function _applyFacultades(){
   // Mismo criterio que la lupa: quien puede buscar, puede administrar el suyo.
   var dpad=document.getElementById('hdr-dd-padron');if(dpad)dpad.style.display=_can('padron_buscar')?'flex':'none';
   if(!_can('padron_buscar')&&document.getElementById('pad-mine-ov'))closeMiPadron();
+  _mpRefresh(); // tarjeta "todo el segmento" del masivo (sólo con padrón)
 
   _facSyncOptBar();
 
@@ -884,6 +886,7 @@ function _fgSyncVista(){
   }
   if(cambio)_facSyncOptBar();else _fgRenderOptBar();
   var bf=document.getElementById('fg-benef-fields');if(bf)bf.style.display=(v==='rubros')?'':'none';
+  if(typeof _mpRefresh==='function'&&_facLoaded)_mpRefresh(); // la tarjeta del masivo sigue a la opción activa
   if(v==='rubros'&&typeof _fgBenefSyncNombre==='function'){_fgBenefSyncNombre();_fgBenefFieldsSync();}
 }
 // Los títulos "Asesor 1..4" quedan clickeables o no. El listener ya está puesto,
@@ -2443,7 +2446,7 @@ function _legalFile(opt){var n=_optN(opt);return n===1?'_legal.json':'_legal'+n+
 function _optLabel(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].nombre)||('Opción '+n);}
 // Solapa del header a la que pertenece la opción ('flyer' | 'rubros').
 function _optSolapa(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].solapa==='rubros')?'rubros':'flyer';}
-function _solapaLabel(s){return s==='rubros'?'Flyer Rubros':'Flyer Galicia';}
+function _solapaLabel(s){return _titLabel(s==='rubros'?'rubros':'flyer');} // nombre editable (4 toques en el header)
 // Solapa del armador que está a la vista. Se deriva SIEMPRE de la opción activa
 // (ver _fgSyncVista), así historial/registros que cambian de opción cambian de solapa solos.
 var _fgVista='flyer';
@@ -2697,6 +2700,90 @@ function _askOption(title,cb){
     var o=+b.getAttribute('data-o');d.remove();if(o)cb(o);
   });
   document.body.appendChild(d);
+}
+
+// ── TÍTULOS EDITABLES ────────────────────────────────────────────────────────
+// Los títulos principales (el "Flyer Galicia 5.5" del panel y las solapas del
+// header: Flyer Galicia / Flyer Rubros / Promociones, más el título del buscador)
+// se renombran con 4 toques seguidos (sólo admin), igual que las opciones de la
+// barra. Se guardan en _titulos.json y los ven todos los usuarios.
+var TITULOS_FILE='_titulos.json',_TIT={};
+var _TIT_DEF={ptitle:'Flyer Galicia 5.5',flyer:'Flyer Galicia',rubros:'Flyer Rubros',promos:'Promociones',promos_ptitle:'Buscador de Promociones'};
+function _titElem(key){
+  if(key==='ptitle')return document.querySelector('#layout .panel .ptitle');
+  if(key==='promos_ptitle')return document.querySelector('#view-promos .ptitle');
+  return document.querySelector('#apptab-'+key+' h1');
+}
+function _titLabel(key){return (_TIT[key]&&String(_TIT[key]).trim())||_TIT_DEF[key]||'';}
+function _titAplicar(){
+  Object.keys(_TIT_DEF).forEach(function(k){
+    var el=_titElem(k);if(!el||el.querySelector('input'))return;
+    el.textContent=_titLabel(k);
+  });
+}
+function loadTitulos(cb){
+  fetch(FLYERS_PUBLIC+TITULOS_FILE+'?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){
+      _TIT={};
+      if(d&&typeof d==='object')Object.keys(_TIT_DEF).forEach(function(k){if(typeof d[k]==='string')_TIT[k]=d[k].replace(/[<>]/g,'').trim().slice(0,40);});
+      _titAplicar();if(cb)cb();
+    }).catch(function(){if(cb)cb();});
+}
+function saveTitulos(cb){
+  var meta=JSON.stringify(Object.assign({},_TIT,{updated_at:new Date().toISOString()}));
+  return _sb.storage.from('flyers')
+    .upload(TITULOS_FILE,new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
+    .then(function(r){
+      if(r&&r.error){showToast('Error al guardar el título: '+r.error.message);if(cb)cb(false);return;}
+      if(cb)cb(true);
+    });
+}
+// 4 toques seguidos sobre el elemento (sin contar clicks dentro de un input) → fn(el).
+var _TAP4_VENTANA=1600;
+function _tap4(el,fn){
+  if(!el||el.dataset.tap4)return;el.dataset.tap4='1';
+  var taps=0,t=0;
+  el.addEventListener('click',function(e){
+    if(e.target&&e.target.tagName==='INPUT')return;
+    var now=Date.now();if(now-t>_TAP4_VENTANA)taps=0;
+    t=now;taps++;
+    if(taps>=4){taps=0;fn(el);}
+  });
+}
+// Renombrar en el lugar: input con el mismo estilo. Enter/salir confirma, Escape cancela.
+function _titRenombrar(el,key){
+  if(!_admin||el.querySelector('input'))return;
+  var prev=_titLabel(key);
+  var inp=document.createElement('input');inp.type='text';inp.maxLength=40;inp.value=prev;
+  inp.style.cssText='font:inherit;color:inherit;background:rgba(255,255,255,.12);border:1px solid currentColor;border-radius:5px;padding:1px 6px;width:'+Math.max(120,el.offsetWidth+30)+'px;max-width:70vw;outline:none;text-transform:inherit;letter-spacing:inherit';
+  el.textContent='';el.appendChild(inp);
+  var done=false;
+  function fin(ok){
+    if(done)return;done=true;
+    var v=inp.value.replace(/[<>]/g,'').trim();
+    el.textContent=(ok&&v)?v:prev;
+    if(!ok||!v||v===prev)return;
+    _TIT[key]=v;
+    saveTitulos(function(ok2){
+      if(!ok2)return;
+      _titAplicar();
+      // lo que muestra el nombre de la solapa (elegir opción, carpetas del ZIP, etc.) lo lee de _solapaLabel
+      showToast('Título guardado: '+v);
+    });
+  }
+  ['click','pointerdown','mousedown','touchstart'].forEach(function(ev){inp.addEventListener(ev,function(e){e.stopPropagation();});});
+  inp.addEventListener('keydown',function(e){e.stopPropagation();if(e.key==='Enter'){e.preventDefault();fin(true);}else if(e.key==='Escape'){fin(false);}});
+  inp.addEventListener('blur',function(){fin(true);});
+  inp.focus();inp.select();
+}
+function _titGestos(){
+  if(!_admin)return;
+  Object.keys(_TIT_DEF).forEach(function(k){
+    var el=_titElem(k);if(!el)return;
+    el.title='4 toques seguidos para cambiar el nombre';
+    _tap4(el,function(){_titRenombrar(el,k);});
+  });
 }
 
 // ── FLYER ACTIVO ──────────────────────────────────────────────────────────────
@@ -4857,6 +4944,9 @@ function exportFlyerLogsExcel(){
 // ── UTILIDADES ────────────────────────────────────────────────────────────────
 var ZOOM=1.0;
 function _updateZoomPct(){var el=document.getElementById('zoom-pct');if(el)el.textContent=Math.round(ZOOM*100)+'%';}
+// Celular/tablet: al girar la pantalla o cambiar el ancho, la vista previa se reencaja.
+var _fgResizeT=null;
+window.addEventListener('resize',function(){clearTimeout(_fgResizeT);_fgResizeT=setTimeout(function(){if(typeof calcSC==='function'&&typeof redraw==='function'&&window.baseImg&&baseImg.width){calcSC();redraw();}},150);});
 function zoomIn(){ZOOM=Math.min(ZOOM*1.25,4.0);calcSC();redraw();_updateZoomPct();}
 function zoomOut(){ZOOM=Math.max(ZOOM/1.25,0.2);calcSC();redraw();_updateZoomPct();}
 function zoomReset(){ZOOM=1.0;calcSC();redraw();_updateZoomPct();}
@@ -5443,6 +5533,52 @@ function dlPadronDe(){
   showToast('Padrón descargado ('+_poRows.length+' empresas)');
 }
 
+// ── MASIVO: "todo el segmento" desde el padrón ──────────────────────────────
+// Tarjeta al pie de la solapa Masivo: genera de una el flyer de TODAS las
+// empresas del padrón que salen con la opción activa (el "segmento":
+// Combustible, Supermercado, la opción de Flyer Galicia en uso...). Para todo
+// el padrón, con cada empresa en su formato, está el generador de Mi padrón.
+// Reusa _pgGenerarRows con su propia barra de progreso.
+function _mpRows(){
+  if(!_padron)return [];
+  var cur=_optN(_fgOpt);
+  return _padron.filter(function(r){return _pgOptDe(r)===cur;});
+}
+function _mpEnsure(){
+  var tab=document.getElementById('tab-masivo');if(!tab||document.getElementById('fg-mp'))return;
+  var d=document.createElement('div');d.id='fg-mp';
+  d.innerHTML='<div class="sec">Desde el padr&oacute;n</div>'+
+    '<div class="cfg-box" id="fg-mp-box">'+
+      '<strong id="fg-mp-tit">Todo el segmento</strong>'+
+      '<p id="fg-mp-txt" style="font-size:.72rem;color:var(--gray);line-height:1.45;margin:0 0 8px"></p>'+
+      '<button class="btn bgreen" id="fg-mp-btn" style="width:100%" onclick="_mpGenerar()">&#9889; Descargar todos</button>'+
+      '<div id="fg-mp-prog" style="display:none;margin-top:8px"><div class="progress-bar" style="display:block"><div class="progress-fill" id="fg-mp-fill" style="width:0%"></div></div><div class="progress-text" id="fg-mp-text"></div></div>'+
+      '<p style="font-size:.68rem;color:var(--gray);line-height:1.45;margin:8px 0 0">&#128161; Si quer&eacute;s descargar <strong>todo el padr&oacute;n</strong> (todas las empresas, cada una en su formato), and&aacute; a <a href="#" onclick="openMiPadron();return false" style="color:var(--red);font-weight:600">Mi padr&oacute;n &rarr; Generar flyers</a>.</p>'+
+    '</div>';
+  tab.appendChild(d);
+}
+// Rearma la tarjeta: se llama al cambiar de opción, de facultades o al cerrar Mi padrón.
+function _mpRefresh(){
+  var ok=_can('padron_buscar');
+  if(ok)_mpEnsure();
+  var d=document.getElementById('fg-mp');if(!d)return;
+  d.style.display=ok?'':'none';if(!ok)return;
+  var lbl=_optLabel(_fgOpt);
+  var tit=document.getElementById('fg-mp-tit');if(tit)tit.textContent='Todo el segmento «'+lbl+'»';
+  loadPadron(false,function(){
+    if(_optLabel(_fgOpt)!==lbl)return; // cambió de opción mientras cargaba: ya se rearmó
+    var n=_mpRows().length,txt=document.getElementById('fg-mp-txt'),btn=document.getElementById('fg-mp-btn');
+    if(txt)txt.innerHTML=n?('Genera de una el flyer de las <strong>'+n+' empresa'+(n!==1?'s':'')+'</strong> de tu padr&oacute;n que salen con este formato, con sus oficiales, cashback y topes, en un ZIP.'):
+      'Ninguna empresa de tu padr&oacute;n sale con este formato todav&iacute;a.';
+    if(btn){btn.disabled=!n||_pgBusy;btn.innerHTML='&#9889; Descargar '+(n?(n+' flyer'+(n!==1?'s':'')):'todos')+' de &laquo;'+_escHtml(lbl)+'&raquo;';}
+  });
+}
+function _mpGenerar(){
+  if(_pgBusy)return;
+  var rows=_mpRows();if(!rows.length){showToast('No hay empresas de este segmento en tu padrón');return;}
+  _pgGenerarRows(rows,'pdf',{prog:'fg-mp-prog',fill:'fg-mp-fill',txt:'fg-mp-text',btn:'fg-mp-btn'},'Flyers_'+_fgSafeName(_optLabel(_fgOpt)));
+}
+
 // ── PADRÓN: generar los flyers de varias empresas de una (ZIP por formato) ───
 // Desde Data → Mi padrón: se eligen empresas (o todas) y sale un ZIP con el
 // flyer de cada una en SU formato: el rubro del padrón decide la opción (Flyer
@@ -5569,12 +5705,19 @@ function _pgGenerar(){
   var rows=[];Object.keys(_pgSel).forEach(function(k){if(_pgSel[k]&&_padron[k])rows.push(_padron[k]);});
   if(!rows.length){showToast('Tildá al menos una empresa');return;}
   var fmtEl=document.getElementById('pg-fmt'),fmt=(fmtEl&&fmtEl.value==='png')?'png':'pdf';
+  _pgGenerarRows(rows,fmt,{prog:'pg-prog',fill:'pg-fill',txt:'pg-text',btn:'pg-btn'},'Flyers_Padron');
+}
+// Motor común: genera el ZIP de esas filas del padrón. ui = ids de la barra de
+// progreso y el botón a usar (el generador de Mi padrón y la tarjeta del masivo
+// tienen cada uno los suyos); zipBase = prefijo del nombre del ZIP.
+function _pgGenerarRows(rows,fmt,ui,zipBase){
+  if(_pgBusy||!rows||!rows.length)return;
   var grupos={},orden=[],res={total:0,fmt:fmt,fecha:new Date(),porOpt:{},sinOf:[],sinCB:[],sinTope:[],omitidas:[],errores:[],carpetas:{}};
   rows.forEach(function(r){var o=_pgOptDe(r);if(o<=0){res.omitidas.push(r.empresa+(o<0?' (rubro '+_optLabel(-o)+' no habilitado)':' (sin opción habilitada)'));return;}if(!grupos[o]){grupos[o]=[];orden.push(o);}grupos[o].push(r);});
   if(!orden.length){showToast('Ninguna de las empresas tildadas se puede generar con tu perfil');return;}
   var origen=_optN(_fgOpt),zip=new JSZip(),n=rows.length-res.omitidas.length,hecho=0;
   var impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||'')||'$24.000';
-  var prog=document.getElementById('pg-prog'),fill=document.getElementById('pg-fill'),txt=document.getElementById('pg-text'),btn=document.getElementById('pg-btn');
+  var prog=document.getElementById(ui.prog),fill=document.getElementById(ui.fill),txt=document.getElementById(ui.txt),btn=document.getElementById(ui.btn);
   _pgBusy=true;if(prog)prog.style.display='block';if(fill)fill.style.width='0%';if(btn)btn.disabled=true;
   if(txt)txt.textContent='Preparando...';
   var gi=0;
@@ -5611,7 +5754,7 @@ function _pgGenerar(){
   function fin(){
     if(txt)txt.textContent='Empaquetando ZIP...';
     var d=res.fecha,fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    res.zip='Flyers_Padron_'+fecha+'.zip';
+    res.zip=(zipBase||'Flyers_Padron')+'_'+fecha+'.zip';
     zip.file('Resumen.txt',_pgResumenTxt(res));
     zip.generateAsync({type:'blob'}).then(function(content){
       var a=document.createElement('a');a.download=res.zip;a.href=URL.createObjectURL(content);a.click();
@@ -5781,6 +5924,7 @@ function closeMiPadron(){
   // el padrón pudo cambiar: el typeahead/lupa y la referencia de la fila cargada
   // se rearman con la copia nueva
   _padRef=null;
+  _mpRefresh(); // el padrón pudo cambiar: cantidad de empresas del segmento
 }
 function openPadronPop(){
   closePadronPop();

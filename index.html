@@ -518,8 +518,91 @@ html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec;}
 /* El buscador y el selector de orden quedan a la derecha, en su propia fila */
 .promos-results-head .promos-search-box{margin-left:auto;}
+/* ── RESPONSIVE: celular y tablet ─────────────────────────────────────────
+   En pantallas angostas la app deja de ser "dos columnas fijas": el panel de
+   datos va arriba, la vista previa abajo (a todo el ancho), el header se
+   achica y el panel admin / modales / calibrador ocupan toda la pantalla.
+   Nada cambia de 901px para arriba. */
+@media (max-width:900px){
+  html{overflow:auto;height:auto;}
+  body{min-height:100vh;}
+  header{padding:8px 12px;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:700;}
+  .header-logo{width:34px;height:34px;}
+  header h1,.app-tab h1{font-size:0.84rem;}
+  .header-text span{display:none;}
+  .header-text{gap:0;}
+  .header-right{margin-left:auto;gap:4px;}
+  .btn-hdr{padding:6px 8px;font-size:0.64rem;}
+  .hdr-user-btn{padding:4px 6px;font-size:.72rem;}
+  #hdr-user{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;}
+  .hdr-dropdown{right:0;max-width:calc(100vw - 24px);}
+  .layout{grid-template-columns:1fr !important;min-height:0;}
+  .panel{border-right:none;border-bottom:1px solid var(--border);padding:14px 14px 22px;overflow:visible;max-height:none;}
+  .prev{padding:14px !important;overflow:visible;min-height:0;justify-content:flex-start;}
+  .plabel{position:static;margin:0 0 10px !important;align-self:flex-start;}
+  .zoom-bar{top:10px;right:10px;padding:4px 8px;}
+  .cw{max-width:100%;}
+  #cv{max-width:100%;height:auto;}
+  .tabs{margin-bottom:12px;}
+  .tab{padding:9px 4px;font-size:.66rem;}
+  #fg-optbar .fgo{padding:7px 4px;font-size:.7rem;}
+  .cfg-btn{min-width:calc(33.33% - 5px);}
+  /* iOS hace zoom solo al enfocar campos de menos de 16px: se evita subiendo el tamaño en celular */
+  input[type=text],input[type=search],input[type=month],input[type=number],textarea,select,.login-inp,.usr-search-inp{font-size:16px;}
+  .btn{padding:12px 14px;}
+  .filename-tags .ftag{font-size:.64rem;}
+  /* Promociones: una columna */
+  .promos-view{grid-template-columns:1fr;height:auto;overflow:visible;}
+  .promos-results{height:auto;padding:14px;}
+  /* Panel admin: toda la pantalla, solapas compactas */
+  #admin-panel{width:100vw;}
+  .ap-header{padding:0 12px;height:54px;}
+  .ap-body{padding:12px;}
+  .atab{padding:11px 4px;font-size:0.62rem;}
+  .stabs{padding:8px 10px;}
+  .stat-grid{grid-template-columns:repeat(2,1fr) !important;}
+  .usr-row,.reg-row,.af-banner,.pad-erow{flex-wrap:wrap;}
+  .usr-btns{flex-wrap:wrap;width:100%;justify-content:flex-start;}
+  .usr-search-bar{flex-wrap:wrap;}
+  .reg-filter{padding:10px;}
+  .fac-row{gap:4px;padding:8px 6px;}
+  .fac-desc{display:none;}
+  #fac-simbar{flex-wrap:wrap;gap:6px;padding:8px 10px;}
+  /* Modales y tarjetas: a todo el ancho */
+  .um-card{width:100%;max-width:100vw;border-radius:12px;}
+  .um-grid{grid-template-columns:1fr;}
+  .um-header,.um-body,.um-footer{padding-left:14px;padding-right:14px;}
+  .um-footer{flex-wrap:wrap;}
+  .modal{max-width:100vw;max-height:100vh;width:100%;border-radius:0;padding:14px;}
+  .modal-body img{max-height:none;}
+  .modal-footer{flex-wrap:wrap;}
+  .notes-card{width:100%;}
+  .notes-body{flex-direction:column;height:auto;max-height:82vh;}
+  .notes-side{width:100%;border-right:none;border-bottom:1.5px solid var(--border);flex-direction:row;flex-wrap:wrap;max-height:120px;}
+  .login-card{padding:26px 20px !important;}
+  .toast{left:12px;right:12px;bottom:12px;text-align:center;}
+  #cal-modal{padding:6px;}
+  .cal-card{max-width:100%;max-height:calc(100vh - 12px);border-radius:10px;}
+  .cal-hd{padding:10px 12px;flex-wrap:wrap;}
+  .cal-legend{padding:7px 12px;}
+  .cal-ft{flex-wrap:wrap;padding:9px 12px;}
+  .pad-pop{width:calc(100vw - 16px) !important;left:8px !important;right:8px !important;}
+}
+@media (max-width:480px){
+  header{gap:8px;}
+  .header-logo{display:none;}
+  header h1,.app-tab h1{font-size:0.78rem;}
+  #hdr-user{max-width:70px;}
+  .panel{padding:12px 12px 20px;}
+  .prev{padding:10px !important;}
+  .cfg-btn{min-width:calc(50% - 5px);}
+  .stat-grid{grid-template-columns:1fr 1fr !important;}
+  .atab{font-size:0.58rem;padding:10px 2px;}
+  .modal{padding:10px;}
+  .btns{gap:8px;}
+}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=b40adaf088"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=085682ad69"></script></head>
 <body>
 <script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>
 <div id="login-ov">
