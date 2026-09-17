@@ -627,7 +627,8 @@ html = html.replace('<script src="auth.js"></script>', AUTH_TAG);
 // ── AVISO DE VERSIÓN NUEVA ──────────────────────────────────────────────────
 // El hash de arriba no alcanza: index.html TAMBIÉN se cachea 10 min, y el viejo
 // apunta al auth.js viejo (mordió 3 veces: el admin "seguía viendo" código ya
-// deployado). La app compara esta meta con _version.json (pedido sin caché) y,
+// deployado). La app compara esta meta con version.json (pedido sin caché; SIN
+// guion bajo: GitHub Pages/Jekyll no sirve archivos que empiezan con "_") y,
 // si difieren, ofrece recargar con ?v=nuevo, que saltea el index.html cacheado.
 const BUILD_V = createHash('sha1').update(html + _authSrc).digest('hex').slice(0, 10);
 html = html.replace('<meta name="viewport"', `<meta name="build-v" content="${BUILD_V}">\n<meta name="viewport"`);
@@ -665,7 +666,7 @@ const checks = {
   'registro: solo dominio del banco': _authSrc.includes('@bancogalicia\\.com\\.ar$/i.test(email)') && html.includes('placeholder="M&iacute;nimo 8 caracteres"'),
   'asesores guardados: slot 3/4': _authSrc.includes("var n=_gv('nombre'+sfx),c=_gv('celular'+sfx),m=_gv('email'+sfx);"),
   'layout hidden': html.includes('id="layout" style="display:none"'),
-  'version: meta build-v + chequeo en auth.js': html.includes('<meta name="build-v" content="'+BUILD_V+'">') && _authSrc.includes("_version.json?t=") && _authSrc.includes("meta[name=build-v]"),
+  'version: meta build-v + chequeo en auth.js': html.includes('<meta name="build-v" content="'+BUILD_V+'">') && _authSrc.includes("fetch('version.json?t=") && _authSrc.includes("meta[name=build-v]"),
   'login-ov': html.includes('id="login-ov"'),
   'admin-panel': html.includes('id="admin-panel"'),
   'calcSC': html.includes('calcSC()'),
@@ -812,7 +813,7 @@ if (_fallos) {
   process.exitCode = 1;
 } else {
   writeFileSync('index.html', html, 'utf8');
-  writeFileSync('_version.json', JSON.stringify({ v: BUILD_V }), 'utf8');
+  writeFileSync('version.json', JSON.stringify({ v: BUILD_V }), 'utf8');
   console.log(`\nindex.html guardado: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
 
   // ── EXPORT SELF-CONTAINED (para subir a Supabase Storage) ─────────────────
