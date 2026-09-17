@@ -168,6 +168,7 @@ html{height:100%;overflow:hidden;}
 .usr-filter-sel{padding:8px 10px;border:2px solid var(--border);border-radius:8px;font-family:"DM Sans",sans-serif;font-size:0.78rem;outline:none;background:white;cursor:pointer;}
 .usr-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:white;border:1.5px solid var(--border);border-radius:10px;margin-bottom:6px;transition:border-color .15s;}
 .usr-row:hover{border-color:#bbb;}
+.usr-row-active{border-color:var(--green);background:#f0fff4;}
 .usr-info{flex:1;min-width:0;}
 .usr-info strong{display:block;font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .usr-info small{font-size:0.68rem;color:var(--gray);}
@@ -283,7 +284,9 @@ html{height:100%;overflow:hidden;}
 .stat-card.sc-green::before{background:var(--green);}
 .stat-card.sc-red::before{background:var(--red);}
 .stat-card.sc-blue::before{background:#1565c0;}
-.stat-card[style*="f5c542"]::before{background:#f5c542;}
+.stat-card.sc-yellow{border-color:#f5c542;}
+.stat-card.sc-yellow::before{background:#f5c542;}
+.stat-card.sc-yellow span,.stat-card.sc-yellow strong{color:#c07000;}
 .stat-card span{font-size:0.6rem;letter-spacing:0.8px;}
 .stat-card strong{font-family:"DM Sans",sans-serif;font-weight:700;font-size:1.55rem;font-variant-numeric:tabular-nums;letter-spacing:0;line-height:1.15;margin-top:2px;display:block;}
 /* Filas: hover + profundidad */
@@ -309,6 +312,11 @@ html.dark .usr-btn.del{background:#2c2f36;color:#bbb;}
 .btn-hdr-theme:hover{background:rgba(255,255,255,0.28);}
 html.dark{--light:#16181c;--dark:#e9eaec;--gray:#9aa0a8;--border:#333840;--card:#22262c;}
 html.dark body{background:#16181c;color:#e9eaec;}
+/* header, .bs y .toast usan background:var(--dark) para ser "la barra/botón negro" de
+   siempre — pero --dark cambia de significado en modo oscuro (pasa a ser un color de
+   TEXTO claro, no de fondo), así que sin este override quedaban con fondo claro y texto
+   blanco encima (ilegible). Se fijan a un negro real, igual en los dos temas. */
+html.dark header,html.dark .bs,html.dark .toast{background:#111;color:#fff;}
 html.dark label,html.dark .login-lbl{color:#c2c6cc;}
 html.dark input[type=text],html.dark textarea{background:#1b1e23;color:#e9eaec;}
 html.dark input[type=text]:focus,html.dark textarea:focus{background:#22262c;}
@@ -323,6 +331,9 @@ html.dark .um-footer{background:#1b1e23;border-color:#333840;}
 html.dark .um-header{border-color:#333840;}
 html.dark .cfg-btn,html.dark .hist-btn{background:#22262c;color:#e9eaec;border-color:#333840;}
 html.dark .cfg-box,html.dark .excel-preview,html.dark .toggle-row,html.dark .hist-item,html.dark .ftag,html.dark .history-empty{background:#1b1e23;border-color:#333840;}
+/* .azul es un navy fijo (#1d4070) pensado para fondo claro: contra el fondo oscuro de
+   .cfg-box casi no se lee (Eminent Black/Platinum). .narj (naranja) sí se ve bien, se deja. */
+html.dark .azul{color:#6fa3e0;}
 html.dark .excel-preview th{background:#2a2f36;}
 html.dark .excel-preview td{border-color:#333840;}
 html.dark .modal{background:#22262c;color:#e9eaec;}
@@ -335,6 +346,18 @@ html.dark .bg{color:#e9eaec;border-color:#3a4049;}
 html.dark .skel{background:#2a2f36;}
 html.dark .reg-mid{color:#c2c6cc;}
 html.dark .af-banner-empty{background:#22262c;border-color:#333840;color:#9aa0a8;}
+html.dark .af-banner{background:#132a1c;border-color:#1a9c50;}
+/* mismo problema que .azul: colores fijos pensados para tarjeta blanca, casi invisibles
+   sobre la tarjeta oscura (#22262c) del dashboard. */
+html.dark .stat-card.sc-blue strong{color:#6fa3e0;}
+html.dark .stat-card.sc-yellow span,html.dark .stat-card.sc-yellow strong{color:#e0a030;}
+html.dark .usr-row-active{background:#132a1c;border-color:#1a9c50;}
+/* el nombre de cada opción usa el color que el admin le eligió (arbitrario, pensado
+   para leerse sobre blanco): en modo oscuro puede quedar casi invisible (ej. el navy
+   #1d4070 de la paleta default). La identidad de color ya la lleva el badge "OP.N" de
+   al lado (siempre blanco sobre ese color, legible); acá alcanza con el texto plano.
+   Es un inline style, así que hace falta !important para pisarlo. */
+html.dark .af-banner-opt,html.dark .usr-row-optname{color:#e9eaec !important;}
 html.dark .prev{background:radial-gradient(ellipse 130% 90% at 50% -8%, #2a2e34 0%, #202329 62%, #191b20 100%) !important;}
 html.dark .plabel{background:rgba(34,38,44,0.82);color:#e9eaec;}
 html.dark .zoom-btn{background:#22262c;color:#e9eaec;border-color:#333840;}
@@ -1287,7 +1310,7 @@ function switchAdminTab(el,t){
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
-  if(t==='cashback')loadCashback(true,renderCashbackAdmin);
+  if(t==='cashback'){var _cbh=document.getElementById('cashback-list');if(_cbh&&!_cbh.children.length)_cbh.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando...</p>';loadCashback(true,renderCashbackAdmin);}
   if(t==='facultades')loadFacultades(true,renderFacultades);
   if(t==='varios')renderPadronAdmin(true);
   if(t==='padronotros')loadPadronOtrosUsers(false);
@@ -2931,7 +2954,7 @@ function _renderUploadHistory(histEl){
       var hUrl=_upSafeUrl(d&&d.htmlUrl);
       return '<div class="af-banner"><div class="af-banner-info">'+
         _optBadge(o,'font-size:.62rem;padding:4px 8px')+
-        '<span class="af-banner-name" style="color:'+_optColor(o)+'">'+_escHtml(_optLabel(o))+'</span>'+
+        '<span class="af-banner-name af-banner-opt" style="color:'+_optColor(o)+'">'+_escHtml(_optLabel(o))+'</span>'+
         '<span class="af-banner-name" style="font-weight:400;color:var(--gray)">'+_escHtml(d.name||'')+'</span></div>'+
         '<div style="display:flex;gap:6px">'+
         (hUrl?'<a href="'+_escHtml(hUrl)+'" target="_blank" rel="noopener noreferrer" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
@@ -2954,7 +2977,7 @@ function _renderUploadHistory(histEl){
         var titulo;
         if(home){
           titulo=od.act.map(function(o){return _optBadge(o,'margin-right:5px');}).join('')+(isAct?'':_optBadge(home,'margin-right:5px;opacity:.55'))+
-            '<span style="color:'+_optColor(home)+'">'+_escHtml(_optLabel(home))+'</span>'+
+            '<span class="usr-row-optname" style="color:'+_optColor(home)+'">'+_escHtml(_optLabel(home))+'</span>'+
             (od.act.length>1?' <span style="font-weight:400;color:var(--gray)">+ '+od.act.slice(1).map(function(o){return _escHtml(_optLabel(o));}).join(', ')+'</span>':'')+
             (isAct?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:var(--green,#2e7d32);color:#fff;margin-left:6px">ACTIVO</span>':
               '<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eee;color:#666;margin-left:6px" title="Subido para esta opci&oacute;n, pero no es el flyer activo">NO ACTIVO</span>');
@@ -2966,7 +2989,7 @@ function _renderUploadHistory(histEl){
         if(!home)btns+='<button class="usr-btn ok" onclick="_upActOtra('+i+')">Activar en&hellip;</button>';
         else btns+='<button class="usr-btn edit" title="Replicar este flyer en otra opci&oacute;n" style="opacity:.75" onclick="_upActOtra('+i+')">Otra opci&oacute;n&hellip;</button>';
         if(isImg)btns+='<button class="usr-btn edit" onclick="_upCal('+i+')">Calibrar</button>';
-        return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
+        return '<div class="usr-row'+(isAct?' usr-row-active':'')+'">'+
           '<div class="usr-info">'+
             '<strong style="font-size:.8rem">'+titulo+tag+'</strong>'+
             '<small>'+_escHtml(f.name)+(ts?' &middot; '+ts:'')+(kb?' &middot; '+kb:'')+'</small>'+
@@ -9000,7 +9023,7 @@ baseImg.src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAIBAQEBAQIB
         <div class="stat-card sc-green"><span>Activos</span><strong id="stat-active">&mdash;</strong></div>
         <div class="stat-card sc-red"><span>Admins</span><strong id="stat-admins">&mdash;</strong></div>
         <div class="stat-card sc-blue"><span>Flyers generados</span><strong id="stat-logs">&mdash;</strong></div>
-        <div class="stat-card" style="border-color:#f5c542"><span style="color:#c07000">Pendientes aprobaci&oacute;n</span><strong id="stat-pending" style="color:#c07000">&mdash;</strong></div>
+        <div class="stat-card sc-yellow"><span>Pendientes aprobaci&oacute;n</span><strong id="stat-pending">&mdash;</strong></div>
       </div>
       <p class="ap-sec" style="margin-top:20px">&Uacute;ltimos accesos</p>
       <div id="recent-logins"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></div>

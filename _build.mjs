@@ -240,7 +240,7 @@ const adminPanel = `<div id="admin-panel">
         <div class="stat-card sc-green"><span>Activos</span><strong id="stat-active">&mdash;</strong></div>
         <div class="stat-card sc-red"><span>Admins</span><strong id="stat-admins">&mdash;</strong></div>
         <div class="stat-card sc-blue"><span>Flyers generados</span><strong id="stat-logs">&mdash;</strong></div>
-        <div class="stat-card" style="border-color:#f5c542"><span style="color:#c07000">Pendientes aprobaci&oacute;n</span><strong id="stat-pending" style="color:#c07000">&mdash;</strong></div>
+        <div class="stat-card sc-yellow"><span>Pendientes aprobaci&oacute;n</span><strong id="stat-pending">&mdash;</strong></div>
       </div>
       <p class="ap-sec" style="margin-top:20px">&Uacute;ltimos accesos</p>
       <div id="recent-logins"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></div>

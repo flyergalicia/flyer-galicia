@@ -676,7 +676,7 @@ function switchAdminTab(el,t){
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
-  if(t==='cashback')loadCashback(true,renderCashbackAdmin);
+  if(t==='cashback'){var _cbh=document.getElementById('cashback-list');if(_cbh&&!_cbh.children.length)_cbh.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando...</p>';loadCashback(true,renderCashbackAdmin);}
   if(t==='facultades')loadFacultades(true,renderFacultades);
   if(t==='varios')renderPadronAdmin(true);
   if(t==='padronotros')loadPadronOtrosUsers(false);
@@ -2320,7 +2320,7 @@ function _renderUploadHistory(histEl){
       var hUrl=_upSafeUrl(d&&d.htmlUrl);
       return '<div class="af-banner"><div class="af-banner-info">'+
         _optBadge(o,'font-size:.62rem;padding:4px 8px')+
-        '<span class="af-banner-name" style="color:'+_optColor(o)+'">'+_escHtml(_optLabel(o))+'</span>'+
+        '<span class="af-banner-name af-banner-opt" style="color:'+_optColor(o)+'">'+_escHtml(_optLabel(o))+'</span>'+
         '<span class="af-banner-name" style="font-weight:400;color:var(--gray)">'+_escHtml(d.name||'')+'</span></div>'+
         '<div style="display:flex;gap:6px">'+
         (hUrl?'<a href="'+_escHtml(hUrl)+'" target="_blank" rel="noopener noreferrer" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
@@ -2343,7 +2343,7 @@ function _renderUploadHistory(histEl){
         var titulo;
         if(home){
           titulo=od.act.map(function(o){return _optBadge(o,'margin-right:5px');}).join('')+(isAct?'':_optBadge(home,'margin-right:5px;opacity:.55'))+
-            '<span style="color:'+_optColor(home)+'">'+_escHtml(_optLabel(home))+'</span>'+
+            '<span class="usr-row-optname" style="color:'+_optColor(home)+'">'+_escHtml(_optLabel(home))+'</span>'+
             (od.act.length>1?' <span style="font-weight:400;color:var(--gray)">+ '+od.act.slice(1).map(function(o){return _escHtml(_optLabel(o));}).join(', ')+'</span>':'')+
             (isAct?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:var(--green,#2e7d32);color:#fff;margin-left:6px">ACTIVO</span>':
               '<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eee;color:#666;margin-left:6px" title="Subido para esta opci&oacute;n, pero no es el flyer activo">NO ACTIVO</span>');
@@ -2355,7 +2355,7 @@ function _renderUploadHistory(histEl){
         if(!home)btns+='<button class="usr-btn ok" onclick="_upActOtra('+i+')">Activar en&hellip;</button>';
         else btns+='<button class="usr-btn edit" title="Replicar este flyer en otra opci&oacute;n" style="opacity:.75" onclick="_upActOtra('+i+')">Otra opci&oacute;n&hellip;</button>';
         if(isImg)btns+='<button class="usr-btn edit" onclick="_upCal('+i+')">Calibrar</button>';
-        return '<div class="usr-row"'+(isAct?' style="border-color:var(--green);background:#f0fff4"':'')+'>'+
+        return '<div class="usr-row'+(isAct?' usr-row-active':'')+'">'+
           '<div class="usr-info">'+
             '<strong style="font-size:.8rem">'+titulo+tag+'</strong>'+
             '<small>'+_escHtml(f.name)+(ts?' &middot; '+ts:'')+(kb?' &middot; '+kb:'')+'</small>'+
