@@ -4205,7 +4205,11 @@ function _calSelect(id){if(!_cal)return;_cal.sel=(_cal.sel===id)?null:id;_calRen
 function _calZoom(factor,px,py){
   if(!_cal)return;
   var body=document.querySelector('#cal-modal .cal-body'),cv=document.getElementById('cal-cv');if(!body||!cv)return;
-  var ds=_cal.ds,nds=factor?Math.min(4,Math.max(0.12,ds*factor)):_cal.ds0;
+  // el tope real es 4x el tamaño inicial (ds0), no un valor absoluto de escala:
+  // ds0 cambia según el ancho de ventana, así que un tope absoluto de "4" dejaba
+  // llegar hasta ~900% de zoom en pantallas chicas y generaba canvases gigantes
+  // (varios cientos de MB) que trababan el navegador al redibujar.
+  var ds=_cal.ds,nds=factor?Math.min(_cal.ds0*4,Math.max(0.12,ds*factor)):_cal.ds0;
   if(Math.abs(nds-ds)<1e-6)return;
   // punto fijo: si no viene, el centro del área visible
   if(px==null){px=(body.scrollLeft+body.clientWidth/2-cv.offsetLeft)/ds;py=(body.scrollTop+body.clientHeight/2-cv.offsetTop)/ds;}
@@ -4214,11 +4218,21 @@ function _calZoom(factor,px,py){
   body.scrollLeft=px*nds+cv.offsetLeft-offX;body.scrollTop=py*nds+cv.offsetTop-offY;
   var pct=document.getElementById('cal-zoom-pct');if(pct)pct.textContent=Math.round(nds/_cal.ds0*100)+'%';
 }
+// El pellizco de zoom (trackpad) dispara "wheel" con ctrlKey a muchos eventos por
+// segundo; sin agrupar, cada uno redibujaba de una y podía trabar el navegador
+// varios segundos. Se acumula el factor y se aplica un solo zoom+redibujo por cuadro.
+var _calWheelPend=null,_calWheelFactor=1,_calWheelPX=null,_calWheelPY=null;
 function _calWheel(e){
   if(!_cal||!e.ctrlKey)return; // la rueda sola sigue desplazando el flyer (es muy alto)
   e.preventDefault();
   var p=_calXY(e);
-  _calZoom(e.deltaY<0?1.15:1/1.15,p.x,p.y);
+  _calWheelFactor*=(e.deltaY<0?1.15:1/1.15);_calWheelPX=p.x;_calWheelPY=p.y;
+  if(_calWheelPend)return;
+  _calWheelPend=requestAnimationFrame(function(){
+    _calWheelPend=null;
+    var f=_calWheelFactor;_calWheelFactor=1;
+    _calZoom(f,_calWheelPX,_calWheelPY);
+  });
 }
 // Altura final del flyer exportado. Vacío/0 = automático (corta después de los legales).
 // OJO: NO toca imgH (esa es la altura de REFERENCIA del anclaje; cambiarla corre las zonas).
