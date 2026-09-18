@@ -51,6 +51,27 @@ function _initTheme(){
   var t='light';
   try{t=localStorage.getItem('fg_theme')||'light';}catch(e){}
   _applyTheme(t);
+  _initPalette();
+}
+// ── PALETA (tema claro elegible: Marfil / Marino / Grafito / Cielo) ─────────────
+// Clase t-* en <html> (la pone también el script de arranque de _build.mjs para
+// que no parpadee). Convive con .dark (modo oscuro). Tokens en _newcss.txt.
+var _PALETAS=['t-marfil','t-marino','t-grafito','t-cielo'];
+function setPalette(p){
+  if(_PALETAS.indexOf(p)<0)p='t-marfil';
+  var h=document.documentElement;
+  _PALETAS.forEach(function(k){h.classList.remove(k);});
+  h.classList.add(p);
+  try{localStorage.setItem('fg_palette',p);}catch(e){}
+  _syncPaletteMenu();
+}
+function _initPalette(){
+  var p='t-marfil';try{p=localStorage.getItem('fg_palette')||p;}catch(e){}
+  setPalette(p);
+}
+function _syncPaletteMenu(){
+  var h=document.documentElement,box=document.getElementById('hdr-dd-pal');if(!box)return;
+  Array.prototype.forEach.call(box.querySelectorAll('button[data-p]'),function(b){b.classList.toggle('on',h.classList.contains(b.getAttribute('data-p')));});
 }
 function toggleTheme(){
   var next=document.documentElement.classList.contains('dark')?'light':'dark';
