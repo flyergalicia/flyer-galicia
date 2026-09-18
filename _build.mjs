@@ -182,8 +182,6 @@ const loginOverlay = `<div id="login-ov">
   <div class="login-hero">
     <div class="lg-logo">${headerIso.replace('class="header-logo"','class="lg-iso"')}<span class="lg-word">Galicia</span></div>
     <h3>Tus flyers, listos en un minuto.</h3>
-    <p>Datos de la empresa, oficiales, cashback y beneficios en un solo lugar. Descarg&aacute;s el PDF y listo.</p>
-    <div class="lh-tags"><span>Flyer Galicia</span><span>Flyer Rubros</span><span>Masivo por Excel</span><span>Padr&oacute;n</span></div>
     ${loginHeroArt}
   </div>
   <div class="login-card">

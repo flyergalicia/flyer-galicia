@@ -758,10 +758,7 @@ html.dark .promos-results{background:var(--paper);}
 html.dark #login-ov{background:var(--lg-ov);}
 .login-shell{display:grid;grid-template-columns:1.05fr 1fr;width:880px;max-width:94vw;border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(20,20,20,.28);background:var(--card);}
 .login-hero{position:relative;overflow:hidden;background:var(--lg-hero);color:var(--lg-hero-tx);padding:40px 36px;display:flex;flex-direction:column;min-height:460px;}
-.login-hero h3{font-size:1.65rem;font-weight:800;letter-spacing:-.02em;line-height:1.12;margin:26px 0 10px;max-width:11ch;}
-.login-hero p{font-size:.86rem;color:var(--lg-hero-mut);margin:0;max-width:30ch;line-height:1.5;}
-.login-hero .lh-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:18px;}
-.login-hero .lh-tags span{font-size:.66rem;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--lg-tag-bg);border:1px solid var(--lg-tag-line);}
+.login-hero h3{font-size:1.7rem;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:26px 0 0;max-width:12ch;}
 .login-hero svg.lh-art{position:absolute;right:-10px;bottom:-14px;width:64%;height:auto;pointer-events:none;}
 .login-hero svg.lh-art .a-ink{fill:var(--lg-art-ink);}
 .login-hero svg.lh-art .a-line{fill:var(--lg-art-line);}
@@ -780,8 +777,8 @@ html.dark .login-link{color:#7FB2FF;}
 @media (max-width:760px){
   .login-shell{grid-template-columns:1fr;width:420px;}
   .login-hero{min-height:0;padding:20px 22px 18px;}
-  .login-hero h3{font-size:1.15rem;margin:10px 0 4px;max-width:none;}
-  .login-hero p,.login-hero .lh-tags,.login-hero svg.lh-art{display:none;}
+  .login-hero h3{font-size:1.15rem;margin:10px 0 0;max-width:none;}
+  .login-hero svg.lh-art{display:none;}
   .login-card{padding:26px 22px;}
 }
 
