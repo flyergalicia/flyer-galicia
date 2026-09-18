@@ -4944,23 +4944,62 @@ function _plogAsesores(v){
   var n=_padNumAsesores({asesores:Array.isArray(v)?v:[]});
   return n?(n+' oficial'+(n>1?'es':'')):'sin oficiales';
 }
-// Texto humano de "cambios": [['CUIT','30-... → 30-...'],['Cashback','BAU → Config 2'],...]
+// Texto humano de "cambios". Alta/baja: la foto completa de la empresa. Modificación:
+// SÓLO lo que cambió, y puntual (qué CUIT entró o salió, qué oficial y qué campo),
+// en vez de repetir la lista entera antes y después. Las diferencias que son sólo
+// de formato (rubro vacío escrito distinto, slots de oficial vacíos) no cuentan:
+// así las filas viejas que el servidor anotó de más quedan sin detalle y se ocultan.
+function _plogRubroLbl(v){return _padRubroLabel({rubro:v})||'sin rubro';}
+function _plogAsesorDiff(antes,despues){
+  var A=Array.isArray(antes)?antes:[],D=Array.isArray(despues)?despues:[],out=[];
+  var g=function(a,k){return (a&&a[k]!=null?String(a[k]):'').trim();};
+  var vacio=function(a){return !g(a,'nombre')&&!g(a,'celular')&&!g(a,'email');};
+  var quien=function(a){return g(a,'nombre')||g(a,'email')||g(a,'celular')||'sin nombre';};
+  for(var i=0;i<Math.max(A.length,D.length);i++){
+    var a=A[i]||{},d=D[i]||{};
+    if(vacio(a)&&vacio(d))continue;
+    if(vacio(a)){out.push(['Oficial agregado',quien(d)]);continue;}
+    if(vacio(d)){out.push(['Oficial quitado',quien(a)]);continue;}
+    var cambios=[];
+    // cambió el nombre y además el contacto: es otra persona, no una corrección
+    if(g(a,'nombre')!==g(d,'nombre')&&(g(a,'celular')!==g(d,'celular')||g(a,'email')!==g(d,'email'))){out.push(['Oficial reemplazado',quien(a)+' → '+quien(d)]);continue;}
+    if(g(a,'nombre')!==g(d,'nombre'))cambios.push('nombre '+(g(a,'nombre')||'—')+' → '+(g(d,'nombre')||'—'));
+    if(g(a,'celular')!==g(d,'celular'))cambios.push('celular '+(g(a,'celular')||'—')+' → '+(g(d,'celular')||'—'));
+    if(g(a,'email')!==g(d,'email'))cambios.push('mail '+(g(a,'email')||'—')+' → '+(g(d,'email')||'—'));
+    if(cambios.length)out.push(['Oficial',quien(cambios.length===3?d:a)+' · '+cambios.join(' · ')]);
+  }
+  return out;
+}
 function _plogDetalle(row){
   var c=row.cambios;if(!c||typeof c!=='object')c={};
   var out=[],alta=row.accion==='alta',baja=row.accion==='baja';
-  var uno=function(lbl,k,fmt){
-    if(!c[k])return;
-    var a=c[k].antes,d=c[k].despues;
-    if(alta)out.push([lbl,fmt(d)]);
-    else if(baja)out.push([lbl,fmt(a)]);
-    else out.push([lbl,fmt(a)+' → '+fmt(d)]);
-  };
-  uno('CUIT','cuits',_plogCuits);
-  uno('Cashback','config',_plogConfig);
-  uno('Oficiales','asesores',_plogAsesores);
-  uno('Rubro','rubro',function(v){return _padRubroLabel({rubro:v})||'—';});
+  if(alta||baja){
+    var foto=function(lbl,k,fmt){if(!c[k])return;out.push([lbl,fmt(alta?c[k].despues:c[k].antes)]);};
+    foto('CUIT','cuits',_plogCuits);
+    foto('Cashback','config',_plogConfig);
+    foto('Oficiales','asesores',_plogAsesores);
+    foto('Rubro','rubro',_plogRubroLbl);
+    return out;
+  }
+  if(c.cuits){
+    var na=(Array.isArray(c.cuits.antes)?c.cuits.antes:[]).map(_padDigits).filter(Boolean);
+    var nd=(Array.isArray(c.cuits.despues)?c.cuits.despues:[]).map(_padDigits).filter(Boolean);
+    var mas=nd.filter(function(x){return na.indexOf(x)<0;}),menos=na.filter(function(x){return nd.indexOf(x)<0;});
+    var partes=[];
+    if(mas.length)partes.push('+ '+mas.map(_padFmtCuit).join(', '));
+    if(menos.length)partes.push('− '+menos.map(_padFmtCuit).join(', '));
+    if(partes.length)out.push(['CUIT',partes.join('  ')]);
+  }
+  if(c.config){
+    var ca=_plogConfig(c.config.antes),cd=_plogConfig(c.config.despues);
+    if(ca!==cd)out.push(['Cashback',ca+' → '+cd]);
+  }
+  if(c.asesores)out=out.concat(_plogAsesorDiff(c.asesores.antes,c.asesores.despues));
+  if(c.rubro&&!_padRubroIgual(c.rubro.antes,c.rubro.despues))out.push(['Rubro',_plogRubroLbl(c.rubro.antes)+' → '+_plogRubroLbl(c.rubro.despues)]);
   return out;
 }
+// Una modificación sin ningún cambio real (sólo formato) no se muestra ni se exporta.
+function _plogRelevante(row){return row.accion!=='modificacion'||_plogDetalle(row).length>0;}
 function _plogDetalleTxt(row){
   return _plogDetalle(row).map(function(p){return p[0]+': '+p[1];}).join(' · ');
 }
@@ -4971,9 +5010,10 @@ function loadPadronLog(){
   var f=_plogFiltros();
   _plogQuery(f,500).then(function(r){
     if(r.error){container.innerHTML='<p style="color:var(--red);font-size:.8rem">Error: '+_escHtml(r.error.message)+'</p>';return;}
-    var data=_plogFiltraUser(r.data||[],f);
+    var traidos=(r.data||[]).length;
+    var data=_plogFiltraUser(r.data||[],f).filter(_plogRelevante);
     var countEl=document.getElementById('plog-count');
-    if(countEl)countEl.textContent=data.length+' cambio'+(data.length!==1?'s':'')+(data.length>=500?' (se muestran los últimos 500; para ver todo, exportá a Excel)':'');
+    if(countEl)countEl.textContent=data.length+' cambio'+(data.length!==1?'s':'')+(traidos>=500?' (se muestran los últimos 500; para ver todo, exportá a Excel)':'');
     if(!data.length){container.innerHTML='<p style="color:var(--gray);font-size:.8rem">Sin cambios registrados todav&iacute;a. Cada vez que alguien guarde su padr&oacute;n (Excel, editor en l&iacute;nea o desde el armador), las altas, modificaciones y bajas aparecen ac&aacute;.</p>';return;}
     // Todo lo que viene de padron_log lo escribió un usuario (razón social,
     // oficiales...): se escapa siempre antes de pintarlo.
@@ -5008,7 +5048,7 @@ function exportPadronLog(){
   var f=_plogFiltros();
   _plogQuery(f,0).then(function(r){
     if(btn){btn.innerHTML='&#11015; Exportar Excel';btn.disabled=false;}
-    var data=_plogFiltraUser(r.data||[],f);
+    var data=_plogFiltraUser(r.data||[],f).filter(_plogRelevante);
     if(r.error||!data.length){showToast(r.error?('Error: '+r.error.message):'Sin datos para exportar');return;}
     var rows=data.map(function(row){
       return{
