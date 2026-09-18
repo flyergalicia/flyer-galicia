@@ -867,7 +867,7 @@ const checks = {
   // teclado, negrita del legal y dialogos propios (sin confirm() del navegador).
   'ux: trabajo guardado gateado por facultad': _authSrc.includes("_fgWorkApply(_can('guardar_trabajo'))") && _authSrc.includes("['guardar_trabajo','Guardar historial y borrador'") && _authSrc.includes('function _fgApplyHistItem(') && _authSrc.includes('_fgWorkSaveHist();'),
   'ux: validacion en linea (no bloquea)': _authSrc.includes('function _fgValField(') && _authSrc.includes('function _fgValAvisar(') && _authSrc.includes('(se generó igual)'),
-  'ux: compartir + Otros (PNG)': html.includes('id="btn-share"') && html.includes('onclick="fgCompartir()"') && html.includes('id="fg-otros-menu"') && html.includes('onclick="modalCompartir()"') && _authSrc.includes("logFlyerToSupabase(v,fn,'compartir')") && _authSrc.includes('function _fgCompartirCanvas('),
+  'ux: compartir (solo PDF, boton oculto si no se puede) + Otros (PNG)': html.includes('id="btn-share"') && html.includes('id="modal-share"') && html.includes('id="fg-otros-menu"') && _authSrc.includes("logFlyerToSupabase(v,fn,'compartir')") && _authSrc.includes('function _fgPuedeCompartirPdf(') && !_authSrc.includes('ClipboardItem'),
   'ux: teclado (solapas + Ctrl+Enter + Esc)': html.includes('role="tablist"') && _authSrc.includes('function _fgKbdInit(') && _authSrc.includes("(e.ctrlKey||e.metaKey)&&e.key==='Enter'"),
   'ux: negrita del legal': html.includes('onclick="fgLegalBold()"') && _authSrc.includes('function fgLegalBold(') && _authSrc.includes("(e.key==='b'||e.key==='B')"),
   'ux: sin confirm() nativo': _authSrc.includes('function fgConfirm(') && !/[^a-zA-Z_]confirm\(/.test(_authSrc),

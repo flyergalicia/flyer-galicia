@@ -876,3 +876,49 @@ kbd.fg-kbd{font:600 .62rem/1 monospace;padding:2px 5px;border:1px solid var(--bo
   .fg-draft-acts{margin-left:0;width:100%;}
   .fg-draft-acts .btn{flex:1;}
 }
+
+/* ---------- Panel Administrador (y secundarios): misma paleta que el armador ----------
+   El rojo puro (#e30613) del diseño original quedaba sólo acá y chocaba con el
+   naranja + marino del resto. Regla: --red pasa a ser el acento de la paleta
+   (naranja Galicia, o el de la paleta elegida); el rojo de verdad queda reservado
+   para errores y acciones de borrar (--danger). */
+:root{--red:var(--accent);--danger:#B3261E;--danger-soft:#FDE3E3;}
+html.dark{--danger:#FF8A80;--danger-soft:#3A1C1C;}
+/* Sub-solapas (Dashboard / Usuarios / ...): píldora marino, como "BAU" en el armador */
+.stabs{background:var(--card);border-color:var(--border);}
+.stab{color:var(--gray);}
+.stab:hover{background:var(--navy-soft);color:var(--ink);}
+.stabs .stab.active,.stabs .stab.active:hover{background:var(--navy);color:#fff;}
+html.dark .stabs .stab.active,html.dark .stabs .stab.active:hover{background:#fff;color:#15171A;}
+.stabs.stabs-in .stab.active{background:var(--navy);color:#fff;}
+.atab:hover{background:var(--navy-soft);}
+.atab.active:hover{color:var(--ink);}
+.atab.has-dot::after{background:var(--accent);}
+/* Tarjetas de resumen: franjas con los colores de la paleta */
+.stat-card::before{background:var(--border);}
+.stat-card.sc-red::before{background:var(--accent);}
+.stat-card.sc-blue::before{background:var(--azul);}
+.stat-card.sc-blue strong{color:var(--azul);}
+.stat-card.sc-yellow{border-color:var(--border);}
+.stat-card.sc-yellow::before{background:#E0A61B;}
+.stat-card.sc-yellow span,.stat-card.sc-yellow strong{color:#9A6A00;}
+html.dark .stat-card.sc-yellow span,html.dark .stat-card.sc-yellow strong{color:#E5B75B;}
+/* Facultades */
+.fac-row input[type=checkbox]{accent-color:var(--accent);}
+.fac-sim:hover,#fac-simbar button:hover{background:var(--navy);color:#fff;}
+/* Subir flyer */
+.upload-drop:hover,.upload-drop.drag-over{border-color:var(--accent);background:var(--accent-soft);}
+.upload-prog-bar{background:var(--accent);}
+.upload-result-url{color:var(--accent-2);}
+/* Bloc de notas y asesores guardados */
+.notes-new{background:var(--accent-grad);}.notes-new:hover{background:var(--accent-grad-h);}
+.note-item.active{border-color:var(--accent);}
+.note-move:hover,.as-act:hover{border-color:var(--accent);color:var(--accent-2);}
+.as-del:hover{background:var(--danger);color:#fff;}
+/* Menú del usuario */
+.hdr-dd-item:hover{color:var(--accent-2);}
+.hdr-dd-item.danger:hover{background:var(--danger-soft);color:var(--danger);}
+/* Errores: rojo de verdad, no el acento */
+.login-err,.um-err{color:var(--danger);}
+/* Promociones: orden y foco con el acento */
+.promos-th-orden:hover,.promos-th-orden.ordenando{color:var(--accent-2);}

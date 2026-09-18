@@ -7589,7 +7589,7 @@ function _tourCapitulos(){
        texto:'Acerc&aacute; o alej&aacute; con <kbd>+</kbd> / <kbd>&minus;</kbd> (o la rueda del mouse) y <strong>arrastr&aacute;</strong> la imagen para recorrerla. Lo que ves ac&aacute; es exactamente lo que se descarga.',
        antes:irIndividual},
       {target:'.btns .btn.bp',titulo:'Descargar',
-       texto:'<strong>Descargar PDF</strong> (o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) para mandarlo por mail. <strong>Compartir</strong> abre el men&uacute; del celular (WhatsApp, mail) y en la PC copia el flyer como imagen para pegarlo con <kbd>Ctrl</kbd>+<kbd>V</kbd>. En <em>Otros</em> est&aacute; la descarga como PNG. Todo queda en la solapa <em>Historial</em>.',
+       texto:'<strong>Descargar PDF</strong> (o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) lo guarda en tu equipo. <strong>Compartir</strong> abre el men&uacute; del celular o de Windows para mandar el PDF directo por WhatsApp, mail o Teams. En <em>Otros</em> est&aacute; la descarga como imagen (PNG). Todo queda en la solapa <em>Historial</em>.',
        antes:irIndividual},
       {target:'.btns .btn.bg',titulo:'Restaurar',
        texto:'Limpia empresa y asesores y vuelve el legal al texto guardado, para arrancar el pr&oacute;ximo flyer de cero.',
@@ -8116,10 +8116,22 @@ function _fgValInit(){
 }
 
 // ── COMPARTIR ────────────────────────────────────────────────────────────────
-// Celular: abre el menú nativo (WhatsApp, mail, etc.) con el PDF (o la imagen si
-// jsPDF todavía no cargó). PC: copia el flyer como imagen al portapapeles para
-// pegarlo con Ctrl+V en un mail, Teams o WhatsApp Web. Si el navegador no puede
-// ninguna de las dos, descarga el PNG. Queda registrado como "compartir".
+// Abre el menú de compartir del dispositivo (WhatsApp, mail, Teams...) SIEMPRE
+// con el PDF: el asesor manda PDFs, no imágenes. Si el navegador no sabe
+// compartir un archivo PDF (Firefox, Chrome viejo), el botón directamente no se
+// muestra: nada de copiar imágenes ni descargas "de consuelo". Queda registrado
+// como "compartir".
+function _fgPuedeCompartirPdf(){
+  try{
+    if(!navigator.share||!navigator.canShare||typeof File==='undefined')return false;
+    return navigator.canShare({files:[new File(['%PDF-1.4'],'flyer.pdf',{type:'application/pdf'})]});
+  }catch(e){return false;}
+}
+function _fgShareInit(){
+  var ok=_fgPuedeCompartirPdf();
+  var b=document.getElementById('btn-share');if(b)b.style.display=ok?'':'none';
+  var m=document.getElementById('modal-share');if(m)m.style.display=ok?'':'none';
+}
 function fgCompartir(){
   if(typeof getVals!=='function'||typeof fullRes!=='function')return;
   var v=getVals();
@@ -8130,62 +8142,45 @@ function modalCompartir(){
   var v=getVals();closeModal();
   _fgCompartirCanvas(window.modalCanvas,v);
 }
-function _fgEsMovil(){return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));}
 function _fgBusy(btn,on){
   if(!btn)return;
   if(on){if(!btn.dataset.fgHtml)btn.dataset.fgHtml=btn.innerHTML;btn.classList.add('fg-busy');btn.textContent='Un momento…';}
   else{if(btn.dataset.fgHtml)btn.innerHTML=btn.dataset.fgHtml;btn.classList.remove('fg-busy');}
 }
-function _fgDescargarBlob(blob,nombre){
-  var a=document.createElement('a'),u=URL.createObjectURL(blob);
-  a.href=u;a.download=nombre;document.body.appendChild(a);a.click();a.remove();
-  setTimeout(function(){URL.revokeObjectURL(u);},4000);
+function _fgPdfFile(fc,fn){
+  var jsPDF=window.jspdf.jsPDF,pw=210,ph=(fc.height/fc.width)*pw;
+  var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
+  pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+  return new File([pdf.output('blob')],fn+'.pdf',{type:'application/pdf'});
 }
 function _fgCompartirCanvas(fc,v,force){
   if(!force&&typeof _padCheckRubro==='function'&&_padCheckRubro(_padFilaActual(),'descarga',function(){_fgCompartirCanvas(fc,v,true);}))return;
+  if(!_fgPuedeCompartirPdf()){showToast('Este navegador no permite compartir archivos. Usá Descargar PDF.');return;}
   var fn=buildFn(_gv('filename'),v);
   var btn=document.getElementById('btn-share');_fgBusy(btn,true);
   var listo=false;
   function fin(ok,msg){
     if(listo)return;listo=true;
     _fgBusy(btn,false);
-    if(msg)_fgToastLargo(msg,ok?5000:4000);
+    if(msg)_fgToastLargo(msg,ok?4000:5000);
     if(ok){addHistory(v,fn,fc);logFlyerToSupabase(v,fn,'compartir');if(typeof _padAfterFlyer==='function')_padAfterFlyer();setTimeout(_fgValAvisar,1200);}
   }
-  function compartirArchivo(file,siNo){
-    if(!(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}))){siNo();return;}
+  function compartir(){
+    var file;
+    try{file=_fgPdfFile(fc,fn);}catch(e){fin(false,'No se pudo armar el PDF. Probá con Descargar PDF.');return;}
     navigator.share({files:[file],title:fn}).then(function(){fin(true,'Flyer compartido');})
-      .catch(function(e){if(e&&e.name==='AbortError')fin(false,'');else siNo();});
+      .catch(function(e){
+        if(e&&e.name==='AbortError'){fin(false,'');return;} // cerró el menú: no es un error
+        // NotAllowedError = se perdió el "gesto" del click (pasó demasiado tiempo cargando)
+        fin(false,(e&&e.name==='NotAllowedError')?'Tocá Compartir de nuevo (ya está todo listo).':'No se pudo abrir el menú de compartir. Usá Descargar PDF.');
+      });
   }
-  function bajarPng(){fc.toBlob(function(b){if(!b){fin(false,'No se pudo generar la imagen');return;}_fgDescargarBlob(b,fn+'.png');fin(true,'Este navegador no permite compartir ni copiar: se descargó el flyer como imagen.');},'image/png');}
-  if(_fgEsMovil()&&navigator.share){
-    var file=null;
-    if(typeof _libReady==='function'&&_libReady('jspdf')){
-      try{
-        var jsPDF=window.jspdf.jsPDF,pw=210,ph=(fc.height/fc.width)*pw;
-        var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
-        pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
-        file=new File([pdf.output('blob')],fn+'.pdf',{type:'application/pdf'});
-      }catch(e){file=null;}
-    }
-    if(file){compartirArchivo(file,bajarPng);return;}
-    fc.toBlob(function(b){if(!b){fin(false,'No se pudo generar la imagen');return;}compartirArchivo(new File([b],fn+'.jpg',{type:'image/jpeg'}),bajarPng);},'image/jpeg',0.92);
+  // jsPDF se precarga después del login; si todavía no está, la traigo y comparto.
+  if(typeof _libReady==='function'&&!_libReady('jspdf')){
+    _lib(['jspdf']).then(compartir).catch(function(){fin(false,'No se pudo cargar la librería del PDF. Revisá la conexión.');});
     return;
   }
-  // PC: portapapeles. El ClipboardItem se arma con la promesa del blob para que
-  // Safari lo acepte dentro del gesto del click.
-  if(navigator.clipboard&&navigator.clipboard.write&&window.ClipboardItem){
-    var pBlob=new Promise(function(res,rej){fc.toBlob(function(b){b?res(b):rej(new Error('blob'));},'image/png');});
-    var item;
-    try{item=new ClipboardItem({'image/png':pBlob});}catch(e){item=null;}
-    if(item){
-      navigator.clipboard.write([item])
-        .then(function(){fin(true,'Flyer copiado como imagen: pegalo con Ctrl+V en el mail, Teams o WhatsApp Web.');})
-        .catch(function(){pBlob.then(function(b){compartirArchivo(new File([b],fn+'.png',{type:'image/png'}),bajarPng);}).catch(function(){bajarPng();});});
-      return;
-    }
-  }
-  fc.toBlob(function(b){if(!b){fin(false,'No se pudo generar la imagen');return;}compartirArchivo(new File([b],fn+'.png',{type:'image/png'}),bajarPng);},'image/png');
+  compartir();
 }
 // "Otros ▾" debajo de los botones: acciones de poco uso (PNG).
 function fgToggleOtros(force){
@@ -8342,5 +8337,6 @@ function _fgUxInit(){
   try{_fgValInit();}catch(e){console.warn('val:',e);}
   try{_fgLegalInit();}catch(e){console.warn('legal:',e);}
   try{_fgKbdInit();}catch(e){console.warn('kbd:',e);}
+  try{_fgShareInit();}catch(e){console.warn('share:',e);}
   try{_fgWorkInit();}catch(e){console.warn('work:',e);}
 }
