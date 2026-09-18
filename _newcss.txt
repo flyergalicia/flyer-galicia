@@ -355,10 +355,36 @@ html.dark .fac-head{background:#1b1e23;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
 
 /* ===== BUSCADOR PROMOCIONES ===== */
-/* Solapas de primer nivel en el header ("Flyer Galicia" / "Promociones"). */
+/* Header rediseñado (2026-09-17): divisor sutil en vez de la franja roja gruesa,
+   solapa activa en blanco con su propia línea roja debajo, el resto atenuado y sin
+   las etiquetas ARMADOR/BUSCADOR repetidas (redundantes: cada solapa ya dice qué es).
+   Sigue siendo el mismo <div class="header-text app-tab"> que arma _build.mjs.
+   Las reglas de layout de las solapas van SOLO en escritorio (min-width:901px): en
+   angosto el header ya tiene su propio esquema de dos filas con línea blanca abajo
+   (ver @media max-width:900px más abajo) y no hay que mezclar los dos indicadores. */
+header{border-bottom:1px solid rgba(255,255,255,.1);}
 .app-tab{cursor:pointer;opacity:0.55;transition:opacity .15s;}
 .app-tab:hover{opacity:0.85;}
 .app-tab.active{opacity:1;}
+/* Avatar con iniciales junto al nombre (antes del <span id="hdr-user">). Los dos son
+   <span> dentro de <header>: sin este reset heredarían la "píldora roja" que la regla
+   base "header span" usa para el ARMADOR/BUSCADOR (mismo problema ya visto en .hdr-user). */
+.hdr-avatar,.hdr-caret{padding:0;letter-spacing:normal;text-transform:none;width:auto;}
+.hdr-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--red),#ff7a45);display:inline-flex;align-items:center;justify-content:center;font:800 .62rem "Syne",sans-serif;color:#fff;flex-shrink:0;}
+.hdr-caret{background:none;}
+.hdr-user-btn{gap:8px;padding:3px 10px 3px 3px;}
+/* Admin, contorno en vez de relleno: menos peso visual junto al resto de la barra. */
+.btn-hdr-admin{background:transparent;border:1px solid rgba(255,255,255,.28);}
+.btn-hdr-admin:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.5);}
+@media (min-width:901px){
+  .header-text{gap:0;height:100%;}
+  .header-text span{display:none;}
+  .app-tab{opacity:1;height:100%;display:flex;align-items:center;justify-content:center;padding:0 14px;position:relative;transition:none;}
+  .app-tab h1{font-size:.92rem;font-weight:700;color:rgba(255,255,255,.55);transition:color .15s;white-space:nowrap;}
+  .app-tab:hover h1{color:rgba(255,255,255,.85);}
+  .app-tab.active h1{color:#fff;font-weight:800;}
+  .app-tab.active::after{content:'';position:absolute;left:14px;right:14px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--red);}
+}
 /* Vista "Promociones": mismo esquema panel+resultado que el armador (ver
    .layout/.panel/.prev), pero como sección de primer nivel independiente. */
 .promos-view{display:grid;grid-template-columns:420px 1fr;height:calc(100vh - 62px);overflow:hidden;}

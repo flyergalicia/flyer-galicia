@@ -6,8 +6,8 @@ const newCSS = readFileSync('_newcss.txt', 'utf8');
 
 // ── LOGO GALICIA (SVG inline, self-contained) ──────────────────────────────
 const swordPaths = '<circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/>';
-// Isotipo para header (D granate, espada blanca)
-const headerIso = '<svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#A6273B"/><g fill="#fff">' + swordPaths + '</g></svg>';
+// Isotipo para header (D naranja oficial, espada blanca; rediseño del header 2026-09-17)
+const headerIso = '<svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#F26122"/><g fill="#fff">' + swordPaths + '</g></svg>';
 // Logo completo para login (D blanca + espada granate + wordmark)
 const galiciaLogoWhite = '<div class="lg-logo"><svg class="lg-iso" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#fff"/><g fill="#A6273B">' + swordPaths + '</g></svg><span class="lg-word">Galicia</span></div>';
 
@@ -143,7 +143,7 @@ html = html.replace(
   '<div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp(\'promos\')"><h1>Promociones</h1><span>BUSCADOR</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
-    '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
+    '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
     '<div class="hdr-dropdown" id="hdr-dropdown">' +
       '<div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div>' +
       '<div class="hdr-dd-sep"></div>' +

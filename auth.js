@@ -603,6 +603,7 @@ function checkProfile(user){
     _fgOpt=1; // todos arrancan en Opción 1 (los asesores/VIP se quedan siempre acá)
     _applyGlobalLegalToForm(1); // trae los T&C globales de la Opción 1
     document.getElementById('hdr-user').textContent=_myName;
+    var hAv=document.getElementById('hdr-avatar');if(hAv)hAv.textContent=_initials(_myName,'');
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
     if(_admin)_refreshPendingBadge(); // el panel admin sigue siendo exclusivo del admin
     // Aplicar imagen del flyer activo (Opción 1)
