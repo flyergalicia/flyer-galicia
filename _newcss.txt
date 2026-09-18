@@ -683,7 +683,6 @@ html.dark .panel{background:var(--paper);}
 /* Tarjetas: las arma _fgCardify() (auth.js) agrupando cada .sec con lo que sigue. */
 .fg-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-m);padding:13px 14px 11px;margin-bottom:10px;box-shadow:var(--sh-1);}
 .fg-card>.sec:first-child,.fg-card>.fg-card-h{margin:0 0 10px;font-size:.8rem;font-weight:800;letter-spacing:0;text-transform:none;color:var(--ink);display:flex;align-items:center;gap:8px;}
-.fg-card>.sec:first-child::before,.fg-card>.fg-card-h::before{content:"";width:9px;height:9px;border-radius:3px;background:var(--accent-soft);border:1px solid var(--accent-line);flex-shrink:0;}
 .fg-card .sec-sub{margin:10px 0 6px;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray);}
 .fg-card .sec-sub:first-of-type{margin-top:0;}
 .fg-card .field:last-child{margin-bottom:0;}
