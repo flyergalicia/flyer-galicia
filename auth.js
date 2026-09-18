@@ -601,7 +601,7 @@ function checkProfile(user){
     if(typeof updateFnPreview==='function')updateFnPreview();
     if(typeof redraw==='function')redraw();
     _fgOpt=1; // todos arrancan en Opción 1 (los asesores/VIP se quedan siempre acá)
-    _applyGlobalLegalToForm(1); // trae los T&C globales de la Opción 1
+    var _legal1P=_applyGlobalLegalToForm(1); // trae los T&C globales de la Opción 1 (una sola descarga)
     document.getElementById('hdr-user').textContent=_myName;
     var hAv=document.getElementById('hdr-avatar');if(hAv)hAv.textContent=_initials(_myName,'');
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
@@ -616,7 +616,8 @@ function checkProfile(user){
       // Cacheo la Opción 1 para que volver a ella sea instantáneo
       _fgOptCache[1]={loaded:true,cfg:window.FLYER_CFG||null,imageUrl:imageUrl,
         name:_activeFlyerName,legal:null,img:null};
-      loadGlobalLegal(false,1).then(function(t){if(_fgOptCache[1])_fgOptCache[1].legal=t||'';});
+      // el legal viene de la misma descarga de arriba; si ya llegó, esto lo copia al caché
+      _legal1P.then(function(t){_fgLegalArrived(1,t);});
       if(imageUrl&&window.baseImg){
         var _ni=new Image();
         _ni.crossOrigin='anonymous';
@@ -1987,15 +1988,18 @@ function saveCashbackChanges(){
 // Se guarda en el bucket flyers como _legal.json {text, updated_at}. El admin lo edita
 // desde el panel; todos los usuarios lo reciben precargado al iniciar sesión.
 // Cada opción del armador tiene su propio legal (_legal.json / _legal2.json).
+// Devuelve el texto guardado (puede ser '' si el admin lo dejó vacío a propósito) o
+// null si esa opción nunca tuvo legal guardado / no se pudo bajar. Distinguirlos
+// importa: '' se muestra vacío; null no debe pisar nada.
 function loadGlobalLegal(toEditor,opt){
   opt=_optN(opt);
   return fetch(FLYERS_PUBLIC+_legalFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
     .then(function(d){
-      var txt=(d&&typeof d.text==='string')?d.text:'';
-      if(toEditor){var el=document.getElementById(_glegalId(opt));if(el)el.value=txt;}
+      var txt=(d&&typeof d.text==='string')?d.text:null;
+      if(toEditor){var el=document.getElementById(_glegalId(opt));if(el)el.value=txt||'';}
       return txt;
-    }).catch(function(){return '';});
+    }).catch(function(){return null;});
 }
 function saveGlobalLegal(opt){
   opt=_optN(opt);
@@ -2015,16 +2019,30 @@ function saveGlobalLegal(opt){
       // lo recién guardado pasa a ser la base: descarto la edición de sesión
       if(c){c.legal=txt;delete c.legalEdited;}
       // si estoy viendo esa opción, refresco el legal del armador al toque
-      if(_optN(_fgOpt)===opt){var f=document.getElementById('legal-text');if(f){f.value=txt;if(typeof redraw==='function')redraw();}}
+      if(_optN(_fgOpt)===opt){var f=document.getElementById('legal-text');if(f){f.value=txt;_fgLegalShownFor=opt;if(typeof redraw==='function')redraw();}}
       showToast('Legal de '+_optLabel(opt)+' actualizado');
     });
 }
+// Llegó del servidor el legal de una opción: lo guardo en su caché y, si esa opción
+// es la que está en pantalla y no tiene una edición de sesión, lo reflejo en el
+// textarea. Idempotente: se puede llamar más de una vez con el mismo resultado.
+// txt null (nunca guardado) → la Opción 1 conserva el legal del template (legado);
+// las demás quedan vacías. txt '' (guardado vacío a propósito) → vacío.
+function _fgLegalArrived(opt,txt){
+  opt=_optN(opt);
+  var base=(typeof txt==='string')?txt:(opt===1?(window.LEGAL_DEFAULT||''):'');
+  var c=_fgOptCache[opt];if(c)c.legal=base;
+  if(_optN(_fgOpt)!==opt)return;
+  if(c&&typeof c.legalEdited==='string')return;
+  var el=document.getElementById('legal-text');if(!el)return;
+  if(el.value!==base){el.value=base;if(typeof redraw==='function')redraw();}
+  _fgLegalShownFor=opt;
+}
 // Precarga el legal de la opción en el formulario (pisa el default del template).
+// Devuelve la promesa para que quien arme el caché use la MISMA descarga.
 function _applyGlobalLegalToForm(opt){
   opt=_optN(opt);
-  loadGlobalLegal(false,opt).then(function(txt){
-    if(txt&&txt.trim()){var el=document.getElementById('legal-text');if(el){el.value=txt;if(typeof redraw==='function')redraw();}}
-  });
+  return loadGlobalLegal(false,opt).then(function(txt){_fgLegalArrived(opt,txt);return txt;});
 }
 // Sub-solapas de legales en el panel admin.
 function _glegalId(opt){var n=_optN(opt);return n===1?'glegal-text':'glegal-text'+n;}
@@ -2705,38 +2723,61 @@ function _fgOptBarGestos(bar){
     if(taps>=_FG_TAPS){taps=0;_fgOptRenombrar(el);}
   });
 }
-// Guarda en la opción que estoy dejando el legal TAL COMO LO EDITÉ, para que al volver
-// siga igual (ej: le cambié una fecha). Se pierde sólo al recargar la página o al
-// apretar "Restaurar".
+// ── Legal por opción: invariantes ────────────────────────────────────────────
+// 1) El textarea #legal-text muestra SIEMPRE el legal de una sola opción, la que
+//    dice _fgLegalShownFor. Mientras se carga otra opción, _fgOpt ya cambió pero el
+//    textarea sigue mostrando la anterior: por eso el stash usa _fgLegalShownFor y
+//    NO _fgOpt (antes usaba _fgOpt y, con un doble clic durante la carga, guardaba el
+//    legal de la opción vieja como "edición" de la nueva; desde ahí la nueva mostraba
+//    el legal ajeno toda la sesión — el bug de "Supermercado trae otro legal").
+// 2) legalEdited existe sólo si el texto difiere del legal guardado de esa opción.
+//    Lo que no se editó no se guarda como edición.
+// 3) Nunca hay dos cargas de la misma opción en vuelo: la segunda se suma a la
+//    primera (_fgOptLoading), así no se pisan los cachés ni se aplican dos veces.
+var _fgLegalShownFor=null;
+var _fgOptLoading={};
 function _fgStashLegal(){
-  var el=document.getElementById('legal-text');if(!el)return;
-  var n=_optN(_fgOpt),c=_fgOptCache[n];
-  if(!c)c=_fgOptCache[n]={loaded:false};
-  c.legalEdited=el.value;
+  var el=document.getElementById('legal-text');if(el==null||_fgLegalShownFor==null)return;
+  var c=_fgOptCache[_fgLegalShownFor];
+  if(!c||typeof c.legal!=='string')return; // sin base conocida no puedo saber si es edición
+  if(el.value!==c.legal)c.legalEdited=el.value;else delete c.legalEdited;
 }
 function switchFlyerOption(opt,cb){
   if(!_can('opcion_'+_optN(opt)))return; // gating real, no sólo visual
   opt=_optN(opt);
+  if(_fgOptLoading[opt]){ // ya se está cargando (doble clic, red lenta): me sumo y listo
+    _fgOpt=opt;_fgSyncVista();
+    if(cb)_fgOptLoading[opt].push(cb);
+    return;
+  }
   _fgStashLegal();
   _fgOpt=opt;_fgSyncVista(); // solapa del header + barra + campos del beneficio
   var c=_fgOptCache[opt];
   if(c&&c.loaded){_fgApplyOption(c);if(cb)cb();return;}
   showToast('Cargando '+_optLabel(opt)+'...');
-  var keepEdited=c?c.legalEdited:undefined; // no piso una edición previa de esta opción
+  // Mientras llega la opción nueva el textarea NO puede seguir mostrando el legal de
+  // la anterior (se leía como "Supermercado trae el legal de otro flyer"): queda vacío
+  // con un aviso, y _fgLegalShownFor=null dice que ahí no hay legal de nadie.
+  var elL=document.getElementById('legal-text');
+  if(elL){elL.value='';elL.placeholder='Cargando el legal de '+_optLabel(opt)+'…';}
+  _fgLegalShownFor=null;
+  if(typeof redraw==='function')redraw();
+  var waiters=_fgOptLoading[opt]=[];if(cb)waiters.push(cb);
+  var keepEdited=(c&&typeof c.legalEdited==='string')?c.legalEdited:undefined; // edición real previa de ESTA opción
+  var done=function(cache,aviso){
+    cache.loaded=true;delete _fgOptLoading[opt];
+    if(_optN(_fgOpt)===opt){_fgApplyOption(cache);if(aviso)showToast(aviso);}
+    waiters.forEach(function(f){try{f();}catch(e){console.error('switchFlyerOption cb:',e);}});
+  };
   _fetchActiveMeta(opt,function(d){
     var cache=_fgOptCache[opt]={loaded:false,cfg:(d&&d.cfg)||null,
       imageUrl:(d&&d.imageUrl)||null,name:(d&&d.name)||'',legal:null,img:null,legalEdited:keepEdited};
     loadGlobalLegal(false,opt).then(function(txt){
-      cache.legal=txt||'';
-      if(!cache.imageUrl){
-        cache.loaded=true;
-        if(_optN(_fgOpt)===opt){_fgApplyOption(cache);showToast(_optLabel(opt)+' todavía no tiene flyer: subilo desde el panel.');}
-        if(cb)cb();
-        return;
-      }
+      cache.legal=(typeof txt==='string')?txt:(opt===1?(window.LEGAL_DEFAULT||''):'');
+      if(!cache.imageUrl){done(cache,_optLabel(opt)+' todavía no tiene flyer: subilo desde el panel.');return;}
       var im=new Image();im.crossOrigin='anonymous';
-      im.onload=function(){cache.img=im;cache.loaded=true;if(_optN(_fgOpt)===opt)_fgApplyOption(cache);if(cb)cb();};
-      im.onerror=function(){cache.loaded=true;if(_optN(_fgOpt)===opt){_fgApplyOption(cache);showToast('No se pudo cargar la imagen de '+_optLabel(opt));}if(cb)cb();};
+      im.onload=function(){cache.img=im;done(cache);};
+      im.onerror=function(){done(cache,'No se pudo cargar la imagen de '+_optLabel(opt));};
       im.src=cache.imageUrl+(cache.imageUrl.indexOf('?')>=0?'&':'?')+'_r='+Date.now();
     });
   });
@@ -2747,11 +2788,12 @@ function _fgApplyOption(cache){
   var el=document.getElementById('legal-text');
   // prioridad: lo que dejé editado en esta sesión; si no, el legal guardado de la opción
   var txt=(typeof cache.legalEdited==='string')?cache.legalEdited:cache.legal;
-  // SIEMPRE refleja el legal real de ESTA opción, aunque esté vacío: si no, quedaba
-  // pegado el legal de la opción anterior (parecía que "se arrastraba" de otro flyer).
-  if(el&&typeof txt==='string'){
-    el.value=txt;
-    if(!txt.trim())showToast('⚠ '+_optLabel(_fgOpt)+' no tiene legal cargado — avisá a la central antes de generar el flyer.');
+  if(el){
+    // SIEMPRE el legal de ESTA opción. Si todavía no llegó del servidor (null), queda
+    // vacío hasta que llegue (_fgLegalArrived lo completa): nunca el de la anterior.
+    el.value=(typeof txt==='string')?txt:'';el.placeholder='';
+    _fgLegalShownFor=_optN(_fgOpt);
+    if(typeof txt==='string'&&!txt.trim())showToast('⚠ '+_optLabel(_fgOpt)+' no tiene legal cargado — avisá a la central antes de generar el flyer.');
   }
   if(typeof calcSC==='function')calcSC();
   if(typeof _fgBenefFieldsSync==='function')_fgBenefFieldsSync(); // segundo tope según el cartel de la opción
@@ -3826,6 +3868,7 @@ function fgRenderHistory(){
 function _fgWithOpt(o,fn2){
   o=_optN(o);
   if(_can('opcion_'+o)&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,fn2);}
+  else if(_fgOptLoading[o])_fgOptLoading[o].push(fn2); // ya es la activa pero todavía carga: espero a que aplique
   else fn2();
 }
 function fgRedlPDF(i){
@@ -3881,8 +3924,10 @@ function fgResetVals(){
   _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // se corta el vínculo con el padrón
   var n=_optN(_fgOpt),c=_fgOptCache[n];
   if(c)delete c.legalEdited;
-  var base=(c&&typeof c.legal==='string'&&c.legal.trim())?c.legal:(window.LEGAL_DEFAULT||'');
-  s('legal-text',base);
+  // Vuelve al legal GUARDADO de esta opción, aunque esté vacío. Antes, con legal vacío,
+  // caía al LEGAL_DEFAULT del template (el legal de otro flyer): nunca más.
+  var base=(c&&typeof c.legal==='string')?c.legal:'';
+  s('legal-text',base);_fgLegalShownFor=n;
   window.filenameManual=false;
   if(typeof a1!=='undefined'&&!a1&&typeof toggleA1==='function')toggleA1();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();

@@ -743,6 +743,10 @@ const checks = {
   'registro de descargas': _authSrc.includes('window.savePDF=fgSavePDF') && _authSrc.includes("logFlyerToSupabase(v,fn,'pdf')"),
   'opcion en registros/historial': _authSrc.includes('opcion:_optN(_fgOpt)') && _authSrc.includes('function fgRenderHistory('),
   'legal persistente por opcion': _authSrc.includes('function _fgStashLegal(') && _authSrc.includes('legalEdited'),
+  // El legal de una opcion NUNCA se guarda como edicion de otra: el stash va a la opcion
+  // que esta en pantalla (_fgLegalShownFor), solo si difiere del guardado; una sola
+  // carga en vuelo por opcion; sin caer al LEGAL_DEFAULT del template al Restaurar.
+  'legal: sin arrastre entre opciones': _authSrc.includes('var _fgLegalShownFor=null') && _authSrc.includes('var _fgOptLoading={}') && _authSrc.includes('var c=_fgOptCache[_fgLegalShownFor];') && _authSrc.includes("if(el.value!==c.legal)c.legalEdited=el.value;else delete c.legalEdited;") && _authSrc.includes('if(_fgOptLoading[opt]){') && _authSrc.includes('function _fgLegalArrived(') && !_authSrc.includes("c.legal.trim())?c.legal:(window.LEGAL_DEFAULT||'')"),
   'empresa sin default': _authSrc.includes("_eE0.placeholder='Nombre de la empresa'"),
   // Hasta 4 asesores (3 en fila, 4 en 2x2 con el flyer creciendo)
   'asesores 3 y 4': _authSrc.includes('function _fgEnsureAsesores34(') && _authSrc.includes('window.getVals=fgGetVals'),
