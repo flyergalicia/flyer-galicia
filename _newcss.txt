@@ -816,3 +816,63 @@ html.dark #toast,html.dark .toast{background:#2E3136;}
 /* ---------- Accesibilidad y fluidez ---------- */
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible,.app-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none !important;animation:none !important;}}
+
+/* ---------- Mejoras UX 2026-09: Otros (PNG), validación en línea, negrita del legal,
+   diálogos propios, aviso de borrador, teclado ---------- */
+/* "Otros ▾": acciones de poco uso (PNG) fuera de los botones principales */
+.fg-otros{margin-top:2px;}
+.fg-otros-tg{display:inline-flex;align-items:center;gap:4px;background:none;border:none;padding:4px 2px;font-size:.7rem;font-weight:700;color:var(--gray);cursor:pointer;border-radius:6px;}
+.fg-otros-tg:hover{color:var(--ink);}
+.fg-otros-caret{display:inline-block;transition:transform .15s;}
+.fg-otros-tg[aria-expanded="true"] .fg-otros-caret{transform:rotate(180deg);}
+.fg-otros-menu{display:flex;flex-direction:column;gap:4px;padding:4px 0 2px;}
+.fg-otros-menu[hidden]{display:none;}
+.fg-otros-item{display:flex;align-items:center;gap:7px;width:100%;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-s);font-size:.74rem;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;}
+.fg-otros-item:hover{border-color:var(--accent);}
+.fg-otros-item .ico{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+/* Validación en línea (no bloquea: sólo marca) */
+.field.fg-inv input[type=text]{border-color:#D9501A;background:#FFF5F0;}
+html.dark .field.fg-inv input[type=text]{background:#2A1A12;}
+.field.fg-warn input[type=text]{border-color:#C98A0A;}
+.fg-field-msg{display:none;font-size:.66rem;line-height:1.35;margin-top:4px;color:#B03A0A;}
+.field.fg-inv .fg-field-msg,.field.fg-warn .fg-field-msg{display:block;}
+.field.fg-warn .fg-field-msg{color:#8A6100;}
+html.dark .fg-field-msg{color:#FF9A6B;}
+html.dark .field.fg-warn .fg-field-msg{color:#E5B75B;}
+/* Barra de formato del legal */
+.fg-legal-tb{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.fg-legal-b{width:28px;height:26px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--ink);font-weight:900;font-size:.8rem;cursor:pointer;line-height:1;}
+.fg-legal-b:hover{border-color:var(--accent);color:var(--accent-2);}
+.fg-legal-b.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.fg-legal-tb-hint{font-size:.64rem;color:var(--gray);}
+/* Diálogo de confirmación propio (reemplaza el confirm() del navegador) */
+.fg-cf-ov{position:fixed;inset:0;z-index:200000;background:rgba(15,17,20,.55);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px);animation:fgCfIn .12s ease-out;}
+@keyframes fgCfIn{from{opacity:0}to{opacity:1}}
+.fg-cf{background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:var(--r-l);box-shadow:var(--sh-3);width:min(420px,100%);padding:20px 20px 16px;animation:fgCfPop .16s ease-out;}
+@keyframes fgCfPop{from{transform:translateY(8px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.fg-cf-h{display:flex;align-items:flex-start;gap:12px;}
+.fg-cf-ico{flex-shrink:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent-2);}
+.fg-cf-ico.peligro{background:#FDE3E3;color:#B3261E;}
+html.dark .fg-cf-ico.peligro{background:#3A1C1C;color:#FF8A80;}
+.fg-cf-ico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.fg-cf-t{font-size:.95rem;font-weight:800;line-height:1.3;margin:6px 0 4px;}
+.fg-cf-b{font-size:.78rem;line-height:1.5;color:var(--ink-2);white-space:pre-line;}
+.fg-cf-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.fg-cf-acts .btn{padding:9px 14px;font-size:.78rem;}
+.fg-cf-acts .btn.bp.peligro{background:#B3261E;}
+.fg-cf-acts .btn.bp.peligro:hover{background:#951E18;}
+/* Aviso "tenés un flyer a medio armar" */
+.fg-draft{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:var(--r-m);font-size:.76rem;color:var(--ink);}
+.fg-draft strong{font-weight:800;}
+.fg-draft-acts{display:flex;gap:6px;margin-left:auto;}
+.fg-draft-acts .btn{padding:6px 10px;font-size:.7rem;}
+/* Estado "trabajando" del botón de descarga / compartir */
+.btn.fg-busy{opacity:.75;pointer-events:none;}
+/* Solapas con teclado: el foco se ve, y el orden con flechas es natural */
+.tab[role=tab]{outline-offset:-2px;}
+kbd.fg-kbd{font:600 .62rem/1 monospace;padding:2px 5px;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;background:var(--field);color:var(--gray);}
+@media (max-width:480px){
+  .fg-cf{padding:16px 14px 12px;}
+  .fg-draft-acts{margin-left:0;width:100%;}
+  .fg-draft-acts .btn{flex:1;}
+}

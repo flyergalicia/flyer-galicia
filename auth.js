@@ -146,11 +146,13 @@ function newNote(){
 }
 function deleteNote(){
   var n=_notes.find(function(x){return x.id===_noteActive;});if(!n)return;
-  if(!confirm('¿Eliminar la nota "'+(n.title||'Sin título')+'"?\n\nEsta acción no se puede deshacer.'))return;
-  _notes=_notes.filter(function(x){return x.id!==_noteActive;});
-  if(!_notes.length)_notes.push({id:_noteId(),title:'Nota 1',body:'',updated:Date.now()});
-  _noteActive=_notes[0].id;_saveNotes();_renderNotesList();_renderNoteEditor();
-  showToast('Nota eliminada');
+  fgConfirm('¿Eliminar la nota "'+(n.title||'Sin título')+'"?\n\nEsta acción no se puede deshacer.',{ok:'Eliminar'},function(si){
+    if(!si)return;
+    _notes=_notes.filter(function(x){return x.id!==_noteActive;});
+    if(!_notes.length)_notes.push({id:_noteId(),title:'Nota 1',body:'',updated:Date.now()});
+    _noteActive=_notes[0].id;_saveNotes();_renderNotesList();_renderNoteEditor();
+    showToast('Nota eliminada');
+  });
 }
 function _noteEdit(titleChanged){
   var n=_notes.find(function(x){return x.id===_noteActive;});if(!n)return;
@@ -259,12 +261,14 @@ function saveAsesor(slot){
 }
 function delAsesor(id,slot){
   var a=_asesores.find(function(x){return x.id===id;});if(!a)return;
-  if(!confirm('¿Eliminar el asesor guardado "'+(a.name||a.nombre)+'"?'))return;
-  _asesores=_asesores.filter(function(x){return x.id!==id;});
-  _saveAsesores();
-  var list=document.querySelector('#as-pop .as-list');
-  if(list)list.innerHTML=_asListHtml(slot); // refresca sin cerrar
-  showToast('Asesor eliminado');
+  fgConfirm('¿Eliminar el asesor guardado "'+(a.name||a.nombre)+'"?',{ok:'Eliminar'},function(si){
+    if(!si)return;
+    _asesores=_asesores.filter(function(x){return x.id!==id;});
+    _saveAsesores();
+    var list=document.querySelector('#as-pop .as-list');
+    if(list)list.innerHTML=_asListHtml(slot); // refresca sin cerrar
+    showToast('Asesor eliminado');
+  });
 }
 function importAsesores(input){
   var file=input&&input.files&&input.files[0];if(!file)return;input.value='';
@@ -465,6 +469,7 @@ function initApp(){
   _fgEnsureBenefFields();// campos del beneficio exclusivo (solapa Flyer Rubros)
   _fgSyncAsesorBlocks(); // arranca mostrando sólo el Asesor 1
   _fgCardify();          // presentación: el formulario en tarjetas (después de inyectar todo)
+  _fgUxInit();           // validación en línea, negrita del legal, teclado, "Otros", compartir
   _libInit();            // PDF/Excel/ZIP se cargan la primera vez que se usan (va después del motor: envuelve sus overrides)
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
@@ -828,9 +833,9 @@ function _facMe(f){
 // asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
 // existe en la nube, nadie nota ningún cambio.
 var _FAC_DEF={
-  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false},
-  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false},
-  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false}
+  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false},
+  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false},
+  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -856,6 +861,7 @@ function _facRows(){
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
   rows.push(['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']);
   rows.push(['promos_buscar','Buscador de promociones','Agrega la pesta&ntilde;a "Promociones": pega las marcas del flyer y las cruza contra el buscador oficial de Galicia, con logo, fechas de vigencia y estado (vigente / vence este mes / vencida).']);
+  rows.push(['guardar_trabajo','Guardar historial y borrador','El <strong>Historial</strong> queda guardado en el dispositivo (hoy se borra al cerrar o recargar la p&aacute;gina) y el formulario se guarda solo mientras escribe: si cierra la pesta&ntilde;a a mitad de un flyer, al volver le ofrece <em>&laquo;Seguir con ese flyer&raquo;</em>. Todo vive en su navegador, nada sale a la nube.']);
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
   return rows;
 }
@@ -934,6 +940,8 @@ function _applyFacultades(){
   var dpad=document.getElementById('hdr-dd-padron');if(dpad)dpad.style.display=_can('padron_buscar')?'flex':'none';
   if(!_can('padron_buscar')&&document.getElementById('pad-mine-ov'))closeMiPadron();
   _mpRefresh(); // tarjeta "todo el segmento" del masivo (sólo con padrón)
+
+  _fgWorkApply(_can('guardar_trabajo')); // historial persistente + borrador automático
 
   _facSyncOptBar();
 
@@ -1978,9 +1986,11 @@ function _cbAgregar(){
 }
 function _cbQuitar(i){
   var c=_cbEdit&&_cbEdit[i];if(!c||i===0)return;
-  if(!confirm('¿Quitar "'+c.nombre+'"?\n\nDeja de aparecer en el armador para todos. Las empresas del padrón o filas del masivo que la tengan cargada van a salir SIN cashback hasta que les pongas otra.'))return;
-  _cbEdit.splice(i,1);
-  _cbPintar();
+  fgConfirm('¿Quitar "'+c.nombre+'"?\n\nDeja de aparecer en el armador para todos. Las empresas del padrón o filas del masivo que la tengan cargada van a salir SIN cashback hasta que les pongas otra.',{ok:'Quitar'},function(si){
+    if(!si||!_cbEdit||_cbEdit[i]!==c)return;
+    _cbEdit.splice(i,1);
+    _cbPintar();
+  });
 }
 function _cbField(i,n,v){
   if(!_cbEdit||!_cbEdit[i])return;
@@ -2203,12 +2213,14 @@ function setUStatus(btn,uid,status){
 function deleteUser(btn,uid){
   var u=_allUsers.find(function(x){return x.id===uid;});
   var name=u?(u.full_name||u.email_asesor||''):'';
-  if(!confirm('¿Eliminar definitivamente a '+(name||'este usuario')+'?\n\nSe borrará su cuenta de acceso y su perfil. Esta acción no se puede deshacer.'))return;
-  btn.disabled=true;var _h=btn.innerHTML;btn.innerHTML='…';
-  _callFn('delete_user',{uid:uid},function(err){
-    if(err){btn.disabled=false;btn.innerHTML=_h;showToast('Error: '+err);return;}
-    showToast('Usuario eliminado');
-    loadUsers();loadStats();
+  fgConfirm('¿Eliminar definitivamente a '+(name||'este usuario')+'?\n\nSe borrará su cuenta de acceso y su perfil. Esta acción no se puede deshacer.',{ok:'Eliminar usuario'},function(si){
+    if(!si)return;
+    btn.disabled=true;var _h=btn.innerHTML;btn.innerHTML='…';
+    _callFn('delete_user',{uid:uid},function(err){
+      if(err){btn.disabled=false;btn.innerHTML=_h;showToast('Error: '+err);return;}
+      showToast('Usuario eliminado');
+      loadUsers();loadStats();
+    });
   });
 }
 
@@ -3890,9 +3902,32 @@ function fgAddHistory(v,fn,canvas){
   var d=new Date();
   var hora=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
   flyerHistory.unshift({v:JSON.parse(JSON.stringify(v)),fn:fn,
-    thumb:canvas.toDataURL('image/jpeg',0.25),hora:hora,
+    thumb:_fgHistThumb(canvas),hora:hora,ts:d.getTime(),
     ac:(typeof ac!=='undefined'?ac:0),opt:_optN(_fgOpt)});
-  if(flyerHistory.length>10)flyerHistory.pop();
+  while(flyerHistory.length>_fgHistMax())flyerHistory.pop();
+  _fgWorkSaveHist(); // persistente sólo con la facultad "Guardar historial y borrador"
+}
+// Miniatura chica (120px de ancho): antes se guardaba el canvas entero a calidad
+// 0.25 (cientos de KB por ítem). La tarjeta del historial la muestra a 32x56px,
+// así que con esto alcanza de sobra y entra en el almacenamiento del navegador.
+function _fgHistThumb(canvas){
+  try{
+    var w=120,h=Math.max(1,Math.round(canvas.height*w/canvas.width));
+    var c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').drawImage(canvas,0,0,w,h);
+    return c.toDataURL('image/jpeg',0.7);
+  }catch(e){return canvas.toDataURL('image/jpeg',0.25);}
+}
+function _fgHistMax(){return _fgWorkOn?20:10;}
+// "18:32" si es de hoy, "ayer 18:32", o "12/09 18:32" (los ítems guardados de otros días).
+function _fgHistWhen(h){
+  if(!h.ts)return h.hora||'';
+  var d=new Date(h.ts),n=new Date();
+  var hoy=d.toDateString()===n.toDateString();
+  var ayer=new Date(n.getTime()-86400000).toDateString()===d.toDateString();
+  if(hoy)return h.hora;
+  if(ayer)return 'ayer '+h.hora;
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+h.hora;
 }
 function fgRenderHistory(){
   var el=document.getElementById('history-list');if(!el)return;
@@ -3902,7 +3937,7 @@ function fgRenderHistory(){
     return '<div class="hist-item" onclick="loadHistory('+i+')" style="border-left:4px solid '+_optColor(o)+'">'
       +'<img class="hist-thumb" src="'+h.thumb+'">'
       +'<div class="hist-info"><strong>'+_escHtml(h.v.empresa||'')+'</strong>'
-      +'<span>'+_escHtml(h.fn||'')+' · '+h.hora+'</span>'
+      +'<span>'+_escHtml(h.fn||'')+' · '+_escHtml(_fgHistWhen(h))+'</span>'
       +'<div style="margin-top:3px">'+_optBadge(o)+'</div>'
       +'<div style="display:flex;gap:4px;margin-top:3px;">'
       +'<button class="hist-btn" onclick="event.stopPropagation();redlPDF('+i+')">&#11015; PDF</button>'
@@ -3926,6 +3961,11 @@ function fgRedlPDF(i){
 }
 function fgLoadHistory(i){
   var h=flyerHistory[i];if(!h)return;
+  _fgApplyHistItem(h);
+}
+// Vuelca un ítem {v,ac,opt} al formulario. Lo usan el Historial y el borrador
+// automático (que guarda exactamente la misma forma).
+function _fgApplyHistItem(h){
   _fgWithOpt(h.opt||1,function(){
     var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
     s('empresa',h.v.empresa||'');
@@ -4357,11 +4397,15 @@ function _calBenefQuitar(i){
 }
 function _calBenefPlantilla(){
   var sel=document.getElementById('cal-benef-plantilla'),k=sel?sel.value:'',P=_BENEF_PLANTILLAS[k];if(!P||!_cal)return;
-  if(_calBenefLineas().length&&!confirm('¿Reemplazar las líneas actuales por la plantilla "'+P.nombre+'"?'))return;
-  _cal.cfg.benef.lineas=_calBenefDePlantilla(k);
-  _cal.sel=null;
-  var q=_calBenefCentrar(true); // ya redibuja
-  showToast(q?'Plantilla "'+P.nombre+'" cargada y centrada en el cuadro.':'Plantilla "'+P.nombre+'" cargada. No encontré el cuadro en la imagen: movela con «Cartel (todo)».');
+  function aplicar(){
+    if(!_cal)return;
+    _cal.cfg.benef.lineas=_calBenefDePlantilla(k);
+    _cal.sel=null;
+    var q=_calBenefCentrar(true); // ya redibuja
+    showToast(q?'Plantilla "'+P.nombre+'" cargada y centrada en el cuadro.':'Plantilla "'+P.nombre+'" cargada. No encontré el cuadro en la imagen: movela con «Cartel (todo)».');
+  }
+  if(!_calBenefLineas().length){aplicar();return;}
+  fgConfirm('¿Reemplazar las líneas actuales por la plantilla "'+P.nombre+'"?',{ok:'Reemplazar',peligro:false},function(si){if(si)aplicar();});
 }
 // Pinta la tabla de líneas (al abrir el calibrador y al agregar/quitar) y muestra la fila sólo en Rubros.
 function _calBenefRowSync(){
@@ -5595,8 +5639,8 @@ function openPadronEditor(){
   });
 }
 function closePadronEditor(){
-  if(_padEdit&&_padEdit.length&&!confirm('¿Salir del editor? Los cambios sin guardar se pierden.'))return;
-  _padEditClose();
+  if(!(_padEdit&&_padEdit.length)){_padEditClose();return;}
+  fgConfirm('¿Salir del editor?\n\nLos cambios sin guardar se pierden.',{ok:'Salir sin guardar',cancelar:'Seguir editando'},function(si){if(si)_padEditClose();});
 }
 function _padEditClose(){
   _padEdit=null;_padEditAsOpen={};_padEditQ='';
@@ -5730,10 +5774,12 @@ function _padEditAddRow(){
 function _padEditRemoveRow(i){
   if(!_padEdit||!_padEdit[i])return;
   var r=_padEdit[i],label=r.empresa||'esta empresa';
-  if(!confirm('¿Eliminar '+label+' del padrón?'))return;
-  _padEdit.splice(i,1);
-  delete _padEditAsOpen[i];
-  _padEditRenderList();
+  fgConfirm('¿Eliminar '+label+' del padrón?',{ok:'Eliminar'},function(si){
+    if(!si||!_padEdit||_padEdit[i]!==r)return;
+    _padEdit.splice(i,1);
+    delete _padEditAsOpen[i];
+    _padEditRenderList();
+  });
 }
 function _padEditSave(){
   if(!_padEdit)return;
@@ -7543,7 +7589,7 @@ function _tourCapitulos(){
        texto:'Acerc&aacute; o alej&aacute; con <kbd>+</kbd> / <kbd>&minus;</kbd> (o la rueda del mouse) y <strong>arrastr&aacute;</strong> la imagen para recorrerla. Lo que ves ac&aacute; es exactamente lo que se descarga.',
        antes:irIndividual},
       {target:'.btns .btn.bp',titulo:'Descargar',
-       texto:'<strong>PDF</strong> para mandar por mail o WhatsApp, <strong>PNG</strong> si necesit&aacute;s la imagen suelta. Cada descarga queda en la solapa <em>Historial</em> por si la ten&eacute;s que repetir.',
+       texto:'<strong>Descargar PDF</strong> (o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) para mandarlo por mail. <strong>Compartir</strong> abre el men&uacute; del celular (WhatsApp, mail) y en la PC copia el flyer como imagen para pegarlo con <kbd>Ctrl</kbd>+<kbd>V</kbd>. En <em>Otros</em> est&aacute; la descarga como PNG. Todo queda en la solapa <em>Historial</em>.',
        antes:irIndividual},
       {target:'.btns .btn.bg',titulo:'Restaurar',
        texto:'Limpia empresa y asesores y vuelve el legal al texto guardado, para arrancar el pr&oacute;ximo flyer de cero.',
@@ -7839,9 +7885,11 @@ function _opcQuitar(i){
   var o=_opcEdit&&_opcEdit[i];if(!o||o.n===1)return;
   var msg='¿Quitar "'+o.nombre+'"?\n\nDeja de verse para todos los perfiles. Su flyer y su legal quedan guardados por si la volvés a agregar con el mismo número ('+o.n+').';
   if(_opcActivos[o.n])msg+='\n\nOjo: hoy tiene un flyer activo ('+_opcActivos[o.n]+').';
-  if(!confirm(msg))return;
-  _opcEdit.splice(i,1);
-  _opcPintar();
+  fgConfirm(msg,{ok:'Quitar'},function(si){
+    if(!si||!_opcEdit||_opcEdit[i]!==o)return;
+    _opcEdit.splice(i,1);
+    _opcPintar();
+  });
 }
 function _opcGuardar(){
   if(!_opcEdit)return;
@@ -7864,4 +7912,435 @@ function _opcGuardar(){
       ?('Opciones guardadas. Para que un perfil vea la nueva, habilitala en Admin → Facultades.')
       :'Opciones guardadas');
   });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MEJORAS UX (2026-09): trabajo guardado, validación en línea, compartir,
+// teclado, negrita del legal y diálogos propios. Todo es frontend puro.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── TRABAJO GUARDADO: historial persistente + borrador automático ─────────────
+// Gateado por la facultad "guardar_trabajo" (Admin → Facultades). Vive en el
+// navegador del usuario (localStorage, por cuenta): nada sube a la nube. Sin la
+// facultad, el historial sigue como siempre (sólo mientras dura la pestaña).
+var _fgWorkOn=false,_fgWorkTid=null,_fgWorkLast='',_fgWorkOffered=false,_fgDraftPending=false;
+function _fgWorkKey(k){return 'fg_'+k+'_'+(_me?_me.id:'anon');}
+function _fgWorkApply(on){
+  on=!!on;
+  var antes=_fgWorkOn;_fgWorkOn=on;
+  if(on&&!antes)_fgWorkLoadHist();
+  if(!on){_fgDraftBannerHide();_fgDraftPending=false;return;}
+  _fgWorkOffer(); // idempotente: ofrece el borrador una sola vez, con la app visible
+}
+// Historial: lo guardado se suma a lo de esta sesión (sin duplicar) y se recorta al tope.
+function _fgWorkLoadHist(){
+  var arr=null;
+  try{arr=JSON.parse(localStorage.getItem(_fgWorkKey('hist'))||'null');}catch(e){}
+  if(!Array.isArray(arr)||!arr.length)return;
+  var vistos={},out=[];
+  [].concat(flyerHistory||[],arr).forEach(function(h){
+    if(!h||!h.v)return;
+    var k=(h.ts||'')+'|'+(h.fn||'');
+    if(h.ts&&vistos[k])return;vistos[k]=1;out.push(h);
+  });
+  out.sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+  flyerHistory=out.slice(0,_fgHistMax());
+  var th=document.getElementById('tab-historial');
+  if(th&&th.classList.contains('active')&&typeof renderHistory==='function')renderHistory();
+}
+function _fgWorkSaveHist(){
+  if(!_fgWorkOn)return;
+  var lista=(flyerHistory||[]).map(function(h){return {v:h.v,fn:h.fn,thumb:h.thumb,hora:h.hora,ts:h.ts,ac:h.ac,opt:h.opt};});
+  try{localStorage.setItem(_fgWorkKey('hist'),JSON.stringify(lista));}
+  catch(e){ // sin lugar: guardo menos ítems antes que nada
+    try{localStorage.setItem(_fgWorkKey('hist'),JSON.stringify(lista.slice(0,5)));}catch(e2){}
+  }
+}
+// Borrador: exactamente la forma de un ítem del historial ({v,ac,opt}) + nombre de archivo.
+function _fgDraftSnapshot(){
+  if(typeof getVals!=='function')return null;
+  var v;try{v=getVals();}catch(e){return null;}
+  var n=_optN(_fgOpt),c=_fgOptCache[n];
+  // El legal sólo viaja si es una edición propia (difiere del guardado de la opción):
+  // así un borrador viejo nunca pisa un legal que el admin actualizó después.
+  if(!(c&&typeof c.legal==='string'&&v.legal!==c.legal))delete v.legal;
+  return {v:v,ac:(typeof ac!=='undefined'?ac:0),opt:n,
+    filename:_gv('filename'),filenameManual:!!window.filenameManual,ts:Date.now()};
+}
+function _fgDraftVale(d){
+  if(!d||!d.v)return false;
+  var v=d.v;
+  return !!((v.empresa||'').trim()||typeof v.legal==='string'||(v.nombre2||'').trim()||(v.nombre3||'').trim()||(v.nombre4||'').trim()||(v.benefNombre||'').trim());
+}
+function _fgDraftSaveNow(){
+  if(!_fgWorkOn||_fgDraftPending)return;
+  var d=_fgDraftSnapshot();if(!d)return;
+  var firma=JSON.stringify([d.v,d.ac,d.opt,d.filename]);
+  if(firma===_fgWorkLast)return;
+  _fgWorkLast=firma;
+  try{localStorage.setItem(_fgWorkKey('draft'),JSON.stringify(d));}catch(e){}
+}
+function _fgDraftSaveSoon(){
+  if(!_fgWorkOn)return;
+  clearTimeout(_fgWorkTid);_fgWorkTid=setTimeout(_fgDraftSaveNow,700);
+}
+function _fgDraftClear(){
+  _fgWorkLast='';
+  try{localStorage.removeItem(_fgWorkKey('draft'));}catch(e){}
+}
+function _fgDraftLeer(){
+  try{var d=JSON.parse(localStorage.getItem(_fgWorkKey('draft'))||'null');return _fgDraftVale(d)?d:null;}catch(e){return null;}
+}
+// Con la app visible: si hay un borrador con contenido, aviso arriba del formulario.
+function _fgWorkOffer(){
+  if(_fgWorkOffered)return;
+  var lay=document.getElementById('layout');if(!lay||lay.style.display==='none')return;
+  _fgWorkOffered=true;
+  var d=_fgDraftLeer();if(!d)return;
+  _fgDraftPending=true;
+  var tab=document.getElementById('tab-individual');if(!tab)return;
+  var b=document.createElement('div');b.id='fg-draft';b.className='fg-draft';
+  var que=(d.v.empresa||'').trim()?'<strong>'+_escHtml(d.v.empresa.trim())+'</strong>':'un flyer sin empresa';
+  b.innerHTML='<span>Ten&eacute;s un flyer a medio armar: '+que+' &middot; '+_escHtml(_fgHistWhen({ts:d.ts,hora:_fgHoraDe(d.ts)}))+'</span>'+
+    '<div class="fg-draft-acts"><button type="button" class="btn bp" onclick="_fgDraftSeguir()">Seguir con ese</button>'+
+    '<button type="button" class="btn bg" onclick="_fgDraftDescartar()">Descartar</button></div>';
+  tab.insertBefore(b,tab.firstChild);
+}
+function _fgHoraDe(ts){var d=new Date(ts||Date.now());return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');}
+function _fgDraftBannerHide(){var b=document.getElementById('fg-draft');if(b)b.remove();}
+function _fgDraftSeguir(){
+  var d=_fgDraftLeer();_fgDraftBannerHide();
+  if(!d){_fgDraftPending=false;return;}
+  // Mientras se carga la opción del borrador (puede tardar), ningún guardado
+  // automático debe pisarlo con el formulario todavía vacío: sigue "pendiente".
+  _fgDraftPending=true;
+  _fgWithOpt(d.opt||1,function(){
+    _fgApplyHistItem(d); // la opción ya es la activa: se aplica en el acto
+    var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
+    if(d.filename){s('filename',d.filename);window.filenameManual=!!d.filenameManual;}
+    // La edición del legal queda registrada como tal para que, si el legal global
+    // llega después, no la pise (misma regla que al cambiar de opción).
+    if(typeof d.v.legal==='string'){var c=_fgOptCache[_optN(d.opt||1)];if(c)c.legalEdited=d.v.legal;}
+    if(typeof updateFnPreview==='function')updateFnPreview();
+    _fgValTodos();
+    _fgDraftPending=false;_fgWorkLast='';_fgDraftSaveNow();
+  });
+}
+function _fgDraftDescartar(){_fgDraftBannerHide();_fgDraftPending=false;_fgDraftClear();showToast('Borrador descartado');}
+function _fgWorkInit(){
+  var tab=document.getElementById('tab-individual');if(!tab)return;
+  ['input','change','click'].forEach(function(ev){
+    tab.addEventListener(ev,function(e){
+      if(_fgDraftPending&&(ev==='input'||ev==='change')){ // empezó otro flyer: el aviso ya no aplica
+        var b=document.getElementById('fg-draft');if(b&&!b.contains(e.target)){_fgDraftBannerHide();_fgDraftPending=false;}
+      }
+      _fgDraftSaveSoon();
+    });
+  });
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_fgDraftSaveNow();});
+  window.addEventListener('pagehide',_fgDraftSaveNow);
+  // Restaurar arranca de cero: también limpia el borrador. Borrar del historial: se persiste.
+  var oReset=window.resetVals;
+  window.resetVals=function(){var r=oReset.apply(this,arguments);_fgDraftClear();_fgValTodos();return r;};
+  var oDel=window.delHistory;
+  if(typeof oDel==='function')window.delHistory=function(){var r=oDel.apply(this,arguments);_fgWorkSaveHist();return r;};
+}
+
+// ── VALIDACIÓN EN LÍNEA: celular y mail (marca, no bloquea) ──────────────────
+function _fgValCel(txt){
+  var t=String(txt||'').trim();if(!t)return null;
+  var dig=t.replace(/\D/g,'');
+  if(dig.length<8)return {tipo:'inv',msg:'Faltan números: un celular tiene 10 dígitos con el código de área (ej.: 11 3617 9603).'};
+  var tel=_fgPartirTel(dig);
+  if(!tel)return {tipo:'inv',msg:'No parece un celular argentino. Probá con código de área + número (ej.: 11 3617 9603).'};
+  return null;
+}
+function _fgValMail(txt){
+  var t=String(txt||'').trim();if(!t)return null;
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(t))return {tipo:'inv',msg:'No parece un mail válido (falta el @ o el dominio).'};
+  if(!/@bancogalicia\.com\.ar$/i.test(t))return {tipo:'warn',msg:'Ojo: no es un mail @bancogalicia.com.ar.'};
+  return null;
+}
+function _fgValField(inp){
+  if(!inp)return null;
+  var f=inp.closest?inp.closest('.field'):inp.parentNode;if(!f)return null;
+  var r=/^celular/.test(inp.id)?_fgValCel(inp.value):_fgValMail(inp.value);
+  var m=f.querySelector('.fg-field-msg');
+  if(!m){m=document.createElement('div');m.className='fg-field-msg';m.setAttribute('role','status');f.appendChild(m);}
+  f.classList.toggle('fg-inv',!!(r&&r.tipo==='inv'));
+  f.classList.toggle('fg-warn',!!(r&&r.tipo==='warn'));
+  m.textContent=r?r.msg:'';
+  inp.setAttribute('aria-invalid',(r&&r.tipo==='inv')?'true':'false');
+  return r;
+}
+function _fgValInputs(){
+  var out=[];
+  [1,2,3,4].forEach(function(k){var s=k===1?'':String(k);['celular'+s,'email'+s].forEach(function(id){var e=document.getElementById(id);if(e)out.push(e);});});
+  return out;
+}
+function _fgValTodos(){_fgValInputs().forEach(_fgValField);}
+// Resumen para el aviso al generar: sólo asesores que van al flyer y sólo errores (no avisos).
+function _fgValProblemas(){
+  var p=[];
+  [1,2,3,4].forEach(function(k){
+    if(!_fgAsesorOn(k))return;
+    var s=k===1?'':String(k);
+    var n=(_gv('nombre'+s)||'').trim();if(!n)return;
+    var c=_fgValCel(_gv('celular'+s)),m=_fgValMail(_gv('email'+s));
+    if(c&&c.tipo==='inv')p.push('el celular de '+n);
+    if(m&&m.tipo==='inv')p.push('el mail de '+n);
+  });
+  return p;
+}
+function _fgValAvisar(){
+  var p=_fgValProblemas();if(!p.length)return false;
+  _fgValTodos();
+  _fgToastLargo('Ojo: revisá '+p.join(' y ')+' (se generó igual).',6000);
+  return true;
+}
+function _fgToastLargo(msg,ms){
+  showToast(msg);
+  var t=document.getElementById('toast-el');if(!t)return;
+  clearTimeout(t._tid);t._tid=setTimeout(function(){t.classList.remove('show');},ms||6000);
+}
+function _fgValInit(){
+  _fgValInputs().forEach(function(inp){
+    inp.addEventListener('input',function(){_fgValField(inp);});
+    inp.addEventListener('blur',function(){_fgValField(inp);});
+  });
+  // Al generar: marca los campos y avisa, pero deja generar (decisión de producto).
+  var oPDF=window.dlPDF;
+  window.dlPDF=function(){var r=oPDF.apply(this,arguments);setTimeout(_fgValAvisar,1300);return r;};
+  var oPNG=window.dlPNG;
+  window.dlPNG=function(){var r=oPNG.apply(this,arguments);setTimeout(_fgValAvisar,1300);return r;};
+}
+
+// ── COMPARTIR ────────────────────────────────────────────────────────────────
+// Celular: abre el menú nativo (WhatsApp, mail, etc.) con el PDF (o la imagen si
+// jsPDF todavía no cargó). PC: copia el flyer como imagen al portapapeles para
+// pegarlo con Ctrl+V en un mail, Teams o WhatsApp Web. Si el navegador no puede
+// ninguna de las dos, descarga el PNG. Queda registrado como "compartir".
+function fgCompartir(){
+  if(typeof getVals!=='function'||typeof fullRes!=='function')return;
+  var v=getVals();
+  _fgCompartirCanvas(fullRes(v),v);
+}
+function modalCompartir(){
+  if(!window.modalCanvas)return;
+  var v=getVals();closeModal();
+  _fgCompartirCanvas(window.modalCanvas,v);
+}
+function _fgEsMovil(){return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));}
+function _fgBusy(btn,on){
+  if(!btn)return;
+  if(on){if(!btn.dataset.fgHtml)btn.dataset.fgHtml=btn.innerHTML;btn.classList.add('fg-busy');btn.textContent='Un momento…';}
+  else{if(btn.dataset.fgHtml)btn.innerHTML=btn.dataset.fgHtml;btn.classList.remove('fg-busy');}
+}
+function _fgDescargarBlob(blob,nombre){
+  var a=document.createElement('a'),u=URL.createObjectURL(blob);
+  a.href=u;a.download=nombre;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(u);},4000);
+}
+function _fgCompartirCanvas(fc,v,force){
+  if(!force&&typeof _padCheckRubro==='function'&&_padCheckRubro(_padFilaActual(),'descarga',function(){_fgCompartirCanvas(fc,v,true);}))return;
+  var fn=buildFn(_gv('filename'),v);
+  var btn=document.getElementById('btn-share');_fgBusy(btn,true);
+  var listo=false;
+  function fin(ok,msg){
+    if(listo)return;listo=true;
+    _fgBusy(btn,false);
+    if(msg)_fgToastLargo(msg,ok?5000:4000);
+    if(ok){addHistory(v,fn,fc);logFlyerToSupabase(v,fn,'compartir');if(typeof _padAfterFlyer==='function')_padAfterFlyer();setTimeout(_fgValAvisar,1200);}
+  }
+  function compartirArchivo(file,siNo){
+    if(!(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}))){siNo();return;}
+    navigator.share({files:[file],title:fn}).then(function(){fin(true,'Flyer compartido');})
+      .catch(function(e){if(e&&e.name==='AbortError')fin(false,'');else siNo();});
+  }
+  function bajarPng(){fc.toBlob(function(b){if(!b){fin(false,'No se pudo generar la imagen');return;}_fgDescargarBlob(b,fn+'.png');fin(true,'Este navegador no permite compartir ni copiar: se descargó el flyer como imagen.');},'image/png');}
+  if(_fgEsMovil()&&navigator.share){
+    var file=null;
+    if(typeof _libReady==='function'&&_libReady('jspdf')){
+      try{
+        var jsPDF=window.jspdf.jsPDF,pw=210,ph=(fc.height/fc.width)*pw;
+        var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
+        pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+        file=new File([pdf.output('blob')],fn+'.pdf',{type:'application/pdf'});
+      }catch(e){file=null;}
+    }
+    if(file){compartirArchivo(file,bajarPng);return;}
+    fc.toBlob(function(b){if(!b){fin(false,'No se pudo generar la imagen');return;}compartirArchivo(new File([b],fn+'.jpg',{type:'image/jpeg'}),bajarPng);},'image/jpeg',0.92);
+    return;
+  }
+  // PC: portapapeles. El ClipboardItem se arma con la promesa del blob para que
+  // Safari lo acepte dentro del gesto del click.
+  if(navigator.clipboard&&navigator.clipboard.write&&window.ClipboardItem){
+    var pBlob=new Promise(function(res,rej){fc.toBlob(function(b){b?res(b):rej(new Error('blob'));},'image/png');});
+    var item;
+    try{item=new ClipboardItem({'image/png':pBlob});}catch(e){item=null;}
+    if(item){
+      navigator.clipboard.write([item])
+        .then(function(){fin(true,'Flyer copiado como imagen: pegalo con Ctrl+V en el mail, Teams o WhatsApp Web.');})
+        .catch(function(){pBlob.then(function(b){compartirArchivo(new File([b],fn+'.png',{type:'image/png'}),bajarPng);}).catch(function(){bajarPng();});});
+      return;
+    }
+  }
+  fc.toBlob(function(b){if(!b){fin(false,'No se pudo generar la imagen');return;}compartirArchivo(new File([b],fn+'.png',{type:'image/png'}),bajarPng);},'image/png');
+}
+// "Otros ▾" debajo de los botones: acciones de poco uso (PNG).
+function fgToggleOtros(force){
+  var tg=document.querySelector('#fg-otros .fg-otros-tg'),m=document.getElementById('fg-otros-menu');if(!tg||!m)return;
+  var abrir=(force===undefined)?m.hidden:!!force;
+  m.hidden=!abrir;tg.setAttribute('aria-expanded',abrir?'true':'false');
+}
+
+// ── NEGRITA DEL LEGAL: botón B / Ctrl+B ──────────────────────────────────────
+// El flyer entiende **texto** como negrita. El botón pone o saca los asteriscos
+// por vos: se ven en el cuadro (son la marca), nunca en el flyer.
+function fgLegalBold(){
+  var ta=document.getElementById('legal-text');if(!ta)return;
+  var val=ta.value,s=ta.selectionStart,e=ta.selectionEnd;
+  if(s===e){ // sin selección: la palabra bajo el cursor
+    var a=s,b=s;
+    while(a>0&&/\S/.test(val.charAt(a-1)))a--;
+    while(b<val.length&&/\S/.test(val.charAt(b)))b++;
+    s=a;e=b;
+    if(s===e){showToast('Seleccioná el texto que querés en negrita');ta.focus();return;}
+  }
+  while(s<e&&/\s/.test(val.charAt(s)))s++;
+  while(e>s&&/\s/.test(val.charAt(e-1)))e--;
+  var sel=val.slice(s,e),ns,ne;
+  if(sel.length>=4&&sel.slice(0,2)==='**'&&sel.slice(-2)==='**'){ // seleccionó con los asteriscos: saco
+    ta.value=val.slice(0,s)+sel.slice(2,-2)+val.slice(e);ns=s;ne=e-4;
+  }else if(val.slice(Math.max(0,s-2),s)==='**'&&val.slice(e,e+2)==='**'){ // ya estaba en negrita: saco
+    ta.value=val.slice(0,s-2)+sel+val.slice(e+2);ns=s-2;ne=e-2;
+  }else{ // pongo (sacando marcas sueltas que hubiera adentro para no anidar)
+    var limpio=sel.replace(/\*\*/g,'');
+    ta.value=val.slice(0,s)+'**'+limpio+'**'+val.slice(e);ns=s+2;ne=s+2+limpio.length;
+  }
+  ta.focus();try{ta.setSelectionRange(ns,ne);}catch(x){}
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+  _fgLegalBoldState();
+}
+// El botón B se "prende" cuando el cursor está dentro de un tramo en negrita.
+function _fgLegalBoldState(){
+  var ta=document.getElementById('legal-text'),b=document.querySelector('.fg-legal-b');if(!ta||!b)return;
+  var antes=ta.value.slice(0,ta.selectionStart);
+  var n=(antes.match(/\*\*/g)||[]).length;
+  b.classList.toggle('on',n%2===1);
+}
+function _fgLegalInit(){
+  var ta=document.getElementById('legal-text');if(!ta)return;
+  ta.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='b'||e.key==='B')){e.preventDefault();fgLegalBold();}
+  });
+  ['keyup','click','select'].forEach(function(ev){ta.addEventListener(ev,_fgLegalBoldState);});
+}
+
+// ── TECLADO Y ACCESIBILIDAD ──────────────────────────────────────────────────
+// Solapas con Tab/Enter/flechas, Ctrl+Enter descarga el PDF, Esc cierra la vista
+// previa y el menú "Otros". Los switches y las etiquetas del nombre de archivo
+// también responden a Enter/Espacio.
+function _fgHayDialogo(){
+  if(document.getElementById('fg-cf-ov'))return true;
+  var m=document.getElementById('modal');if(m&&m.classList.contains('show'))return true;
+  var ap=document.getElementById('admin-panel');if(ap&&ap.style.display&&ap.style.display!=='none')return true;
+  var lo=document.getElementById('login-ov');if(lo&&lo.style.display!=='none')return true;
+  var cm=document.getElementById('cal-modal');if(cm&&cm.classList.contains('show'))return true;
+  var ids=['pass-modal','notes-modal','user-modal','pad-mine-ov'];
+  for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el&&el.style.display&&el.style.display!=='none')return true;}
+  return false;
+}
+function _fgArmadorVisible(){
+  var lay=document.getElementById('layout'),ti=document.getElementById('tab-individual');
+  return !!(lay&&lay.style.display!=='none'&&ti&&ti.classList.contains('active'));
+}
+function _fgKbdInit(){
+  // Solapas del panel: aria-selected/tabindex al cambiar (switchTab lo trae el template)
+  var oSwitch=window.switchTab;
+  if(typeof oSwitch==='function')window.switchTab=function(t){
+    var r=oSwitch.apply(this,arguments);
+    var tabs=document.querySelectorAll('.tabs .tab');
+    Array.prototype.forEach.call(tabs,function(el){var on=el.classList.contains('active');el.setAttribute('aria-selected',on?'true':'false');el.setAttribute('tabindex',on?'0':'-1');});
+    return r;
+  };
+  // Elementos clickeables que no son botones: que se puedan enfocar y activar
+  Array.prototype.forEach.call(document.querySelectorAll('.toggle-row,.ftag,.app-tab'),function(el){
+    if(!el.hasAttribute('tabindex'))el.setAttribute('tabindex','0');
+    if(!el.hasAttribute('role'))el.setAttribute('role',el.classList.contains('app-tab')?'tab':'button');
+  });
+  document.addEventListener('keydown',function(e){
+    var t=e.target;
+    if(t&&t.classList){
+      if(t.classList.contains('tab')&&t.getAttribute('role')==='tab'){
+        var tabs=Array.prototype.slice.call(t.parentNode.querySelectorAll('.tab')),i=tabs.indexOf(t);
+        if(e.key==='Enter'||e.key===' '){e.preventDefault();t.click();return;}
+        if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();var j=(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[j].focus();tabs[j].click();return;}
+      }
+      if((t.classList.contains('toggle-row')||t.classList.contains('ftag')||t.classList.contains('app-tab'))&&(e.key==='Enter'||e.key===' ')){e.preventDefault();t.click();return;}
+    }
+    if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
+      if(_fgArmadorVisible()&&!_fgHayDialogo()&&typeof dlPDF==='function'){e.preventDefault();dlPDF();}
+      return;
+    }
+    if(e.key==='Escape'){
+      var m=document.getElementById('modal');
+      if(m&&m.classList.contains('show')){closeModal();return;}
+      var om=document.getElementById('fg-otros-menu');if(om&&!om.hidden)fgToggleOtros(false);
+    }
+  });
+}
+
+// ── DIÁLOGO DE CONFIRMACIÓN PROPIO ───────────────────────────────────────────
+// Reemplaza la ventanita de confirmación del navegador (gris, feo, sin estilo). Misma idea, pero
+// asíncrono: fgConfirm(mensaje, {ok, cancelar, peligro, titulo, texto}, cb(si)).
+// La primera línea del mensaje es el título; el resto, el cuerpo. Esc/click afuera
+// = cancelar; el foco arranca en "Cancelar" (lo destructivo pide un gesto más).
+function fgConfirm(msg,opts,cb){
+  if(typeof opts==='function'){cb=opts;opts={};}
+  opts=opts||{};
+  return new Promise(function(res){
+    var viejo=document.getElementById('fg-cf-ov');if(viejo)viejo.remove();
+    var lineas=String(msg||'').split(/\n+/);
+    var titulo=opts.titulo||lineas[0]||'¿Confirmás?';
+    var cuerpo=(opts.texto!=null)?opts.texto:lineas.slice(1).join('\n');
+    var peligro=opts.peligro!==false;
+    var icoPel='<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+    var icoPre='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    var dlg=document.createElement('div');dlg.id='fg-cf-ov';dlg.className='fg-cf-ov';
+    dlg.setAttribute('role','dialog');dlg.setAttribute('aria-modal','true');dlg.setAttribute('aria-labelledby','fg-cf-t');
+    dlg.innerHTML='<div class="fg-cf"><div class="fg-cf-h"><div class="fg-cf-ico'+(peligro?' peligro':'')+'">'+(peligro?icoPel:icoPre)+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="fg-cf-t" id="fg-cf-t"></div><div class="fg-cf-b" id="fg-cf-b"></div></div></div>'+
+      '<div class="fg-cf-acts"><button type="button" class="btn bg" id="fg-cf-no"></button><button type="button" class="btn bp'+(peligro?' peligro':'')+'" id="fg-cf-ok"></button></div></div>';
+    var tEl=dlg.querySelector('#fg-cf-t'),bEl=dlg.querySelector('#fg-cf-b'),ok=dlg.querySelector('#fg-cf-ok'),no=dlg.querySelector('#fg-cf-no');
+    tEl.textContent=titulo;bEl.textContent=cuerpo;if(!cuerpo)bEl.style.display='none';
+    ok.textContent=opts.ok||'Confirmar';no.textContent=opts.cancelar||'Cancelar';
+    var prev=document.activeElement,cerrado=false;
+    function fin(r){
+      if(cerrado)return;cerrado=true;
+      document.removeEventListener('keydown',tecla,true);
+      dlg.remove();
+      if(prev&&prev.focus){try{prev.focus();}catch(e){}}
+      res(!!r);if(cb)cb(!!r);
+    }
+    function tecla(e){
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();fin(false);return;}
+      if(e.key==='Enter'){e.preventDefault();e.stopPropagation();fin(document.activeElement!==no);return;}
+      if(e.key==='Tab'){e.preventDefault();e.stopPropagation();(document.activeElement===no?ok:no).focus();}
+    }
+    ok.onclick=function(){fin(true);};
+    no.onclick=function(){fin(false);};
+    dlg.addEventListener('click',function(e){if(e.target===dlg)fin(false);});
+    document.addEventListener('keydown',tecla,true);
+    document.body.appendChild(dlg);
+    setTimeout(function(){try{no.focus();}catch(e){}},30);
+  });
+}
+
+// ── ARRANQUE de todo lo de arriba (lo llama initApp, después de armar el formulario) ──
+function _fgUxInit(){
+  try{_fgValInit();}catch(e){console.warn('val:',e);}
+  try{_fgLegalInit();}catch(e){console.warn('legal:',e);}
+  try{_fgKbdInit();}catch(e){console.warn('kbd:',e);}
+  try{_fgWorkInit();}catch(e){console.warn('work:',e);}
 }

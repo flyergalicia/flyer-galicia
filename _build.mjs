@@ -794,7 +794,7 @@ const checks = {
   'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
   // Facultades por perfil: la matriz vive en la nube y gobierna el gating de la UI
   'facultades: matriz por rol': html.includes('id="at-facultades"') && html.includes('id="fac-grid"') && _authSrc.includes('function _can(') && _authSrc.includes('function loadFacultades(') && _authSrc.includes('function _applyFacultades('),
-  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false}') && !_authSrc.includes('_canNotes'),
+  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false}') && !_authSrc.includes('_canNotes'),
   // Tutorial guiado: "Ver tutorial" en el menú para todos; el arranque
   // automático al primer ingreso es una facultad (apagada por default).
   'tutorial guiado': html.includes('id="hdr-dd-tour"') && _authSrc.includes('function _tourStart(') && _authSrc.includes('function _tourEnd(') && _authSrc.includes('function _tourCapitulos(') && _authSrc.includes("rows.push(['tutorial_auto',") && _authSrc.includes('_tourAutoStart();') && _authSrc.includes("_can('tutorial_auto')"),
@@ -863,6 +863,14 @@ const checks = {
   'pegar: el cuadro se cierra al traer del padron': _authSrc.includes('function _fgClosePasteAll(') && _authSrc.includes("if(typeof _fgClosePasteAll==='function')_fgClosePasteAll();"),
   'pegar: el mail solo si tiene arroba, textual': _authSrc.includes('El mail se toma SOLO si viene escrito con arroba') && !_authSrc.includes('mailFinal=_fgMailFromName('),
   'pegar: el legajo no se cuela en el nombre': _authSrc.includes('MEZCLAN letras y dígitos'),
+  // Mejoras UX 2026-09: trabajo guardado (facultad), validacion en linea, compartir,
+  // teclado, negrita del legal y dialogos propios (sin confirm() del navegador).
+  'ux: trabajo guardado gateado por facultad': _authSrc.includes("_fgWorkApply(_can('guardar_trabajo'))") && _authSrc.includes("['guardar_trabajo','Guardar historial y borrador'") && _authSrc.includes('function _fgApplyHistItem(') && _authSrc.includes('_fgWorkSaveHist();'),
+  'ux: validacion en linea (no bloquea)': _authSrc.includes('function _fgValField(') && _authSrc.includes('function _fgValAvisar(') && _authSrc.includes('(se generó igual)'),
+  'ux: compartir + Otros (PNG)': html.includes('id="btn-share"') && html.includes('onclick="fgCompartir()"') && html.includes('id="fg-otros-menu"') && html.includes('onclick="modalCompartir()"') && _authSrc.includes("logFlyerToSupabase(v,fn,'compartir')") && _authSrc.includes('function _fgCompartirCanvas('),
+  'ux: teclado (solapas + Ctrl+Enter + Esc)': html.includes('role="tablist"') && _authSrc.includes('function _fgKbdInit(') && _authSrc.includes("(e.ctrlKey||e.metaKey)&&e.key==='Enter'"),
+  'ux: negrita del legal': html.includes('onclick="fgLegalBold()"') && _authSrc.includes('function fgLegalBold(') && _authSrc.includes("(e.key==='b'||e.key==='B')"),
+  'ux: sin confirm() nativo': _authSrc.includes('function fgConfirm(') && !/[^a-zA-Z_]confirm\(/.test(_authSrc),
   'pegar: telefono por grupos de digitos': _authSrc.includes('function _fgTelCandidatos(') && _authSrc.includes('_FG_TEL_SEP') && !_authSrc.includes('reTel=/(?:[+(]?'),
 };
 let _fallos = 0;
