@@ -443,6 +443,7 @@ function initApp(){
   _fgEnsureAddBtn();     // botón "+ Agregar asesor"
   _fgEnsureBenefFields();// campos del beneficio exclusivo (solapa Flyer Rubros)
   _fgSyncAsesorBlocks(); // arranca mostrando sólo el Asesor 1
+  _fgCardify();          // presentación: el formulario en tarjetas (después de inyectar todo)
   _libInit();            // PDF/Excel/ZIP se cargan la primera vez que se usan (va después del motor: envuelve sus overrides)
   _sb.auth.onAuthStateChange(function(event){
     if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
@@ -3573,6 +3574,33 @@ function _fgEnsureAsesores34(){
   });
   if(_can('asesores_guardados'))_initAsesoresUI(); // popover de asesores guardados en 3 y 4
   if(_can('pegar_oficial'))_fgEnsurePasteBtns(); // botones de pegado en los asesores 3 y 4 recien creados
+}
+// ── PRESENTACIÓN: el formulario del individual en tarjetas ────────────────────
+// Agrupa cada ".sec" del template con lo que le sigue dentro de <div class="fg-card">
+// (sólo presentación: los ids y el orden relativo no cambian, así los toggles
+// de asesores (_fgBlock mira hermanos), el padrón y los campos inyectados
+// siguen funcionando). Los cuatro "Asesor N" van en UNA tarjeta "Oficiales" con
+// subtítulos; los botones (.btns) quedan afuera. Estilos en _newcss.txt (.fg-card).
+function _fgCardify(){
+  try{
+    var tab=document.getElementById('tab-individual');if(!tab||tab.querySelector('.fg-card'))return;
+    var kids=Array.prototype.slice.call(tab.children),card=null,asesores=false;
+    function nueva(titulo){
+      card=document.createElement('div');card.className='fg-card';
+      if(titulo){var h=document.createElement('div');h.className='fg-card-h';h.textContent=titulo;card.appendChild(h);}
+      tab.appendChild(card);
+    }
+    kids.forEach(function(el){
+      if(el.classList.contains('btns')){card=null;tab.appendChild(el);return;}
+      if(el.classList.contains('sec')){
+        var esA=/^asesor\s*\d/i.test(el.textContent.trim());
+        if(esA){if(!asesores){nueva('Oficiales');asesores=true;}el.classList.add('sec-sub');card.appendChild(el);return;}
+        asesores=false;nueva(null);card.appendChild(el);return;
+      }
+      if(!card)nueva(null);
+      card.appendChild(el);
+    });
+  }catch(e){console.warn('cardify:',e);}
 }
 // ── AUTOCOMPLETAR EL MAIL DESDE EL NOMBRE ─────────────────────────────────────
 // Patrón Galicia: nombre.apellido@bancogalicia.com.ar

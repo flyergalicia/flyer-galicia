@@ -159,12 +159,26 @@ html = html.replace(
       '<button class="hdr-dd-item danger" onclick="doLogout()">' + ICO_OUT + '<span>Salir</span></button>' +
     '</div>' +
   '</div>' +
-  '<button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">&#9881; Admin</button>' +
+  '<button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none">' + _svgIco('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>') + ' Admin</button>' +
   '</div></header>'
 );
 
 // ── LOGIN OVERLAY ───────────────────────────────────────────────────────────
+// Ilustración vectorial del ingreso (un flyer estilizado + tilde): SVG de ~1 KB,
+// sin imágenes. El texto se apaga en celular (ver .login-hero en _newcss.txt).
+const loginHeroArt = '<svg class="lh-art" viewBox="0 0 200 150" aria-hidden="true"><defs><linearGradient id="lhg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9F33"/><stop offset="1" stop-color="#F5921E"/></linearGradient></defs>'+
+  '<rect x="110" y="18" width="82" height="130" rx="6" fill="#fff" opacity=".5"/>'+
+  '<rect x="70" y="30" width="82" height="130" rx="6" fill="#fff" opacity=".96"/><rect x="80" y="40" width="62" height="22" rx="3" fill="url(#lhg)"/><rect x="80" y="70" width="62" height="5" rx="2" fill="#E7EBF2"/><rect x="80" y="80" width="46" height="5" rx="2" fill="#E7EBF2"/><rect x="80" y="96" width="28" height="14" rx="3" fill="#1D4070"/><rect x="114" y="96" width="28" height="14" rx="3" fill="#F5921E"/><rect x="80" y="118" width="62" height="4" rx="2" fill="#F5DCC3"/><rect x="80" y="126" width="50" height="4" rx="2" fill="#F5DCC3"/>'+
+  '<circle cx="52" cy="112" r="22" fill="#F5921E"/><path d="M40 112l9 9 17-19" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const loginOverlay = `<div id="login-ov">
+ <div class="login-shell">
+  <div class="login-hero">
+    ${galiciaLogoWhite}
+    <h3>Tus flyers, listos en un minuto.</h3>
+    <p>Datos de la empresa, oficiales, cashback y beneficios en un solo lugar. Descarg&aacute;s el PDF y listo.</p>
+    <div class="lh-tags"><span>Flyer Galicia</span><span>Flyer Rubros</span><span>Masivo por Excel</span><span>Padr&oacute;n</span></div>
+    ${loginHeroArt}
+  </div>
   <div class="login-card">
 
     <div id="lv-login">
@@ -217,6 +231,7 @@ const loginOverlay = `<div id="login-ov">
     </div>
 
   </div>
+ </div>
 </div>`;
 // Aplica el tema guardado lo antes posible para evitar parpadeo (flash) al cargar.
 const themeBoot = `<script>try{if(localStorage.getItem('fg_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}</script>`;
@@ -767,6 +782,7 @@ const checks = {
   // (antes el bloque sólo era alcanzable desde el panel Admin).
   'padron: "Mi padron" para no-admins': html.includes('id="hdr-dd-padron"') && _authSrc.includes('function openMiPadron(') && _authSrc.includes('function closeMiPadron(') && _authSrc.includes("document.getElementById('hdr-dd-padron');if(dpad)dpad.style.display=_can('padron_buscar')") && _authSrc.includes('onclick="openMiPadron()"') && !_authSrc.includes('Panel Administrador &rarr; Varios'),
   'padron: solapa Varios': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
+  'premium: capa visual (marino + naranja, Figtree, tarjetas, login partido)': newCSS.includes('PREMIUM (2026-09-17)') && html.includes('class="login-shell"') && html.includes('class="login-hero"') && html.includes('family=Figtree') && _authSrc.includes('function _fgCardify(') && _authSrc.includes('_fgCardify();') && html.includes('<svg class="ico"') && !html.includes('&#128269; Vista previa'),
   'padron: generar flyers (ZIP por formato + resumen)': html.includes('id="padron-gen"') && html.includes('onclick="_pgToggle()"') && _authSrc.includes('function _pgGenerar(') && _authSrc.includes('function _pgResumenModal(') && _authSrc.includes("zip.file('Resumen.txt',_pgResumenTxt(res));") && _authSrc.includes("logFlyerBulkToSupabase(res.total,'padron')") && _authSrc.includes('function _fgRowBenef(') && _authSrc.includes('function _fgMasivoHint('),
   'padron: editor en linea': html.includes('id="padron-edit-btn"') && html.includes('id="padron-editor"') && _authSrc.includes('function openPadronEditor(') && _authSrc.includes('function _padEditSave('),
   'panel admin: 3 pilares': html.includes('data-group="admin"') && html.includes('data-group="data"') && html.includes('data-group="config"') && _authSrc.includes('function switchAdminGroup('),
