@@ -6503,7 +6503,18 @@ function _padMineStyle(){
     'html.dark #pad-mine .pm-head{border-color:#3a3e46}'+
     '#pad-mine .pm-x{cursor:pointer;font-size:1rem;color:var(--gray,#888);padding:2px 6px}'+
     '#pad-mine .pm-x:hover{color:var(--red,#c62828)}'+
-    '#pad-mine .pm-tabs{padding:10px 18px 0;margin:0}'+
+    // Las solapas se dibujan como pestañas de verdad: el estilo heredado de
+    // .stabs-in deja la INACTIVA sin fondo ni borde (texto gris sobre el fondo
+    // del modal) y parecía que no había nada para tocar. Acá la inactiva tiene
+    // fondo y borde propios, y la activa se rellena con el color de la paleta.
+    '#pad-mine .pm-tabs{padding:12px 18px 0;margin:0;gap:8px}'+
+    '#pad-mine .pm-tabs .stab{font-size:.72rem;padding:7px 16px;border:1.5px solid var(--border,#e2e2e2);'+
+      'background:var(--light,#f4f4f5);color:var(--gray,#777)}'+
+    '#pad-mine .pm-tabs .stab:hover{border-color:var(--navy,#14213D);color:var(--ink,#111)}'+
+    '#pad-mine .pm-tabs .stab.active{background:var(--navy,#14213D);border-color:var(--navy,#14213D);color:#fff}'+
+    'html.dark #pad-mine .pm-tabs .stab{background:#2a2f36;border-color:#3a3e46;color:#c9ccd2}'+
+    'html.dark #pad-mine .pm-tabs .stab:hover{border-color:#fff;color:#fff}'+
+    'html.dark #pad-mine .pm-tabs .stab.active{background:#fff;border-color:#fff;color:#15171A}'+
     '#pad-mine .pm-body{overflow:auto;padding:16px 18px 20px}'+
     // El panel admin deja un style="display:none" inline en el bloque que no está
     // mirando: acá manda la solapa del overlay, de ahí el !important.
