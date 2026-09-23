@@ -6489,6 +6489,12 @@ function _fgEnsurePadronBtn(){
 // panel admin esos bloques ya son dos sub-solapas, y una barra dentro de otra
 // sería confusa.
 var _padMineHome=[],_bdPane='empresas';
+// Icono del título. Va como SVG y no como emoji: el fichero U+1F5C4 no está en
+// las fuentes de Windows y salía como un glifo roto al lado del nombre.
+var _BD_ICO='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" '+
+  'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" '+
+  'style="vertical-align:-3px;margin-right:8px"><ellipse cx="12" cy="5.5" rx="8" ry="3"/>'+
+  '<path d="M4 5.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/><path d="M4 11.5v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></svg>';
 function _padMineStyle(){
   if(document.getElementById('pad-mine-style'))return;
   var st=document.createElement('style');st.id='pad-mine-style';
@@ -6507,9 +6513,13 @@ function _padMineStyle(){
     // .stabs-in deja la INACTIVA sin fondo ni borde (texto gris sobre el fondo
     // del modal) y parecía que no había nada para tocar. Acá la inactiva tiene
     // fondo y borde propios, y la activa se rellena con el color de la paleta.
-    '#pad-mine .pm-tabs{padding:12px 18px 0;margin:0;gap:8px}'+
+    // overflow:visible es clave: .stabs trae overflow-x:auto y el navegador dibuja
+    // la barra de scroll DENTRO de la fila, cruzando las pestañas como si tacharan
+    // el texto. Si no entran, bajan de línea (wrap) en vez de scrollear.
+    '#pad-mine .pm-tabs{padding:12px 18px 0;margin:0;gap:8px;overflow:visible;overflow-x:visible;'+
+      'overflow-y:visible;flex-wrap:wrap;background:none;border-bottom:none;align-items:center}'+
     '#pad-mine .pm-tabs .stab{font-size:.72rem;padding:7px 16px;border:1.5px solid var(--border,#e2e2e2);'+
-      'background:var(--light,#f4f4f5);color:var(--gray,#777)}'+
+      'background:var(--light,#f4f4f5);color:var(--gray,#777);text-decoration:none;line-height:1.35}'+
     '#pad-mine .pm-tabs .stab:hover{border-color:var(--navy,#14213D);color:var(--ink,#111)}'+
     '#pad-mine .pm-tabs .stab.active{background:var(--navy,#14213D);border-color:var(--navy,#14213D);color:#fff}'+
     'html.dark #pad-mine .pm-tabs .stab{background:#2a2f36;border-color:#3a3e46;color:#c9ccd2}'+
@@ -6518,6 +6528,9 @@ function _padMineStyle(){
     '#pad-mine .pm-body{overflow:auto;padding:16px 18px 20px}'+
     // El panel admin deja un style="display:none" inline en el bloque que no está
     // mirando: acá manda la solapa del overlay, de ahí el !important.
+    // El título del bloque ("Mis empresas" / "Mis asesores") repetiría lo que ya
+    // dice la pestaña activa: se oculta sólo acá, en el panel admin se sigue viendo.
+    '#pad-mine .pm-body .ap-sec{display:none}'+
     '#pad-mine .pm-body .bd-pane{display:none!important}'+
     '#pad-mine .pm-body .bd-pane.bd-on{display:block!important}'+
     '.pad-head .pad-adm{font-size:.64rem;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;'+
@@ -6542,7 +6555,7 @@ function openMiPadron(pane){
   closePadronPop();closeAsPop();
   var ov=document.createElement('div');ov.id='pad-mine-ov';
   ov.innerHTML='<div id="pad-mine" role="dialog" aria-label="Base de datos">'+
-    '<div class="pm-head"><span id="bd-tit">&#128451; Base de datos</span>'+
+    '<div class="pm-head"><span id="bd-tit">'+_BD_ICO+'Base de datos</span>'+
       '<span class="pm-x" onclick="closeMiPadron()" title="Cerrar">&#10005;</span></div>'+
     '<div class="stabs stabs-in pm-tabs" id="bd-tabs"></div>'+
     '<div class="pm-body"></div></div>';
@@ -6567,7 +6580,7 @@ function _bdRenderTabs(){
   bar.innerHTML=panes.map(function(p){
     return '<div class="stab bdtab'+(p.id===_bdPane?' active':'')+'" data-tab="bd-'+p.id+'" onclick="_bdShow(\''+p.id+'\')">'+p.lbl+'</div>';
   }).join('');
-  if(tit)tit.innerHTML='&#128451; Base de datos'+(panes.length===1?(' &middot; '+panes[0].lbl):'');
+  if(tit)tit.innerHTML=_BD_ICO+'Base de datos'+(panes.length===1?(' &middot; '+panes[0].lbl):'');
 }
 function _bdShow(pane,forzar){
   if(!forzar&&pane===_bdPane)return;
