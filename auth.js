@@ -179,13 +179,85 @@ function moveNote(dir){
 // Lista de asesores (nombre, celular, email) guardada por cuenta. Se accede tocando
 // el título de sección "Asesor 1" / "Asesor 2": abre un popover con la lista (solo
 // nombres) para autocompletar ese asesor. Vive en auth.js (sobrevive a la regen).
+//
+// EN LA NUBE (tabla asesores_guardados, migración 010): la lista viaja con la
+// cuenta, no con la computadora. Antes vivía sólo en localStorage, así que
+// cambiar de PC o limpiar los datos del navegador borraba todo.
+// El localStorage queda como CACHÉ: abre el popover al instante y sirve de
+// respaldo si la red falla, pero la fuente de verdad es la tabla.
 function _asKey(){return 'fg_asesores_'+(_me?_me.id:'anon');}
-var _asesores=[];
-function _loadAsesores(){
-  try{_asesores=JSON.parse(localStorage.getItem(_asKey())||'[]');}catch(e){_asesores=[];}
-  if(!Array.isArray(_asesores))_asesores=[];
+// Bandera por navegador+cuenta: marca que lo que había guardado en ESTA máquina
+// ya se subió. Sin ella, una PC con una copia vieja resucitaría en cada apertura
+// los asesores que se borraron desde otra computadora.
+function _asSyncKey(){return 'fg_asesores_sync_'+(_me?_me.id:'anon');}
+var _asesores=[],_asReady=false,_asLoading=false,_asCbs=[];
+function _asCache(){
+  try{var a=JSON.parse(localStorage.getItem(_asKey())||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}
 }
-function _saveAsesores(){try{localStorage.setItem(_asKey(),JSON.stringify(_asesores));}catch(e){}}
+function _asSetCache(arr){try{localStorage.setItem(_asKey(),JSON.stringify(arr||[]));}catch(e){}}
+function _asId(){return 'a'+Date.now()+Math.random().toString(36).slice(2,7);}
+// Deja siempre la misma forma: {id,name,nombre,celular,email}. Tolera filas
+// viejas o incompletas (sin id, con números) sin romper el resto del código.
+function _asSane(rows){
+  var out=[],seen={};
+  (rows||[]).forEach(function(a){
+    if(!a||typeof a!=='object')return;
+    var id=String(a.id==null?'':a.id).trim()||_asId();
+    if(seen[id])return;seen[id]=1;
+    function t(v){return (v==null?'':String(v)).trim();}
+    out.push({id:id,name:t(a.name)||t(a.nombre),nombre:t(a.nombre),celular:t(a.celular),email:t(a.email)});
+  });
+  return out;
+}
+// Carga la lista de la nube una vez por sesión. cb(lista) siempre se llama.
+// Si la nube no responde, sigue andando con la caché local (modo degradado).
+function _loadAsesores(cb){
+  if(_asReady){if(cb)cb(_asesores);return;}
+  if(!_asesores.length)_asesores=_asSane(_asCache()); // algo para mostrar ya mismo
+  if(!_me){_asReady=true;if(cb)cb(_asesores);return;}
+  if(cb)_asCbs.push(cb);
+  if(_asLoading)return;
+  _asLoading=true;
+  _sb.from('asesores_guardados').select('id,name,nombre,celular,email,orden')
+    .eq('user_id',_me.id).order('orden',{ascending:true})
+    .then(function(r){
+      _asLoading=false;
+      if(r.error){
+        console.warn('asesores_guardados:',r.error.message); // se sigue con la caché
+      }else{
+        var nube=_asSane(r.data),local=_asSane(_asCache()),subir=false;
+        var yaSync=false;try{yaSync=!!localStorage.getItem(_asSyncKey());}catch(e){}
+        if(!yaSync&&local.length){
+          // Primera vez en este navegador: lo que había acá se suma a la nube
+          // (no se pisa lo que ya esté guardado de otra computadora).
+          var enNube={};nube.forEach(function(a){enNube[a.id]=1;});
+          var faltan=local.filter(function(a){return !enNube[a.id];});
+          if(faltan.length){nube=faltan.concat(nube);subir=true;}
+        }
+        _asesores=nube;_asReady=true;_asSetCache(_asesores);
+        try{localStorage.setItem(_asSyncKey(),'1');}catch(e){}
+        if(subir)_saveAsesores();
+      }
+      var cbs=_asCbs;_asCbs=[];
+      cbs.forEach(function(f){try{f(_asesores);}catch(e){}});
+    });
+}
+// Sube la lista entera (una sola llamada atómica: borra y reinserta del lado del
+// servidor). Se usa después de guardar, eliminar o importar.
+function _saveAsesores(cb){
+  _asSetCache(_asesores);
+  if(!_me){if(cb)cb(false);return;}
+  var rows=_asesores.map(function(a){
+    return {id:a.id,name:a.name||'',nombre:a.nombre||'',celular:a.celular||'',email:a.email||''};
+  });
+  _sb.rpc('asesores_replace',{p_rows:rows}).then(function(r){
+    if(r&&r.error){
+      showToast('No se pudo guardar en la nube: '+r.error.message+' (quedó en esta computadora)');
+      if(cb)cb(false);return;
+    }
+    if(cb)cb(true);
+  });
+}
 function _gv(id){var el=document.getElementById(id);return el?el.value:'';}
 function _setVal(id,v){var el=document.getElementById(id);if(el)el.value=(v||'');}
 
@@ -210,13 +282,20 @@ function _asItemHtml(a,slot){
     '<span class="as-del" onclick="event.stopPropagation();delAsesor(\''+a.id+'\','+slot+')" title="Eliminar">&#10005;</span></div>';
 }
 function _asListHtml(slot){
+  if(!_asReady&&!_asesores.length)return '<div class="as-empty">Cargando tus asesores&hellip;</div>';
   return _asesores.length?_asesores.map(function(a){return _asItemHtml(a,slot);}).join('')
     :'<div class="as-empty">No tenés asesores guardados todavía.</div>';
+}
+// Repinta la lista del popover si sigue abierto (después de traerla de la nube,
+// de guardar o de eliminar).
+function _asRefreshPop(slot){
+  var list=document.querySelector('#as-pop .as-list');
+  if(list)list.innerHTML=_asListHtml(slot);
 }
 function openAsPop(slot,anchor){
   if(!_can('asesores_guardados'))return; // el listener queda puesto; la facultad se revalida acá
   closeAsPop();
-  _loadAsesores();
+  _loadAsesores(function(){_asRefreshPop(slot);}); // pinta ya con la caché y refresca al llegar la nube
   var pop=document.createElement('div');
   pop.id='as-pop';pop.className='as-pop';
   pop.innerHTML='<div class="as-pop-head">Asesor '+slot+' &middot; guardados</div>'+
@@ -256,18 +335,23 @@ function saveAsesor(slot){
   if(!n&&!c&&!m){showToast('Completá el asesor antes de guardar');return;}
   var name=prompt('Nombre para guardar este asesor:',n||'');
   if(name===null)return;name=(name||n||'').trim();if(!name){showToast('Poné un nombre');return;}
-  _asesores.unshift({id:'a'+Date.now()+Math.random().toString(36).slice(2,5),name:name,nombre:n,celular:c,email:m});
-  _saveAsesores();closeAsPop();showToast('Asesor "'+name+'" guardado');
+  // Se espera a tener la lista de la nube antes de agregar: si no, la respuesta
+  // que llega después pisaría el asesor recién guardado.
+  _loadAsesores(function(){
+    _asesores.unshift({id:_asId(),name:name,nombre:n,celular:c,email:m});
+    _saveAsesores();closeAsPop();showToast('Asesor "'+name+'" guardado');
+  });
 }
 function delAsesor(id,slot){
   var a=_asesores.find(function(x){return x.id===id;});if(!a)return;
   fgConfirm('¿Eliminar el asesor guardado "'+(a.name||a.nombre)+'"?',{ok:'Eliminar'},function(si){
     if(!si)return;
-    _asesores=_asesores.filter(function(x){return x.id!==id;});
-    _saveAsesores();
-    var list=document.querySelector('#as-pop .as-list');
-    if(list)list.innerHTML=_asListHtml(slot); // refresca sin cerrar
-    showToast('Asesor eliminado');
+    _loadAsesores(function(){ // idem: con la lista de la nube en mano
+      _asesores=_asesores.filter(function(x){return x.id!==id;});
+      _saveAsesores();
+      _asRefreshPop(slot); // refresca sin cerrar
+      showToast('Asesor eliminado');
+    });
   });
 }
 function importAsesores(input){
@@ -278,19 +362,195 @@ function importAsesores(input){
       var wb=XLSX.read(e.target.result,{type:'binary'});
       var ws=wb.Sheets[wb.SheetNames[0]];
       var rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-      var added=0;
-      rows.forEach(function(r){
-        function g(keys){for(var i=0;i<keys.length;i++){var v=r[keys[i]];if(v!=null&&String(v).trim()!=='')return String(v).trim();}return '';}
-        var n1=g(['asesor1_nombre','nombre','Nombre']);
-        if(n1){_asesores.unshift({id:'a'+Date.now()+Math.random().toString(36).slice(2,5),name:n1,nombre:n1,celular:g(['asesor1_celular','celular','Celular']),email:g(['asesor1_email','email','Email'])});added++;}
-        var n2=g(['asesor2_nombre']);
-        if(n2){_asesores.unshift({id:'a'+Date.now()+Math.random().toString(36).slice(2,5)+'b',name:n2,nombre:n2,celular:g(['asesor2_celular']),email:g(['asesor2_email'])});added++;}
+      // Igual que al guardar: primero la lista de la nube, después se agregan.
+      _loadAsesores(function(){
+        var added=0;
+        rows.forEach(function(r){
+          function g(keys){for(var i=0;i<keys.length;i++){var v=r[keys[i]];if(v!=null&&String(v).trim()!=='')return String(v).trim();}return '';}
+          var n1=g(['asesor1_nombre','nombre','Nombre']);
+          // "guardar_como" es el rótulo con el que se ve en la lista; si el Excel no
+          // trae esa columna (plantilla del masivo o archivo viejo) vale el nombre real.
+          if(n1){_asesores.unshift({id:_asId(),name:g(['guardar_como','nombre_visible','etiqueta'])||n1,nombre:n1,celular:g(['asesor1_celular','celular','Celular']),email:g(['asesor1_email','email','Email'])});added++;}
+          var n2=g(['asesor2_nombre']);
+          if(n2){_asesores.unshift({id:_asId()+'b',name:n2,nombre:n2,celular:g(['asesor2_celular']),email:g(['asesor2_email'])});added++;}
+        });
+        _saveAsesores();closeAsPop();
+        // La solapa "Mis asesores", si está abierta: la importación ya guardó en la
+        // nube, así que la copia de edición que hubiera quedó vieja y se descarta.
+        if(document.getElementById('asesores-list')){_asEdit=null;_asDirty=false;renderAsesoresAdmin(true);}
+        showToast(added?(added+' asesor'+(added>1?'es':'')+' importado'+(added>1?'s':'')):'No se encontraron asesores en el Excel');
       });
-      _saveAsesores();closeAsPop();
-      showToast(added?(added+' asesor'+(added>1?'es':'')+' importado'+(added>1?'s':'')):'No se encontraron asesores en el Excel');
     }catch(err){showToast('No se pudo leer el Excel: '+(err&&err.message||err));console.error('importAsesores:',err);}
   };
   reader.readAsBinaryString(file);
+}
+
+// ── SOLAPA "MIS ASESORES" (Base de datos) ────────────────────────────────────
+// El popover del armador sólo muestra NOMBRES: si un celular o un mail quedaron
+// mal, había que borrar el asesor y volver a cargarlo. Acá se ven los datos y se
+// corrigen en su lugar. Trabaja sobre una COPIA (_asEdit) y recién pega en la
+// nube con "Guardar cambios", igual que el editor de empresas.
+// A diferencia de aquel, no hay modo "editar": son pocas filas y entrar a
+// corregir es justamente para lo que se abre esta solapa.
+var _asEdit=null,_asEditQ='',_asDirty=false;
+function _asEditStyle(){
+  if(document.getElementById('as-edit-style'))return;
+  var st=document.createElement('style');st.id='as-edit-style';
+  st.textContent=
+    '.as-erow{border:1px solid var(--border,#e2e2e2);border-radius:9px;padding:9px;margin-bottom:8px}'+
+    '.as-erow-main{display:grid;grid-template-columns:1.1fr 1.2fr 0.9fr 1.4fr auto;gap:6px;align-items:center}'+
+    '.as-erow-main .login-inp{margin-bottom:0;font-size:.78rem;padding:7px 8px}'+
+    '@media(max-width:760px){.as-erow-main{grid-template-columns:1fr}}';
+  document.head.appendChild(st);
+}
+// Punto de entrada único (solapa del panel admin y panel del overlay).
+// force=true recarga de la nube, salvo que haya cambios sin guardar: perderlos en
+// silencio por tocar "Recargar" o por cambiar de solapa sería peor que no recargar.
+function renderAsesoresAdmin(force){
+  _asEditStyle();
+  var st=document.getElementById('asesores-stat');
+  if(st&&!_asReady)st.innerHTML='<span style="color:var(--gray)">Cargando tus asesores...</span>';
+  // Con cambios sin guardar NO se recarga: perderlos por tocar "Recargar" o por
+  // volver a la solapa sería peor que no refrescar. Se avisa y siguen ahí.
+  if(force&&_asDirty&&document.getElementById('asesores-list'))showToast('Tenés cambios sin guardar: guardalos o descartalos');
+  if(force&&!_asDirty)_asEdit=null;
+  _loadAsesores(function(){
+    if(!_asEdit)_asEdit=_asSane(_asesores);
+    _asEditRenderList();
+  });
+}
+// Devuelve índices REALES de _asEdit (no posiciones filtradas), así cada fila
+// sigue editando al asesor correcto aunque haya un filtro puesto.
+function _asEditMatchIdxs(){
+  var rows=_asEdit||[],t=(_asEditQ||'').trim().toLowerCase();
+  if(!t)return rows.map(function(_,i){return i;});
+  var toks=t.split(/\s+/).filter(Boolean),out=[];
+  rows.forEach(function(a,i){
+    var txt=((a.name||'')+' '+(a.nombre||'')+' '+(a.celular||'')+' '+(a.email||'')).toLowerCase();
+    if(toks.every(function(k){return txt.indexOf(k)>=0;}))out.push(i);
+  });
+  return out;
+}
+function _asEditFilter(v){_asEditQ=v;_asEditRenderList();}
+function _asEditStat(){
+  var st=document.getElementById('asesores-stat');if(!st)return;
+  var n=(_asEdit||[]).length;
+  st.innerHTML=n
+    ? ('<strong>'+n+'</strong> asesor'+(n!==1?'es':'')+' guardado'+(n!==1?'s':'')+
+       (_asDirty?' &nbsp;&middot;&nbsp; <span style="color:var(--red,#c0392b)">cambios sin guardar</span>':''))
+    : 'Todav&iacute;a no guardaste ning&uacute;n asesor. Agreg&aacute; el primero o sub&iacute; un Excel.';
+}
+function _asEditRenderList(){
+  var host=document.getElementById('asesores-list');if(!host)return;
+  _asEditStat();
+  var rows=_asEdit||[];
+  if(!rows.length){host.innerHTML='';return;}
+  var idxs=_asEditMatchIdxs();
+  if(!idxs.length){
+    host.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Sin resultados para "'+_escHtml(_asEditQ)+'".</p>';
+    return;
+  }
+  host.innerHTML=
+    (_asEditQ?'<p style="font-size:.68rem;color:var(--gray);margin-bottom:6px">Mostrando '+idxs.length+' de '+rows.length+'.</p>':'')+
+    idxs.map(function(i){return _asEditRowHtml(_asEdit[i],i);}).join('');
+}
+function _asEditRowHtml(a,i){
+  return '<div class="as-erow"><div class="as-erow-main">'+
+    '<input class="login-inp" placeholder="Nombre visible" title="C&oacute;mo lo ves en la lista" value="'+_escAttr(a.name)+'" oninput="_asEditField('+i+',\'name\',this.value)">'+
+    '<input class="login-inp" placeholder="Nombre real (va al flyer)" value="'+_escAttr(a.nombre)+'" oninput="_asEditField('+i+',\'nombre\',this.value)">'+
+    '<input class="login-inp" placeholder="Celular" value="'+_escAttr(a.celular)+'" oninput="_asEditField('+i+',\'celular\',this.value)">'+
+    '<input class="login-inp" placeholder="Email" value="'+_escAttr(a.email)+'" oninput="_asEditField('+i+',\'email\',this.value)">'+
+    '<button type="button" class="usr-btn del" onclick="_asEditRemoveRow('+i+')" title="Eliminar asesor">&#10005;</button>'+
+  '</div></div>';
+}
+function _asEditField(i,k,v){
+  if(!_asEdit||!_asEdit[i])return;
+  _asEdit[i][k]=v;_asDirty=true;_asEditStat();
+}
+function _asEditAddRow(){
+  // Puede llamarse con la solapa recién abierta (sin copia todavía): la arma antes,
+  // así la fila nueva no se pierde cuando llega la respuesta de la nube.
+  if(!_asEdit){
+    _asEditStyle();
+    _loadAsesores(function(){if(!_asEdit)_asEdit=_asSane(_asesores);_asEditAddRow();});
+    return;
+  }
+  _asEdit.push({id:_asId(),name:'',nombre:'',celular:'',email:''});
+  _asDirty=true;
+  if(_asEditQ){ // con un filtro puesto la fila nueva (vacía) no matchearía
+    _asEditQ='';
+    var q=document.getElementById('asesores-q');if(q)q.value='';
+  }
+  _asEditRenderList();
+  var last=document.querySelector('#asesores-list .as-erow:last-child .as-erow-main input');if(last)last.focus();
+}
+function _asEditRemoveRow(i){
+  if(!_asEdit||!_asEdit[i])return;
+  var a=_asEdit[i],label=a.name||a.nombre||'este asesor';
+  fgConfirm('¿Eliminar el asesor guardado "'+label+'"?\n\nSe borra al tocar "Guardar cambios".',{ok:'Eliminar'},function(si){
+    if(!si||!_asEdit||_asEdit[i]!==a)return;
+    _asEdit.splice(i,1);_asDirty=true;
+    _asEditRenderList();
+  });
+}
+// preguntar=true viene del botón "Descartar cambios"; sin preguntar se usa al
+// cerrar la pantalla cuando el usuario ya confirmó que los pierde.
+function _asEditDiscard(preguntar){
+  if(!preguntar||!_asDirty){_asEdit=null;_asDirty=false;renderAsesoresAdmin(true);return;}
+  fgConfirm('¿Descartar los cambios que hiciste en tus asesores?',{ok:'Descartar'},function(si){
+    if(!si)return;
+    _asEdit=null;_asDirty=false;renderAsesoresAdmin(true);
+    showToast('Cambios descartados');
+  });
+}
+function _asEditSave(){
+  if(!_asEdit)return;
+  var btn=document.getElementById('asesores-save');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  var copia=_asEdit;
+  // Mismo recaudo que saveAsesor/delAsesor: la lista de la nube primero, para que
+  // una respuesta en vuelo no pise lo que se está por guardar.
+  _loadAsesores(function(){
+    _asesores=_asSane(copia);
+    _saveAsesores(function(ok){
+      if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+      if(!ok)return; // _saveAsesores ya avisó por qué
+      _asDirty=false;_asEdit=null;
+      var n=_asesores.length;
+      showToast(n+' asesor'+(n!==1?'es':'')+' guardado'+(n!==1?'s':''));
+      renderAsesoresAdmin(true);
+      _asRefreshPop(1); // si el popover del armador quedó abierto, que muestre lo nuevo
+    });
+  });
+}
+// ── MIS ASESORES: Excel (exportar / plantilla) ───────────────────────────────
+// Las 3 últimas columnas son las que importAsesores ya entiende: lo que bajás se
+// puede volver a subir sin tocar nada. "guardar_como" es opcional.
+var _AS_HEAD=['guardar_como','nombre','celular','email'];
+function _asToAoa(rows){
+  var out=[_AS_HEAD.slice()];
+  (rows||[]).forEach(function(a){out.push([a.name||'',a.nombre||'',a.celular||'',a.email||'']);});
+  return out;
+}
+function _asXlsx(rows,file){
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(_asToAoa(rows));
+  ws['!cols']=[{wch:26},{wch:26},{wch:16},{wch:38}];
+  XLSX.utils.book_append_sheet(wb,ws,'Asesores');
+  XLSX.writeFile(wb,file);
+}
+function dlAsesores(){
+  _loadAsesores(function(){
+    if(!_asesores.length){showToast('Todavía no guardaste ningún asesor');return;}
+    _asXlsx(_asesores,'Mis_Asesores_Galicia.xlsx');
+    showToast('Excel descargado ('+_asesores.length+' asesores)');
+  });
+}
+function dlAsesoresTemplate(){
+  _asXlsx([
+    {name:'Juan — Sucursal Centro',nombre:'Juan Perez',celular:'11 1234 5678',email:'juan.perez@bancogalicia.com.ar'},
+    {name:'',nombre:'Ana Gomez',celular:'11 5555 6666',email:'ana.gomez@bancogalicia.com.ar'}
+  ],'Plantilla_Asesores_Galicia.xlsx');
+  showToast('Plantilla descargada!');
 }
 
 // Devuelve el badge HTML del rol (admin / vip / pro / asesor).
@@ -446,6 +706,7 @@ function _libInit(){
   _libWrap('exportPadronLog',['xlsx']);
   _libWrap('exportFlyerLogsExcel',['xlsx']);
   _libWrap('_padXlsx',['xlsx']);
+  _libWrap('_asXlsx',['xlsx']);                  // descarga de "Mis asesores"
   _libWrap('descargarExcelPromos',['exceljs']);
 }
 // Bajar el PDF es la acción central de la app: apenas la pantalla queda quieta
@@ -602,6 +863,9 @@ function checkProfile(user){
       _sb.auth.signOut().catch(function(){});
       return;
     }
+    // Si entra otra cuenta sin recargar, la lista de asesores guardados del
+    // anterior no puede quedar en memoria (se recarga de la nube del nuevo).
+    if(_me&&_me.id!==user.id){_asesores=[];_asReady=false;_asCbs=[];}
     _me=user;_admin=(p.role==='admin');_myRole=p.role||'asesor';_myName=p.full_name||p.email_asesor||user.email;
     // Facultades propias del admin (columna "Vos" en Facultades): null = todo.
     _myFac=(_admin&&p.facultades&&typeof p.facultades==='object'&&!Array.isArray(p.facultades))?p.facultades:null;
@@ -771,7 +1035,7 @@ function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel
 
 // El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
 // _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
-var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','padronotros','padronlog'],config:['subir','cashback','legales','opciones']};
+var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','asesores','padronotros','padronlog'],config:['subir','cashback','legales','opciones']};
 var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
 function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
@@ -781,7 +1045,9 @@ function switchAdminTab(el,t){
     });
   });
   // :not(.ltab) para no pisar las sub-solapas de legales (Opción 1 / Opción 2)
-  document.querySelectorAll('.stab:not(.ltab)').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
+  // :not(.bdtab) idem con las de "Base de datos" (Mis empresas / Mis asesores),
+  // que viven en el overlay y usan .stab sólo para heredar el estilo.
+  document.querySelectorAll('.stab:not(.ltab):not(.bdtab)').forEach(function(x){x.classList.toggle('active',x.dataset.tab===t);});
   var g=_apGroupOf(t);
   if(g){
     _apLast[g]=t;
@@ -797,6 +1063,7 @@ function switchAdminTab(el,t){
   if(t==='cashback'){var _cbh=document.getElementById('cashback-list');if(_cbh&&!_cbh.children.length)_cbh.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando...</p>';loadCashback(true,renderCashbackAdmin);}
   if(t==='facultades')loadFacultades(true,renderFacultades);
   if(t==='varios')renderPadronAdmin(true);
+  if(t==='asesores')renderAsesoresAdmin(true);
   if(t==='padronotros')loadPadronOtrosUsers(false);
   if(t==='padronlog')loadPadronLog();
   if(t==='legales'){
@@ -849,7 +1116,7 @@ function _facDefault(role,key){
 // Filas de la pantalla, en orden.
 function _facRows(){
   var rows=[
-    ['padron_buscar','Padr&oacute;n propio de empresas','Le da <strong>su propio padr&oacute;n privado</strong>: carga sus empresas y las busca con la lupa por raz&oacute;n social o CUIT. <strong>Nadie m&aacute;s puede ver ni editar lo que cargue</strong>; vos s&iacute; pod&eacute;s consultarlo desde Data &rarr; Padr&oacute;n Asesores.'],
+    ['padron_buscar','Base de datos: mis empresas','Le da <strong>su propia lista privada de empresas</strong> (su nombre &rarr; Base de datos): carga las suyas y las busca con la lupa por raz&oacute;n social o CUIT. <strong>Nadie m&aacute;s puede ver ni editar lo que cargue</strong>; vos s&iacute; pod&eacute;s consultarlo desde Data &rarr; Empresas por usuario.'],
     ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.']
   ];
   _facOptList().forEach(function(o){
@@ -859,7 +1126,7 @@ function _facRows(){
       (enRubros?' Con al menos una opci&oacute;n de Rubros habilitada, el perfil ve la solapa <strong>Flyer Rubros</strong> en el header.':'')]);
   });
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
-  rows.push(['asesores_guardados','Asesores guardados','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4".']);
+  rows.push(['asesores_guardados','Base de datos: mis asesores','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4". Desde su nombre &rarr; <strong>Base de datos &rarr; Mis asesores</strong> los ve, los corrige, los sube por Excel o se los baja. La lista viaja con su cuenta (la ve desde cualquier computadora) y es privada.']);
   rows.push(['promos_buscar','Buscador de promociones','Agrega la pesta&ntilde;a "Promociones": pega las marcas del flyer y las cruza contra el buscador oficial de Galicia, con logo, fechas de vigencia y estado (vigente / vence este mes / vencida).']);
   rows.push(['guardar_trabajo','Guardar historial y borrador','El <strong>Historial</strong> queda guardado en el dispositivo (hoy se borra al cerrar o recargar la p&aacute;gina) y el formulario se guarda solo mientras escribe: si cierra la pesta&ntilde;a a mitad de un flyer, al volver le ofrece <em>&laquo;Seguir con ese flyer&raquo;</em>. Todo vive en su navegador, nada sale a la nube.']);
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
@@ -927,7 +1194,7 @@ function _applyFacultades(){
   var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_adminNow()?'inline-flex':'none';
   var dn=document.getElementById('hdr-dd-notes');if(dn)dn.style.display=_can('notas')?'flex':'none';
 
-  if(_can('asesores_guardados'))_initAsesoresUI();
+  if(_can('asesores_guardados')){_initAsesoresUI();_loadAsesores();} // trae la lista de la nube una vez
   _facShowAsesores(_can('asesores_guardados'));
 
   if(_can('pegar_oficial'))_fgEnsurePasteBtns();
@@ -935,11 +1202,14 @@ function _applyFacultades(){
 
   if(_can('padron_buscar'))_fgEnsurePadronBtn();
   var pb=document.getElementById('fg-pad-btn');if(pb)pb.style.display=_can('padron_buscar')?'':'none';
-  // "Mi padrón" en el menú del nombre: subir Excel, editar en línea, descargar.
-  // Mismo criterio que la lupa: quien puede buscar, puede administrar el suyo.
-  var dpad=document.getElementById('hdr-dd-padron');if(dpad)dpad.style.display=_can('padron_buscar')?'flex':'none';
-  if(!_can('padron_buscar')&&document.getElementById('pad-mine-ov'))closeMiPadron();
-  _mpRefresh(); // tarjeta "todo el segmento" del masivo (sólo con padrón)
+  // "Base de datos" en el menú del nombre: adentro están Mis empresas (facultad
+  // padron_buscar: subir Excel, editar en línea, generar) y Mis asesores
+  // (asesores_guardados). Alcanza con UNA para que el ítem aparezca; _bdSync
+  // decide qué solapas se ven y cierra la pantalla si no queda ninguna.
+  var dpad=document.getElementById('hdr-dd-padron');
+  if(dpad)dpad.style.display=(_can('padron_buscar')||_can('asesores_guardados'))?'flex':'none';
+  _bdSync();
+  _mpRefresh(); // tarjeta "todo el segmento" del masivo (sólo con empresas cargadas)
 
   _fgWorkApply(_can('guardar_trabajo')); // historial persistente + borrador automático
 
@@ -1986,7 +2256,7 @@ function _cbAgregar(){
 }
 function _cbQuitar(i){
   var c=_cbEdit&&_cbEdit[i];if(!c||i===0)return;
-  fgConfirm('¿Quitar "'+c.nombre+'"?\n\nDeja de aparecer en el armador para todos. Las empresas del padrón o filas del masivo que la tengan cargada van a salir SIN cashback hasta que les pongas otra.',{ok:'Quitar'},function(si){
+  fgConfirm('¿Quitar "'+c.nombre+'"?\n\nDeja de aparecer en el armador para todos. Las empresas de tu base o filas del masivo que la tengan cargada van a salir SIN cashback hasta que les pongas otra.',{ok:'Quitar'},function(si){
     if(!si||!_cbEdit||_cbEdit[i]!==c)return;
     _cbEdit.splice(i,1);
     _cbPintar();
@@ -4769,7 +5039,7 @@ function logFlyerBulkToSupabase(n,origen){
   var pad=(origen==='padron');
   _sb.from('flyer_logs').insert({
     user_id:_me.id,
-    empresa:(pad?'Padrón (':'Masivo (')+n+' flyers)',
+    empresa:(pad?'Mis empresas (':'Masivo (')+n+' flyers)',
     config_name:'',format:'pdf',is_bulk:true,bulk_count:n,
     flyer_type:JSON.stringify({opcion:_optN(_fgOpt),masivo:true,padron:pad}),
     created_at:new Date().toISOString()
@@ -4972,7 +5242,7 @@ function loadRegistros(){
         if(typeof ex!=='object'||Array.isArray(ex))ex={};
         // Opción usada (control de visibilidad). Registros viejos no la tienen.
         var optBadge=ex.opcion?_optBadge(ex.opcion,'font-size:.58rem;margin-left:4px'):'';
-        var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">'+(ex.padron?'PADR&Oacute;N':'MASIVO')+'</span>':'';
+        var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">'+(ex.padron?'EMPRESAS':'MASIVO')+'</span>':'';
         var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+_escHtml(ex.config)+'</span>':'';
         // Flyer Rubros: tope del beneficio (y el nombre del cartel si difiere de la empresa)
         if(ex.importe)cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Tope de reintegro del beneficio exclusivo">Tope '+_escHtml(ex.importe)+(ex.importe2&&ex.importe2!==ex.importe?' / '+_escHtml(ex.importe2):'')+'</span>';
@@ -5153,7 +5423,7 @@ function loadPadronLog(){
     var data=_plogFiltraUser(r.data||[],f).filter(_plogRelevante);
     var countEl=document.getElementById('plog-count');
     if(countEl)countEl.textContent=data.length+' cambio'+(data.length!==1?'s':'')+(traidos>=500?' (se muestran los últimos 500; para ver todo, exportá a Excel)':'');
-    if(!data.length){container.innerHTML='<p style="color:var(--gray);font-size:.8rem">Sin cambios registrados todav&iacute;a. Cada vez que alguien guarde su padr&oacute;n (Excel, editor en l&iacute;nea o desde el armador), las altas, modificaciones y bajas aparecen ac&aacute;.</p>';return;}
+    if(!data.length){container.innerHTML='<p style="color:var(--gray);font-size:.8rem">Sin cambios registrados todav&iacute;a. Cada vez que alguien guarde sus empresas (Excel, editor en l&iacute;nea o desde el armador), las altas, modificaciones y bajas aparecen ac&aacute;.</p>';return;}
     // Todo lo que viene de padron_log lo escribió un usuario (razón social,
     // oficiales...): se escapa siempre antes de pintarlo.
     container.innerHTML=data.map(function(row){
@@ -5174,7 +5444,7 @@ function loadPadronLog(){
           '<div class="reg-top"><span class="reg-empresa">'+_escHtml(row.empresa||'—')+'</span>'+badge+'</div>'+
           detWrap+
           '<div class="reg-mid"><span class="reg-lbl">Por</span> '+_escHtml(nombre)+
-            (row.total!=null?' &nbsp;&middot;&nbsp; <span class="reg-lbl">Padr&oacute;n:</span> '+(+row.total)+' empresa'+(+row.total!==1?'s':''):'')+'</div>'+
+            (row.total!=null?' &nbsp;&middot;&nbsp; <span class="reg-lbl">Empresas:</span> '+(+row.total)+' empresa'+(+row.total!==1?'s':''):'')+'</div>'+
         '</div>'+
         '<span class="reg-fecha" title="'+_escAttr(row.created_at?new Date(row.created_at).toLocaleString('es-AR'):'')+'">'+_fmtDate(row.created_at)+'</span>'+
         '</div>';
@@ -5196,14 +5466,14 @@ function exportPadronLog(){
         'Acción':_PLOG_LBL[row.accion]||row.accion||'',
         'Empresa':row.empresa||'',
         'Detalle':_plogDetalleTxt(row),
-        'Empresas en el padrón':row.total!=null?+row.total:''
+        'Empresas (total)':row.total!=null?+row.total:''
       };
     });
     var ws=XLSX.utils.json_to_sheet(rows);
     ws['!cols']=[{wch:22},{wch:28},{wch:14},{wch:36},{wch:70},{wch:12}];
     var wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Cambios del padron');
-    XLSX.writeFile(wb,'cambios_padron_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.utils.book_append_sheet(wb,ws,'Cambios de empresas');
+    XLSX.writeFile(wb,'cambios_empresas_galicia_'+new Date().toISOString().slice(0,10)+'.xlsx');
     showToast('Excel descargado');
   });
 }
@@ -5476,7 +5746,7 @@ function loadPadron(force,cb){
   _sb.from(_PADRON_TABLE).select(_PADRON_COLS).eq('user_id',_me.id).order('empresa',{ascending:true})
     .then(function(r){
       if(r.error){
-        showToast('No se pudo cargar tu padrón: '+r.error.message);
+        showToast('No se pudieron cargar tus empresas: '+r.error.message);
         _padron=_padron||[];if(cb)cb(_padron);return;
       }
       _padron=_padSane(r.data);
@@ -5491,7 +5761,7 @@ function loadPadron(force,cb){
 function savePadron(rows,cb){
   return _sb.rpc('padron_replace',{p_rows:rows||[]})
     .then(function(r){
-      if(r&&r.error){showToast('Error al guardar el padrón: '+r.error.message);if(cb)cb(false);return;}
+      if(r&&r.error){showToast('Error al guardar tus empresas: '+r.error.message);if(cb)cb(false);return;}
       _padron=rows;_padronAt=new Date().toISOString();
       _pgSel={};if(_pgOpen)_pgRender();
       if(cb)cb(true);
@@ -5502,7 +5772,7 @@ function savePadron(rows,cb){
 function loadPadronDe(uid,cb){
   _sb.from(_PADRON_TABLE).select(_PADRON_COLS).eq('user_id',uid).order('empresa',{ascending:true})
     .then(function(r){
-      if(r.error){showToast('No se pudo cargar ese padrón: '+r.error.message);cb([]);return;}
+      if(r.error){showToast('No se pudieron cargar esas empresas: '+r.error.message);cb([]);return;}
       cb(_padSane(r.data));
     });
 }
@@ -5526,7 +5796,7 @@ function _padCols(){
 function _padXlsx(rows,file,sheet){
   var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(_padToAoa(rows));
   ws['!cols']=_padCols();
-  XLSX.utils.book_append_sheet(wb,ws,sheet||'Padron');
+  XLSX.utils.book_append_sheet(wb,ws,sheet||'Empresas');
   XLSX.writeFile(wb,file);
 }
 function importPadron(input){
@@ -5546,7 +5816,7 @@ function importPadron(input){
       if(st)st.innerHTML='<span style="color:var(--gray)">Guardando '+informe.rows.length+' empresas...</span>';
       savePadron(informe.rows,function(ok){
         if(!ok){renderPadronAdmin();return;}
-        showToast('Padrón actualizado: '+informe.rows.length+' empresas');
+        showToast('Empresas actualizadas: '+informe.rows.length);
         renderPadronAdmin();
       });
     }catch(err){
@@ -5560,9 +5830,9 @@ function importPadron(input){
 // para editarlo en la compu y volver a subirlo.
 function dlPadron(){
   loadPadron(false,function(rows){
-    if(!rows||!rows.length){showToast('No hay padrón cargado todavía');return;}
-    _padXlsx(rows,'Padron_Empresas_Galicia.xlsx');
-    showToast('Padrón descargado ('+rows.length+' empresas)');
+    if(!rows||!rows.length){showToast('Todavía no cargaste empresas');return;}
+    _padXlsx(rows,'Mis_Empresas_Galicia.xlsx');
+    showToast('Excel descargado ('+rows.length+' empresas)');
   });
 }
 function dlPadronTemplate(){
@@ -5577,20 +5847,20 @@ function dlPadronTemplate(){
     // así se marca una empresa a la que NO le corresponde cashback
     {empresa:'Empresa Sin Beneficio SA',cuits:['30700000001'],config:'SIN',
      asesores:[{nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar'},{},{},{}]}
-  ],'Plantilla_Padron_Galicia.xlsx');
+  ],'Plantilla_Empresas_Galicia.xlsx');
   showToast('Plantilla descargada!');
 }
 // Panel admin → Varios
 function renderPadronAdmin(force){
   var st=document.getElementById('padron-stat');
-  if(st&&!_padron)st.innerHTML='<span style="color:var(--gray)">Cargando padrón...</span>';
+  if(st&&!_padron)st.innerHTML='<span style="color:var(--gray)">Cargando tus empresas...</span>';
   loadPadron(!!force,function(rows){
     var st2=document.getElementById('padron-stat');
     if(st2){
       st2.innerHTML=rows.length
         ?('<strong>'+rows.length+'</strong> empresas &nbsp;&middot;&nbsp; <strong>'+_padCuitCount(rows)+'</strong> CUIT'+
           ' &nbsp;&middot;&nbsp; actualizado '+_fmtDate(_padronAt))
-        :'No hay padr&oacute;n cargado todav&iacute;a. Sub&iacute; un Excel para empezar.';
+        :'Todav&iacute;a no cargaste empresas. Sub&iacute; un Excel o agregalas a mano con "Editar en l&iacute;nea".';
     }
     if(_pgOpen)_pgRender();
     var prev=document.getElementById('padron-prev');if(!prev)return;
@@ -5774,7 +6044,7 @@ function _padEditAddRow(){
 function _padEditRemoveRow(i){
   if(!_padEdit||!_padEdit[i])return;
   var r=_padEdit[i],label=r.empresa||'esta empresa';
-  fgConfirm('¿Eliminar '+label+' del padrón?',{ok:'Eliminar'},function(si){
+  fgConfirm('¿Eliminar '+label+' de tus empresas?',{ok:'Eliminar'},function(si){
     if(!si||!_padEdit||_padEdit[i]!==r)return;
     _padEdit.splice(i,1);
     delete _padEditAsOpen[i];
@@ -5789,7 +6059,7 @@ function _padEditSave(){
   savePadron(rows,function(ok){
     if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
     if(!ok)return;
-    showToast('Padrón actualizado: '+rows.length+' empresas');
+    showToast('Empresas actualizadas: '+rows.length);
     _padEditClose();
     renderPadronAdmin(true);
   });
@@ -5877,8 +6147,8 @@ function renderPadronOtrosList(){
 }
 function dlPadronDe(){
   if(!_poRows||!_poRows.length){showToast('No hay empresas para descargar');return;}
-  _padXlsx(_poRows,'Padron_'+_fgSafeName(_poNombre||'usuario')+'.xlsx');
-  showToast('Padrón descargado ('+_poRows.length+' empresas)');
+  _padXlsx(_poRows,'Empresas_'+_fgSafeName(_poNombre||'usuario')+'.xlsx');
+  showToast('Excel descargado ('+_poRows.length+' empresas)');
 }
 
 // ── MASIVO: "todo el segmento" desde el padrón ──────────────────────────────
@@ -5895,13 +6165,13 @@ function _mpRows(){
 function _mpEnsure(){
   var tab=document.getElementById('tab-masivo');if(!tab||document.getElementById('fg-mp'))return;
   var d=document.createElement('div');d.id='fg-mp';
-  d.innerHTML='<div class="sec">Desde el padr&oacute;n</div>'+
+  d.innerHTML='<div class="sec">Desde mis empresas</div>'+
     '<div class="cfg-box" id="fg-mp-box">'+
       '<strong id="fg-mp-tit">Todo el segmento</strong>'+
       '<p id="fg-mp-txt" style="font-size:.72rem;color:var(--gray);line-height:1.45;margin:0 0 8px"></p>'+
       '<button class="btn bgreen" id="fg-mp-btn" style="width:100%" onclick="_mpGenerar()">&#9889; Descargar todos</button>'+
       '<div id="fg-mp-prog" style="display:none;margin-top:8px"><div class="progress-bar" style="display:block"><div class="progress-fill" id="fg-mp-fill" style="width:0%"></div></div><div class="progress-text" id="fg-mp-text"></div></div>'+
-      '<p style="font-size:.68rem;color:var(--gray);line-height:1.45;margin:8px 0 0">&#128161; Si quer&eacute;s descargar <strong>todo el padr&oacute;n</strong> (todas las empresas, cada una en su formato), and&aacute; a <a href="#" onclick="openMiPadron();return false" style="color:var(--red);font-weight:600">Mi padr&oacute;n &rarr; Generar flyers</a>.</p>'+
+      '<p style="font-size:.68rem;color:var(--gray);line-height:1.45;margin:8px 0 0">&#128161; Si quer&eacute;s descargar <strong>todas tus empresas</strong> (cada una en su formato), and&aacute; a <a href="#" onclick="openMiPadron();return false" style="color:var(--red);font-weight:600">Base de datos &rarr; Generar flyers</a>.</p>'+
     '</div>';
   tab.appendChild(d);
 }
@@ -5916,14 +6186,14 @@ function _mpRefresh(){
   loadPadron(false,function(){
     if(_optLabel(_fgOpt)!==lbl)return; // cambió de opción mientras cargaba: ya se rearmó
     var n=_mpRows().length,txt=document.getElementById('fg-mp-txt'),btn=document.getElementById('fg-mp-btn');
-    if(txt)txt.innerHTML=n?('Genera de una el flyer de las <strong>'+n+' empresa'+(n!==1?'s':'')+'</strong> de tu padr&oacute;n que salen con este formato, con sus oficiales, cashback y topes, en un ZIP.'):
-      'Ninguna empresa de tu padr&oacute;n sale con este formato todav&iacute;a.';
+    if(txt)txt.innerHTML=n?('Genera de una el flyer de las <strong>'+n+' empresa'+(n!==1?'s':'')+'</strong> de tu base que salen con este formato, con sus oficiales, cashback y topes, en un ZIP.'):
+      'Ninguna de tus empresas sale con este formato todav&iacute;a.';
     if(btn){btn.disabled=!n||_pgBusy;btn.innerHTML='&#9889; Descargar '+(n?(n+' flyer'+(n!==1?'s':'')):'todos')+' de &laquo;'+_escHtml(lbl)+'&raquo;';}
   });
 }
 function _mpGenerar(){
   if(_pgBusy)return;
-  var rows=_mpRows();if(!rows.length){showToast('No hay empresas de este segmento en tu padrón');return;}
+  var rows=_mpRows();if(!rows.length){showToast('No tenés empresas de este segmento');return;}
   _pgGenerarRows(rows,'pdf',{prog:'fg-mp-prog',fill:'fg-mp-fill',txt:'fg-mp-text',btn:'fg-mp-btn'},'Flyers_'+_fgSafeName(_optLabel(_fgOpt)));
 }
 
@@ -5982,10 +6252,10 @@ function _pgFiltrados(){
 function _pgCount(){var n=0;for(var k in _pgSel)if(_pgSel[k]&&_padron&&_padron[k])n++;return n;}
 function _pgRender(){
   var pg=document.getElementById('padron-gen');if(!pg||!_pgOpen)return;
-  if(!_padron||!_padron.length){pg.innerHTML='<p style="font-size:.78rem;color:var(--gray)">No hay empresas en el padr&oacute;n.</p>';return;}
+  if(!_padron||!_padron.length){pg.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Todav&iacute;a no cargaste empresas.</p>';return;}
   if(!document.getElementById('pg-list')){
     pg.innerHTML=
-      '<p style="font-size:.76rem;color:var(--gray);line-height:1.5;margin-bottom:10px">Tild&aacute; las empresas (o &laquo;Todas&raquo;) y gener&aacute; el ZIP: cada flyer sale en <strong>su formato</strong> seg&uacute;n el rubro del padr&oacute;n, con sus oficiales, cashback y topes. Al lado de cada empresa ves con qu&eacute; formato va a salir.</p>'+
+      '<p style="font-size:.76rem;color:var(--gray);line-height:1.5;margin-bottom:10px">Tild&aacute; las empresas (o &laquo;Todas&raquo;) y gener&aacute; el ZIP: cada flyer sale en <strong>su formato</strong> seg&uacute;n el rubro que tenga cargado, con sus oficiales, cashback y topes. Al lado de cada empresa ves con qu&eacute; formato va a salir.</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'+
         '<input type="text" id="pg-q" class="login-inp" placeholder="Filtrar por raz&oacute;n social o CUIT..." autocomplete="off" style="margin-bottom:0;flex:1;min-width:180px" oninput="_pgQ=this.value;_pgRender()">'+
         '<button type="button" class="usr-btn edit" onclick="_pgTodas(true)">Todas</button>'+
@@ -6053,7 +6323,7 @@ function _pgGenerar(){
   var rows=[];Object.keys(_pgSel).forEach(function(k){if(_pgSel[k]&&_padron[k])rows.push(_padron[k]);});
   if(!rows.length){showToast('Tildá al menos una empresa');return;}
   var fmtEl=document.getElementById('pg-fmt'),fmt=(fmtEl&&fmtEl.value==='png')?'png':'pdf';
-  _pgGenerarRows(rows,fmt,{prog:'pg-prog',fill:'pg-fill',txt:'pg-text',btn:'pg-btn'},'Flyers_Padron');
+  _pgGenerarRows(rows,fmt,{prog:'pg-prog',fill:'pg-fill',txt:'pg-text',btn:'pg-btn'},'Flyers_Empresas');
 }
 // Motor común: genera el ZIP de esas filas del padrón. ui = ids de la barra de
 // progreso y el botón a usar (el generador de Mi padrón y la tarjeta del masivo
@@ -6102,7 +6372,7 @@ function _pgGenerarRows(rows,fmt,ui,zipBase){
   function fin(){
     if(txt)txt.textContent='Empaquetando ZIP...';
     var d=res.fecha,fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    res.zip=(zipBase||'Flyers_Padron')+'_'+fecha+'.zip';
+    res.zip=(zipBase||'Flyers_Empresas')+'_'+fecha+'.zip';
     zip.file('Resumen.txt',_pgResumenTxt(res));
     zip.generateAsync({type:'blob'}).then(function(content){
       var a=document.createElement('a');a.download=res.zip;a.href=URL.createObjectURL(content);a.click();
@@ -6133,7 +6403,7 @@ function _pgResumenTxt(res){
   function ob(t,arr){if(arr.length){obs++;L.push('  '+arr.length+' '+t+': '+arr.join(', '));}}
   ob('sin oficiales asignados (salen sin datos de contacto)',res.sinOf);
   ob('sin cashback (importes en blanco)',res.sinCB);
-  ob('sin tope en el padrón (se usó el del formulario)',res.sinTope);
+  ob('sin tope cargado (se usó el del formulario)',res.sinTope);
   ob('no generadas',res.omitidas);
   ob('con error',res.errores);
   if(!obs)L.push('  Ninguna.');
@@ -6145,11 +6415,11 @@ function _pgResumenModal(res){
   function ob(t,arr){if(arr.length)obs.push('<li><strong>'+arr.length+'</strong> '+t+': '+_escHtml(_pgLista(arr))+'</li>');}
   ob('sin oficiales asignados (salen sin datos de contacto)',res.sinOf);
   ob('sin cashback (importes en blanco)',res.sinCB);
-  ob('sin tope en el padr&oacute;n (se us&oacute; el del formulario)',res.sinTope);
+  ob('sin tope cargado (se us&oacute; el del formulario)',res.sinTope);
   ob('no generadas',res.omitidas);
   ob('con error',res.errores);
   _padPending=null;
-  _padModal('<h3>&#10003; Flyers generados desde el padr&oacute;n</h3>'+
+  _padModal('<h3>&#10003; Flyers generados</h3>'+
     '<p class="pu-sub"><strong>'+res.total+' flyer'+(res.total!==1?'s':'')+'</strong> en '+res.fmt.toUpperCase()+' &middot; <code>'+_escHtml(res.zip)+'</code> &middot; '+_escHtml(_fmtDate(res.fecha.toISOString()))+'</p>'+
     '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin:8px 0"><thead><tr style="color:var(--gray);font-size:.68rem;text-transform:uppercase"><th style="text-align:left;padding:4px 0">Formato</th><th style="text-align:right;padding:4px 0">Cantidad</th><th style="text-align:left;padding:4px 8px">Carpeta</th></tr></thead><tbody>'+filas+'</tbody></table>'+
     (obs.length?'<p class="pu-sub" style="margin-top:8px"><strong>Observaciones</strong></p><ul>'+obs.join('')+'</ul>':'<p class="pu-sub">Sin observaciones: todas las empresas ten&iacute;an oficiales, cashback y topes.</p>')+
@@ -6197,7 +6467,7 @@ function _fgEnsurePadronBtn(){
   inp.parentNode.insertBefore(wrap,inp);
   wrap.appendChild(inp);
   wrap.insertAdjacentHTML('beforeend',
-    '<button type="button" id="fg-pad-btn" onclick="openPadronPop()" title="Ver todo el padrón (razón social o CUIT)">&#128269;</button>');
+    '<button type="button" id="fg-pad-btn" onclick="openPadronPop()" title="Buscar en mis empresas (razón social o CUIT)">&#128269;</button>');
   // typeahead: mientras escribís el nombre te va diciendo si ya está en el padrón
   inp.setAttribute('autocomplete','off');
   inp.addEventListener('input',_padSugRender);
@@ -6207,16 +6477,18 @@ function _fgEnsurePadronBtn(){
   window.addEventListener('scroll',_padSugPos,true);
   loadPadron(false); // precarga para que la primera búsqueda salga instantánea
 }
-// ── "MI PADRÓN": administrar el padrón propio sin ser admin ───────────────────
-// El bloque de subir/editar/descargar (#at-varios) vive dentro del panel Admin,
-// que sólo el admin puede abrir: un asesor con la facultad padron_buscar tenía
-// la lupa pero NINGUNA forma de cargar su padrón (y la lupa le decía "subilo
-// desde Panel Administrador → Varios"). Este modal toma ese mismo bloque —el
-// nodo real, con sus ids y sus funciones— y lo muestra a quien tenga la
-// facultad; al cerrar lo devuelve a su lugar. Así hay UNA sola implementación
-// del padrón para todos, y la privacidad la sigue garantizando RLS (cada uno
+// ── "BASE DE DATOS": lo guardado por el usuario, sin ser admin ───────────────
+// Los bloques de empresas (#at-varios) y asesores (#at-asesores) viven dentro del
+// panel Admin, que sólo el admin puede abrir: un asesor con la facultad tenía la
+// lupa pero NINGUNA forma de cargar sus empresas. Este modal toma esos mismos
+// bloques —los nodos reales, con sus ids y sus funciones— y los muestra a quien
+// tenga la facultad; al cerrar los devuelve a su lugar. Así hay UNA sola
+// implementación para todos, y la privacidad la sigue garantizando RLS (cada uno
 // sólo ve y toca sus filas).
-var _padMineHome=null;
+// La barra de solapas de adentro la dibuja JS acá y no existe en el HTML: en el
+// panel admin esos bloques ya son dos sub-solapas, y una barra dentro de otra
+// sería confusa.
+var _padMineHome=[],_bdPane='empresas';
 function _padMineStyle(){
   if(document.getElementById('pad-mine-style'))return;
   var st=document.createElement('style');st.id='pad-mine-style';
@@ -6231,59 +6503,144 @@ function _padMineStyle(){
     'html.dark #pad-mine .pm-head{border-color:#3a3e46}'+
     '#pad-mine .pm-x{cursor:pointer;font-size:1rem;color:var(--gray,#888);padding:2px 6px}'+
     '#pad-mine .pm-x:hover{color:var(--red,#c62828)}'+
+    '#pad-mine .pm-tabs{padding:10px 18px 0;margin:0}'+
     '#pad-mine .pm-body{overflow:auto;padding:16px 18px 20px}'+
-    '#pad-mine .pm-body #at-varios{display:block!important}'+
+    // El panel admin deja un style="display:none" inline en el bloque que no está
+    // mirando: acá manda la solapa del overlay, de ahí el !important.
+    '#pad-mine .pm-body .bd-pane{display:none!important}'+
+    '#pad-mine .pm-body .bd-pane.bd-on{display:block!important}'+
     '.pad-head .pad-adm{font-size:.64rem;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;'+
       'color:var(--red,#c62828);margin-left:auto;margin-right:10px}'+
     '.pad-head .pad-adm:hover{text-decoration:underline}'+
     '.pad-empty .usr-btn{margin-top:10px}';
   document.head.appendChild(st);
 }
-function openMiPadron(){
-  if(!_can('padron_buscar')){showToast('No tenés habilitado el padrón de empresas.');return;}
+// Qué paneles puede ver AHORA: la facultad se revalida en cada llamada, porque el
+// admin puede quitarla en caliente o estar en vista previa de otro perfil.
+function _bdPanes(){
+  var p=[];
+  if(_can('padron_buscar'))p.push({id:'empresas',blk:'at-varios',lbl:'Mis empresas'});
+  if(_can('asesores_guardados'))p.push({id:'asesores',blk:'at-asesores',lbl:'Mis asesores'});
+  return p;
+}
+function openMiPadron(pane){
+  var panes=_bdPanes();
+  if(!panes.length){showToast('No tenés habilitada la base de datos.');return;}
   if(document.getElementById('pad-mine-ov'))return;
-  var blk=document.getElementById('at-varios');if(!blk){showToast('No se encontró el bloque del padrón.');return;}
   _padMineStyle();
-  closePadronPop();
-  _padMineHome={parent:blk.parentNode,next:blk.nextSibling,display:blk.style.display};
+  closePadronPop();closeAsPop();
   var ov=document.createElement('div');ov.id='pad-mine-ov';
-  ov.innerHTML='<div id="pad-mine" role="dialog" aria-label="Mi padrón de empresas">'+
-    '<div class="pm-head"><span>&#128193; Mi padr&oacute;n de empresas</span>'+
+  ov.innerHTML='<div id="pad-mine" role="dialog" aria-label="Base de datos">'+
+    '<div class="pm-head"><span id="bd-tit">&#128451; Base de datos</span>'+
       '<span class="pm-x" onclick="closeMiPadron()" title="Cerrar">&#10005;</span></div>'+
+    '<div class="stabs stabs-in pm-tabs" id="bd-tabs"></div>'+
     '<div class="pm-body"></div></div>';
   document.body.appendChild(ov);
-  ov.querySelector('.pm-body').appendChild(blk);
-  renderPadronAdmin(true);
+  var body=ov.querySelector('.pm-body'),prestado=false;
+  panes.forEach(function(p){
+    var blk=document.getElementById(p.blk);if(!blk)return;
+    _padMineHome.push({id:p.blk,parent:blk.parentNode,next:blk.nextSibling,display:blk.style.display});
+    body.appendChild(blk);prestado=true;
+  });
+  if(!prestado){closeMiPadron(true);showToast('No se encontró el bloque de la base de datos.');return;}
+  var ini=(pane&&panes.some(function(p){return p.id===pane;}))?pane:panes[0].id;
+  _bdShow(ini,true);
   document.addEventListener('keydown',_padMineEsc);
 }
-function _padMineEsc(e){if(e.key==='Escape')closeMiPadron();}
-function closeMiPadron(){
-  // Editor en línea abierto con cambios: closePadronEditor pregunta; si el
-  // usuario se arrepiente (_padEdit sigue vivo) no se cierra nada.
-  if(_padEdit){closePadronEditor();if(_padEdit)return;}
-  var ov=document.getElementById('pad-mine-ov'),blk=document.getElementById('at-varios');
-  if(blk&&_padMineHome&&_padMineHome.parent){
-    _padMineHome.parent.insertBefore(blk,_padMineHome.next&&_padMineHome.next.parentNode===_padMineHome.parent?_padMineHome.next:null);
-    blk.style.display=_padMineHome.display||'none';
+// La barra sólo aparece si hay más de un panel: con uno solo no hay nada que
+// elegir y el título ya dice cuál es (mismo criterio que _facSyncOptBar).
+function _bdRenderTabs(){
+  var bar=document.getElementById('bd-tabs'),tit=document.getElementById('bd-tit'),panes=_bdPanes();
+  if(!bar)return;
+  bar.style.display=(panes.length>1)?'flex':'none';
+  bar.innerHTML=panes.map(function(p){
+    return '<div class="stab bdtab'+(p.id===_bdPane?' active':'')+'" data-tab="bd-'+p.id+'" onclick="_bdShow(\''+p.id+'\')">'+p.lbl+'</div>';
+  }).join('');
+  if(tit)tit.innerHTML='&#128451; Base de datos'+(panes.length===1?(' &middot; '+panes[0].lbl):'');
+}
+function _bdShow(pane,forzar){
+  if(!forzar&&pane===_bdPane)return;
+  if(!forzar&&!_bdLeaveOk(function(){_bdShow(pane,true);}))return;
+  _bdPane=pane;
+  var wanted=(pane==='asesores')?'at-asesores':'at-varios';
+  document.querySelectorAll('#pad-mine .pm-body .bd-pane').forEach(function(el){
+    el.classList.toggle('bd-on',el.id===wanted);
+  });
+  _bdRenderTabs();
+  if(pane==='asesores')renderAsesoresAdmin(false);
+  else renderPadronAdmin(true);
+}
+// Se llama desde _applyFacultades: si cambian las facultades con la pantalla
+// abierta (o el admin entra/sale de la vista previa), la deja consistente.
+function _bdSync(){
+  if(!document.getElementById('pad-mine-ov'))return;
+  var panes=_bdPanes();
+  if(!panes.length){closeMiPadron(true);return;} // se quedó sin permiso: cierre forzado
+  if(!panes.some(function(p){return p.id===_bdPane;}))_bdShow(panes[0].id,true);
+  else _bdRenderTabs();
+}
+// ¿Se puede salir de lo que está abierto? Devuelve false si algo pide esperar o
+// si hay una pregunta en curso (en ese caso sigue por cb cuando el usuario acepta).
+function _bdLeaveOk(cb){
+  if(typeof _pgBusy!=='undefined'&&_pgBusy){showToast('Esperá a que termine de generar los flyers');return false;}
+  // Editor de empresas abierto: se pregunta acá (en vez de delegar en
+  // closePadronEditor) para poder RETOMAR con cb lo que el usuario había pedido
+  // —cambiar de solapa o cerrar— apenas confirma. Si no, tenía que tocar dos veces.
+  if(_padEdit){
+    if(!_padEdit.length){_padEditClose();}
+    else{
+      fgConfirm('¿Salir del editor de empresas?\n\nLos cambios sin guardar se pierden.',
+        {ok:'Salir sin guardar',cancelar:'Seguir editando'},function(si){
+          if(!si)return;
+          _padEditClose();
+          if(cb)cb(); // vuelve a entrar acá: si además hay asesores sin guardar, pregunta por eso
+        });
+      return false;
+    }
   }
-  _padMineHome=null;
+  if(_asDirty){
+    fgConfirm('Tenés cambios sin guardar en tus asesores.\n\nSi salís ahora se pierden.',
+      {ok:'Salir sin guardar',cancelar:'Seguir editando'},function(si){
+        if(!si)return;
+        _asEdit=null;_asDirty=false;
+        if(cb)cb();
+      });
+    return false;
+  }
+  return true;
+}
+function _padMineEsc(e){if(e.key==='Escape')closeMiPadron();}
+function closeMiPadron(force){
+  if(!force&&!_bdLeaveOk(function(){closeMiPadron(true);}))return;
+  if(force){ // cierre por pérdida de facultad: no se puede quedar abierto preguntando
+    if(_padEdit)_padEditClose();
+    _asEdit=null;_asDirty=false;
+  }
+  var ov=document.getElementById('pad-mine-ov');
+  _padMineHome.forEach(function(h){ // cada bloque vuelve a su lugar en el panel admin
+    var blk=document.getElementById(h.id);if(!blk||!h.parent)return;
+    blk.classList.remove('bd-on');
+    h.parent.insertBefore(blk,(h.next&&h.next.parentNode===h.parent)?h.next:null);
+    blk.style.display=h.display||'none';
+  });
+  _padMineHome=[];
   if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
   document.removeEventListener('keydown',_padMineEsc);
-  // el padrón pudo cambiar: el typeahead/lupa y la referencia de la fila cargada
-  // se rearman con la copia nueva
+  // las empresas pudieron cambiar: el typeahead/lupa y la referencia de la fila
+  // cargada se rearman con la copia nueva
   _padRef=null;
-  _mpRefresh(); // el padrón pudo cambiar: cantidad de empresas del segmento
+  _mpRefresh(); // pudo cambiar la cantidad de empresas del segmento
 }
 function openPadronPop(){
   closePadronPop();
   var pop=document.createElement('div');pop.id='pad-pop';pop.className='pad-pop';
   _padMineStyle();
-  pop.innerHTML='<div class="pad-head"><span>Padr&oacute;n de empresas</span>'+
-      '<span class="pad-adm" onclick="openMiPadron()" title="Subir Excel, editar en l&iacute;nea o descargar tu padr&oacute;n">&#9998; Administrar</span>'+
+  pop.innerHTML='<div class="pad-head"><span>Mis empresas</span>'+
+      '<span class="pad-adm" onclick="openMiPadron()" title="Subir Excel, editar en l&iacute;nea o descargar tus empresas">&#9998; Administrar</span>'+
       '<span class="pad-x" onclick="closePadronPop()">&#10005;</span></div>'+
     '<input type="text" id="pad-q" class="pad-q" placeholder="Raz&oacute;n social o CUIT..." autocomplete="off" '+
       'oninput="renderPadronPop()" onkeydown="_padKeyNav(event)">'+
-    '<div class="pad-list" id="pad-list"><div class="pad-empty">Cargando padr&oacute;n...</div></div>';
+    '<div class="pad-list" id="pad-list"><div class="pad-empty">Cargando tus empresas...</div></div>';
   document.body.appendChild(pop);
   var anchor=document.getElementById('fg-pad-btn')||document.getElementById('empresa');
   var r=anchor.getBoundingClientRect(),w=pop.offsetWidth;
@@ -6321,11 +6678,11 @@ function _padMark(){
 }
 function renderPadronPop(){
   var list=document.getElementById('pad-list');if(!list)return;
-  if(!_padron){list.innerHTML='<div class="pad-empty">Cargando padr&oacute;n...</div>';return;}
+  if(!_padron){list.innerHTML='<div class="pad-empty">Cargando tus empresas...</div>';return;}
   if(!_padron.length){
-    list.innerHTML='<div class="pad-empty">Todav&iacute;a no hay padr&oacute;n cargado.<br>'+
-      'Sub&iacute; un Excel o carg&aacute; tus empresas a mano desde <strong>tu nombre &rarr; Mi padr&oacute;n</strong>.<br>'+
-      '<button type="button" class="usr-btn edit" onclick="openMiPadron()">&#8593; Cargar mi padr&oacute;n</button></div>';
+    list.innerHTML='<div class="pad-empty">Todav&iacute;a no cargaste empresas.<br>'+
+      'Sub&iacute; un Excel o carg&aacute;las a mano desde <strong>tu nombre &rarr; Base de datos</strong>.<br>'+
+      '<button type="button" class="usr-btn edit" onclick="openMiPadron()">&#8593; Cargar mis empresas</button></div>';
     _padHits=[];return;
   }
   var q=(document.getElementById('pad-q')||{}).value||'';
@@ -6377,14 +6734,14 @@ function _padApply(r){
   }
   _fgRefreshAddBtn();
   _padRef=r;_padDismissed='';   // desde acá se vigilan los cambios contra el padrón
-  _padShowNote(tiene?'':'Esta empresa no tiene oficiales asignados en el padrón.');
+  _padShowNote(tiene?'':'Esta empresa no tiene oficiales asignados.');
   closePadronPop();_padCloseSug();
   // los asesores acaban de completarse desde el padrón: el cuadro de pegado
   // abierto ya no aporta nada y tapa el formulario
   if(typeof _fgClosePasteAll==='function')_fgClosePasteAll();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
-  showToast('"'+(r.empresa||'Empresa')+'" cargada del padrón — '+_padAsesoresLbl(r));
+  showToast('"'+(r.empresa||'Empresa')+'" cargada de tus empresas — '+_padAsesoresLbl(r));
   if(_ci<0)setTimeout(function(){_padAvisoSinCB(r);},120); // que no pase desapercibido
   else setTimeout(function(){_padCheckRubro(r,'padron');},120);
 }
@@ -6418,14 +6775,14 @@ function _padCheckRubro(r,origen,cont){
     var html,btn;
     if(quiere){
       html='<h3>&#128203; Beneficio por rubro</h3>'+
-        '<p class="pu-sub"><strong>'+emp+'</strong> tiene en el padr&oacute;n el beneficio <strong>'+_escHtml(_padRubroLabel(r))+'</strong>, '+
+        '<p class="pu-sub"><strong>'+emp+'</strong> tiene cargado el beneficio <strong>'+_escHtml(_padRubroLabel(r))+'</strong>, '+
           'y est&aacute;s armando el flyer en <strong>'+aca+'</strong>.</p>'+
         '<p class="pu-sub">Si lo pas&aacute;s a <strong>Flyer Rubros &rarr; '+_escHtml(_optLabel(quiere))+'</strong> se conservan la empresa, los oficiales y los topes.</p>';
       btn='<button class="pu-si" onclick="_padIrRubro('+quiere+')">Ir a '+_escHtml(_optLabel(quiere))+'</button>';
     }else{
       html='<h3>&#128203; Sin beneficio por rubro</h3>'+
-        '<p class="pu-sub"><strong>'+emp+'</strong> no tiene rubro cargado en el padr&oacute;n, y est&aacute;s armando el flyer en <strong>'+aca+'</strong>.</p>'+
-        '<p class="pu-sub">Si es correcto que lleve el cartel del beneficio, segu&iacute; ac&aacute;: al generar el flyer te ofrezco guardar el rubro en el padr&oacute;n.</p>';
+        '<p class="pu-sub"><strong>'+emp+'</strong> no tiene rubro cargado, y est&aacute;s armando el flyer en <strong>'+aca+'</strong>.</p>'+
+        '<p class="pu-sub">Si es correcto que lleve el cartel del beneficio, segu&iacute; ac&aacute;: al generar el flyer te ofrezco guardarle el rubro.</p>';
       btn='<button class="pu-si" onclick="_padIrRubro(0)">Ir a Flyer Galicia</button>';
     }
     _padPending=null;_padRubroCont=(origen==='descarga')?(cont||null):null;
@@ -6463,10 +6820,10 @@ function _padAvisoSinCB(r){
   if(document.getElementById('pad-upd'))return;
   _padPending=null;
   _padModal('<h3>&#9888; Sin cashback</h3>'+
-    '<p class="pu-sub"><strong>'+_escHtml(r.empresa||'Esta empresa')+'</strong> est&aacute; marcada en el padr&oacute;n '+
+    '<p class="pu-sub"><strong>'+_escHtml(r.empresa||'Esta empresa')+'</strong> est&aacute; marcada '+
       'como <strong>sin cashback</strong>: el flyer se genera con los cuatro importes <strong>en blanco</strong>.</p>'+
     '<p class="pu-sub">Si en realidad le corresponde uno, eleg&iacute;lo en <strong>Configuraci&oacute;n de Montos</strong> '+
-      'y listo (no hace falta tocar el padr&oacute;n).</p>'+
+      'y listo (no hace falta tocar nada m&aacute;s).</p>'+
     '<div class="pu-foot"><button class="pu-si" onclick="_padCloseUpdate(0)">Entendido</button></div>');
 }
 // ── PADRÓN: "sin oficiales asignados" + actualizar el padrón al generar ───────
@@ -6676,15 +7033,15 @@ function _padAskNew(){
   if(_padNorm(emp)===_padNewDismissed)return;
   if(document.getElementById('pad-upd'))return;
   _padPending=null;
-  _padModal('<h3>&#10133; Agregar al padr&oacute;n</h3>'+
-    '<p class="pu-sub"><strong>'+_escHtml(emp)+'</strong> no est&aacute; en el padr&oacute;n. '+
+  _padModal('<h3>&#10133; Agregar a mis empresas</h3>'+
+    '<p class="pu-sub"><strong>'+_escHtml(emp)+'</strong> no est&aacute; en tus empresas. '+
       '&iquest;La guardo con esta configuraci&oacute;n para tenerla lista la pr&oacute;xima vez? '+
       'Se agrega como empresa aparte: no pisa ninguna de las que ya ten&eacute;s.</p>'+
     _padResumen(_padFormAsesores())+
     _padCuitField('')+
     '<div class="pu-foot">'+
       '<button class="pu-no" onclick="_padCloseUpdate(1)">Ahora no</button>'+
-      '<button class="pu-si" onclick="_padDoNew()">Guardar en el padr&oacute;n</button>'+
+      '<button class="pu-si" onclick="_padDoNew()">Guardar empresa</button>'+
     '</div>');
   var el=document.getElementById('pad-cuit');if(el)el.focus();
 }
@@ -6701,8 +7058,8 @@ function _padDoNew(){
     _padCloseUpdate(0);
     if(!ok){var i=_padron.indexOf(row);if(i>=0)_padron.splice(i,1);return;} // rollback
     _padRef=row;_padDismissed='';_padNewDismissed='';
-    _padShowNote(_padNumAsesores(row)?'':'Esta empresa no tiene oficiales asignados en el padrón.');
-    showToast('"'+emp+'" agregada al padrón'+(row.cuits.length?(' ('+row.cuits.length+' CUIT)'):''));
+    _padShowNote(_padNumAsesores(row)?'':'Esta empresa no tiene oficiales asignados.');
+    showToast('"'+emp+'" agregada a tus empresas'+(row.cuits.length?(' ('+row.cuits.length+' CUIT)'):''));
   });
 }
 
@@ -6712,17 +7069,17 @@ function _padAskUpdate(){
   if(_padSig(d)===_padDismissed)return;
   if(document.getElementById('pad-upd'))return;
   _padPending=d;
-  _padModal('<h3>&#128260; Actualizar el padr&oacute;n</h3>'+
+  _padModal('<h3>&#128260; Actualizar mis empresas</h3>'+
     '<p class="pu-sub">Generaste el flyer de <strong>'+_escHtml(d.empresa)+'</strong> con datos distintos '+
-      'a los que tiene el padr&oacute;n:</p>'+
+      'a los que ten&eacute;s guardados:</p>'+
     '<ul><li>'+d.cambios.join('</li><li>')+'</li></ul>'+
     _padCuitField((d.row.cuits||[]).map(_padFmtCuit).join(', '))+
     '<p class="pu-sub" style="margin-top:12px">Si lo actualiz&aacute;s, queda guardado para todos y la pr&oacute;xima vez '+
-      'que busques esta empresa ya sale con estos datos. Acord&aacute;te de <strong>bajarte el padr&oacute;n</strong> '+
+      'que busques esta empresa ya sale con estos datos. Acord&aacute;te de <strong>bajarte el Excel</strong> '+
       'si quer&eacute;s tener el Excel de tu computadora al d&iacute;a.</p>'+
     '<div class="pu-foot">'+
       '<button class="pu-no" onclick="_padCloseUpdate(1)">No, dejarlo como est&aacute;</button>'+
-      '<button class="pu-si" onclick="_padDoUpdate()">Actualizar padr&oacute;n</button>'+
+      '<button class="pu-si" onclick="_padDoUpdate()">Actualizar empresa</button>'+
     '</div>');
 }
 function _padDoUpdate(){
@@ -6739,8 +7096,8 @@ function _padDoUpdate(){
     _padCloseUpdate(0);
     if(!ok)return;
     _padDismissed='';
-    _padShowNote(_padNumAsesores(d.row)?'':'Esta empresa no tiene oficiales asignados en el padrón.');
-    showToast('Padrón actualizado: '+d.empresa);
+    _padShowNote(_padNumAsesores(d.row)?'':'Esta empresa no tiene oficiales asignados.');
+    showToast('Empresa actualizada: '+d.empresa);
   });
 }
 function _padCloseUpdate(dismiss){
@@ -6978,7 +7335,7 @@ function _padAskImport(rep){
     '<p class="pu-sub">Le&iacute; <strong>'+rep.rows.length+' empresa'+(rep.rows.length===1?'':'s')+'</strong>'+
       (graves?', pero hay cosas que conviene corregir antes de guardar:':', con estas observaciones:')+'</p>'+
     '<ul><li>'+rep.problemas.map(function(p){return p.txt;}).join('</li><li>')+'</li></ul>'+
-    '<p class="pu-sub">Si cancel&aacute;s, el padr&oacute;n queda como estaba y pod&eacute;s corregir el Excel y volver a subirlo.</p>'+
+    '<p class="pu-sub">Si cancel&aacute;s, tus empresas quedan como estaban y pod&eacute;s corregir el Excel y volver a subirlo.</p>'+
     '<div class="pu-foot">'+
       '<button class="pu-no" onclick="_padImportCancel()">Cancelar</button>'+
       '<button class="pu-si" onclick="_padImportGo()">Guardar igual ('+rep.rows.length+')</button>'+
@@ -6986,7 +7343,7 @@ function _padAskImport(rep){
 }
 function _padImportCancel(){
   _padImportPend=null;_padCloseUpdate(0);
-  showToast('Carga cancelada: el padrón quedó como estaba');
+  showToast('Carga cancelada: tus empresas quedaron como estaban');
   renderPadronAdmin();
 }
 function _padImportGo(){
@@ -6995,7 +7352,7 @@ function _padImportGo(){
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   savePadron(rep.rows,function(ok){
     _padImportPend=null;_padCloseUpdate(0);
-    if(ok)showToast('Padrón actualizado: '+rep.rows.length+' empresas');
+    if(ok)showToast('Empresas actualizadas: '+rep.rows.length);
     renderPadronAdmin();
   });
 }
@@ -7032,7 +7389,7 @@ function _fgNoCBBadge(on){
     box.insertAdjacentHTML('beforebegin','<div id="fg-nocb"></div>');
     el=document.getElementById('fg-nocb');if(!el)return;
   }
-  el.innerHTML=on?('&#9888; <strong>Sin cashback</strong> &mdash; en el padr&oacute;n esta empresa no tiene un '+
+  el.innerHTML=on?('&#9888; <strong>Sin cashback</strong> &mdash; en tu base esta empresa no tiene un '+
     'cashback v&aacute;lido, as&iacute; que el flyer sale con los importes en blanco. '+
     'Si en realidad le corresponde uno, eleg&iacute;lo ac&aacute; arriba.'):'';
   el.style.display=on?'block':'none';
@@ -7565,10 +7922,10 @@ function _tourCapitulos(){
   return [
     {id:'flyer',titulo:'Armar un flyer',pasos:[
       {target:'#empresa',titulo:'Empez&aacute; por la empresa',
-       texto:'Escrib&iacute; la raz&oacute;n social: el flyer de la derecha se actualiza al instante y el <strong>nombre del archivo</strong> se arma solo con ese nombre.'+(puedePad?' Si la empresa ya est&aacute; en tu padr&oacute;n, mientras tipe&aacute;s te la sugiere.':''),
+       texto:'Escrib&iacute; la raz&oacute;n social: el flyer de la derecha se actualiza al instante y el <strong>nombre del archivo</strong> se arma solo con ese nombre.'+(puedePad?' Si la empresa ya est&aacute; en tu base, mientras tipe&aacute;s te la sugiere.':''),
        antes:irIndividual},
-      {target:'#fg-pad-btn',cond:puedePad,titulo:'La lupa: tu padr&oacute;n de empresas',
-       texto:'Busc&aacute; por <strong>raz&oacute;n social o CUIT</strong> y se completa todo de una: empresa, cashback y hasta 4 oficiales. Desde "Administrar" (o tu nombre &rarr; <strong>Mi padr&oacute;n</strong>) sub&iacute;s un Excel o lo edit&aacute;s a mano.',
+      {target:'#fg-pad-btn',cond:puedePad,titulo:'La lupa: tus empresas',
+       texto:'Busc&aacute; por <strong>raz&oacute;n social o CUIT</strong> y se completa todo de una: empresa, cashback y hasta 4 oficiales. Desde "Administrar" (o tu nombre &rarr; <strong>Base de datos</strong>) sub&iacute;s un Excel o las edit&aacute;s a mano.',
        antes:irIndividual},
       {target:function(){var b=_fgBlock(1);return b&&b.sec;},titulo:'Datos del oficial',
        texto:'Nombre, celular y mail del asesor que va al pie del flyer. Al escribir el nombre, el <strong>mail se sugiere solo</strong> (nombre.apellido@bancogalicia.com.ar); si es distinto, corregilo.'+(puedeAs?' <strong>Tocando este t&iacute;tulo</strong> eleg&iacute;s un asesor guardado y lo carg&aacute;s con un click.':''),
@@ -7597,7 +7954,7 @@ function _tourCapitulos(){
     ]},
     {id:'masivo',titulo:'Masivo',pasos:[
       {target:'.template-btn',titulo:'Muchas empresas de una vez',
-       texto:'Baj&aacute; la <strong>plantilla Excel</strong>: una fila por empresa (raz&oacute;n social, cashback y hasta 4 asesores). Es el mismo formato que el padr&oacute;n.',
+       texto:'Baj&aacute; la <strong>plantilla Excel</strong>: una fila por empresa (raz&oacute;n social, cashback y hasta 4 asesores). Es el mismo formato que us&aacute;s en <strong>Base de datos</strong>.',
        antes:irMasivo},
       {target:'#excel-drop',titulo:'Sub&iacute; el Excel y gener&aacute;',
        texto:'Arrastralo ac&aacute; o hac&eacute; click para elegirlo. Te muestra una vista previa y avisa si alguna fila tiene un problema (empresa vac&iacute;a, cashback que no reconoce). Despu&eacute;s, el bot&oacute;n <strong>&#9889; Generar ZIP</strong> arma <strong>un PDF por empresa</strong> y los baja todos juntos.',
@@ -7609,8 +7966,8 @@ function _tourCapitulos(){
        antes:irHistorial}
     ]},
     {id:'menu',titulo:'Tu men&uacute;',pasos:[
-      {target:'#hdr-dd-padron',cond:puedePad,titulo:'Mi padr&oacute;n',
-       texto:'Sub&iacute; un Excel con tus empresas (carga masiva), editalas en l&iacute;nea, descarg&aacute; el padr&oacute;n o la plantilla vac&iacute;a. Es <strong>privado</strong>: nadie m&aacute;s puede editarlo.',
+      {target:'#hdr-dd-padron',cond:(puedePad||puedeAs),titulo:'Base de datos',
+       texto:'Ac&aacute; viven <strong>tus empresas</strong> (sub&iacute; un Excel o editalas en l&iacute;nea, para que la lupa las encuentre) y <strong>tus asesores</strong> guardados (correg&iacute; un celular o un mail sin borrar y volver a cargar). Es <strong>privado</strong>: nadie m&aacute;s lo ve ni lo edita.',
        antes:_tourAbrirMenu},
       {target:'#hdr-dd-notes',cond:puedeNotas,titulo:'Bloc de notas',
        texto:'Anotaciones r&aacute;pidas que quedan guardadas en este navegador, por si necesit&aacute;s tener algo a mano mientras arm&aacute;s flyers.',

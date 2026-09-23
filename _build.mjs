@@ -157,9 +157,11 @@ html = html.replace(
         '<button type="button" data-p="t-cielo" onclick="setPalette(\'t-cielo\')"><i style="background:#2F6FED"></i>Cielo</button>' +
       '</div>' +
       '<button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none">' + ICO_DOC + '<span>Bloc de notas</span></button>' +
-      // Mi padrón: subir Excel / editar en línea / descargar el padrón propio.
-      // Lo muestra _applyFacultades a quien tenga la facultad padron_buscar.
-      '<button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none">' + ICO_DB + '<span>Mi padr&oacute;n</span></button>' +
+      // Base de datos: pantalla propia con dos solapas — "Mis empresas" (subir
+      // Excel, editar en línea, generar flyers) y "Mis asesores" (ver y corregir
+      // los guardados). _applyFacultades la muestra a quien tenga AL MENOS UNA de
+      // las facultades padron_buscar / asesores_guardados.
+      '<button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none">' + ICO_DB + '<span>Base de datos</span></button>' +
       // Tutorial guiado (para todos). El menú se cierra desde el propio tour.
       '<button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()">' + ICO_HELP + '<span>Ver tutorial</span></button>' +
       '<div class="hdr-dd-sep"></div>' +
@@ -260,9 +262,10 @@ const adminPanel = `<div id="admin-panel">
     <div class="stab" data-tab="facultades" onclick="switchAdminTab(this,'facultades')">Facultades</div>
   </div>
   <div class="stabs" id="sg-data" style="display:none">
-    <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Mi padr&oacute;n</div>
-    <div class="stab" data-tab="padronotros" onclick="switchAdminTab(this,'padronotros')">Padr&oacute;n Asesores</div>
-    <div class="stab" data-tab="padronlog" onclick="switchAdminTab(this,'padronlog')">Cambios del padr&oacute;n</div>
+    <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Mis empresas</div>
+    <div class="stab" data-tab="asesores" onclick="switchAdminTab(this,'asesores')">Mis asesores</div>
+    <div class="stab" data-tab="padronotros" onclick="switchAdminTab(this,'padronotros')">Empresas por usuario</div>
+    <div class="stab" data-tab="padronlog" onclick="switchAdminTab(this,'padronlog')">Cambios en las empresas</div>
   </div>
   <div class="stabs" id="sg-config" style="display:none">
     <div class="stab" data-tab="subir" onclick="switchAdminTab(this,'subir')">Flyer</div>
@@ -403,7 +406,7 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-cashback" style="display:none">
       <p class="ap-sec">Montos de cashback</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada tarjeta es una <strong>configuraci&oacute;n de cashback</strong> con sus 4 montos. Pod&eacute;s <strong>agregar</strong> configs nuevas (Config 5, 6&hellip;) o <strong>quitar</strong> las que ya no se usen, y <strong>doble click en el t&iacute;tulo</strong> para cambiarle el nombre. Al guardar, el cambio <strong>impacta para todos los usuarios</strong> la pr&oacute;xima vez que entren o generen un flyer: los botones del armador, el masivo y el padr&oacute;n se adaptan solos. BAU es la de fallback y siempre queda.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada tarjeta es una <strong>configuraci&oacute;n de cashback</strong> con sus 4 montos. Pod&eacute;s <strong>agregar</strong> configs nuevas (Config 5, 6&hellip;) o <strong>quitar</strong> las que ya no se usen, y <strong>doble click en el t&iacute;tulo</strong> para cambiarle el nombre. Al guardar, el cambio <strong>impacta para todos los usuarios</strong> la pr&oacute;xima vez que entren o generen un flyer: los botones del armador, el masivo y las empresas guardadas se adaptan solos. BAU es la de fallback y siempre queda.</p>
       <div id="cashback-list"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="usr-btn edit" onclick="_cbAgregar()">+ Agregar config</button>
@@ -412,13 +415,13 @@ const adminPanel = `<div id="admin-panel">
       </div>
     </div>
 
-    <div id="at-varios" style="display:none">
-      <p class="ap-sec">Mi padr&oacute;n de empresas</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5"><strong>Este padr&oacute;n es tuyo.</strong> Nadie m&aacute;s puede editarlo: lo impide el servidor, no el navegador. Cada usuario con la facultad de padr&oacute;n tiene el suyo, separado del tuyo. Un administrador puede consultar (nunca modificar) el padr&oacute;n de los asesores; el de un administrador no lo ve ni siquiera el otro administrador.<br><br>Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>El padr&oacute;n <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.<br><br><strong>Cashback:</strong> la columna se llama <code>config</code> y acepta el nombre de cualquier configuraci&oacute;n que exista en Config &rarr; Cashback (<code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>&hellip;; tambi&eacute;n vale escribir s&oacute;lo el n&uacute;mero). Si la celda queda <strong>vac&iacute;a</strong> (o dice algo que no reconozco), esa empresa sale <strong>sin cashback</strong>: el flyer se genera con los importes en blanco. As&iacute; se marcan las pocas empresas a las que no les corresponde. Al subir el Excel te muestro un informe con todo lo que detect&eacute;, antes de guardar nada.<br><br><strong>Beneficio por rubro (Flyer Rubros):</strong> columnas <code>rubro</code> (el nombre de una opci&oacute;n de Flyer Rubros: <code>Combustible</code>, <code>Supermercado</code>, <code>Ambos</code>&hellip; vac&iacute;a = sin rubro), <code>tope</code> (el tope de reintegro, ej. <code>24.000</code>) y <code>tope2</code> (s&oacute;lo para &laquo;Ambos&raquo;, si el tope de combustible difiere del de supermercado). Al elegir la empresa con la lupa se completan los topes, y si est&aacute;s armando el flyer en la solapa equivocada te aviso y te ofrezco cambiar. Al generar un flyer de Rubros para una empresa del padr&oacute;n, te propongo guardarle el rubro.<br><br><strong>Generar flyers:</strong> desde el bot&oacute;n &laquo;Generar flyers&raquo; eleg&iacute;s empresas del padr&oacute;n (o todas) y baj&aacute;s un ZIP con el flyer de cada una en <strong>su formato</strong>: el armador com&uacute;n, o Flyer Rubros seg&uacute;n el rubro cargado, con sus oficiales, cashback y topes. El ZIP viene ordenado en una carpeta por formato, con un <code>Resumen.txt</code>, y al terminar te muestro cu&aacute;ntos salieron de cada uno y qu&eacute; observaciones hubo.</p>
+    <div id="at-varios" class="bd-pane" style="display:none">
+      <p class="ap-sec">Mis empresas</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5"><strong>Esta lista es tuya.</strong> Nadie m&aacute;s puede editarla: lo impide el servidor, no el navegador. Cada usuario con la facultad tiene la suya, separada de la tuya. Un administrador puede consultar (nunca modificar) las empresas de los asesores; las de un administrador no las ve ni siquiera el otro administrador.<br><br>Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>Tu lista <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo o edit&aacute;s a mano, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.<br><br><strong>Cashback:</strong> la columna se llama <code>config</code> y acepta el nombre de cualquier configuraci&oacute;n que exista en Config &rarr; Cashback (<code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>&hellip;; tambi&eacute;n vale escribir s&oacute;lo el n&uacute;mero). Si la celda queda <strong>vac&iacute;a</strong> (o dice algo que no reconozco), esa empresa sale <strong>sin cashback</strong>: el flyer se genera con los importes en blanco. As&iacute; se marcan las pocas empresas a las que no les corresponde. Al subir el Excel te muestro un informe con todo lo que detect&eacute;, antes de guardar nada.<br><br><strong>Beneficio por rubro (Flyer Rubros):</strong> columnas <code>rubro</code> (el nombre de una opci&oacute;n de Flyer Rubros: <code>Combustible</code>, <code>Supermercado</code>, <code>Ambos</code>&hellip; vac&iacute;a = sin rubro), <code>tope</code> (el tope de reintegro, ej. <code>24.000</code>) y <code>tope2</code> (s&oacute;lo para &laquo;Ambos&raquo;, si el tope de combustible difiere del de supermercado). Al elegir la empresa con la lupa se completan los topes, y si est&aacute;s armando el flyer en la solapa equivocada te aviso y te ofrezco cambiar. Al generar un flyer de Rubros para una empresa de tu lista, te propongo guardarle el rubro.<br><br><strong>Generar flyers:</strong> desde el bot&oacute;n &laquo;Generar flyers&raquo; eleg&iacute;s empresas de tu lista (o todas) y baj&aacute;s un ZIP con el flyer de cada una en <strong>su formato</strong>: el armador com&uacute;n, o Flyer Rubros seg&uacute;n el rubro cargado, con sus oficiales, cashback y topes. El ZIP viene ordenado en una carpeta por formato, con un <code>Resumen.txt</code>, y al terminar te muestro cu&aacute;ntos salieron de cada uno y qu&eacute; observaciones hubo.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn-submit" onclick="document.getElementById('padron-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
         <button class="usr-btn edit" id="padron-edit-btn" onclick="togglePadronEditor()">&#9998; Editar en l&iacute;nea</button>
-        <button class="usr-btn edit" onclick="dlPadron()">&#11015; Descargar padr&oacute;n</button>
+        <button class="usr-btn edit" onclick="dlPadron()">&#11015; Descargar Excel</button>
         <button class="usr-btn edit" onclick="dlPadronTemplate()">&#11015; Plantilla vac&iacute;a</button>
         <button class="usr-btn edit" id="padron-gen-btn" onclick="_pgToggle()">&#9889; Generar flyers</button>
         <button class="usr-btn edit" onclick="renderPadronAdmin(true)">Recargar</button>
@@ -433,9 +436,29 @@ const adminPanel = `<div id="admin-panel">
       <div id="padron-gen" style="display:none"></div>
     </div>
 
+    <div id="at-asesores" class="bd-pane" style="display:none">
+      <p class="ap-sec">Mis asesores</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Ac&aacute; est&aacute;n los asesores que guard&aacute;s para cargarlos de un click desde los t&iacute;tulos <strong>"Asesor 1"</strong> a <strong>"Asesor 4"</strong> del armador. Pod&eacute;s <strong>corregirlos</strong> (antes hab&iacute;a que borrarlos y volver a cargarlos), agregar, eliminar, subirlos desde un Excel o bajarte la lista.<br><br>El <strong>nombre visible</strong> es el r&oacute;tulo con el que los ves en la lista (por ejemplo <em>"Juan &mdash; Sucursal Centro"</em>); el <strong>nombre real</strong> es el que sale impreso en el flyer. Si dej&aacute;s el visible vac&iacute;o, se usa el real.<br><br>Esta lista <strong>viaja con tu cuenta</strong>: la ves igual desde cualquier computadora, y nadie m&aacute;s puede verla ni editarla.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn-submit" onclick="document.getElementById('asesores-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
+        <button class="usr-btn edit" onclick="_asEditAddRow()">&#43; Agregar asesor</button>
+        <button class="usr-btn edit" onclick="dlAsesores()">&#11015; Descargar Excel</button>
+        <button class="usr-btn edit" onclick="dlAsesoresTemplate()">&#11015; Plantilla vac&iacute;a</button>
+        <button class="usr-btn edit" onclick="renderAsesoresAdmin(true)">Recargar</button>
+        <input type="file" id="asesores-xls" accept=".xlsx,.xls" style="display:none" onchange="importAsesores(this)">
+      </div>
+      <p style="font-size:.76rem;color:var(--gray);margin-bottom:12px" id="asesores-stat"></p>
+      <input type="text" id="asesores-q" class="login-inp" placeholder="Filtrar: nombre, celular o mail..." autocomplete="off" oninput="_asEditFilter(this.value)" style="margin-bottom:10px">
+      <div id="asesores-list"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button type="button" class="btn-submit" id="asesores-save" onclick="_asEditSave()" style="padding:8px 16px">Guardar cambios</button>
+        <button type="button" class="usr-btn del" onclick="_asEditDiscard(true)">Descartar cambios</button>
+      </div>
+    </div>
+
     <div id="at-padronotros" style="display:none">
-      <p class="ap-sec">Padr&oacute;n de otros usuarios</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada usuario tiene su <strong>padr&oacute;n privado</strong>: nadie puede ver ni editar el de otro. Desde ac&aacute; pod&eacute;s <strong>consultar y descargar</strong> el de los asesores, VIP y Pro, pero <strong>no modificarlo</strong>.<br><br>El padr&oacute;n de un administrador es privado incluso para los dem&aacute;s administradores, as&iacute; que no aparece en esta lista.</p>
+      <p class="ap-sec">Empresas de otros usuarios</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Cada usuario tiene su <strong>lista privada de empresas</strong>: nadie puede ver ni editar la de otro. Desde ac&aacute; pod&eacute;s <strong>consultar y descargar</strong> la de los asesores, VIP y Pro, pero <strong>no modificarla</strong>.<br><br>Las empresas de un administrador son privadas incluso para los dem&aacute;s administradores, as&iacute; que no aparece en esta lista.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
         <select id="po-user" class="login-inp" style="margin-bottom:0;max-width:320px" onchange="renderPadronOtros()">
           <option value="">Eleg&iacute; un usuario...</option>
@@ -450,10 +473,10 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-padronlog" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <p class="ap-sec" style="margin:0">Cambios del padr&oacute;n</p>
+        <p class="ap-sec" style="margin:0">Cambios en las empresas</p>
         <button class="usr-btn ok" id="btn-export-plog" onclick="exportPadronLog()" style="font-size:.72rem;padding:5px 12px">&#11015; Exportar Excel</button>
       </div>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada vez que alguien guarda su padr&oacute;n (subiendo un Excel, con el editor en l&iacute;nea o desde el armador), queda constancia de <strong>qu&eacute; empresas se agregaron, cu&aacute;les se modificaron</strong> (y qu&eacute; cambi&oacute;: CUIT, cashback u oficiales) <strong>y cu&aacute;les se borraron</strong>, con fecha, hora y qui&eacute;n lo hizo. Un cambio de raz&oacute;n social aparece como una baja m&aacute;s un alta. Ves tus propios cambios y los de asesores, VIP y Pro; los de otro administrador no.</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada vez que alguien guarda sus empresas (subiendo un Excel, con el editor en l&iacute;nea o desde el armador), queda constancia de <strong>qu&eacute; empresas se agregaron, cu&aacute;les se modificaron</strong> (y qu&eacute; cambi&oacute;: CUIT, cashback u oficiales) <strong>y cu&aacute;les se borraron</strong>, con fecha, hora y qui&eacute;n lo hizo. Un cambio de raz&oacute;n social aparece como una baja m&aacute;s un alta. Ves tus propios cambios y los de asesores, VIP y Pro; los de otro administrador no.</p>
       <div class="reg-filter">
         <div class="reg-filter-group">
           <label>Usuario</label>
@@ -707,7 +730,7 @@ const checks = {
   'cache-busting auth.js': html.includes('auth.js?v=') && !html.includes('<script src="auth.js"></script>'),
   // ── Seguridad del front (SRI + CSP) ──
   'SRI: todos los scripts CDN con integrity': _cdnTags.length >= 1 && _cdnTags.every(t => /integrity="sha384-[A-Za-z0-9+/=]+"/.test(t) && t.includes('crossorigin="anonymous"')) && _scriptsSinSri.length === 0,
-  'libs de exportacion bajo demanda (fuera del head, con SRI en la meta)': Object.values(LAZY_LIBS).every(u => !html.includes(`<script src="${u}"`)) && html.includes(`<meta name="fg-libs" content='`) && Object.values(_lazyMeta).every(l => /^sha384-/.test(l.integrity)) && _authSrc.includes("meta[name=fg-libs]") && _authSrc.includes('function _libWrap(') && ['savePDF', 'genAll', 'dlTemplate', 'loadExcel', 'importAsesores', 'importPadron', 'exportRegistros', 'exportPadronLog', 'exportFlyerLogsExcel', 'descargarExcelPromos', '_padXlsx', '_pgGenerarRows'].every(f => _authSrc.includes(`_libWrap('${f}'`)),
+  'libs de exportacion bajo demanda (fuera del head, con SRI en la meta)': Object.values(LAZY_LIBS).every(u => !html.includes(`<script src="${u}"`)) && html.includes(`<meta name="fg-libs" content='`) && Object.values(_lazyMeta).every(l => /^sha384-/.test(l.integrity)) && _authSrc.includes("meta[name=fg-libs]") && _authSrc.includes('function _libWrap(') && ['savePDF', 'genAll', 'dlTemplate', 'loadExcel', 'importAsesores', 'importPadron', 'exportRegistros', 'exportPadronLog', 'exportFlyerLogsExcel', 'descargarExcelPromos', '_padXlsx', '_asXlsx', '_pgGenerarRows'].every(f => _authSrc.includes(`_libWrap('${f}'`)),
   'SRI: pdf.js dinamico con integrity': _authSrc.includes("s.integrity='sha384-") && _authSrc.includes('fetch(wsrc,{integrity:wsri'),
   'CSP: en index.html, no en export': html.includes(CSP_META) && html.indexOf(CSP_META) < html.indexOf('<script src=') && !exportHtml.includes('Content-Security-Policy'),
   'export: auth.js inlineado': !exportHtml.includes('auth.js?v=') && !_authSrc.includes('</script>'),
@@ -727,6 +750,9 @@ const checks = {
   'promos: espera de catalogo en vuelo': _authSrc.includes('var _promosCatWaiters=') && _authSrc.includes('function _promosPedirDetalle(') && _authSrc.includes("typeof ExcelJS==='undefined'"),
   'registro: solo dominio del banco': _authSrc.includes('@bancogalicia\\.com\\.ar$/i.test(email)') && html.includes('placeholder="M&iacute;nimo 8 caracteres"'),
   'asesores guardados: slot 3/4': _authSrc.includes("var n=_gv('nombre'+sfx),c=_gv('celular'+sfx),m=_gv('email'+sfx);"),
+  // Los asesores guardados viven en la tabla asesores_guardados (migracion 010):
+  // viajan con la cuenta. El localStorage quedo solo como cache/respaldo.
+  'asesores guardados: en la nube': _authSrc.includes("_sb.from('asesores_guardados')") && _authSrc.includes("_sb.rpc('asesores_replace'") && _authSrc.includes('function _asSyncKey('),
   'layout hidden': html.includes('id="layout" style="display:none"'),
   'version: meta build-v + chequeo en auth.js': html.includes('<meta name="build-v" content="'+BUILD_V+'">') && _authSrc.includes("fetch('version.json?t=") && _authSrc.includes("meta[name=build-v]"),
   'login-ov': html.includes('id="login-ov"'),
@@ -779,14 +805,27 @@ const checks = {
   // Padron PRIVADO por usuario: vive en la tabla padron_empresas con RLS, ya no
   // en el JSON publico del bucket (que se leia sin login).
   'padron: privado por usuario (tabla, no archivo)': _authSrc.includes("var _PADRON_TABLE='padron_empresas'") && _authSrc.includes(".eq('user_id',_me.id)") && _authSrc.includes("_sb.rpc('padron_replace'") && !_authSrc.includes("_PADRON_FILE"),
-  'padron: solapa Padron Asesores (solo lectura)': html.includes('id="at-padronotros"') && html.includes('id="po-user"') && _authSrc.includes('function loadPadronDe(') && _authSrc.includes('function dlPadronDe(') && _authSrc.includes(".neq('role','admin')"),
+  'base de datos: empresas por usuario (solo lectura)': html.includes('id="at-padronotros"') && html.includes('id="po-user"') && _authSrc.includes('function loadPadronDe(') && _authSrc.includes('function dlPadronDe(') && _authSrc.includes(".neq('role','admin')"),
   'padron: motor': _authSrc.includes('function padronSearch(') && _authSrc.includes('_PADRON_TABLE') && _authSrc.includes('function _padCuits('),
   'padron: excel': _authSrc.includes('function importPadron(') && _authSrc.includes('function dlPadron(') && _authSrc.includes('function dlPadronTemplate('),
   'padron: lupita solo admin': _authSrc.includes('_fgEnsurePadronBtn();') && _authSrc.includes('function applyPadronRow('),
-  // Quien tiene la lupa administra su propio padrón desde el menú del nombre
-  // (antes el bloque sólo era alcanzable desde el panel Admin).
-  'padron: "Mi padron" para no-admins': html.includes('id="hdr-dd-padron"') && _authSrc.includes('function openMiPadron(') && _authSrc.includes('function closeMiPadron(') && _authSrc.includes("document.getElementById('hdr-dd-padron');if(dpad)dpad.style.display=_can('padron_buscar')") && _authSrc.includes('onclick="openMiPadron()"') && !_authSrc.includes('Panel Administrador &rarr; Varios'),
-  'padron: solapa Varios': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
+  // "Base de datos" en el menú del nombre: la pantalla propia sin pasar por el
+  // panel Admin. Se ve con CUALQUIERA de las dos facultades (empresas o asesores).
+  'base de datos: pantalla propia (menu del nombre)': html.includes('id="hdr-dd-padron"') && html.includes('Base de datos') && _authSrc.includes('function openMiPadron(') && _authSrc.includes('function closeMiPadron(') && _authSrc.includes("if(dpad)dpad.style.display=(_can('padron_buscar')||_can('asesores_guardados'))?'flex':'none';") && _authSrc.includes('onclick="openMiPadron()"') && !_authSrc.includes('Panel Administrador &rarr; Varios'),
+  'base de datos: solapa Mis empresas': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
+  // Mis asesores: ver, corregir, agregar, borrar, importar y bajar Excel. Antes
+  // sólo existía el popover del armador (nombres, sin poder corregir nada).
+  'base de datos: solapa Mis asesores (ver/editar/Excel)': html.includes('id="at-asesores"') && html.includes('data-tab="asesores"') && html.includes('id="asesores-xls"') && html.includes('id="asesores-list"') && _authSrc.includes('function renderAsesoresAdmin(') && _authSrc.includes('function _asEditSave(') && _authSrc.includes('function dlAsesores(') && _authSrc.includes('function dlAsesoresTemplate(') && _authSrc.includes("if(t==='asesores')renderAsesoresAdmin(true);") && _authSrc.includes("_libWrap('_asXlsx'"),
+  // Las dos solapas internas del overlay: la barra la dibuja JS (en el panel
+  // admin esos bloques ya son sub-solapas) y aparece sólo si hay más de una.
+  'base de datos: dos solapas internas segun facultad': (html.match(/class="bd-pane"/g)||[]).length === 2 && _authSrc.includes('function _bdPanes(') && _authSrc.includes('function _bdShow(') && _authSrc.includes('function _bdSync(') && _authSrc.includes('function _bdLeaveOk(') && _authSrc.includes('.stab:not(.ltab):not(.bdtab)') && _authSrc.includes('#pad-mine .pm-body .bd-pane.bd-on'),
+  // Guardarraíl del renombrado: nada de "padrón" a la vista. Los comentarios del
+  // código sí lo dicen (explican por qué las tablas se llaman padron_*).
+  // Sólo las formas CON tilde (texto visible): los ids internos (padron-xls,
+  // at-padronotros, hdr-dd-padron) van sin tilde y no se renombran.
+  // En auth.js se miran sólo los STRINGS: la entidad &oacute; nunca aparece en un
+  // comentario, y los avisos se detectan por su llamada (showToast/fgConfirm).
+  'textos: la palabra padron no aparece en pantalla': !/padr(&oacute;|ó)n/i.test(html) && !/Padron_|'Padron'|Flyers_Padron/.test(html) && !/padr&oacute;n/i.test(_authSrc) && !/(showToast|fgConfirm)\([^)]*padrón/i.test(_authSrc),
   'premium: capa visual (marino + naranja, Figtree, tarjetas, login partido)': newCSS.includes('PREMIUM (2026-09-17)') && html.includes('class="login-shell"') && html.includes('class="login-hero"') && html.includes('family=Figtree') && _authSrc.includes('function _fgCardify(') && _authSrc.includes('_fgCardify();') && _authSrc.includes('function setPalette(') && newCSS.includes('html.t-marino{') && newCSS.includes('html.t-cielo{') && html.includes('id="hdr-dd-pal"') && html.includes("fg_palette") && html.includes('<svg class="ico"') && !html.includes('&#128269; Vista previa'),
   'padron: generar flyers (ZIP por formato + resumen)': html.includes('id="padron-gen"') && html.includes('onclick="_pgToggle()"') && _authSrc.includes('function _pgGenerar(') && _authSrc.includes('function _pgResumenModal(') && _authSrc.includes("zip.file('Resumen.txt',_pgResumenTxt(res));") && _authSrc.includes("logFlyerBulkToSupabase(res.total,'padron')") && _authSrc.includes('function _fgRowBenef(') && _authSrc.includes('function _fgMasivoHint('),
   'padron: editor en linea': html.includes('id="padron-edit-btn"') && html.includes('id="padron-editor"') && _authSrc.includes('function openPadronEditor(') && _authSrc.includes('function _padEditSave('),
@@ -827,8 +866,8 @@ const checks = {
   // El admin se puede destildar cosas a sí mismo (columna "Vos", guardada por
   // cuenta en profiles.facultades): ya no hay bypass fijo en _can.
   'facultades: columna Vos del admin (profiles.facultades)': _authSrc.includes('function _facMe(') && _authSrc.includes('if(_admin)return _facMe(f);') && _authSrc.includes("update({facultades:me})") && _authSrc.includes('function _facFieldMe(') && _authSrc.includes(',facultades\').eq(\'id\',user.id)') && !_authSrc.includes('checked disabled title="El administrador siempre tiene todas') && !html.includes('por eso su columna no se puede editar'),
-  // Data → Cambios del padrón: lo escribe padron_replace (servidor, migración 007).
-  'padron: log de cambios (solapa Data)': html.includes('id="at-padronlog"') && html.includes('data-tab="padronlog"') && html.includes('id="plog-list"') && _authSrc.includes('function loadPadronLog(') && _authSrc.includes('function exportPadronLog(') && _authSrc.includes("'padronlog'") && _authSrc.includes("if(t==='padronlog')loadPadronLog();") && _authSrc.includes("_sb.from('padron_log')"),
+  // Data → Cambios en las empresas: lo escribe padron_replace (servidor, migración 007).
+  'base de datos: cambios en las empresas (solapa Data)': html.includes('id="at-padronlog"') && html.includes('data-tab="padronlog"') && html.includes('id="plog-list"') && _authSrc.includes('function loadPadronLog(') && _authSrc.includes('function exportPadronLog(') && _authSrc.includes("'padronlog'") && _authSrc.includes("if(t==='padronlog')loadPadronLog();") && _authSrc.includes("_sb.from('padron_log')"),
   'facultades: gating bidireccional (quitar tambien saca)': _authSrc.includes('function _facShowPaste(') && _authSrc.includes('function _facShowAsesores(') && _authSrc.includes('function _facSyncOptBar('),
   'facultades: gating aplicado tras cargar la matriz': _authSrc.includes('loadFacultades(false,_applyFacultades);') && !_authSrc.includes('if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();}'),
   'rol Pro': html.includes('<option value="pro">Pro</option>') && _authSrc.includes("pro:'Pro'"),
