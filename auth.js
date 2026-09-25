@@ -3967,41 +3967,62 @@ function _fgSetAsesorOn(n,on){
   else if(n===4)toggleA4();
 }
 // Muestra/oculta el bloque entero (título + fila del switch + campos).
-// La fila del switch queda siempre oculta EN LOS CUATRO: el alta la maneja el
-// botón "+ Agregar asesor" y la baja el "✕ Quitar", incluido el Asesor 1 (antes
-// el 1 era el único con switch a la vista y sin Quitar: dos formas distintas de
-// hacer lo mismo en la misma tarjeta).
+// El Asesor 1 conserva su barrita (el switch a la vista) y NO se puede quitar:
+// en su título va "✕ Borrar", que vacía los campos. En los bloques 2-4 la fila
+// del switch queda oculta —el alta la maneja "+ Agregar asesor" y la baja
+// "✕ Quitar"— y los dos botones se ven igual, en la esquina del título.
 function _fgShowBlock(n,show){
   var b=_fgBlock(n);if(!b)return;
   b.sec.style.display=show?'':'none';
   b.fields.style.display=show?'':'none';
-  b.row.style.display='none';
+  if(n>1)b.row.style.display='none';
   if(show&&!b.sec.dataset.fgDel){
     b.sec.dataset.fgDel='1';
-    b.sec.insertAdjacentHTML('beforeend',
-      ' <span class="fg-del" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
+    b.sec.insertAdjacentHTML('beforeend', n===1
+      ? ' <span class="fg-del" onclick="event.stopPropagation();_fgClearAsesor(1,1)" title="Borrar los datos del asesor 1">&#10005; Borrar</span>'
+      : ' <span class="fg-del" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
   }
 }
 function _fgIsBlockVisible(n){
   var b=_fgBlock(n);return !!(b&&b.sec.style.display!=='none');
 }
 function _fgAddNextAsesor(){
-  for(var n=1;n<=4;n++){ // arranca en 1: si se quitó el Asesor 1, este botón lo recupera
+  for(var n=2;n<=4;n++){
     if(_fgIsBlockVisible(n))continue;
     _fgShowBlock(n,true);_fgSetAsesorOn(n,true);_fgRefreshAddBtn();
-    var el=document.getElementById('nombre'+(n===1?'':n));if(el)el.focus();
+    var el=document.getElementById('nombre'+n);if(el)el.focus();
     return;
   }
 }
-// Quitar NO borra lo cargado: sólo lo saca del flyer y esconde el bloque.
-// Si lo volvés a agregar, los datos siguen ahí.
+// Vacía nombre, celular y mail de un asesor. Es lo que hace "✕ Borrar" en el
+// Asesor 1 y lo primero que hace "✕ Quitar" en los otros tres: sacar un asesor
+// deja el slot limpio, no con los datos escondidos esperando para reaparecer.
+// Al limpiar el mail se saca la marca de "escrito a mano" para que el
+// autocompletado (nombre.apellido@) vuelva a sugerir con el asesor siguiente.
+function _fgClearAsesor(n,avisar){
+  var sfx=(n===1)?'':String(n),algo=false;
+  ['nombre','celular','email'].forEach(function(k){
+    var e=document.getElementById(k+sfx);if(!e)return;
+    if(e.value)algo=true;
+    e.value='';
+  });
+  var mEl=document.getElementById('email'+sfx);if(mEl)mEl.dataset.fgManual='';
+  if(typeof redraw==='function')redraw();
+  if(algo&&avisar&&typeof showToast==='function')showToast('Datos del asesor '+n+' borrados');
+  return algo;
+}
+// Quitar un asesor lo saca del flyer, esconde el bloque Y BORRA lo que tenía
+// cargado (pedido del usuario: antes los datos quedaban guardados y volvían al
+// re-agregarlo, lo que confundía cuando el slot se reusaba para otra persona).
 function _fgRemoveAsesor(n){
+  var tenia=_fgClearAsesor(n,0);
   _fgSetAsesorOn(n,false);_fgShowBlock(n,false);_fgRefreshAddBtn();
   if(typeof redraw==='function')redraw();
+  if(tenia&&typeof showToast==='function')showToast('Asesor '+n+' quitado');
 }
 function _fgRefreshAddBtn(){
   var b=document.getElementById('fg-add-asesor');if(!b)return;
-  var libre=false;for(var n=1;n<=4;n++)if(!_fgIsBlockVisible(n))libre=true;
+  var libre=false;for(var n=2;n<=4;n++)if(!_fgIsBlockVisible(n))libre=true;
   b.style.display=libre?'':'none';
 }
 function _fgEnsureAddBtn(){
@@ -4118,8 +4139,9 @@ function _fgMasivoHint(){
 // Deja visibles sólo los bloques que tienen datos (o están activos). Se usa al
 // iniciar y al Restaurar: nunca en medio de la edición.
 function _fgSyncAsesorBlocks(){
-  for(var n=1;n<=4;n++){
-    var el=document.getElementById('nombre'+(n===1?'':n));
+  _fgShowBlock(1,true); // el bloque 1 está siempre a la vista: se vacía con "Borrar", no se quita
+  for(var n=2;n<=4;n++){
+    var el=document.getElementById('nombre'+n);
     var tiene=!!(el&&el.value.trim())||_fgAsesorOn(n);
     _fgShowBlock(n,tiene);
   }
