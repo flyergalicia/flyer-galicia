@@ -927,6 +927,12 @@ const checks = {
   'ux: globito con el atajo del PDF':
     _authSrc.includes('function _fgTipInit(') && _authSrc.includes("matchMedia('(hover:hover) and (pointer:fine)')") &&
     _authSrc.includes("_fgTipMod()+' + Enter'") && _authSrc.includes('_fgTipInit();'),
+  // Ctrl+Enter hace lo principal de CADA vista: PDF en el armador, validar en
+  // Promociones. Los dos botones llevan el mismo globito.
+  'ux: Ctrl+Enter tambien valida promociones':
+    _authSrc.includes('function _fgPromosVisible(') &&
+    _authSrc.includes("['btn-dl-pdf','promos-validar-btn'].forEach") &&
+    /_fgPromosVisible\(\)&&typeof validarPromos==='function'/.test(_authSrc),
   'ux: teclado (solapas + Ctrl+Enter + Esc)': html.includes('role="tablist"') && _authSrc.includes('function _fgKbdInit(') && _authSrc.includes("(e.ctrlKey||e.metaKey)&&e.key==='Enter'"),
   'ux: negrita del legal': html.includes('onclick="fgLegalBold()"') && _authSrc.includes('function fgLegalBold(') && _authSrc.includes("(e.key==='b'||e.key==='B')"),
   'ux: sin confirm() nativo': _authSrc.includes('function fgConfirm(') && !/[^a-zA-Z_]confirm\(/.test(_authSrc),

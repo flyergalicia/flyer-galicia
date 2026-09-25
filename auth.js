@@ -8098,7 +8098,7 @@ function _tourCapitulos(){
        texto:'El mes del flyer: una promo que vence dentro de ese mes se marca <em>"vence este mes"</em>, y una ya vencida, <em>"vencida"</em>.',
        antes:irPromos},
       {target:'#promos-validar-btn',titulo:'Validar vigencia',
-       texto:'Devuelve una tabla con logo, nombre en Galicia, fechas desde/hasta y estado. Las dudosas quedan como <strong>Revisar</strong> con las opciones para elegir a mano; las que no est&aacute;n, como <strong>No encontrada</strong>. Con el bot&oacute;n <strong>Descargar Excel</strong> te llev&aacute;s el resultado con el logo de cada marca.',
+       texto:'Tambi&eacute;n con <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. Devuelve una tabla con logo, nombre en Galicia, fechas desde/hasta y estado. Las dudosas quedan como <strong>Revisar</strong> con las opciones para elegir a mano; las que no est&aacute;n, como <strong>No encontrada</strong>. La columna <strong>En Galicia</strong> abre esa promoci&oacute;n en el sitio del banco (vigencia, d&iacute;as, tarjetas y letra chica). Con el bot&oacute;n <strong>Descargar Excel</strong> te llev&aacute;s el resultado con el logo de cada marca.',
        antes:irPromos}
     ]},
     {id:'opciones',titulo:'Opciones',cond:varias,pasos:[
@@ -8717,6 +8717,11 @@ function _fgArmadorVisible(){
   var lay=document.getElementById('layout'),ti=document.getElementById('tab-individual');
   return !!(lay&&lay.style.display!=='none'&&ti&&ti.classList.contains('active'));
 }
+// La vista "Promociones" (solapa de primer nivel, no el armador).
+function _fgPromosVisible(){
+  var pv=document.getElementById('view-promos');
+  return !!(pv&&pv.style.display&&pv.style.display!=='none');
+}
 function _fgKbdInit(){
   // Solapas del panel: aria-selected/tabindex al cambiar (switchTab lo trae el template)
   var oSwitch=window.switchTab;
@@ -8741,8 +8746,18 @@ function _fgKbdInit(){
       }
       if((t.classList.contains('toggle-row')||t.classList.contains('ftag')||t.classList.contains('app-tab'))&&(e.key==='Enter'||e.key===' ')){e.preventDefault();t.click();return;}
     }
+    // Ctrl+Enter = la acción principal de la vista en la que estás: en el
+    // armador descarga el PDF, en Promociones valida la lista de marcas. Anda
+    // también con el cursor dentro del cuadro de texto (es el caso normal:
+    // pegás las marcas y validás sin soltar el teclado).
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
-      if(_fgArmadorVisible()&&!_fgHayDialogo()&&typeof dlPDF==='function'){e.preventDefault();dlPDF();}
+      if(_fgHayDialogo())return;
+      if(_fgArmadorVisible()&&typeof dlPDF==='function'){e.preventDefault();dlPDF();return;}
+      if(_fgPromosVisible()&&typeof validarPromos==='function'){
+        var vb=_promosValidarBtn();
+        if(vb&&vb.disabled)return; // ya está validando: no encolar otra
+        e.preventDefault();validarPromos();
+      }
       return;
     }
     if(e.key==='Escape'){
@@ -8837,8 +8852,12 @@ function _fgTipHide(){
 // así un botón inyectado más tarde no necesita re-inicializar nada.
 function _fgTipInit(){
   if(!window.matchMedia||!matchMedia('(hover:hover) and (pointer:fine)').matches)return;
-  var b=document.getElementById('btn-dl-pdf');
-  if(b&&!b.getAttribute('data-fgtip'))b.setAttribute('data-fgtip',_fgTipMod()+' + Enter');
+  // Los botones que tienen atajo. Mismo globito en los dos: en cada vista,
+  // Ctrl+Enter hace lo principal de esa pantalla.
+  ['btn-dl-pdf','promos-validar-btn'].forEach(function(id){
+    var b=document.getElementById(id);
+    if(b&&!b.getAttribute('data-fgtip'))b.setAttribute('data-fgtip',_fgTipMod()+' + Enter');
+  });
   if(document.body.dataset.fgTip)return;
   document.body.dataset.fgTip='1';
   function target(e){
