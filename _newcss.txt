@@ -447,6 +447,13 @@ html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 .promos-orden{font-size:0.85em;}
 .promos-orden.apagada{opacity:0.25;}
 .promos-th-orden:hover .promos-orden.apagada{opacity:0.6;}
+/* Columna "En Galicia": abre la ficha pública de esa promoción */
+.promos-th-link{white-space:nowrap;}
+.promos-link{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.66rem;font-weight:700;
+  text-decoration:none;white-space:nowrap;color:var(--accent);border:1.5px solid var(--accent);
+  background:transparent;transition:background .15s,color .15s;}
+.promos-link:hover,.promos-link:focus-visible{background:var(--accent);color:#fff;}
+.promos-link-no{color:var(--gray);opacity:0.6;}
 /* Selector "Ordenar por" de la tabla de promociones */
 .promos-search-box{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
 .promos-sort-lbl{font-size:0.7rem;color:var(--gray);font-weight:600;white-space:nowrap;}

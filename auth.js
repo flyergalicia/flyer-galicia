@@ -1419,6 +1419,18 @@ function saveFacultadesChanges(){
 // Function la fechaDesde (que no viene en el listado) de las marcas que sí
 // matchearon, para no pagar ese costo por las 1700.
 var PROMO_LOGO_BASE='https://www.galicia.ar/content/dam/galicia/banco-galicia/personas/promociones/catalogo-de-beneficios/';
+// Ficha pública de una promoción en el sitio de Galicia. El formato lo usa el
+// propio buscador: /promocion/{id}|{titulo}|{tipoPromocion}. Abre sin login y
+// muestra vigencia, días, medios de pago y los términos y condiciones.
+// Verificado sobre los tres tipos que trae el catálogo (Marca, Categoria,
+// Shopping). El id es lo único que manda: el título de la URL sólo se ve en el
+// encabezado de la página, así que un título con acentos o "&" no la rompe.
+var PROMO_DETALLE_BASE='https://beneficios.galicia.ar/promocion/';
+function _promoUrl(p){
+  if(!p||!p.id)return '';
+  var t=_promoDecodeEntities(p.titulo||''),tipo=p.tipo_promocion||p.tipoPromocion||'Marca';
+  return PROMO_DETALLE_BASE+encodeURIComponent(p.id)+'|'+encodeURIComponent(t)+'|'+encodeURIComponent(tipo);
+}
 var _promosCat=null,_promosCatLoading=false,_promosResultados=null,_promosMesRef=null;
 
 // Primera vez que se entra a la pestaña: pone el mes actual por default y
@@ -1923,7 +1935,17 @@ function _promoFilaHtml(r,i){
     '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
     '<td>'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
     '<td><span class="promos-badge b-'+css+'">'+_PROMO_ESTADO_LBL[r.estado]+'</span></td>'+
+    '<td>'+_promoLinkHtml(r)+'</td>'+
   '</tr>';
+}
+// Enlace a la ficha de la promoción en el sitio de Galicia. Sin coincidencia no
+// hay adónde ir, así que queda un guión. Abre en otra pestaña (el asesor está a
+// mitad de un flyer: no se lo saca de la app) y con rel=noopener.
+function _promoLinkHtml(r){
+  var u=r.promo?_promoUrl(r.promo):'';
+  if(!u)return '<span class="promos-link-no">-</span>';
+  return '<a class="promos-link" href="'+_escAttr(u)+'" target="_blank" rel="noopener noreferrer" '+
+    'title="Abrir esta promoción en el sitio de Galicia (vigencia, d&iacute;as, tarjetas y letra chica)">Ver</a>';
 }
 
 // Repinta SÓLO el cuerpo de la tabla (+ contadores). Separado del armado de la
@@ -1933,7 +1955,7 @@ function _promosPintarFilas(){
   var visibles=_promosFilasVisibles();
   tbody.innerHTML=visibles.length?
     visibles.map(function(v){return _promoFilaHtml(v.r,v.i);}).join(''):
-    '<tr><td colspan="8" class="promos-sinfiltro">Ninguna fila coincide con el filtro.</td></tr>';
+    '<tr><td colspan="9" class="promos-sinfiltro">Ninguna fila coincide con el filtro.</td></tr>';
 
   var total=(_promosResultados||[]).length;
   var cnt=document.getElementById('promos-count');
@@ -2012,6 +2034,7 @@ function renderPromosResultados(){
       '<th></th>'+
       _promoTh('logo','Logo')+_promoTh('marca','Marca (flyer)')+_promoTh('match','Coincidencia en Galicia')+
       _promoTh('cat','Categoría')+_promoTh('desde','Desde')+_promoTh('hasta','Hasta')+_promoTh('estado','Estado')+
+      '<th class="promos-th-link" title="Abre la promoción en el sitio de Galicia">En Galicia</th>'+
     '</tr>'+
     '<tr class="promos-filrow">'+
       '<th></th>'+
@@ -2028,6 +2051,7 @@ function renderPromosResultados(){
       '<th>'+inp('hasta','dd/mm')+'</th>'+
       '<th><select class="promos-fil" onchange="_promoFiltrar(\'estado\',this.value)">'+
         '<option value="">Todos</option>'+estOpts+'</select></th>'+
+      '<th></th>'+
     '</tr>'+
     '</thead><tbody id="promos-tbody"></tbody></table></div>';
 
@@ -2062,7 +2086,8 @@ function descargarExcelPromos(){
     {header:'Categoría',key:'cat',width:18},
     {header:'Desde',key:'desde',width:12},
     {header:'Hasta',key:'hasta',width:12},
-    {header:'Estado',key:'estado',width:16}
+    {header:'Estado',key:'estado',width:16},
+    {header:'En Galicia',key:'link',width:14}
   ];
   ws.getRow(1).font={bold:true};
   var fills={VIGENTE:'FFDFF5E1',VENCE_ESTE_MES:'FFFFF1CC',VENCIDA:'FFFCE0DF',REVISAR:'FFFFE7D1',NO_ENCONTRADA:'FFECECEC',SIN_FECHA:'FFECECEC'};
@@ -2087,6 +2112,16 @@ function descargarExcelPromos(){
     });
     row.height=32;
     row.eachCell(function(cell){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fills[r.estado]||'FFFFFFFF'}};});
+    // El link va como hipervínculo de Excel: se toca la celda y abre la ficha.
+    // Se escribe después del fill para que el formato de link no se pise.
+    var url=r.promo?_promoUrl(r.promo):'';
+    var celLink=row.getCell('link');
+    if(url){
+      celLink.value={text:'Ver',hyperlink:url};
+      celLink.font={color:{argb:'FF1155CC'},underline:true};
+    }else{
+      celLink.value='-';
+    }
     if(!r.promo||!r.promo.imagen)return Promise.resolve();
     // ExcelJS sólo incrusta jpeg/png/gif; otros formatos se saltean.
     var ext=/\.jpe?g$/i.test(r.promo.imagen)?'jpeg':(/\.png$/i.test(r.promo.imagen)?'png':(/\.gif$/i.test(r.promo.imagen)?'gif':null));
@@ -8718,6 +8753,121 @@ function _fgKbdInit(){
   });
 }
 
+// ── GLOBITO DE ATAJO ─────────────────────────────────────────────────────────
+// Cartelito propio al apoyar el mouse sobre un botón que tiene atajo de teclado.
+// No se usa el title nativo: tarda cerca de un segundo, no se puede estilar y
+// sale con la tipografía del sistema. Sólo se engancha donde hay mouse de
+// verdad (hover:hover + pointer:fine): en un celular no hay teclado, así que el
+// globito sería ruido. El botón NO cambia de tamaño: el cartelito va fixed por
+// encima, medido con getBoundingClientRect.
+var _FG_TIP_DELAY=400,_fgTipTimer=null,_fgTipFor=null;
+// En Mac el atajo es Cmd; en Windows/Linux, Ctrl.
+function _fgTipMod(){
+  var p=(navigator.platform||'')+' '+(navigator.userAgent||'');
+  return /Mac|iPhone|iPad|iPod/.test(p)?'⌘':'Ctrl';
+}
+function _fgTipStyle(){
+  if(document.getElementById('fg-tip-style'))return;
+  var st=document.createElement('style');st.id='fg-tip-style';
+  st.textContent=
+    // El anillo claro es lo que lo despega del botón de arriba ("Vista previa"
+    // es casi negro en la paleta Marfil, y sin el anillo el globito marino se
+    // confundía con él).
+    '#fg-tip{position:fixed;z-index:9600;pointer-events:none;opacity:0;'+
+      'transform:translateY(3px);transition:opacity .13s ease,transform .13s ease;'+
+      'background:var(--navy,#14213D);color:#fff;font-size:.68rem;font-weight:600;'+
+      'letter-spacing:.01em;padding:5px 9px;border-radius:7px;white-space:nowrap;'+
+      'box-shadow:0 0 0 2px rgba(255,255,255,.92),0 6px 18px rgba(0,0,0,.3)}'+
+    '#fg-tip.on{opacity:1;transform:translateY(0)}'+
+    '#fg-tip:after{content:"";position:absolute;left:50%;margin-left:-5px;'+
+      'border:5px solid transparent;border-top-color:var(--navy,#14213D)}'+
+    '#fg-tip.abajo:after{border-top-color:transparent;border-bottom-color:var(--navy,#14213D)}'+
+    '#fg-tip kbd{font:inherit;background:rgba(255,255,255,.18);border-radius:4px;'+
+      'padding:0 4px;margin:0 1px}'+
+    '@media (prefers-reduced-motion:reduce){#fg-tip{transition:none}}';
+  document.head.appendChild(st);
+}
+function _fgTipNode(){
+  var t=document.getElementById('fg-tip');
+  if(!t){
+    _fgTipStyle();
+    t=document.createElement('div');t.id='fg-tip';t.setAttribute('role','tooltip');
+    document.body.appendChild(t);
+  }
+  return t;
+}
+function _fgTipShow(el){
+  var txt=el.getAttribute('data-fgtip');if(!txt)return;
+  var t=_fgTipNode();
+  // Las teclas van en <kbd> para que se lean como teclas; el texto viene del
+  // código (nunca de datos del usuario), pero igual se arma con _escHtml.
+  t.innerHTML=txt.split('+').map(function(p,i){
+    p=p.trim();
+    return i===0&&!/^(Ctrl|⌘|Shift|Alt)$/.test(p)
+      ? _escHtml(p)
+      : '<kbd>'+_escHtml(p)+'</kbd>';
+  }).join(' + ');
+  t.className='';t.style.left='-9999px';t.style.top='0';t.classList.add('on');
+  var r=el.getBoundingClientRect(),b=t.getBoundingClientRect();
+  var left=Math.round(r.left+r.width/2-b.width/2);
+  left=Math.max(8,Math.min(left,(window.innerWidth||0)-b.width-8));
+  var arriba=r.top-b.height-9;
+  if(arriba<8){ // no entra arriba: va debajo del botón
+    t.classList.add('abajo');
+    t.style.top=Math.round(r.bottom+9)+'px';
+  }else{
+    t.style.top=Math.round(arriba)+'px';
+  }
+  t.style.left=left+'px';
+  // La flecha apunta al centro del botón aunque el globito se haya corrido para
+  // no salirse de la pantalla. Va por <style> propio porque el :after no se
+  // puede posicionar desde el style inline del elemento.
+  var ax=Math.round(r.left+r.width/2-left);
+  var st=document.getElementById('fg-tip-arrow');
+  if(!st){st=document.createElement('style');st.id='fg-tip-arrow';document.head.appendChild(st);}
+  st.textContent='#fg-tip:after{left:'+ax+'px;'+(t.classList.contains('abajo')?'top:-10px':'bottom:-10px')+'}';
+  _fgTipFor=el;
+}
+function _fgTipHide(){
+  if(_fgTipTimer){clearTimeout(_fgTipTimer);_fgTipTimer=null;}
+  var t=document.getElementById('fg-tip');if(t)t.classList.remove('on');
+  _fgTipFor=null;
+}
+// Cualquier elemento con data-fgtip se engancha solo (delegación en el body),
+// así un botón inyectado más tarde no necesita re-inicializar nada.
+function _fgTipInit(){
+  if(!window.matchMedia||!matchMedia('(hover:hover) and (pointer:fine)').matches)return;
+  var b=document.getElementById('btn-dl-pdf');
+  if(b&&!b.getAttribute('data-fgtip'))b.setAttribute('data-fgtip',_fgTipMod()+' + Enter');
+  if(document.body.dataset.fgTip)return;
+  document.body.dataset.fgTip='1';
+  function target(e){
+    var n=e.target;
+    while(n&&n!==document.body){
+      if(n.getAttribute&&n.getAttribute('data-fgtip'))return n;
+      n=n.parentNode;
+    }
+    return null;
+  }
+  document.body.addEventListener('mouseover',function(e){
+    var el=target(e);if(!el||el===_fgTipFor)return;
+    _fgTipHide();
+    _fgTipTimer=setTimeout(function(){_fgTipShow(el);},_FG_TIP_DELAY);
+  });
+  document.body.addEventListener('mouseout',function(e){
+    var el=target(e);if(!el)return;
+    // moverse DENTRO del mismo botón (al svg, al texto) no es salir de él
+    var to=e.relatedTarget;
+    while(to&&to!==document.body){if(to===el)return;to=to.parentNode;}
+    _fgTipHide();
+  });
+  // al hacer clic el globito estorba (encima se dispara "Generando...")
+  document.body.addEventListener('click',function(e){if(target(e))_fgTipHide();},true);
+  window.addEventListener('scroll',_fgTipHide,true);
+  window.addEventListener('resize',_fgTipHide);
+  window.addEventListener('blur',_fgTipHide);
+}
+
 // ── DIÁLOGO DE CONFIRMACIÓN PROPIO ───────────────────────────────────────────
 // Reemplaza la ventanita de confirmación del navegador (gris, feo, sin estilo). Misma idea, pero
 // asíncrono: fgConfirm(mensaje, {ok, cancelar, peligro, titulo, texto}, cb(si)).
@@ -8771,4 +8921,5 @@ function _fgUxInit(){
   try{_fgKbdInit();}catch(e){console.warn('kbd:',e);}
   try{_fgShareInit();}catch(e){console.warn('share:',e);}
   try{_fgWorkInit();}catch(e){console.warn('work:',e);}
+  try{_fgTipInit();}catch(e){console.warn('tip:',e);}
 }
