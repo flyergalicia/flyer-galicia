@@ -321,7 +321,7 @@ function applyAsesor(id,slot){
   else if(slot===3){if(!_fgA3)toggleA3();}
   else if(slot===4){if(!_fgA4)toggleA4();}
   else{if(typeof toggleA1==='function'&&!window.a1)toggleA1();}
-  if(slot>1)_fgShowBlock(slot,true);_fgRefreshAddBtn();
+  _fgShowBlock(slot,true);_fgRefreshAddBtn();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
   closeAsPop();showToast('Asesor "'+(a.name||a.nombre)+'" cargado');
@@ -3967,14 +3967,16 @@ function _fgSetAsesorOn(n,on){
   else if(n===4)toggleA4();
 }
 // Muestra/oculta el bloque entero (título + fila del switch + campos).
-// En los bloques 2-4 la fila del switch queda siempre oculta: el alta la maneja
-// el botón "+ Agregar asesor" y la baja el "✕ Quitar".
+// La fila del switch queda siempre oculta EN LOS CUATRO: el alta la maneja el
+// botón "+ Agregar asesor" y la baja el "✕ Quitar", incluido el Asesor 1 (antes
+// el 1 era el único con switch a la vista y sin Quitar: dos formas distintas de
+// hacer lo mismo en la misma tarjeta).
 function _fgShowBlock(n,show){
   var b=_fgBlock(n);if(!b)return;
   b.sec.style.display=show?'':'none';
   b.fields.style.display=show?'':'none';
-  if(n>1)b.row.style.display='none';
-  if(show&&n>1&&!b.sec.dataset.fgDel){
+  b.row.style.display='none';
+  if(show&&!b.sec.dataset.fgDel){
     b.sec.dataset.fgDel='1';
     b.sec.insertAdjacentHTML('beforeend',
       ' <span class="fg-del" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
@@ -3984,10 +3986,10 @@ function _fgIsBlockVisible(n){
   var b=_fgBlock(n);return !!(b&&b.sec.style.display!=='none');
 }
 function _fgAddNextAsesor(){
-  for(var n=2;n<=4;n++){
+  for(var n=1;n<=4;n++){ // arranca en 1: si se quitó el Asesor 1, este botón lo recupera
     if(_fgIsBlockVisible(n))continue;
     _fgShowBlock(n,true);_fgSetAsesorOn(n,true);_fgRefreshAddBtn();
-    var el=document.getElementById('nombre'+n);if(el)el.focus();
+    var el=document.getElementById('nombre'+(n===1?'':n));if(el)el.focus();
     return;
   }
 }
@@ -3999,7 +4001,7 @@ function _fgRemoveAsesor(n){
 }
 function _fgRefreshAddBtn(){
   var b=document.getElementById('fg-add-asesor');if(!b)return;
-  var libre=false;for(var n=2;n<=4;n++)if(!_fgIsBlockVisible(n))libre=true;
+  var libre=false;for(var n=1;n<=4;n++)if(!_fgIsBlockVisible(n))libre=true;
   b.style.display=libre?'':'none';
 }
 function _fgEnsureAddBtn(){
@@ -4116,8 +4118,8 @@ function _fgMasivoHint(){
 // Deja visibles sólo los bloques que tienen datos (o están activos). Se usa al
 // iniciar y al Restaurar: nunca en medio de la edición.
 function _fgSyncAsesorBlocks(){
-  for(var n=2;n<=4;n++){
-    var el=document.getElementById('nombre'+n);
+  for(var n=1;n<=4;n++){
+    var el=document.getElementById('nombre'+(n===1?'':n));
     var tiene=!!(el&&el.value.trim())||_fgAsesorOn(n);
     _fgShowBlock(n,tiene);
   }
@@ -4279,7 +4281,6 @@ function fgResetVals(){
   s('benef-nombre','');s('benef-importe','24.000');s('benef-importe2','');_fgBenefManual=false;
   if(_fgA3)toggleA3();if(_fgA4)toggleA4();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
-  _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
   _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // se corta el vínculo con el padrón
   var n=_optN(_fgOpt),c=_fgOptCache[n];
   if(c)delete c.legalEdited;
@@ -4290,6 +4291,9 @@ function fgResetVals(){
   window.filenameManual=false;
   if(typeof a1!=='undefined'&&!a1&&typeof toggleA1==='function')toggleA1();
   if(typeof a2!=='undefined'&&a2&&typeof toggleA2==='function')toggleA2();
+  // Va DESPUÉS de reactivar el Asesor 1: si se lo había quitado, el sync corría
+  // con a1 todavía apagado y "Restaurar" dejaba el bloque 1 escondido.
+  _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
   _fgSetNoCB(false);
   if(typeof setCfg==='function')setCfg(0);
   if(typeof updateFnPreview==='function')updateFnPreview();
@@ -6753,7 +6757,7 @@ function _padApply(r){
     // si el padrón trae el mail, manda el padrón: corto la sugerencia automática
     if(mEl)mEl.dataset.fgManual=(hay&&a.email)?'1':'';
     // el bloque 1 queda siempre abierto (aunque vacío) para poder cargarlo a mano
-    if(n===1)_fgSetAsesorOn(1,true);
+    if(n===1){_fgSetAsesorOn(1,true);_fgShowBlock(1,true);}
     else{_fgSetAsesorOn(n,hay);_fgShowBlock(n,hay);}
   }
   _fgRefreshAddBtn();
@@ -7835,7 +7839,7 @@ function _fgApplyParsed(n,r){
     var mEl=document.getElementById('email'+sfx);
     if(mEl)mEl.dataset.fgManual=r.email?'1':'';
     _fgSetAsesorOn(n,true);
-    if(n>1)_fgShowBlock(n,true);
+    _fgShowBlock(n,true);
     r.email=mailFinal; // para que el chip/resumen refleje lo que quedó cargado
   }else if(r.celular){
     _setVal('celular'+sfx,r.celular);

@@ -801,6 +801,10 @@ const checks = {
   'etiquetas Agregar asesor N': _authSrc.includes('function _fgFixAsesorLabels(') && _authSrc.includes("'Agregar asesor '+n"),
   'autocompletar mail': _authSrc.includes('function _fgMailFromName(') && _authSrc.includes('_fgAutoMail();'),
   'alta progresiva asesores': _authSrc.includes('function _fgAddNextAsesor(') && _authSrc.includes('id="fg-add-asesor"') && _authSrc.includes('function _fgRemoveAsesor('),
+  // El "X Quitar" va en LOS CUATRO bloques (antes el Asesor 1 era el unico con el
+  // switch a la vista y sin Quitar): _fgShowBlock sin el if(n>1), y los recorridos
+  // de alta/refresco arrancan en 1 para que el boton "+ Agregar asesor" lo recupere.
+  'asesor 1: quitar como los demas': _authSrc.includes('function _fgShowBlock(') && !/_fgShowBlock\(n,show\)\{[\s\S]{0,400}?if\(n>1\)b\.row/.test(_authSrc) && _authSrc.includes('for(var n=1;n<=4;n++){ // arranca en 1'),
   // Padron de empresas: Excel precargado + buscador por razon social / CUIT (solo admin)
   // Padron PRIVADO por usuario: vive en la tabla padron_empresas con RLS, ya no
   // en el JSON publico del bucket (que se leia sin login).
