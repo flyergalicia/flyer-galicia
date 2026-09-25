@@ -3971,16 +3971,32 @@ function _fgSetAsesorOn(n,on){
 // en su título va "✕ Borrar", que vacía los campos. En los bloques 2-4 la fila
 // del switch queda oculta —el alta la maneja "+ Agregar asesor" y la baja
 // "✕ Quitar"— y los dos botones se ven igual, en la esquina del título.
+// Las dos acciones del título ("⚡ Pegar" y "✕ Borrar"/"✕ Quitar") viven juntas
+// en esta cajita, al lado del nombre del asesor. Antes el Borrar flotaba solo
+// contra el borde derecho, lejos del Pegar. El orden visual lo fija el CSS
+// (order), así no depende de quién se inyecte primero: el Pegar sale del login
+// (sólo con la facultad) y el Borrar del armado del formulario.
+function _fgSecActs(n){
+  var box=document.getElementById('fg-sec-acts-'+n);
+  if(box)return box;
+  var b=_fgBlock(n);if(!b)return null;
+  b.sec.insertAdjacentHTML('beforeend',
+    ' <span class="fg-sec-acts" id="fg-sec-acts-'+n+'" onclick="event.stopPropagation()"></span>');
+  return document.getElementById('fg-sec-acts-'+n);
+}
 function _fgShowBlock(n,show){
   var b=_fgBlock(n);if(!b)return;
   b.sec.style.display=show?'':'none';
   b.fields.style.display=show?'':'none';
   if(n>1)b.row.style.display='none';
   if(show&&!b.sec.dataset.fgDel){
-    b.sec.dataset.fgDel='1';
-    b.sec.insertAdjacentHTML('beforeend', n===1
-      ? ' <span class="fg-del" onclick="event.stopPropagation();_fgClearAsesor(1,1)" title="Borrar los datos del asesor 1">&#10005; Borrar</span>'
-      : ' <span class="fg-del" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
+    var box=_fgSecActs(n);
+    if(box){
+      b.sec.dataset.fgDel='1';
+      box.insertAdjacentHTML('beforeend', n===1
+        ? '<span class="fg-del" onclick="event.stopPropagation();_fgClearAsesor(1,1)" title="Borrar los datos del asesor 1">&#10005; Borrar</span>'
+        : '<span class="fg-del" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
+    }
   }
 }
 function _fgIsBlockVisible(n){
@@ -4034,9 +4050,17 @@ function _fgEnsureAddBtn(){
       '#fg-add-asesor{display:block;width:100%;margin:2px 0 14px;padding:9px;border:1.5px dashed rgba(128,128,128,.5);'+
       'background:none;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--gray,#777);transition:.15s}'+
       '#fg-add-asesor:hover{border-color:var(--red,#c62828);color:var(--red,#c62828)}'+
-      '.fg-del{float:right;font-size:.62rem;font-weight:600;color:var(--gray,#999);cursor:pointer;'+
-      'text-transform:none;letter-spacing:0;background:none;padding:0}'+
-      '.fg-del:hover{color:var(--red,#c62828)}';
+      // Las acciones del título, una al lado de la otra. El "order" deja siempre
+      // el Pegar primero y el Borrar/Quitar después, sin importar el orden en
+      // que se inyecten (el Pegar llega recién al loguear, según la facultad).
+      '.fg-sec-acts{display:inline-flex;align-items:center;gap:6px;margin-left:8px;vertical-align:middle}'+
+      '.fg-sec-acts .fg-paste-btn{order:1;margin-left:0}'+
+      '.fg-sec-acts .fg-del{order:2}'+
+      '.fg-del{display:inline-flex;align-items:center;font-size:.62rem;font-weight:700;'+
+      'text-transform:none;letter-spacing:0;color:var(--gray,#999);background:rgba(128,128,128,.12);'+
+      'border:1px solid transparent;border-radius:999px;padding:2px 8px;cursor:pointer;'+
+      'transition:.15s;vertical-align:middle}'+
+      '.fg-del:hover{color:var(--danger,#B3261E);background:rgba(179,38,30,.1)}';
     document.head.appendChild(st);
   }
   f4.insertAdjacentHTML('afterend',
@@ -7762,9 +7786,10 @@ function _fgEnsurePasteBtns(){
   _fgPasteStyle();
   for(var n=1;n<=4;n++){
     var b=_fgBlock(n);if(!b||b.sec.dataset.fgPaste)continue;
+    var box=_fgSecActs(n);if(!box)continue; // va en la misma cajita que el Borrar/Quitar
     b.sec.dataset.fgPaste='1';
-    b.sec.insertAdjacentHTML('beforeend',
-      ' <span class="fg-paste-btn" id="fg-paste-btn-'+n+'" '+
+    box.insertAdjacentHTML('beforeend',
+      '<span class="fg-paste-btn" id="fg-paste-btn-'+n+'" '+
       'onclick="event.stopPropagation();_fgTogglePaste('+n+')" '+
       'title="Pegar los datos del oficial (nombre, celular, mail) y completarlos solo">'+
       '⚡ Pegar</span>');
