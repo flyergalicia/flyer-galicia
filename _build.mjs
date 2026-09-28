@@ -861,7 +861,7 @@ const checks = {
   // vacios (sin coincidencia) caen al final en vez de encabezar la tabla.
   // El estado ordena por urgencia: primero lo que hay que corregir en el flyer
   // (una marca que no esta en el catalogo hay que sacarla), ultimo lo vigente.
-  'promos: orden por columna': _authSrc.includes('function _promoOrdenar(') && _authSrc.includes('var _PROMO_ORDEN_ESTADO=') && _authSrc.includes('function _promoValorOrden(') && _authSrc.includes('function _promoTh(') && _authSrc.includes('NO_ENCONTRADA:0,VENCIDA:1,VENCE_ESTE_MES:2,REVISAR:3') && _authSrc.includes("chipDefs=[['NO_ENCONTRADA'"),
+  'promos: orden por columna': _authSrc.includes('function _promoOrdenar(') && _authSrc.includes('var _PROMO_ORDEN_ESTADO=') && _authSrc.includes('function _promoValorOrden(') && _authSrc.includes('function _promoTh(') && _authSrc.includes('NO_ENCONTRADA:0,VENCIDA:1,FUERA_PROV:2,VENCE_ESTE_MES:3,REVISAR:4') && _authSrc.includes("chipDefs=[['NO_ENCONTRADA'"),
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
   'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOptsDe(_fgVista).map(') && !_authSrc.includes('opciones_armador'),
   // Flyer Rubros: tercera solapa del header que reusa el armador. Cada opción tiene
@@ -923,7 +923,25 @@ const checks = {
     _authSrc.includes("var PROMO_DETALLE_BASE='https://beneficios.galicia.ar/promocion/'") &&
     _authSrc.includes('function _promoUrl(') && _authSrc.includes('function _promoLinkHtml(') &&
     _authSrc.includes('>En Galicia</th>') && _authSrc.includes("{header:'En Galicia',key:'link'") &&
-    _authSrc.includes('colspan="9"'),
+    _authSrc.includes('function _promoNumCols(') && _authSrc.includes("colspan=\"'+_promoNumCols()+'\""),
+  // Filtro por provincia: la geografia se sincroniza con el catalogo (columna
+  // provincias) y el matching sigue corriendo contra el catalogo COMPLETO, para
+  // poder decir "existe, pero no en tu provincia" en vez de "no existe".
+  'promos: filtro por provincia':
+    html.includes('id="promos-prov"') && html.includes('id="promos-sinubic"') &&
+    _authSrc.includes("'id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias'") &&
+    _authSrc.includes('function _promoEstadoFinal(') && _authSrc.includes('function _promoEnProvincia(') &&
+    _authSrc.includes('function _promoGeoConocida(') &&
+    _authSrc.includes("FUERA_PROV:'Fuera de la provincia'") && _authSrc.includes("FUERA_PROV:'fuera'") &&
+    _authSrc.includes("_promoTh('donde','Dónde')") && html.includes('.promos-badge.b-fuera'),
+  // Segunda solapa dentro de Promociones: lista lo vigente de una provincia sin
+  // pegar marcas. Comparte tabla, filtros y Excel con el buscador.
+  'promos: solapa "Activas"':
+    html.includes('id="ptab-activas"') && html.includes('id="promos-activas-btn"') &&
+    html.includes('id="promos-loc"') && html.includes('id="promos-rubro"') &&
+    _authSrc.includes('function switchPromoTab(') && _authSrc.includes('function buscarPromosActivas(') &&
+    _authSrc.includes('function completarFechasDesde(') && _authSrc.includes('function _promoModoActivas(') &&
+    _authSrc.includes("_callPromosFn('ubicacion'") && _authSrc.includes('loading="lazy"'),
   'ux: globito con el atajo del PDF':
     _authSrc.includes('function _fgTipInit(') && _authSrc.includes("matchMedia('(hover:hover) and (pointer:fine)')") &&
     _authSrc.includes("_fgTipMod()+' + Enter'") && _authSrc.includes('_fgTipInit();'),

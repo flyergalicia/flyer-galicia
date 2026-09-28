@@ -248,12 +248,48 @@ canvas{display:block;max-width:100%;}
 <div class="promos-view" id="view-promos" style="display:none">
   <div class="panel">
     <div class="ptitle">Buscador de Promociones</div>
-    <p class="legal-hint">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
-    <div class="sec">Marcas del flyer</div>
-    <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
-    <div class="sec">Mes a validar</div>
-    <div class="field"><input type="month" id="promos-mes"></div>
-    <button class="btn bp" id="promos-validar-btn" style="width:100%" onclick="validarPromos()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Validar vigencia</button>
+    <div class="tabs" role="tablist" aria-label="Modo de promociones">
+      <div class="tab ptab active" role="tab" tabindex="0" aria-selected="true" onclick="switchPromoTab('buscar')"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar</div>
+      <div class="tab ptab" role="tab" tabindex="-1" aria-selected="false" onclick="switchPromoTab('activas')"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Activas</div>
+    </div>
+
+    <!-- Provincia: la comparten las dos solapas (el asesor trabaja siempre en
+         la misma zona). Arranca en "Todas" y no se recuerda entre sesiones. -->
+    <div class="sec">Provincia</div>
+    <div class="field">
+      <select id="promos-prov" onchange="_promoSetProvincia(this.value)"><option value="">Todas las provincias</option></select>
+    </div>
+    <label class="promos-chk" for="promos-sinubic" title="Son promociones de compra por internet: no tienen local, así que valen desde cualquier provincia.">
+      <input type="checkbox" id="promos-sinubic" onchange="_promoSetOcultarOnline(this.checked)"> Ocultar las de compra online
+    </label>
+
+    <!-- BUSCAR: valida las marcas de un flyer ya armado -->
+    <div id="ptab-buscar" class="tab-content active">
+      <p class="legal-hint">Pegá las marcas del flyer (una por línea) y las cruzamos contra el buscador oficial de promociones de Galicia: te decimos cuáles siguen vigentes, cuáles vencen este mes y cuáles no encontramos.</p>
+      <div class="sec">Marcas del flyer</div>
+      <div class="field"><textarea id="promos-marcas" rows="10" placeholder="Starbucks&#10;Freddo&#10;Crocs&#10;Uber&#10;..."></textarea></div>
+      <div class="sec">Mes a validar</div>
+      <div class="field"><input type="month" id="promos-mes"></div>
+      <button class="btn bp" id="promos-validar-btn" style="width:100%" onclick="validarPromos()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Validar vigencia</button>
+    </div>
+
+    <!-- ACTIVAS: lista todo lo vigente de una provincia, sin pegar nada -->
+    <div id="ptab-activas" class="tab-content">
+      <p class="legal-hint">Elegí una provincia y te traemos todas las promociones que están vigentes ahí, con su fecha de vencimiento. Sirve para armar un flyer desde cero.</p>
+      <details class="promos-extra">
+        <summary>Más filtros (opcional)</summary>
+        <div class="sec">Localidad</div>
+        <div class="field">
+          <select id="promos-loc" onchange="_promoSetLocalidad(this.value)"><option value="">Todas las localidades</option></select>
+        </div>
+        <div class="sec">Rubro</div>
+        <div class="field">
+          <select id="promos-rubro" onchange="_promoSetRubro(this.value)"><option value="">Todos los rubros</option></select>
+        </div>
+      </details>
+      <button class="btn bp" id="promos-activas-btn" style="width:100%" onclick="buscarPromosActivas()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Ver promociones</button>
+    </div>
+
     <div class="promos-sync-box">
       <div id="promos-sync-info">Cargando estado del catálogo...</div>
       <button class="btn bg" id="promos-sync-btn" style="width:100%;margin-top:8px" onclick="syncPromosCatalogo(true)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Actualizar catálogo ahora</button>
@@ -273,6 +309,7 @@ canvas{display:block;max-width:100%;}
     </div>
     <div class="promos-actions" id="promos-actions" style="display:none">
       <button class="btn bp" id="promos-dl-btn" onclick="descargarExcelPromos()">&#11015; Descargar Excel</button>
+      <button class="btn bg" id="promos-desde-btn" style="display:none" onclick="completarFechasDesde()" title="La fecha de inicio no viene en el listado: hay que pedirla promoción por promoción, así que se trae sólo cuando la pedís.">&#128197; Completar fechas &quot;Desde&quot;</button>
       <button class="btn bg" id="promos-clear-btn" style="display:none" onclick="_promoLimpiarFiltros()">&#10005; Limpiar filtros</button>
       <span class="promos-count" id="promos-count"></span>
     </div>

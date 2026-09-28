@@ -438,6 +438,27 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-fil:focus{border-color:var(--red);background:var(--card);}
 .promos-sinfiltro{text-align:center;color:var(--gray);font-size:0.76rem;padding:22px 8px;}
 .promos-count{font-size:0.72rem;color:var(--gray);align-self:center;}
+/* Filtro por provincia + estado "Fuera de la provincia". Una promo puede estar
+   vigente a nivel nacional y no tener un solo local en la zona del asesor: ese
+   caso NO es "no existe", por eso tiene color propio (violeta) y no se mezcla
+   con el gris de "No encontrada" ni con el rojo de "Vencida". */
+.promos-badge.b-fuera{background:#e9e6f8;color:#4a3ba0;}
+.promos-chip.c-fuera{background:#e9e6f8;color:#4a3ba0;}
+.promos-chk{display:flex;align-items:center;gap:7px;margin-top:-4px;margin-bottom:6px;font-size:0.72rem;color:var(--gray);cursor:pointer;}
+.promos-chk input{cursor:pointer;}
+/* Localidad y rubro son extras: plegados para que no compitan con la provincia,
+   que es lo que el asesor cambia de verdad. */
+.promos-extra{margin:2px 0 12px;}
+.promos-extra summary{font-size:0.72rem;color:var(--gray);cursor:pointer;padding:5px 0;font-family:"Syne",sans-serif;font-weight:700;}
+.promos-extra summary:hover{color:var(--ink);}
+.promos-extra[open] summary{margin-bottom:2px;}
+/* Columna "Donde": las provincias donde se puede usar la promo. Con muchas se
+   resume ("Todo el pais", "N provincias") y el detalle va en el title, si no la
+   celda se comia el ancho de la tabla. */
+.promos-donde{font-size:0.7rem;color:var(--gray);line-height:1.35;display:block;max-width:180px;}
+.promos-online{display:inline-block;padding:2px 8px;border-radius:20px;font-size:0.64rem;font-weight:700;background:#e3eefb;color:#1f5a96;white-space:nowrap;}
+html.dark .promos-badge.b-fuera,html.dark .promos-chip.c-fuera{background:#2e2a4d;color:#b9b0f0;}
+html.dark .promos-online{background:#1e3247;color:#8fc0ec;}
 html.dark .promos-search,html.dark .promos-filrow th{background:#22262c;border-color:#333840;color:#e9eaec;}
 html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 /* Encabezados ordenables de la tabla de promociones */
