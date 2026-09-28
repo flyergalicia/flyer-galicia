@@ -302,9 +302,7 @@ function openAsPop(slot,anchor){
     '<div class="as-list">'+_asListHtml(slot)+'</div>'+
     '<div class="as-pop-foot">'+
       '<button class="as-act" onclick="saveAsesor('+slot+')">+ Guardar el actual</button>'+
-      '<button class="as-act" onclick="document.getElementById(\'as-xls\').click()" title="Importar asesores desde Excel">&#8593; Excel</button>'+
-    '</div>'+
-    '<input type="file" id="as-xls" accept=".xlsx,.xls" style="display:none" onchange="importAsesores(this)">';
+    '</div>';
   document.body.appendChild(pop);
   var r=anchor.getBoundingClientRect();
   pop.style.top=(r.bottom+4)+'px';
