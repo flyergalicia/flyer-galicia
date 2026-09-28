@@ -2229,23 +2229,54 @@ function _promosFilasVisibles(){
 // resolver, así que esa columna (y su desplegable de candidatos) no van.
 function _promoModoActivas(){return _promosModo==='activas';}
 function _promoNumCols(){return _promoModoActivas()?9:10;}
-// De cada grupo de filas con el mismo título queda la de vencimiento más
-// lejano, que es la que sirve para armar un flyer (dura más). Mismo criterio
-// de desempate que usa el matcher del buscador.
+// Nombre de la marca sin la variante: Galicia carga la misma marca muchas
+// veces con un sufijo distinto ("Serú Giran - Neuquén", "Babasonicos en
+// Tucumán", "Columbia.com.ar", "Centro de Esquí Cerro Bayo - Oso Café").
+function _promoBaseMarca(t){
+  var s=_promoDecodeEntities(t||'').split(/\s[-–—]\s|\s+en\s+|\.com|\s*\(/i)[0];
+  return _promoNormalizar(s)||_promoNormalizar(t);
+}
+// Agrupar por la primera palabra sería fácil y estaría mal: juntaría las 16
+// farmacias distintas de Buenos Aires ("Farmacia Selma", "Farmacia Vera"...),
+// las 4 ópticas y "El Zar" con "El Kuelgue". La regla es más exigente: un
+// nombre corto agrupa a los que empiezan con él SÓLO si ese nombre existe como
+// promoción por sí solo. Hay una promo que se llama "Adidas." y por eso
+// "Adidas MDQ" y "Adidas Nordelta" caen con ella; no hay ninguna que se llame
+// sólo "Farmacia", así que esas no se tocan. Auditado sobre Neuquén, Buenos
+// Aires y Córdoba: ningún grupo junta marcas distintas.
+function _promoClaveMarca(base,bases){
+  var pal=base.split(' '),acc='';
+  for(var i=0;i<pal.length;i++){
+    acc=acc?acc+' '+pal[i]:pal[i];
+    if(bases[acc])return acc; // el nombre más corto que existe como marca
+  }
+  return base;
+}
+// De cada grupo queda la de vencimiento más lejano, que es la que sirve para
+// armar un flyer (dura más). Mismo desempate que usa el matcher del buscador.
 function _promoUnaPorMarca(filas){
+  // Las bases salen de la lista ENTERA y no de lo ya filtrado: si no, esconder
+  // una fila cambiaría cómo se agrupan las demás.
+  var bases={};
+  (_promosResultados||[]).forEach(function(r){
+    var t=r.marca||(r.promo?r.promo.titulo:'');
+    if(t)bases[_promoBaseMarca(t)]=1;
+  });
   var grupos={},orden=[];
   filas.forEach(function(v){
     var t=v.r.marca||(v.r.promo?v.r.promo.titulo:'');
-    var k=_promoNormalizar(t)||('#'+v.i); // sin título, cada fila es su propio grupo
-    if(!grupos[k]){grupos[k]={mejor:v,n:0};orden.push(k);}
+    var k=t?_promoClaveMarca(_promoBaseMarca(t),bases):('#'+v.i); // sin título, cada fila es su grupo
+    if(!grupos[k]){grupos[k]={mejor:v,n:0,nombres:[]};orden.push(k);}
     var g=grupos[k];g.n++;
+    if(g.nombres.indexOf(t)<0)g.nombres.push(t);
     var fa=(g.mejor.r.promo&&g.mejor.r.promo.fecha_hasta)||'';
     var fb=(v.r.promo&&v.r.promo.fecha_hasta)||'';
     if(fb>fa)g.mejor=v;
   });
   return orden.map(function(k){
     var g=grupos[k];
-    g.mejor.r._otras=g.n-1; // para avisar en la fila que la marca tiene más
+    g.mejor.r._otras=g.n-1;                                       // cuántas quedaron tapadas
+    g.mejor.r._otrosNombres=g.nombres.length>1?g.nombres:null;    // y con qué nombre, para el globito
     return g.mejor;
   });
 }
@@ -2281,7 +2312,13 @@ function _promoFilaHtml(r,i){
 // igual que una marca que de verdad tiene una sola.
 function _promoOtrasHtml(r){
   if(_promosFiltros.repetidas!=='ocultar'||!r._otras)return '';
-  return ' <span class="promos-otras" title="Esta marca tiene '+(r._otras+1)+' promociones vigentes (distintas tarjetas o plazos). Se muestra la que vence más tarde; destildá &quot;Una sola fila por marca&quot; para verlas todas.">+'+r._otras+'</span>';
+  var det='Esta marca tiene '+(r._otras+1)+' promociones vigentes (distintas tarjetas, plazos o locales).';
+  if(r._otrosNombres){
+    det+=' Se juntaron: '+r._otrosNombres.slice(0,6).map(_promoDecodeEntities).join(', ')+
+      (r._otrosNombres.length>6?'...':'')+'.';
+  }
+  det+=' Se muestra la que vence más tarde; destildá "Una sola fila por marca" para verlas todas.';
+  return ' <span class="promos-otras" title="'+_escAttr(det)+'">+'+r._otras+'</span>';
 }
 // Enlace a la ficha de la promoción en el sitio de Galicia. Sin coincidencia no
 // hay adónde ir, así que queda un guión. Abre en otra pestaña (el asesor está a

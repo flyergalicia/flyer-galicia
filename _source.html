@@ -284,7 +284,7 @@ canvas{display:block;max-width:100%;}
       <div class="field">
         <select id="promos-rubro" onchange="_promoSetRubro(this.value)"><option value="">Todos los rubros</option></select>
       </div>
-      <label class="promos-chk" for="promos-unamarca" title="Una misma marca suele tener varias promociones (una por tarjeta o por plazo). Con esto queda una sola fila por marca: la que vence más tarde.">
+      <label class="promos-chk" for="promos-unamarca" title="Una misma marca aparece muchas veces: una promoción por tarjeta o por plazo, y además con el nombre cambiado (&quot;Adidas&quot;, &quot;Adidas MDQ&quot;, &quot;Adidas Nordelta&quot;). Con esto queda una sola fila por marca: la que vence más tarde. El &quot;+N&quot; de cada fila te dice cuántas juntó y cuáles.">
         <input type="checkbox" id="promos-unamarca" onchange="_promoSetUnaPorMarca(this.checked)"> Una sola fila por marca
       </label>
       <button class="btn bp" id="promos-activas-btn" style="width:100%" onclick="buscarPromosActivas()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Ver promociones</button>

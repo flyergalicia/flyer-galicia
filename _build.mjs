@@ -942,11 +942,16 @@ const checks = {
     _authSrc.includes('function switchPromoTab(') && _authSrc.includes('function buscarPromosActivas(') &&
     _authSrc.includes('function completarFechasDesde(') && _authSrc.includes('function _promoModoActivas(') &&
     _authSrc.includes("_callPromosFn('ubicacion'") && _authSrc.includes('loading="lazy"'),
-  // Una marca tiene varias promos a la vez (tarjetas/plazos distintos): en una
-  // provincia eso es ~40% de filas repetidas. El dedupe corre DESPUES de
+  // Una marca tiene varias promos a la vez (tarjetas/plazos) y ademas aparece
+  // con el nombre cambiado ("Adidas", "Adidas MDQ"): en una provincia eso es
+  // ~45% de filas repetidas. Un nombre corto agrupa a los que empiezan con el
+  // SOLO si existe como promo suelta; si no, las 16 farmacias distintas de
+  // Buenos Aires terminaban en una sola fila. El dedupe corre DESPUES de
   // filtrar, asi que "una por marca" se aplica sobre lo que se esta viendo.
   'promos: una sola fila por marca':
     html.includes('id="promos-unamarca"') && _authSrc.includes('function _promoUnaPorMarca(') &&
+    _authSrc.includes('function _promoBaseMarca(') && _authSrc.includes('function _promoClaveMarca(') &&
+    _authSrc.includes('if(bases[acc])return acc;') &&
     _authSrc.includes('function _promoSetUnaPorMarca(') && _authSrc.includes('function _promoOtrasHtml(') &&
     _authSrc.includes("_promoModoActivas()&&_promosFiltros.repetidas==='ocultar'") &&
     html.includes('.promos-otras'),
