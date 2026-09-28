@@ -276,17 +276,17 @@ canvas{display:block;max-width:100%;}
     <!-- ACTIVAS: lista todo lo vigente de una provincia, sin pegar nada -->
     <div id="ptab-activas" class="tab-content">
       <p class="legal-hint">Elegí una provincia y te traemos todas las promociones que están vigentes ahí, con su fecha de vencimiento. Sirve para armar un flyer desde cero.</p>
-      <details class="promos-extra">
-        <summary>Más filtros (opcional)</summary>
-        <div class="sec">Localidad</div>
-        <div class="field">
-          <select id="promos-loc" onchange="_promoSetLocalidad(this.value)"><option value="">Todas las localidades</option></select>
-        </div>
-        <div class="sec">Rubro</div>
-        <div class="field">
-          <select id="promos-rubro" onchange="_promoSetRubro(this.value)"><option value="">Todos los rubros</option></select>
-        </div>
-      </details>
+      <div class="sec">Localidad</div>
+      <div class="field">
+        <select id="promos-loc" onchange="_promoSetLocalidad(this.value)"><option value="">Todas las localidades</option></select>
+      </div>
+      <div class="sec">Rubro</div>
+      <div class="field">
+        <select id="promos-rubro" onchange="_promoSetRubro(this.value)"><option value="">Todos los rubros</option></select>
+      </div>
+      <label class="promos-chk" for="promos-unamarca" title="Una misma marca suele tener varias promociones (una por tarjeta o por plazo). Con esto queda una sola fila por marca: la que vence más tarde.">
+        <input type="checkbox" id="promos-unamarca" onchange="_promoSetUnaPorMarca(this.checked)"> Una sola fila por marca
+      </label>
       <button class="btn bp" id="promos-activas-btn" style="width:100%" onclick="buscarPromosActivas()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Ver promociones</button>
     </div>
 

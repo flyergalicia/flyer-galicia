@@ -942,6 +942,14 @@ const checks = {
     _authSrc.includes('function switchPromoTab(') && _authSrc.includes('function buscarPromosActivas(') &&
     _authSrc.includes('function completarFechasDesde(') && _authSrc.includes('function _promoModoActivas(') &&
     _authSrc.includes("_callPromosFn('ubicacion'") && _authSrc.includes('loading="lazy"'),
+  // Una marca tiene varias promos a la vez (tarjetas/plazos distintos): en una
+  // provincia eso es ~40% de filas repetidas. El dedupe corre DESPUES de
+  // filtrar, asi que "una por marca" se aplica sobre lo que se esta viendo.
+  'promos: una sola fila por marca':
+    html.includes('id="promos-unamarca"') && _authSrc.includes('function _promoUnaPorMarca(') &&
+    _authSrc.includes('function _promoSetUnaPorMarca(') && _authSrc.includes('function _promoOtrasHtml(') &&
+    _authSrc.includes("_promoModoActivas()&&_promosFiltros.repetidas==='ocultar'") &&
+    html.includes('.promos-otras'),
   'ux: globito con el atajo del PDF':
     _authSrc.includes('function _fgTipInit(') && _authSrc.includes("matchMedia('(hover:hover) and (pointer:fine)')") &&
     _authSrc.includes("_fgTipMod()+' + Enter'") && _authSrc.includes('_fgTipInit();'),

@@ -446,12 +446,9 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-chip.c-fuera{background:#e9e6f8;color:#4a3ba0;}
 .promos-chk{display:flex;align-items:center;gap:7px;margin-top:-4px;margin-bottom:6px;font-size:0.72rem;color:var(--gray);cursor:pointer;}
 .promos-chk input{cursor:pointer;}
-/* Localidad y rubro son extras: plegados para que no compitan con la provincia,
-   que es lo que el asesor cambia de verdad. */
-.promos-extra{margin:2px 0 12px;}
-.promos-extra summary{font-size:0.72rem;color:var(--gray);cursor:pointer;padding:5px 0;font-family:"Syne",sans-serif;font-weight:700;}
-.promos-extra summary:hover{color:var(--ink);}
-.promos-extra[open] summary{margin-bottom:2px;}
+/* "+N": la marca tiene mas promociones vigentes, tapadas por el tilde de "una
+   sola fila por marca". Discreto, pero visible. */
+.promos-otras{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:0.62rem;font-weight:700;background:var(--light);color:var(--gray);border:1px solid var(--border);cursor:help;}
 /* Columna "Donde": las provincias donde se puede usar la promo. Con muchas se
    resume ("Todo el pais", "N provincias") y el detalle va en el title, si no la
    celda se comia el ancho de la tabla. */
@@ -459,6 +456,7 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-online{display:inline-block;padding:2px 8px;border-radius:20px;font-size:0.64rem;font-weight:700;background:#e3eefb;color:#1f5a96;white-space:nowrap;}
 html.dark .promos-badge.b-fuera,html.dark .promos-chip.c-fuera{background:#2e2a4d;color:#b9b0f0;}
 html.dark .promos-online{background:#1e3247;color:#8fc0ec;}
+html.dark .promos-otras{background:#22262c;border-color:#333840;color:#9aa0a8;}
 html.dark .promos-search,html.dark .promos-filrow th{background:#22262c;border-color:#333840;color:#e9eaec;}
 html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 /* Encabezados ordenables de la tabla de promociones */

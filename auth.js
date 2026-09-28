@@ -1601,6 +1601,14 @@ function _promoSetOcultarOnline(on){
   _promosFiltros.online=on?'ocultar':'';
   _promosPintarFilas();
 }
+// Una marca suele tener varias promociones a la vez (una por tarjeta, otra por
+// plazo): en la lista de una provincia eso es casi el 40% de las filas
+// ("Digital Sport" aparece 10 veces en Neuquén, "Combustible" 8). Con el tilde
+// puesto queda una fila por marca.
+function _promoSetUnaPorMarca(on){
+  _promosFiltros.repetidas=on?'ocultar':'';
+  _promosPintarFilas();
+}
 
 function _promosFmtFecha(iso){
   if(!iso)return '-';
@@ -2062,7 +2070,7 @@ function _promoToggleExcluir(i,on){
 // ── Filtros de la tabla de resultados ───────────────────────────────────────
 // Estado de los filtros: uno por columna + el buscador general de arriba a la
 // derecha (busca en marca, coincidencia y categoría a la vez).
-var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:'',hasta:'',estado:'',online:''};
+var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:'',hasta:'',estado:'',online:'',repetidas:''};
 // Filtros en cero para una corrida nueva: si quedaran los de la anterior,
 // esconderían parte de los resultados y parecería que "faltan" marcas. El
 // orden también vuelve al natural. La provincia y el tilde de "ocultar las
@@ -2070,9 +2078,10 @@ var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:''
 // no un filtro de estos resultados, y perderlos en cada validación obligaría
 // a volver a elegirlos todo el tiempo.
 function _promoResetFiltros(){
-  var online=_promosFiltros.online;
+  var online=_promosFiltros.online,repetidas=_promosFiltros.repetidas;
   for(var k in _promosFiltros)_promosFiltros[k]='';
   _promosFiltros.online=online;
+  _promosFiltros.repetidas=repetidas;
   _promosOrden={campo:'',dir:1};
   var b=document.getElementById('promos-buscar');if(b)b.value='';
 }
@@ -2090,6 +2099,7 @@ function _promoLimpiarFiltros(){
   // El tilde de "ocultar las online" vive en _promosFiltros para que lo
   // respeten el contador y el Excel, así que limpiar los filtros lo destilda.
   var o=document.getElementById('promos-sinubic');if(o)o.checked=false;
+  var um=document.getElementById('promos-unamarca');if(um)um.checked=false;
   renderPromosResultados();
 }
 // Texto de cada campo tal como se ve en pantalla (para que filtrar por lo que
@@ -2200,6 +2210,9 @@ function _promoTh(campo,titulo){
 function _promosFilasVisibles(){
   var out=[];
   (_promosResultados||[]).forEach(function(r,i){if(_promoCoincideFiltro(r))out.push({r:r,i:i});});
+  // Sólo en "Activas": en "Buscar" cada fila ya es una marca distinta pegada
+  // por el usuario, y esconderle una que escribió sería una sorpresa fea.
+  if(_promoModoActivas()&&_promosFiltros.repetidas==='ocultar')out=_promoUnaPorMarca(out);
   if(_promosOrden.campo){
     var campo=_promosOrden.campo,dir=_promosOrden.dir;
     out.sort(function(a,b){
@@ -2216,6 +2229,26 @@ function _promosFilasVisibles(){
 // resolver, así que esa columna (y su desplegable de candidatos) no van.
 function _promoModoActivas(){return _promosModo==='activas';}
 function _promoNumCols(){return _promoModoActivas()?9:10;}
+// De cada grupo de filas con el mismo título queda la de vencimiento más
+// lejano, que es la que sirve para armar un flyer (dura más). Mismo criterio
+// de desempate que usa el matcher del buscador.
+function _promoUnaPorMarca(filas){
+  var grupos={},orden=[];
+  filas.forEach(function(v){
+    var t=v.r.marca||(v.r.promo?v.r.promo.titulo:'');
+    var k=_promoNormalizar(t)||('#'+v.i); // sin título, cada fila es su propio grupo
+    if(!grupos[k]){grupos[k]={mejor:v,n:0};orden.push(k);}
+    var g=grupos[k];g.n++;
+    var fa=(g.mejor.r.promo&&g.mejor.r.promo.fecha_hasta)||'';
+    var fb=(v.r.promo&&v.r.promo.fecha_hasta)||'';
+    if(fb>fa)g.mejor=v;
+  });
+  return orden.map(function(k){
+    var g=grupos[k];
+    g.mejor.r._otras=g.n-1; // para avisar en la fila que la marca tiene más
+    return g.mejor;
+  });
+}
 function _promoFilaHtml(r,i){
   var css=_PROMO_ESTADO_CSS[r.estado]||'no',act=_promoModoActivas();
   var logo=r.promo&&r.promo.imagen?
@@ -2234,7 +2267,7 @@ function _promoFilaHtml(r,i){
       ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>'+
     '<td>'+logo+'</td>'+
     (act?'':'<td>'+_escHtml(r.marca)+'</td>')+
-    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoOtrasHtml(r)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
     '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
     '<td>'+_promoDondeHtml(r)+'</td>'+
     '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
@@ -2242,6 +2275,13 @@ function _promoFilaHtml(r,i){
     '<td><span class="promos-badge b-'+css+'">'+_PROMO_ESTADO_LBL[r.estado]+'</span></td>'+
     '<td>'+_promoLinkHtml(r)+'</td>'+
   '</tr>';
+}
+// "+N promos": la marca tiene otras promociones vigentes que quedaron
+// tapadas por el tilde de "una sola fila por marca". Sin esto, la fila se ve
+// igual que una marca que de verdad tiene una sola.
+function _promoOtrasHtml(r){
+  if(_promosFiltros.repetidas!=='ocultar'||!r._otras)return '';
+  return ' <span class="promos-otras" title="Esta marca tiene '+(r._otras+1)+' promociones vigentes (distintas tarjetas o plazos). Se muestra la que vence más tarde; destildá &quot;Una sola fila por marca&quot; para verlas todas.">+'+r._otras+'</span>';
 }
 // Enlace a la ficha de la promoción en el sitio de Galicia. Sin coincidencia no
 // hay adónde ir, así que queda un guión. Abre en otra pestaña (el asesor está a
