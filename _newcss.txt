@@ -856,6 +856,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .fg-otros-item{display:flex;align-items:center;gap:7px;width:100%;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-s);font-size:.74rem;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;}
 .fg-otros-item:hover{border-color:var(--accent);}
 .fg-otros-item .ico{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+/* "Oficiales por sede": ítem del menú con barrita, no acción. La etiqueta se
+   achica antes que la pastilla, así en pantallas angostas el switch no se corta. */
+.fg-otros-sw{justify-content:space-between;gap:8px;}
+.fg-otros-sw .fg-sedes-lbl{flex:1;min-width:0;}
+.fg-otros-sw .sw{flex-shrink:0;margin-left:auto;}
+.fg-otros-sw[aria-pressed="true"]{border-color:var(--accent);}
+/* Campo "Ubicación" de cada oficial y título del bloque (sólo con el modo prendido).
+   Sin text-transform a propósito: el flyer dibuja el texto tal cual se tipeó, así que
+   si el campo lo mostrara en mayúsculas no coincidiría con lo que sale impreso. */
+#fg-sedes-tit .field input[type=text]{font-weight:600;}
 /* Validación en línea (no bloquea: sólo marca) */
 .field.fg-inv input[type=text]{border-color:#D9501A;background:#FFF5F0;}
 html.dark .field.fg-inv input[type=text]{background:#2A1A12;}

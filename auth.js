@@ -1098,9 +1098,9 @@ function _facMe(f){
 // asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
 // existe en la nube, nadie nota ningún cambio.
 var _FAC_DEF={
-  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false},
-  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false},
-  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false}
+  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false},
+  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false},
+  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -1127,6 +1127,7 @@ function _facRows(){
   rows.push(['asesores_guardados','Base de datos: mis asesores','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4". Desde su nombre &rarr; <strong>Base de datos &rarr; Mis asesores</strong> los ve, los corrige, los sube por Excel o se los baja. La lista viaja con su cuenta (la ve desde cualquier computadora) y es privada.']);
   rows.push(['promos_buscar','Buscador de promociones','Agrega la pesta&ntilde;a "Promociones": pega las marcas del flyer y las cruza contra el buscador oficial de Galicia, con logo, fechas de vigencia y estado (vigente / vence este mes / vencida).']);
   rows.push(['guardar_trabajo','Guardar historial y borrador','El <strong>Historial</strong> queda guardado en el dispositivo (hoy se borra al cerrar o recargar la p&aacute;gina) y el formulario se guarda solo mientras escribe: si cierra la pesta&ntilde;a a mitad de un flyer, al volver le ofrece <em>&laquo;Seguir con ese flyer&raquo;</em>. Todo vive en su navegador, nada sale a la nube.']);
+  rows.push(['oficiales_sede','Oficiales por sede','Suma una barrita en <strong>Otros &rarr; Oficiales por sede</strong>, para los flyers donde el banco pone un referente por zona. Prendida: puede cargar <strong>hasta 8 oficiales</strong> (en vez de 4), ponerle a cada uno su <strong>ubicaci&oacute;n</strong> (sale con el pin y en negrita arriba del nombre) y escribir el <strong>t&iacute;tulo</strong> que va arriba del bloque. Apagada, el armador queda igual que siempre. Estos casos se cargan <strong>s&oacute;lo a mano</strong>: no entran por Pegar, ni por la base de empresas, ni por el Excel del masivo.']);
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
   return rows;
 }
@@ -1210,6 +1211,11 @@ function _applyFacultades(){
   _mpRefresh(); // tarjeta "todo el segmento" del masivo (sólo con empresas cargadas)
 
   _fgWorkApply(_can('guardar_trabajo')); // historial persistente + borrador automático
+
+  // "Oficiales por sede": la barrita del menú Otros. Si el perfil pierde la
+  // facultad con el modo prendido, _fgSedesFac lo apaga (y limpia lo cargado).
+  if(_can('oficiales_sede'))_fgEnsureSedesSwitch();
+  _fgSedesFac(_can('oficiales_sede'));
 
   _facSyncOptBar();
 
@@ -3776,7 +3782,17 @@ var FLYER_CFG_DEFAULT = {
   // ew3: ancho de la banda cuando hay 3 asesores (la franja está limpia de punta a
   // punta, así los 3 entran separados y los mails no se achican). 1,2 y 4 usan ew.
   contacto:{ex:150,ey:5330,ew:940,ew3:1140,eh:130,bg:"#ffffff",y1:5360,y2:5390,y3:5418,
-    xSingle:619,xLeft:310,xRight:930,fnBold:24,frReg:21,color:"#111"},
+    xSingle:619,xLeft:310,xRight:930,fnBold:24,frReg:21,color:"#111",
+    // ── Modo "Oficiales por sede" (hasta 8 oficiales, cada uno con su ubicación) ──
+    // Sólo se leen con el modo prendido: con el modo apagado el flyer se dibuja por
+    // la rama de siempre y estos valores no participan. Van acá (y no como
+    // constantes sueltas) para que viajen en el cfg por flyer de _flyer_cfgs.json:
+    // el día que haya que ajustarlos por flyer, es sumar inputs al calibrador.
+    ewS:1140,   // ancho de la banda en modo sedes (la franja está limpia de punta a punta)
+    ehS:160,    // alto de cada fila: 4 líneas (sede + nombre + cel + mail) en vez de 3
+    sedeDy:26, nomDy:56, celDy:86, mailDy:114, // las 4 líneas, medidas desde el top de SU fila
+    fnSede:21, colSede:"#111",                 // la sede va en negrita, con el pin adelante
+    titH:64, titFs:27, titPeso:700, titColor:"#111"}, // franja del título, arriba de la grilla
   legal:{x0:39,yStart:5595,yEnd:6300,maxW:1162,fs:12,lh:17,gap:5,
     minFs:7,minLh:10,minGap:3,color:"#222222",bg:"#ffffff"},
   // Flyer Rubros: el cuadro "Beneficio exclusivo" ENTERO lo dibuja la app (el
@@ -3947,21 +3963,42 @@ function _fgBottomYRaw(yRef,s){var C=_fgCfg();var ih=C.imgH||6457;var ch=(window
 // Y anclada ABAJO efectiva: al crecer el flyer, todo lo anclado abajo baja _fgExtra px.
 // (así asesores y legales no se desfasan cuando el flyer es más largo/corto).
 function _fgBottomY(yRef,s){return _fgBottomYRaw(yRef,s)+_fgExtra*s;}
+// Sufijo de los ids/claves de un asesor: el 1 va sin número (nombre, celular, email)
+// y del 2 en adelante con número (nombre2, celular3...). Invariante en toda la app.
+function _fgSfx(n){return (n===1)?'':String(n);}
 // Asesores cargados, en orden. Sólo cuentan los que tienen nombre.
+// El tope sale de v.sedes (no del global _fgSedes): así el historial, el borrador y
+// el masivo rinden igual que la pantalla, aunque el modo esté apagado en ese momento.
 function _fgAsesores(v){
   var out=[];if(!v)return out;
-  [['has1','nombre','celular','email'],['has2','nombre2','celular2','email2'],
-   ['has3','nombre3','celular3','email3'],['has4','nombre4','celular4','email4']]
-  .forEach(function(k){
-    if(v[k[0]]&&(v[k[1]]||'').trim())out.push({n:v[k[1]],c:v[k[2]]||'',e:v[k[3]]||''});
-  });
+  var max=v.sedes?8:4;
+  for(var n=1;n<=max;n++){
+    var s=_fgSfx(n);
+    if(v['has'+n]&&(v['nombre'+s]||'').trim())
+      out.push({n:v['nombre'+s],c:v['celular'+s]||'',e:v['email'+s]||'',u:(v['ubic'+n]||'').trim()});
+  }
   return out;
 }
-function _fgRows(n){return (n>=4)?2:1;}
-// Alto extra (px BASE) según cuántas filas de asesores hagan falta.
+// Filas de la grilla. Modo normal: 1 sola hasta 3 asesores, 2 con 4. Modo sedes:
+// siempre 2 columnas (5->3 filas, 6->3, 7->4, 8->4).
+function _fgRows(n,sedes){
+  if(sedes)return Math.max(1,Math.ceil(n/(n>1?2:1)));
+  return (n>=4)?2:1;
+}
+// Alto extra (px BASE) que se le inserta al flyer para que entre el bloque de asesores.
+// Normal: cada fila de más suma eh. Sedes: el bloque entero (rows*ehS) reemplaza a la
+// banda de una fila (eh), más la franja del título si hay título.
+// Con esto _fgBottomYRaw(ey)+extra+eh == _fgBottomYRaw(ey)+titH+rows*ehS, o sea: el
+// título entra JUSTO en el hueco que abre fgDrawAll, sin pisar el "¡Consultanos!".
 function _fgExtraBaseFor(v){
-  var C=_fgCfg().contacto;
-  return (_fgRows(_fgAsesores(v).length)-1)*(C.eh||130)*_fgSE(1);
+  var C=_fgCfg().contacto,eh=C.eh||130;
+  var n=_fgAsesores(v).length;
+  if(v&&v.sedes){
+    var alto=_fgRows(n,true)*(C.ehS||160)-eh;
+    if((v.sedesTit||'').trim())alto+=(C.titH||64);
+    return Math.max(0,alto)*_fgSE(1);
+  }
+  return (_fgRows(n)-1)*eh*_fgSE(1);
 }
 var FG_BOLD_PHRASES = [
   "(1) Promoción del 100% de ahorro.","(2) Bonificación de comisiones.",
@@ -4118,6 +4155,7 @@ function fgDrawMontos(c,s,v){
 // Layout de asesores: 1 centrado · 2 lado a lado · 3 en fila · 4 en 2x2 (el flyer crece).
 // Con 1 y 2 usa EXACTAMENTE las coords calibradas de siempre => cero regresión.
 function fgDrawContacto(c,s,v){
+  if(v&&v.sedes)return _fgDrawContactoSedes(c,s,v); // modo "oficiales por sede": otra grilla
   var C=_fgCfg().contacto,se=_fgSE(s);
   var list=_fgAsesores(v),n=list.length;
   var rows=_fgRows(n),cols=(n>=4)?2:Math.max(n,1);
@@ -4168,6 +4206,117 @@ function fgDrawC1(c,s,xc,C,nom,cel,mail,dy,colW){
   c.font="bold "+f1+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(_fgBottomY(C.y1,s))+dy);
   if(cel){var f2=fit(cel,fr,false);c.font=f2+"px Arial,sans-serif";c.fillText(cel,cx,Math.round(_fgBottomY(C.y2,s))+dy);}
   if(mail){var f3=fit(mail,fr,false);c.font=f3+"px Arial,sans-serif";c.fillText(mail,cx,Math.round(_fgBottomY(C.y3,s))+dy);}
+}
+// ── MODO "OFICIALES POR SEDE" ────────────────────────────────────────────────
+// Hasta 8 oficiales en 2 columnas, cada uno con su ubicación arriba del nombre
+// (pin + sede en negrita) y un título editable arriba de toda la grilla. Es una
+// rama aparte a propósito: la de siempre (1 a 4, sin ubicación) queda intacta.
+//
+// Acá las Y se calculan ABSOLUTAS desde el top del bloque, no con el dy relativo
+// de fgDrawContacto: el bloque cambia de alto según cuántas filas haya, así que
+// anclar cada línea a su fila es más simple de seguir que corregir la de abajo.
+//
+// El pin se traza a mano (silueta del map-pin de Feather) en vez de escribir el
+// emoji 📍 con fillText: el emoji sale de colores, depende de la fuente que tenga
+// el sistema y rinde distinto en el PDF. Mismo criterio que los íconos del header.
+// El huequito del medio se pinta con el color de la BANDA, no con el modo de
+// borrado del canvas: ese modo no borra sólo la banda, borra hasta el fondo del
+// canvas, y el hueco quedaría transparente (un agujero en el PNG, que se baja
+// con fondo transparente).
+function _fgDrawPin(c,x,yTop,h,color,bg){
+  var r=h*0.30,cy=yTop+r+h*0.04;
+  c.save();c.beginPath();
+  c.arc(x,cy,r,Math.PI*0.85,Math.PI*0.15,false); // la cabeza redonda, abierta abajo
+  c.lineTo(x,yTop+h);                            // y la punta
+  c.closePath();
+  c.fillStyle=color;c.fill();
+  c.beginPath();c.arc(x,cy,r*0.40,0,Math.PI*2);  // el huequito del medio
+  c.fillStyle=bg||'#ffffff';c.fill();
+  c.restore();
+}
+function _fgDrawContactoSedes(c,s,v){
+  var C=_fgCfg().contacto,se=_fgSE(s);
+  var list=_fgAsesores(v),n=list.length;
+  var tit=(v.sedesTit||'').trim();
+  var titH=tit?(C.titH||64):0;
+  var rows=_fgRows(n,true),cols=(n>1)?2:1;
+  var pitch=(C.ehS||160);
+  var top=Math.round(_fgBottomYRaw(C.ey,s));   // arranque del hueco que abrió fgDrawAll
+  var boxTop=top+Math.round(titH*se);
+  var boxH=Math.round(rows*pitch*se);
+  // Banda ancha (ewS), centrada donde está la de siempre: la franja está limpia de
+  // punta a punta, así los mails largos entran sin achicarse tanto.
+  var im=_fgCfg().imgW||1240,bw=C.ewS||C.ew3||C.ew;
+  if(bw>im)bw=im;
+  var bx=C.ex+C.ew/2-bw/2;
+  if(bx<0)bx=0;if(bx+bw>im)bx=im-bw;
+  c.fillStyle=C.bg;
+  c.fillRect(Math.round(bx*se),top,Math.round(bw*se),Math.round(titH*se)+boxH);
+  if(tit){
+    var tfs=Math.round((C.titFs||27)*se),tmax=Math.round((bw-40)*se);
+    c.textAlign="center";c.textBaseline="middle";c.fillStyle=C.titColor||C.color;
+    c.font=(C.titPeso||700)+" "+tfs+"px Arial,sans-serif";
+    var tw=c.measureText(tit).width;
+    if(tw>tmax&&tw>0){ // si no entra, se achica (mismo criterio que el resto del flyer)
+      tfs=Math.max(Math.round(10*se),Math.floor(tfs*tmax/tw));
+      c.font=(C.titPeso||700)+" "+tfs+"px Arial,sans-serif";
+    }
+    c.fillText(tit,Math.round((bx+bw/2)*se),top+Math.round(titH*se/2));
+  }
+  if(!n)return boxTop+boxH;
+  var colW=bw/cols;
+  var xs=(cols===1)?[bx+bw/2]:[bx+bw/4,bx+3*bw/4];
+  list.forEach(function(a,i){
+    var r=Math.floor(i/cols),ci=i%cols;
+    var filaTop=boxTop+Math.round(r*pitch*se);
+    _fgDrawSedeC1(c,s,xs[ci],C,a,filaTop,colW);
+  });
+  return boxTop+boxH; // fondo del bloque (px escalados)
+}
+// Un oficial del modo sedes. filaTop: top de SU fila (px ya escalados).
+function _fgDrawSedeC1(c,s,xc,C,a,filaTop,colW){
+  var se=_fgSE(s),cx=Math.round(xc*se);
+  var maxW=colW?Math.round((colW-24)*se):0;
+  var minF=Math.max(1,Math.round(9*se));
+  function fit(txt,size,bold){
+    if(!maxW||!txt)return size;
+    c.font=(bold?'bold ':'')+size+'px Arial,sans-serif';
+    var w=c.measureText(txt).width;
+    return (w>maxW&&w>0)?Math.max(Math.floor(size*maxW/w),minF):size;
+  }
+  function linea(txt,dy,size,bold,color){
+    if(!txt)return;
+    var f=fit(txt,size,bold);
+    c.font=(bold?'bold ':'')+f+"px Arial,sans-serif";
+    c.fillStyle=color;c.textAlign="center";c.textBaseline="middle";
+    c.fillText(txt,cx,filaTop+Math.round(dy*se));
+  }
+  c.textAlign="center";c.textBaseline="middle";
+  if(a.u){
+    // Pin + sede se centran JUNTOS: mido el texto, sumo el pin y el aire, y arranco
+    // el conjunto en cx - total/2 (si no, el texto queda centrado y el pin corrido).
+    var col=C.colSede||C.color;
+    var fs=Math.round((C.fnSede||21)*se),ph=Math.round(fs*1.05),gap=Math.round(fs*0.32);
+    var pw=Math.round(ph*0.62),txt=a.u;
+    // el pin ocupa lugar: lo descuento del ancho disponible antes de medir la sede
+    var maxTxt=maxW?Math.max(1,maxW-pw-gap):0;
+    c.font="bold "+fs+"px Arial,sans-serif";
+    var tw=c.measureText(txt).width;
+    if(maxTxt&&tw>maxTxt&&tw>0){
+      fs=Math.max(minF,Math.floor(fs*maxTxt/tw));
+      ph=Math.round(fs*1.05);gap=Math.round(fs*0.32);pw=Math.round(ph*0.62);
+      c.font="bold "+fs+"px Arial,sans-serif";tw=c.measureText(txt).width;
+    }
+    var yc=filaTop+Math.round((C.sedeDy||26)*se);
+    var x0=cx-(pw+gap+tw)/2;
+    _fgDrawPin(c,x0+pw/2,yc-ph/2,ph,col,C.bg);
+    c.fillStyle=col;c.textAlign="left";
+    c.fillText(txt,x0+pw+gap,yc);
+    c.textAlign="center";
+  }
+  linea(a.n,C.nomDy||56,Math.round(C.fnBold*se),true,C.color);
+  linea(a.c,C.celDy||86,Math.round(C.frReg*se),false,C.color);
+  linea(a.e,C.mailDy||114,Math.round(C.frReg*se),false,C.color);
 }
 // Marcadores dentro del legal: {importe}, {importe2} y {empresa} (alias {nombre})
 // se reemplazan por los valores del flyer al dibujar (el legal lo escribe la app
@@ -4293,8 +4442,17 @@ function fgFullRes(v){
 // Los campos se INYECTAN desde acá (no en _source.html, que lo regenera el usuario),
 // replicando la estructura del bloque de Asesor 2.
 var _fgA3=false,_fgA4=false;
+// Modo "oficiales por sede": prendido sube el tope de 4 a 8. Arranca SIEMPRE apagado
+// (se vuelve a prender solo al cargar un flyer del historial o retomar el borrador).
+var _fgSedes=false,_fgAOn={5:false,6:false,7:false,8:false};
+function _fgMaxAsesores(){return _fgSedes?8:4;}
 function toggleA3(){_fgA3=!_fgA3;_fgToggleUI(3,_fgA3);if(typeof redraw==='function')redraw();}
 function toggleA4(){_fgA4=!_fgA4;_fgToggleUI(4,_fgA4);if(typeof redraw==='function')redraw();}
+// toggleA5..toggleA8: mismo contrato que las de arriba (las llama el onclick inline
+// de la barrita), pero con el estado en _fgAOn en vez de una variable por asesor.
+[5,6,7,8].forEach(function(n){
+  window['toggleA'+n]=function(){_fgAOn[n]=!_fgAOn[n];_fgToggleUI(n,_fgAOn[n]);if(typeof redraw==='function')redraw();};
+});
 function _fgToggleUI(n,on){
   var sw=document.getElementById('sw'+n),f=document.getElementById('fields'+n);
   if(sw)sw.classList.toggle('on',on);
@@ -4321,6 +4479,141 @@ function _fgEnsureAsesores34(){
   });
   if(_can('asesores_guardados'))_initAsesoresUI(); // popover de asesores guardados en 3 y 4
   if(_can('pegar_oficial'))_fgEnsurePasteBtns(); // botones de pegado en los asesores 3 y 4 recien creados
+}
+// ── MODO "OFICIALES POR SEDE": formulario ────────────────────────────────────
+// Se prende con una barrita en el menú "Otros" (facultad oficiales_sede). Prendido:
+// sube el tope de 4 a 8 oficiales, suma un campo de ubicación a cada uno y un
+// título editable arriba del bloque. Apagado, el formulario queda igual que siempre.
+//
+// A los asesores 5-8 NO se les engancha "⚡ Pegar" ni el popover de asesores
+// guardados, y el padrón y el Excel masivo siguen tocando sólo del 1 al 4: por
+// pedido, estos casos se cargan y editan SOLO A MANO. Sí se les engancha el
+// autocompletado de mail desde el nombre, que es ayuda de tipeo local y ahorra
+// escribir ocho direcciones a mano.
+function _fgEnsureAsesores58(){
+  if(document.getElementById('fields5'))return;
+  var f4=document.getElementById('fields4');if(!f4||!f4.parentNode)return;
+  var html='';
+  [5,6,7,8].forEach(function(n){
+    // La tripleta .sec -> .toggle-row -> .collapsible es obligatoria: _fgBlock
+    // navega hermanos y se rompe si falta alguna.
+    html+='<div class="sec">Asesor '+n+' (opcional)</div>'+
+      '<div class="toggle-row" onclick="toggleA'+n+'()"><span>Agregar asesor '+n+'</span><div class="sw" id="sw'+n+'"></div></div>'+
+      '<div class="collapsible" id="fields'+n+'">'+
+        '<div class="field"><label>Nombre</label><input type="text" id="nombre'+n+'" placeholder="Nombre Asesor '+n+'"></div>'+
+        '<div class="field"><label>Celular</label><input type="text" id="celular'+n+'" placeholder="11 XXXX XXXX"></div>'+
+        '<div class="field"><label>Email</label><input type="text" id="email'+n+'" placeholder="mail@bancogalicia.com.ar"></div>'+
+      '</div>';
+  });
+  f4.insertAdjacentHTML('afterend',html); // quedan dentro de la tarjeta "Oficiales", antes del botón "+ Agregar"
+  // Nacen ocultos y apagados: el alta es siempre explícita ("+ Agregar asesor"),
+  // igual que los slots 2-4. Si quedaran a la vista pero con el switch apagado,
+  // se podrían cargar datos que después no salen en el flyer.
+  [5,6,7,8].forEach(function(n){_fgShowBlock(n,false);});
+  [5,6,7,8].forEach(function(n){
+    ['nombre','celular','email'].forEach(function(k){
+      var e=document.getElementById(k+n);
+      if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
+    });
+  });
+  _fgAutoMail(); // engancha nombre -> mail también en los slots nuevos
+  if(typeof _fgValWire==='function')_fgValInputs().forEach(_fgValWire); // y la validación de cel/mail
+}
+// Campo "Ubicación" al final de cada #fields{n} (1 a 8) + el título arriba de todo.
+// Se inyectan una sola vez y después sólo se muestran/ocultan con display.
+function _fgEnsureSedesFields(){
+  for(var n=1;n<=8;n++){
+    if(document.getElementById('ubic'+n))continue;
+    var f=document.getElementById('fields'+n);if(!f)continue;
+    f.insertAdjacentHTML('beforeend',
+      '<div class="field fg-sede-f" id="fg-sede-f-'+n+'"><label>Ubicación</label>'+
+      '<input type="text" id="ubic'+n+'" placeholder="BUENOS AIRES" autocomplete="off"></div>');
+    var e=document.getElementById('ubic'+n);
+    if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
+  }
+  if(!document.getElementById('fg-sedes-tit')){
+    var b1=_fgBlock(1);
+    if(b1&&b1.sec&&b1.sec.parentNode){
+      b1.sec.insertAdjacentHTML('beforebegin',
+        '<div id="fg-sedes-tit" style="display:none"><div class="field">'+
+        '<label>Título arriba de los oficiales</label>'+
+        '<input type="text" id="sedes-titulo" placeholder="Ahora tenés un referente por sede según tu zona" autocomplete="off">'+
+        '</div></div>');
+      var t=document.getElementById('sedes-titulo');
+      if(t)t.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
+    }
+  }
+}
+// La barrita en el menú "Otros". Reusa la pastilla .sw del resto de la app.
+function _fgEnsureSedesSwitch(){
+  if(document.getElementById('fg-sedes-item'))return;
+  var m=document.getElementById('fg-otros-menu');if(!m)return;
+  m.insertAdjacentHTML('beforeend',
+    '<button type="button" class="fg-otros-item fg-otros-sw" id="fg-sedes-item" onclick="fgToggleSedes()" aria-pressed="false">'+
+      '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+
+      '<span class="fg-sedes-lbl">Oficiales por sede (hasta 8)</span>'+
+      '<span class="sw" id="fg-sedes-sw"></span>'+
+    '</button>');
+}
+// Muestra/oculta el ítem según la facultad. Si se la sacan con el modo prendido, lo apaga.
+function _fgSedesFac(on){
+  var it=document.getElementById('fg-sedes-item');
+  if(it)it.style.display=on?'':'none';
+  if(!on&&_fgSedes)_fgSedesSet(false);
+}
+function _fgSedesApplyUI(on){
+  var sw=document.getElementById('fg-sedes-sw');if(sw)sw.classList.toggle('on',on);
+  var it=document.getElementById('fg-sedes-item');if(it)it.setAttribute('aria-pressed',on?'true':'false');
+  var t=document.getElementById('fg-sedes-tit');if(t)t.style.display=on?'':'none';
+  for(var n=1;n<=8;n++){
+    var f=document.getElementById('fg-sede-f-'+n);
+    if(f)f.style.display=on?'':'none';
+  }
+}
+// ¿Hay algo cargado que se pierda al apagar el modo? (oficiales 5-8, ubicaciones o título)
+function _fgSedesTieneDatos(){
+  if((_gv('sedes-titulo')||'').trim())return true;
+  for(var n=1;n<=8;n++){
+    if((_gv('ubic'+n)||'').trim())return true;
+    if(n>=5&&(_gv('nombre'+n)||'').trim())return true;
+  }
+  return false;
+}
+// Prende/apaga el modo sin preguntar nada (lo usan el historial, el borrador y Restaurar).
+function _fgSedesSet(on){
+  on=!!on;
+  if(on){_fgEnsureAsesores58();_fgEnsureSedesFields();}
+  else{
+    for(var n=5;n<=8;n++){
+      if(_fgAsesorOn(n))_fgSetAsesorOn(n,false);
+      ['nombre','celular','email'].forEach(function(k){var e=document.getElementById(k+n);if(e)e.value='';});
+      _fgShowBlock(n,false);
+    }
+    for(var u=1;u<=8;u++){var e2=document.getElementById('ubic'+u);if(e2)e2.value='';}
+    var t=document.getElementById('sedes-titulo');if(t)t.value='';
+  }
+  _fgSedes=on;
+  _fgSedesApplyUI(on);
+  _fgRefreshAddBtn();
+  if(typeof redraw==='function')redraw();
+}
+function fgToggleSedes(){
+  if(_fgSedes&&_fgSedesTieneDatos()){
+    fgConfirm('¿Apagar "Oficiales por sede"?\n\nSe borran las ubicaciones, el título y los oficiales 5 al 8. El flyer vuelve a los 4 de siempre.',
+      {ok:'Apagar igual'},function(si){
+        if(!si)return;
+        _fgSedesSet(false);
+        if(typeof showToast==='function')showToast('Oficiales por sede: apagado');
+      });
+    return;
+  }
+  var nuevo=!_fgSedes;
+  _fgSedesSet(nuevo);
+  if(typeof showToast==='function')showToast(nuevo?'Oficiales por sede: ya podés cargar hasta 8 con su ubicación':'Oficiales por sede: apagado');
+  if(nuevo){
+    fgToggleOtros(false); // cierro el menú: lo que sigue pasa en el formulario
+    var t2=document.getElementById('sedes-titulo');if(t2)t2.focus();
+  }
 }
 // ── PRESENTACIÓN: el formulario del individual en tarjetas ────────────────────
 // Agrupa cada ".sec" del template con lo que le sigue dentro de <div class="fg-card">
@@ -4371,8 +4664,8 @@ function _fgMailFromName(name){
   return last?(first+'.'+last+'@bancogalicia.com.ar'):'';
 }
 function _fgAutoMail(){
-  [1,2,3,4].forEach(function(i){
-    var sfx=(i===1)?'':String(i);
+  [1,2,3,4,5,6,7,8].forEach(function(i){ // 5-8 sólo existen con el modo sedes
+    var sfx=_fgSfx(i);
     var nEl=document.getElementById('nombre'+sfx),mEl=document.getElementById('email'+sfx);
     if(!nEl||!mEl||nEl.dataset.fgMail)return;
     nEl.dataset.fgMail='1';
@@ -4401,7 +4694,9 @@ function _fgBlock(n){
 function _fgAsesorOn(n){
   if(n===1)return (typeof a1==='undefined')?true:!!a1;
   if(n===2)return (typeof a2!=='undefined')&&!!a2;
-  return (n===3)?_fgA3:_fgA4;
+  if(n===3)return _fgA3;
+  if(n===4)return _fgA4;
+  return !!_fgAOn[n];
 }
 function _fgSetAsesorOn(n,on){
   if(_fgAsesorOn(n)===!!on)return;
@@ -4409,6 +4704,7 @@ function _fgSetAsesorOn(n,on){
   else if(n===2&&typeof toggleA2==='function')toggleA2();
   else if(n===3)toggleA3();
   else if(n===4)toggleA4();
+  else if(typeof window['toggleA'+n]==='function')window['toggleA'+n]();
 }
 // Muestra/oculta el bloque entero (título + fila del switch + campos).
 // El Asesor 1 conserva su barrita (el switch a la vista) y NO se puede quitar:
@@ -4447,7 +4743,7 @@ function _fgIsBlockVisible(n){
   var b=_fgBlock(n);return !!(b&&b.sec.style.display!=='none');
 }
 function _fgAddNextAsesor(){
-  for(var n=2;n<=4;n++){
+  for(var n=2;n<=_fgMaxAsesores();n++){
     if(_fgIsBlockVisible(n))continue;
     _fgShowBlock(n,true);_fgSetAsesorOn(n,true);_fgRefreshAddBtn();
     var el=document.getElementById('nombre'+n);if(el)el.focus();
@@ -4460,12 +4756,14 @@ function _fgAddNextAsesor(){
 // Al limpiar el mail se saca la marca de "escrito a mano" para que el
 // autocompletado (nombre.apellido@) vuelva a sugerir con el asesor siguiente.
 function _fgClearAsesor(n,avisar){
-  var sfx=(n===1)?'':String(n),algo=false;
+  var sfx=_fgSfx(n),algo=false;
   ['nombre','celular','email'].forEach(function(k){
     var e=document.getElementById(k+sfx);if(!e)return;
     if(e.value)algo=true;
     e.value='';
   });
+  var uEl=document.getElementById('ubic'+n); // la ubicación es parte del asesor: se va con él
+  if(uEl){if(uEl.value)algo=true;uEl.value='';}
   var mEl=document.getElementById('email'+sfx);if(mEl)mEl.dataset.fgManual='';
   if(typeof redraw==='function')redraw();
   if(algo&&avisar&&typeof showToast==='function')showToast('Datos del asesor '+n+' borrados');
@@ -4482,7 +4780,8 @@ function _fgRemoveAsesor(n){
 }
 function _fgRefreshAddBtn(){
   var b=document.getElementById('fg-add-asesor');if(!b)return;
-  var libre=false;for(var n=2;n<=4;n++)if(!_fgIsBlockVisible(n))libre=true;
+  var libre=false,max=_fgMaxAsesores();
+  for(var n=2;n<=max;n++)if(!_fgIsBlockVisible(n))libre=true;
   b.style.display=libre?'':'none';
 }
 function _fgEnsureAddBtn(){
@@ -4608,9 +4907,10 @@ function _fgMasivoHint(){
 // iniciar y al Restaurar: nunca en medio de la edición.
 function _fgSyncAsesorBlocks(){
   _fgShowBlock(1,true); // el bloque 1 está siempre a la vista: se vacía con "Borrar", no se quita
-  for(var n=2;n<=4;n++){
+  for(var n=2;n<=8;n++){
+    if(!document.getElementById('fields'+n))continue; // 5-8 sólo existen con el modo sedes
     var el=document.getElementById('nombre'+n);
-    var tiene=!!(el&&el.value.trim())||_fgAsesorOn(n);
+    var tiene=(n<=_fgMaxAsesores())&&(!!(el&&el.value.trim())||_fgAsesorOn(n));
     _fgShowBlock(n,tiene);
   }
   _fgRefreshAddBtn();
@@ -4624,30 +4924,28 @@ function _fgFixAsesorLabels(){
   Array.prototype.forEach.call(rows,function(r){
     var sw=r.querySelector('.sw');if(!sw||!sw.id)return;
     var n=parseInt(String(sw.id).replace(/\D/g,''),10);
-    if(!n||n<1||n>4)return;
+    if(!n||n<1||n>8)return;
     var sp=r.querySelector('span');
     if(sp)sp.textContent='Agregar asesor '+n;
   });
 }
-// getVals ampliado a 4 asesores (pisa el de _source.html, que sólo conoce 2).
+// getVals ampliado a 4 asesores —8 con el modo sedes— (pisa el de _source.html,
+// que sólo conoce 2). Los nombres de clave NO cambian (nombre, nombre2, ...): el
+// historial, el borrador, el Excel y los logs viejos dependen de ellos.
 function fgGetVals(){
   function g(id){var e=document.getElementById(id);return e?e.value:'';}
   function cel(id){var t=g(id).trim();return t?'Cel: '+t:'';}
   var c=CONFIGS[ac]||CONFIGS[0];
-  return{
+  var o={
     empresa:g('empresa'),
     nocb:_fgNoCB,
     config:_fgNoCB?'Sin cashback':((typeof CNAMES!=='undefined'&&CNAMES[ac])?CNAMES[ac]:''),
     m1:c.m1,m2:c.m2,m3:c.m3,m4:c.m4,
-    has1:(typeof a1==='undefined'?true:a1)&&g('nombre').trim()!=='',
-    nombre:g('nombre'),celular:cel('celular'),email:g('email'),
-    has2:(typeof a2!=='undefined'&&a2)&&g('nombre2').trim()!=='',
-    nombre2:g('nombre2'),celular2:cel('celular2'),email2:g('email2'),
-    has3:_fgA3&&g('nombre3').trim()!=='',
-    nombre3:g('nombre3'),celular3:cel('celular3'),email3:g('email3'),
-    has4:_fgA4&&g('nombre4').trim()!=='',
-    nombre4:g('nombre4'),celular4:cel('celular4'),email4:g('email4'),
     legal:g('legal-text'),
+    // Modo "oficiales por sede": va en v (no en estado global) para que el historial,
+    // el borrador y el masivo rindan igual que la pantalla. Ver _fgAsesores.
+    sedes:_fgSedes,
+    sedesTit:_fgSedes?g('sedes-titulo').trim():'',
     // Flyer Rubros: el cartel "¡Beneficio exclusivo NOMBRE!" + tope. benef va en
     // v (no en estado global) para que historial, masivo y calibrador rindan igual.
     benef:_fgVista==='rubros',
@@ -4655,6 +4953,14 @@ function fgGetVals(){
     importe:_fgFmtImporte(g('benef-importe')),
     importe2:_fgFmtImporte(g('benef-importe2'))||_fgFmtImporte(g('benef-importe'))
   };
+  // Los 8 slots: del 5 al 8 sólo cuentan con el modo sedes prendido.
+  for(var n=1;n<=8;n++){
+    var s=_fgSfx(n);
+    o['has'+n]=(n<=_fgMaxAsesores())&&_fgAsesorOn(n)&&g('nombre'+s).trim()!=='';
+    o['nombre'+s]=g('nombre'+s);o['celular'+s]=cel('celular'+s);o['email'+s]=g('email'+s);
+    o['ubic'+n]=_fgSedes?g('ubic'+n).trim():'';
+  }
+  return o;
 }
 
 // ── HISTORIAL con opción (color) ──────────────────────────────────────────────
@@ -4741,18 +5047,26 @@ function _fgApplyHistItem(h){
       s('benef-importe',imp?imp.slice(1):'');
       s('benef-importe2',(imp2&&imp2!==imp)?imp2.slice(1):'');
     }
-    // Los 4 asesores se aplican SIEMPRE, los tuviera o no el flyer guardado.
+    // El modo sedes va ANTES de los asesores: prenderlo crea los slots 5-8 y los
+    // campos de ubicación, que el loop de abajo necesita para escribir.
+    _fgSedesSet(!!h.v.sedes);
+    if(h.v.sedes)s('sedes-titulo',h.v.sedesTit||'');
+    // Los asesores se aplican SIEMPRE, los tuviera o no el flyer guardado.
     // Antes sólo se tocaban los que el ítem tenía, así que cargar un flyer de 1
     // asesor después de uno de 3 dejaba pegados los otros dos del anterior.
-    [1,2,3,4].forEach(function(k){
-      var sfx=(k===1)?'':String(k);
+    var max=h.v.sedes?8:4;
+    for(var k=1;k<=8;k++){
+      var sfx=_fgSfx(k);
       var hay=(k===1&&h.v.has1===undefined)?!!(h.v.nombre||'').trim():!!h.v['has'+k];
+      if(k>max)hay=false; // un flyer sin modo sedes nunca reabre los slots 5-8
+      if(!document.getElementById('nombre'+sfx))continue;
       s('nombre'+sfx,hay?(h.v['nombre'+sfx]||''):'');
       s('celular'+sfx,hay?((h.v['celular'+sfx]||'').replace('Cel: ','')):'');
       s('email'+sfx,hay?(h.v['email'+sfx]||''):'');
+      s('ubic'+k,hay?(h.v['ubic'+k]||''):'');
       if(k===1)_fgSetAsesorOn(1,true);   // el bloque 1 queda siempre abierto
       else _fgSetAsesorOn(k,hay);
-    });
+    }
     _fgSyncAsesorBlocks(); // muestra los bloques que el flyer del historial tenía
     _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // el historial no es una fila del padrón
     if(h.v&&h.v.nocb)_fgSetNoCB(true);
@@ -4767,6 +5081,7 @@ function fgResetVals(){
   var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
   ['empresa','nombre','celular','email','nombre2','celular2','email2',
    'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(id){s(id,'');});
+  _fgSedesSet(false); // apaga el modo sedes y limpia ubicaciones, título y oficiales 5-8
   s('filename','Flyer {empresa}');
   s('benef-nombre','');s('benef-importe','24.000');s('benef-importe2','');_fgBenefManual=false;
   if(_fgA3)toggleA3();if(_fgA4)toggleA4();
@@ -5508,9 +5823,17 @@ function logFlyerToSupabase(v,fn,fmt){
   var extra={opcion:_optN(_fgOpt)}; // qué armador se usó (control de visibilidad)
   if(v){
     ['config','nombre','celular','email','nombre2','celular2','email2',
-     'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(k){
+     'nombre3','celular3','email3','nombre4','celular4','email4',
+     'nombre5','celular5','email5','nombre6','celular6','email6',
+     'nombre7','celular7','email7','nombre8','celular8','email8'].forEach(function(k){
       if(v[k])extra[k]=v[k];
     });
+    // Modo "oficiales por sede": va todo en flyer_type (texto JSON), sin columnas nuevas.
+    if(v.sedes){
+      extra.sedes=1;
+      if(v.sedesTit)extra.sedesTit=v.sedesTit;
+      for(var _u=1;_u<=8;_u++)if(v['ubic'+_u])extra['ubic'+_u]=v['ubic'+_u];
+    }
     extra.asesores=_fgAsesores(v).length;
     if(v.benef){extra.beneficio=v.benefNombre||'';extra.importe=v.importe||'';if(_fgBenefUsaImporte2())extra.importe2=v.importe2||v.importe||'';} // Flyer Rubros
   }
@@ -8846,7 +9169,8 @@ function _fgDraftSnapshot(){
 function _fgDraftVale(d){
   if(!d||!d.v)return false;
   var v=d.v;
-  return !!((v.empresa||'').trim()||typeof v.legal==='string'||(v.nombre2||'').trim()||(v.nombre3||'').trim()||(v.nombre4||'').trim()||(v.benefNombre||'').trim());
+  return !!((v.empresa||'').trim()||typeof v.legal==='string'||(v.nombre2||'').trim()||(v.nombre3||'').trim()||(v.nombre4||'').trim()||(v.benefNombre||'').trim()||
+    (v.sedesTit||'').trim()||(v.nombre5||'').trim()||(v.nombre6||'').trim()||(v.nombre7||'').trim()||(v.nombre8||'').trim());
 }
 function _fgDraftSaveNow(){
   if(!_fgWorkOn||_fgDraftPending)return;
@@ -8951,21 +9275,24 @@ function _fgValField(inp){
 }
 function _fgValInputs(){
   var out=[];
-  [1,2,3,4].forEach(function(k){var s=k===1?'':String(k);['celular'+s,'email'+s].forEach(function(id){var e=document.getElementById(id);if(e)out.push(e);});});
+  for(var k=1;k<=8;k++){ // 5-8 sólo existen con el modo sedes: el guard los saltea
+    var s=_fgSfx(k);
+    ['celular'+s,'email'+s].forEach(function(id){var e=document.getElementById(id);if(e)out.push(e);});
+  }
   return out;
 }
 function _fgValTodos(){_fgValInputs().forEach(_fgValField);}
 // Resumen para el aviso al generar: sólo asesores que van al flyer y sólo errores (no avisos).
 function _fgValProblemas(){
-  var p=[];
-  [1,2,3,4].forEach(function(k){
-    if(!_fgAsesorOn(k))return;
-    var s=k===1?'':String(k);
-    var n=(_gv('nombre'+s)||'').trim();if(!n)return;
+  var p=[],max=_fgMaxAsesores();
+  for(var k=1;k<=max;k++){
+    if(!_fgAsesorOn(k))continue;
+    var s=_fgSfx(k);
+    var n=(_gv('nombre'+s)||'').trim();if(!n)continue;
     var c=_fgValCel(_gv('celular'+s)),m=_fgValMail(_gv('email'+s));
     if(c&&c.tipo==='inv')p.push('el celular de '+n);
     if(m&&m.tipo==='inv')p.push('el mail de '+n);
-  });
+  }
   return p;
 }
 function _fgValAvisar(){
@@ -8979,11 +9306,16 @@ function _fgToastLargo(msg,ms){
   var t=document.getElementById('toast-el');if(!t)return;
   clearTimeout(t._tid);t._tid=setTimeout(function(){t.classList.remove('show');},ms||6000);
 }
+// Engancha la validación a un campo. Separado de _fgValInit porque los asesores
+// 5-8 nacen después (al prender el modo sedes) y también la necesitan.
+function _fgValWire(inp){
+  if(!inp||inp.dataset.fgVal)return;
+  inp.dataset.fgVal='1';
+  inp.addEventListener('input',function(){_fgValField(inp);});
+  inp.addEventListener('blur',function(){_fgValField(inp);});
+}
 function _fgValInit(){
-  _fgValInputs().forEach(function(inp){
-    inp.addEventListener('input',function(){_fgValField(inp);});
-    inp.addEventListener('blur',function(){_fgValField(inp);});
-  });
+  _fgValInputs().forEach(_fgValWire);
   // Al generar: marca los campos y avisa, pero deja generar (decisión de producto).
   var oPDF=window.dlPDF;
   window.dlPDF=function(){var r=oPDF.apply(this,arguments);setTimeout(_fgValAvisar,1300);return r;};

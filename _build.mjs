@@ -840,7 +840,7 @@ const checks = {
   'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
   // Facultades por perfil: la matriz vive en la nube y gobierna el gating de la UI
   'facultades: matriz por rol': html.includes('id="at-facultades"') && html.includes('id="fac-grid"') && _authSrc.includes('function _can(') && _authSrc.includes('function loadFacultades(') && _authSrc.includes('function _applyFacultades('),
-  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false}') && !_authSrc.includes('_canNotes'),
+  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false}') && !_authSrc.includes('_canNotes'),
   // Tutorial guiado: "Ver tutorial" en el menú para todos; el arranque
   // automático al primer ingreso es una facultad (apagada por default).
   'tutorial guiado': html.includes('id="hdr-dd-tour"') && _authSrc.includes('function _tourStart(') && _authSrc.includes('function _tourEnd(') && _authSrc.includes('function _tourCapitulos(') && _authSrc.includes("rows.push(['tutorial_auto',") && _authSrc.includes('_tourAutoStart();') && _authSrc.includes("_can('tutorial_auto')"),
@@ -892,7 +892,10 @@ const checks = {
   '3 asesores: banda ancha': _authSrc.includes('ew3:1140') && _authSrc.includes('xs=[bx+bw/6,bx+bw/2,bx+5*bw/6];colW=bw/3;'),
   // Bugs encontrados en la revision general (ver tests en scratchpad)
   'padron: filas saneadas al cargar': _authSrc.includes('function _padSane(') && _authSrc.includes('_padron=_padSane(r.data)'),
-  'historial: aplica los 4 asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)'),
+  // Los asesores se aplican SIEMPRE (los tuviera o no el flyer guardado), si no
+  // cargar uno de 1 asesor despues de uno de 3 dejaba pegados los dos del anterior.
+  // Con el modo sedes el loop llega a 8, pero un flyer sin sedes nunca reabre 5-8.
+  'historial: aplica todos los asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)') && _authSrc.includes('if(k>max)hay=false;'),
   'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
   // Empresa y montos tapan con el color REAL del flyer (muestreado), no con uno fijo:
@@ -913,6 +916,18 @@ const checks = {
   // teclado, negrita del legal y dialogos propios (sin confirm() del navegador).
   'ux: trabajo guardado gateado por facultad': _authSrc.includes("_fgWorkApply(_can('guardar_trabajo'))") && _authSrc.includes("['guardar_trabajo','Guardar historial y borrador'") && _authSrc.includes('function _fgApplyHistItem(') && _authSrc.includes('_fgWorkSaveHist();'),
   'ux: validacion en linea (no bloquea)': _authSrc.includes('function _fgValField(') && _authSrc.includes('function _fgValAvisar(') && _authSrc.includes('(se generó igual)'),
+  // "Oficiales por sede": barrita en Otros (facultad oficiales_sede) que sube el tope
+  // de 4 a 8 oficiales, suma la ubicacion de cada uno (pin + negrita) y el titulo del
+  // bloque. Apagado, el flyer se dibuja por la rama de siempre (cero regresion).
+  'oficiales por sede': _authSrc.includes('function fgToggleSedes(') && _authSrc.includes("['oficiales_sede','Oficiales por sede'") &&
+    _authSrc.includes("_fgSedesFac(_can('oficiales_sede'))") && _authSrc.includes('function _fgDrawContactoSedes(') &&
+    _authSrc.includes('function _fgDrawPin(') && _authSrc.includes('function _fgEnsureAsesores58(') &&
+    // el hueco del pin se pinta con el color de la banda: el modo de borrado del
+    // canvas borraria hasta el fondo y dejaria un agujero transparente en el PNG
+    !/globalCompositeOperation\s*=\s*['"]destination-/.test(_authSrc) &&
+    _authSrc.includes('function _fgMaxAsesores(') && html.includes('.fg-otros-sw{') &&
+    // el padron y el masivo NO tocan los slots 5-8: estos casos se cargan solo a mano
+    _authSrc.includes('function _padSane(') && !_authSrc.includes("asesor5_nombre"),
   'ux: compartir (solo PDF, boton oculto si no se puede) + Otros (PNG)': html.includes('id="btn-share"') && html.includes('id="modal-share"') && html.includes('id="fg-otros-menu"') && _authSrc.includes("logFlyerToSupabase(v,fn,'compartir')") && _authSrc.includes('function _fgPuedeCompartirPdf(') && !_authSrc.includes('ClipboardItem'),
   // Globito con el atajo al apoyar el mouse en "Descargar PDF". Solo con mouse
   // de verdad (en celular no hay teclado) y sin tocar el tamano del boton.
