@@ -268,7 +268,7 @@ function _initAsesoresUI(){
   Array.prototype.forEach.call(secs,function(sec){
     var t=(sec.textContent||'').toLowerCase();
     var slot=0;
-    for(var k=1;k<=4;k++){if(t.indexOf('asesor '+k)>=0){slot=k;break;}}
+    for(var k=1;k<=8;k++){if(t.indexOf('asesor '+k)>=0){slot=k;break;}} // 5-8: modo "oficiales por sede"
     if(!slot||sec.dataset.asLinked)return;
     sec.dataset.asLinked='1';
     sec.classList.add('sec-clickable');
@@ -313,12 +313,12 @@ function closeAsPop(){var p=document.getElementById('as-pop');if(p)p.parentNode.
 function _closeAsOutside(e){var p=document.getElementById('as-pop');if(p&&!p.contains(e.target))closeAsPop();}
 function applyAsesor(id,slot){
   var a=_asesores.find(function(x){return x.id===id;});if(!a)return;
-  var sfx=(slot>1)?String(slot):'';
+  var sfx=_fgSfx(slot);
   _setVal('nombre'+sfx,a.nombre);_setVal('celular'+sfx,a.celular);_setVal('email'+sfx,a.email);
-  if(slot===2){if(typeof toggleA2==='function'&&!window.a2)toggleA2();}
-  else if(slot===3){if(!_fgA3)toggleA3();}
-  else if(slot===4){if(!_fgA4)toggleA4();}
-  else{if(typeof toggleA1==='function'&&!window.a1)toggleA1();}
+  // _fgSetAsesorOn cubre los 8 slots. Antes era un if/else por slot con un "else"
+  // final que caía en el Asesor 1: con los slots 5-8 del modo "oficiales por sede"
+  // eso prendía (y mostraba) el bloque equivocado.
+  _fgSetAsesorOn(slot,true);
   _fgShowBlock(slot,true);_fgRefreshAddBtn();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
@@ -1127,7 +1127,7 @@ function _facRows(){
   rows.push(['asesores_guardados','Base de datos: mis asesores','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4". Desde su nombre &rarr; <strong>Base de datos &rarr; Mis asesores</strong> los ve, los corrige, los sube por Excel o se los baja. La lista viaja con su cuenta (la ve desde cualquier computadora) y es privada.']);
   rows.push(['promos_buscar','Buscador de promociones','Agrega la pesta&ntilde;a "Promociones": pega las marcas del flyer y las cruza contra el buscador oficial de Galicia, con logo, fechas de vigencia y estado (vigente / vence este mes / vencida).']);
   rows.push(['guardar_trabajo','Guardar historial y borrador','El <strong>Historial</strong> queda guardado en el dispositivo (hoy se borra al cerrar o recargar la p&aacute;gina) y el formulario se guarda solo mientras escribe: si cierra la pesta&ntilde;a a mitad de un flyer, al volver le ofrece <em>&laquo;Seguir con ese flyer&raquo;</em>. Todo vive en su navegador, nada sale a la nube.']);
-  rows.push(['oficiales_sede','Oficiales por sede','Suma una barrita en <strong>Otros &rarr; Oficiales por sede</strong>, para los flyers donde el banco pone un referente por zona. Prendida: puede cargar <strong>hasta 8 oficiales</strong> (en vez de 4), ponerle a cada uno su <strong>ubicaci&oacute;n</strong> (sale con el pin y en negrita arriba del nombre) y escribir el <strong>t&iacute;tulo</strong> que va arriba del bloque. Apagada, el armador queda igual que siempre. Estos casos se cargan <strong>s&oacute;lo a mano</strong>: no entran por Pegar, ni por la base de empresas, ni por el Excel del masivo.']);
+  rows.push(['oficiales_sede','Oficiales por sede','Suma una barrita en <strong>Otros &rarr; Oficiales por sede</strong>, para los flyers donde el banco pone un referente por zona. Prendida: puede cargar <strong>hasta 8 oficiales</strong> (en vez de 4), ponerle a cada uno su <strong>ubicaci&oacute;n</strong> (sale con el pin &#128205; y en negrita arriba del nombre) y escribir el <strong>t&iacute;tulo</strong> que va arriba del bloque. Apagada, el armador queda igual que siempre. Los oficiales 5 al 8 se cargan igual que los otros (Pegar y asesores guardados); lo &uacute;nico que no los alcanza es la carga masiva: la base de empresas y el Excel del masivo siguen trayendo hasta 4.']);
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
   return rows;
 }
@@ -3789,9 +3789,12 @@ var FLYER_CFG_DEFAULT = {
     // constantes sueltas) para que viajen en el cfg por flyer de _flyer_cfgs.json:
     // el día que haya que ajustarlos por flyer, es sumar inputs al calibrador.
     ewS:1140,   // ancho de la banda en modo sedes (la franja está limpia de punta a punta)
-    ehS:160,    // alto de cada fila: 4 líneas (sede + nombre + cel + mail) en vez de 3
-    sedeDy:26, nomDy:56, celDy:86, mailDy:114, // las 4 líneas, medidas desde el top de SU fila
-    fnSede:21, colSede:"#111",                 // la sede va en negrita, con el pin adelante
+    ehS:172,    // alto de cada fila: 4 líneas (sede + nombre + cel + mail) en vez de 3
+    // Las 4 líneas, medidas desde el top de SU fila. El salto sede -> nombre (42px)
+    // es más grande que el del resto (30/28): la sede es el encabezado del oficial,
+    // y pegada al nombre se leían como una sola cosa.
+    sedeDy:24, nomDy:66, celDy:96, mailDy:124,
+    fnSede:21, colSede:"#111",                 // la sede va en negrita
     titH:64, titFs:27, titPeso:700, titColor:"#111"}, // franja del título, arriba de la grilla
   legal:{x0:39,yStart:5595,yEnd:6300,maxW:1162,fs:12,lh:17,gap:5,
     minFs:7,minLh:10,minGap:3,color:"#222222",bg:"#ffffff"},
@@ -4219,20 +4222,18 @@ function fgDrawC1(c,s,xc,C,nom,cel,mail,dy,colW){
 // El pin se traza a mano (silueta del map-pin de Feather) en vez de escribir el
 // emoji 📍 con fillText: el emoji sale de colores, depende de la fuente que tenga
 // el sistema y rinde distinto en el PDF. Mismo criterio que los íconos del header.
-// El huequito del medio se pinta con el color de la BANDA, no con el modo de
-// borrado del canvas: ese modo no borra sólo la banda, borra hasta el fondo del
-// canvas, y el hueco quedaría transparente (un agujero en el PNG, que se baja
-// con fondo transparente).
-function _fgDrawPin(c,x,yTop,h,color,bg){
-  var r=h*0.30,cy=yTop+r+h*0.04;
-  c.save();c.beginPath();
-  c.arc(x,cy,r,Math.PI*0.85,Math.PI*0.15,false); // la cabeza redonda, abierta abajo
-  c.lineTo(x,yTop+h);                            // y la punta
-  c.closePath();
-  c.fillStyle=color;c.fill();
-  c.beginPath();c.arc(x,cy,r*0.40,0,Math.PI*2);  // el huequito del medio
-  c.fillStyle=bg||'#ffffff';c.fill();
-  c.restore();
+// El pin de la ubicación es el EMOJI 📍 (U+1F4CD), igual que en el flyer del banco,
+// y vive dentro del campo de texto: el campo arranca con "📍 " puesto y el flyer
+// dibuja literalmente lo que haya ahí. Así sale a color (lo rasteriza la fuente de
+// emoji del sistema) y el que no lo quiera simplemente lo borra del campo.
+var _FG_UBIC_PIN=String.fromCodePoint(0x1F4CD); // por codepoint: el emoji no viaja en el fuente
+// Arial no tiene el emoji: sin este fallback el navegador dibuja el cuadrito "tofu".
+var _FG_UBIC_FONT='Arial,"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+// Lo que el usuario realmente escribió: si en el campo quedó sólo el pin (o nada),
+// la ubicación está vacía y no se dibuja ni cuenta como dato cargado.
+function _fgUbicTexto(raw){
+  var t=(raw||'').trim();
+  return t.split(_FG_UBIC_PIN).join('').trim()?t:'';
 }
 function _fgDrawContactoSedes(c,s,v){
   var C=_fgCfg().contacto,se=_fgSE(s);
@@ -4278,45 +4279,26 @@ function _fgDrawSedeC1(c,s,xc,C,a,filaTop,colW){
   var se=_fgSE(s),cx=Math.round(xc*se);
   var maxW=colW?Math.round((colW-24)*se):0;
   var minF=Math.max(1,Math.round(9*se));
-  function fit(txt,size,bold){
+  function fit(txt,size,bold,fam){
     if(!maxW||!txt)return size;
-    c.font=(bold?'bold ':'')+size+'px Arial,sans-serif';
+    c.font=(bold?'bold ':'')+size+'px '+(fam||'Arial,sans-serif');
     var w=c.measureText(txt).width;
     return (w>maxW&&w>0)?Math.max(Math.floor(size*maxW/w),minF):size;
   }
-  function linea(txt,dy,size,bold,color){
+  function linea(txt,dy,size,bold,color,fam){
     if(!txt)return;
-    var f=fit(txt,size,bold);
-    c.font=(bold?'bold ':'')+f+"px Arial,sans-serif";
+    fam=fam||'Arial,sans-serif';
+    var f=fit(txt,size,bold,fam);
+    c.font=(bold?'bold ':'')+f+"px "+fam;
     c.fillStyle=color;c.textAlign="center";c.textBaseline="middle";
     c.fillText(txt,cx,filaTop+Math.round(dy*se));
   }
-  c.textAlign="center";c.textBaseline="middle";
-  if(a.u){
-    // Pin + sede se centran JUNTOS: mido el texto, sumo el pin y el aire, y arranco
-    // el conjunto en cx - total/2 (si no, el texto queda centrado y el pin corrido).
-    var col=C.colSede||C.color;
-    var fs=Math.round((C.fnSede||21)*se),ph=Math.round(fs*1.05),gap=Math.round(fs*0.32);
-    var pw=Math.round(ph*0.62),txt=a.u;
-    // el pin ocupa lugar: lo descuento del ancho disponible antes de medir la sede
-    var maxTxt=maxW?Math.max(1,maxW-pw-gap):0;
-    c.font="bold "+fs+"px Arial,sans-serif";
-    var tw=c.measureText(txt).width;
-    if(maxTxt&&tw>maxTxt&&tw>0){
-      fs=Math.max(minF,Math.floor(fs*maxTxt/tw));
-      ph=Math.round(fs*1.05);gap=Math.round(fs*0.32);pw=Math.round(ph*0.62);
-      c.font="bold "+fs+"px Arial,sans-serif";tw=c.measureText(txt).width;
-    }
-    var yc=filaTop+Math.round((C.sedeDy||26)*se);
-    var x0=cx-(pw+gap+tw)/2;
-    _fgDrawPin(c,x0+pw/2,yc-ph/2,ph,col,C.bg);
-    c.fillStyle=col;c.textAlign="left";
-    c.fillText(txt,x0+pw+gap,yc);
-    c.textAlign="center";
-  }
-  linea(a.n,C.nomDy||56,Math.round(C.fnBold*se),true,C.color);
-  linea(a.c,C.celDy||86,Math.round(C.frReg*se),false,C.color);
-  linea(a.e,C.mailDy||114,Math.round(C.frReg*se),false,C.color);
+  // La ubicación es una línea más: el emoji 📍 viene DENTRO del texto (ver
+  // _FG_UBIC_PIN), así que se centra solo junto con el nombre de la sede.
+  linea(a.u,C.sedeDy||24,Math.round((C.fnSede||21)*se),true,C.colSede||C.color,_FG_UBIC_FONT);
+  linea(a.n,C.nomDy||66,Math.round(C.fnBold*se),true,C.color);
+  linea(a.c,C.celDy||96,Math.round(C.frReg*se),false,C.color);
+  linea(a.e,C.mailDy||124,Math.round(C.frReg*se),false,C.color);
 }
 // Marcadores dentro del legal: {importe}, {importe2} y {empresa} (alias {nombre})
 // se reemplazan por los valores del flyer al dibujar (el legal lo escribe la app
@@ -4485,11 +4467,10 @@ function _fgEnsureAsesores34(){
 // sube el tope de 4 a 8 oficiales, suma un campo de ubicación a cada uno y un
 // título editable arriba del bloque. Apagado, el formulario queda igual que siempre.
 //
-// A los asesores 5-8 NO se les engancha "⚡ Pegar" ni el popover de asesores
-// guardados, y el padrón y el Excel masivo siguen tocando sólo del 1 al 4: por
-// pedido, estos casos se cargan y editan SOLO A MANO. Sí se les engancha el
-// autocompletado de mail desde el nombre, que es ayuda de tipeo local y ahorra
-// escribir ocho direcciones a mano.
+// Los asesores 5-8 tienen lo mismo que los otros para cargar de a uno: "⚡ Pegar",
+// el popover de asesores guardados y el autocompletado de mail desde el nombre.
+// Lo que NO los alcanza es la carga MASIVA —el padrón y el Excel del masivo siguen
+// tocando sólo del 1 al 4—: esos flyers son casos sueltos, no una tanda.
 function _fgEnsureAsesores58(){
   if(document.getElementById('fields5'))return;
   var f4=document.getElementById('fields4');if(!f4||!f4.parentNode)return;
@@ -4518,6 +4499,8 @@ function _fgEnsureAsesores58(){
   });
   _fgAutoMail(); // engancha nombre -> mail también en los slots nuevos
   if(typeof _fgValWire==='function')_fgValInputs().forEach(_fgValWire); // y la validación de cel/mail
+  if(_can('asesores_guardados'))_initAsesoresUI(); // popover de asesores guardados en 5-8
+  if(_can('pegar_oficial'))_fgEnsurePasteBtns();   // y el botón "⚡ Pegar"
 }
 // Campo "Ubicación" al final de cada #fields{n} (1 a 8) + el título arriba de todo.
 // Se inyectan una sola vez y después sólo se muestran/ocultan con display.
@@ -4527,9 +4510,12 @@ function _fgEnsureSedesFields(){
     var f=document.getElementById('fields'+n);if(!f)continue;
     f.insertAdjacentHTML('beforeend',
       '<div class="field fg-sede-f" id="fg-sede-f-'+n+'"><label>Ubicación</label>'+
-      '<input type="text" id="ubic'+n+'" placeholder="BUENOS AIRES" autocomplete="off"></div>');
+      '<input type="text" id="ubic'+n+'" placeholder="'+_FG_UBIC_PIN+' BUENOS AIRES" autocomplete="off"></div>');
     var e=document.getElementById('ubic'+n);
-    if(e)e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});
+    // El campo arranca con el pin puesto, listo para completar al lado. Se puede
+    // borrar: el flyer dibuja literalmente lo que quede acá.
+    if(e){e.value=_FG_UBIC_PIN+' ';
+      e.addEventListener('input',function(){if(typeof redraw==='function')redraw();});}
   }
   if(!document.getElementById('fg-sedes-tit')){
     var b1=_fgBlock(1);
@@ -4574,7 +4560,7 @@ function _fgSedesApplyUI(on){
 function _fgSedesTieneDatos(){
   if((_gv('sedes-titulo')||'').trim())return true;
   for(var n=1;n<=8;n++){
-    if((_gv('ubic'+n)||'').trim())return true;
+    if(_fgUbicTexto(_gv('ubic'+n)))return true; // el pin solo no cuenta como dato
     if(n>=5&&(_gv('nombre'+n)||'').trim())return true;
   }
   return false;
@@ -4589,7 +4575,7 @@ function _fgSedesSet(on){
       ['nombre','celular','email'].forEach(function(k){var e=document.getElementById(k+n);if(e)e.value='';});
       _fgShowBlock(n,false);
     }
-    for(var u=1;u<=8;u++){var e2=document.getElementById('ubic'+u);if(e2)e2.value='';}
+    for(var u=1;u<=8;u++){var e2=document.getElementById('ubic'+u);if(e2)e2.value=_FG_UBIC_PIN+' ';}
     var t=document.getElementById('sedes-titulo');if(t)t.value='';
   }
   _fgSedes=on;
@@ -4763,7 +4749,7 @@ function _fgClearAsesor(n,avisar){
     e.value='';
   });
   var uEl=document.getElementById('ubic'+n); // la ubicación es parte del asesor: se va con él
-  if(uEl){if(uEl.value)algo=true;uEl.value='';}
+  if(uEl){if(_fgUbicTexto(uEl.value))algo=true;uEl.value=_FG_UBIC_PIN+' ';} // queda el pin, listo para la próxima
   var mEl=document.getElementById('email'+sfx);if(mEl)mEl.dataset.fgManual='';
   if(typeof redraw==='function')redraw();
   if(algo&&avisar&&typeof showToast==='function')showToast('Datos del asesor '+n+' borrados');
@@ -4958,7 +4944,7 @@ function fgGetVals(){
     var s=_fgSfx(n);
     o['has'+n]=(n<=_fgMaxAsesores())&&_fgAsesorOn(n)&&g('nombre'+s).trim()!=='';
     o['nombre'+s]=g('nombre'+s);o['celular'+s]=cel('celular'+s);o['email'+s]=g('email'+s);
-    o['ubic'+n]=_fgSedes?g('ubic'+n).trim():'';
+    o['ubic'+n]=_fgSedes?_fgUbicTexto(g('ubic'+n)):''; // el pin solo = sin ubicación
   }
   return o;
 }
@@ -5063,7 +5049,7 @@ function _fgApplyHistItem(h){
       s('nombre'+sfx,hay?(h.v['nombre'+sfx]||''):'');
       s('celular'+sfx,hay?((h.v['celular'+sfx]||'').replace('Cel: ','')):'');
       s('email'+sfx,hay?(h.v['email'+sfx]||''):'');
-      s('ubic'+k,hay?(h.v['ubic'+k]||''):'');
+      s('ubic'+k,(hay&&h.v['ubic'+k])?h.v['ubic'+k]:(h.v.sedes?_FG_UBIC_PIN+' ':''));
       if(k===1)_fgSetAsesorOn(1,true);   // el bloque 1 queda siempre abierto
       else _fgSetAsesorOn(k,hay);
     }
@@ -8551,7 +8537,7 @@ function _fgPasteStyle(){
 function _fgEnsurePasteBtns(){
   if(!_can('pegar_oficial'))return;
   _fgPasteStyle();
-  for(var n=1;n<=4;n++){
+  for(var n=1;n<=8;n++){ // 5-8 sólo existen con el modo "oficiales por sede" prendido
     var b=_fgBlock(n);if(!b||b.sec.dataset.fgPaste)continue;
     var box=_fgSecActs(n);if(!box)continue; // va en la misma cajita que el Borrar/Quitar
     b.sec.dataset.fgPaste='1';
@@ -8586,7 +8572,7 @@ function _fgClosePaste(n){
 }
 function _fgClosePasteAll(){
   var hubo=false;
-  for(var n=1;n<=4;n++)if(_fgClosePaste(n))hubo=true;
+  for(var n=1;n<=8;n++)if(_fgClosePaste(n))hubo=true;
   return hubo;
 }
 function _fgTogglePaste(n){

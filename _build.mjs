@@ -921,12 +921,15 @@ const checks = {
   // bloque. Apagado, el flyer se dibuja por la rama de siempre (cero regresion).
   'oficiales por sede': _authSrc.includes('function fgToggleSedes(') && _authSrc.includes("['oficiales_sede','Oficiales por sede'") &&
     _authSrc.includes("_fgSedesFac(_can('oficiales_sede'))") && _authSrc.includes('function _fgDrawContactoSedes(') &&
-    _authSrc.includes('function _fgDrawPin(') && _authSrc.includes('function _fgEnsureAsesores58(') &&
-    // el hueco del pin se pinta con el color de la banda: el modo de borrado del
-    // canvas borraria hasta el fondo y dejaria un agujero transparente en el PNG
-    !/globalCompositeOperation\s*=\s*['"]destination-/.test(_authSrc) &&
-    _authSrc.includes('function _fgMaxAsesores(') && html.includes('.fg-otros-sw{') &&
-    // el padron y el masivo NO tocan los slots 5-8: estos casos se cargan solo a mano
+    _authSrc.includes('function _fgEnsureAsesores58(') && _authSrc.includes('function _fgMaxAsesores(') &&
+    html.includes('.fg-otros-sw{') &&
+    // el pin es el emoji del flyer del banco y viaja DENTRO del campo de texto, asi
+    // que se puede borrar; Arial no lo tiene, de ahi el fallback a la fuente de emoji
+    _authSrc.includes('var _FG_UBIC_PIN=String.fromCodePoint(0x1F4CD)') &&
+    _authSrc.includes('Segoe UI Emoji') && _authSrc.includes('function _fgUbicTexto(') &&
+    // los 5-8 se cargan como los otros (Pegar + asesores guardados)...
+    /_fgEnsurePasteBtns\(\)\{[\s\S]{0,200}n<=8/.test(_authSrc) &&
+    // ...pero la carga MASIVA (padron y Excel) sigue trayendo hasta 4
     _authSrc.includes('function _padSane(') && !_authSrc.includes("asesor5_nombre"),
   'ux: compartir (solo PDF, boton oculto si no se puede) + Otros (PNG)': html.includes('id="btn-share"') && html.includes('id="modal-share"') && html.includes('id="fg-otros-menu"') && _authSrc.includes("logFlyerToSupabase(v,fn,'compartir')") && _authSrc.includes('function _fgPuedeCompartirPdf(') && !_authSrc.includes('ClipboardItem'),
   // Globito con el atajo al apoyar el mouse en "Descargar PDF". Solo con mouse
