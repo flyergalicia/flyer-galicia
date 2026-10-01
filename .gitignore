@@ -9,3 +9,8 @@ _backup_*.json
 _shot_*.png
 _preview_*.html
 _padmin_*.html
+# Presentaciones y documentos: no son codigo del armador y el repo es PUBLICO
+*.pptx
+*.potx
+*.docx
+*.xlsx
