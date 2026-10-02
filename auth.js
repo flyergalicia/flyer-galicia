@@ -1118,10 +1118,10 @@ function _facRows(){
     ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.']
   ];
   _facOptList().forEach(function(o){
-    var enRubros=_optSolapa(o)==='rubros';
-    rows.push(['opcion_'+o,'Ver &laquo;'+_escHtml(_optLabel(o))+'&raquo; (opci&oacute;n '+o+(enRubros?', solapa Flyer Rubros':'')+')',
+    var sol=_optSolapa(o),otra=(sol!=='flyer')?_escHtml(_solapaLabel(sol)):'';
+    rows.push(['opcion_'+o,'Ver &laquo;'+_escHtml(_optLabel(o))+'&raquo; (opci&oacute;n '+o+(otra?', solapa '+otra:'')+')',
       'Habilita ese armador (flyer + legal propios; se administra en Config &rarr; Opciones). El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.'+
-      (enRubros?' Con al menos una opci&oacute;n de Rubros habilitada, el perfil ve la solapa <strong>Flyer Rubros</strong> en el header.':'')]);
+      (otra?' Con al menos una opci&oacute;n de esa solapa habilitada, el perfil ve la solapa <strong>'+otra+'</strong> en el header.':'')]);
   });
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
   rows.push(['asesores_guardados','Base de datos: mis asesores','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4". Desde su nombre &rarr; <strong>Base de datos &rarr; Mis asesores</strong> los ve, los corrige, los sube por Excel o se los baja. La lista viaja con su cuenta (la ve desde cualquier computadora) y es privada.']);
@@ -1182,7 +1182,7 @@ function _can(f){
 function _adminNow(){return _admin&&!_simRole;}
 // Opciones del armador habilitadas para el rol vigente.
 function _facOpts(){return _facOptList().filter(function(o){return _can('opcion_'+o);});}
-// Idem, pero sólo las de una solapa del header ('flyer' | 'rubros').
+// Idem, pero sólo las de una solapa del header (ver _SOLAPAS).
 function _facOptsDe(solapa){return _facOpts().filter(function(o){return _optSolapa(o)===solapa;});}
 
 // Aplica el gating de la interfaz. Es BIDIRECCIONAL (muestra y oculta) y seguro
@@ -1219,14 +1219,16 @@ function _applyFacultades(){
 
   _facSyncOptBar();
 
-  // Solapa "Flyer Rubros": no tiene facultad propia, se ve si el perfil tiene
-  // habilitada al menos una opción de esa solapa (opcion_N en Facultades).
-  var rtab=document.getElementById('apptab-rubros');
-  if(rtab){
-    var hayRubros=_facOptsDe('rubros').length>0;
-    rtab.style.display=hayRubros?'':'none';
-    if(!hayRubros&&rtab.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
-  }
+  // Las solapas del armador que no son "Flyer Galicia" no tienen facultad propia:
+  // se ven si el perfil tiene habilitada al menos una opción de esa solapa
+  // (opcion_N en Facultades). Si la pierde estando parado ahí, vuelve al flyer.
+  _OPC_SOLAPAS.forEach(function(s){
+    if(s==='flyer')return;
+    var t=_apptab(s);if(!t)return;
+    var hay=_facOptsDe(s).length>0;
+    t.style.display=hay?'':'none';
+    if(!hay&&t.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
+  });
 
   // Solapa de primer nivel "Promociones": si el perfil pierde la facultad
   // estando parado ahí (o durante la vista previa de otro rol), lo vuelve a
@@ -1246,13 +1248,13 @@ function _applyFacultades(){
 function switchApp(view){
   var lay=document.getElementById('layout'),pv=document.getElementById('view-promos');
   if(view==='promos'&&!_can('promos_buscar'))view='flyer'; // por si lo llaman sin permiso
-  if(view==='rubros'&&!_facOptsDe('rubros').length)view='flyer';
-  var arm=(view==='flyer'||view==='rubros');
+  if(_esSolapaArmador(view)&&view!=='flyer'&&!_facOptsDe(view).length)view='flyer';
+  var arm=_esSolapaArmador(view);
   if(lay)lay.style.display=arm?'grid':'none';
   if(pv)pv.style.display=(view==='promos')?'grid':'none';
   var tp=document.getElementById('apptab-promos');if(tp)tp.classList.toggle('active',view==='promos');
   if(view==='promos'){
-    ['apptab-flyer','apptab-rubros'].forEach(function(id){var t=document.getElementById(id);if(t)t.classList.remove('active');});
+    _OPC_SOLAPAS.forEach(function(s){var t=_apptab(s);if(t)t.classList.remove('active');});
     if(typeof initPromosTab==='function')initPromosTab();
     return;
   }
@@ -1266,23 +1268,23 @@ function switchApp(view){
   _fgSyncVista();
 }
 // Última opción usada en cada solapa, para volver a la misma al cambiar de solapa.
-var _fgUltOpt={flyer:1,rubros:null};
+var _fgUltOpt={flyer:1}; // las demás solapas se anotan solas al visitarlas
 // Deja la interfaz acorde a la opción activa: solapa del header marcada, barra
 // de opciones de ESA solapa, campos del beneficio visibles sólo en Rubros.
 function _fgSyncVista(){
   var v=_optSolapa(_fgOpt),cambio=(v!==_fgVista);
   _fgVista=v;_fgUltOpt[v]=_optN(_fgOpt);
-  var tf=document.getElementById('apptab-flyer'),tr=document.getElementById('apptab-rubros'),tp=document.getElementById('apptab-promos');
+  var tp=document.getElementById('apptab-promos');
   var lay=document.getElementById('layout'),enArmador=!!(lay&&lay.style.display==='grid');
   if(enArmador){
-    if(tf)tf.classList.toggle('active',v==='flyer');
-    if(tr)tr.classList.toggle('active',v==='rubros');
+    _OPC_SOLAPAS.forEach(function(s){var t=_apptab(s);if(t)t.classList.toggle('active',v===s);});
     if(tp)tp.classList.remove('active');
   }
   if(cambio)_facSyncOptBar();else _fgRenderOptBar();
-  var bf=document.getElementById('fg-benef-fields');if(bf)bf.style.display=(v==='rubros')?'':'none';
+  var bf=document.getElementById('fg-benef-fields');if(bf)bf.style.display=_solCfg(v).benef?'':'none';
+  _fgMarcarMontoFlyer(); // el cuadro "Montos activos" marca cuál sale impreso
   if(typeof _mpRefresh==='function'&&_facLoaded)_mpRefresh(); // la tarjeta del masivo sigue a la opción activa
-  if(v==='rubros'&&typeof _fgBenefSyncNombre==='function'){_fgBenefSyncNombre();_fgBenefFieldsSync();}
+  if(_solCfg(v).benef&&typeof _fgBenefSyncNombre==='function'){_fgBenefSyncNombre();_fgBenefFieldsSync();}
 }
 // Los títulos "Asesor 1..4" quedan clickeables o no. El listener ya está puesto,
 // pero openAsPop revalida la facultad, así que alcanza con el cambio visual.
@@ -2689,6 +2691,7 @@ function _fgRenderCfgBtns(){
   if(!noCB&&CONFIGS[cur]){
     ['d1','d2','d3','d4'].forEach(function(id,k){var e=document.getElementById(id);if(e)e.textContent=CONFIGS[cur]['m'+(k+1)];});
   }
+  _fgMarcarMontoFlyer();
 }
 function loadCashback(force,cb){
   if(_cashbackLoaded&&!force){if(cb)cb();return;}
@@ -2876,6 +2879,42 @@ function _applyGlobalLegalToForm(opt){
 }
 // Sub-solapas de legales en el panel admin.
 function _glegalId(opt){var n=_optN(opt);return n===1?'glegal-text':'glegal-text'+n;}
+// Los marcadores que puede usar el legal, explicados en castellano llano. Son
+// chips que PEGAN el texto en el cursor: escribirlos a mano se presta a un typo
+// que no avisa (el marcador mal escrito termina impreso en el flyer).
+var _GLEGAL_VARS_UI=[
+  ['{empresa}',     'el nombre de la empresa que se carga en el flyer'],
+  ['{cashback}',    'el cashback que sale en naranja: el más alto de la configuración elegida'],
+  ['{eminentblack}','el monto de Eminent Black de la configuración elegida'],
+  ['{platinum}',    'el monto de Eminent Platinum de la configuración elegida'],
+  ['{plusgold}',    'el monto de Plus Gold de la configuración elegida'],
+  ['{plus}',        'el monto de Plus de la configuración elegida'],
+  ['{importe}',     'el tope de reintegro cargado (Flyer Rubros)'],
+  ['{importe2}',    'el segundo tope (Flyer Rubros, cuadro «Ambos»)'],
+  ['{total}',       'la suma de los dos topes']
+];
+function _glegalVarChips(opt){
+  return '<div class="glegal-vars">'+
+    '<span class="glegal-vars-lbl">Datos que se completan solos (toc&aacute; para pegarlos):</span>'+
+    _GLEGAL_VARS_UI.map(function(p){
+      return '<span class="ftag" title="'+_escAttr(p[1])+'" onclick="_glegalVar('+opt+',\''+p[0]+'\')">'+_escHtml(p[0])+'</span>';
+    }).join('')+'</div>';
+}
+// Pega el marcador donde quedó el cursor. Si el editor no se tocó todavía va al
+// final del texto (nunca al principio, que es lo que daría selectionStart=0).
+function _glegalVar(opt,tag){
+  var ta=document.getElementById(_glegalId(opt));if(!ta)return;
+  if(!ta.dataset.posOk){
+    ta.dataset.posOk='1';
+    ['keyup','click','blur'].forEach(function(ev){ta.addEventListener(ev,function(){ta.dataset.pos=ta.selectionStart;});});
+  }
+  var p=(ta.dataset.pos!=null)?+ta.dataset.pos:ta.value.length;
+  if(!(p>=0&&p<=ta.value.length))p=ta.value.length;
+  ta.value=ta.value.slice(0,p)+tag+ta.value.slice(p);
+  ta.dataset.pos=p+tag.length;
+  ta.focus();try{ta.setSelectionRange(p+tag.length,p+tag.length);}catch(e){}
+  showToast('Pegé '+tag+' — se reemplaza solo al armar el flyer');
+}
 // Arma una sub-solapa + un editor por opción (antes eran 3 bloques fijos en el
 // HTML). Conserva los ids históricos: la Opción 1 sin sufijo, el resto con N.
 // Idempotente: si cambia la lista de opciones se vuelve a llamar y rehace todo.
@@ -2890,6 +2929,7 @@ function _legalesRender(){
   panes.innerHTML=_FG_OPTS.map(function(o){
     var s=(o===1)?'':String(o);
     return '<div id="lt-'+o+'"'+(o===actual?'':' style="display:none"')+'>'+
+      _glegalVarChips(o)+
       '<textarea id="glegal-text'+s+'" class="login-inp" style="min-height:320px;resize:vertical;font-family:inherit;line-height:1.5;margin-bottom:0" placeholder="Legal de '+_escHtml(_optLabel(o))+'..."></textarea>'+
       '<div class="login-err" id="glegal-err'+s+'" style="margin-top:6px"></div>'+
       '<div class="login-ok" id="glegal-ok'+s+'" style="margin-top:6px"></div>'+
@@ -3336,15 +3376,31 @@ var _OPC_PALETA=['#1d4070','#0e8a5f','#8e44ad','#b26a00','#c2185b','#00838f','#5
 function _opcDefault(){return [{n:1,nombre:'Opción 1'},{n:2,nombre:'Opción 2'},{n:3,nombre:'Opción 3'}];}
 // Normaliza lo que venga del archivo: números enteros ≥1 únicos, en el orden guardado, la 1
 // siempre presente (es la de los asesores), nombres recortados.
-// solapa: en qué solapa del header vive la opción. 'flyer' = "Flyer Galicia"
-// (el armador de siempre); 'rubros' = "Flyer Rubros" (mismo armador + el cartel
-// "¡Beneficio exclusivo EMPRESA!" y el tope de reintegro). La 1 es siempre 'flyer'.
-var _OPC_SOLAPAS=['flyer','rubros'];
+// solapa: en qué solapa del header vive la opción. La 1 es siempre 'flyer'.
+// Las solapas se declaran en UN solo lugar, este registro: de acá salen los tabs
+// del header, los títulos editables (4 toques), el <select> de Config → Opciones,
+// las zonas del calibrador y los flags que viajan en v. Sumar una solapa = una
+// entrada acá + su div en _build.mjs; no hay que tocar nada más.
+//   flyer     : el armador de siempre (4 cajas de montos)
+//   rubros    : + el cartel "¡Beneficio exclusivo EMPRESA!" y el tope de reintegro
+//   sueldo    : UN importe de cashback en naranja en vez de las 4 cajas
+//   zonas     : las zonas que el calibrador deja mover en esa solapa
+//   benef     : dibuja el cartel del beneficio exclusivo
+//   cashUnico : dibuja el importe único (el mayor de la config activa)
+var _SOLAPAS=[
+  {id:'flyer', def:'Flyer Galicia', zonas:['empresa','montos','asesores','legal']},
+  {id:'rubros',def:'Flyer Rubros',  zonas:['empresa','montos','asesores','legal'],benef:true},
+  {id:'sueldo',def:'Flyer Sueldo',  zonas:['empresa','cashback','asesores','legal'],cashUnico:true}
+];
+var _OPC_SOLAPAS=_SOLAPAS.map(function(s){return s.id;});
+function _solCfg(id){for(var i=0;i<_SOLAPAS.length;i++)if(_SOLAPAS[i].id===id)return _SOLAPAS[i];return _SOLAPAS[0];}
+function _esSolapaArmador(v){return _OPC_SOLAPAS.indexOf(v)>=0;}
+function _apptab(s){return document.getElementById('apptab-'+s);}
 function _opcSane(list){
   var out=[],vistos={};
   (Array.isArray(list)?list:[]).forEach(function(o){
     var n=parseInt(o&&o.n,10);if(!(n>=1)||vistos[n])return;vistos[n]=1;
-    var sol=(o&&o.solapa==='rubros'&&n!==1)?'rubros':'flyer';
+    var sol=(n!==1&&_OPC_SOLAPAS.indexOf(o&&o.solapa)>=0)?o.solapa:'flyer';
     // orden: posición elegida a mano (arrastrando en la barra). Sin orden va al final, por número.
     var ord=(o&&typeof o.orden==='number'&&isFinite(o.orden))?o.orden:(1e6+n);
     out.push({n:n,nombre:String((o&&o.nombre)||'').replace(/[<>]/g,'').trim().slice(0,40)||('Opción '+n),
@@ -3386,9 +3442,9 @@ function _optN(opt){var n=+opt;return (_FG_OPTS.indexOf(n)!==-1)?n:1;}
 function _activeFile(opt){var n=_optN(opt);return n===1?'_active.json':'_active'+n+'.json';}
 function _legalFile(opt){var n=_optN(opt);return n===1?'_legal.json':'_legal'+n+'.json';}
 function _optLabel(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].nombre)||('Opción '+n);}
-// Solapa del header a la que pertenece la opción ('flyer' | 'rubros').
-function _optSolapa(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].solapa==='rubros')?'rubros':'flyer';}
-function _solapaLabel(s){return _titLabel(s==='rubros'?'rubros':'flyer');} // nombre editable (4 toques en el header)
+// Solapa del header a la que pertenece la opción (ver _SOLAPAS).
+function _optSolapa(opt){var n=_optN(opt),s=_OPC[n]&&_OPC[n].solapa;return (n!==1&&_OPC_SOLAPAS.indexOf(s)>=0)?s:'flyer';}
+function _solapaLabel(s){return _titLabel(_solCfg(s).id);} // nombre editable (4 toques en el header)
 // Solapa del armador que está a la vista. Se deriva SIEMPRE de la opción activa
 // (ver _fgSyncVista), así historial/registros que cambian de opción cambian de solapa solos.
 var _fgVista='flyer';
@@ -3660,10 +3716,10 @@ function _askOption(title,cb){
         return '<button class="btn-submit" style="flex:1;min-width:110px;background:'+_optColor(o)+'" data-o="'+o+'">'+_escHtml(_optLabel(o))+'</button>';
       }).join('')+'</div>';
   }
-  var hayRubros=_FG_OPTS.some(function(o){return _optSolapa(o)==='rubros';});
+  var hayOtras=_FG_OPTS.some(function(o){return _optSolapa(o)!=='flyer';});
   d.innerHTML='<div class="box"><h3>'+_escHtml(title)+'</h3>'+
     '<p>Eleg&iacute; a qu&eacute; armador corresponde.</p>'+
-    fila('flyer',hayRubros)+fila('rubros',hayRubros)+
+    _OPC_SOLAPAS.map(function(s){return fila(s,hayOtras);}).join('')+
     '<button class="btn-cancel" style="width:100%;margin-top:8px" data-o="0">Cancelar</button></div>';
   d.addEventListener('click',function(e){
     var b=e.target&&e.target.closest?e.target.closest('button[data-o]'):null;
@@ -3679,7 +3735,10 @@ function _askOption(title,cb){
 // se renombran con 4 toques seguidos (sólo admin), igual que las opciones de la
 // barra. Se guardan en _titulos.json y los ven todos los usuarios.
 var TITULOS_FILE='_titulos.json',_TIT={};
-var _TIT_DEF={ptitle:'Flyer Galicia 5.5',flyer:'Flyer Galicia',rubros:'Flyer Rubros',promos:'Promociones',promos_ptitle:'Buscador de Promociones'};
+var _TIT_DEF={ptitle:'Flyer Galicia 5.5',promos:'Promociones',promos_ptitle:'Buscador de Promociones'};
+// Un título por solapa del armador, derivado del registro: la solapa nueva
+// aparece sola en los 4 toques y en _titulos.json, sin tocar esta lista.
+_SOLAPAS.forEach(function(s){_TIT_DEF[s.id]=s.def;});
 function _titElem(key){
   if(key==='ptitle')return document.querySelector('#layout .panel .ptitle');
   if(key==='promos_ptitle')return document.querySelector('#view-promos .ptitle');
@@ -3857,6 +3916,13 @@ var FLYER_CFG_DEFAULT = {
   montos:{y:1069,fs:56,mh:58,bg:"#f4e0d3",boxes:[
     {xc:224,ew:220,col:"#1d4070"},{xc:493,ew:215,col:"#1d4070"},
     {xc:760,ew:195,col:"#f5921e"},{xc:1008,ew:185,col:"#f5921e"}]},
+  // Flyer Sueldo: UN solo importe de cashback, en naranja, en vez de las 4 cajas.
+  // Sale el MAYOR de m1..m4 de la config activa (Eminent Black, Platinum, Plus
+  // Gold y Plus). Mismo criterio de tapado que montos: se pinta con el color REAL
+  // del fondo aun "sin cashback", por si el PDF trae un importe impreso debajo.
+  // mw = ancho máximo: si el número no entra, se achica la letra hasta minFs.
+  // Arranca donde la banda de montos; cada flyer se calibra una vez y queda.
+  cashback:{xc:620,y:1069,mw:560,mh:80,fs:92,minFs:28,col:"#f5921e",bg:"#f4e0d3"},
   // ew3: ancho de la banda cuando hay 3 asesores (la franja está limpia de punta a
   // punta, así los 3 entran separados y los mails no se achican). 1,2 y 4 usan ew.
   contacto:{ex:150,ey:5330,ew:940,ew3:1140,eh:130,bg:"#ffffff",y1:5360,y2:5390,y3:5418,
@@ -4030,7 +4096,7 @@ function _fgCfg(){
   return {imgW:c.imgW||d.imgW,imgH:c.imgH||d.imgH,
     cropH:c.cropH||0, // altura final fijada a mano (0 = automático)
     bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
-    empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),
+    empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),cashback:_fgMerge(d.cashback,c.cashback),
     contacto:_fgMerge(d.contacto,c.contacto),legal:_fgMerge(d.legal,c.legal),
     benef:{color2:cb.color2||d.benef.color2,peso2:cb.peso2||d.benef.peso2,lineas:_fgBenefLineas(cb),campos:_fgMerge(_BENEF_CAMPOS_DEF,cb.campos||null)}};
 }
@@ -4130,7 +4196,11 @@ function fgDrawAll(c,s,v){
     c.drawImage(baseImg,0,0,W,Math.round(H*s));
   }
   fgDrawEmpresa(c,s,v.empresa);
-  fgDrawMontos(c,s,v);
+  // cashUnico viaja en v (igual que benef) para que pantalla, masivo, padrón y
+  // calibrador rindan igual. Un ítem viejo del historial no lo trae: si la opción
+  // activa es de una solapa de monto único, se deduce de ahí.
+  var _cu=(v.cashUnico!=null)?v.cashUnico:!!_solCfg(_optSolapa(_fgOpt)).cashUnico;
+  if(_cu)fgDrawCashback(c,s,v);else fgDrawMontos(c,s,v);
   if(v.benef)fgDrawBenef(c,s,v);      // Flyer Rubros: cartel del beneficio exclusivo
   var cb=fgDrawContacto(c,s,v)||0;   // fondo (px escalados) del bloque de asesores
   var lb=fgDrawLegal(c,s,_fgLegalConValores(v.legal,v))||0; // fondo (px escalados) del último renglón de legales
@@ -4232,6 +4302,29 @@ function fgDrawMontos(c,s,v){
     c.fillStyle=m.col;c.textAlign="center";c.textBaseline="middle";
     c.fillText(vals[i],mx,my);
   });
+}
+// Flyer Sueldo: el único importe del flyer (el mayor de la config), en naranja.
+// Tapa SIEMPRE la zona —con o sin cashback— con el color real del fondo, igual
+// que fgDrawMontos: el tono del PDF cambia entre versiones y con un color fijo se
+// notaba el recuadro. Si el número no entra en mw, se achica la letra (como el
+// nombre de empresa) en vez de pisar el arte de al lado.
+function fgDrawCashback(c,s,v){
+  var K=_fgCfg().cashback,se=_fgSE(s);
+  var xc=Math.round(K.xc*se),y=Math.round(K.y*se);
+  var mw=Math.round(K.mw*se),mh=Math.round(K.mh*se);
+  c.fillStyle=_fgBgMuestra(c,xc-mw/2,xc+mw/2,y-Math.round(mh/2)-Math.max(4,Math.round(5*se)),K.bg);
+  c.fillRect(xc-mw/2,y-mh/2,mw,mh);
+  var txt=v.nocb?'':_fgMontoMayor(v);
+  if(!txt)return;                       // sin cashback: zona tapada, sin número
+  var fs=Math.round(K.fs*se);
+  c.font="bold "+fs+"px Arial,sans-serif";
+  var w=c.measureText(txt).width;
+  if(w>mw&&w>0){
+    fs=Math.max(Math.floor(fs*mw/w),Math.max(1,Math.round((K.minFs||28)*se)));
+    c.font="bold "+fs+"px Arial,sans-serif";
+  }
+  c.fillStyle=K.col||"#f5921e";c.textAlign="center";c.textBaseline="middle";
+  c.fillText(txt,xc,y);
 }
 // Layout de asesores: 1 centrado · 2 lado a lado · 3 en fila · 4 en 2x2 (el flyer crece).
 // Con 1 y 2 usa EXACTAMENTE las coords calibradas de siempre => cero regresión.
@@ -4378,28 +4471,65 @@ function _fgDrawSedeC1(c,s,xc,C,a,filaTop,colW){
   linea(a.c,C.celDy||96,Math.round(C.frReg*se),false,C.color);
   linea(a.e,C.mailDy||124,Math.round(C.frReg*se),false,C.color);
 }
-// Marcadores dentro del legal: {importe}, {importe2} y {empresa} (alias {nombre})
-// se reemplazan por los valores del flyer al dibujar (el legal lo escribe la app
+// Marcadores dentro del legal ({empresa}, {cashback}, {plusgold}, …): se
+// reemplazan por los valores del flyer al dibujar (el legal lo escribe la app
 // desde el texto, así que es sólo texto: sin recuadros ni posiciones). Así el
 // legal de Rubros ("… $24.000 en Supermercados y $30.000 en Combustibles") sigue
-// al tope sin editarlo a mano. Un marcador sin valor (p. ej. {importe} en Flyer
-// Galicia) se saca para que nunca quede impreso. El texto guardado y el del
-// textarea conservan el marcador. Replacer por función: el texto trae "$".
+// al tope sin editarlo a mano, y el de Sueldo puede nombrar los cuatro paquetes
+// sin tocarlo cuando cambia la configuración de montos. Un marcador sin valor
+// (p. ej. {importe} en Flyer Galicia, o cualquiera con "sin cashback") se saca
+// para que nunca quede impreso. El texto guardado y el del textarea conservan el
+// marcador. Replacer por función: el texto trae "$".
 // {total} = importe + importe2 ("$24.000" + "$30.000" → "$54.000"); vacío sin importes.
 function _fgImporteSuma(a,b){
   var da=(a==null?'':String(a)).replace(/\D/g,''),db=(b==null?'':String(b)).replace(/\D/g,'');
   if(!da&&!db)return '';
   return _fgFmtImporte(String((parseInt(da||'0',10)||0)+(parseInt(db||'0',10)||0)));
 }
+// Los montos de CONFIGS vienen YA formateados ("$250.000"): se comparan por
+// dígitos pero se devuelve el string TAL CUAL, así lo que sale en naranja es
+// idéntico a lo que habría escrito la caja y a lo que escribe {cashback} en el
+// legal. Con "sin cashback" (v.nocb) todos dan '' y el marcador se borra solo.
+function _fgMontoDig(x){var d=(x==null?'':String(x)).replace(/\D/g,'');return d?parseInt(d,10):0;}
+function _fgMontoN(v,n){return (v&&!v.nocb&&v['m'+n]!=null)?String(v['m'+n]).trim():'';}
+function _fgMontoMayor(v){
+  if(!v||v.nocb)return '';
+  var best='',bd=0;
+  for(var n=1;n<=4;n++){
+    var t=_fgMontoN(v,n);if(!t)continue;
+    var d=_fgMontoDig(t);if(d>bd){bd=d;best=t;}
+  }
+  return bd>0?best:'';
+}
+// Tabla de marcadores: sumar uno es UNA línea acá. La clave se normaliza
+// (minúsculas, sin espacios ni guiones bajos), así {Plus Gold} y {plusgold} son
+// lo mismo. Los montos salen de la configuración activa (BAU, Config 1, …), así
+// que el mismo legal sirve para todas sin reescribirlo.
+var _FG_LEGAL_VARS=[
+  ['importe',     function(v){return v.importe||'';}],
+  ['importe2',    function(v){return v.importe2||v.importe||'';}],
+  ['total',       function(v){return _fgImporteSuma(v.importe,v.importe2||v.importe);}],
+  ['empresa',     function(v){return v.empresa||'';}],
+  ['nombre',      function(v){return v.empresa||'';}],     // alias histórico de {empresa}
+  ['cashback',    function(v){return _fgMontoMayor(v);}],  // el importe que sale en naranja
+  ['eminentblack',function(v){return _fgMontoN(v,1);}],
+  ['platinum',    function(v){return _fgMontoN(v,2);}],
+  ['plusgold',    function(v){return _fgMontoN(v,3);}],
+  ['plus',        function(v){return _fgMontoN(v,4);}]
+];
+function _fgLegalVarKey(k){return String(k).toLowerCase().replace(/[\s_]+/g,'');}
 function _fgLegalConValores(text,v){
   text=(text==null?'':String(text));
   if(text.indexOf('{')<0)return text;
   v=v||{};
-  var imp=v.importe||'',imp2=v.importe2||imp,emp=v.empresa||'';
-  var vals={importe:imp,importe2:imp2,total:_fgImporteSuma(imp,imp2),empresa:emp,nombre:emp};
-  return text.replace(/\{\s*(importe2|importe|total|empresa|nombre)\s*\}( ?)/gi,function(_m,k,sp){
-    var val=vals[k.toLowerCase()]||'';
-    return val?val+sp:''; // sin valor: se va el marcador y el espacio que lo seguía
+  var vals={};
+  _FG_LEGAL_VARS.forEach(function(p){vals[p[0]]=p[1](v)||'';});
+  return text.replace(/\{\s*([A-Za-z0-9]+(?:[ _]+[A-Za-z0-9]+)*)\s*\}( ?)/g,function(m,k,sp){
+    var key=_fgLegalVarKey(k);
+    // Un {algo} que no está en la tabla se deja TAL CUAL: el legal puede traer
+    // llaves escritas a propósito y nunca se las tiene que comer.
+    if(!Object.prototype.hasOwnProperty.call(vals,key))return m;
+    return vals[key]?vals[key]+sp:''; // sin valor: se va el marcador y el espacio que lo seguía
   });
 }
 // ── CACHES DEL TEXTO LEGAL ────────────────────────────────────────────────────
@@ -5058,7 +5188,9 @@ function fgGetVals(){
     sedesTit:_fgSedes?g('sedes-titulo').trim():'',
     // Flyer Rubros: el cartel "¡Beneficio exclusivo NOMBRE!" + tope. benef va en
     // v (no en estado global) para que historial, masivo y calibrador rindan igual.
-    benef:_fgVista==='rubros',
+    benef:!!_solCfg(_fgVista).benef,
+    // Flyer Sueldo: un solo importe de cashback en naranja en vez de las 4 cajas.
+    cashUnico:!!_solCfg(_fgVista).cashUnico,
     benefNombre:g('benef-nombre').trim(), // vacío a propósito = "¡Beneficio exclusivo!" sin empresa
     importe:_fgFmtImporte(g('benef-importe')),
     importe2:_fgFmtImporte(g('benef-importe2'))||_fgFmtImporte(g('benef-importe'))
@@ -5395,17 +5527,24 @@ function _calFromList(url,name){
 
 // -- Estado + UI del calibrador --
 var _cal=null;
-var _CAL_ZONES=[
-  {id:'empresa',label:'Empresa',color:'#8e44ad'},
-  {id:'montos',label:'Montos',color:'#1d4070'},
-  {id:'asesores',label:'Asesores',color:'#c0392b'},
-  {id:'legal',label:'Legales',color:'#0e8a5f'}
-];
+var _CAL_ZONA={
+  empresa: {id:'empresa', label:'Empresa', color:'#8e44ad'},
+  montos:  {id:'montos',  label:'Montos',  color:'#1d4070'},
+  cashback:{id:'cashback',label:'Cashback',color:'#f5921e'}, // Flyer Sueldo: el importe único
+  asesores:{id:'asesores',label:'Asesores',color:'#c0392b'},
+  legal:   {id:'legal',   label:'Legales', color:'#0e8a5f'}
+};
+// Zonas de la solapa del flyer que se está calibrando (ver _SOLAPAS[].zonas): en
+// Flyer Sueldo aparece "Cashback" y no "Montos", así no se mueve lo que no se dibuja.
+function _calZonesBase(){
+  return _solCfg(_calSol()).zonas.map(function(z){return _CAL_ZONA[z];}).filter(Boolean);
+}
 // Zonas extra del cartel "Beneficio exclusivo": sólo para opciones de Flyer Rubros.
 // Flyer Rubros: una zona por línea del cartel (bl0, bl1, ...) más "Cartel" (blAll)
 // que mueve todas juntas. Las líneas viven en _cal.cfg.benef.lineas.
 var _BENEF_ZONE_COLORS=['#f5921e','#b26a00','#7b4a12','#c0392b','#8e44ad','#2c3e50','#16a085','#d35400'];
-function _calEsRubros(){return !!(_cal&&_optSolapa(_cal.opt)==='rubros');}
+function _calSol(){return _cal?_optSolapa(_cal.opt):'flyer';}
+function _calEsRubros(){return !!(_cal&&_solCfg(_calSol()).benef);}
 // Plantilla que corresponde a la opción por su nombre ("Combustible" →
 // combustible); si ninguna calza, la primera.
 function _calBenefPlantillaPorOpcion(){
@@ -5477,11 +5616,11 @@ function _calBenefCentrar(silencioso){
   return q;
 }
 function _calZones(){
-  if(!_calEsRubros())return _CAL_ZONES;
+  if(!_calEsRubros())return _calZonesBase();
   var ls=_calBenefLineas();
   var z=[{id:'blAll',label:'Cartel (todo)',color:'#e30613'}];
   ls.forEach(function(l,i){var t=String(l.t||'').replace(/\*\*/g,'').replace('{nombre}','NOMBRE').replace('{importe2}','$').replace('{importe}','$');z.push({id:'bl'+i,label:(t.length>18?t.slice(0,17)+'…':t)||('Línea '+(i+1)),color:_BENEF_ZONE_COLORS[i%_BENEF_ZONE_COLORS.length]});});
-  return z.concat(_CAL_ZONES);
+  return z.concat(_calZonesBase());
 }
 var _CAL_SAMPLE_LEGAL="Ejemplo de términos y condiciones del flyer. **Bonificación de comisiones** por 6 meses para nuevos clientes. Promociones sujetas a disponibilidad y a las bases y condiciones vigentes.\nPARA MÁS INFORMACIÓN O LIMITACIONES APLICABLES, CONSULTE EN: www.bancogalicia.com.ar";
 function _calSampleVals(){
@@ -5491,7 +5630,8 @@ function _calSampleVals(){
     has1:true,nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar',
     has2:true,nombre2:'Segundo Asesor',celular2:'11 8765 4321',email2:'segundo.asesor@bancogalicia.com.ar',
     legal:(_cal&&_cal.legalText)||_CAL_SAMPLE_LEGAL,
-    benef:rub,benefNombre:rub?'EMPRESA EJEMPLO':'',importe:rub?'$24.000':'',importe2:rub?'$30.000':''};
+    benef:rub,benefNombre:rub?'EMPRESA EJEMPLO':'',importe:rub?'$24.000':'',importe2:rub?'$30.000':'',
+    cashUnico:!!_solCfg(_calSol()).cashUnico};
 }
 function _calEnsureDom(){
   if(document.getElementById('cal-modal'))return;
@@ -5679,6 +5819,8 @@ function _calZoneRects(){
   r.montos={x:minx,y:M.y-M.mh/2,w:maxx-minx,h:M.mh};
   r.asesores={x:C.ex,y:C.ey+DBOT,w:C.ew,h:C.eh};
   r.legal={x:L.x0,y:L.yStart+DBOT,w:L.maxW,h:(L.yEnd-L.yStart)};
+  var K=cfg.cashback||FLYER_CFG_DEFAULT.cashback;
+  r.cashback={x:K.xc-K.mw/2,y:K.y-K.mh/2,w:K.mw,h:K.mh};
   if(_calEsRubros()){
     // ancho estimado del texto (sin canvas a mano): ~0.55em por carácter, tope mw
     var all=null;
@@ -5741,7 +5883,7 @@ function _calHit(bx,by){
   if(L&&Math.abs(bx-(L.x+L.w))<16&&Math.abs(by-(L.y+L.h))<16)return {zone:'legal',handle:'br'};
   var order=[];
   if(_calEsRubros()){_calBenefLineas().forEach(function(_l,i){order.push('bl'+i);});order.push('blAll');}
-  order=order.concat(['empresa','montos','asesores','legal']);
+  order=order.concat(_calZonesBase().map(function(z){return z.id;}));
   for(var i=0;i<order.length;i++){var r=rects[order[i]];if(r&&bx>=r.x&&bx<=r.x+r.w&&by>=r.y&&by<=r.y+r.h)return {zone:order[i],handle:null};}
   return null;
 }
@@ -5784,6 +5926,7 @@ function _calApply(drag,dx,dy){
   else if(/^bl\d+$/.test(drag.zone)){var bl=_calBenefLineas()[+drag.zone.slice(2)];if(bl){bl.x+=dx;bl.y+=dy;if(bl.dx!=null)bl.dx+=dx;}}
   else if(drag.zone==='empresa'){E.yc+=dy;E.xc+=dx;E.ex+=dx;}
   else if(drag.zone==='montos'){M.y+=dy;M.boxes.forEach(function(b){b.xc+=dx;});}
+  else if(drag.zone==='cashback'){var K=cfg.cashback||(cfg.cashback=_fgMerge(FLYER_CFG_DEFAULT.cashback,null));K.y+=dy;K.xc+=dx;}
   else if(drag.zone==='asesores'){C.ey+=dy;C.y1+=dy;C.y2+=dy;C.y3+=dy;C.xSingle+=dx;C.xLeft+=dx;C.xRight+=dx;}
   else if(drag.zone==='legal'){
     if(drag.handle==='br'){L.yEnd=Math.max(L.yStart+30,L.yEnd+dy);L.maxW=Math.max(120,L.maxW+dx);}
@@ -6031,7 +6174,7 @@ function fgGenAll(){
   var total=excelData.length,cur=0,zip=new JSZip(),usados={};
   var legalText=document.getElementById('legal-text').value;
   // Flyer Rubros: si la fila no trae importe, se usa el del formulario (uno para todos)
-  var enRubros=(_fgVista==='rubros'),impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||''),imp2Form=_fgFmtImporte((document.getElementById('benef-importe2')||{}).value||'');
+  var enRubros=!!_solCfg(_fgVista).benef,cashUnico=!!_solCfg(_fgVista).cashUnico,impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||''),imp2Form=_fgFmtImporte((document.getElementById('benef-importe2')||{}).value||'');
   logFlyerBulkToSupabase(total);
   var pb=document.getElementById('prog-bar'),pf=document.getElementById('prog-fill'),
       pt=document.getElementById('prog-text'),bg=document.getElementById('btn-gen');
@@ -6062,7 +6205,7 @@ function fgGenAll(){
     var ci=_padCfgOf(row.config||row.Config||'');
     var cfg=CONFIGS[ci<0?0:ci];
     var v={empresa:(row.empresa||row.Empresa||'flyer'+(cur+1)),
-      nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText};
+      nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText,cashUnico:cashUnico};
     if(enRubros){
       v.benef=true;
       var rb=_fgRowBenef(row),bnm=rb.beneficio;
@@ -7227,7 +7370,8 @@ function _pgTodas(on){
 // Valores del flyer de una fila del padrón (mismo contrato v que el masivo).
 function _pgVals(r,opt,legal,impForm,res){
   var ci=_padCfgOf(r.config),cfg=CONFIGS[ci<0?0:ci]||{};
-  var v={empresa:r.empresa||'',nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legal};
+  var v={empresa:r.empresa||'',nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legal,
+    cashUnico:!!_solCfg(_optSolapa(opt)).cashUnico}; // la solapa sale de la opción, no de la vista
   if(ci<0)res.sinCB.push(r.empresa);
   if(!_padNumAsesores(r))res.sinOf.push(r.empresa);
   for(var n=1;n<=4;n++){
@@ -8354,7 +8498,26 @@ function _fgSetNoCB(on){
     Array.prototype.forEach.call(btns,function(b){b.classList.remove('active');});
   }
   _fgNoCBBadge(_fgNoCB);
+  _fgMarcarMontoFlyer(); // sin cashback no hay importe que marcar
   if(typeof redraw==='function')redraw();
+}
+// En las solapas de monto único el flyer imprime UN solo importe (el más alto de
+// la config), así que se marca cuál es en el cuadro "Montos activos": si no, el
+// asesor ve cuatro números y uno solo en el flyer, y no sabe de dónde salió. En
+// las otras solapas salen los cuatro y no se marca ninguno.
+function _fgMarcarMontoFlyer(){
+  var uni=(typeof _fgVista!=='undefined')&&!!_solCfg(_fgVista).cashUnico;
+  var noCB=(typeof _fgNoCB!=='undefined')&&_fgNoCB;
+  var ids=['d1','d2','d3','d4'],best=-1,bd=0;
+  if(uni&&!noCB)ids.forEach(function(id,i){
+    var e=document.getElementById(id),d=e?_fgMontoDig(e.textContent):0;
+    if(d>bd){bd=d;best=i;}
+  });
+  ids.forEach(function(id,i){
+    var e=document.getElementById(id),row=e&&e.parentNode;if(!row||!row.classList)return;
+    row.classList.toggle('cfg-row-flyer',i===best);
+    row.title=(i===best)?'Es el importe que sale impreso en este flyer':'';
+  });
 }
 // Pisa setCfg de _source.html: elegir un cashback a mano siempre saca el "sin cashback".
 function fgSetCfg(n){
@@ -8367,6 +8530,7 @@ function fgSetCfg(n){
   });
   var btns=document.querySelectorAll('.cfg-btn');
   Array.prototype.forEach.call(btns,function(b,i){b.classList.toggle('active',i===n);});
+  _fgMarcarMontoFlyer();
   if(typeof redraw==='function')redraw();
 }
 

@@ -732,6 +732,11 @@ html.dark .collapsible{background:rgba(242,97,34,.06);}
 html.dark .cfg-btn.active{background:var(--accent);border-color:var(--accent);}
 .cfg-box{background:var(--field);border:1px solid var(--border);border-radius:var(--r-s);}
 .cfg-row span:last-child{font-variant-numeric:tabular-nums;}
+/* Flyer Sueldo: la fila del importe que sale impreso (el más alto de la config).
+   El rótulo va DENTRO del span del valor (no como ítem flex de la fila) para que
+   los números sigan alineados a la derecha como en las demás filas. */
+.cfg-row-flyer{font-weight:700;}
+.cfg-row-flyer span:last-child::before{content:"sale en el flyer ";font-size:.6rem;font-weight:600;color:var(--orange,#f5921e);text-transform:uppercase;letter-spacing:.4px;}
 .ftag{background:var(--field);}
 .ftag:hover{background:var(--navy);border-color:var(--navy);color:#fff;}
 .legal-hint{color:var(--gray);}
@@ -956,5 +961,9 @@ html.dark .stat-card.sc-yellow span,html.dark .stat-card.sc-yellow strong{color:
 .hdr-dd-item.danger:hover{background:var(--danger-soft);color:var(--danger);}
 /* Errores: rojo de verdad, no el acento */
 .login-err,.um-err{color:var(--danger);}
+/* Legales: los marcadores que se pegan en el texto ({empresa}, {cashback}, ...).
+   Reusa .ftag (los tags del nombre de archivo), así se ven y se comportan igual. */
+.glegal-vars{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;}
+.glegal-vars-lbl{font-size:.68rem;color:var(--gray);margin-right:2px;}
 /* Promociones: orden y foco con el acento */
 .promos-th-orden:hover,.promos-th-orden.ordenando{color:var(--accent-2);}

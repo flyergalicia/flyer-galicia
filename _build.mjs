@@ -151,13 +151,16 @@ html = html.replace('<div class="layout">', '<div class="layout" id="layout" sty
 // aunque cambie el número de versión en una regeneración del HTML.
 html = html.replace(
   /<h1>(Flyer Galicia[^<]*)<\/h1><\/header>/,
-  // Tres solapas de primer nivel (no una dentro de la otra): "Flyer Galicia",
-  // "Flyer Rubros" (mismo armador, opciones con el cartel "Beneficio exclusivo";
-  // se muestra si el perfil tiene alguna opción de esa solapa) y "Promociones"
-  // (oculta hasta que _applyFacultades la habilite por la facultad promos_buscar).
-  // switchApp() las intercambia en auth.js.
+  // Solapas de primer nivel (no una dentro de la otra): "Flyer Galicia", "Flyer
+  // Rubros" (mismo armador, opciones con el cartel "Beneficio exclusivo"), "Flyer
+  // Sueldo" (mismo armador con UN importe de cashback en naranja en vez de las 4
+  // cajas) —las dos se muestran si el perfil tiene alguna opción de esa solapa— y
+  // "Promociones" (oculta hasta que _applyFacultades la habilite por la facultad
+  // promos_buscar). switchApp() las intercambia en auth.js; las del armador salen
+  // del registro _SOLAPAS, así que sumar una es una entrada ahí + un div acá.
   '<div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp(\'flyer\')"><h1>$1</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-rubros" style="display:none" onclick="switchApp(\'rubros\')"><h1>Flyer Rubros</h1><span>ARMADOR</span></div>' +
+  '<div class="header-text app-tab" id="apptab-sueldo" style="display:none" onclick="switchApp(\'sueldo\')"><h1>Flyer Sueldo</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp(\'promos\')"><h1>Promociones</h1><span>BUSCADOR</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
@@ -392,7 +395,7 @@ const adminPanel = `<div id="admin-panel">
 
     <div id="at-legales" style="display:none">
       <p class="ap-sec">T&eacute;rminos y condiciones (legal global)</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.<br><br><strong>Marcadores (Flyer Rubros):</strong> dentro del legal pod&eacute;s escribir <code>{importe}</code>, <code>{importe2}</code> (el segundo tope, cuadro &laquo;Ambos&raquo;), <code>{total}</code> (la suma de los dos topes) y <code>{empresa}</code>: al armar cada flyer se reemplazan por los valores cargados, as&iacute; el legal siempre dice el mismo tope que el cartel sin editarlo a mano. Ejemplo: <code>&hellip; es de {importe} en Supermercados y {importe2} en Combustibles. Tope mensual total de {total}.</code></p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada <strong>opci&oacute;n del armador tiene su propio legal</strong>, guardado por separado. Pod&eacute;s <strong>pegar desde Word/PDF/web y las negritas se mantienen</strong> (se marcan con **). Guard&aacute; para impactar a todos los usuarios de esa opci&oacute;n; cada asesor puede despu&eacute;s ajustar la fecha o alg&uacute;n dato en su pantalla.<br><br><strong>Marcadores:</strong> los botoncitos que est&aacute;n arriba de cada editor pegan un dato que se completa solo al armar el flyer. Los de <strong>montos</strong> (<code>{cashback}</code>, <code>{eminentblack}</code>, <code>{platinum}</code>, <code>{plusgold}</code>, <code>{plus}</code>) salen de la <strong>configuraci&oacute;n que tenga elegida el asesor</strong> (BAU, Config 1&hellip;), as&iacute; un mismo legal sirve para todas; <code>{cashback}</code> es el m&aacute;s alto de los cuatro, el que sale en naranja en el Flyer Sueldo. Los de <strong>Flyer Rubros</strong> son <code>{importe}</code>, <code>{importe2}</code> (el segundo tope, cuadro &laquo;Ambos&raquo;) y <code>{total}</code> (la suma), y <code>{empresa}</code> sirve en cualquiera. Si el dato no existe (una empresa <em>sin cashback</em>, por ejemplo) el marcador desaparece solo y no queda impreso. Ejemplo: <code>&hellip; es de {importe} en Supermercados y {importe2} en Combustibles. Tope mensual total de {total}.</code></p>
       <!-- Una sub-solapa y un editor por opción: los arma _legalesRender() (auth.js)
            a partir de la lista de opciones (Config → Opciones), con los mismos ids
            de siempre: lt-N, glegal-text[N], glegal-err[N], glegal-ok[N]. -->
@@ -409,7 +412,7 @@ const adminPanel = `<div id="admin-panel">
         <button class="btn-submit" id="opciones-save" onclick="_opcGuardar()" style="padding:8px 16px">Guardar cambios</button>
         <button class="usr-btn edit" onclick="renderOpcionesAdmin(true)">Recargar</button>
       </div>
-      <p style="font-size:.72rem;color:var(--gray);margin-top:10px;line-height:1.5">Quitar una opci&oacute;n la saca de la vista de todos, pero <strong>no borra</strong> su flyer ni su legal guardados: si la volv&eacute;s a agregar con el mismo n&uacute;mero, reaparecen.</p>
+      <p style="font-size:.72rem;color:var(--gray);margin-top:10px;line-height:1.5">Quitar una opci&oacute;n la saca de la vista de todos, pero <strong>no borra</strong> su flyer ni su legal guardados: si la volv&eacute;s a agregar con el mismo n&uacute;mero, reaparecen.<br><br>La <strong>solapa</strong> dice en qu&eacute; armador del header vive cada opci&oacute;n. <strong>Flyer Sueldo</strong> imprime <strong>un solo importe de cashback</strong> (el m&aacute;s alto de la configuraci&oacute;n que tenga elegida el asesor) en vez de los cuatro montos. Si cambi&aacute;s de solapa una opci&oacute;n que ya ten&iacute;a flyer, <strong>volv&eacute; a calibrarla</strong>: el importe &uacute;nico y las cuatro cajas se ubican por separado.</p>
     </div>
 
     <div id="at-facultades" style="display:none">
@@ -962,6 +965,27 @@ const checks = {
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
   // textos fijos editables) y muestran los dos campos en el formulario.
   'rubros: solapa + opciones por solapa + cartel del beneficio': html.includes('id="apptab-rubros"') && html.indexOf('id="apptab-rubros"') > html.indexOf('id="apptab-flyer"') && html.indexOf('id="apptab-rubros"') < html.indexOf('id="apptab-promos"') && _authSrc.includes('function _optSolapa(') && _authSrc.includes('function _facOptsDe(') && _authSrc.includes('function _fgSyncVista(') && _authSrc.includes('function fgDrawBenef(') && _authSrc.includes('if(v.benef)fgDrawBenef(c,s,v);') && _authSrc.includes('function _fgEnsureBenefFields(') && _authSrc.includes('function _fgFmtImporte(') && _authSrc.includes('function _calZones(') && _authSrc.includes('function _calBenefLinea(') && _authSrc.includes('var _BENEF_PLANTILLAS=') && _authSrc.includes('function _fgBenefLineas(') && _authSrc.includes('{importe2}') && _authSrc.includes('function _fgBenefFieldsSync(') && _authSrc.includes('function _padCheckRubro(') && _authSrc.includes("_PADRON_COLS='empresa,cuits,config,asesores,rubro,created_at'") && _authSrc.includes('ambos:{nombre:') && _authSrc.includes('function _padRubroOf(') && _authSrc.includes('id="benef-importe2"') && _authSrc.includes('function fgSavePDF(fc,v,force)') && _authSrc.includes('function _fgLegalConValores(') && _authSrc.includes('function _fgImporteSuma(') && _authSrc.includes('fgDrawLegal(c,s,_fgLegalConValores(v.legal,v))') && _authSrc.includes('function _fgBenefDetectarCuadro(') && _authSrc.includes('function _calBenefCentrar(') && _authSrc.includes('function _calBenefPlantillaPorOpcion(') && _authSrc.includes('onclick="_calBenefCentrar(false)"') && _authSrc.includes('id="cal-benef-row"') && _authSrc.includes('class="opc-sol"') && _authSrc.includes("solapa:sol") && html.includes('Flyer Rubros'),
+  // Flyer Sueldo: cuarta solapa del header, clon del armador de Galicia con UN
+  // solo importe de cashback en naranja (el mayor de m1..m4 de la config activa)
+  // en vez de las 4 cajas. La zona se calibra aparte (chip "Cashback", y el de
+  // "Montos" no aparece en esa solapa porque no se dibuja).
+  'sueldo: solapa + monto unico de cashback': html.includes('id="apptab-sueldo"') && html.indexOf('id="apptab-sueldo"') > html.indexOf('id="apptab-rubros"') && html.indexOf('id="apptab-sueldo"') < html.indexOf('id="apptab-promos"') && _authSrc.includes("{id:'sueldo',def:'Flyer Sueldo'") && _authSrc.includes('function fgDrawCashback(') && _authSrc.includes('function _fgMontoMayor(') && _authSrc.includes('function _fgMontoN(') && _authSrc.includes('if(_cu)fgDrawCashback(c,s,v);else fgDrawMontos(c,s,v);') && _authSrc.includes('cashback:{xc:') && _authSrc.includes('cashback:_fgMerge(d.cashback,c.cashback)') && _authSrc.includes("cashback:{id:'cashback'") && _authSrc.includes("drag.zone==='cashback'") && _authSrc.includes('cashUnico:!!_solCfg(_fgVista).cashUnico') && _authSrc.includes('function _fgMarcarMontoFlyer(') && html.includes('cfg-row-flyer'),
+  // "Sin cashback" no escribe numero pero TAPA igual la zona con el color real del
+  // fondo (mismo criterio que fgDrawMontos): si el PDF trae un importe impreso
+  // debajo, no se asoma. Y el mayor se compara por digitos devolviendo el string
+  // tal cual, asi el naranja del flyer y {cashback} en el legal dicen lo mismo.
+  'sueldo: sin cashback tapa igual con el fondo real': _authSrc.includes("var txt=v.nocb?'':_fgMontoMayor(v);") && _authSrc.includes('if(!txt)return;') && _authSrc.includes('c.fillStyle=_fgBgMuestra(c,xc-mw/2,xc+mw/2,') && _authSrc.includes("if(!v||v.nocb)return '';") && _authSrc.includes('function _fgMontoDig('),
+  // Las solapas del armador salen de UN registro (_SOLAPAS): sumar una es una
+  // entrada ahi + su div en el header (arriba). Los includes negativos son para
+  // que no vuelva a aparecer un 'rubros' escrito a mano en el mecanismo.
+  'solapas: generalizadas a N (un solo registro)': _authSrc.includes('var _SOLAPAS=') && _authSrc.includes('var _OPC_SOLAPAS=_SOLAPAS.map(') && _authSrc.includes('function _solCfg(') && _authSrc.includes('function _apptab(') && _authSrc.includes('function _esSolapaArmador(') && _authSrc.includes('function _calZonesBase(') && !_authSrc.includes('var _fgUltOpt={flyer:1,rubros:null}') && !_authSrc.includes("['apptab-flyer','apptab-rubros']") && !_authSrc.includes("fila('flyer',hayRubros)+fila('rubros',hayRubros)") && !_authSrc.includes("getElementById('apptab-rubros')") && !_authSrc.includes("benef:_fgVista==='rubros'"),
+  // Marcadores del legal: tabla (sumar uno = una linea) + regex que deja TAL CUAL
+  // lo que no conoce, para no comerse un "{...}" escrito a proposito. Los montos
+  // salen de la config activa, asi que el mismo legal sirve para BAU y Config N.
+  'legal: variables de montos ({cashback}, {plusgold}, ...)': _authSrc.includes('var _FG_LEGAL_VARS=') && _authSrc.includes('function _fgLegalConValores(') && _authSrc.includes('function _fgLegalVarKey(') && _authSrc.includes("['cashback',") && _authSrc.includes("['eminentblack',") && _authSrc.includes("['platinum',") && _authSrc.includes("['plusgold',") && _authSrc.includes("['plus',") && _authSrc.includes('if(!Object.prototype.hasOwnProperty.call(vals,key))return m;') && !_authSrc.includes('(importe2|importe|total|empresa|nombre)'),
+  // Los marcadores se pegan con un chip (escribirlos a mano se presta a un typo
+  // que no avisa: el marcador mal escrito termina impreso en el flyer).
+  'legal: chips de marcadores en el panel': _authSrc.includes('var _GLEGAL_VARS_UI=') && _authSrc.includes('function _glegalVarChips(') && _authSrc.includes('function _glegalVar(') && _authSrc.includes("_glegalVarChips(o)+") && html.includes('.glegal-vars') && !html.includes('<strong>Marcadores (Flyer Rubros):</strong>'),
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
   // El admin se puede destildar cosas a sí mismo (columna "Vos", guardada por
   // cuenta en profiles.facultades): ya no hay bypass fijo en _can.
