@@ -44,6 +44,24 @@ html = html.replace(
 );
 html = html.replace('</style>', newCSS + '</style>');
 
+// ── FUENTES: @import → <link> ───────────────────────────────────────────────
+// El @import adentro del <style> serializa la cadena: el navegador baja el HTML,
+// parsea el CSS y SÓLO ahí descubre la hoja de Google Fonts → una vuelta de red
+// entera antes de poder pintar texto con la tipografía final. Como <link> en el
+// <head> la pide el preload scanner de arranque, y los preconnect abren el
+// TCP+TLS de googleapis/gstatic en paralelo con el resto de la descarga.
+// Se hace en el build (y no en _source.html) porque el usuario regenera ese
+// archivo y el @import vuelve solo.
+const _fontRe = /[ \t]*@import url\((["']?)(https:\/\/fonts\.googleapis\.com\/css2[^)"']+)\1\);?[ \t]*\n?/;
+const _fontM = html.match(_fontRe);
+if (_fontM) {
+  html = html.replace(_fontRe, '');
+  html = html.replace('<style>',
+    '<link rel="preconnect" href="https://fonts.googleapis.com">\n' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
+    `<link rel="stylesheet" href="${_fontM[2]}">\n<style>`);
+}
+
 // ── LOGO HEADER (reemplaza el <img> por isotipo SVG) ───────────────────────
 html = html.replace(/<img src="data:image[^"]*" alt="Galicia" class="header-logo">/, headerIso);
 
@@ -639,21 +657,11 @@ html = html.replace(
   '<div class="cw"><canvas id="cv"></canvas></div>'
 );
 
-// ── LOG FLYER AL GENERAR (PDF/PNG) ───────────────────────────────────────────
-html = html.replace(
-  'pdf.save(fn+".pdf");\n  addHistory(v,fn,fc);',
-  'pdf.save(fn+".pdf");\n  addHistory(v,fn,fc);\n  if(typeof logFlyerToSupabase==="function")logFlyerToSupabase(v,fn||"","pdf");'
-);
-html = html.replace(
-  'a.download=fn+".png";a.href=fc.toDataURL("image/png");a.click();\n  addHistory(v,fn,fc);',
-  'a.download=fn+".png";a.href=fc.toDataURL("image/png");a.click();\n  addHistory(v,fn,fc);\n  if(typeof logFlyerToSupabase==="function")logFlyerToSupabase(v,fn||"","png");'
-);
-
-// ── REDRAW CON ALTA CALIDAD ──────────────────────────────────────────────────
-html = html.replace(
-  'function redraw(){\n  ctx.clearRect(0,0,cv.width,cv.height);\n  drawAll(ctx,SC,getVals());\n}',
-  'function redraw(){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.clearRect(0,0,cv.width,cv.height);drawAll(ctx,SC,getVals());}'
-);
+// Nota: acá había dos bloques que inyectaban cosas DENTRO de savePDF/savePNG/redraw
+// del template (el log a Supabase y el imageSmoothing de alta calidad). Las tres
+// funciones son código muerto desde que auth.js las pisa (ver "CÓDIGO MUERTO DEL
+// TEMPLATE" más abajo): el log ya lo hace fgSavePDF/fgSavePNG por su cuenta, así
+// que esos reemplazos no agregaban nada y se fueron con las funciones.
 
 // ── CANVAS DINAMICO ─────────────────────────────────────────────────────────
 // Reemplazar baseImg.onload para usar calcSC (definida en auth.js)
@@ -679,8 +687,75 @@ html = html.replace(
   'document.addEventListener("DOMContentLoaded", function(){ initApp();'
 );
 
-// ── VERIFICACIONES ──────────────────────────────────────────────────────────
 const _authSrc = readFileSync('auth.js', 'utf8');
+
+// ── CÓDIGO MUERTO DEL TEMPLATE ──────────────────────────────────────────────
+// _source.html trae el armador original completo (dibujado, descarga, historial,
+// masivo). auth.js lo reemplazó por el motor config-driven y en _installFlyerEngine
+// reasigna cada global (window.redraw=fgRedraw, window.drawLegal=fgDrawLegal, ...),
+// así que las versiones del template quedan DEFINIDAS pero nunca se ejecutan: son
+// ~16 KB de JS que el navegador baja y parsea al vuelo en cada carga, y encima
+// confunden al leer (hay dos drawLegal y el que corre es el de auth.js).
+// Se borran acá y no en _source.html porque el usuario regenera ese archivo y
+// volverían solas. La lista NO está escrita a mano: sale de los window.X= de
+// _installFlyerEngine, así que si auth.js deja de pisar algo, el build deja de
+// borrarlo automáticamente. Al final se re-parsea el <script> y si el borrado
+// dejó el JS inválido el build CORTA, en vez de publicar una página rota.
+const _instSrc = _authSrc.slice(
+  _authSrc.indexOf('function _installFlyerEngine'),
+  _authSrc.indexOf('function _readDocCfg')
+);
+const _pisadas = [...new Set([...(_instSrc.match(/window\.[A-Za-z_$][\w$]*\s*=/g) || [])
+  .map(s => s.slice(7).replace(/\s*=$/, ''))])]
+  // loadExcel lo pisa initApp (no _installFlyerEngine) por la versión robusta.
+  .concat('loadExcel');
+if (_pisadas.length < 20) throw new Error('_installFlyerEngine cambió de forma: sólo detecté ' + _pisadas.length + ' globals pisadas');
+
+// Saca `function NOMBRE(...){...}` balanceando llaves. Devuelve null si no está.
+function _stripFn(s, name) {
+  const m = new RegExp('(?:^|\\n)function ' + name + '\\s*\\(').exec(s);
+  if (!m) return null;
+  const i = m.index + (s[m.index] === '\n' ? 1 : 0);
+  let prof = 0, abierto = false;
+  for (let j = i; j < s.length; j++) {
+    if (s[j] === '{') { prof++; abierto = true; }
+    else if (s[j] === '}') {
+      prof--;
+      if (abierto && prof === 0) {
+        let k = j + 1;
+        while (k < s.length && (s[k] === '\n' || s[k] === '\r')) k++;
+        return s.slice(0, i) + s.slice(k);
+      }
+    }
+  }
+  return null;
+}
+
+const _htmlAntes = html.length;
+const _muertas = [];
+for (const n of _pisadas) {
+  const out = _stripFn(html, n);
+  if (out) { html = out; _muertas.push(n); }
+}
+// Segunda pasada: helpers del template que sólo usaban las funciones borradas.
+// Se van sólo si el identificador no aparece NUNCA MÁS — ni en el HTML (onclick),
+// ni en auth.js, ni como string (por si alguien lo llamara con window['nombre']).
+const _huerfanas = [];
+for (const m of [...html.matchAll(/(?:^|\n)function ([A-Za-z_$][\w$]*)\s*\(/g)]) {
+  const n = m[1];
+  const usos = (html.match(new RegExp('\\b' + n + '\\b', 'g')) || []).length;
+  if (usos === 1 && !new RegExp('\\b' + n + '\\b').test(_authSrc)) {
+    const out = _stripFn(html, n);
+    if (out) { html = out; _huerfanas.push(n); }
+  }
+}
+// Red de seguridad: el <script> inline tiene que seguir parseando.
+for (const m of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) {
+  try { new Function(m[1]); }
+  catch (e) { throw new Error('el borrado de código muerto dejó el <script> inline inválido: ' + e.message); }
+}
+const _muertasKB = ((_htmlAntes - html.length) / 1024).toFixed(1);
+
 // ── CACHE-BUSTING de auth.js ────────────────────────────────────────────────
 // GitHub Pages sirve auth.js con Cache-Control: max-age=600, así que el navegador
 // se quedaba hasta 10 min con la versión vieja (y el usuario "no veía" los cambios
@@ -720,6 +795,24 @@ if (_imgM) {
   _imgFile = 'flyer_default.' + (_imgM[1] === 'jpeg' ? 'jpg' : _imgM[1]);
   html = html.replace(_imgRe, () => `baseImg.dataset.fallback="${_imgFile}";`);
 }
+
+// ── FAVICON FUERA DE index.html ─────────────────────────────────────────────
+// El template trae el favicon como data: URI (~12,7 KB: es un JPEG con EXIF
+// adentro). Va en el <head>, o sea en el tramo que el navegador tiene que bajar
+// y parsear ANTES de pintar, y encima vuelve a viajar en cada visita porque está
+// dentro del HTML (que GitHub Pages cachea sólo 10 min). Como archivo aparte sale
+// del camino crítico, se baja en paralelo y queda cacheado por su cuenta.
+// index_export.html lo conserva inline (se arma antes de esta línea): se abre
+// desde file:// o desde el bucket y no puede depender de un archivo hermano.
+const _favRe = /<link rel="icon"([^>]*?)href="data:image\/(jpeg|png|webp|x-icon|svg\+xml);base64,([A-Za-z0-9+/=]+)"([^>]*)>/;
+const _favM = html.match(_favRe);
+let _favBuf = null, _favFile = '';
+if (_favM) {
+  _favBuf = Buffer.from(_favM[3], 'base64');
+  _favFile = 'favicon.' + ({ jpeg: 'jpg', 'svg+xml': 'svg', 'x-icon': 'ico' }[_favM[2]] || _favM[2]);
+  html = html.replace(_favRe, () => `<link rel="icon"${_favM[1]}href="${_favFile}"${_favM[4]}>`);
+}
+// ── VERIFICACIONES ──────────────────────────────────────────────────────────
 const _cdnTags = html.match(/<script src="https:\/\/[^"]+"[^>]*>/g) || [];
 const checks = {
   'CSS full-screen': html.includes('height:100vh;overflow:hidden'),
@@ -986,6 +1079,19 @@ const checks = {
   'ux: negrita del legal': html.includes('onclick="fgLegalBold()"') && _authSrc.includes('function fgLegalBold(') && _authSrc.includes("(e.key==='b'||e.key==='B')"),
   'ux: sin confirm() nativo': _authSrc.includes('function fgConfirm(') && !/[^a-zA-Z_]confirm\(/.test(_authSrc),
   'pegar: telefono por grupos de digitos': _authSrc.includes('function _fgTelCandidatos(') && _authSrc.includes('_FG_TEL_SEP') && !_authSrc.includes('reTel=/(?:[+(]?'),
+  // ── Performance ──
+  // El armador muerto del template se fue, pero los globals que lo reemplazan
+  // siguen enganchados y los onclick del HTML los siguen encontrando.
+  'perf: sin el armador muerto del template': _muertas.length >= 20 && !/function (drawAll|drawLegal|drawEmpresa|drawMontos|drawContacto|splitBoldRegular|genAll|validateExcel)\s*\(/.test(html) && ['setCfg(', 'toggleA1(', 'loadExcel(', 'redraw(', 'getVals(', 'fullRes(', 'showToast('].every(f => html.includes(f)),
+  // Google Fonts por <link> y no por @import: el @import serializa una vuelta de
+  // red entera antes del primer pintado (ver "FUENTES" arriba).
+  // El favicon sale del <head> de index.html (pero sigue inline en el export).
+  'perf: favicon fuera del head': !!_favBuf && _favBuf.length > 1000 && !html.includes('href="data:image') && html.includes(`<link rel="icon" type="image/jpeg" href="${_favFile}">`) && exportHtml.includes('rel="icon" type="image/jpeg" href="data:image'),
+  'perf: fuentes por <link> + preconnect': !html.includes('@import') && html.includes('rel="preconnect" href="https://fonts.gstatic.com"') && /<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com/.test(html) && html.indexOf('<link rel="stylesheet" href="https://fonts.googleapis.com') < html.indexOf('<style>'),
+  // Un dibujado por frame + word-wrap del legal cacheado (lo caro era c.font y
+  // measureText por palabra, ~1000 palabras en cada tecla).
+  'perf: redraw coalescido por frame': _authSrc.includes('function fgRedrawCoalesced(') && _authSrc.includes('window.redraw=fgRedrawCoalesced') && _authSrc.includes('window.redrawNow=fgRedraw') && _authSrc.includes('requestAnimationFrame(function(){_fgRafId=0;fgRedraw();})'),
+  'perf: legal con cache de medidas y de word-wrap': _authSrc.includes('function _fgMeas(') && _authSrc.includes('_fgLegalC[ck]') && _authSrc.includes('var ck=fs+') && !/c\.font=\(seg\.bold\?"bold ":""\)\+fs\+"px Arial/.test(_authSrc),
 };
 let _fallos = 0;
 for (const [k, v] of Object.entries(checks)) {
@@ -993,6 +1099,9 @@ for (const [k, v] of Object.entries(checks)) {
   console.log(`${v ? '✓' : '✗'} ${k}`);
 }
 if (_scriptsSinSri.length) console.log('  scripts CDN sin hash SRI:', _scriptsSinSri.join(', '));
+console.log(`  codigo muerto del template fuera: ${_muertas.length} funciones pisadas por auth.js` +
+  (_huerfanas.length ? ` + ${_huerfanas.length} helper(s) huerfano(s) (${_huerfanas.join(', ')})` : '') +
+  ` = ${_muertasKB} KB menos de JS por carga`);
 
 // Un check en ✗ significa que algún feature quedó roto (o un script sin
 // integridad). Antes se escribía igual y el index.html roto quedaba listo para
@@ -1004,6 +1113,7 @@ if (_fallos) {
   writeFileSync('index.html', html, 'utf8');
   writeFileSync('version.json', JSON.stringify({ v: BUILD_V }), 'utf8');
   if (_imgBuf) { writeFileSync(_imgFile, _imgBuf); console.log(`${_imgFile} guardado: ${(_imgBuf.length / 1024 / 1024).toFixed(2)} MB (fallback, ya no viaja dentro de index.html)`); }
+  if (_favBuf) { writeFileSync(_favFile, _favBuf); console.log(`${_favFile} guardado: ${(_favBuf.length / 1024).toFixed(1)} KB (ya no viaja en el <head> de index.html)`); }
   console.log(`\nindex.html guardado: ${(html.length / 1024 / 1024).toFixed(2)} MB`);
 
   // ── EXPORT SELF-CONTAINED (para subir a Supabase Storage) ─────────────────

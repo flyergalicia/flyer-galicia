@@ -1629,17 +1629,34 @@ function _promosSetSyncInfo(meta){
   }
   var d=new Date(meta.last_sync_at);
   el.textContent='Catálogo actualizado: '+d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+
-    ' — '+(meta.total||0)+' promociones.';
+    _promosHace(d)+' — '+(meta.total||0)+' promociones.';
+}
+// Antigüedad de la copia en palabras. Importa que se vea: Galicia publica las
+// promos nuevas en tandas a lo largo del día, así que "de hace 20 horas" ya
+// puede no tener la campaña que el asesor está buscando.
+function _promosHace(d){
+  var min=Math.round((Date.now()-d.getTime())/60000);
+  if(min<60)return '';
+  var hs=Math.round(min/60);
+  return hs<24?(' (hace '+hs+' h)'):(' (hace '+Math.round(hs/24)+' días)');
 }
 
 // Trae el catálogo completo a memoria + la metadata de sincronización. Si la
-// copia tiene más de 26hs (o nunca se sincronizó), dispara un sync solo antes
+// copia está vieja (ver _PROMOS_FRESCURA_MS) o nunca se sincronizó, dispara un sync solo antes
 // de mostrar nada, así el asesor no tiene que acordarse de apretar "Actualizar".
 // PostgREST corta cada consulta en 1000 filas. El catálogo tiene ~1700, así
 // que una sola select devolvía apenas las primeras 1000 y TODA marca que
 // cayera más abajo (SushiClub, Starbucks, Freddo, Volta...) parecía "no
 // existir". Por eso hay que traerlo por tandas hasta que una venga incompleta.
 var _PROMOS_PAGINA=1000;
+// Cuánto puede tener la copia antes de refrescarla sola al abrir la pestaña.
+// Estaba en 26hs y era demasiado: Galicia publica las campañas nuevas en tandas
+// durante el día (el 2026-10-02, con una copia de 23hs, faltaban 246 promos
+// nuevas — entre ellas Kosiuko, que arrancaba el 10/10) y esas marcas salían
+// como "no encontrada" aunque existieran. Un sync cuesta ~25 llamadas a Galicia
+// y lo comparten todos los usuarios, así que bajarlo a 6hs son 4 syncs al día
+// en el peor caso.
+var _PROMOS_FRESCURA_MS=6*3600*1000;
 function _promosTraerTodo(desde,acc,cb){
   // El .order('id') es imprescindible: sin un orden estable, paginar con
   // .range() puede repetir o saltearse filas entre tandas.
@@ -1704,7 +1721,7 @@ function loadPromosCatalogo(cb){
     _promosPoblarProvincias();
     _promosPoblarRubros();
     _promosCatLoading=false;
-    var vencida=!meta||!meta.last_sync_at||(Date.now()-new Date(meta.last_sync_at).getTime())>26*3600*1000;
+    var vencida=!meta||!meta.last_sync_at||(Date.now()-new Date(meta.last_sync_at).getTime())>_PROMOS_FRESCURA_MS;
     // Auto-sync si la copia está vieja o si nunca se sincronizó (catálogo
     // vacío y meta sin fecha). No se dispara cuando el vacío se explica por un
     // error o por RLS (meta dice que hay filas): ahí sincronizar no arregla nada.
@@ -1720,28 +1737,51 @@ function loadPromosCatalogo(cb){
   });
 }
 
+// Los botones de esta vista tienen un ícono SVG adentro: poner textContent para
+// el "Cargando..." se lo comía y volvían con un emoji pegado. Se guarda el
+// contenido original la primera vez y se restaura al soltar el botón.
+function _promosBtnOcupado(btn,txt){
+  if(!btn)return;
+  if(btn._fgHtml==null)btn._fgHtml=btn.innerHTML;
+  if(txt){btn.disabled=true;btn.textContent=txt;}
+  else{btn.disabled=false;btn.innerHTML=btn._fgHtml;}
+}
 // Un solo auto-sync por carga de página: si Galicia falla, la recarga del
 // catálogo que sigue al sync no tiene que volver a disparar otro sync (loop).
-var _promosSyncing=false,_promosAutoSynced=false;
-function syncPromosCatalogo(manual){
-  if(_promosSyncing)return;
-  if(!manual){if(_promosAutoSynced)return;_promosAutoSynced=true;}
+var _promosSyncing=false,_promosAutoSynced=false,_promosSyncWaiters=[];
+function _promosSyncDone(err){
+  var ws=_promosSyncWaiters;_promosSyncWaiters=[];
+  ws.forEach(function(f){try{f(err);}catch(e){console.error('promos sync waiter:',e);}});
+}
+// cb(err) se llama siempre, también en los cortes de arriba: quien lo pasa
+// suele tener un botón deshabilitado esperando y no puede quedar colgado.
+function syncPromosCatalogo(manual,cb){
+  // Si ya hay un sync en vuelo (el del arranque, típicamente), el que llega se
+  // cuelga de ése en vez de pedir otro a Galicia.
+  if(_promosSyncing){if(cb)_promosSyncWaiters.push(cb);return;}
+  if(!manual){
+    if(_promosAutoSynced){if(cb)cb('El catálogo ya se sincronizó en esta visita');return;}
+    _promosAutoSynced=true;
+  }
+  if(cb)_promosSyncWaiters.push(cb);
   _promosSyncing=true;
   var btn=document.getElementById('promos-sync-btn');
-  if(btn){btn.disabled=true;btn.textContent='Sincronizando...';}
+  _promosBtnOcupado(btn,'Sincronizando...');
   _callPromosFn('sync',{},function(err,d){
     _promosSyncing=false;
-    if(btn){btn.disabled=false;btn.textContent='↻ Actualizar catálogo ahora';}
+    _promosBtnOcupado(btn,'');
     if(err){
       console.error('promos sync:',err);
       // Si es manual siempre avisa; si fue el auto-sync en segundo plano, avisa
       // igual cuando no hay NADA cargado (si no, el usuario se queda mirando un
       // catálogo vacío sin ninguna pista de por qué).
       if(manual||!_promosCat||!_promosCat.length)showToast('No se pudo actualizar el catálogo de promociones: '+err);
+      _promosSyncDone(err);
       return;
     }
     if(manual)showToast('Catálogo actualizado: '+((d&&d.data&&d.data.total)||0)+' promociones');
-    loadPromosCatalogo();
+    // Los que esperan recién siguen cuando la copia nueva está en memoria.
+    loadPromosCatalogo(function(){_promosSyncDone(null);});
   });
 }
 
@@ -1856,12 +1896,12 @@ function validarPromos(){
     var btn=_promosValidarBtn();
     if(_promosValidarPendiente)return; // ya hay un reintento encolado
     _promosValidarPendiente=true;
-    if(btn){btn.disabled=true;btn.textContent='Cargando catálogo...';}
+    _promosBtnOcupado(btn,'Cargando catálogo...');
     // loadPromosCatalogo encola el callback aunque ya haya una carga en vuelo,
     // así el botón siempre se vuelve a habilitar.
     loadPromosCatalogo(function(){
       _promosValidarPendiente=false;
-      if(btn){btn.disabled=false;btn.textContent='🔍 Validar vigencia';}
+      _promosBtnOcupado(btn,'');
       if(_promosCat&&_promosCat.length){validarPromos();return;}
       // Vacío de verdad (nunca sincronizado y el auto-sync no pudo): el remedio
       // es sincronizar, no recargar la página.
@@ -1902,6 +1942,15 @@ function validarPromos(){
   // esperar que lo descubra mirando la tabla fila por fila.
   var aRevisar=resultados.filter(function(r){return r.necesitaRevision;});
   var noHallada=resultados.filter(function(r){return r.estado==='NO_ENCONTRADA';});
+  // Una marca sin ninguna coincidencia es, casi siempre, una promo que Galicia
+  // publicó después del último sync: la copia local no la tiene todavía. Antes
+  // de dar el "no existe" por bueno se refresca el catálogo y se vuelve a
+  // validar sola (una vez por visita). La tabla ya está pintada, así que si el
+  // sync falla el asesor igual se queda con el resultado de la copia vieja.
+  if(noHallada.length&&_promosPuedeResync()){
+    _promosResyncYRevalidar(noHallada);
+    return;
+  }
   if(aRevisar.length||noHallada.length){
     var partes=[];
     if(aRevisar.length){
@@ -1921,6 +1970,33 @@ function validarPromos(){
   if(ids.length)_promosPedirDetalle(ids,resultados);
 }
 
+// ── Segunda oportunidad para las marcas "no encontradas" ───────────────────
+// Sólo una vez por visita, y sólo si el catálogo no se sincronizó ya en esta
+// carga: si viene recién bajado de Galicia, el "no está" es verdad y repetir el
+// sync sería hacer esperar al asesor para nada.
+var _promosResyncHecho=false;
+function _promosPuedeResync(){
+  if(_promosResyncHecho)return false;
+  // Con un sync en vuelo vale esperarlo: la copia nueva todavía no se vio.
+  if(_promosSyncing)return true;
+  return !_promosAutoSynced;
+}
+function _promosResyncYRevalidar(noHallada){
+  _promosResyncHecho=true;
+  var btn=_promosValidarBtn();
+  _promosBtnOcupado(btn,'Buscando promos nuevas...');
+  showToast('No encontré '+noHallada.slice(0,3).map(function(r){return r.marca;}).join(', ')+
+    (noHallada.length>3?' y '+(noHallada.length-3)+' más':'')+'. Puede ser una promo nueva: actualizo el catálogo y reviso de nuevo.');
+  syncPromosCatalogo(false,function(){
+    _promosBtnOcupado(btn,'');
+    // Se vuelve a validar pase lo que pase: con la copia nueva si el sync
+    // anduvo, y con la vieja si falló. Esta segunda vuelta ya no reintenta
+    // (_promosResyncHecho), así que termina en el aviso de siempre y en el
+    // pedido de las fechas "Desde".
+    validarPromos();
+  });
+}
+
 // ── Solapa "Promociones activas" ───────────────────────────────────────────
 // No hay marcas pegadas: la lista sale del catálogo filtrado por la provincia
 // elegida. Como el catálogo de Galicia nunca trae promociones vencidas, "lo
@@ -1935,10 +2011,10 @@ function buscarPromosActivas(){
     // camino, se busca solo al llegar en vez de pedir otro click.
     if(_promosActivasPendiente)return;
     _promosActivasPendiente=true;
-    if(btn){btn.disabled=true;btn.textContent='Cargando catálogo...';}
+    _promosBtnOcupado(btn,'Cargando catálogo...');
     loadPromosCatalogo(function(){
       _promosActivasPendiente=false;
-      if(btn){btn.disabled=false;btn.textContent='📋 Ver promociones';}
+      _promosBtnOcupado(btn,'');
       if(_promosCat&&_promosCat.length){buscarPromosActivas();return;}
       if(_promosSyncing)showToast('El catálogo se está sincronizando por primera vez; probá de nuevo en unos segundos.');
       else showToast('El catálogo de promociones está vacío. Tocá "Actualizar catálogo ahora".');
@@ -1951,9 +2027,9 @@ function buscarPromosActivas(){
   // Galicia en el momento y nos quedamos sólo con los ids: el resto de los
   // datos ya está en memoria.
   if(_promosLoc&&!_promosLocIds){
-    if(btn){btn.disabled=true;btn.textContent='Buscando en la localidad...';}
+    _promosBtnOcupado(btn,'Buscando en la localidad...');
     _callPromosFn('ubicacion',{provincia:_promosProv,localidad:_promosLoc},function(err,d){
-      if(btn){btn.disabled=false;btn.textContent='📋 Ver promociones';}
+      _promosBtnOcupado(btn,'');
       if(err||!d||!d.data){
         console.error('promos ubicacion:',err||d);
         showToast('No se pudo filtrar por localidad, mostramos toda la provincia.');
@@ -2479,6 +2555,8 @@ function descargarExcelPromos(){
     return;
   }
   var btn=document.getElementById('promos-dl-btn');
+  // Este no pasa por _promosBtnOcupado: su etiqueta lleva el conteo de filas y
+  // la repinta _promosPintarFilas al volver a habilitarlo.
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
 
   var wb=new ExcelJS.Workbook();
@@ -4324,6 +4402,31 @@ function _fgLegalConValores(text,v){
     return val?val+sp:''; // sin valor: se va el marcador y el espacio que lo seguía
   });
 }
+// ── CACHES DEL TEXTO LEGAL ────────────────────────────────────────────────────
+// Medir texto en canvas es caro, y asignar c.font lo es MÁS (el navegador parsea
+// el shorthand CSS en cada asignación). El legal son ~1000 palabras: como estaba,
+// cada tecla disparaba ~2000 asignaciones de c.font y ~1000 measureText, y si el
+// texto no entraba el word-wrap corría DOS veces (~3000 y ~2000). De ahí venía el
+// tipeo pastoso. Dos caches lo sacan sin cambiar un pixel del resultado:
+//  _fgMeasC  → ancho por (negrita, fs, token). El ancho depende sólo de esos tres
+//              datos porque la familia es fija (Arial), así que el valor sirve
+//              entre contextos (preview y full-res) y entre redibujos.
+//  _fgLegalC → el word-wrap YA resuelto, por (fs, maxW, texto). calcLines es puro:
+//              fgSplitBold saca las negritas del propio texto y FG_BOLD_PHRASES no
+//              se muta nunca. Tipear la empresa no toca el legal → acierta siempre.
+// Los colores (L.bg / L.color) NO se cachean: se aplican en cada llamada, así el
+// tema y el calibrador siguen mandando.
+var _fgMeasC=Object.create(null),_fgMeasN=0;
+var _fgLegalC=Object.create(null),_fgLegalN=0;
+function _fgMeas(c,bold,fs,tok){
+  var k=(bold?'b':'n')+fs+'|'+tok,w=_fgMeasC[k];
+  if(w===undefined){
+    c.font=(bold?"bold ":"")+fs+"px Arial,sans-serif";
+    if(_fgMeasN>20000){_fgMeasC=Object.create(null);_fgMeasN=0;} // techo de memoria
+    w=_fgMeasC[k]=c.measureText(tok).width;_fgMeasN++;
+  }
+  return w;
+}
 function fgDrawLegal(c,s,text){
   if(!text||!text.trim())return 0;
   var L=_fgCfg().legal,se=_fgSE(s);
@@ -4332,8 +4435,11 @@ function fgDrawLegal(c,s,text){
   c.fillStyle=L.bg;
   c.fillRect(x0-Math.round(2*se),yStart-Math.round(5*se),maxW+Math.round(20*se),availH+Math.round(30*se));
   c.textAlign="left";c.textBaseline="top";
-  var paragraphs=text.split("\n");
+  var paragraphs=null;
   function calcLines(fs){
+    var ck=fs+'|'+maxW+'|'+text,hit=_fgLegalC[ck];
+    if(hit)return hit;
+    if(paragraphs===null)paragraphs=text.split("\n");
     var allLines=[];
     paragraphs.forEach(function(para){
       if(!para.trim()){allLines.push({gap:true});return;}
@@ -4342,14 +4448,15 @@ function fgDrawLegal(c,s,text){
         seg.text.split(" ").forEach(function(word,wi,arr){
           if(!word)return;
           var tok=word+(wi<arr.length-1?" ":"");
-          c.font=(seg.bold?"bold ":"")+fs+"px Arial,sans-serif";
-          var w=c.measureText(tok).width;
+          var w=_fgMeas(c,seg.bold,fs,tok);
           if(lineW+w>maxW&&currentTokens.length>0){allLines.push({tokens:currentTokens,gap:false});currentTokens=[];lineW=0;}
           currentTokens.push({text:tok,bold:seg.bold,w:w});lineW+=w;
         });
       });
       if(currentTokens.length>0)allLines.push({tokens:currentTokens,gap:false});
     });
+    if(_fgLegalN>24){_fgLegalC=Object.create(null);_fgLegalN=0;} // techo de memoria
+    _fgLegalC[ck]=allLines;_fgLegalN++;
     return allLines;
   }
   function calcHeight(lines,lh,gapH){var t=0;lines.forEach(function(l){t+=l.gap?gapH:lh;});return t;}
@@ -4362,13 +4469,17 @@ function fgDrawLegal(c,s,text){
     gapH=Math.max(Math.floor(gapH*ratio),Math.round(L.minGap*se));
     lines=calcLines(fs);
   }
-  var y=yStart;
+  // El color y la fuente salen del loop por token: adentro nada más los cambia,
+  // así que asignarlos sólo cuando cambia la negrita da el mismo dibujo.
+  var y=yStart,font='',regular=fs+"px Arial,sans-serif",negrita="bold "+regular;
+  c.fillStyle=L.color;
   lines.forEach(function(line){
     if(line.gap){y+=gapH;return;}
     var cx=x0;
     line.tokens.forEach(function(tok){
-      c.font=(tok.bold?"bold ":"")+fs+"px Arial,sans-serif";
-      c.fillStyle=L.color;c.fillText(tok.text,cx,y);cx+=tok.w;
+      var f=tok.bold?negrita:regular;
+      if(f!==font)c.font=font=f;
+      c.fillText(tok.text,cx,y);cx+=tok.w;
     });
     y+=lh;
   });
@@ -4394,6 +4505,19 @@ function _fgFinalHeightBase(){
 // lleva willReadFrequently porque _fgBgMuestra le lee píxeles; sin eso cada lectura
 // baja el canvas entero de la GPU. Juntas, estas dos cosas trababan la vista previa.
 var _fgFullCv=null,_fgFullCtx=null;
+// ── REDIBUJADO COALESCIDO ─────────────────────────────────────────────────────
+// redraw() es puramente visual (no devuelve nada y nadie lee el canvas justo
+// después) y se lo llama muchísimas veces seguidas: una por tecla, y varias
+// funciones lo encadenan 2-3 veces (setCfg, los toggles de asesor, cargar del
+// historial). Pintar más de una vez por frame no se ve en pantalla. El wrapper
+// junta todas las llamadas de un mismo frame en un solo dibujado y lo hace en
+// requestAnimationFrame, justo cuando el navegador va a pintar.
+// Quien necesite el canvas ya dibujado en la misma vuelta usa redrawNow().
+var _fgRafId=0;
+function fgRedrawCoalesced(){
+  if(_fgRafId)return;
+  _fgRafId=requestAnimationFrame(function(){_fgRafId=0;fgRedraw();});
+}
 function fgRedraw(){
   if(!window.baseImg||!baseImg.width)return;
   _fgBenefSyncNombre(); // la empresa puede cambiar sin evento input (padrón, historial)
@@ -5103,7 +5227,8 @@ function _installFlyerEngine(){
   window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
   window.drawBenef=fgDrawBenef;                    // Flyer Rubros
   window.splitBoldRegular=fgSplitBold;
-  window.redraw=fgRedraw;window.fullRes=fgFullRes; // recorte responsive del blanco inferior
+  window.redraw=fgRedrawCoalesced;window.redrawNow=fgRedraw; // un dibujado por frame
+  window.fullRes=fgFullRes; // recorte responsive del blanco inferior
   window.showToast=fgShowToast;                    // toast con debounce (el template lo pisaba)
   window.validateExcel=fgValidateExcel;            // vista previa del Excel con escape
 }
@@ -8741,12 +8866,26 @@ function _tourStyle(){
 function _tourCapitulos(){
   var puedePad=_can('padron_buscar'),puedePegar=_can('pegar_oficial'),puedeNotas=_can('notas'),
       puedeAs=_can('asesores_guardados'),puedePromos=_can('promos_buscar'),varias=_facOptsDe('flyer').length>1,
-      puedeRubros=_facOptsDe('rubros').length>0;
-  function irIndividual(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('individual');}
-  function irRubros(){closeUserMenu();if(typeof switchApp==='function')switchApp('rubros');if(typeof switchTab==='function')switchTab('individual');}
-  function irMasivo(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('masivo');}
-  function irHistorial(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('historial');}
-  function irPromos(){closeUserMenu();if(typeof switchApp==='function')switchApp('promos');}
+      puedeRubros=_facOptsDe('rubros').length>0,puedeSedes=_can('oficiales_sede'),
+      guardaTrabajo=_can('guardar_trabajo');
+  // El menú "Otros" se abre para hablar de Compartir / PNG / Oficiales por sede, y
+  // lo cierra cualquier paso que se vaya a otra parte de la pantalla.
+  function cerrarOtros(){if(typeof fgToggleOtros==='function')fgToggleOtros(false);}
+  function irIndividual(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('individual');}
+  function irOtros(){closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('individual');if(typeof fgToggleOtros==='function')fgToggleOtros(true);}
+  function irRubros(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('rubros');if(typeof switchTab==='function')switchTab('individual');}
+  function irMasivo(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('masivo');}
+  function irHistorial(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('historial');}
+  // Los pasos de Promociones son los de la solapa "Buscar". Si el usuario está en
+  // "Activas" SIN resultados, se vuelve a "Buscar"; con resultados cargados no se
+  // toca nada (cambiar de solapa vacía la tabla) y los pasos que no se vean se
+  // saltean solos.
+  function irPromos(){
+    cerrarOtros();closeUserMenu();
+    if(typeof switchApp==='function')switchApp('promos');
+    if(typeof switchPromoTab==='function'&&typeof _promoModoActivas==='function'&&_promoModoActivas()&&!_promosResultados)switchPromoTab('buscar');
+  }
+  function elPtabActivas(){var t=document.querySelectorAll('.promos-view .tabs .ptab');return t[1]||null;}
   return [
     {id:'flyer',titulo:'Armar un flyer',pasos:[
       {target:'#empresa',titulo:'Empez&aacute; por la empresa',
@@ -8756,13 +8895,13 @@ function _tourCapitulos(){
        texto:'Busc&aacute; por <strong>raz&oacute;n social o CUIT</strong> y se completa todo de una: empresa, cashback y hasta 4 oficiales. Desde "Administrar" (o tu nombre &rarr; <strong>Base de datos</strong>) sub&iacute;s un Excel o las edit&aacute;s a mano.',
        antes:irIndividual},
       {target:function(){var b=_fgBlock(1);return b&&b.sec;},titulo:'Datos del oficial',
-       texto:'Nombre, celular y mail del asesor que va al pie del flyer. Al escribir el nombre, el <strong>mail se sugiere solo</strong> (nombre.apellido@bancogalicia.com.ar); si es distinto, corregilo.'+(puedeAs?' <strong>Tocando este t&iacute;tulo</strong> eleg&iacute;s un asesor guardado y lo carg&aacute;s con un click.':''),
+       texto:'Nombre, celular y mail del asesor que va al pie del flyer. Al escribir el nombre, el <strong>mail se sugiere solo</strong> (nombre.apellido@bancogalicia.com.ar); si es distinto, corregilo. Si un celular o un mail no cierra, te lo marca ah&iacute; mismo en rojo (igual te deja generar).'+(puedeAs?' <strong>Tocando este t&iacute;tulo</strong> eleg&iacute;s un asesor guardado y lo carg&aacute;s con un click, o guard&aacute;s el que tengas cargado con <em>&laquo;+ Guardar el actual&raquo;</em>.':'')+' A la derecha del t&iacute;tulo, <strong>&#10005; Borrar</strong> vac&iacute;a los campos de ese oficial.',
        antes:irIndividual},
       {target:'#fg-paste-btn-1',cond:puedePegar,titulo:'&#9889; Pegar: sin tipear nada',
        texto:'Copi&aacute; la firma de un mail o un mensaje con los datos del oficial y pegalo ac&aacute;: detecta <strong>nombre, celular y mail</strong> y los acomoda al formato correcto. Si algo no cierra, <em>Deshacer</em>.',
        antes:irIndividual},
-      {target:'#fg-add-asesor',titulo:'Hasta 4 asesores',
-       texto:'Agreg&aacute; un segundo, tercer o cuarto oficial: el flyer los acomoda solo (2 lado a lado, 3 en fila, 4 en dos filas). "&#10005; Quitar" lo saca sin borrar lo que escribiste.',
+      {target:'#fg-add-asesor',titulo:'Hasta 4 asesores'+(puedeSedes?' (u 8)':''),
+       texto:'Agreg&aacute; un segundo, tercer o cuarto oficial: el flyer los acomoda solo (2 lado a lado, 3 en fila, 4 en dos filas). <strong>&#10005; Quitar</strong> lo saca del flyer y borra lo que ten&iacute;a cargado.'+(puedeSedes?' Con <strong>Oficiales por sede</strong> prendido (est&aacute; en <em>Otros</em>, lo vemos al final) llegan hasta 8.':''),
        antes:irIndividual},
       {target:'.cfg-btns',titulo:'Cashback',
        texto:'Eleg&iacute; la configuraci&oacute;n de montos que le corresponde a la empresa (<strong>BAU</strong> o <strong>Config 1 a 4</strong>). Los importes vigentes los carga el administrador; ac&aacute; solo eleg&iacute;s cu&aacute;l.',
@@ -8770,15 +8909,27 @@ function _tourCapitulos(){
       {target:'#legal-text',titulo:'Texto legal',
        texto:'Viene precargado con los t&eacute;rminos del mes. Pod&eacute;s ajustar una fecha o un dato: lo que va entre <kbd>**dobles asteriscos**</kbd> sale en <strong>negrita</strong>. Si peg&aacute;s desde Word, la negrita se conserva sola.',
        antes:irIndividual},
+      {target:'.fg-legal-b',titulo:'El bot&oacute;n B: negrita sin asteriscos',
+       texto:'Seleccion&aacute; un tramo del legal y toc&aacute; <strong>B</strong> (o <kbd>Ctrl</kbd>+<kbd>B</kbd>): te pone los asteriscos por vos. Toc&aacute;ndolo de nuevo sobre el mismo texto, se los saca. Los asteriscos se ven ac&aacute; porque son la marca; en el flyer sale la negrita.',
+       antes:irIndividual},
       {target:'.zoom-bar',titulo:'Vista previa',
        texto:'Acerc&aacute; o alej&aacute; con <kbd>+</kbd> / <kbd>&minus;</kbd> (o la rueda del mouse) y <strong>arrastr&aacute;</strong> la imagen para recorrerla. Lo que ves ac&aacute; es exactamente lo que se descarga.',
        antes:irIndividual},
+      {target:'.btns .btn.bblue',titulo:'Verlo en grande',
+       texto:'Abre el flyer a pantalla completa para revisarlo con tranquilidad antes de mandarlo, con <strong>Descargar PDF</strong>, <strong>Compartir</strong> y <strong>PNG</strong> ah&iacute; mismo. Se cierra con <kbd>Esc</kbd>.',
+       antes:irIndividual},
       {target:'.btns .btn.bp',titulo:'Descargar',
-       texto:'<strong>Descargar PDF</strong> (o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) lo guarda en tu equipo. <strong>Compartir</strong> abre el men&uacute; del celular o de Windows para mandar el PDF directo por WhatsApp, mail o Teams. En <em>Otros</em> est&aacute; la descarga como imagen (PNG). Todo queda en la solapa <em>Historial</em>.',
+       texto:'<strong>Descargar PDF</strong> (o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) lo guarda en tu equipo. En <em>Otros</em> est&aacute;n <strong>Compartir el PDF</strong> y la descarga como imagen (PNG). Si qued&oacute; un celular o un mail raro, te avisa reci&eacute;n despu&eacute;s de generar: nunca te frena el flyer. Todo queda en la solapa <em>Historial</em>.',
        antes:irIndividual},
       {target:'.btns .btn.bg',titulo:'Restaurar',
-       texto:'Limpia empresa y asesores y vuelve el legal al texto guardado, para arrancar el pr&oacute;ximo flyer de cero.',
-       antes:irIndividual}
+       texto:'Limpia empresa y oficiales, apaga lo que hayas prendido en <em>Otros</em> y vuelve el legal al texto guardado, para arrancar el pr&oacute;ximo flyer de cero.',
+       antes:irIndividual},
+      {target:'#fg-otros',titulo:'&laquo;Otros&raquo;: compartir y m&aacute;s',
+       texto:'Ac&aacute; est&aacute; <strong>Compartir el PDF</strong>: abre el men&uacute; del celular o de Windows y lo mand&aacute;s directo por WhatsApp, mail o Teams (si tu navegador no sabe compartir archivos, el bot&oacute;n no aparece y us&aacute;s Descargar PDF). Tambi&eacute;n la descarga como <strong>imagen (PNG)</strong>'+(puedeSedes?' y la barrita de <strong>Oficiales por sede</strong>.':'.'),
+       antes:irOtros},
+      {target:'#fg-sedes-item',cond:puedeSedes,titulo:'&#128205; Oficiales por sede',
+       texto:'Para los flyers en los que el banco pone un referente por zona. Prendida, carg&aacute;s <strong>hasta 8 oficiales</strong>, cada uno con su <strong>ubicaci&oacute;n</strong> (sale con el pin &#128205; y en negrita arriba del nombre) y un <strong>t&iacute;tulo</strong> que va arriba de todo el bloque. Al apagarla se borran las ubicaciones, el t&iacute;tulo y los oficiales 5 al 8 (te pregunta antes). La lupa y el Excel del masivo siguen trayendo hasta 4.',
+       antes:irOtros}
     ]},
     {id:'masivo',titulo:'Masivo',pasos:[
       {target:'.template-btn',titulo:'Muchas empresas de una vez',
@@ -8786,22 +8937,32 @@ function _tourCapitulos(){
        antes:irMasivo},
       {target:'#excel-drop',titulo:'Sub&iacute; el Excel y gener&aacute;',
        texto:'Arrastralo ac&aacute; o hac&eacute; click para elegirlo. Te muestra una vista previa y avisa si alguna fila tiene un problema (empresa vac&iacute;a, cashback que no reconoce). Despu&eacute;s, el bot&oacute;n <strong>&#9889; Generar ZIP</strong> arma <strong>un PDF por empresa</strong> y los baja todos juntos.',
+       antes:irMasivo},
+      {target:'#fg-mp-box',cond:puedePad,titulo:'Sin Excel: desde tus empresas',
+       texto:'Si ya tenés tu base cargada, ac&aacute; abajo sale <strong>&laquo;Todo el segmento&raquo;</strong>: un click y te baja el flyer de todas las empresas de tu base que usan <strong>este formato</strong> (con sus oficiales, cashback y topes). Para bajar <em>todas</em> tus empresas, cada una con el formato que le toca, est&aacute; <strong>Base de datos &rarr; Generar flyers</strong>.',
        antes:irMasivo}
     ]},
     {id:'historial',titulo:'Historial',pasos:[
-      {target:function(){return document.querySelectorAll('.tabs .tab')[2]||null;},titulo:'Lo que generaste en esta sesi&oacute;n',
-       texto:'Cada flyer descargado queda listado ac&aacute;: pod&eacute;s <strong>volver a bajar el PDF</strong> o <strong>recargar</strong> sus datos en el formulario para retocarlo. Se vac&iacute;a al cerrar la pesta&ntilde;a del navegador.',
+      {target:function(){return document.querySelectorAll('.tabs .tab')[2]||null;},
+       titulo:guardaTrabajo?'Tus flyers quedan guardados':'Lo que generaste en esta sesi&oacute;n',
+       texto:'Cada flyer descargado queda listado ac&aacute;: pod&eacute;s <strong>volver a bajar el PDF</strong> o <strong>recargar</strong> sus datos en el formulario para retocarlo. '+
+         (guardaTrabajo
+           ? 'La lista queda guardada en esta computadora, as&iacute; que ma&ntilde;ana sigue estando. Y si cerr&aacute;s la pesta&ntilde;a a mitad de un flyer, al volver te ofrece <strong>&laquo;Seguir con ese&raquo;</strong> con todo como lo dejaste.'
+           : 'Se vac&iacute;a al cerrar la pesta&ntilde;a del navegador.'),
        antes:irHistorial}
     ]},
     {id:'menu',titulo:'Tu men&uacute;',pasos:[
       {target:'#hdr-dd-padron',cond:(puedePad||puedeAs),titulo:'Base de datos',
-       texto:'Ac&aacute; viven <strong>tus empresas</strong> (sub&iacute; un Excel o editalas en l&iacute;nea, para que la lupa las encuentre) y <strong>tus asesores</strong> guardados (correg&iacute; un celular o un mail sin borrar y volver a cargar). Es <strong>privado</strong>: nadie m&aacute;s lo ve ni lo edita.',
+       texto:'Ac&aacute; viven <strong>tus empresas</strong> (sub&iacute; un Excel o editalas en l&iacute;nea, para que la lupa las encuentre'+(puedePad?', y desde <strong>Generar flyers</strong> baj&aacute;s las que quieras de una':'')+') y <strong>tus asesores</strong> guardados (correg&iacute; un celular o un mail sin borrar y volver a cargar). Es <strong>privado</strong>: nadie m&aacute;s lo ve ni lo edita, y viaja con tu cuenta (lo ten&eacute;s desde cualquier computadora).',
        antes:_tourAbrirMenu},
       {target:'#hdr-dd-notes',cond:puedeNotas,titulo:'Bloc de notas',
        texto:'Anotaciones r&aacute;pidas que quedan guardadas en este navegador, por si necesit&aacute;s tener algo a mano mientras arm&aacute;s flyers.',
        antes:_tourAbrirMenu},
       {target:'#hdr-dd-theme',titulo:'Modo oscuro',
        texto:'Cambi&aacute; entre tema claro y oscuro. Se recuerda para la pr&oacute;xima vez.',antes:_tourAbrirMenu},
+      {target:'#hdr-dd-pal',titulo:'El color de la app',
+       texto:'Cuatro temas para elegir: <strong>Marfil</strong>, <strong>Marino</strong>, <strong>Grafito</strong> y <strong>Cielo</strong>. Es s&oacute;lo c&oacute;mo se ve la pantalla: <strong>el flyer que descarg&aacute;s no cambia</strong>. Queda guardado en este navegador.',
+       antes:_tourAbrirMenu},
       {target:'#hdr-dd-pass',cond:!_adminNow(),titulo:'Cambiar mi clave',
        texto:'Cambi&aacute; tu contrase&ntilde;a cuando quieras (te pide la actual). Si la olvidaste, desde el login ped&iacute;s una nueva y el administrador la aprueba.',
        antes:_tourAbrirMenu},
@@ -8809,6 +8970,9 @@ function _tourCapitulos(){
        texto:'Este recorrido queda siempre ac&aacute; para repasarlo cuando quieras.',antes:_tourAbrirMenu}
     ]},
     {id:'promos',titulo:'Promociones',cond:puedePromos,pasos:[
+      {target:'#promos-prov',titulo:'Primero, tu provincia',
+       texto:'La provincia que elijas ac&aacute; vale para las <strong>dos solapas</strong>: quedan s&oacute;lo las promociones que corren en esa zona. Justo abajo, <strong>&laquo;Ocultar las de compra online&raquo;</strong> saca las de internet (no tienen local, as&iacute; que valen desde cualquier provincia).',
+       antes:irPromos},
       {target:'#promos-marcas',titulo:'&iquest;Qu&eacute; marcas siguen vigentes?',
        texto:'Peg&aacute; la lista de marcas del flyer, <strong>una por l&iacute;nea</strong>. Se cruzan contra el buscador oficial de promociones de Galicia.',
        antes:irPromos},
@@ -8816,7 +8980,13 @@ function _tourCapitulos(){
        texto:'El mes del flyer: una promo que vence dentro de ese mes se marca <em>"vence este mes"</em>, y una ya vencida, <em>"vencida"</em>.',
        antes:irPromos},
       {target:'#promos-validar-btn',titulo:'Validar vigencia',
-       texto:'Tambi&eacute;n con <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. Devuelve una tabla con logo, nombre en Galicia, fechas desde/hasta y estado. Las dudosas quedan como <strong>Revisar</strong> con las opciones para elegir a mano; las que no est&aacute;n, como <strong>No encontrada</strong>. La columna <strong>En Galicia</strong> abre esa promoci&oacute;n en el sitio del banco (vigencia, d&iacute;as, tarjetas y letra chica). Con el bot&oacute;n <strong>Descargar Excel</strong> te llev&aacute;s el resultado con el logo de cada marca.',
+       texto:'Tambi&eacute;n con <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. Devuelve una tabla con logo, nombre en Galicia, fechas desde/hasta y estado. Las dudosas quedan como <strong>Revisar</strong> con las opciones para elegir a mano; las que no est&aacute;n, como <strong>No encontrada</strong>. La columna <strong>En Galicia</strong> abre esa promoci&oacute;n en el sitio del banco (vigencia, d&iacute;as, tarjetas y letra chica). Arriba de la tabla pod&eacute;s <strong>buscar</strong> dentro del resultado y <strong>ordenarlo</strong>, y con <strong>Descargar Excel</strong> te llev&aacute;s todo con el logo de cada marca.',
+       antes:irPromos},
+      {target:elPtabActivas,titulo:'&laquo;Activas&raquo;: armar un flyer de cero',
+       texto:'La otra solapa va al rev&eacute;s: no peg&aacute;s nada y te trae <strong>todas las promociones vigentes</strong> de esa provincia. Adentro afin&aacute;s por <strong>localidad</strong> y por <strong>rubro</strong>, y con <strong>&laquo;Una sola fila por marca&raquo;</strong> queda una l&iacute;nea por marca (la que vence m&aacute;s tarde; el <strong>+N</strong> te dice cu&aacute;ntas junt&oacute; y cu&aacute;les). La fecha de inicio no viene en el listado: la trae el bot&oacute;n <strong>Completar fechas &laquo;Desde&raquo;</strong>. Ojo: al cambiar de solapa se vac&iacute;a la tabla.',
+       antes:irPromos},
+      {target:'#promos-sync-btn',titulo:'El cat&aacute;logo de Galicia',
+       texto:'La app se guarda una copia del listado de Galicia para no pedirlo cada vez (arriba te dice de cu&aacute;ndo es). Si Galicia carg&oacute; promociones nuevas hoy, toc&aacute; <strong>Actualizar cat&aacute;logo ahora</strong> y las trae.',
        antes:irPromos}
     ]},
     {id:'opciones',titulo:'Opciones',cond:varias,pasos:[
@@ -8836,6 +9006,7 @@ function _tourCapitulos(){
 }
 function _tourAbrirMenu(){
   if(typeof switchApp==='function')switchApp('flyer');
+  if(typeof fgToggleOtros==='function')fgToggleOtros(false); // si venimos del paso de "Otros"
   var dd=document.getElementById('hdr-dropdown');
   if(dd&&!dd.classList.contains('open'))toggleUserMenu();
 }
@@ -8977,6 +9148,7 @@ function _tourEnd(silencioso){
   if(silencioso||!habia)return;
   _tourMarcarVisto();
   closeUserMenu();
+  if(typeof fgToggleOtros==='function')fgToggleOtros(false); // el tour puede haber quedado en el paso de "Otros"
   if(typeof switchApp==='function')switchApp('flyer');
   if(typeof switchTab==='function')switchTab('individual');
 }
