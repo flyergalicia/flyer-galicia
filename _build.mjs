@@ -1070,6 +1070,17 @@ const checks = {
   // recorre solapa por solapa (en orden numerico las solapas se intercalan y un grupo
   // tiene que ser contiguo) y agrega el id de la solapa como 4o campo de la fila.
   'facultades: opciones agrupadas por solapa': _authSrc.includes('function _facSolOrden(') && _authSrc.includes('function _facOptsSol(') && _authSrc.includes('function _facGrpRow(') && _authSrc.includes('function _facGrpTog(') && _authSrc.includes('function _facCntSync(') && _authSrc.includes('var _facGrpOpen={};') && _authSrc.includes("_facSolOrden().forEach(function(sol){") && _authSrc.includes("class=\"fac-row fac-grp") && _authSrc.includes("var cab=(grp&&grp!==grpAnt)?_facGrpRow(grp,cols):'';") && newCSS.includes('.fac-row.fac-oculta{display:none;}') && newCSS.includes('.fac-grp.abierto .fac-car{transform:rotate(90deg);}'),
+  // Flyers "Pasá tu sueldo" en la solapa Rubros: ahi el cuadro del beneficio NO
+  // viene vacio (el arte ya trae impreso "25% de ahorro en combustible los
+  // domingos"), asi que la app escribe solo la bajada con el nombre de la empresa
+  // y el tope. Las tres lineas llevan dx porque _calBenefCentrar le pisa la x a
+  // toda linea sin dx y la fuerza a centrada: sin eso las dos columnas se apilan.
+  'rubros: cartel de promo adicional (Pasa tu sueldo)': _authSrc.includes("adicional:{nombre:'Promo adicional (Pasá tu sueldo)'") && _authSrc.includes("{t:'Además, {nombre} tiene',x:119,dx:-501,") && _authSrc.includes("{t:'una promo adicional.',x:119,dx:-501,") && _authSrc.includes("{t:'Tope de reintegro mensual {importe}',x:673,dx:53,") && _authSrc.includes("campos:{importe:'Tope de reintegro mensual'}") && _authSrc.includes('var _BENEF_PLANTILLAS='),
+  // Calibraciones de arranque: la de fabrica es la del Flyer Galicia y un flyer de
+  // otra familia obliga a arrastrar todas las zonas. La base se vuelca con un clon
+  // PROFUNDO: _fgMerge es shallow, asi que sin clonar montos.boxes quedaria
+  // compartido con el registro y mover una caja las moveria en todas las opciones.
+  'calibrador: partir de una base': _authSrc.includes('var _CFG_BASES=') && _authSrc.includes('function _calBase(') && _authSrc.includes('function _calBaseAplicar(') && _authSrc.includes('JSON.parse(JSON.stringify(b.cfg||FLYER_CFG_DEFAULT))') && _authSrc.includes("nombre:'Pasá tu sueldo (4 importes en 2x2)'") && _authSrc.includes("{xc:626,ew:240,y:905,col:'#1d4070'}") && _authSrc.includes('id="cal-base"') && _authSrc.includes('onclick="_calBaseAplicar()"'),
   'calibrador: zoom + zona elegida sola': _authSrc.includes('function _calZoom(') && _authSrc.includes('function _calWheel(') && _authSrc.includes("cv.addEventListener('wheel',_calWheel,{passive:false});") && _authSrc.includes('if(_cal.sel&&_cal.sel!==z.id)return;') && _authSrc.includes('id="cal-zoom-pct"'),
   // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN
   'pegar: parser': _authSrc.includes('function _fgParseContacto(') && _authSrc.includes('function _fgPartirTel(') && _authSrc.includes('function _fgVerificaTel('),

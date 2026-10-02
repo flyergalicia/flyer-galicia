@@ -4152,6 +4152,55 @@ var FLYER_CFG_DEFAULT = {
   benef:{color2:"#fa6400",peso2:800,lineas:null}
 };
 var _FG_BENEF_FONT='Figtree';
+// ── CALIBRACIONES DE ARRANQUE ───────────────────────────────────────────────
+// La de fábrica (FLYER_CFG_DEFAULT) es la del Flyer Galicia. Un flyer de la
+// familia "Pasá tu sueldo" tiene otra geometría (7382 px de alto contra 6457, el
+// nombre de empresa más arriba, los 4 importes en grilla 2x2 y la banda de
+// oficiales en otro lado), así que arrancar de la de fábrica obliga a arrastrar
+// todas las zonas. Estos números salen de medir el PDF real: la app lo rasteriza
+// a 1240 px de ancho (_rasterizeFlyer), así que la coordenada del PDF por
+// 1240/ancho_pt da el px base, y lo que escribe la app se ubicó comparando el PDF
+// vacío contra uno ya completado.
+// OJO: contacto y legal se anclan ABAJO (_fgBottomYRaw usa imgH), por eso la base
+// trae su propio imgH; si se cambia uno hay que mover el otro.
+// El cartel del beneficio NO va acá: eso es la plantilla (_BENEF_PLANTILLAS), que
+// se elige aparte en la misma pantalla.
+var _CFG_BASES=[
+  {id:'galicia',nombre:'Flyer Galicia (de fábrica)',cfg:null},
+  {id:'sueldo',nombre:'Pasá tu sueldo (4 importes en 2x2)',cfg:{
+    imgH:7382,
+    empresa:{xc:620,yc:658,lh:46,mw:1100,fs:42,ex:70},
+    // Las cajas tapan poco a propósito: arriba de cada importe hay texto impreso
+    // ("hasta alcanzar el límite" en la fila de arriba, las etiquetas Éminent
+    // Black/Platinum en la de abajo) y de ahí sale la muestra del color de fondo.
+    montos:{y:824,fs:46,mh:46,boxes:[
+      {xc:626,ew:240,col:'#1d4070'},{xc:890,ew:240,col:'#1d4070'},
+      {xc:626,ew:240,y:905,col:'#1d4070'},{xc:890,ew:240,y:905,col:'#1d4070'}]},
+    contacto:{ex:150,ey:6107,ew:940,ew3:1140,eh:130,y1:6137,y2:6167,y3:6196,
+      xSingle:620,xLeft:310,xRight:930,fnBold:25,frReg:23},
+    legal:{x0:79,yStart:6350,yEnd:7360,maxW:1085,fs:12,lh:16}
+  }}
+];
+function _calBase(id){for(var i=0;i<_CFG_BASES.length;i++)if(_CFG_BASES[i].id===id)return _CFG_BASES[i];return null;}
+// Vuelca una base sobre la calibración que se está editando. Pisa SÓLO las zonas
+// que la base define; el resto queda como estaba. No se guarda nada hasta
+// "Guardar y activar", así que cerrar la pantalla deshace.
+function _calBaseAplicar(){
+  if(!_cal)return;
+  var sel=document.getElementById('cal-base');
+  var b=_calBase(sel?sel.value:'');if(!b)return;
+  // Clon profundo SIEMPRE: _fgMerge es shallow, así que sin clonar el array de
+  // montos.boxes quedaría compartido con el registro y mover una caja en una
+  // opción se las movería a todas las de la sesión.
+  var nb=JSON.parse(JSON.stringify(b.cfg||FLYER_CFG_DEFAULT));
+  Object.keys(nb).forEach(function(k){
+    var v=nb[k];
+    if(v&&typeof v==='object'&&!Array.isArray(v))_cal.cfg[k]=_fgMerge(_cal.cfg[k]||{},v);
+    else _cal.cfg[k]=v;
+  });
+  _calPropsSync();_calRenderLegend();_calDraw();
+  if(typeof showToast==='function')showToast('Base «'+b.nombre+'» cargada. Si no era, cerrá sin guardar.');
+}
 var _BENEF_LINEA_DEF={t:'',x:640,y:2700,fs:17,peso:500,color:'#000000',align:'center',mw:820};
 var _BENEF_PLANTILLAS={
   combustible:{nombre:'Combustible',lineas:[
@@ -4174,6 +4223,18 @@ var _BENEF_PLANTILLAS={
   // bloque (lo aplica _calBenefCentrar; las líneas sin dx van centradas en el
   // eje). {importe} = supermercado, {importe2} = combustible; `campos` son las
   // etiquetas de los dos topes en el formulario.
+  // "Pasá tu sueldo": en estos flyers el cuadro NO viene vacío — el arte ya trae
+  // impreso "25% de ahorro / en combustible los domingos (5)" — así que la app
+  // escribe sólo dos cosas: la bajada con el nombre de la empresa (a la izquierda
+  // del dibujo) y el tope (debajo del texto impreso). Medido sobre el PDF real
+  // (595x3542 pt rasterizado a 1240 px): y 2428/2462 para la bajada y 2498 para
+  // el tope. Las tres líneas llevan dx a propósito: _calBenefCentrar le pisa la x
+  // a toda línea SIN dx y la fuerza a centrada, y acá cada una va en su columna.
+  adicional:{nombre:'Promo adicional (Pasá tu sueldo)',campos:{importe:'Tope de reintegro mensual'},lineas:[
+    {t:'Además, {nombre} tiene',x:119,dx:-501,y:2428,fs:29,peso:500,color:'#000000',align:'left',mw:430},
+    {t:'una promo adicional.',x:119,dx:-501,y:2462,fs:29,peso:500,color:'#000000',align:'left',mw:430},
+    {t:'Tope de reintegro mensual {importe}',x:673,dx:53,y:2498,fs:21,peso:500,color:'#000000',align:'left',mw:470}
+  ]},
   ambos:{nombre:'Ambos (combustible y supermercado)',campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
     {t:'¡Beneficio exclusivo {nombre}!',x:655,y:2529,fs:42,peso:800,color:'#fa6400',align:'center',mw:800},
     {t:'**25% de ahorro** en combustible y supermercado',x:655,y:2573,fs:33,peso:500,color:'#000000',align:'center',mw:780},
@@ -5936,8 +5997,8 @@ function _calEnsureDom(){
     '.cal-bl .x{cursor:pointer;color:var(--gray,#888);font-size:.8rem;text-align:center}.cal-bl .x:hover{color:var(--red,#e30613)}'+
     '.cal-bl-head{color:var(--gray,#777);font-size:.6rem;text-transform:uppercase;letter-spacing:.4px}'+
     '.cal-bl-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:7px}'+
-    '.cal-bl-top select{padding:3px 6px;font-size:.7rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit}'+
-    'html.dark .cal-bl-top select{background:#22242a}';
+    '.cal-bl-top select,#cal-base{padding:3px 6px;font-size:.7rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit}'+
+    'html.dark .cal-bl-top select,html.dark #cal-base{background:#22242a}';
   document.head.appendChild(st);
   var m=document.createElement('div');m.id='cal-modal';
   m.innerHTML=
@@ -5947,6 +6008,12 @@ function _calEnsureDom(){
         '<button class="ap-close" onclick="_calClose()">&#10005;</button></div>'+
       '<div class="cal-legend" id="cal-legend"></div>'+
       '<div class="cal-body"><canvas id="cal-cv"></canvas></div>'+
+      '<div style="padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.72rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+        '<label>Partir de esta base:</label>'+
+        '<select id="cal-base">'+_CFG_BASES.map(function(b){return '<option value="'+b.id+'">'+_escHtml(b.nombre)+'</option>';}).join('')+'</select>'+
+        '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBaseAplicar()">Cargar base</button>'+
+        '<span style="color:var(--gray)">Pone las zonas donde van en ese modelo de flyer; despu&eacute;s se retoca arrastrando. El cartel del beneficio se elige abajo, con su plantilla.</span>'+
+      '</div>'+
       '<div style="padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.72rem;display:flex;gap:12px;align-items:center">'+
         '<label>Altura final (px):</label><input id="cal-height" type="number" placeholder="auto" style="width:90px;padding:4px 6px" onchange="_calHeightChanged()">'+
         '<button class="usr-btn edit" style="font-size:.65rem;padding:4px 9px" onclick="document.getElementById(\'cal-height\').value=\'\';_calHeightChanged()">Auto</button>'+
