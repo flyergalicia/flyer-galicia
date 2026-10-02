@@ -4243,8 +4243,13 @@ var _BENEF_PLANTILLAS={
   // (595x3542 pt rasterizado a 1240 px): y 2428/2462 para la bajada y 2498 para
   // el tope. Las tres líneas llevan dx a propósito: _calBenefCentrar le pisa la x
   // a toda línea SIN dx y la fuerza a centrada, y acá cada una va en su columna.
-  adicional:{nombre:'Promo adicional: combustible',campos:{importe:'Tope de reintegro mensual'},lineas:[
-    {t:'Además, {nombre} tiene',x:119,dx:-501,y:2428,fs:29,peso:500,color:'#000000',align:'left',mw:430},
+  // fijo: NO se recentra en el cuadro al cargarla. Las otras plantillas escriben
+  // el cartel entero sobre un cuadro vacío, así que centrarlas es lo correcto;
+  // estas dos van pegadas a texto que YA está impreso en el arte, con posiciones
+  // medidas del PDF, y recentrarlas las bajaba. "Centrar en el cuadro" sigue
+  // estando a mano por si hace falta.
+  adicional:{nombre:'Promo adicional: combustible',fijo:true,campos:{importe:'Tope de reintegro mensual'},lineas:[
+    {t:'Además, **{nombre}** tiene',x:119,dx:-501,y:2428,fs:29,peso:500,color:'#000000',align:'left',mw:430},
     {t:'una promo adicional.',x:119,dx:-501,y:2462,fs:29,peso:500,color:'#000000',align:'left',mw:430},
     {t:'Tope de reintegro mensual {importe}',x:673,dx:53,y:2498,fs:21,peso:500,color:'#000000',align:'left',mw:470}
   ]},
@@ -4256,7 +4261,7 @@ var _BENEF_PLANTILLAS={
   // La bajada "Además, tenés esta promo adicional" va impresa en el arte (no lleva
   // el nombre de la empresa); si algún PDF viniera sin ella, se agrega con "+ Línea"
   // centrada (x = el eje del bloque) en y 2400, letra 29.
-  adicional2:{nombre:'Promo adicional: súper + combustible',campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
+  adicional2:{nombre:'Promo adicional: súper + combustible',fijo:true,campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
     {t:'Tope de reintegro mensual {importe2}',x:279,dx:-341,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390},
     {t:'Tope de reintegro mensual {importe}',x:667,dx:47,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390}
   ]},
@@ -4571,7 +4576,10 @@ function fgDrawBenef(c,s,v){
     if(t.indexOf('{importe}')>=0&&!importe.trim())return;
     if(t.indexOf('{importe2}')>=0&&!importe2.trim())return;
     if(nombre)t=t.replace(/\{nombre\}/g,function(){return nombre;});
-    else t=t.replace(/\s*\{nombre\}\s*/g,' ').replace(/\s+([!?.,;:])/g,'$1').replace(/\s{2,}/g,' ').trim();
+    // Sin nombre cargado: se saca el {nombre} con sus espacios, y si venía
+    // resaltado (**{nombre}**) también los asteriscos, para que no quede un
+    // hueco en negrita ni los ** a la vista.
+    else t=t.replace(/\*\*\s*\{nombre\}\s*\*\*/g,' ').replace(/\s*\{nombre\}\s*/g,' ').replace(/\s+([!?.,;:])/g,'$1').replace(/\s{2,}/g,' ').trim();
     t=t.replace(/\{importe2\}/g,function(){return importe2;}).replace(/\{total\}/g,function(){return _fgImporteSuma(importe,importe2);}).replace(/\{importe\}/g,function(){return importe;});
     if(!t.trim())return;
     var segs=_fgBenefSegs(t),fs=Math.round(L.fs*se*2)/2,mw=Math.round(L.mw*se);
@@ -5896,6 +5904,13 @@ function _calEsRubros(){return !!(_cal&&_solCfg(_calSol()).benef);}
 function _calBenefPlantillaPorOpcion(){
   return _fgBenefPlantillaPorNombre(_cal?_optLabel(_cal.opt):'');
 }
+// ¿La plantilla que está elegida trae las posiciones ya medidas? Entonces no se
+// recentra sola (ni al abrir ni al cargarla).
+function _calBenefPlantillaFija(){
+  var sel=document.getElementById('cal-benef-plantilla');
+  var k=(sel&&sel.value)||_calBenefPlantillaPorOpcion();
+  return !!(_BENEF_PLANTILLAS[k]&&_BENEF_PLANTILLAS[k].fijo);
+}
 // "Combustible y supermercado" / "Ambos" → ambos; "Combustible" → combustible…
 function _fgBenefPlantillaPorNombre(nombre){
   var lbl=_padNorm(nombre),ks=Object.keys(_BENEF_PLANTILLAS);
@@ -6097,6 +6112,11 @@ function _calBenefPlantilla(){
     if(!_cal)return;
     _cal.cfg.benef.lineas=_calBenefDePlantilla(k);
     _cal.sel=null;
+    if(P.fijo){ // posiciones medidas del PDF: centrarlas las correría
+      _calBenefRowSync();_calRenderLegend();_calDraw();
+      showToast('Plantilla "'+P.nombre+'" cargada en su posición. Si hace falta, movela con «Cartel (todo)».');
+      return;
+    }
     var q=_calBenefCentrar(true); // ya redibuja
     showToast(q?'Plantilla "'+P.nombre+'" cargada y centrada en el cuadro.':'Plantilla "'+P.nombre+'" cargada. No encontré el cuadro en la imagen: movela con «Cartel (todo)».');
   }
@@ -6472,7 +6492,7 @@ function _calOpen(img,name,url,opt){
     // arranca con la plantilla de la opción, centrada en el cuadro de la imagen;
     // si hay líneas guardadas, las pisa la carga de abajo
     var ps=document.getElementById('cal-benef-plantilla');if(ps)ps.value=_calBenefPlantillaPorOpcion();
-    _calBenefCentrar(true);
+    if(!_calBenefPlantillaFija())_calBenefCentrar(true);
   }
   _calDraw();
   _loadFlyerCfgs(function(m){
