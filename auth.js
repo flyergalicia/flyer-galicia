@@ -4167,7 +4167,7 @@ var _FG_BENEF_FONT='Figtree';
 // se elige aparte en la misma pantalla.
 var _CFG_BASES=[
   {id:'galicia',nombre:'Flyer Galicia (de fábrica)',cfg:null},
-  {id:'sueldo',nombre:'Pasá tu sueldo (4 importes en 2x2)',cfg:{
+  {id:'sueldo',nombre:'Pasá tu sueldo: combustible',cfg:{
     imgH:7382,
     empresa:{xc:620,yc:658,lh:46,mw:1100,fs:42,ex:70},
     // Las cajas tapan poco a propósito: arriba de cada importe hay texto impreso
@@ -4179,6 +4179,19 @@ var _CFG_BASES=[
     contacto:{ex:150,ey:6107,ew:940,ew3:1140,eh:130,y1:6137,y2:6167,y3:6196,
       xSingle:620,xLeft:310,xRight:930,fnBold:25,frReg:23},
     legal:{x0:79,yStart:6350,yEnd:7360,maxW:1085,fs:12,lh:16}
+  }},
+  // El de los dos rubros es el mismo modelo pero más alto (7711 px) y con todo
+  // unos píxeles más abajo y a la derecha: por eso es una base aparte y no un
+  // retoque de la anterior.
+  {id:'sueldo2',nombre:'Pasá tu sueldo: súper + combustible',cfg:{
+    imgH:7711,
+    empresa:{xc:620,yc:658,lh:46,mw:1100,fs:42,ex:70},
+    montos:{y:839,fs:46,mh:46,boxes:[
+      {xc:651,ew:240,col:'#1d4070'},{xc:915,ew:240,col:'#1d4070'},
+      {xc:651,ew:240,y:920,col:'#1d4070'},{xc:915,ew:240,y:920,col:'#1d4070'}]},
+    contacto:{ex:150,ey:6157,ew:940,ew3:1140,eh:130,y1:6187,y2:6216,y3:6245,
+      xSingle:620,xLeft:310,xRight:930,fnBold:25,frReg:23},
+    legal:{x0:79,yStart:6410,yEnd:7690,maxW:1085,fs:12,lh:16}
   }}
 ];
 function _calBase(id){for(var i=0;i<_CFG_BASES.length;i++)if(_CFG_BASES[i].id===id)return _CFG_BASES[i];return null;}
@@ -4230,10 +4243,22 @@ var _BENEF_PLANTILLAS={
   // (595x3542 pt rasterizado a 1240 px): y 2428/2462 para la bajada y 2498 para
   // el tope. Las tres líneas llevan dx a propósito: _calBenefCentrar le pisa la x
   // a toda línea SIN dx y la fuerza a centrada, y acá cada una va en su columna.
-  adicional:{nombre:'Promo adicional (Pasá tu sueldo)',campos:{importe:'Tope de reintegro mensual'},lineas:[
+  adicional:{nombre:'Promo adicional: combustible',campos:{importe:'Tope de reintegro mensual'},lineas:[
     {t:'Además, {nombre} tiene',x:119,dx:-501,y:2428,fs:29,peso:500,color:'#000000',align:'left',mw:430},
     {t:'una promo adicional.',x:119,dx:-501,y:2462,fs:29,peso:500,color:'#000000',align:'left',mw:430},
     {t:'Tope de reintegro mensual {importe}',x:673,dx:53,y:2498,fs:21,peso:500,color:'#000000',align:'left',mw:470}
+  ]},
+  // Variante con los dos rubros: el cuadro trae impresos los dos bloques ("25% de
+  // ahorro en combustible los domingos" a la izquierda y "en supermercados los
+  // martes" a la derecha) y la app escribe SÓLO los dos topes, uno abajo de cada
+  // bloque. {importe} = supermercado y {importe2} = combustible, igual que en la
+  // plantilla "Ambos", para que las etiquetas del formulario digan lo mismo.
+  // La bajada "Además, tenés esta promo adicional" va impresa en el arte (no lleva
+  // el nombre de la empresa); si algún PDF viniera sin ella, se agrega con "+ Línea"
+  // centrada (x = el eje del bloque) en y 2400, letra 29.
+  adicional2:{nombre:'Promo adicional: súper + combustible',campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
+    {t:'Tope de reintegro mensual {importe2}',x:279,dx:-341,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390},
+    {t:'Tope de reintegro mensual {importe}',x:667,dx:47,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390}
   ]},
   ambos:{nombre:'Ambos (combustible y supermercado)',campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
     {t:'¡Beneficio exclusivo {nombre}!',x:655,y:2529,fs:42,peso:800,color:'#fa6400',align:'center',mw:800},
