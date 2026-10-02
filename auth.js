@@ -4320,6 +4320,14 @@ function _fgBgMuestra(c,x0,x1,y,fallback){
 // Peso de la tipografía como prefijo de c.font ("bold ", "600 ", …). Cada zona
 // lo elige desde el calibrador; sin valor guardado, la negrita de siempre.
 function _fgPeso(p){return (p==null||p==='')?'bold ':(String(p)+' ');}
+// Posición y alto de UNA caja de montos. Las dos claves son opcionales: sin
+// valor propio manda la del grupo (M.y / M.mh), o sea la fila horizontal de
+// siempre. Un flyer con los cuatro importes en grilla (MIXTO) le pone y a cada
+// caja desde el calibrador. OJO: NUNCA escribir estos valores al dibujar.
+// _fgMerge es shallow, así que si el cfg del flyer no trae boxes, M.boxes ES el
+// array de FLYER_CFG_DEFAULT y se contaminarían todas las opciones de la sesión.
+function _fgMBoxY(M,m){return (m&&m.y!=null)?m.y:M.y;}
+function _fgMBoxH(M,m){return (m&&m.mh!=null)?m.mh:M.mh;}
 function fgDrawEmpresa(c,s,empresa){
   var E=_fgCfg().empresa,se=_fgSE(s);
   var xc=Math.round(E.xc*se),yc=Math.round(E.yc*se);
@@ -4380,24 +4388,33 @@ function fgDrawBenef(c,s,v){
 }
 function fgDrawMontos(c,s,v){
   var M=_fgCfg().montos,se=_fgSE(s);
-  var my=Math.round(M.y*se),fs=Math.round(M.fs*se);
+  var fs=Math.round(M.fs*se);
   // "sin cashback": hay que TAPAR igual la zona (por si el flyer trae importes
   // impresos debajo) pero sin escribir número y sin que se vean cuatro cajitas
   // vacías: pinto con el color real del fondo, muestreado del margen izquierdo
   // a la misma altura. Si el canvas no deja leer píxeles, caigo en M.bg.
   var vals=v.nocb?['','','','']:[v.m1,v.m2,v.m3,v.m4];
+  // Cada caja puede traer SU posición y SU alto (flyer MIXTO: los cuatro
+  // importes en grilla 2x2 en vez de la fila de siempre). Sin valores propios
+  // usa los del grupo, que es exactamente el flyer de toda la vida.
+  var cajas=M.boxes.map(function(m){
+    return {mx:Math.round(m.xc*se),mw:Math.round(m.ew*se),
+            my:Math.round(_fgMBoxY(M,m)*se),mh:Math.round(_fgMBoxH(M,m)*se),col:m.col};
+  });
   // Color de fondo REAL justo arriba de cada caja (_fgBgMuestra), con o sin
   // cashback: el tono del flyer cambia entre versiones del PDF y con M.bg fijo
   // se notaba el recuadro alrededor de cada importe.
-  function _bgDe(mx,mw,mh){
+  function _bgDe(mx,mw,mh,my){
     return _fgBgMuestra(c,mx-mw/2,mx+mw/2,my-Math.round(mh/2)-Math.max(4,Math.round(5*se)),M.bg);
   }
-  M.boxes.forEach(function(m,i){
-    var mx=Math.round(m.xc*se),mw=Math.round(m.ew*se),mh=Math.round(M.mh*se);
-    c.fillStyle=_bgDe(mx,mw,mh);c.fillRect(mx-mw/2,my-mh/2,mw,mh);
+  // Se muestrea TODO antes de pintar: en la grilla 2x2 la caja de abajo tomaría
+  // el color de la de arriba ya tapada (o de su número) en vez del arte.
+  var bgs=cajas.map(function(b){return _bgDe(b.mx,b.mw,b.mh,b.my);});
+  cajas.forEach(function(b,i){
+    c.fillStyle=bgs[i];c.fillRect(b.mx-b.mw/2,b.my-b.mh/2,b.mw,b.mh);
     c.font=_fgPeso(M.peso)+fs+"px Arial,sans-serif";
-    c.fillStyle=m.col;c.textAlign="center";c.textBaseline="middle";
-    c.fillText(vals[i],mx,my);
+    c.fillStyle=b.col;c.textAlign="center";c.textBaseline="middle";
+    c.fillText(vals[i],b.mx,b.my);
   });
 }
 // Flyer Sueldo: el único importe del flyer (el mayor de la config), en naranja.
@@ -5630,15 +5647,35 @@ function _calFromList(url,name){
 var _cal=null;
 var _CAL_ZONA={
   empresa: {id:'empresa', label:'Empresa', color:'#8e44ad'},
-  montos:  {id:'montos',  label:'Montos',  color:'#1d4070'},
+  montos:  {id:'montos',  label:'Montos (todo)',  color:'#1d4070'},
   cashback:{id:'cashback',label:'Cashback',color:'#f5921e'}, // Flyer Sueldo: el importe único
   asesores:{id:'asesores',label:'Asesores',color:'#c0392b'},
   legal:   {id:'legal',   label:'Legales', color:'#0e8a5f'}
 };
+// Rótulo y color del chip de cada caja de montos (van en el orden del flyer).
+var _MB_LABELS=['Eminent Black','Eminent Platinum','Plus Gold','Plus'];
+var _MB_ZONE_COLORS=['#2f6fb0','#7b5ea7','#f5921e','#b26a00'];
+// Las cajas de montos como zonas sueltas, para moverlas de a una (el flyer MIXTO
+// las lleva en grilla 2x2). Sólo si la solapa dibuja montos: en Flyer Sueldo
+// _cal.cfg igual trae montos.boxes (es un clon del default entero) y quedarían
+// cuatro zonas invisibles pero clickeables pisando la de Cashback.
+function _calMBoxes(){
+  if(!_cal||_solCfg(_calSol()).zonas.indexOf('montos')<0)return [];
+  return ((_cal.cfg&&_cal.cfg.montos&&_cal.cfg.montos.boxes)||[]).slice(0,4);
+}
 // Zonas de la solapa del flyer que se está calibrando (ver _SOLAPAS[].zonas): en
-// Flyer Sueldo aparece "Cashback" y no "Montos", así no se mueve lo que no se dibuja.
+// Flyer Sueldo aparece "Cashback" y no "Montos", así no se mueve lo que no se
+// dibuja. Detrás de "Montos (todo)" van las cuatro cajas sueltas.
 function _calZonesBase(){
-  return _solCfg(_calSol()).zonas.map(function(z){return _CAL_ZONA[z];}).filter(Boolean);
+  var out=[];
+  _solCfg(_calSol()).zonas.forEach(function(z){
+    var d=_CAL_ZONA[z];if(!d)return;
+    out.push(d);
+    if(z==='montos')_calMBoxes().forEach(function(_b,i){
+      out.push({id:'mb'+i,label:_MB_LABELS[i]||('Monto '+(i+1)),color:_MB_ZONE_COLORS[i%_MB_ZONE_COLORS.length]});
+    });
+  });
+  return out;
 }
 // Zonas extra del cartel "Beneficio exclusivo": sólo para opciones de Flyer Rubros.
 // Flyer Rubros: una zona por línea del cartel (bl0, bl1, ...) más "Cartel" (blAll)
@@ -5808,7 +5845,7 @@ function _calEnsureDom(){
         '<div id="cal-benef-lineas"></div>'+
         '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre}, {importe} y {importe2} (segundo tope, cuadro &laquo;Ambos&raquo;) los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
       '</div>'+
-      '<div class="cal-ft"><span>Eleg&iacute; una zona arriba (se ve s&oacute;lo esa; tocala de nuevo para ver todas) y arrastrala en la imagen: ah&iacute; mismo te aparecen su <b>tama&ntilde;o, peso y color</b>. Flechas del teclado = ajuste fino (Shift = 10px). <b>Ctrl + rueda</b> = zoom.</span><span class="sp"></span>'+
+      '<div class="cal-ft"><span>Eleg&iacute; una zona arriba (se ve s&oacute;lo esa; tocala de nuevo para ver todas) y arrastrala en la imagen: ah&iacute; mismo te aparecen su <b>tama&ntilde;o, peso y color</b>. Los cuatro montos se mueven juntos con &laquo;Montos (todo)&raquo; o de a uno eligiendo cada importe. Flechas del teclado = ajuste fino (Shift = 10px). <b>Ctrl + rueda</b> = zoom.</span><span class="sp"></span>'+
         '<span class="cal-zoom"><button type="button" onclick="_calZoom(1/1.25)" title="Alejar">&minus;</button><button type="button" id="cal-zoom-pct" onclick="_calZoom(0)" title="Volver al tama&ntilde;o inicial">100%</button><button type="button" onclick="_calZoom(1.25)" title="Acercar">+</button></span></div>'+
     '</div>';
   document.body.appendChild(m);
@@ -5908,6 +5945,29 @@ var _CAL_PROPS={
     {k:'color',t:'col', lbl:'Color',def:'#222222'}
   ]}
 };
+// Una caja suelta de montos tiene sus propias perillas. El ancho y el alto
+// importan de verdad: definen cuánto del arte se tapa antes de escribir el
+// importe, y de dónde sale la muestra del color de fondo (justo arriba de la
+// caja). En la grilla 2x2, arriba del importe de abajo está la etiqueta impresa
+// del de arriba: si el tapado se nota, se baja el alto de esa caja.
+var _CAL_MBOX_PROPS=[
+  {k:'ew', t:'num',lbl:'Ancho caja',min:40,max:1240,step:5},
+  {k:'mh', t:'num',lbl:'Alto caja', min:20,max:220,step:1},
+  {k:'col',t:'col',lbl:'Color',def:'#1d4070'}
+];
+// Qué propiedades tiene una zona: las fijas de _CAL_PROPS o, para una caja
+// suelta (mb0..mb3), una definición que apunta a montos.boxes[i]. arr+idx = la
+// zona ES un elemento de un array, no un objeto del cfg.
+function _calPropsDef(zona){
+  var m=/^mb(\d+)$/.exec(zona||'');
+  if(m)return {obj:'montos',arr:'boxes',idx:+m[1],props:_CAL_MBOX_PROPS};
+  return _CAL_PROPS[zona]||null;
+}
+// Resuelve el objeto a leer/escribir dentro de un cfg (el del flyer o el default).
+function _calPropsObj(root,d){
+  var o=root&&d&&root[d.obj];if(!o)return null;
+  return d.arr?(((o[d.arr]||[])[d.idx])||null):o;
+}
 // #abc → #aabbcc: <input type="color"> sólo entiende los de 6 dígitos.
 function _calHex(v,def){
   v=String(v==null?'':v).trim();
@@ -5917,10 +5977,11 @@ function _calHex(v,def){
 // Escribe una propiedad en el cfg del flyer que se está calibrando y redibuja.
 // idx != null = el color de una de las cajas de montos.
 function _calProp(zona,k,val,idx){
-  var d=_CAL_PROPS[zona];if(!d||!_cal)return;
-  var o=_cal.cfg[d.obj];if(!o)return;
+  var d=_calPropsDef(zona);if(!d||!_cal)return;
+  var o=_calPropsObj(_cal.cfg,d);if(!o)return;
   if(idx!=null){
-    if(o.boxes&&o.boxes[idx])o.boxes[idx].col=val;
+    // control 'cols': desde la zona padre se edita el color de sus N hijos
+    if(o[k]&&o[k][idx])o[k][idx].col=val;
   }else{
     var def=null;d.props.forEach(function(p){if(p.k===k)def=p;});
     o[k]=(def&&def.t==='num')?(parseFloat(val)||0):val;
@@ -5931,10 +5992,10 @@ function _calProp(zona,k,val,idx){
 // tiene su propio editor abajo) la fila no se muestra.
 function _calPropsSync(){
   var row=document.getElementById('cal-prop-row');if(!row)return;
-  var zona=_cal&&_cal.sel,d=zona&&_CAL_PROPS[zona];
+  var zona=_cal&&_cal.sel,d=zona&&_calPropsDef(zona);
   row.classList.toggle('show',!!d);
   if(!d)return;
-  var o=(_cal.cfg&&_cal.cfg[d.obj])||{},lbl='';
+  var o=_calPropsObj(_cal.cfg,d)||{},lbl='';
   _calZones().forEach(function(z){if(z.id===zona)lbl=z.label;});
   function ev(ev1,k,extra){return ev1+'="_calProp(\''+zona+'\',\''+k+'\',this.value'+(extra||'')+')"';}
   var campos=d.props.map(function(p){
@@ -5957,8 +6018,8 @@ function _calPropsSync(){
 }
 // Vuelve la zona elegida a los valores de fábrica, sin tocar su posición.
 function _calPropReset(){
-  var zona=_cal&&_cal.sel,d=zona&&_CAL_PROPS[zona];if(!d)return;
-  var base=FLYER_CFG_DEFAULT[d.obj]||{},o=_cal.cfg[d.obj];if(!o)return;
+  var zona=_cal&&_cal.sel,d=zona&&_calPropsDef(zona);if(!d)return;
+  var base=_calPropsObj(FLYER_CFG_DEFAULT,d)||{},o=_calPropsObj(_cal.cfg,d);if(!o)return;
   d.props.forEach(function(p){
     if(p.t==='cols'){(o.boxes||[]).forEach(function(b,i){if(base.boxes&&base.boxes[i])b.col=base.boxes[i].col;});}
     else if(base[p.k]!=null)o[p.k]=base[p.k];
@@ -6024,8 +6085,18 @@ function _calZoneRects(){
   var cfg=_cal.cfg,H=_cal.img.height,imgH=cfg.imgH||6457,DBOT=H-imgH;
   var E=cfg.empresa,M=cfg.montos,C=cfg.contacto,L=cfg.legal,r={};
   r.empresa={x:E.ex,y:E.yc-E.lh,w:E.mw,h:E.lh*2};
-  var minx=1e9,maxx=-1e9;M.boxes.forEach(function(b){minx=Math.min(minx,b.xc-b.ew/2);maxx=Math.max(maxx,b.xc+b.ew/2);});
-  r.montos={x:minx,y:M.y-M.mh/2,w:maxx-minx,h:M.mh};
+  // Una caja por importe (con su posición y su alto) y, alrededor, el bloque
+  // entero: con la grilla 2x2 el grupo ocupa dos filas, así que el bounding box
+  // va en x Y en y. El aire de ±10/±8 es el mismo que usa el cartel de Rubros,
+  // para que el borde del grupo no se pegue a las cajas de adentro.
+  var minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+  (M.boxes||[]).forEach(function(b,i){
+    var by=_fgMBoxY(M,b),bh=_fgMBoxH(M,b),x0=b.xc-b.ew/2;
+    r['mb'+i]={x:x0,y:by-bh/2,w:b.ew,h:bh};
+    minx=Math.min(minx,x0);maxx=Math.max(maxx,x0+b.ew);
+    miny=Math.min(miny,by-bh/2);maxy=Math.max(maxy,by+bh/2);
+  });
+  r.montos={x:minx-10,y:miny-8,w:(maxx-minx)+20,h:(maxy-miny)+16};
   r.asesores={x:C.ex,y:C.ey+DBOT,w:C.ew,h:C.eh};
   r.legal={x:L.x0,y:L.yStart+DBOT,w:L.maxW,h:(L.yEnd-L.yStart)};
   var K=cfg.cashback||FLYER_CFG_DEFAULT.cashback;
@@ -6092,7 +6163,11 @@ function _calHit(bx,by){
   if(L&&Math.abs(bx-(L.x+L.w))<16&&Math.abs(by-(L.y+L.h))<16)return {zone:'legal',handle:'br'};
   var order=[];
   if(_calEsRubros()){_calBenefLineas().forEach(function(_l,i){order.push('bl'+i);});order.push('blAll');}
-  order=order.concat(_calZonesBase().map(function(z){return z.id;}));
+  // Las cajas sueltas van antes que "Montos (todo)", que ahora las contiene a
+  // las cuatro; si no, el rect del grupo se comería todos los clicks.
+  _calMBoxes().forEach(function(_b,i){order.push('mb'+i);});
+  order=order.concat(_calZonesBase().map(function(z){return z.id;})
+    .filter(function(id){return !/^mb\d+$/.test(id);}));
   for(var i=0;i<order.length;i++){var r=rects[order[i]];if(r&&bx>=r.x&&bx<=r.x+r.w&&by>=r.y&&by<=r.y+r.h)return {zone:order[i],handle:null};}
   return null;
 }
@@ -6134,7 +6209,11 @@ function _calApply(drag,dx,dy){
   // «Centrar en el cuadro» respeta el retoque
   else if(/^bl\d+$/.test(drag.zone)){var bl=_calBenefLineas()[+drag.zone.slice(2)];if(bl){bl.x+=dx;bl.y+=dy;if(bl.dx!=null)bl.dx+=dx;}}
   else if(drag.zone==='empresa'){E.yc+=dy;E.xc+=dx;E.ex+=dx;}
-  else if(drag.zone==='montos'){M.y+=dy;M.boxes.forEach(function(b){b.xc+=dx;});}
+  // "Montos (todo)" mueve el bloque entero sin deformarlo: M.y corre las cajas
+  // que heredan la fila y las que ya tienen y propio se corren el mismo dy.
+  else if(drag.zone==='montos'){M.y+=dy;M.boxes.forEach(function(b){b.xc+=dx;if(b.y!=null)b.y+=dy;});}
+  // Una caja sola: al moverla por primera vez se le fija su y (hasta ahí heredaba M.y).
+  else if(/^mb\d+$/.test(drag.zone)){var mb=(M.boxes||[])[+drag.zone.slice(2)];if(mb){mb.xc+=dx;mb.y=_fgMBoxY(M,mb)+dy;}}
   else if(drag.zone==='cashback'){var K=cfg.cashback||(cfg.cashback=_fgMerge(FLYER_CFG_DEFAULT.cashback,null));K.y+=dy;K.xc+=dx;}
   else if(drag.zone==='asesores'){C.ey+=dy;C.y1+=dy;C.y2+=dy;C.y3+=dy;C.xSingle+=dx;C.xLeft+=dx;C.xRight+=dx;}
   else if(drag.zone==='legal'){

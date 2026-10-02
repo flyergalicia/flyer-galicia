@@ -1034,7 +1034,20 @@ const checks = {
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
   // Empresa y montos tapan con el color REAL del flyer (muestreado), no con uno fijo:
   // con color fijo se notaba el recuadro alrededor de cada importe.
-  'montos y empresa: fondo muestreado (sin cuadrito)': _authSrc.includes('function _fgBgMuestra(') && _authSrc.includes('c.fillStyle=_bgDe(mx,mw,mh);c.fillRect(') && _authSrc.includes('c.fillStyle=_fgBgMuestra(c,ex,ex+mw,') && !_authSrc.includes('c.fillStyle=E.bg;'),
+  // Empresa y montos tapan su zona con el color REAL del flyer (muestreado justo
+  // arriba), no con uno fijo: el tono del PDF cambia entre versiones y con color
+  // fijo se notaba el recuadro. En montos el muestreo va en una pasada aparte,
+  // ANTES de pintar: en la grilla 2x2 la caja de abajo tomaria el color de la de
+  // arriba ya tapada en vez del arte.
+  'montos y empresa: fondo muestreado (sin cuadrito)': _authSrc.includes('function _fgBgMuestra(') && _authSrc.includes('var bgs=cajas.map(function(b){return _bgDe(') && _authSrc.includes('c.fillStyle=bgs[i];c.fillRect(') && _authSrc.includes('c.fillStyle=_fgBgMuestra(c,ex,ex+mw,') && !_authSrc.includes('c.fillStyle=E.bg;'),
+  // Flyer MIXTO: los 4 importes de cashback en grilla 2x2 (importe arriba,
+  // etiqueta impresa debajo, dos columnas). Es una OPCION mas de Flyer Galicia,
+  // no una solapa: lo unico propio es que cada caja puede tener SU posicion y SU
+  // alto. Son opcionales y se resuelven en lectura (_fgMBoxY/_fgMBoxH): nunca se
+  // normalizan in-place porque _fgMerge es shallow y boxes puede ser el array del
+  // default compartido. En el calibrador cada caja es una zona (mb0..mb3) con su
+  // ancho, su alto y su color, y "Montos (todo)" mueve las cuatro sin deformarlas.
+  'montos: grilla 2x2 (posicion propia por caja)': _authSrc.includes('function _fgMBoxY(') && _authSrc.includes('function _fgMBoxH(') && _authSrc.includes('return (m&&m.y!=null)?m.y:M.y;') && _authSrc.includes('function _calMBoxes(') && _authSrc.includes("_solCfg(_calSol()).zonas.indexOf('montos')<0") && _authSrc.includes("label:'Montos (todo)'") && _authSrc.includes("out.push({id:'mb'+i") && _authSrc.includes("order.push('mb'+i)") && _authSrc.includes('/^mb\\d+$/.test(drag.zone)') && _authSrc.includes('mb.y=_fgMBoxY(M,mb)+dy') && _authSrc.includes('if(b.y!=null)b.y+=dy') && _authSrc.includes('function _calPropsDef(') && _authSrc.includes('function _calPropsObj(') && _authSrc.includes('var _CAL_MBOX_PROPS=') && _authSrc.includes('var _MB_LABELS=') && !_authSrc.includes('var my=Math.round(M.y*se)'),
   'preview: zoom maximo 130% + full canvas reutilizado': _authSrc.includes('var _ZOOM_MAX=1.3;') && _authSrc.includes('ZOOM=Math.min(ZOOM*1.25,_ZOOM_MAX)') && _authSrc.includes('var _fgFullCv=null') && _authSrc.includes("_fgFullCv.getContext('2d',{willReadFrequently:true})"),
   'calibrador: zoom + zona elegida sola': _authSrc.includes('function _calZoom(') && _authSrc.includes('function _calWheel(') && _authSrc.includes("cv.addEventListener('wheel',_calWheel,{passive:false});") && _authSrc.includes('if(_cal.sel&&_cal.sel!==z.id)return;') && _authSrc.includes('id="cal-zoom-pct"'),
   // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN
