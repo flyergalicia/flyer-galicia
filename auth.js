@@ -4005,8 +4005,8 @@ function deactivateFlyer(btn,opt){
 var FLYER_CFG_DEFAULT = {
   imgW:1240, imgH:6457, // dimensiones de referencia para las que están calibradas las coords
   bottomMargin:45,      // px (base) de aire debajo del último contenido; el resto del blanco se recorta
-  empresa:{xc:620,yc:725,lh:52,mw:1100,fs:46,ex:70,bg:"#f7f2ef"},
-  montos:{y:1069,fs:56,mh:58,bg:"#f4e0d3",boxes:[
+  empresa:{xc:620,yc:725,lh:52,mw:1100,fs:46,ex:70,bg:"#f7f2ef",color:"#111111",peso:700},
+  montos:{y:1069,fs:56,mh:58,bg:"#f4e0d3",peso:700,boxes:[
     {xc:224,ew:220,col:"#1d4070"},{xc:493,ew:215,col:"#1d4070"},
     {xc:760,ew:195,col:"#f5921e"},{xc:1008,ew:185,col:"#f5921e"}]},
   // Flyer Sueldo: UN solo importe de cashback, en naranja, en vez de las 4 cajas.
@@ -4015,11 +4015,11 @@ var FLYER_CFG_DEFAULT = {
   // del fondo aun "sin cashback", por si el PDF trae un importe impreso debajo.
   // mw = ancho máximo: si el número no entra, se achica la letra hasta minFs.
   // Arranca donde la banda de montos; cada flyer se calibra una vez y queda.
-  cashback:{xc:620,y:1069,mw:560,mh:80,fs:92,minFs:28,col:"#f5921e",bg:"#f4e0d3"},
+  cashback:{xc:620,y:1069,mw:560,mh:80,fs:92,minFs:28,col:"#fa6400",peso:700,bg:"#f4e0d3"},
   // ew3: ancho de la banda cuando hay 3 asesores (la franja está limpia de punta a
   // punta, así los 3 entran separados y los mails no se achican). 1,2 y 4 usan ew.
   contacto:{ex:150,ey:5330,ew:940,ew3:1140,eh:130,bg:"#ffffff",y1:5360,y2:5390,y3:5418,
-    xSingle:619,xLeft:310,xRight:930,fnBold:24,frReg:21,color:"#111",
+    xSingle:619,xLeft:310,xRight:930,fnBold:24,frReg:21,color:"#111",peso:700,
     // ── Modo "Oficiales por sede" (hasta 8 oficiales, cada uno con su ubicación) ──
     // Sólo se leen con el modo prendido: con el modo apagado el flyer se dibuja por
     // la rama de siempre y estos valores no participan. Van acá (y no como
@@ -4317,6 +4317,9 @@ function _fgBgMuestra(c,x0,x1,y,fallback){
     return 'rgb('+med(rs)+','+med(gs)+','+med(bs)+')';
   }catch(e){return fallback;}
 }
+// Peso de la tipografía como prefijo de c.font ("bold ", "600 ", …). Cada zona
+// lo elige desde el calibrador; sin valor guardado, la negrita de siempre.
+function _fgPeso(p){return (p==null||p==='')?'bold ':(String(p)+' ');}
 function fgDrawEmpresa(c,s,empresa){
   var E=_fgCfg().empresa,se=_fgSE(s);
   var xc=Math.round(E.xc*se),yc=Math.round(E.yc*se);
@@ -4324,14 +4327,15 @@ function fgDrawEmpresa(c,s,empresa){
   var ex=Math.round(E.ex*se),ry=yc-lh;
   c.fillStyle=_fgBgMuestra(c,ex,ex+mw,ry-Math.max(3,Math.round(4*se)),E.bg); // fondo real, justo arriba del recuadro
   c.fillRect(ex,ry,mw,lh*2+Math.round(8*se));
-  c.font="bold "+fs+"px Arial,sans-serif";
-  c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";
+  var pe=_fgPeso(E.peso);
+  c.font=pe+fs+"px Arial,sans-serif";
+  c.fillStyle=E.color||"#111";c.textAlign="center";c.textBaseline="middle";
   var full="Por ser parte de "+empresa;
   if(c.measureText(full).width<=mw){c.fillText(full,xc,yc);}
   else{
     c.fillText("Por ser parte de",xc,yc-Math.round(lh*0.5));
     var efs=fs,ew=c.measureText(empresa).width;
-    if(ew>mw){efs=Math.floor(fs*(mw/ew));c.font="bold "+efs+"px Arial,sans-serif";}
+    if(ew>mw){efs=Math.floor(fs*(mw/ew));c.font=pe+efs+"px Arial,sans-serif";}
     c.fillText(empresa,xc,yc+Math.round(lh*0.5));
   }
 }
@@ -4391,7 +4395,7 @@ function fgDrawMontos(c,s,v){
   M.boxes.forEach(function(m,i){
     var mx=Math.round(m.xc*se),mw=Math.round(m.ew*se),mh=Math.round(M.mh*se);
     c.fillStyle=_bgDe(mx,mw,mh);c.fillRect(mx-mw/2,my-mh/2,mw,mh);
-    c.font="bold "+fs+"px Arial,sans-serif";
+    c.font=_fgPeso(M.peso)+fs+"px Arial,sans-serif";
     c.fillStyle=m.col;c.textAlign="center";c.textBaseline="middle";
     c.fillText(vals[i],mx,my);
   });
@@ -4409,14 +4413,14 @@ function fgDrawCashback(c,s,v){
   c.fillRect(xc-mw/2,y-mh/2,mw,mh);
   var txt=v.nocb?'':_fgMontoMayor(v);
   if(!txt)return;                       // sin cashback: zona tapada, sin número
-  var fs=Math.round(K.fs*se);
-  c.font="bold "+fs+"px Arial,sans-serif";
+  var fs=Math.round(K.fs*se),pk=_fgPeso(K.peso);
+  c.font=pk+fs+"px Arial,sans-serif";
   var w=c.measureText(txt).width;
   if(w>mw&&w>0){
     fs=Math.max(Math.floor(fs*mw/w),Math.max(1,Math.round((K.minFs||28)*se)));
-    c.font="bold "+fs+"px Arial,sans-serif";
+    c.font=pk+fs+"px Arial,sans-serif";
   }
-  c.fillStyle=K.col||"#f5921e";c.textAlign="center";c.textBaseline="middle";
+  c.fillStyle=K.col||"#fa6400";c.textAlign="center";c.textBaseline="middle";
   c.fillText(txt,xc,y);
 }
 // Layout de asesores: 1 centrado · 2 lado a lado · 3 en fila · 4 en 2x2 (el flyer crece).
@@ -4464,13 +4468,13 @@ function fgDrawC1(c,s,xc,C,nom,cel,mail,dy,colW){
   // Achica la tipografía sólo si el texto no entra en su columna (mails largos con 3 asesores).
   function fit(txt,size,bold){
     if(!maxW||!txt)return size;
-    c.font=(bold?'bold ':'')+size+'px Arial,sans-serif';
+    c.font=(bold?_fgPeso(C.peso):'')+size+'px Arial,sans-serif';
     var w=c.measureText(txt).width;
     return (w>maxW&&w>0)?Math.max(Math.floor(size*maxW/w),minF):size;
   }
   c.textAlign="center";c.textBaseline="middle";c.fillStyle=C.color;
   var f1=fit(nom,fn,true);
-  c.font="bold "+f1+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(_fgBottomY(C.y1,s))+dy);
+  c.font=_fgPeso(C.peso)+f1+"px Arial,sans-serif";c.fillText(nom,cx,Math.round(_fgBottomY(C.y1,s))+dy);
   if(cel){var f2=fit(cel,fr,false);c.font=f2+"px Arial,sans-serif";c.fillText(cel,cx,Math.round(_fgBottomY(C.y2,s))+dy);}
   if(mail){var f3=fit(mail,fr,false);c.font=f3+"px Arial,sans-serif";c.fillText(mail,cx,Math.round(_fgBottomY(C.y3,s))+dy);}
 }
@@ -4545,7 +4549,7 @@ function _fgDrawSedeC1(c,s,xc,C,a,filaTop,colW){
   var minF=Math.max(1,Math.round(9*se));
   function fit(txt,size,bold,fam){
     if(!maxW||!txt)return size;
-    c.font=(bold?'bold ':'')+size+'px '+(fam||'Arial,sans-serif');
+    c.font=(bold?_fgPeso(C.peso):'')+size+'px '+(fam||'Arial,sans-serif');
     var w=c.measureText(txt).width;
     return (w>maxW&&w>0)?Math.max(Math.floor(size*maxW/w),minF):size;
   }
@@ -4553,7 +4557,7 @@ function _fgDrawSedeC1(c,s,xc,C,a,filaTop,colW){
     if(!txt)return;
     fam=fam||'Arial,sans-serif';
     var f=fit(txt,size,bold,fam);
-    c.font=(bold?'bold ':'')+f+"px "+fam;
+    c.font=(bold?_fgPeso(C.peso):'')+f+"px "+fam;
     c.fillStyle=color;c.textAlign="center";c.textBaseline="middle";
     c.fillText(txt,cx,filaTop+Math.round(dy*se));
   }
@@ -5750,6 +5754,18 @@ function _calEnsureDom(){
     '.cal-zoom{display:inline-flex;gap:4px;align-items:center}.cal-zoom button{padding:2px 8px;font-size:.72rem;border:1px solid rgba(128,128,128,.4);border-radius:6px;background:transparent;color:inherit;cursor:pointer}.cal-zoom button:hover{border-color:var(--orange,#f5921e)}'+
     '.cal-ft{padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);display:flex;gap:10px;align-items:center;font-size:.72rem;color:var(--gray,#777)}'+
     '.cal-ft .sp{flex:1}'+
+    // Propiedades de la zona elegida (tamaño, peso, color)
+    '#cal-prop-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.7rem}'+
+    '#cal-prop-row.show{display:block}'+
+    '.cal-props{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}'+
+    '.cal-props>b{font-size:.7rem;align-self:center}'+
+    '.cal-props .sp{flex:1}'+
+    '.cal-props label{display:flex;flex-direction:column;gap:3px;font-size:.6rem;text-transform:uppercase;letter-spacing:.4px;color:var(--gray,#777)}'+
+    '.cal-props input,.cal-props select{padding:3px 5px;font-size:.68rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit;text-transform:none;letter-spacing:0}'+
+    '.cal-props input[type=number]{width:74px}'+
+    '.cal-props input[type=color]{padding:1px 2px;height:24px;width:40px;cursor:pointer}'+
+    'html.dark .cal-props select{background:#22242a}'+
+    '.cal-cols{display:flex;gap:4px}'+
     // Textos fijos del cartel del beneficio (sólo Flyer Rubros)
     '#cal-benef-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.7rem}'+
     '#cal-benef-row.show{display:block}'+
@@ -5777,6 +5793,8 @@ function _calEnsureDom(){
         '<button class="usr-btn edit" style="font-size:.65rem;padding:4px 9px" onclick="document.getElementById(\'cal-height\').value=\'\';_calHeightChanged()">Auto</button>'+
         '<span style="color:var(--gray)">vac&iacute;o = corta solo despu&eacute;s de los legales (l&iacute;nea naranja)</span>'+
       '</div>'+
+      // Tamaño, peso y color de la zona elegida (la arma _calPropsSync).
+      '<div id="cal-prop-row"></div>'+
       // Flyer Rubros: las líneas del cartel (texto, tamaño, peso, color, alineación). Plantillas por rubro.
       '<div id="cal-benef-row">'+
         '<div class="cal-bl-top"><b style="font-size:.7rem">Cartel del beneficio</b>'+
@@ -5790,7 +5808,7 @@ function _calEnsureDom(){
         '<div id="cal-benef-lineas"></div>'+
         '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre}, {importe} y {importe2} (segundo tope, cuadro &laquo;Ambos&raquo;) los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
       '</div>'+
-      '<div class="cal-ft"><span>Eleg&iacute; una zona arriba (se ve s&oacute;lo esa; tocala de nuevo para ver todas) y arrastrala en la imagen. Flechas del teclado = ajuste fino (Shift = 10px). <b>Ctrl + rueda</b> = zoom.</span><span class="sp"></span>'+
+      '<div class="cal-ft"><span>Eleg&iacute; una zona arriba (se ve s&oacute;lo esa; tocala de nuevo para ver todas) y arrastrala en la imagen: ah&iacute; mismo te aparecen su <b>tama&ntilde;o, peso y color</b>. Flechas del teclado = ajuste fino (Shift = 10px). <b>Ctrl + rueda</b> = zoom.</span><span class="sp"></span>'+
         '<span class="cal-zoom"><button type="button" onclick="_calZoom(1/1.25)" title="Alejar">&minus;</button><button type="button" id="cal-zoom-pct" onclick="_calZoom(0)" title="Volver al tama&ntilde;o inicial">100%</button><button type="button" onclick="_calZoom(1.25)" title="Acercar">+</button></span></div>'+
     '</div>';
   document.body.appendChild(m);
@@ -5854,12 +5872,106 @@ function _calBenefRowSync(){
     '</div>';
   }).join('');
 }
+// ── PROPIEDADES DE CADA ZONA (tamaño, peso, color…) ──────────────────────────
+// Los mismos controles que ya tenían las líneas del cartel de Rubros, pero para
+// TODAS las zonas: al elegir una en la leyenda aparece su fila, y lo que se toca
+// se escribe en el cfg de ESE flyer (queda con "Guardar y activar").
+//   obj = de qué objeto del cfg sale · k = la clave · t = tipo de control
+var _CAL_PROPS={
+  empresa: {obj:'empresa', props:[
+    {k:'fs',   t:'num',lbl:'Letra px',   min:10,max:160,step:1},
+    {k:'peso', t:'peso',lbl:'Peso'},
+    {k:'color',t:'col', lbl:'Color',def:'#111111'},
+    {k:'mw',   t:'num',lbl:'Ancho máx.',min:100,max:1240,step:5}
+  ]},
+  montos:  {obj:'montos',  props:[
+    {k:'fs',   t:'num',lbl:'Letra px',min:10,max:160,step:1},
+    {k:'peso', t:'peso',lbl:'Peso'},
+    {k:'mh',   t:'num',lbl:'Alto caja',min:20,max:220,step:1},
+    {k:'boxes',t:'cols',lbl:'Color de cada monto'}
+  ]},
+  cashback:{obj:'cashback',props:[
+    {k:'fs',   t:'num',lbl:'Letra px',min:10,max:240,step:1},
+    {k:'peso', t:'peso',lbl:'Peso'},
+    {k:'col',  t:'col', lbl:'Color',def:'#fa6400'},
+    {k:'mw',   t:'num',lbl:'Ancho máx.',min:100,max:1240,step:5}
+  ]},
+  asesores:{obj:'contacto',props:[
+    {k:'fnBold',t:'num',lbl:'Nombre px',min:8,max:90,step:1},
+    {k:'frReg', t:'num',lbl:'Cel./mail px',min:8,max:90,step:1},
+    {k:'peso',  t:'peso',lbl:'Peso del nombre'},
+    {k:'color', t:'col',lbl:'Color',def:'#111111'}
+  ]},
+  legal:   {obj:'legal',   props:[
+    {k:'fs',   t:'num',lbl:'Letra px',min:5,max:48,step:0.5},
+    {k:'lh',   t:'num',lbl:'Interlineado',min:6,max:70,step:0.5},
+    {k:'color',t:'col', lbl:'Color',def:'#222222'}
+  ]}
+};
+// #abc → #aabbcc: <input type="color"> sólo entiende los de 6 dígitos.
+function _calHex(v,def){
+  v=String(v==null?'':v).trim();
+  if(/^#[0-9a-f]{3}$/i.test(v))return '#'+v[1]+v[1]+v[2]+v[2]+v[3]+v[3];
+  return /^#[0-9a-f]{6}$/i.test(v)?v:(def||'#000000');
+}
+// Escribe una propiedad en el cfg del flyer que se está calibrando y redibuja.
+// idx != null = el color de una de las cajas de montos.
+function _calProp(zona,k,val,idx){
+  var d=_CAL_PROPS[zona];if(!d||!_cal)return;
+  var o=_cal.cfg[d.obj];if(!o)return;
+  if(idx!=null){
+    if(o.boxes&&o.boxes[idx])o.boxes[idx].col=val;
+  }else{
+    var def=null;d.props.forEach(function(p){if(p.k===k)def=p;});
+    o[k]=(def&&def.t==='num')?(parseFloat(val)||0):val;
+  }
+  _calDraw();
+}
+// Arma la fila de la zona elegida. Sin zona elegida (o con una del cartel, que
+// tiene su propio editor abajo) la fila no se muestra.
+function _calPropsSync(){
+  var row=document.getElementById('cal-prop-row');if(!row)return;
+  var zona=_cal&&_cal.sel,d=zona&&_CAL_PROPS[zona];
+  row.classList.toggle('show',!!d);
+  if(!d)return;
+  var o=(_cal.cfg&&_cal.cfg[d.obj])||{},lbl='';
+  _calZones().forEach(function(z){if(z.id===zona)lbl=z.label;});
+  function ev(ev1,k,extra){return ev1+'="_calProp(\''+zona+'\',\''+k+'\',this.value'+(extra||'')+')"';}
+  var campos=d.props.map(function(p){
+    var v=o[p.k];
+    if(p.t==='num')
+      return '<label>'+_escHtml(p.lbl)+'<input type="number" min="'+p.min+'" max="'+p.max+'" step="'+(p.step||1)+'" value="'+_escAttr(String(v==null?'':v))+'" '+ev('oninput',p.k)+'></label>';
+    if(p.t==='peso')
+      return '<label>'+_escHtml(p.lbl)+'<select '+ev('onchange',p.k)+'>'+
+        [400,500,600,700,800].map(function(w){return '<option value="'+w+'"'+((+v||700)===w?' selected':'')+'>'+w+(w===400?' fina':w===800?' negrita':'')+'</option>';}).join('')+'</select></label>';
+    if(p.t==='col')
+      return '<label>'+_escHtml(p.lbl)+'<input type="color" value="'+_calHex(v,p.def)+'" '+ev('oninput',p.k)+'></label>';
+    if(p.t==='cols')
+      return '<label>'+_escHtml(p.lbl)+'<span class="cal-cols">'+(o.boxes||[]).map(function(b,i){
+        return '<input type="color" value="'+_calHex(b.col,'#1d4070')+'" title="Monto '+(i+1)+'" '+ev('oninput','boxes',','+i)+'>';
+      }).join('')+'</span></label>';
+    return '';
+  }).join('');
+  row.innerHTML='<div class="cal-props"><b>'+_escHtml(lbl||zona)+'</b>'+campos+
+    '<span class="sp"></span><button class="usr-btn edit" onclick="_calPropReset()" title="Vuelve esta zona a los valores de f&aacute;brica">Restablecer</button></div>';
+}
+// Vuelve la zona elegida a los valores de fábrica, sin tocar su posición.
+function _calPropReset(){
+  var zona=_cal&&_cal.sel,d=zona&&_CAL_PROPS[zona];if(!d)return;
+  var base=FLYER_CFG_DEFAULT[d.obj]||{},o=_cal.cfg[d.obj];if(!o)return;
+  d.props.forEach(function(p){
+    if(p.t==='cols'){(o.boxes||[]).forEach(function(b,i){if(base.boxes&&base.boxes[i])b.col=base.boxes[i].col;});}
+    else if(base[p.k]!=null)o[p.k]=base[p.k];
+  });
+  _calPropsSync();_calDraw();
+}
 function _calRenderLegend(){
   var el=document.getElementById('cal-legend');if(!el)return;
   el.innerHTML=_calZones().map(function(z){
     var on=_cal&&_cal.sel===z.id;
     return '<span class="cal-chip'+(on?' on':'')+'" style="color:'+z.color+'" onclick="_calSelect(\''+z.id+'\')"><span class="dot" style="background:'+z.color+'"></span>'+z.label+'</span>';
   }).join('');
+  _calPropsSync(); // la fila de tamaño/peso/color sigue a la zona elegida
 }
 // Tocar el chip de la zona elegida la deselecciona (vuelven a verse todas).
 function _calSelect(id){if(!_cal)return;_cal.sel=(_cal.sel===id)?null:id;_calRenderLegend();_calDraw();var s=document.getElementById('cal-sel');if(s)s.textContent='';}

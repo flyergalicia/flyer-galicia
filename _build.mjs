@@ -983,6 +983,14 @@ const checks = {
   // lo que no conoce, para no comerse un "{...}" escrito a proposito. Los montos
   // salen de la config activa, asi que el mismo legal sirve para BAU y Config N.
   'legal: variables de montos ({cashback}, {plusgold}, ...)': _authSrc.includes('var _FG_LEGAL_VARS=') && _authSrc.includes('function _fgLegalConValores(') && _authSrc.includes('function _fgLegalVarKey(') && _authSrc.includes("['cashback',") && _authSrc.includes("['eminentblack',") && _authSrc.includes("['platinum',") && _authSrc.includes("['plusgold',") && _authSrc.includes("['plus',") && _authSrc.includes('if(!Object.prototype.hasOwnProperty.call(vals,key))return m;') && !_authSrc.includes('(importe2|importe|total|empresa|nombre)'),
+  // Tamano, peso y color de CADA zona desde el calibrador (antes solo las lineas
+  // del cartel de Rubros tenian editor). Lo que se toca se escribe en el cfg de
+  // ESE flyer; el motor lee color y peso de ahi, con la negrita de siempre si no
+  // hay nada guardado. La fila sigue a la zona elegida en la leyenda.
+  'calibrador: tamano, peso y color por zona': _authSrc.includes('var _CAL_PROPS=') && _authSrc.includes('function _calPropsSync(') && _authSrc.includes('function _calProp(') && _authSrc.includes('function _calPropReset(') && _authSrc.includes('function _calHex(') && _authSrc.includes('function _fgPeso(') && _authSrc.includes('_calPropsSync(); // la fila') && _authSrc.includes('c.fillStyle=E.color||"#111";') && _authSrc.includes('_fgPeso(M.peso)') && _authSrc.includes('_fgPeso(K.peso)') && _authSrc.includes('_fgPeso(C.peso)') && _authSrc.includes("'<div id=\"cal-prop-row\"></div>'") && _authSrc.includes("'#cal-prop-row.show{display:block}'"),
+  // El naranja del importe del Flyer Sueldo es el del PDF de Galicia (el mismo
+  // que el cartel de Rubros), no el mas claro de las cajas de montos.
+  'sueldo: el naranja del flyer': _authSrc.includes('minFs:28,col:"#fa6400"'),
   // Al entrar, la app abre la PRIMERA solapa del header de izquierda a derecha (la
   // que el admin dejo primera), salteando las que ese perfil no ve. Espera a las
   // DOS cargas: el orden viene con los titulos y la visibilidad con las facultades.
