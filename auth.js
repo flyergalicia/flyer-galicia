@@ -713,6 +713,7 @@ function _libInit(){
 function _libPrefetch(){if(_LIBS.jspdf&&!_libReady('jspdf'))setTimeout(function(){_lib('jspdf').catch(function(){});},2500);}
 function initApp(){
   _initTheme();
+  _inicioSolapaInit(); // respeta la solapa que el usuario toque mientras carga
   setTimeout(_updChk,4000);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')_updChk();});
   // Pisa loadExcel del HTML por la versión robusta (ver _robustLoadExcel).
@@ -1239,6 +1240,7 @@ function _applyFacultades(){
     atab.style.display=canPromos?'':'none';
     if(!canPromos&&atab.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
   }
+  _inicioListo('fac'); // recién acá se sabe qué solapas ve este perfil
 }
 
 // Solapas de primer nivel del header: "Flyer Galicia" y "Flyer Rubros" (las dos
@@ -3778,6 +3780,32 @@ function _titAplicarOrden(){
   var padre=els[0].parentNode,ref=els[els.length-1].nextSibling;
   orden.forEach(function(el){padre.insertBefore(el,ref);});
 }
+// ── SOLAPA CON LA QUE ARRANCA LA APP ─────────────────────────────────────────
+// Al entrar se abre la PRIMERA solapa del header de izquierda a derecha: la que
+// el admin dejó primera, salteando las que ese perfil no ve. Antes arrancaba
+// siempre en Flyer Galicia (el tab venía con .active puesto desde el HTML).
+// Hay que esperar DOS cosas que cargan por separado: el orden viene con los
+// títulos y la visibilidad con las facultades; la que termina última dispara el
+// cambio. Si el usuario alcanzó a elegir una solapa a mano mientras cargaban, se
+// respeta la suya y no se le mueve la pantalla abajo del dedo.
+var _inicioOrden=false,_inicioFac=false,_inicioHecho=false,_solapaAMano=false;
+function _inicioSolapaInit(){
+  var h=document.querySelector('header');
+  if(!h||h.dataset.inicioOk)return;
+  h.dataset.inicioOk='1';
+  h.addEventListener('click',function(e){
+    if(e.target&&e.target.closest&&e.target.closest('.app-tab'))_solapaAMano=true;
+  },true);
+}
+function _inicioListo(que){
+  if(que==='orden')_inicioOrden=true;else _inicioFac=true;
+  if(_inicioHecho||!_inicioOrden||!_inicioFac)return;
+  _inicioHecho=true;
+  if(_solapaAMano)return;
+  var vis=_appTabs().filter(function(el){return el.style.display!=='none';});
+  var id=vis.length?_appTabId(vis[0]):'';
+  if(id&&typeof switchApp==='function')switchApp(id);
+}
 function _titGuardarOrden(){
   var nuevo=_appTabs().map(_appTabId);
   if(Array.isArray(_TIT_ORDEN)&&_TIT_ORDEN.join(',')===nuevo.join(','))return;
@@ -3803,8 +3831,8 @@ function loadTitulos(cb){
       _TIT={};
       if(d&&typeof d==='object')Object.keys(_TIT_DEF).forEach(function(k){if(typeof d[k]==='string')_TIT[k]=d[k].replace(/[<>]/g,'').trim().slice(0,40);});
       _TIT_ORDEN=(d&&Array.isArray(d.orden))?d.orden.filter(function(x){return typeof x==='string'&&/^[a-z0-9_-]{1,20}$/i.test(x);}).slice(0,12):null;
-      _titAplicar();_titAplicarOrden();if(cb)cb();
-    }).catch(function(){if(cb)cb();});
+      _titAplicar();_titAplicarOrden();_inicioListo('orden');if(cb)cb();
+    }).catch(function(){_inicioListo('orden');if(cb)cb();});
 }
 function saveTitulos(cb){
   var meta=JSON.stringify(Object.assign({},_TIT,{orden:_TIT_ORDEN||undefined,updated_at:new Date().toISOString()}));

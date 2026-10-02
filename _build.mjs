@@ -983,6 +983,10 @@ const checks = {
   // lo que no conoce, para no comerse un "{...}" escrito a proposito. Los montos
   // salen de la config activa, asi que el mismo legal sirve para BAU y Config N.
   'legal: variables de montos ({cashback}, {plusgold}, ...)': _authSrc.includes('var _FG_LEGAL_VARS=') && _authSrc.includes('function _fgLegalConValores(') && _authSrc.includes('function _fgLegalVarKey(') && _authSrc.includes("['cashback',") && _authSrc.includes("['eminentblack',") && _authSrc.includes("['platinum',") && _authSrc.includes("['plusgold',") && _authSrc.includes("['plus',") && _authSrc.includes('if(!Object.prototype.hasOwnProperty.call(vals,key))return m;') && !_authSrc.includes('(importe2|importe|total|empresa|nombre)'),
+  // Al entrar, la app abre la PRIMERA solapa del header de izquierda a derecha (la
+  // que el admin dejo primera), salteando las que ese perfil no ve. Espera a las
+  // DOS cargas: el orden viene con los titulos y la visibilidad con las facultades.
+  'header: arranca en la primera solapa': _authSrc.includes('function _inicioSolapaInit(') && _authSrc.includes('function _inicioListo(') && _authSrc.includes("_inicioListo('orden');if(cb)cb();") && _authSrc.includes("_inicioListo('fac');") && _authSrc.includes('_inicioSolapaInit();') && _authSrc.includes('if(_solapaAMano)return;'),
   // Mover las solapas del header: el admin mantiene una apretada (_FG_HOLD_MS) y
   // la arrastra. El orden viaja en _titulos.json junto a los nombres, asi que lo
   // ven todos. Es el mismo gesto que reordena la barra de opciones del armador:
