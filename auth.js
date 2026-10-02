@@ -4249,8 +4249,8 @@ var _BENEF_PLANTILLAS={
   // medidas del PDF, y recentrarlas las bajaba. "Centrar en el cuadro" sigue
   // estando a mano por si hace falta.
   adicional:{nombre:'Promo adicional: combustible',fijo:true,campos:{importe:'Tope de reintegro mensual'},lineas:[
-    {t:'Además, **{nombre}** tiene',x:119,dx:-501,y:2428,fs:29,peso:500,color:'#000000',align:'left',mw:430},
-    {t:'una promo adicional.',x:119,dx:-501,y:2462,fs:29,peso:500,color:'#000000',align:'left',mw:430},
+    {t:'Además, **{nombre}** tiene',g:'a',x:119,dx:-501,y:2428,fs:29,peso:500,color:'#000000',align:'left',mw:430},
+    {t:'una promo adicional.',g:'a',x:119,dx:-501,y:2462,fs:29,peso:500,color:'#000000',align:'left',mw:430},
     {t:'Tope de reintegro mensual {importe}',x:673,dx:53,y:2498,fs:21,peso:500,color:'#000000',align:'left',mw:470}
   ]},
   // Variante con los dos rubros: el cuadro trae impresos los dos bloques ("25% de
@@ -4262,8 +4262,8 @@ var _BENEF_PLANTILLAS={
   // el nombre de la empresa); si algún PDF viniera sin ella, se agrega con "+ Línea"
   // centrada (x = el eje del bloque) en y 2400, letra 29.
   adicional2:{nombre:'Promo adicional: súper + combustible',fijo:true,campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
-    {t:'Tope de reintegro mensual {importe2}',x:279,dx:-341,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390},
-    {t:'Tope de reintegro mensual {importe}',x:667,dx:47,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390}
+    {t:'Tope de reintegro mensual {importe2}',g:'t',x:279,dx:-341,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390},
+    {t:'Tope de reintegro mensual {importe}',g:'t',x:667,dx:47,y:2572,fs:17,peso:500,color:'#000000',align:'left',mw:390}
   ]},
   ambos:{nombre:'Ambos (combustible y supermercado)',campos:{importe:'Tope supermercado',importe2:'Tope combustible (si es distinto)'},lineas:[
     {t:'¡Beneficio exclusivo {nombre}!',x:655,y:2529,fs:42,peso:800,color:'#fa6400',align:'center',mw:800},
@@ -4571,6 +4571,10 @@ function fgDrawBenef(c,s,v){
   // empresa): se saca el {nombre} con sus espacios y no queda espacio antes del
   // signo. importe2 (segundo tope, cuadro "Ambos") cae en importe si no se cargó.
   var nombre=(v.benefNombre==null?'':String(v.benefNombre)).trim(),importe=v.importe||'',importe2=v.importe2||importe;
+  function font(L,seg,size){return (seg.f?(B.peso2||800):(L.peso||500))+' '+size+'px '+fam;}
+  function ancho(L,segs,size){var w=0;segs.forEach(function(sg){c.font=font(L,sg,size);w+=c.measureText(sg.t).width;});return w;}
+  // 1ª pasada: resuelvo el texto de cada línea y con qué tamaño entra en su ancho.
+  var items=[];
   (B.lineas||[]).forEach(function(L){
     var t=String(L.t||'');
     if(t.indexOf('{importe}')>=0&&!importe.trim())return;
@@ -4582,16 +4586,34 @@ function fgDrawBenef(c,s,v){
     else t=t.replace(/\*\*\s*\{nombre\}\s*\*\*/g,' ').replace(/\s*\{nombre\}\s*/g,' ').replace(/\s+([!?.,;:])/g,'$1').replace(/\s{2,}/g,' ').trim();
     t=t.replace(/\{importe2\}/g,function(){return importe2;}).replace(/\{total\}/g,function(){return _fgImporteSuma(importe,importe2);}).replace(/\{importe\}/g,function(){return importe;});
     if(!t.trim())return;
-    var segs=_fgBenefSegs(t),fs=Math.round(L.fs*se*2)/2,mw=Math.round(L.mw*se);
-    function font(seg,size){return (seg.f?(B.peso2||800):(L.peso||500))+' '+size+'px '+fam;}
-    function ancho(size){var w=0;segs.forEach(function(sg){c.font=font(sg,size);w+=c.measureText(sg.t).width;});return w;}
-    var w=ancho(fs);
-    if(w>mw&&w>0){fs=Math.max(Math.floor(fs*mw/w*2)/2,Math.max(1,Math.round(8*se)));w=ancho(fs);}
+    var segs=_fgBenefSegs(t),base=Math.round(L.fs*se*2)/2,mw=Math.round(L.mw*se),fs=base;
+    var w=ancho(L,segs,fs);
+    if(w>mw&&w>0)fs=Math.max(Math.floor(fs*mw/w*2)/2,Math.max(1,Math.round(8*se)));
+    items.push({L:L,segs:segs,base:base,fs:fs});
+  });
+  // Las líneas con la misma "g" son UN texto partido en renglones (p. ej. la
+  // bajada con el nombre de la empresa): si una se tiene que achicar para entrar,
+  // las demás la acompañan en la misma proporción. Sin esto, un nombre largo
+  // dejaba un renglón chico arriba de otro grande y no se leía como un solo texto.
+  var kMin={};
+  items.forEach(function(it){
+    var g=it.L.g;if(!g||!it.base)return;
+    var k=it.fs/it.base;if(kMin[g]==null||k<kMin[g])kMin[g]=k;
+  });
+  items.forEach(function(it){
+    var g=it.L.g;if(!g||kMin[g]==null||kMin[g]>=1)return;
+    it.fs=Math.max(Math.max(1,Math.round(8*se)),Math.round(it.base*kMin[g]*2)/2);
+  });
+  // 2ª pasada: dibujo, ya con el tamaño definitivo (el ancho se vuelve a medir
+  // porque de él sale el centrado).
+  items.forEach(function(it){
+    var L=it.L,segs=it.segs,fs=it.fs;
+    var w=ancho(L,segs,fs);
     var x=Math.round(L.x*se),y=Math.round(L.y*se);
     var cx=(L.align==='center')?x-w/2:x;
     c.textBaseline='middle';c.textAlign='left';
     segs.forEach(function(sg){
-      c.font=font(sg,fs);c.fillStyle=sg.f?(B.color2||'#fa6400'):(L.color||'#000');
+      c.font=font(L,sg,fs);c.fillStyle=sg.f?(B.color2||'#fa6400'):(L.color||'#000');
       c.fillText(sg.t,cx,y);cx+=c.measureText(sg.t).width;
     });
   });
