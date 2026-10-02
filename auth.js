@@ -2884,8 +2884,7 @@ function _glegalId(opt){var n=_optN(opt);return n===1?'glegal-text':'glegal-text
 // que no avisa (el marcador mal escrito termina impreso en el flyer).
 var _GLEGAL_VARS_UI=[
   ['{empresa}',     'el nombre de la empresa que se carga en el flyer'],
-  ['{cashback}',    'el cashback que sale en naranja: el más alto de la configuración elegida'],
-  ['{eminentblack}','el monto de Eminent Black de la configuración elegida'],
+  ['{eminentblack}','el monto de Eminent Black: es el que sale en naranja en el Flyer Sueldo'],
   ['{platinum}',    'el monto de Eminent Platinum de la configuración elegida'],
   ['{plusgold}',    'el monto de Plus Gold de la configuración elegida'],
   ['{plus}',        'el monto de Plus de la configuración elegida'],
@@ -3477,8 +3476,8 @@ function _fgEnsureOptBar(){
     'html.dark #fg-optbar .fgo:hover{color:#ddd}'+
     '#fg-optbar .fgo.on{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14)}'+
     'html.dark #fg-optbar .fgo.on{background:#2c2f36}'+
-    // mantener apretado: barrita que se llena en 5 s, para ver que "algo está pasando"
-    '#fg-optbar .fgo.hold::after{content:"";position:absolute;left:8px;right:8px;bottom:1px;height:2px;border-radius:2px;background:currentColor;opacity:.6;animation:fgoHold 5s linear forwards;transform-origin:left}'+
+    // mantener apretado: barrita que se llena mientras dura el gesto (_FG_HOLD_MS)
+    '#fg-optbar .fgo.hold::after{content:"";position:absolute;left:8px;right:8px;bottom:1px;height:2px;border-radius:2px;background:currentColor;opacity:.6;animation:fgoHold 4s linear forwards;transform-origin:left}'+
     '@keyframes fgoHold{from{transform:scaleX(0)}to{transform:scaleX(1)}}'+
     '#fg-optbar .fgo.lift{transform:scale(1.06) translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.22);z-index:2;cursor:grabbing;outline:2px dashed currentColor}'+
     '#fg-optbar.reorder .fgo:not(.lift){opacity:.7}'+
@@ -3555,52 +3554,64 @@ function _fgOptAplicarOrden(bar){
   var lista=nuevo.map(function(n,i){return {n:n,nombre:_optLabel(n),color:_optColor(n),solapa:_optSolapa(n),orden:i};});
   _opcGuardarRapido(lista,'Orden de las opciones guardado');
 }
-var _FG_HOLD_MS=5000,_FG_TAPS=4,_FG_TAP_VENTANA=1600;
-function _fgOptBarGestos(bar){
-  var taps=0,tapsEl=null,tapsT=0;
-  var hold=null,lift=null,startX=0,startY=0;
+var _FG_HOLD_MS=4000,_FG_TAPS=4,_FG_TAP_VENTANA=1600;
+// Mantener apretado _FG_HOLD_MS sobre un ítem lo "levanta" y a partir de ahí se
+// arrastra para cambiar el orden; al soltar se llama onDrop(cont). Mover el dedo
+// antes de tiempo cancela: son barras que se tocan todo el día, el modo mover no
+// puede salir sin querer. Lo usan la barra de opciones del armador y las solapas
+// del header. Devuelve recienMovido(), para que el click con el que termina el
+// arrastre no cuente como "tocar el ítem".
+function _holdReorder(cont,sel,onDrop,onLift){
+  var hold=null,lift=null,startX=0,startY=0,hasta=0;
   function limpiarHold(){if(hold){clearTimeout(hold.t);hold.el.classList.remove('hold');hold=null;}}
   function soltar(){
     if(!lift)return;
-    lift.classList.remove('lift');bar.classList.remove('reorder');
-    lift=null;
-    _fgOptAplicarOrden(bar);
+    lift.classList.remove('lift');cont.classList.remove('reorder');
+    lift=null;hasta=Date.now()+500;
+    onDrop(cont);
   }
-  bar.addEventListener('pointerdown',function(e){
-    var el=e.target.closest?e.target.closest('.fgo'):null;
-    if(!el||el.classList.contains('editing'))return;
+  cont.addEventListener('pointerdown',function(e){
+    var el=e.target.closest?e.target.closest(sel):null;
+    if(!el||el.classList.contains('editing')||el.querySelector('input'))return;
     if(e.pointerType==='mouse'&&e.button!==0)return;
     limpiarHold();
     startX=e.clientX;startY=e.clientY;
     hold={el:el,t:setTimeout(function(){
-      // 5 s apretado: se levanta y a partir de acá se arrastra
-      el.classList.remove('hold');el.classList.add('lift');bar.classList.add('reorder');
-      lift=el;hold=null;taps=0;
-      try{bar.setPointerCapture(e.pointerId);}catch(x){}
+      el.classList.remove('hold');el.classList.add('lift');cont.classList.add('reorder');
+      lift=el;hold=null;
+      try{cont.setPointerCapture(e.pointerId);}catch(x){}
       if(navigator.vibrate)try{navigator.vibrate(30);}catch(x){}
+      if(onLift)onLift(el);
       showToast('Arrastrá para cambiar el orden y soltá');
     },_FG_HOLD_MS)};
     el.classList.add('hold');
   });
-  bar.addEventListener('pointermove',function(e){
-    // si se mueve el dedo/mouse antes de los 5 s, no es "mantener apretado"
+  cont.addEventListener('pointermove',function(e){
+    // si se mueve el dedo/mouse antes de tiempo, no es "mantener apretado"
     if(hold&&(Math.abs(e.clientX-startX)>8||Math.abs(e.clientY-startY)>8))limpiarHold();
     if(!lift)return;
     e.preventDefault();
-    var otros=Array.prototype.filter.call(bar.querySelectorAll('.fgo'),function(x){return x!==lift;});
+    // los ítems ocultos (una solapa que el perfil no ve) no participan: tienen
+    // ancho 0 y el cursor nunca cae adentro
+    var otros=Array.prototype.filter.call(cont.querySelectorAll(sel),function(x){return x!==lift&&x.offsetWidth>0;});
     for(var i=0;i<otros.length;i++){
       var r=otros[i].getBoundingClientRect();
       if(e.clientX>=r.left&&e.clientX<=r.right){
         var mid=r.left+r.width/2;
-        if(e.clientX<mid)bar.insertBefore(lift,otros[i]);else bar.insertBefore(lift,otros[i].nextSibling);
+        if(e.clientX<mid)cont.insertBefore(lift,otros[i]);else cont.insertBefore(lift,otros[i].nextSibling);
         break;
       }
     }
   });
-  bar.addEventListener('pointerup',function(){limpiarHold();soltar();});
-  bar.addEventListener('pointercancel',function(){limpiarHold();soltar();});
-  bar.addEventListener('pointerleave',function(){if(!lift)limpiarHold();});
-  bar.addEventListener('contextmenu',function(e){if(hold||lift)e.preventDefault();});
+  cont.addEventListener('pointerup',function(){limpiarHold();soltar();});
+  cont.addEventListener('pointercancel',function(){limpiarHold();soltar();});
+  cont.addEventListener('pointerleave',function(){if(!lift)limpiarHold();});
+  cont.addEventListener('contextmenu',function(e){if(hold||lift)e.preventDefault();});
+  return {recienMovido:function(){return !!lift||Date.now()<hasta;}};
+}
+function _fgOptBarGestos(bar){
+  var taps=0,tapsEl=null,tapsT=0;
+  _holdReorder(bar,'.fgo',_fgOptAplicarOrden,function(){taps=0;});
   // 4 toques seguidos sobre el MISMO título → renombrar
   bar.addEventListener('click',function(e){
     var el=e.target.closest?e.target.closest('.fgo'):null;
@@ -3739,6 +3750,40 @@ var _TIT_DEF={ptitle:'Flyer Galicia 5.5',promos:'Promociones',promos_ptitle:'Bus
 // Un título por solapa del armador, derivado del registro: la solapa nueva
 // aparece sola en los 4 toques y en _titulos.json, sin tocar esta lista.
 _SOLAPAS.forEach(function(s){_TIT_DEF[s.id]=s.def;});
+// Orden de las solapas del header: lo elige el admin manteniendo apretada una
+// solapa y arrastrándola, y se guarda junto a los nombres en _titulos.json (clave
+// "orden": los ids de los tabs). Lo ven todos los usuarios, igual que los nombres.
+// Sin orden guardado rige el del HTML.
+var _TIT_ORDEN=null;
+function _appTabs(){
+  var h=document.querySelector('header');
+  return h?Array.prototype.slice.call(h.querySelectorAll('.app-tab')):[];
+}
+function _appTabId(el){return String(el.id||'').replace(/^apptab-/,'');}
+function _titAplicarOrden(){
+  var els=_appTabs();
+  if(els.length<2||!Array.isArray(_TIT_ORDEN)||!_TIT_ORDEN.length)return;
+  var ord=_TIT_ORDEN,pad=els.length;
+  var orden=els.slice().sort(function(a,b){
+    var ia=ord.indexOf(_appTabId(a)),ib=ord.indexOf(_appTabId(b));
+    // una solapa que no está en la lista guardada (agregada después) va al final,
+    // en el orden en que viene del HTML
+    if(ia<0)ia=pad+els.indexOf(a);
+    if(ib<0)ib=pad+els.indexOf(b);
+    return ia-ib;
+  });
+  // Los tabs son hermanos del menú del usuario dentro del <header>: se reinsertan
+  // todos antes de lo que venga después del último, así ninguno puede terminar
+  // detrás del menú por más que se lo arrastre hasta el borde.
+  var padre=els[0].parentNode,ref=els[els.length-1].nextSibling;
+  orden.forEach(function(el){padre.insertBefore(el,ref);});
+}
+function _titGuardarOrden(){
+  var nuevo=_appTabs().map(_appTabId);
+  if(Array.isArray(_TIT_ORDEN)&&_TIT_ORDEN.join(',')===nuevo.join(','))return;
+  _TIT_ORDEN=nuevo;
+  saveTitulos(function(ok){if(ok)showToast('Orden de las solapas guardado');});
+}
 function _titElem(key){
   if(key==='ptitle')return document.querySelector('#layout .panel .ptitle');
   if(key==='promos_ptitle')return document.querySelector('#view-promos .ptitle');
@@ -3757,11 +3802,12 @@ function loadTitulos(cb){
     .then(function(d){
       _TIT={};
       if(d&&typeof d==='object')Object.keys(_TIT_DEF).forEach(function(k){if(typeof d[k]==='string')_TIT[k]=d[k].replace(/[<>]/g,'').trim().slice(0,40);});
-      _titAplicar();if(cb)cb();
+      _TIT_ORDEN=(d&&Array.isArray(d.orden))?d.orden.filter(function(x){return typeof x==='string'&&/^[a-z0-9_-]{1,20}$/i.test(x);}).slice(0,12):null;
+      _titAplicar();_titAplicarOrden();if(cb)cb();
     }).catch(function(){if(cb)cb();});
 }
 function saveTitulos(cb){
-  var meta=JSON.stringify(Object.assign({},_TIT,{updated_at:new Date().toISOString()}));
+  var meta=JSON.stringify(Object.assign({},_TIT,{orden:_TIT_ORDEN||undefined,updated_at:new Date().toISOString()}));
   return _sb.storage.from('flyers')
     .upload(TITULOS_FILE,new Blob([meta],{type:'application/json'}),{contentType:'application/json',upsert:true})
     .then(function(r){
@@ -3811,9 +3857,28 @@ function _titGestos(){
   if(!_admin)return;
   Object.keys(_TIT_DEF).forEach(function(k){
     var el=_titElem(k);if(!el)return;
-    el.title='4 toques seguidos para cambiar el nombre';
+    var mueve=(k!=='ptitle'&&k!=='promos_ptitle'); // los títulos de panel no son solapas
+    el.title='4 toques seguidos para cambiar el nombre'+(mueve?' · mantenelo apretado para mover la solapa':'');
     _tap4(el,function(){_titRenombrar(el,k);});
   });
+  _titGestosOrden();
+}
+// Mantener apretada una solapa del header la levanta para arrastrarla y cambiar
+// el orden (el mismo gesto que la barra de opciones del armador).
+function _titGestosOrden(){
+  var h=document.querySelector('header');
+  if(!h||h.dataset.ordenOk)return;
+  h.dataset.ordenOk='1';
+  h.classList.add('mover-ok'); // habilita touch-action:none en las solapas (ver _newcss)
+  var gest=_holdReorder(h,'.app-tab',_titGuardarOrden);
+  // El click con el que termina el arrastre no tiene que cambiar de solapa ni
+  // contar como uno de los 4 toques del renombrado: se corta en CAPTURA, antes
+  // de llegar al onclick del tab y al listener de _tap4 que está en el h1.
+  h.addEventListener('click',function(e){
+    if(!gest.recienMovido())return;
+    if(!e.target||!e.target.closest||!e.target.closest('.app-tab'))return;
+    e.stopPropagation();e.preventDefault();
+  },true);
 }
 
 // ── FLYER ACTIVO ──────────────────────────────────────────────────────────────
@@ -4511,7 +4576,11 @@ var _FG_LEGAL_VARS=[
   ['total',       function(v){return _fgImporteSuma(v.importe,v.importe2||v.importe);}],
   ['empresa',     function(v){return v.empresa||'';}],
   ['nombre',      function(v){return v.empresa||'';}],     // alias histórico de {empresa}
-  ['cashback',    function(v){return _fgMontoMayor(v);}],  // el importe que sale en naranja
+  // {cashback} = el importe que sale en naranja. Hoy es siempre el de Eminent
+  // Black (el más alto de toda config), así que no se ofrece como botón aparte
+  // para no tener dos marcadores que escriben lo mismo; sigue andando por si
+  // quedó escrito en algún legal.
+  ['cashback',    function(v){return _fgMontoMayor(v);}],
   ['eminentblack',function(v){return _fgMontoN(v,1);}],
   ['platinum',    function(v){return _fgMontoN(v,2);}],
   ['plusgold',    function(v){return _fgMontoN(v,3);}],

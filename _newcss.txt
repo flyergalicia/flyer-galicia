@@ -363,9 +363,23 @@ html.dark .fac-head{background:#1b1e23;}
    angosto el header ya tiene su propio esquema de dos filas con línea blanca abajo
    (ver @media max-width:900px más abajo) y no hay que mezclar los dos indicadores. */
 header{border-bottom:1px solid rgba(255,255,255,.1);}
-.app-tab{cursor:pointer;opacity:0.55;transition:opacity .15s;}
+.app-tab{cursor:pointer;opacity:0.55;transition:opacity .15s;position:relative;}
+/* touch-action:none sólo con el gesto de mover habilitado (admin): si no, en el
+   celular tocar el header dejaría de poder arrastrar la página. */
+header.mover-ok .app-tab{touch-action:none;}
 .app-tab:hover{opacity:0.85;}
 .app-tab.active{opacity:1;}
+/* Mover las solapas: el admin mantiene una apretada y la arrastra (_holdReorder).
+   Mismo lenguaje visual que la barra de opciones del armador: barrita que se
+   llena mientras se mantiene, y la solapa "levantada" mientras se arrastra. */
+/* El keyframe también vive acá (y no sólo en el estilo que inyecta la barra de
+   opciones): esa barra sólo existe con más de una opción habilitada, y la
+   barrita del header tiene que llenarse igual. Definirlo dos veces es inocuo. */
+@keyframes fgoHold{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.app-tab.hold::after{content:'';position:absolute;left:10px;right:10px;bottom:2px;height:2px;border-radius:2px;background:currentColor;opacity:.75;animation:fgoHold 4s linear forwards;transform-origin:left;z-index:3;}
+.app-tab.lift{transform:scale(1.05);box-shadow:0 6px 18px rgba(0,0,0,.28);z-index:4;cursor:grabbing;outline:2px dashed currentColor;outline-offset:-3px;border-radius:8px;opacity:1;}
+header.reorder .app-tab:not(.lift){opacity:.5;}
+header.reorder{cursor:grabbing;}
 /* Avatar con iniciales junto al nombre (antes del <span id="hdr-user">). Los dos son
    <span> dentro de <header>: sin este reset heredarían la "píldora roja" que la regla
    base "header span" usa para el ARMADOR/BUSCADOR (mismo problema ya visto en .hdr-user). */
