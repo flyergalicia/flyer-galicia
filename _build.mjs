@@ -974,7 +974,7 @@ const checks = {
   // fondo (mismo criterio que fgDrawMontos): si el PDF trae un importe impreso
   // debajo, no se asoma. Y el mayor se compara por digitos devolviendo el string
   // tal cual, asi el naranja del flyer y {cashback} en el legal dicen lo mismo.
-  'sueldo: sin cashback tapa igual con el fondo real': _authSrc.includes("var txt=v.nocb?'':_fgMontoMayor(v);") && _authSrc.includes('if(!txt)return;') && _authSrc.includes('c.fillStyle=_fgBgMuestra(c,xc-mw/2,xc+mw/2,') && _authSrc.includes("if(!v||v.nocb)return '';") && _authSrc.includes('function _fgMontoDig('),
+  'sueldo: sin cashback tapa igual con el fondo real': _authSrc.includes("var txt=v.nocb?'':_fgMontoMayor(v);") && _authSrc.includes('if(!txt)return;') && _authSrc.includes('c.fillStyle=_fgBgMuestra(K.xc-K.mw/2,K.xc+K.mw/2,') && _authSrc.includes("if(!v||v.nocb)return '';") && _authSrc.includes('function _fgMontoDig('),
   // Las solapas del armador salen de UN registro (_SOLAPAS): sumar una es una
   // entrada ahi + su div en el header (arriba). Los includes negativos son para
   // que no vuelva a aparecer un 'rubros' escrito a mano en el mecanismo.
@@ -994,7 +994,7 @@ const checks = {
   // Al entrar, la app abre la PRIMERA solapa del header de izquierda a derecha (la
   // que el admin dejo primera), salteando las que ese perfil no ve. Espera a las
   // DOS cargas: el orden viene con los titulos y la visibilidad con las facultades.
-  'header: arranca en la primera solapa': _authSrc.includes('function _inicioSolapaInit(') && _authSrc.includes('function _inicioListo(') && _authSrc.includes("_inicioListo('orden');if(cb)cb();") && _authSrc.includes("_inicioListo('fac');") && _authSrc.includes('_inicioSolapaInit();') && _authSrc.includes('if(_solapaAMano)return;'),
+  'header: arranca en la primera solapa': _authSrc.includes('function _inicioSolapaInit(') && _authSrc.includes('function _inicioListo(') && _authSrc.includes("_inicioListo('orden');if(cb)cb();") && _authSrc.includes("_inicioListo('fac');") && _authSrc.includes('_inicioSolapaInit();') && _authSrc.includes('if(_solapaAMano){_fgPrevAbrir();return;}'),
   // Mover las solapas del header: el admin mantiene una apretada (_FG_HOLD_MS) y
   // la arrastra. El orden viaja en _titulos.json junto a los nombres, asi que lo
   // ven todos. Es el mismo gesto que reordena la barra de opciones del armador:
@@ -1032,14 +1032,21 @@ const checks = {
   'historial: aplica todos los asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)') && _authSrc.includes('if(k>max)hay=false;'),
   'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
-  // Empresa y montos tapan con el color REAL del flyer (muestreado), no con uno fijo:
-  // con color fijo se notaba el recuadro alrededor de cada importe.
   // Empresa y montos tapan su zona con el color REAL del flyer (muestreado justo
   // arriba), no con uno fijo: el tono del PDF cambia entre versiones y con color
   // fijo se notaba el recuadro. En montos el muestreo va en una pasada aparte,
   // ANTES de pintar: en la grilla 2x2 la caja de abajo tomaria el color de la de
   // arriba ya tapada en vez del arte.
-  'montos y empresa: fondo muestreado (sin cuadrito)': _authSrc.includes('function _fgBgMuestra(') && _authSrc.includes('var bgs=cajas.map(function(b){return _bgDe(') && _authSrc.includes('c.fillStyle=bgs[i];c.fillRect(') && _authSrc.includes('c.fillStyle=_fgBgMuestra(c,ex,ex+mw,') && !_authSrc.includes('c.fillStyle=E.bg;'),
+  'montos y empresa: fondo muestreado (sin cuadrito)': _authSrc.includes('function _fgBgMuestra(') && _authSrc.includes('var bgs=cajas.map(function(b){return _bgDe(') && _authSrc.includes('c.fillStyle=bgs[i];c.fillRect(') && _authSrc.includes('c.fillStyle=_fgBgMuestra(E.ex,E.ex+E.mw,') && !_authSrc.includes('c.fillStyle=E.bg;'),
+  // Ese muestreo se hace sobre la IMAGEN ORIGINAL (una fila copiada a un canvas de
+  // 1px de alto, como _fgBenefDetectarCuadro), NO sobre el canvas de la vista
+  // previa: ese esta dibujado a la escala del zoom, asi que al alejar la vista la
+  // fila leida caia decenas de pixeles mas arriba del arte y encima promediada con
+  // los vecinos => tapaba con un color que no era el fondo y el importe quedaba
+  // "resaltado". Por eso las tres zonas pasan coordenadas BASE (las del
+  // calibrador) y la funcion no recibe el contexto: a escala 1 lee exactamente la
+  // misma fila que antes, asi que el flyer descargado no cambia.
+  'fondo muestreado: de la imagen, no del canvas (no cambia con el zoom)': _authSrc.includes('function _fgBgMuestra(bx0,bx1,by,fallback){') && _authSrc.includes('var im=window.baseImg;if(!im||!im.width)return fallback;') && _authSrc.includes('var k=_fgSE(1);') && _authSrc.includes('_fgBgCtx.drawImage(im,x0,y,w,1,0,0,w,1);') && _authSrc.includes('_fgBgCtx.getImageData(0,0,w,1).data') && _authSrc.includes('bx:m.xc,bw:m.ew,by:by,bh:bh') && !_authSrc.includes('c.getImageData(x,y,1,1).data'),
   // Flyer MIXTO: los 4 importes de cashback en grilla 2x2 (importe arriba,
   // etiqueta impresa debajo, dos columnas). Es una OPCION mas de Flyer Galicia,
   // no una solapa: lo unico propio es que cada caja puede tener SU posicion y SU
@@ -1048,7 +1055,21 @@ const checks = {
   // default compartido. En el calibrador cada caja es una zona (mb0..mb3) con su
   // ancho, su alto y su color, y "Montos (todo)" mueve las cuatro sin deformarlas.
   'montos: grilla 2x2 (posicion propia por caja)': _authSrc.includes('function _fgMBoxY(') && _authSrc.includes('function _fgMBoxH(') && _authSrc.includes('return (m&&m.y!=null)?m.y:M.y;') && _authSrc.includes('function _calMBoxes(') && _authSrc.includes("_solCfg(_calSol()).zonas.indexOf('montos')<0") && _authSrc.includes("label:'Montos (todo)'") && _authSrc.includes("out.push({id:'mb'+i") && _authSrc.includes("order.push('mb'+i)") && _authSrc.includes('/^mb\\d+$/.test(drag.zone)') && _authSrc.includes('mb.y=_fgMBoxY(M,mb)+dy') && _authSrc.includes('if(b.y!=null)b.y+=dy') && _authSrc.includes('function _calPropsDef(') && _authSrc.includes('function _calPropsObj(') && _authSrc.includes('var _CAL_MBOX_PROPS=') && _authSrc.includes('var _MB_LABELS=') && !_authSrc.includes('var my=Math.round(M.y*se)'),
-  'preview: zoom maximo 130% + full canvas reutilizado': _authSrc.includes('var _ZOOM_MAX=1.3;') && _authSrc.includes('ZOOM=Math.min(ZOOM*1.25,_ZOOM_MAX)') && _authSrc.includes('var _fgFullCv=null') && _authSrc.includes("_fgFullCv.getContext('2d',{willReadFrequently:true})"),
+  // El canvas completo se reutiliza entre redibujos (antes se creaba uno por tecla)
+  // y ya NO lleva willReadFrequently: nadie le lee pixeles desde que el muestreo del
+  // fondo lee la imagen original, y con esa bandera el navegador lo mantiene en
+  // memoria del CPU, que es mas lento para dibujar el flyer entero.
+  'preview: zoom maximo 130% + full canvas reutilizado': _authSrc.includes('var _ZOOM_MAX=1.3;') && _authSrc.includes('ZOOM=Math.min(ZOOM*1.25,_ZOOM_MAX)') && _authSrc.includes('var _fgFullCv=null') && _authSrc.includes("_fgFullCtx=_fgFullCv.getContext('2d');") && !_authSrc.includes("_fgFullCv.getContext('2d',{willReadFrequently:true})"),
+  // Al ingresar, la vista previa no pinta hasta saber en que solapa arranca la app:
+  // el flyer de la Opcion 1 se descarga desde el primer momento y se veia un instante
+  // ESE (el "original") antes del de la solapa que quedo primera. La destraba
+  // _inicioListo o _fgApplyOption, y un timeout por si la red falla.
+  'arranque: no se pinta el flyer hasta saber la solapa': _authSrc.includes('var _fgPrevGate=true;') && _authSrc.includes('function _fgPrevAbrir(){') && _authSrc.includes('if(_fgPrevGate)return;') && _authSrc.includes('function _fgOptCargando(') && _authSrc.includes('if(!_fgOptCargando())_fgPrevAbrir();') && _authSrc.includes('setTimeout(_fgPrevAbrir,8000);'),
+  // Facultades: las filas opcion_N van agrupadas por solapa, plegadas, con el nombre
+  // del menu como titulo y cuantas tiene habilitadas cada perfil. Por eso _facRows
+  // recorre solapa por solapa (en orden numerico las solapas se intercalan y un grupo
+  // tiene que ser contiguo) y agrega el id de la solapa como 4o campo de la fila.
+  'facultades: opciones agrupadas por solapa': _authSrc.includes('function _facSolOrden(') && _authSrc.includes('function _facOptsSol(') && _authSrc.includes('function _facGrpRow(') && _authSrc.includes('function _facGrpTog(') && _authSrc.includes('function _facCntSync(') && _authSrc.includes('var _facGrpOpen={};') && _authSrc.includes("_facSolOrden().forEach(function(sol){") && _authSrc.includes("class=\"fac-row fac-grp") && _authSrc.includes("var cab=(grp&&grp!==grpAnt)?_facGrpRow(grp,cols):'';") && newCSS.includes('.fac-row.fac-oculta{display:none;}') && newCSS.includes('.fac-grp.abierto .fac-car{transform:rotate(90deg);}'),
   'calibrador: zoom + zona elegida sola': _authSrc.includes('function _calZoom(') && _authSrc.includes('function _calWheel(') && _authSrc.includes("cv.addEventListener('wheel',_calWheel,{passive:false});") && _authSrc.includes('if(_cal.sel&&_cal.sel!==z.id)return;') && _authSrc.includes('id="cal-zoom-pct"'),
   // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN
   'pegar: parser': _authSrc.includes('function _fgParseContacto(') && _authSrc.includes('function _fgPartirTel(') && _authSrc.includes('function _fgVerificaTel('),

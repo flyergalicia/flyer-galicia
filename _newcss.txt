@@ -341,6 +341,18 @@ html.dark .stab:hover{background:#2a2f36;color:#e9eaec;}
 .fac-row input[type=checkbox]:disabled{cursor:not-allowed;opacity:.45;}
 html.dark .fac-grid,html.dark .fac-row{border-color:#333840;}
 html.dark .fac-head{background:#1b1e23;}
+/* Las opciones del armador van agrupadas por solapa (Flyer Galicia, Flyer Rubros, ...)
+   y arrancan plegadas: la cabecera se toca para desplegar y la flecha gira. */
+.fac-grp{background:var(--light);cursor:pointer;user-select:none;}
+.fac-grp:hover{background:rgba(245,146,30,.12);}
+.fac-grp .fac-name{display:flex;align-items:center;gap:8px;font-family:"Syne",sans-serif;}
+.fac-car{font-size:.58rem;color:var(--gray);transition:transform .15s;}
+.fac-grp.abierto .fac-car{transform:rotate(90deg);}
+.fac-grp-n{font-size:.66rem;font-weight:400;color:var(--gray);}
+.fac-cnt{font-size:.7rem;font-weight:700;color:var(--gray);}
+.fac-row.fac-oculta{display:none;}
+.fac-sub>div:first-child{padding-left:20px;}
+html.dark .fac-grp{background:#1b1e23;}
 .fac-sim{cursor:pointer;padding:3px 7px;border-radius:6px;transition:background .15s,color .15s;white-space:nowrap;}
 .fac-sim:hover{background:var(--red);color:#fff;}
 .fac-eye{font-size:.72em;opacity:.65;}

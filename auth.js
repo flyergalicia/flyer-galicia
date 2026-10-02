@@ -938,6 +938,9 @@ function _fgBaseFallback(){
 }
 function _showApp(){
   _libPrefetch();
+  // Si las facultades o los títulos no llegan (red caída), la vista previa se
+  // destraba igual: mejor ver el flyer de la Opción 1 que una pantalla en blanco.
+  setTimeout(_fgPrevAbrir,8000);
   document.getElementById('hdr-right').style.display='flex';
   document.getElementById('login-ov').style.display='none';
   document.getElementById('layout').style.display='grid';
@@ -1112,17 +1115,42 @@ function _facDefault(role,key){
   if(key.indexOf('opcion_')===0)return key==='opcion_1';
   return !!((_FAC_DEF[role]||{})[key]);
 }
+// Opciones de UNA solapa, en orden de número. Es la lista completa (habilitadas
+// o no): la pantalla de Facultades muestra todas, es donde se deciden.
+function _facOptsSol(sol){return _facOptList().filter(function(o){return _optSolapa(o)===sol;});}
+// Solapas del armador en el orden del header (el que el admin dejó arrastrando
+// las solapas, guardado en _titulos.json). Las que no estén en ese orden van al
+// final, como las lista el registro _SOLAPAS. Así los grupos de Facultades
+// quedan en el mismo orden que el menú de arriba.
+function _facSolOrden(){
+  var ord=Array.isArray(_TIT_ORDEN)?_TIT_ORDEN:[];
+  return _OPC_SOLAPAS.slice().sort(function(a,b){
+    var ia=ord.indexOf(a),ib=ord.indexOf(b);
+    if(ia<0)ia=999+_OPC_SOLAPAS.indexOf(a);
+    if(ib<0)ib=999+_OPC_SOLAPAS.indexOf(b);
+    return ia-ib;
+  });
+}
 // Filas de la pantalla, en orden.
 function _facRows(){
   var rows=[
     ['padron_buscar','Base de datos: mis empresas','Le da <strong>su propia lista privada de empresas</strong> (su nombre &rarr; Base de datos): carga las suyas y las busca con la lupa por raz&oacute;n social o CUIT. <strong>Nadie m&aacute;s puede ver ni editar lo que cargue</strong>; vos s&iacute; pod&eacute;s consultarlo desde Data &rarr; Empresas por usuario.'],
     ['pegar_oficial','Pegar datos del oficial','Bot&oacute;n "Pegar" en cada bloque de asesor: saca nombre, celular y mail de un texto copiado.']
   ];
-  _facOptList().forEach(function(o){
-    var sol=_optSolapa(o),otra=(sol!=='flyer')?_escHtml(_solapaLabel(sol)):'';
-    rows.push(['opcion_'+o,'Ver &laquo;'+_escHtml(_optLabel(o))+'&raquo; (opci&oacute;n '+o+(otra?', solapa '+otra:'')+')',
-      'Habilita ese armador (flyer + legal propios; se administra en Config &rarr; Opciones). El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.'+
-      (otra?' Con al menos una opci&oacute;n de esa solapa habilitada, el perfil ve la solapa <strong>'+otra+'</strong> en el header.':'')]);
+  // Las opciones del armador van AGRUPADAS por solapa: la pantalla las muestra
+  // plegadas bajo el nombre del menú y se despliegan con la flecha (ver
+  // _facGrpRow). Por eso se recorre solapa por solapa y no 1,2,3…: en orden
+  // numérico las solapas se intercalan (la opción 1 es del flyer, la 2 de
+  // rubros, la 5 otra vez del flyer) y un grupo tiene que ser contiguo.
+  // El 4º campo de la fila es el id de la solapa; las filas que no son de
+  // opción no lo llevan y se pintan como siempre.
+  _facSolOrden().forEach(function(sol){
+    var otra=(sol!=='flyer')?_escHtml(_solapaLabel(sol)):'';
+    _facOptsSol(sol).forEach(function(o){
+      rows.push(['opcion_'+o,'Ver &laquo;'+_escHtml(_optLabel(o))+'&raquo; (opci&oacute;n '+o+(otra?', solapa '+otra:'')+')',
+        'Habilita ese armador (flyer + legal propios; se administra en Config &rarr; Opciones). El selector aparece s&oacute;lo si tiene m&aacute;s de una habilitada.'+
+        (otra?' Con al menos una opci&oacute;n de esa solapa habilitada, el perfil ve la solapa <strong>'+otra+'</strong> en el header.':''),sol]);
+    });
   });
   rows.push(['notas','Bloc de notas','&Iacute;tem "Bloc de notas" en el men&uacute; del usuario.']);
   rows.push(['asesores_guardados','Base de datos: mis asesores','Permite guardar asesores predeterminados y cargarlos con un click desde los t&iacute;tulos "Asesor 1..4". Desde su nombre &rarr; <strong>Base de datos &rarr; Mis asesores</strong> los ve, los corrige, los sube por Excel o se los baja. La lista viaja con su cuenta (la ve desde cualquier computadora) y es privada.']);
@@ -1367,14 +1395,19 @@ function renderFacultades(){
       return '<div><span class="fac-sim" onclick="startFacSim(\''+r[0]+'\')" '+
         'title="Ver la app como la ve un '+_escAttr(r[1])+'">'+_escHtml(r[1])+' <span class="fac-eye">&#128065;</span></span></div>';
     }).join('')+'</div>';
+  var grpAnt='';
   var rows=_facRows().map(function(f){
-    var id=f[0];
+    var id=f[0],grp=f[3]||'';
+    // Al entrar en un grupo nuevo, primero su cabecera plegable.
+    var cab=(grp&&grp!==grpAnt)?_facGrpRow(grp,cols):'';
+    grpAnt=grp;
+    var clase='fac-row'+(grp?' fac-sub':'')+((grp&&!_facGrpOpen[grp])?' fac-oculta':'');
     // El tutorial automático nunca corre para el admin (_tourAutoStart corta
     // por _adminNow): en su columna no hay nada que decidir.
     var meCell=(id==='tutorial_auto')
       ?'<div title="No aplica al administrador: pod&eacute;s verlo desde tu nombre &rarr; Ver tutorial" style="color:var(--gray)">&mdash;</div>'
       :'<div><input type="checkbox"'+(_facEditMe[id]?' checked':'')+' onchange="_facFieldMe(\''+id+'\',this)"></div>';
-    return '<div class="fac-row" style="grid-template-columns:'+cols+'">'+
+    return cab+'<div class="'+clase+'"'+(grp?' data-grp="'+grp+'"':'')+' style="grid-template-columns:'+cols+'">'+
       '<div><div class="fac-name">'+f[1]+'</div><div class="fac-desc">'+f[2]+'</div></div>'+
       meCell+
       _FAC_ROLES.map(function(r){
@@ -1386,7 +1419,53 @@ function renderFacultades(){
   }).join('');
   host.innerHTML='<div class="fac-grid">'+head+rows+'</div>';
 }
-function _facField(role,f,v){if(_facEdit&&_facEdit[role])_facEdit[role][f]=!!v;}
+// Qué grupos de opciones están desplegados. Arrancan TODOS plegados (la lista de
+// opciones crece con cada flyer nuevo y así la pantalla se lee de un vistazo);
+// vive fuera de renderFacultades para que un re-render no cierre lo que el admin
+// acababa de abrir.
+var _facGrpOpen={};
+// Cabecera de un grupo: flecha, el nombre del menú (si el admin renombró la
+// solapa, acá se llama igual), cuántas opciones tiene, y por columna cuántas
+// están habilitadas — así no hay que desplegar para saber cómo está cada perfil.
+function _facGrpRow(sol,cols){
+  var opts=_facOptsSol(sol),n=opts.length;
+  var cuenta=function(fn){var k=0;opts.forEach(function(o){if(fn('opcion_'+o))k++;});return k;};
+  var cel=function(col,k){return '<div class="fac-cnt" id="fac-cnt-'+sol+'-'+col+'">'+k+'/'+n+'</div>';};
+  return '<div class="fac-row fac-grp'+(_facGrpOpen[sol]?' abierto':'')+'" data-grph="'+sol+'"'+
+      ' onclick="_facGrpTog(\''+sol+'\')" title="Mostrar u ocultar las opciones de esta solapa"'+
+      ' style="grid-template-columns:'+cols+'">'+
+    '<div><div class="fac-name"><span class="fac-car">&#9654;</span>'+_escHtml(_solapaLabel(sol))+
+      '<span class="fac-grp-n">'+n+(n===1?' opci&oacute;n':' opciones')+'</span></div></div>'+
+    cel('me',cuenta(function(k){return _facEditMe&&_facEditMe[k];}))+
+    _FAC_ROLES.map(function(r){
+      return cel(r[0],cuenta(function(k){return _facEdit&&_facEdit[r[0]]&&_facEdit[r[0]][k];}));
+    }).join('')+
+  '</div>';
+}
+function _facGrpTog(sol){
+  var host=document.getElementById('fac-grid');if(!host)return;
+  var abierto=!_facGrpOpen[sol];_facGrpOpen[sol]=abierto;
+  Array.prototype.forEach.call(host.querySelectorAll('[data-grp="'+sol+'"]'),function(el){
+    el.classList.toggle('fac-oculta',!abierto);
+  });
+  var h=host.querySelector('[data-grph="'+sol+'"]');if(h)h.classList.toggle('abierto',abierto);
+}
+// Refresca los números de las cabeceras al tildar. No se re-renderiza la grilla
+// a propósito: eso rearmaría _facEdit desde lo guardado y perdería los cambios
+// que todavía no se apretó "Guardar cambios".
+function _facCntSync(){
+  var host=document.getElementById('fac-grid');if(!host)return;
+  _facSolOrden().forEach(function(sol){
+    var opts=_facOptsSol(sol),n=opts.length;
+    var cuenta=function(fn){var k=0;opts.forEach(function(o){if(fn('opcion_'+o))k++;});return k;};
+    var set=function(col,k){var el=document.getElementById('fac-cnt-'+sol+'-'+col);if(el)el.textContent=k+'/'+n;};
+    set('me',cuenta(function(k){return _facEditMe&&_facEditMe[k];}));
+    _FAC_ROLES.forEach(function(r){
+      set(r[0],cuenta(function(k){return _facEdit&&_facEdit[r[0]]&&_facEdit[r[0]][k];}));
+    });
+  });
+}
+function _facField(role,f,v){if(_facEdit&&_facEdit[role])_facEdit[role][f]=!!v;_facCntSync();}
 // Columna "Vos". No deja quedarse sin ninguna opción del armador: sin opciones
 // no habría flyer que armar.
 function _facFieldMe(f,cb){
@@ -1397,6 +1476,7 @@ function _facFieldMe(f,cb){
     if(!quedan.length){cb.checked=true;showToast('Dejá al menos una opción del armador habilitada.');return;}
   }
   _facEditMe[f]=v;
+  _facCntSync();
 }
 function saveFacultadesChanges(){
   if(!_facEdit)return;
@@ -3637,6 +3717,9 @@ function _fgOptBarGestos(bar){
 //    primera (_fgOptLoading), así no se pisan los cachés ni se aplican dos veces.
 var _fgLegalShownFor=null;
 var _fgOptLoading={};
+// ¿Hay alguna opción en vuelo? Lo usa el arranque para saber si la vista previa
+// ya puede pintar o si todavía está viniendo la imagen de otra opción.
+function _fgOptCargando(){for(var k in _fgOptLoading)if(Object.prototype.hasOwnProperty.call(_fgOptLoading,k))return true;return false;}
 function _fgStashLegal(){
   var el=document.getElementById('legal-text');if(el==null||_fgLegalShownFor==null)return;
   var c=_fgOptCache[_fgLegalShownFor];
@@ -3698,6 +3781,7 @@ function _fgApplyOption(cache){
   }
   if(typeof calcSC==='function')calcSC();
   if(typeof _fgBenefFieldsSync==='function')_fgBenefFieldsSync(); // segundo tope según el cartel de la opción
+  _fgPrevAbrir();   // si venía trabada del ingreso: este ya es el flyer que corresponde
   if(typeof redraw==='function')redraw();
 }
 // Fuerza recarga de una opción (después de activar/calibrar) y refresca el armador si toca.
@@ -3789,6 +3873,15 @@ function _titAplicarOrden(){
 // cambio. Si el usuario alcanzó a elegir una solapa a mano mientras cargaban, se
 // respeta la suya y no se le mueve la pantalla abajo del dedo.
 var _inicioOrden=false,_inicioFac=false,_inicioHecho=false,_solapaAMano=false;
+// Y mientras eso se resuelve, la vista previa no se pinta. El flyer de la Opción 1
+// se descarga desde el primer momento (es el del flyer activo), así que sin esta
+// traba se veía un instante ESE flyer —el "original"— y recién después el de la
+// solapa que quedó primera. Nadie dibuja hasta saber cuál va: la destraba
+// _inicioListo (si la solapa de arranque usa la opción que ya está cargada) o
+// _fgApplyOption (cuando llegó la imagen de la otra), y como red de seguridad un
+// timeout en _showApp, para que un error de red no deje la pantalla en blanco.
+var _fgPrevGate=true;
+function _fgPrevAbrir(){if(!_fgPrevGate)return;_fgPrevGate=false;if(typeof redraw==='function')redraw();}
 function _inicioSolapaInit(){
   var h=document.querySelector('header');
   if(!h||h.dataset.inicioOk)return;
@@ -3801,10 +3894,13 @@ function _inicioListo(que){
   if(que==='orden')_inicioOrden=true;else _inicioFac=true;
   if(_inicioHecho||!_inicioOrden||!_inicioFac)return;
   _inicioHecho=true;
-  if(_solapaAMano)return;
+  if(_solapaAMano){_fgPrevAbrir();return;} // eligió él: su propio switchApp manda
   var vis=_appTabs().filter(function(el){return el.style.display!=='none';});
   var id=vis.length?_appTabId(vis[0]):'';
   if(id&&typeof switchApp==='function')switchApp(id);
+  // Si la solapa de arranque pidió otra opción, su imagen está viniendo: la vista
+  // previa la destraba _fgApplyOption, ya con el flyer que corresponde.
+  if(!_fgOptCargando())_fgPrevAbrir();
 }
 function _titGuardarOrden(){
   var nuevo=_appTabs().map(_appTabId);
@@ -4301,17 +4397,37 @@ function fgDrawAll(c,s,v){
   // guardo el fondo del contenido en coords base para poder recortar el blanco sobrante
   window._fgContentBottomBase=(s>0?bottomScaled/s:bottomScaled);
 }
-// Color REAL del fondo del flyer en la fila y, muestreado en 5 puntos entre x0 y
-// x1 (mediana: un píxel de letra suelto no lo desvía). Las zonas que se tapan
-// antes de escribir (empresa, montos) usan esto en vez de un color fijo: el tono
-// del PDF cambia de una versión a otra y con color fijo se notaba el cuadrito.
-// Si el canvas no deja leer píxeles (imagen sin CORS), cae en fallback.
-function _fgBgMuestra(c,x0,x1,y,fallback){
+// Color REAL del fondo del flyer en la franja bx0..bx1 a la altura by, TODO en
+// coordenadas base (las del calibrador, ancho _fgCfg().imgW). Las zonas que se
+// tapan antes de escribir encima (empresa, montos, cashback) usan esto en vez de
+// un color fijo: el tono del PDF cambia de una versión a otra y con color fijo se
+// notaba el cuadrito alrededor del número.
+// Lee la IMAGEN ORIGINAL, NO el canvas de la vista previa. El canvas está
+// dibujado a la escala del zoom, así que al alejar la vista la fila que se leía
+// caía bastante más arriba del arte y encima con los píxeles vecinos promediados
+// por el reescalado: salía un color que no era el fondo y el importe quedaba
+// "resaltado". Leyendo la imagen el color es el mismo a cualquier zoom y es el
+// mismo que sale en el flyer descargado.
+// Muestrea 5 puntos y devuelve la mediana (una letra suelta no lo desvía). Si la
+// imagen no deja leer píxeles (cargada sin CORS), cae en fallback.
+var _fgBgCv=null,_fgBgCtx=null;
+function _fgBgMuestra(bx0,bx1,by,fallback){
+  var im=window.baseImg;if(!im||!im.width)return fallback;
   try{
-    var rs=[],gs=[],bs=[];y=Math.max(1,Math.round(y));
-    for(var k=0;k<5;k++){
-      var x=Math.max(1,Math.round(x0+(x1-x0)*(k+0.5)/5));
-      var d=c.getImageData(x,y,1,1).data;rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);
+    var k=_fgSE(1);                                   // base → píxeles reales de la imagen
+    var y=Math.max(0,Math.min(im.height-1,Math.round(by*k)));
+    var x0=Math.max(0,Math.min(im.width-1,Math.round(bx0*k)));
+    var x1=Math.max(x0+1,Math.min(im.width,Math.round(bx1*k)));
+    var w=x1-x0;
+    if(!_fgBgCv){_fgBgCv=document.createElement('canvas');_fgBgCv.height=1;_fgBgCtx=_fgBgCv.getContext('2d',{willReadFrequently:true});}
+    if(_fgBgCv.width<w)_fgBgCv.width=w;               // sólo crece: reasignar el buffer es caro
+    _fgBgCtx.imageSmoothingEnabled=false;
+    _fgBgCtx.clearRect(0,0,w,1);
+    _fgBgCtx.drawImage(im,x0,y,w,1,0,0,w,1);          // copia 1:1, sin reescalar
+    var d=_fgBgCtx.getImageData(0,0,w,1).data,rs=[],gs=[],bs=[];
+    for(var i=0;i<5;i++){
+      var p=Math.min(w-1,Math.floor(w*(i+0.5)/5))*4;
+      rs.push(d[p]);gs.push(d[p+1]);bs.push(d[p+2]);
     }
     function med(a){a.sort(function(p,q){return p-q;});return a[2];}
     return 'rgb('+med(rs)+','+med(gs)+','+med(bs)+')';
@@ -4333,7 +4449,7 @@ function fgDrawEmpresa(c,s,empresa){
   var xc=Math.round(E.xc*se),yc=Math.round(E.yc*se);
   var lh=Math.round(E.lh*se),mw=Math.round(E.mw*se),fs=Math.round(E.fs*se);
   var ex=Math.round(E.ex*se),ry=yc-lh;
-  c.fillStyle=_fgBgMuestra(c,ex,ex+mw,ry-Math.max(3,Math.round(4*se)),E.bg); // fondo real, justo arriba del recuadro
+  c.fillStyle=_fgBgMuestra(E.ex,E.ex+E.mw,E.yc-E.lh-4,E.bg); // fondo real, 4px (base) arriba del recuadro
   c.fillRect(ex,ry,mw,lh*2+Math.round(8*se));
   var pe=_fgPeso(E.peso);
   c.font=pe+fs+"px Arial,sans-serif";
@@ -4398,18 +4514,21 @@ function fgDrawMontos(c,s,v){
   // importes en grilla 2x2 en vez de la fila de siempre). Sin valores propios
   // usa los del grupo, que es exactamente el flyer de toda la vida.
   var cajas=M.boxes.map(function(m){
+    var by=_fgMBoxY(M,m),bh=_fgMBoxH(M,m);
     return {mx:Math.round(m.xc*se),mw:Math.round(m.ew*se),
-            my:Math.round(_fgMBoxY(M,m)*se),mh:Math.round(_fgMBoxH(M,m)*se),col:m.col};
+            my:Math.round(by*se),mh:Math.round(bh*se),col:m.col,
+            bx:m.xc,bw:m.ew,by:by,bh:bh};   // las mismas medidas en coords base, para el muestreo
   });
   // Color de fondo REAL justo arriba de cada caja (_fgBgMuestra), con o sin
   // cashback: el tono del flyer cambia entre versiones del PDF y con M.bg fijo
-  // se notaba el recuadro alrededor de cada importe.
-  function _bgDe(mx,mw,mh,my){
-    return _fgBgMuestra(c,mx-mw/2,mx+mw/2,my-Math.round(mh/2)-Math.max(4,Math.round(5*se)),M.bg);
+  // se notaba el recuadro alrededor de cada importe. Va en coords base: el
+  // muestreo lee la imagen, no el canvas, así el color no cambia con el zoom.
+  function _bgDe(b){
+    return _fgBgMuestra(b.bx-b.bw/2,b.bx+b.bw/2,b.by-b.bh/2-5,M.bg);
   }
   // Se muestrea TODO antes de pintar: en la grilla 2x2 la caja de abajo tomaría
   // el color de la de arriba ya tapada (o de su número) en vez del arte.
-  var bgs=cajas.map(function(b){return _bgDe(b.mx,b.mw,b.mh,b.my);});
+  var bgs=cajas.map(function(b){return _bgDe(b);});
   cajas.forEach(function(b,i){
     c.fillStyle=bgs[i];c.fillRect(b.mx-b.mw/2,b.my-b.mh/2,b.mw,b.mh);
     c.font=_fgPeso(M.peso)+fs+"px Arial,sans-serif";
@@ -4426,7 +4545,7 @@ function fgDrawCashback(c,s,v){
   var K=_fgCfg().cashback,se=_fgSE(s);
   var xc=Math.round(K.xc*se),y=Math.round(K.y*se);
   var mw=Math.round(K.mw*se),mh=Math.round(K.mh*se);
-  c.fillStyle=_fgBgMuestra(c,xc-mw/2,xc+mw/2,y-Math.round(mh/2)-Math.max(4,Math.round(5*se)),K.bg);
+  c.fillStyle=_fgBgMuestra(K.xc-K.mw/2,K.xc+K.mw/2,K.y-K.mh/2-5,K.bg);
   c.fillRect(xc-mw/2,y-mh/2,mw,mh);
   var txt=v.nocb?'':_fgMontoMayor(v);
   if(!txt)return;                       // sin cashback: zona tapada, sin número
@@ -4749,9 +4868,11 @@ function _fgFinalHeightBase(){
 }
 // Preview: dibuja en un canvas completo y copia sólo la franja útil al canvas visible.
 // El canvas completo se reutiliza entre redibujos (antes se creaba uno nuevo por cada
-// tecla/zoom: con zoom alto son ~150MB reservados y tirados cada vez) y su contexto
-// lleva willReadFrequently porque _fgBgMuestra le lee píxeles; sin eso cada lectura
-// baja el canvas entero de la GPU. Juntas, estas dos cosas trababan la vista previa.
+// tecla/zoom: con zoom alto son ~150MB reservados y tirados cada vez), lo que sacó
+// el tironeo de la vista previa. Nadie le lee píxeles (_fgBgMuestra lee la imagen
+// original en un canvas de una fila), así que NO lleva willReadFrequently: con esa
+// bandera el navegador lo mantiene en memoria del CPU y dibujar el flyer entero en
+// cada tecla es más lento.
 var _fgFullCv=null,_fgFullCtx=null;
 // ── REDIBUJADO COALESCIDO ─────────────────────────────────────────────────────
 // redraw() es puramente visual (no devuelve nada y nadie lee el canvas justo
@@ -4767,12 +4888,13 @@ function fgRedrawCoalesced(){
   _fgRafId=requestAnimationFrame(function(){_fgRafId=0;fgRedraw();});
 }
 function fgRedraw(){
+  if(_fgPrevGate)return;              // recién ingresó: todavía no se sabe qué flyer va
   if(!window.baseImg||!baseImg.width)return;
   _fgBenefSyncNombre(); // la empresa puede cambiar sin evento input (padrón, historial)
   var v=getVals();
   _fgExtra=_fgExtraBaseFor(v); // el canvas tiene que contemplar el crecimiento
   var w=Math.round(baseImg.width*SC),fh=Math.round((baseImg.height+_fgExtra)*SC);
-  if(!_fgFullCv){_fgFullCv=document.createElement('canvas');_fgFullCtx=_fgFullCv.getContext('2d',{willReadFrequently:true});}
+  if(!_fgFullCv){_fgFullCv=document.createElement('canvas');_fgFullCtx=_fgFullCv.getContext('2d');}
   var full=_fgFullCv;
   if(full.width!==w||full.height!==fh){full.width=w;full.height=fh;}else _fgFullCtx.clearRect(0,0,w,fh);
   fgDrawAll(_fgFullCtx,SC,v); // setea _fgContentBottomBase
@@ -6116,11 +6238,11 @@ function _calZoneRects(){
 }
 function _calDraw(){
   if(!_cal)return;
-  // willReadFrequently: fgDrawEmpresa/fgDrawMontos leen píxeles de este mismo canvas
-  // (_fgBgMuestra) para tapar con el color real del flyer. Sin esto, cada getImageData
-  // fuerza al navegador a bajar TODO el canvas de la GPU — con el canvas agrandado por
-  // el zoom (arrastrar una zona redibuja en cada movimiento) se sentía trabado.
-  var cv=document.getElementById('cal-cv');if(!cv)return;var g=cv.getContext('2d',{willReadFrequently:true});var ds=_cal.ds;
+  // Sin willReadFrequently: nadie lee píxeles de este canvas (el muestreo del fondo
+  // lee la imagen original, no lo dibujado), y con esa bandera el navegador lo baja
+  // de la GPU a memoria del CPU — con el canvas agrandado por el zoom, arrastrar una
+  // zona (que redibuja en cada movimiento) se sentía trabado.
+  var cv=document.getElementById('cal-cv');if(!cv)return;var g=cv.getContext('2d');var ds=_cal.ds;
   var W=Math.round(_FG_TARGET_W*ds),H=Math.round(_cal.img.height*ds);
   // asignar width/height reasigna el buffer del canvas (caro); sólo si cambió el tamaño
   if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;cv.style.width=W+'px';cv.style.height=H+'px';}
