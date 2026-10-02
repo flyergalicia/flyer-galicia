@@ -4249,8 +4249,7 @@ var _BENEF_PLANTILLAS={
   // medidas del PDF, y recentrarlas las bajaba. "Centrar en el cuadro" sigue
   // estando a mano por si hace falta.
   adicional:{nombre:'Promo adicional: combustible',fijo:true,campos:{importe:'Tope de reintegro mensual'},lineas:[
-    {t:'Además, **{nombre}** tiene',g:'a',x:119,dx:-501,y:2428,fs:29,peso:500,color:'#000000',align:'left',mw:430},
-    {t:'una promo adicional.',g:'a',x:119,dx:-501,y:2462,fs:29,peso:500,color:'#000000',align:'left',mw:430},
+    {t:'Además, **{nombre}** tiene una promo adicional.',x:119,dx:-501,y:2445,fs:29,lh:34,maxLin:3,peso:500,color:'#000000',align:'left',mw:320},
     {t:'Tope de reintegro mensual {importe}',x:673,dx:53,y:2498,fs:21,peso:500,color:'#000000',align:'left',mw:470}
   ]},
   // Variante con los dos rubros: el cuadro trae impresos los dos bloques ("25% de
@@ -4573,6 +4572,35 @@ function fgDrawBenef(c,s,v){
   var nombre=(v.benefNombre==null?'':String(v.benefNombre)).trim(),importe=v.importe||'',importe2=v.importe2||importe;
   function font(L,seg,size){return (seg.f?(B.peso2||800):(L.peso||500))+' '+size+'px '+fam;}
   function ancho(L,segs,size){var w=0;segs.forEach(function(sg){c.font=font(L,sg,size);w+=c.measureText(sg.t).width;});return w;}
+  // Reparte el texto en renglones que entren en mw, palabra por palabra y sin
+  // perder qué tramos van resaltados. Sólo para las líneas con lh (interlínea):
+  // sin lh se comporta como siempre, un renglón que se achica si no entra.
+  // Es lo que hace que la bajada del cartel sea UN texto: el nombre de la empresa
+  // puede ser corto o larguísimo y el renglón se parte solo, sin que queden dos
+  // tamaños distintos pegados.
+  function renglones(L,segs,size,mw){
+    var toks=[];
+    segs.forEach(function(sg){
+      String(sg.t).split(/(\s+)/).forEach(function(p){if(p!=='')toks.push({t:p,f:sg.f});});
+    });
+    var lins=[],act=[],w=0;
+    function cerrar(){
+      while(act.length&&!act[act.length-1].t.trim())act.pop(); // sin espacios colgando
+      if(act.length)lins.push(act);
+      act=[];w=0;
+    }
+    toks.forEach(function(tk){
+      c.font=font(L,tk,size);
+      var tw=c.measureText(tk.t).width;
+      if(tk.t.trim()&&act.length&&w+tw>mw)cerrar();
+      if(!act.length&&!tk.t.trim())return;  // un renglón no arranca con espacios
+      act.push(tk);w+=tw;
+    });
+    cerrar();
+    return lins.length?lins:[[]];
+  }
+  function anchoLin(L,ln,size){var w=0;ln.forEach(function(tk){c.font=font(L,tk,size);w+=c.measureText(tk.t).width;});return w;}
+  function anchoMax(L,lins,size){var m=0;lins.forEach(function(ln){m=Math.max(m,anchoLin(L,ln,size));});return m;}
   // 1ª pasada: resuelvo el texto de cada línea y con qué tamaño entra en su ancho.
   var items=[];
   (B.lineas||[]).forEach(function(L){
@@ -4587,8 +4615,22 @@ function fgDrawBenef(c,s,v){
     t=t.replace(/\{importe2\}/g,function(){return importe2;}).replace(/\{total\}/g,function(){return _fgImporteSuma(importe,importe2);}).replace(/\{importe\}/g,function(){return importe;});
     if(!t.trim())return;
     var segs=_fgBenefSegs(t),base=Math.round(L.fs*se*2)/2,mw=Math.round(L.mw*se),fs=base;
-    var w=ancho(L,segs,fs);
-    if(w>mw&&w>0)fs=Math.max(Math.floor(fs*mw/w*2)/2,Math.max(1,Math.round(8*se)));
+    var min=Math.max(1,Math.round(8*se));
+    if(L.lh){
+      // Con interlínea: primero intenta repartir en renglones a tamaño normal, y
+      // sólo achica si ni así entra (una palabra más ancha que el recuadro, o más
+      // renglones de los permitidos).
+      var maxLin=L.maxLin||3;
+      while(fs>min){
+        var ls=renglones(L,segs,fs,mw);
+        if(ls.length<=maxLin&&anchoMax(L,ls,fs)<=mw)break;
+        fs=Math.round((fs-0.5)*2)/2;
+      }
+      if(fs<min)fs=min;
+    }else{
+      var w=ancho(L,segs,fs);
+      if(w>mw&&w>0)fs=Math.max(Math.floor(fs*mw/w*2)/2,min);
+    }
     items.push({L:L,segs:segs,base:base,fs:fs});
   });
   // Las líneas con la misma "g" son UN texto partido en renglones (p. ej. la
@@ -4607,14 +4649,21 @@ function fgDrawBenef(c,s,v){
   // 2ª pasada: dibujo, ya con el tamaño definitivo (el ancho se vuelve a medir
   // porque de él sale el centrado).
   items.forEach(function(it){
-    var L=it.L,segs=it.segs,fs=it.fs;
-    var w=ancho(L,segs,fs);
-    var x=Math.round(L.x*se),y=Math.round(L.y*se);
-    var cx=(L.align==='center')?x-w/2:x;
+    var L=it.L,fs=it.fs,mw=Math.round(L.mw*se);
+    // Los renglones se vuelven a repartir acá: el tamaño pudo cambiar al
+    // emparejar el grupo. Sin lh es uno solo, o sea lo de siempre.
+    var lins=L.lh?renglones(L,it.segs,fs,mw):[it.segs],n=lins.length;
+    var x=Math.round(L.x*se),y=Math.round(L.y*se),lh=Math.round((L.lh||0)*se);
     c.textBaseline='middle';c.textAlign='left';
-    segs.forEach(function(sg){
-      c.font=font(L,sg,fs);c.fillStyle=sg.f?(B.color2||'#fa6400'):(L.color||'#000');
-      c.fillText(sg.t,cx,y);cx+=c.measureText(sg.t).width;
+    lins.forEach(function(ln,i){
+      // El bloque queda centrado en la y de la línea: crece para arriba y para
+      // abajo por igual, así no se come lo que tiene debajo al sumar un renglón.
+      var yy=Math.round(y+(i-(n-1)/2)*lh);
+      var cx=(L.align==='center')?x-anchoLin(L,ln,fs)/2:x;
+      ln.forEach(function(sg){
+        c.font=font(L,sg,fs);c.fillStyle=sg.f?(B.color2||'#fa6400'):(L.color||'#000');
+        c.fillText(sg.t,cx,yy);cx+=c.measureText(sg.t).width;
+      });
     });
   });
 }
@@ -6361,7 +6410,7 @@ function _calZoneRects(){
     // ancho estimado del texto (sin canvas a mano): ~0.55em por carácter, tope mw
     var all=null;
     _calBenefLineas().forEach(function(L,i){
-      var w=_calBenefAnchoEst(L),h=Math.round(L.fs*1.25);
+      var w=_calBenefAnchoEst(L),h=Math.round(L.lh?L.lh*2:L.fs*1.25); // con interlínea, el texto ocupa varios renglones
       var x=(L.align==='left')?L.x:L.x-w/2,y=L.y-h/2;
       r['bl'+i]={x:x,y:y,w:w,h:h};
       if(!all)all={x0:x,y0:y,x1:x+w,y1:y+h};else{all.x0=Math.min(all.x0,x);all.y0=Math.min(all.y0,y);all.x1=Math.max(all.x1,x+w);all.y1=Math.max(all.y1,y+h);}
