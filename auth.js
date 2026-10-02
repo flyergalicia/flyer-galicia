@@ -3484,9 +3484,13 @@ function _opcSane(list){
     var sol=(n!==1&&_OPC_SOLAPAS.indexOf(o&&o.solapa)>=0)?o.solapa:'flyer';
     // orden: posición elegida a mano (arrastrando en la barra). Sin orden va al final, por número.
     var ord=(o&&typeof o.orden==='number'&&isFinite(o.orden))?o.orden:(1e6+n);
+    // reemplaza: nº de la opción a la que sucede (0 = ninguna). Ver _optVigente.
+    var rem=parseInt(o&&o.reemplaza,10);if(!(rem>=1)||rem===n)rem=0;
     out.push({n:n,nombre:String((o&&o.nombre)||'').replace(/[<>]/g,'').trim().slice(0,40)||('Opción '+n),
-      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():'',solapa:sol,orden:ord});
+      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():'',solapa:sol,orden:ord,reemplaza:rem});
   });
+  // Una opción borrada deja de ser reemplazable: si no, la cadena apunta al aire.
+  out.forEach(function(o){if(o.reemplaza&&!vistos[o.reemplaza])o.reemplaza=0;});
   if(!vistos[1])out.unshift({n:1,nombre:'Opción 1',color:'',solapa:'flyer',orden:-1});
   out.sort(function(a,b){return a.orden-b.orden||a.n-b.n;});
   out.forEach(function(o,i){o.orden=i;});
@@ -3524,6 +3528,27 @@ function _activeFile(opt){var n=_optN(opt);return n===1?'_active.json':'_active'
 function _legalFile(opt){var n=_optN(opt);return n===1?'_legal.json':'_legal'+n+'.json';}
 function _optLabel(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].nombre)||('Opción '+n);}
 // Solapa del header a la que pertenece la opción (ver _SOLAPAS).
+// Flyer vigente de una opción. Cada campaña nueva es una OPCIÓN nueva (con su
+// imagen, su legal y su calibración), pero las empresas del padrón tienen
+// guardado el NÚMERO de opción de su rubro: al armar el flyer del año siguiente
+// todas seguían apuntando al viejo. La opción nueva declara a cuál reemplaza
+// (Config → Opciones) y acá se sigue la cadena hasta la última: no se toca ni un
+// dato del padrón y sirve igual para la campaña que viene (3 → 7 → 9 …).
+// "visto" corta cualquier vuelta sobre sí misma, por si alguien arma un círculo.
+function _optVigente(opt){
+  var n=parseInt(opt,10)||0,visto={};
+  while(n&&!visto[n]){
+    visto[n]=1;
+    var sig=0;
+    for(var k=0;k<_FG_OPTS.length;k++){
+      var o=_OPC[_FG_OPTS[k]];
+      if(o&&parseInt(o.reemplaza,10)===n&&!visto[o.n]){sig=o.n;break;}
+    }
+    if(!sig)break;
+    n=sig;
+  }
+  return n;
+}
 function _optSolapa(opt){var n=_optN(opt),s=_OPC[n]&&_OPC[n].solapa;return (n!==1&&_OPC_SOLAPAS.indexOf(s)>=0)?s:'flyer';}
 function _solapaLabel(s){return _titLabel(_solCfg(s).id);} // nombre editable (4 toques en el header)
 // Solapa del armador que está a la vista. Se deriva SIEMPRE de la opción activa
@@ -7296,14 +7321,18 @@ function _padRubroOpts(){return _FG_OPTS.filter(function(o){return _optSolapa(o)
 function _padRubroOf(txt){
   var t=_padNorm(txt);if(!t||t==='-'||t==='no'||t==='sin rubro')return 0;
   var opts=_padRubroOpts(),i;
-  if(/^\d+$/.test(t)){var n=parseInt(t,10);return opts.indexOf(n)>=0?n:0;}
-  for(i=0;i<opts.length;i++)if(_padNorm(_optLabel(opts[i]))===t)return opts[i];
-  for(i=0;i<opts.length;i++){var l=_padNorm(_optLabel(opts[i]));if(l.indexOf(t)>=0||t.indexOf(l)>=0)return opts[i];}
+  // Un Excel viejo nombra el flyer del año pasado: se acepta igual y queda
+  // apuntando al vigente (_optVigente), que es a donde va a ir.
+  if(/^\d+$/.test(t)){var n=parseInt(t,10);return opts.indexOf(n)>=0?_optVigente(n):0;}
+  for(i=0;i<opts.length;i++)if(_padNorm(_optLabel(opts[i]))===t)return _optVigente(opts[i]);
+  for(i=0;i<opts.length;i++){var l=_padNorm(_optLabel(opts[i]));if(l.indexOf(t)>=0||t.indexOf(l)>=0)return _optVigente(opts[i]);}
   return 0;
 }
 function _padRubroLabel(r){
   var ru=_padRubroSane(r&&r.rubro);if(!ru.opcion)return '';
-  var lbl=_optLabel(ru.opcion),imp=_fgFmtImporte(ru.importe),imp2=_fgFmtImporte(ru.importe2);
+  // se muestra el flyer VIGENTE, que es al que va a ir: si el guardado fue
+  // reemplazado, el nombre viejo sólo confundiría.
+  var lbl=_optLabel(_optVigente(ru.opcion)),imp=_fgFmtImporte(ru.importe),imp2=_fgFmtImporte(ru.importe2);
   if(imp)lbl+=' · '+imp+((imp2&&imp2!==imp)?' / '+imp2:'');
   return lbl;
 }
@@ -7447,7 +7476,7 @@ function _padToAoa(rows){
     var line=[r.empresa||'',(r.cuits||[]).map(_padFmtCuit).join(', '),r.config||''];
     for(var n=1;n<=4;n++){var a=(r.asesores&&r.asesores[n-1])||{};line.push(a.nombre||'',a.celular||'',a.email||'');}
     var ru=_padRubroSane(r.rubro),f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
-    line.push(ru.opcion?_optLabel(ru.opcion):'',f1?f1.slice(1):'',(f2&&f2!==f1)?f2.slice(1):'');
+    line.push(ru.opcion?_optLabel(_optVigente(ru.opcion)):'',f1?f1.slice(1):'',(f2&&f2!==f1)?f2.slice(1):'');
     out.push(line);
   });
   return out;
@@ -7657,9 +7686,11 @@ function _padEditRowHtml(r,i){
     '</select>';
   var nAs=_padNumAsesores(r),open=!!_padEditAsOpen[i];
   // Flyer Rubros: rubro (opción) + topes; los topes sólo se habilitan con rubro
-  var ru=_padRubroSane(r.rubro),rOpts=_padRubroOpts(),f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
+  // sólo los flyers vigentes: elegir uno ya reemplazado no tendría sentido
+  var ru=_padRubroSane(r.rubro),rOpts=_padRubroOpts().filter(function(o){return _optVigente(o)===o;});
+  var f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
   var rubSel=!rOpts.length?'':'<select title="Rubro (Flyer Rubros)" onchange="_padEditRubro('+i+',\'opcion\',this.value)">'+
-    '<option value="0">Sin rubro</option>'+rOpts.map(function(o){return '<option value="'+o+'"'+(ru.opcion===o?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
+    '<option value="0">Sin rubro</option>'+rOpts.map(function(o){return '<option value="'+o+'"'+(_optVigente(ru.opcion)===o?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
     '<input class="login-inp pad-tope" placeholder="Tope" inputmode="numeric" value="'+_escAttr(f1?f1.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe\',this.value)">'+
     '<input class="login-inp pad-tope" placeholder="Tope 2" title="Segundo tope, s&oacute;lo si difiere (cuadro Ambos)" inputmode="numeric" value="'+_escAttr((f2&&f2!==f1)?f2.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe2\',this.value)">';
   var asHtml=r.asesores.map(function(a,n){
@@ -7893,7 +7924,7 @@ function _pgToggle(){
 // común. Negativo = tiene rubro pero la opción no está habilitada; 0 = ninguna.
 function _pgOptDe(r){
   var ru=_padRubroSane(r&&r.rubro);
-  if(ru.opcion)return (_FG_OPTS.indexOf(ru.opcion)>=0&&_can('opcion_'+ru.opcion))?ru.opcion:-ru.opcion;
+  if(ru.opcion){var q=_optVigente(ru.opcion);return (_FG_OPTS.indexOf(q)>=0&&_can('opcion_'+q))?q:-q;}
   var fl=_facOptsDe('flyer'),u=(typeof _fgUltOpt!=='undefined'&&_fgUltOpt)?_fgUltOpt.flyer:0;
   if(u&&fl.indexOf(u)>=0)return u;
   return fl[0]||0;
@@ -8454,7 +8485,8 @@ function _padCheckRubro(r,origen,cont){
   try{
     if(!r||!_can('padron_buscar'))return false;
     var ru=_padRubroSane(r.rubro),act=_optN(_fgOpt),enRubros=(_fgVista==='rubros');
-    var quiere=ru.opcion&&_FG_OPTS.indexOf(ru.opcion)>=0&&_can('opcion_'+ru.opcion)?ru.opcion:0;
+    var vig=_optVigente(ru.opcion);
+    var quiere=vig&&_FG_OPTS.indexOf(vig)>=0&&_can('opcion_'+vig)?vig:0;
     if(quiere===act)return false;
     if(!quiere&&!enRubros)return false; // sin rubro en Flyer Galicia: todo bien
     var firma=_padNorm(r.empresa)+'|'+quiere+'|'+act;
@@ -9968,6 +10000,14 @@ function _opcPintar(){
       '<select class="opc-sol" title="En qu&eacute; solapa del header aparece" onchange="_opcSet('+i+',\'solapa\',this.value)"'+(o.n===1?' disabled':'')+'>'+
         _OPC_SOLAPAS.map(function(s){return '<option value="'+s+'"'+(o.solapa===s?' selected':'')+'>'+_escHtml(_solapaLabel(s))+'</option>';}).join('')+
       '</select>'+
+      // "Reemplaza a": las empresas del padrón que tienen cargado el flyer viejo
+      // pasan solas a éste (ver _optVigente). Sólo entre opciones de la misma solapa.
+      (o.n===1?'':'<select class="opc-sol" title="Si este flyer reemplaza a uno anterior, las empresas que ten&iacute;an cargado el viejo pasan solas a &eacute;ste" onchange="_opcSet('+i+',\'reemplaza\',this.value)">'+
+        '<option value="0">No reemplaza a ninguno</option>'+
+        _opcEdit.filter(function(x){return x.n!==o.n&&x.solapa===o.solapa;}).map(function(x){
+          return '<option value="'+x.n+'"'+((parseInt(o.reemplaza,10)||0)===x.n?' selected':'')+'>Reemplaza a: '+_escHtml(x.nombre)+'</option>';
+        }).join('')+
+      '</select>')+
       (o.n===1?'<span style="font-size:.66rem;color:var(--gray)">La de todos los asesores</span>':
         '<button type="button" class="usr-btn warn" onclick="_opcQuitar('+i+')">Quitar</button>')+
       '<div class="opc-est" id="opc-est-'+o.n+'"></div>'+
@@ -9985,6 +10025,7 @@ function _opcSet(i,k,v){
   if(!_opcEdit||!_opcEdit[i])return;
   _opcEdit[i][k]=v;
   if(k==='color'){var row=document.querySelector('.opc-row[data-n="'+_opcEdit[i].n+'"] .opc-num');if(row)row.style.background=v;}
+  if(k==='solapa'){_opcEdit[i].reemplaza=0;_opcPintar();} // cambian los candidatos a reemplazar
 }
 function _opcAgregar(){
   if(!_opcEdit)return;
