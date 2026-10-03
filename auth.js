@@ -762,7 +762,13 @@ function initApp(){
         var z0=ZOOM;
         for(var i=0;i<Math.abs(pasos);i++)ZOOM=pasos>0?Math.min(ZOOM*1.25,_ZOOM_MAX):Math.max(ZOOM/1.25,0.2);
         if(ZOOM===z0)return;
-        calcSC();redraw();_updateZoomPct();
+        // redrawNow y NO redraw: el redraw normal junta las llamadas y pinta
+        // recién en el frame siguiente, así que el canvas que mido abajo todavía
+        // tendría el tamaño VIEJO, la corrección del scroll daría 0 y el zoom
+        // dejaría de seguir al cursor (se iría siempre al borde de arriba).
+        // Acá ya estamos adentro de un requestAnimationFrame: sigue siendo un
+        // solo dibujado por cuadro.
+        calcSC();(window.redrawNow||redraw)();_updateZoomPct();
         var cvRectAfter=cv.getBoundingClientRect();
         prevEl.scrollLeft+=(cvRectAfter.left+fx*cvRectAfter.width)-_pwX;
         prevEl.scrollTop+=(cvRectAfter.top+fy*cvRectAfter.height)-_pwY;
@@ -5085,6 +5091,8 @@ function fgRedrawCoalesced(){
   _fgRafId=requestAnimationFrame(function(){_fgRafId=0;fgRedraw();});
 }
 function fgRedraw(){
+  // un dibujado directo ya satisface al que estaba esperando el cuadro
+  if(_fgRafId){cancelAnimationFrame(_fgRafId);_fgRafId=0;}
   if(_fgPrevGate)return;              // recién ingresó: todavía no se sabe qué flyer va
   if(!window.baseImg||!baseImg.width)return;
   _fgBenefSyncNombre(); // la empresa puede cambiar sin evento input (padrón, historial)
