@@ -1085,7 +1085,19 @@ const checks = {
   // La opcion nueva declara a cual reemplaza y _optVigente sigue la cadena hasta
   // el flyer vigente: no se toca un dato del padron y sirve para la campana que
   // viene (3 -> 7 -> 9). El guard de "visto" corta cualquier circulo.
-  'opciones: la nueva reemplaza a la vieja (el padron la sigue)': _authSrc.includes('function _optVigente(') && _authSrc.includes('reemplaza:rem') && _authSrc.includes('if(o.reemplaza&&!vistos[o.reemplaza])o.reemplaza=0;') && _authSrc.includes('while(n&&!visto[n])') && _authSrc.includes('var q=_optVigente(ru.opcion);return (_FG_OPTS.indexOf(q)>=0') && _authSrc.includes('var vig=_optVigente(ru.opcion);') && _authSrc.includes('Reemplaza a: ') && _authSrc.includes('No reemplaza a ninguno'),
+  'opciones: la nueva reemplaza a la vieja (el padron la sigue)': _authSrc.includes('function _optVigente(') && _authSrc.includes('reemplaza:rem') && _authSrc.includes('if(o.reemplaza&&!vistos[o.reemplaza])o.reemplaza=0;') && _authSrc.includes('while(n&&!visto[n])') && _authSrc.includes('var n=_optVigente(ru.opcion);') && _authSrc.includes('Reemplaza a: ') && _authSrc.includes('No reemplaza a ninguno'),
+  // El flyer de cada empresa sale de la FILA del padron, no de la pantalla: con
+  // rubro, el flyer VIGENTE de ese rubro (el ultimo de ese rubro que nadie
+  // reemplazo); sin rubro, la Opcion 1 SIEMPRE (antes era "la ultima opcion de
+  // Flyer Galicia que miraste", asi que una masiva salia distinta segun donde
+  // estuvieras parado). El rubro de la empresa se deduce del flyer que tiene
+  // guardado o, si ese ya no existe, del texto con el que se cargo (rubro.txt).
+  // Si el rubro se quedo sin flyer, la empresa NO sale en el general: queda
+  // marcada con su motivo.
+  'padron: cada empresa sale en el flyer vigente de su rubro': _authSrc.includes('function _padRubroTipo(') && _authSrc.includes('function _optRubroTipo(') && _authSrc.includes('function _padRubroActivo(') && _authSrc.includes('function _padOptDeRubro(') && _authSrc.includes('return (fl.indexOf(1)>=0)?1:(fl[0]||0);') && !_authSrc.includes('u=(typeof _fgUltOpt') && _authSrc.includes('txt:txt') && _authSrc.includes('_optVigente(o)===o') && _authSrc.includes('el flyer de su rubro ya no está'),
+  // Antes de la descarga masiva, el resumen de en que flyer cae cada grupo: es la
+  // ultima chance de ver un desvio antes de generar 180 flyers.
+  'masivo: resumen antes de generar': _authSrc.includes("titulo:'Revisá antes de generar'") && _authSrc.includes('function _pgArrancar(){') && _authSrc.includes("'• '+grupos[o].length+' en '+_pgFormatoLbl(o)") && _authSrc.includes('class="opc-vig"'),
   'calibrador: partir de una base': _authSrc.includes('var _CFG_BASES=') && _authSrc.includes('function _calBase(') && _authSrc.includes('function _calBaseAplicar(') && _authSrc.includes('JSON.parse(JSON.stringify(b.cfg||FLYER_CFG_DEFAULT))') && _authSrc.includes("nombre:'Pasá tu sueldo: combustible'") && _authSrc.includes("nombre:'Pasá tu sueldo: súper + combustible'") && _authSrc.includes("{xc:915,ew:240,y:920,col:'#1d4070'}") && _authSrc.includes("{xc:626,ew:240,y:905,col:'#1d4070'}") && _authSrc.includes('id="cal-base"') && _authSrc.includes('onclick="_calBaseAplicar()"'),
   'calibrador: zoom + zona elegida sola': _authSrc.includes('function _calZoom(') && _authSrc.includes('function _calWheel(') && _authSrc.includes("cv.addEventListener('wheel',_calWheel,{passive:false});") && _authSrc.includes('if(_cal.sel&&_cal.sel!==z.id)return;') && _authSrc.includes('id="cal-zoom-pct"'),
   // Pegar datos del oficial (nombre/celular/mail) desde un texto pegado — SOLO ADMIN

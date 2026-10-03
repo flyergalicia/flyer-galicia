@@ -3477,6 +3477,10 @@ var _OPC_SOLAPAS=_SOLAPAS.map(function(s){return s.id;});
 function _solCfg(id){for(var i=0;i<_SOLAPAS.length;i++)if(_SOLAPAS[i].id===id)return _SOLAPAS[i];return _SOLAPAS[0];}
 function _esSolapaArmador(v){return _OPC_SOLAPAS.indexOf(v)>=0;}
 function _apptab(s){return document.getElementById('apptab-'+s);}
+// Rubros que puede tener un flyer de la solapa Rubros. "ninguno" = queda afuera
+// del ruteo por rubro (una opción suelta que no reemplaza a nada).
+var _OPC_RUBROS=['combustible','supermercado','ambos','ninguno'];
+var _OPC_RUBRO_LBL={combustible:'Combustible',supermercado:'Supermercado',ambos:'S\u00faper y combustible',ninguno:'Ninguno (no entra en el ruteo)'};
 function _opcSane(list){
   var out=[],vistos={};
   (Array.isArray(list)?list:[]).forEach(function(o){
@@ -3486,8 +3490,11 @@ function _opcSane(list){
     var ord=(o&&typeof o.orden==='number'&&isFinite(o.orden))?o.orden:(1e6+n);
     // reemplaza: nº de la opción a la que sucede (0 = ninguna). Ver _optVigente.
     var rem=parseInt(o&&o.reemplaza,10);if(!(rem>=1)||rem===n)rem=0;
+    // rubro: de qué rubro es este flyer. Vacío = se deduce del nombre
+    // (_optRubroTipo); "ninguno" = no entra en el ruteo por rubro.
+    var rub=(_OPC_RUBROS.indexOf(o&&o.rubro)>=0)?o.rubro:'';
     out.push({n:n,nombre:String((o&&o.nombre)||'').replace(/[<>]/g,'').trim().slice(0,40)||('Opción '+n),
-      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():'',solapa:sol,orden:ord,reemplaza:rem});
+      color:/^#[0-9a-f]{6}$/i.test(o&&o.color||'')?o.color.toLowerCase():'',solapa:sol,orden:ord,reemplaza:rem,rubro:rub});
   });
   // Una opción borrada deja de ser reemplazable: si no, la cadena apunta al aire.
   out.forEach(function(o){if(o.reemplaza&&!vistos[o.reemplaza])o.reemplaza=0;});
@@ -7314,9 +7321,56 @@ var _PAD_HEAD=(function(){
 function _padRubroSane(r){
   r=(r&&typeof r==='object')?r:{};
   var n=parseInt(r.opcion,10);if(!(n>0))n=0;
-  return {opcion:n,importe:_padDigits(r.importe),importe2:_padDigits(r.importe2)};
+  // txt: lo que decía la columna "rubro" del Excel. Se guarda para poder deducir
+  // el rubro aunque la opción de entonces ya no exista o se haya renombrado.
+  var txt=String(r.txt==null?'':r.txt).replace(/[<>]/g,'').trim().slice(0,40);
+  return {opcion:n,importe:_padDigits(r.importe),importe2:_padDigits(r.importe2),txt:txt};
 }
 function _padRubroOpts(){return _FG_OPTS.filter(function(o){return _optSolapa(o)==='rubros';});}
+// ── DE QUÉ RUBRO ES CADA FLYER ──────────────────────────────────────────────
+// Lo que no cambia de una campaña a otra es el RUBRO de la empresa: combustible,
+// supermercado o los dos. El flyer sí cambia (cada campaña es una opción nueva).
+// Por eso el padrón se resuelve por rubro y no por el número guardado: siempre
+// hay un flyer vigente de cada rubro y ahí va la empresa, sin tocar un dato.
+// El tipo sale del nombre de la opción ("Súper y combustible 2027" → ambos), y el
+// admin lo puede fijar a mano en Config → Opciones si el nombre no lo dice.
+function _padRubroTipo(txt){
+  var t=_padNorm(txt);if(!t)return '';
+  var comb=t.indexOf('combustible')>=0||t.indexOf('nafta')>=0||t.indexOf('estacion')>=0;
+  var sup=t.indexOf('super')>=0||t.indexOf('hiper')>=0||t.indexOf('mercado')>=0;
+  if(t.indexOf('ambos')>=0||(comb&&sup))return 'ambos';
+  if(comb)return 'combustible';
+  if(sup)return 'supermercado';
+  return '';
+}
+function _optRubroTipo(opt){
+  var o=_OPC[_optN(opt)];if(!o)return '';
+  if(o.rubro==='ninguno')return '';
+  return o.rubro||_padRubroTipo(o.nombre||'');
+}
+// Flyer vigente de un rubro: entre las opciones de ese rubro, la última que el
+// admin dejó en la barra y que nadie reemplazó. 0 si no hay ninguna.
+function _padRubroActivo(tipo){
+  if(!tipo)return 0;
+  var cand=_padRubroOpts().filter(function(o){return _optRubroTipo(o)===tipo&&_optVigente(o)===o;});
+  if(!cand.length)return 0;
+  return cand.sort(function(a,b){
+    var oa=(_OPC[a]&&_OPC[a].orden),ob=(_OPC[b]&&_OPC[b].orden);
+    if(oa==null)oa=a;if(ob==null)ob=b;
+    return oa-ob||a-b;
+  })[cand.length-1];
+}
+// A qué opción va una empresa: el flyer vigente de SU rubro. El rubro se deduce
+// de la opción que tiene guardada (aunque sea de una campaña vieja) o, si esa ya
+// no existe, del texto con el que se cargó (la columna del Excel). Recién si no
+// se puede deducir nada, queda la opción guardada siguiendo "Reemplaza a".
+function _padOptDeRubro(ru){
+  ru=_padRubroSane(ru);
+  var n=_optVigente(ru.opcion);
+  var tipo=(n&&_FG_OPTS.indexOf(n)>=0)?_optRubroTipo(n):'';
+  if(!tipo)tipo=_padRubroTipo(ru.txt);
+  return _padRubroActivo(tipo)||n;
+}
 // "Ambos" / "combustible" / "5" → nº de opción de rubros (0 si no coincide)
 function _padRubroOf(txt){
   var t=_padNorm(txt);if(!t||t==='-'||t==='no'||t==='sin rubro')return 0;
@@ -7329,10 +7383,10 @@ function _padRubroOf(txt){
   return 0;
 }
 function _padRubroLabel(r){
-  var ru=_padRubroSane(r&&r.rubro);if(!ru.opcion)return '';
-  // se muestra el flyer VIGENTE, que es al que va a ir: si el guardado fue
-  // reemplazado, el nombre viejo sólo confundiría.
-  var lbl=_optLabel(_optVigente(ru.opcion)),imp=_fgFmtImporte(ru.importe),imp2=_fgFmtImporte(ru.importe2);
+  var ru=_padRubroSane(r&&r.rubro),vig=_padOptDeRubro(ru);if(!vig)return '';
+  // se muestra el flyer VIGENTE de su rubro, que es al que va a ir: el nombre de
+  // la campaña vieja sólo confundiría.
+  var lbl=_optLabel(vig),imp=_fgFmtImporte(ru.importe),imp2=_fgFmtImporte(ru.importe2);
   if(imp)lbl+=' · '+imp+((imp2&&imp2!==imp)?' / '+imp2:'');
   return lbl;
 }
@@ -7373,7 +7427,8 @@ function _padRow(r){
     });
   }
   if(!emp&&!cuits.length)return null;
-  var rubro={opcion:_padRubroOf(g('rubro','rubros','beneficio','opcionrubro')),importe:_padDigits(g('tope','importe','tope1','importe1')),importe2:_padDigits(g('tope2','importe2'))};
+  var rtxt=g('rubro','rubros','beneficio','opcionrubro');
+  var rubro={opcion:_padRubroOf(rtxt),importe:_padDigits(g('tope','importe','tope1','importe1')),importe2:_padDigits(g('tope2','importe2')),txt:rtxt};
   return {empresa:emp,cuits:cuits,config:g('config','cashback','tipocashback','tipodecashback','tipo','configuracion'),asesores:as,rubro:rubro};
 }
 // Busca por CUIT (si hay 3+ dígitos) o por coincidencia parcial de la razón social:
@@ -7476,7 +7531,8 @@ function _padToAoa(rows){
     var line=[r.empresa||'',(r.cuits||[]).map(_padFmtCuit).join(', '),r.config||''];
     for(var n=1;n<=4;n++){var a=(r.asesores&&r.asesores[n-1])||{};line.push(a.nombre||'',a.celular||'',a.email||'');}
     var ru=_padRubroSane(r.rubro),f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
-    line.push(ru.opcion?_optLabel(_optVigente(ru.opcion)):'',f1?f1.slice(1):'',(f2&&f2!==f1)?f2.slice(1):'');
+    var vg=_padOptDeRubro(ru);
+    line.push(vg?_optLabel(vg):'',f1?f1.slice(1):'',(f2&&f2!==f1)?f2.slice(1):'');
     out.push(line);
   });
   return out;
@@ -7690,7 +7746,7 @@ function _padEditRowHtml(r,i){
   var ru=_padRubroSane(r.rubro),rOpts=_padRubroOpts().filter(function(o){return _optVigente(o)===o;});
   var f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
   var rubSel=!rOpts.length?'':'<select title="Rubro (Flyer Rubros)" onchange="_padEditRubro('+i+',\'opcion\',this.value)">'+
-    '<option value="0">Sin rubro</option>'+rOpts.map(function(o){return '<option value="'+o+'"'+(_optVigente(ru.opcion)===o?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
+    '<option value="0">Sin rubro</option>'+rOpts.map(function(o){return '<option value="'+o+'"'+(_padOptDeRubro(ru)===o?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
     '<input class="login-inp pad-tope" placeholder="Tope" inputmode="numeric" value="'+_escAttr(f1?f1.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe\',this.value)">'+
     '<input class="login-inp pad-tope" placeholder="Tope 2" title="Segundo tope, s&oacute;lo si difiere (cuadro Ambos)" inputmode="numeric" value="'+_escAttr((f2&&f2!==f1)?f2.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe2\',this.value)">';
   var asHtml=r.asesores.map(function(a,n){
@@ -7717,6 +7773,7 @@ function _padEditRubro(i,k,v){
   r.rubro=_padRubroSane(r.rubro);
   if(k==='opcion'){
     r.rubro.opcion=parseInt(v,10)||0;
+    r.rubro.txt=r.rubro.opcion?String(_optLabel(r.rubro.opcion)).slice(0,40):'';
     // habilita/deshabilita los topes de esa fila sin repintar todo
     var row=document.querySelectorAll('#padron-edit-list .pad-erow')[i];
     if(row)row.querySelectorAll('.pad-tope').forEach(function(el){el.disabled=!r.rubro.opcion;});
@@ -7919,20 +7976,32 @@ function _pgToggle(){
     if(btn)btn.innerHTML='&#9889; Generar flyers';
   }
 }
-// Opción con la que se genera esa empresa: el rubro del padrón si está
-// habilitado para este perfil; sin rubro, la última opción usada del armador
-// común. Negativo = tiene rubro pero la opción no está habilitada; 0 = ninguna.
+// Opción con la que se genera esa empresa. Sale de la FILA, no de la pantalla:
+//   · con rubro  → el flyer vigente de ese rubro (_padOptDeRubro)
+//   · sin rubro  → el armador general: la Opción 1, SIEMPRE.
+// Lo segundo antes era "la última opción de Flyer Galicia que hayas mirado", así
+// que una descarga masiva salía distinta según dónde estuvieras parado (viniendo
+// del MIXTO, las comunes salían en MIXTO). En 180 flyers eso no se nota hasta que
+// ya están hechos.
+// "Sin cashback" no entra acá: no cambia de flyer, sólo deja los importes vacíos.
+// Negativo = tiene rubro pero ese flyer no está habilitado para el perfil (la
+// pantalla lo muestra y no deja tildarla); 0 = no hay ninguna opción habilitada.
 function _pgOptDe(r){
   var ru=_padRubroSane(r&&r.rubro);
-  if(ru.opcion){var q=_optVigente(ru.opcion);return (_FG_OPTS.indexOf(q)>=0&&_can('opcion_'+q))?q:-q;}
-  var fl=_facOptsDe('flyer'),u=(typeof _fgUltOpt!=='undefined'&&_fgUltOpt)?_fgUltOpt.flyer:0;
-  if(u&&fl.indexOf(u)>=0)return u;
-  return fl[0]||0;
+  var q=_padOptDeRubro(ru);
+  if(q)return (_FG_OPTS.indexOf(q)>=0&&_can('opcion_'+q))?q:-q;
+  var fl=_facOptsDe('flyer');
+  return (fl.indexOf(1)>=0)?1:(fl[0]||0);
 }
 function _pgFormatoLbl(opt){return opt>0?(_solapaLabel(_optSolapa(opt))+' · '+_optLabel(opt)):'sin formato disponible';}
 function _pgAvisos(r,opt){
   var a=[];
-  if(opt<0)a.push('rubro «'+_optLabel(-opt)+'» no habilitado para tu perfil');
+  // opt<0: tiene rubro pero no se puede generar. Dos motivos muy distintos, y el
+  // segundo no se puede confundir con el primero: si el flyer ya no existe,
+  // _optLabel caería en la Opción 1 y el aviso diría cualquier cosa.
+  if(opt<0)a.push(_FG_OPTS.indexOf(-opt)>=0
+    ? ('rubro «'+_optLabel(-opt)+'» no habilitado para tu perfil')
+    : 'el flyer de su rubro ya no está: revisá el rubro de esta empresa');
   else if(!opt)a.push('sin opción habilitada');
   if(!_padNumAsesores(r))a.push('sin oficiales');
   if(_padCfgOf(r.config)<0)a.push('sin cashback');
@@ -8029,6 +8098,14 @@ function _pgGenerarRows(rows,fmt,ui,zipBase){
   var grupos={},orden=[],res={total:0,fmt:fmt,fecha:new Date(),porOpt:{},sinOf:[],sinCB:[],sinTope:[],omitidas:[],errores:[],carpetas:{}};
   rows.forEach(function(r){var o=_pgOptDe(r);if(o<=0){res.omitidas.push(r.empresa+(o<0?' (rubro '+_optLabel(-o)+' no habilitado)':' (sin opción habilitada)'));return;}if(!grupos[o]){grupos[o]=[];orden.push(o);}grupos[o].push(r);});
   if(!orden.length){showToast('Ninguna de las empresas tildadas se puede generar con tu perfil');return;}
+  // Última parada antes de generar: en qué flyer cae cada empresa. Con 180 flyers,
+  // descubrir un desvío después es rehacer todo (y mandar flyers equivocados).
+  var _detalle=orden.map(function(o){return '• '+grupos[o].length+' en '+_pgFormatoLbl(o);}).join('\n');
+  var _fuera=res.omitidas.length?('\n\n'+res.omitidas.length+' quedan afuera:\n• '+res.omitidas.slice(0,4).join('\n• ')+(res.omitidas.length>4?'\n• …':'')):'';
+  fgConfirm('',{titulo:'Revisá antes de generar',
+    texto:'Se van a generar '+(rows.length-res.omitidas.length)+' flyers:\n'+_detalle+_fuera,
+    ok:'Generar',cancelar:'Volver',peligro:false},function(si){if(si)_pgArrancar();});
+  function _pgArrancar(){
   var origen=_optN(_fgOpt),zip=new JSZip(),n=rows.length-res.omitidas.length,hecho=0;
   var impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||'')||'$24.000';
   var prog=document.getElementById(ui.prog),fill=document.getElementById(ui.fill),txt=document.getElementById(ui.txt),btn=document.getElementById(ui.btn);
@@ -8084,6 +8161,7 @@ function _pgGenerarRows(rows,fmt,ui,zipBase){
     });
   }
   grupo();
+  } // _pgArrancar
 }
 function _pgLista(arr,max){
   max=max||6;var out=arr.slice(0,max).join(', ');
@@ -8485,7 +8563,7 @@ function _padCheckRubro(r,origen,cont){
   try{
     if(!r||!_can('padron_buscar'))return false;
     var ru=_padRubroSane(r.rubro),act=_optN(_fgOpt),enRubros=(_fgVista==='rubros');
-    var vig=_optVigente(ru.opcion);
+    var vig=_padOptDeRubro(ru);
     var quiere=vig&&_FG_OPTS.indexOf(vig)>=0&&_can('opcion_'+vig)?vig:0;
     if(quiere===act)return false;
     if(!quiere&&!enRubros)return false; // sin rubro en Flyer Galicia: todo bien
@@ -9967,6 +10045,8 @@ function _opcStyle(){
     '.opc-row input[type=color]{width:38px;height:34px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:2px;background:none;cursor:pointer}'+
     '.opc-row .opc-sol{height:34px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:0 8px;font-size:.76rem;font-family:inherit;background:none;color:inherit;cursor:pointer}'+
     '.opc-row .opc-sol:disabled{opacity:.6;cursor:default}'+
+    '.opc-vig{font-size:.6rem;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:10px;background:#e8f5e9;color:#1b5e20;white-space:nowrap}'+
+    'html.dark .opc-vig{background:#1b3a1f;color:#a5d6a7}'+
     'html.dark .opc-row .opc-sol{border-color:#3a3e46;background:#22242a}'+
     '.opc-est{font-size:.68rem;color:var(--gray,#888);flex-basis:100%;padding-left:44px}'+
     '.opc-est b{color:var(--green,#1a9c50)}';
@@ -10000,6 +10080,12 @@ function _opcPintar(){
       '<select class="opc-sol" title="En qu&eacute; solapa del header aparece" onchange="_opcSet('+i+',\'solapa\',this.value)"'+(o.n===1?' disabled':'')+'>'+
         _OPC_SOLAPAS.map(function(s){return '<option value="'+s+'"'+(o.solapa===s?' selected':'')+'>'+_escHtml(_solapaLabel(s))+'</option>';}).join('')+
       '</select>'+
+      // De qué rubro es el flyer: es lo que hace que una empresa del padrón caiga
+      // SIEMPRE en el flyer vigente de su rubro, campaña tras campaña.
+      (o.solapa!=='rubros'?'':'<select class="opc-sol" title="De qu&eacute; rubro es este flyer. Las empresas de ese rubro van siempre al &uacute;ltimo flyer que tenga este valor." onchange="_opcSet('+i+',\'rubro\',this.value)">'+
+        '<option value="">Rubro: seg&uacute;n el nombre'+(_padRubroTipo(o.nombre)?' ('+_escHtml(_OPC_RUBRO_LBL[_padRubroTipo(o.nombre)])+')':' (no lo dice)')+'</option>'+
+        _OPC_RUBROS.map(function(rb){return '<option value="'+rb+'"'+(o.rubro===rb?' selected':'')+'>Rubro: '+_escHtml(_OPC_RUBRO_LBL[rb])+'</option>';}).join('')+
+      '</select>')+
       // "Reemplaza a": las empresas del padrón que tienen cargado el flyer viejo
       // pasan solas a éste (ver _optVigente). Sólo entre opciones de la misma solapa.
       (o.n===1?'':'<select class="opc-sol" title="Si este flyer reemplaza a uno anterior, las empresas que ten&iacute;an cargado el viejo pasan solas a &eacute;ste" onchange="_opcSet('+i+',\'reemplaza\',this.value)">'+
@@ -10010,6 +10096,11 @@ function _opcPintar(){
       '</select>')+
       (o.n===1?'<span style="font-size:.66rem;color:var(--gray)">La de todos los asesores</span>':
         '<button type="button" class="usr-btn warn" onclick="_opcQuitar('+i+')">Quitar</button>')+
+      // Cuál es HOY el flyer que recibe las empresas de ese rubro. Se muestra para
+      // no tener que deducirlo: si la vigente no es la que esperabas, se arrastra
+      // en la barra de opciones o se usa "Reemplaza a".
+      ((o.solapa==='rubros'&&_optRubroTipo(o.n)&&_padRubroActivo(_optRubroTipo(o.n))===o.n)
+        ? '<span class="opc-vig" title="Las empresas de este rubro salen con este flyer">VIGENTE</span>':'')+
       '<div class="opc-est" id="opc-est-'+o.n+'"></div>'+
     '</div>';
   }).join('');
