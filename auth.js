@@ -8531,7 +8531,7 @@ function _padApply(r){
     else{_fgSetAsesorOn(n,hay);_fgShowBlock(n,hay);}
   }
   _fgRefreshAddBtn();
-  _padRef=r;_padDismissed='';   // desde acá se vigilan los cambios contra el padrón
+  _padRef=r;_padDismissed='';_padRubroDismissed='';   // desde acá se vigilan los cambios contra el padrón
   _padShowNote(tiene?'':'Esta empresa no tiene oficiales asignados.');
   closePadronPop();_padCloseSug();
   // los asesores acaban de completarse desde el padrón: el cuadro de pegado
@@ -8554,10 +8554,14 @@ function _padAplicarTopes(r){
 // El padrón dice en qué rubro va cada empresa. Si el flyer se arma en otra
 // opción (Flyer Galicia con una empresa con rubro, o Rubros con una empresa sin
 // rubro / de otro rubro) avisa y ofrece cambiar de opción conservando lo
-// cargado. Nunca bloquea: "Seguir acá" se recuerda por empresa+opción.
+// cargado. Nunca bloquea.
 // origen: 'padron' (al elegir la empresa) | 'descarga' (antes de bajar el
 // flyer; cont = qué hacer si igual quiere descargar). Devuelve true si mostró
 // el aviso (la descarga espera al botón).
+// "Seguir acá" se recuerda por empresa+opción SÓLO para la descarga, para no
+// preguntar de nuevo si bajás PDF, PNG y Compartir uno atrás del otro. Al traer
+// la empresa del padrón el aviso sale SIEMPRE (y _padApply borra lo recordado,
+// así la descarga vuelve a tener su red de seguridad).
 var _padRubroDismissed='';
 function _padCheckRubro(r,origen,cont){
   try{
@@ -8568,7 +8572,7 @@ function _padCheckRubro(r,origen,cont){
     if(quiere===act)return false;
     if(!quiere&&!enRubros)return false; // sin rubro en Flyer Galicia: todo bien
     var firma=_padNorm(r.empresa)+'|'+quiere+'|'+act;
-    if(firma===_padRubroDismissed)return false;
+    if(origen!=='padron'&&firma===_padRubroDismissed)return false;
     if(document.getElementById('pad-upd'))return false;
     var emp=_escHtml(r.empresa||'Esta empresa'),aca=_escHtml(_solapaLabel(_fgVista)+' · '+_optLabel(act));
     var html,btn;
