@@ -1054,6 +1054,25 @@ const checks = {
   // hunter hereda lo que diga la matriz); (2) la descarga NO pasa por fgSavePDF
   // —que lee #filename y dispara _padAfterFlyer, el popup de dar de alta o
   // actualizar la empresa—; (3) la pantalla no escribe NADA en la base.
+  // El Hunter sacaba "el flyer viejo y todo descentrado": heredaba la Opción 1
+  // (acá "VIEJO FLYER", SIN imagen cargada) y, cuando una opción no trae imagen,
+  // _fgApplyOption deja la anterior pero sí cambia las coordenadas. Tres cosas
+  // sostienen el arreglo: (1) el Hunter arranca sin ninguna opción habilitada;
+  // (2) _hunOptDe sólo elige entre las habilitadas que TIENEN flyer, la vigente,
+  // y si no hay ninguna no arma nada (nunca cae en la Opción 1 por defecto, o
+  // sea: nunca usa _pgOptDe); (3) antes de dibujar se verifica que la opción
+  // cargada trajo su propia imagen.
+  'hunter: usa el flyer vigente habilitado, con su legal, o no lo arma':
+    _authSrc.includes("if(key.indexOf('opcion_')===0)return role!=='hunter'&&key==='opcion_1';") &&
+    ['_hunMetasCargar','_hunUsable','_hunVigente','_hunOptDe','_hunFlyerLbl','_hunConOpt']
+      .every(f => _hunSrc.includes('function ' + f + '(')) &&
+    _hunSrc.includes("_hunMeta[n]=!!(d&&d.imageUrl);") &&
+    _hunSrc.includes("return _FG_OPTS.indexOf(n)>=0&&_can('opcion_'+n)&&_hunMeta[n]===true;") &&
+    _hunSrc.includes('if(!c||!c.img||!c.imageUrl){') &&   // red de seguridad antes de dibujar
+    _hunSrc.includes('switchFlyerOption(opt,function(){') && // carga imagen + cfg + legal de ESA opción
+    !_hunSrc.includes('_pgOptDe') &&                      // nunca el fallback ciego a la Opción 1
+    _authSrc.includes('function _padRubroTipoDe(') &&
+    _hunSrc.includes('_padRubroTipoDe(ru)'),
   'hunter: solapa propia, candado en _can y descarga que no toca la base':
     html.includes('id="apptab-hunter"') && html.includes('id="view-hunter"') &&
     html.includes('id="hun-q"') && html.includes('id="hun-list"') &&
@@ -1067,7 +1086,7 @@ const checks = {
       .every(f => _hunSrc.includes('function ' + f + '(')) &&
     _hunSrc.includes('var _HUN_PAGINA=1000') &&            // PostgREST corta en 1000 filas
     _hunSrc.includes('_pgVals(r,opt,legal,') &&            // reusa el motor del masivo
-    _hunSrc.includes('_fgWithOpt(opt,') && _hunSrc.includes('fullRes(v)') &&
+    _hunSrc.includes('_hunConOpt(opt,') && _hunSrc.includes('fullRes(v)') &&
     !/\.insert\(|\.update\(|\.upsert\(|\.delete\(|savePadron|padron_replace/.test(_hunSrc) &&
     !/fgSavePDF|savePDF|_padAfterFlyer|addHistory/.test(_hunBody),
   'cashback: solapa + guardado en la nube': html.includes('id="at-cashback"') && html.includes('id="cashback-list"') && _authSrc.includes('function loadCashback(') && _authSrc.includes('function saveCashback(') && _authSrc.includes('function renderCashbackAdmin('),
@@ -1152,7 +1171,7 @@ const checks = {
   // guardado o, si ese ya no existe, del texto con el que se cargo (rubro.txt).
   // Si el rubro se quedo sin flyer, la empresa NO sale en el general: queda
   // marcada con su motivo.
-  'padron: cada empresa sale en el flyer vigente de su rubro': _authSrc.includes('function _padRubroTipo(') && _authSrc.includes('function _optRubroTipo(') && _authSrc.includes('function _padRubroActivo(') && _authSrc.includes('function _padOptDeRubro(') && _authSrc.includes('return (fl.indexOf(1)>=0)?1:(fl[0]||0);') && !_authSrc.includes('u=(typeof _fgUltOpt') && _authSrc.includes('txt:txt') && _authSrc.includes('_optVigente(o)===o') && _authSrc.includes('el flyer de su rubro ya no está'),
+  'padron: cada empresa sale en el flyer vigente de su rubro': _authSrc.includes('function _padRubroTipo(') && _authSrc.includes('function _optRubroTipo(') && _authSrc.includes('function _padRubroActivo(') && _authSrc.includes('function _padOptDeRubro(') && _authSrc.includes("return _optVigenteEntre(_facOptsDe('flyer'));") && _authSrc.includes('function _optVigenteEntre(') && !_authSrc.includes('u=(typeof _fgUltOpt') && _authSrc.includes('txt:txt') && _authSrc.includes('_optVigente(o)===o') && _authSrc.includes('el flyer de su rubro ya no está'),
   // Antes de la descarga masiva, el resumen de en que flyer cae cada grupo: es la
   // ultima chance de ver un desvio antes de generar 180 flyers.
   'masivo: resumen antes de generar': _authSrc.includes("titulo:'Revisá antes de generar'") && _authSrc.includes('function _pgArrancar(){') && _authSrc.includes("'• '+grupos[o].length+' en '+_pgFormatoLbl(o)") && _authSrc.includes('class="opc-vig"'),

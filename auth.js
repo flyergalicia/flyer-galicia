@@ -1124,8 +1124,13 @@ var _FAC_DEF={
 // cuando se sume una Opción 4, su fila aparece sola en la pantalla.
 function _facOptList(){return (typeof _FG_OPTS!=='undefined'&&_FG_OPTS.length)?_FG_OPTS:[1,2,3];}
 // Default de las opciones: hoy todos ven la Opción 1 y nadie más puede cambiarla.
+// El Hunter es la excepción: arranca SIN ninguna. Él no arma flyers, baja el que
+// le toca a cada empresa, así que el admin tiene que decir explícitamente cuáles
+// son los vigentes; hasta entonces no baja nada (decisión del 2026-10-08, después
+// de que heredara la Opción 1 —"VIEJO FLYER", sin imagen— y sacara el flyer de
+// ejemplo del template con las coordenadas por defecto).
 function _facDefault(role,key){
-  if(key.indexOf('opcion_')===0)return key==='opcion_1';
+  if(key.indexOf('opcion_')===0)return role!=='hunter'&&key==='opcion_1';
   return !!((_FAC_DEF[role]||{})[key]);
 }
 // Opciones de UNA solapa, en orden de número. Es la lista completa (habilitadas
@@ -3618,6 +3623,18 @@ function _optVigente(opt){
   return n;
 }
 function _optSolapa(opt){var n=_optN(opt),s=_OPC[n]&&_OPC[n].solapa;return (n!==1&&_OPC_SOLAPAS.indexOf(s)>=0)?s:'flyer';}
+// La VIGENTE entre varias candidatas: la que ninguna otra de la lista reemplaza
+// y, a igualdad, la de NÚMERO más alto. Las opciones se crean con número
+// creciente, así que la más nueva gana; el "orden" de la barra es de presentación
+// (el admin lo reacomoda arrastrando) y por eso no sirve de señal de recencia.
+function _optVigenteEntre(cand){
+  if(!cand||!cand.length)return 0;
+  var vivas=cand.filter(function(o){
+    return !cand.some(function(x){return x!==o&&_OPC[x]&&_optN(_OPC[x].reemplaza)===o;});
+  });
+  if(!vivas.length)vivas=cand;
+  return vivas.slice().sort(function(a,b){return a-b;})[vivas.length-1];
+}
 function _solapaLabel(s){return _titLabel(_solCfg(s).id);} // nombre editable (4 toques en el header)
 // Solapa del armador que está a la vista. Se deriva SIEMPRE de la opción activa
 // (ver _fgSyncVista), así historial/registros que cambian de opción cambian de solapa solos.
@@ -7425,16 +7442,20 @@ function _padRubroActivo(tipo){
     return oa-ob||a-b;
   })[cand.length-1];
 }
-// A qué opción va una empresa: el flyer vigente de SU rubro. El rubro se deduce
-// de la opción que tiene guardada (aunque sea de una campaña vieja) o, si esa ya
-// no existe, del texto con el que se cargó (la columna del Excel). Recién si no
-// se puede deducir nada, queda la opción guardada siguiendo "Reemplaza a".
-function _padOptDeRubro(ru){
+// De qué RUBRO es una empresa ('combustible' / 'supermercado' / 'ambos' o ''):
+// se deduce de la opción que tiene guardada (aunque sea de una campaña vieja) o,
+// si esa ya no existe, del texto con el que se cargó (la columna del Excel).
+function _padRubroTipoDe(ru){
   ru=_padRubroSane(ru);
   var n=_optVigente(ru.opcion);
   var tipo=(n&&_FG_OPTS.indexOf(n)>=0)?_optRubroTipo(n):'';
-  if(!tipo)tipo=_padRubroTipo(ru.txt);
-  return _padRubroActivo(tipo)||n;
+  return tipo||_padRubroTipo(ru.txt);
+}
+// A qué opción va una empresa: el flyer vigente de SU rubro. Si no se puede
+// deducir nada, queda la opción guardada siguiendo "Reemplaza a".
+function _padOptDeRubro(ru){
+  ru=_padRubroSane(ru);
+  return _padRubroActivo(_padRubroTipoDe(ru))||_optVigente(ru.opcion);
 }
 // "Ambos" / "combustible" / "5" → nº de opción de rubros (0 si no coincide)
 function _padRubroOf(txt){
@@ -8057,8 +8078,7 @@ function _pgOptDe(r){
   var ru=_padRubroSane(r&&r.rubro);
   var q=_padOptDeRubro(ru);
   if(q)return (_FG_OPTS.indexOf(q)>=0&&_can('opcion_'+q))?q:-q;
-  var fl=_facOptsDe('flyer');
-  return (fl.indexOf(1)>=0)?1:(fl[0]||0);
+  return _optVigenteEntre(_facOptsDe('flyer'));
 }
 function _pgFormatoLbl(opt){return opt>0?(_solapaLabel(_optSolapa(opt))+' · '+_optLabel(opt)):'sin formato disponible';}
 function _pgAvisos(r,opt){
@@ -10806,10 +10826,9 @@ function _fgUxInit(){
 
 // ══ PERFIL HUNTER — buscar una empresa y bajar SU flyer ══════════════════════
 // El Hunter no arma nada: escribe el nombre de una empresa que algún oficial ya
-// cargó y se baja el PDF que le corresponde, con los oficiales y el cashback que
-// esa empresa tenga guardados. Todo esto REUSA el camino del generador masivo
-// (_pgOptDe → _fgWithOpt → _pgVals → fullRes): no hay un segundo armador, es el
-// mismo motor con una fila sola.
+// cargó y se baja el PDF que le corresponde, con los oficiales, el cashback, los
+// topes y el legal que van con ESE flyer. Todo esto REUSA el motor del generador
+// masivo (_pgVals → fullRes): no hay un segundo armador.
 //
 // Lo que NO hace, a propósito:
 //   · no pasa por fgSavePDF/fgSavePNG: ésas leen #filename y disparan
@@ -10821,7 +10840,79 @@ function _fgUxInit(){
 // pantalla: el candado de la interfaz está en _can (ver _esHunter).
 var _HUN_MAX=40;      // filas listadas por búsqueda
 var _HUN_PAGINA=1000; // PostgREST corta en 1000 filas: sin paginar faltarían empresas
+var _HUN_TOPE_DEF='$24.000'; // tope de reintegro del template, si la empresa no trae uno
 var _hunRows=null,_hunHits=[],_hunSel=-1,_hunV=null,_hunCv=null,_hunFn='',_hunBusy=false,_hunCargando=false;
+
+// ── QUÉ FLYER LE TOCA A CADA EMPRESA ────────────────────────────────────────
+// Reglas acordadas con el usuario el 2026-10-08, después de que el Hunter sacara
+// "el flyer viejo y todo descentrado":
+//   · sólo entran las opciones HABILITADAS para el perfil (Facultades) y que
+//     TENGAN flyer cargado. Una opción sin imagen (acá: "VIEJO FLYER", "Sin
+//     cashback", "VIEJO ComB") no es un flyer: si se la elige, el motor se queda
+//     con la imagen que hubiera —o la de ejemplo del template— y encima le aplica
+//     las coordenadas de la opción nueva. De ahí salían los flyers descentrados.
+//   · entre las que compiten, la VIGENTE: la que ninguna otra candidata reemplaza
+//     y, a igualdad, la de NÚMERO más alto. Las opciones se crean con número
+//     creciente, así que la más nueva gana; el "orden" de la barra es de
+//     presentación y el admin lo reacomoda, por eso no sirve de señal de recencia.
+//   · si no queda ninguna, el flyer NO se arma. Antes caía en la Opción 1 a
+//     ciegas; ahora la fila dice por qué y el botón queda apagado.
+// Códigos negativos = no se puede armar, y cada uno tiene su motivo en _hunAvisos.
+var _HUN_SIN_GENERICO=0, _HUN_RUBRO_NO_HABIL=-1, _HUN_RUBRO_RARO=-2;
+var _hunMeta={},_hunMetaOk=false; // nº de opción -> ¿tiene flyer cargado?
+
+// ¿Tiene flyer cargado esa opción? (lo dice el _active{N}.json del bucket)
+function _hunMetasCargar(cb){
+  var opts=(typeof _facOpts==='function')?_facOpts():[];
+  var falta=opts.filter(function(n){return !(n in _hunMeta);});
+  if(!falta.length){_hunMetaOk=true;if(cb)cb();return;}
+  var pend=falta.length;
+  falta.forEach(function(n){
+    _fetchActiveMeta(n,function(d){
+      _hunMeta[n]=!!(d&&d.imageUrl);
+      if(!--pend){_hunMetaOk=true;if(cb)cb();}
+    });
+  });
+}
+function _hunUsable(n){
+  n=_optN(n);
+  return _FG_OPTS.indexOf(n)>=0&&_can('opcion_'+n)&&_hunMeta[n]===true;
+}
+// La vigente entre varias candidatas: el mismo criterio que usa el generador
+// desde la base de datos (ver _optVigenteEntre).
+function _hunVigente(cand){return _optVigenteEntre(cand);}
+function _hunOptDe(r){
+  var ru=_padRubroSane(r&&r.rubro);
+  var tipo=_padRubroTipoDe(ru);
+  if(tipo){
+    var cr=_padRubroOpts().filter(function(o){return _optRubroTipo(o)===tipo&&_hunUsable(o);});
+    return cr.length?_hunVigente(cr):_HUN_RUBRO_NO_HABIL;
+  }
+  // Tiene rubro guardado pero no se puede deducir de qué rubro es (la opción que
+  // tenía ya no existe y la columna del Excel no lo dice). No se adivina con el
+  // genérico: mandar el flyer equivocado es peor que no mandar ninguno.
+  if(ru.opcion)return _HUN_RUBRO_RARO;
+  var cg=_facOptsDe('flyer').filter(_hunUsable);
+  return cg.length?_hunVigente(cg):_HUN_SIN_GENERICO;
+}
+function _hunFlyerLbl(opt){
+  if(opt>0)return _solapaLabel(_optSolapa(opt))+' · '+_optLabel(opt);
+  if(opt===_HUN_RUBRO_NO_HABIL)return 'sin flyer para su rubro';
+  if(opt===_HUN_RUBRO_RARO)return 'rubro sin identificar';
+  return 'sin flyer habilitado';
+}
+function _hunAvisos(r,opt){
+  var a=[];
+  if(opt===_HUN_RUBRO_NO_HABIL)a.push('el flyer del rubro de esta empresa no está habilitado para tu perfil o todavía no está cargado');
+  else if(opt===_HUN_RUBRO_RARO)a.push('no se puede saber de qué rubro es: hay que revisarla en la base de datos');
+  else if(opt<=0)a.push('no hay ningún flyer habilitado para tu perfil');
+  if(opt>0){
+    if(!_padNumAsesores(r))a.push('sin oficiales asignados: el flyer sale sin datos de contacto');
+    if(_padCfgOf(r.config)<0)a.push('sin cashback: sale sin importes');
+    if(_optSolapa(opt)==='rubros'&&!_padRubroSane(r.rubro).importe)a.push('sin tope cargado: sale '+_HUN_TOPE_DEF);
+  }
+  return a;
+}
 
 // Se llama en cada switchApp('hunter'); los listeners se ponen una sola vez.
 function _hunInit(){
@@ -10834,6 +10925,7 @@ function _hunInit(){
       if(e.key==='Escape'){q.value='';_hunRender();}
     });
   }
+  _hunMetasCargar(_hunRender);
   _hunCargar(false,function(){if(q&&!_hunCargando){try{q.focus();}catch(e){}}});
 }
 
@@ -10882,17 +10974,10 @@ function _hunOficiales(r){
   ((r&&r.asesores)||[]).forEach(function(a){var n=((a&&a.nombre)||'').trim();if(n)ns.push(n);});
   return ns.length?ns.join('  ·  '):'sin oficiales asignados';
 }
-// Los avisos del generador, con el único que habla del formulario reescrito: el
-// Hunter no tiene formulario del que sacar el tope.
-function _hunAvisos(r,opt){
-  return _pgAvisos(r,opt).map(function(a){
-    return a.indexOf('sin tope')===0?'sin tope cargado: sale $24.000':a;
-  });
-}
 function _hunRender(){
   var list=document.getElementById('hun-list'),est=document.getElementById('hun-estado');
   if(!list)return;
-  if(_hunCargando){if(est)est.textContent='Buscando las empresas cargadas…';list.innerHTML='';return;}
+  if(_hunCargando||!_hunMetaOk){if(est)est.textContent='Buscando las empresas cargadas…';list.innerHTML='';return;}
   var q=(document.getElementById('hun-q')||{}).value||'';
   var total=(_hunRows||[]).length;
   if(!total){
@@ -10914,17 +10999,27 @@ function _hunRender(){
   // En el onclick va SÓLO el índice, nunca texto de otro usuario (el navegador
   // decodifica las entidades antes de ejecutar el JS: escapar ahí no alcanza).
   list.innerHTML=_hunHits.map(function(r,i){
-    var opt=_pgOptDe(r),av=_hunAvisos(r,opt);
+    var opt=_hunOptDe(r),av=_hunAvisos(r,opt);
     return '<div class="hun-row'+(i===_hunSel?' sel':'')+(opt>0?'':' hun-no')+'" onclick="_hunElegir('+i+')">'+
       '<div class="hun-emp">'+_escHtml(r.empresa||'(sin nombre)')+'</div>'+
       '<div class="hun-sub">'+_escHtml(_padSubtitulo(r))+'</div>'+
       '<div class="hun-of">'+_escHtml(_hunOficiales(r))+'</div>'+
-      '<div class="hun-tag">'+_escHtml(_pgFormatoLbl(opt))+'</div>'+
+      '<div class="hun-tag">'+_escHtml(_hunFlyerLbl(opt))+'</div>'+
       (av.length?'<div class="hun-av">'+_escHtml(av.join('  ·  '))+'</div>':'')+
     '</div>';
   }).join('');
 }
 
+// Carga la opción y recién devuelve el cache cuando está aplicada. No usa
+// _fgWithOpt a propósito: ése, si la opción pedida ya es la activa, llama al
+// callback sin cargar nada — y al entrar la activa es la 1, que acá no tiene
+// flyer. Así el cache queda siempre poblado y se puede verificar.
+function _hunConOpt(opt,cb){
+  opt=_optN(opt);
+  var c=_fgOptCache[opt];
+  if(c&&c.loaded&&_optN(_fgOpt)===opt){cb(c);return;}
+  switchFlyerOption(opt,function(){cb(_fgOptCache[_optN(opt)]);});
+}
 // Arma el flyer de esa fila y lo muestra. Un flyer a la vez: fgDrawAll escribe
 // los globales _fgExtra / _fgContentBottomBase que después lee _fgFinalHeightBase.
 function _hunElegir(i){
@@ -10934,32 +11029,40 @@ function _hunElegir(i){
   var dl=document.getElementById('hun-dl'),img=document.getElementById('hun-img'),vac=document.getElementById('hun-vacio');
   _hunV=null;_hunCv=null;_hunFn='';
   if(dl)dl.disabled=true;
-  var opt=_pgOptDe(r);
-  if(opt<=0){
-    if(img)img.style.display='none';
-    if(vac){vac.style.display='';
-      vac.innerHTML='<strong>No hay flyer disponible para esta empresa.</strong><br>'+_escHtml(_hunAvisos(r,opt).join('  ·  '));}
-    return;
-  }
   if(img)img.style.display='none';
+  var opt=_hunOptDe(r);
+  var frenar=function(titulo,detalle){
+    if(img)img.style.display='none';
+    if(vac){vac.style.display='';vac.innerHTML='<strong>'+titulo+'</strong>'+(detalle?'<br>'+_escHtml(detalle):'');}
+    _hunBusy=false;
+  };
+  if(opt<=0){frenar('No hay flyer para esta empresa.',_hunAvisos(r,opt).join('  ·  '));return;}
   if(vac){vac.style.display='';vac.textContent='Armando el flyer…';}
   _hunBusy=true;
-  _fgWithOpt(opt,function(){
+  _hunConOpt(opt,function(c){
+    // Si la opción no trajo imagen propia, NO se dibuja: el motor se habría
+    // quedado con la imagen anterior y las coordenadas de ésta (flyer viejo,
+    // todo descentrado). Es la red de seguridad del criterio de _hunOptDe.
+    if(!c||!c.img||!c.imageUrl){
+      _hunMeta[opt]=false; // no volver a ofrecerla en esta sesión
+      _hunRender();
+      frenar('Ese flyer todavía no está cargado.','«'+_optLabel(opt)+'» no tiene ningún flyer subido: avisale al administrador.');
+      return;
+    }
     try{
       // El legal lo acaba de aplicar la opción (_fgApplyOption corre antes que
       // este callback), así que el textarea ya tiene el de ESTE flyer.
       var legal=(document.getElementById('legal-text')||{}).value||'';
-      // Sin formulario del que sacar el tope: el de fábrica, igual que el masivo.
-      var v=_pgVals(r,opt,legal,'$24.000',{sinCB:[],sinOf:[],sinTope:[]});
+      var v=_pgVals(r,opt,legal,_HUN_TOPE_DEF,{sinCB:[],sinOf:[],sinTope:[]});
       var fc=fullRes(v);
       _hunV=v;_hunCv=fc;_hunFn='Flyer '+_fgSafeName(v.empresa||'empresa');
       if(img){img.src=fc.toDataURL('image/jpeg',0.9);img.style.display='';}
       if(vac)vac.style.display='none';
       if(dl)dl.disabled=false;
     }catch(e){
-      if(img)img.style.display='none';
-      if(vac){vac.style.display='';vac.textContent='No se pudo armar el flyer: '+((e&&e.message)||e);}
+      frenar('No se pudo armar el flyer.',(e&&e.message)||String(e));
       console.error('hunter:',e);
+      return;
     }
     _hunBusy=false;
   });
