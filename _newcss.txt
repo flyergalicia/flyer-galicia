@@ -329,6 +329,7 @@ html.dark .stabs{background:#22262c;border-color:#333840;}
 html.dark .stab:hover{background:#2a2f36;color:#e9eaec;}
 /* ===== FACULTADES POR PERFIL (Admin -> Facultades) ===== */
 .badge-pro{background:#e0f2f1;color:#00695c;}
+.badge-hunter{background:#ede7f6;color:#4527a0;}
 .fac-grid{border:1px solid var(--border);border-radius:9px;overflow:hidden;}
 .fac-row{display:grid;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);}
 .fac-row:last-child{border-bottom:none;}
@@ -993,3 +994,45 @@ html.dark .stat-card.sc-yellow span,html.dark .stat-card.sc-yellow strong{color:
 .glegal-vars-lbl{font-size:.68rem;color:var(--gray);margin-right:2px;}
 /* Promociones: orden y foco con el acento */
 .promos-th-orden:hover,.promos-th-orden.ordenando{color:var(--accent-2);}
+
+/* ===== PERFIL HUNTER (solapa "Buscar flyer") =====
+   Pantalla de sólo lectura: buscar una empresa cargada por un oficial y bajar su
+   PDF. Dos columnas como Promociones. NO reusa .prev del armador a propósito:
+   calcSC() hace querySelector('.prev') y no tiene por qué toparse con esta
+   pantalla (y las reglas de canvas de .prev no aplican acá: es un <img>). */
+.hunter-view{display:grid;grid-template-columns:420px 1fr;height:calc(100vh - 62px);overflow:hidden;}
+.hun-ayuda{font-size:.74rem;color:var(--gray);line-height:1.45;margin:-4px 0 12px;}
+.hun-estado{font-size:.68rem;color:var(--gray);margin:10px 0 8px;min-height:1em;}
+.hun-list{display:flex;flex-direction:column;gap:8px;}
+.hun-row{border:1px solid var(--border);border-left:3px solid var(--border);border-radius:9px;
+  padding:9px 11px;cursor:pointer;background:var(--card);transition:border-color .15s,background .15s;}
+.hun-row:hover{border-color:var(--accent-line);background:var(--accent-soft);}
+.hun-row.sel{border-color:var(--accent);border-left-color:var(--accent);background:var(--accent-soft);}
+/* Empresa cuyo flyer este perfil no puede bajar: se lista igual (para que el
+   hunter sepa que está cargada) pero se ve apagada y el aviso dice por qué. */
+.hun-row.hun-no{opacity:.72;}
+.hun-emp{font-family:"Syne",sans-serif;font-weight:700;font-size:.82rem;color:var(--dark);line-height:1.25;}
+.hun-sub{font-size:.67rem;color:var(--gray);margin-top:2px;}
+.hun-of{font-size:.69rem;color:var(--ink-2,var(--dark));margin-top:3px;}
+.hun-tag{display:inline-block;margin-top:6px;font-family:"Syne",sans-serif;font-size:.6rem;font-weight:700;
+  letter-spacing:.3px;padding:3px 8px;border-radius:20px;background:var(--navy-soft);color:var(--navy);}
+.hun-row.hun-no .hun-tag{background:#ffebee;color:#c62828;}
+.hun-av{font-size:.64rem;color:#b06000;margin-top:5px;}
+.hun-nada{border:1px dashed var(--border);border-radius:9px;padding:14px;font-size:.74rem;
+  color:var(--gray);line-height:1.5;text-align:center;}
+/* Columna derecha: el botón queda arriba y pegado mientras se baja el flyer
+   (el flyer mide varios miles de píxeles de alto). */
+.hun-prev{padding:20px;overflow:auto;background:var(--paper);display:flex;flex-direction:column;align-items:center;}
+.hun-head{position:sticky;top:-20px;z-index:2;width:100%;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:6px 0 12px;margin-bottom:4px;background:var(--paper);border-bottom:1px solid var(--border);}
+.hun-head .plabel{margin:0;}
+.hun-dl{flex-shrink:0;}
+.hun-dl:disabled{opacity:.5;cursor:not-allowed;}
+.hun-vacio{margin:auto 0;padding:24px;font-size:.78rem;color:var(--gray);text-align:center;line-height:1.6;}
+.hun-img{display:block;max-width:100%;height:auto;margin-top:14px;border-radius:6px;
+  box-shadow:0 2px 14px rgba(0,0,0,.14);}
+@media (max-width:900px){
+  .hunter-view{grid-template-columns:1fr;height:auto;overflow:visible;}
+  .hun-prev{height:auto;overflow:visible;}
+  .hun-head{position:static;}
+}

@@ -68,7 +68,7 @@ function dupMsg(m: string): string {
 // Sólo mails del banco pueden autorregistrarse (decisión del usuario, 2026-09-11).
 // El admin sigue pudiendo crear cualquier cuenta desde el panel (create_user).
 const DOMINIO_RE = /^[^@\s]+@bancogalicia\.com\.ar$/;
-const ROLES = ["admin", "vip", "pro", "asesor"];
+const ROLES = ["admin", "vip", "pro", "asesor", "hunter"];
 const ESTADOS_ALTA = ["active", "inactive"];
 // Nombre visible: largo acotado y sin < > (defensa en profundidad: el cliente
 // además escapa todo lo que pinta, pero no hay por qué guardar HTML en la base).

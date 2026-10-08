@@ -162,6 +162,9 @@ html = html.replace(
   '<div class="header-text app-tab" id="apptab-rubros" style="display:none" onclick="switchApp(\'rubros\')"><h1>Flyer Rubros</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-sueldo" style="display:none" onclick="switchApp(\'sueldo\')"><h1>Flyer Sueldo</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp(\'promos\')"><h1>Promociones</h1><span>BUSCADOR</span></div>' +
+  // Perfil Hunter: su única solapa (ver _VISTAS en auth.js). La muestra
+  // _applyFacultades sólo para ese rol, y para ese rol esconde las del armador.
+  '<div class="header-text app-tab" id="apptab-hunter" style="display:none" onclick="switchApp(\'hunter\')"><h1>Buscar flyer</h1><span>HUNTER</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
     '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
@@ -562,6 +565,7 @@ const userModal = `<div id="user-modal">
             <option value="asesor">Asesor</option>
             <option value="vip">VIP</option>
             <option value="pro">Pro</option>
+            <option value="hunter">Hunter</option>
             <option value="admin">Administrador</option>
           </select>
         </div>
@@ -646,7 +650,33 @@ const notesModal = `<div id="notes-modal">
 const toastEl = `<div id="toast"></div>`;
 
 const adminBackdrop = `<div id="admin-backdrop" onclick="closeAdminPanel()"></div>`;
-html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n</body>');
+// ── PERFIL HUNTER: vista de primer nivel (sin armador) ──────────────────────
+// Buscar una empresa cargada por cualquier oficial y bajar su PDF. El código
+// vive en auth.js (bloque "PERFIL HUNTER"); el markup va acá —y no en
+// _source.html— porque ese archivo se regenera entero al subir un flyer nuevo.
+// No usa la clase .prev del armador a propósito: calcSC() hace
+// querySelector('.prev') y no tiene por qué encontrarse con esta pantalla.
+const hunterView = '<div class="hunter-view" id="view-hunter" style="display:none">' +
+  '<div class="panel">' +
+    '<div class="ptitle">Flyer por empresa</div>' +
+    '<div class="hun-ayuda">Escrib&iacute; el nombre de la empresa (o su CUIT) y baj&aacute; el flyer que le corresponde, con sus oficiales y su cashback.</div>' +
+    '<div class="field"><label>Empresa</label><input type="text" id="hun-q" placeholder="Nombre de la empresa o CUIT" autocomplete="off"></div>' +
+    '<div class="hun-estado" id="hun-estado"></div>' +
+    '<div class="hun-list" id="hun-list"></div>' +
+  '</div>' +
+  '<div class="hun-prev">' +
+    '<div class="hun-head">' +
+      '<div class="plabel">Vista previa</div>' +
+      '<button class="btn bp hun-dl" id="hun-dl" onclick="_hunBajar()" disabled>' +
+        _svgIco('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>') +
+        ' Descargar PDF</button>' +
+    '</div>' +
+    '<div class="hun-vacio" id="hun-vacio">Eleg&iacute; una empresa de la lista para ver su flyer.</div>' +
+    '<img id="hun-img" class="hun-img" alt="Flyer de la empresa elegida" style="display:none">' +
+  '</div>' +
+'</div>';
+
+html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n' + hunterView + '\n</body>');
 
 // ── ZOOM TOOLBAR EN EL PREVIEW ───────────────────────────────────────────────
 html = html.replace(
@@ -817,6 +847,11 @@ if (_favM) {
 }
 // ── VERIFICACIONES ──────────────────────────────────────────────────────────
 const _cdnTags = html.match(/<script src="https:\/\/[^"]+"[^>]*>/g) || [];
+// Bloque del perfil Hunter y cuerpo de su descarga, para poder verificar por lo
+// que NO tienen (que no escriban en la base ni pasen por el armador).
+const _hunIni = _authSrc.indexOf('var _HUN_MAX=');
+const _hunSrc = _hunIni < 0 ? '' : _authSrc.slice(_hunIni);
+const _hunBody = (_authSrc.match(/function _hunBajar\(\)\{[\s\S]*?\n\}/) || [''])[0];
 const checks = {
   'CSS full-screen': html.includes('height:100vh;overflow:hidden'),
   'layout height': html.includes('height:calc(100vh - 62px)'),
@@ -1012,6 +1047,29 @@ const checks = {
   'facultades: gating bidireccional (quitar tambien saca)': _authSrc.includes('function _facShowPaste(') && _authSrc.includes('function _facShowAsesores(') && _authSrc.includes('function _facSyncOptBar('),
   'facultades: gating aplicado tras cargar la matriz': _authSrc.includes('loadFacultades(false,_applyFacultades);') && !_authSrc.includes('if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();}'),
   'rol Pro': html.includes('<option value="pro">Pro</option>') && _authSrc.includes("pro:'Pro'"),
+  'rol Hunter': html.includes('<option value="hunter">Hunter</option>') && _authSrc.includes("hunter:'Hunter'") && _authSrc.includes("['hunter','Hunter']"),
+  // Perfil Hunter: UNA solapa, buscar y bajar. Tres cosas que no se pueden
+  // romper sin que se note: (1) el candado del rol es UNA línea en _can, que
+  // apaga toda la app de una vez en vez de feature por feature (si se saca, el
+  // hunter hereda lo que diga la matriz); (2) la descarga NO pasa por fgSavePDF
+  // —que lee #filename y dispara _padAfterFlyer, el popup de dar de alta o
+  // actualizar la empresa—; (3) la pantalla no escribe NADA en la base.
+  'hunter: solapa propia, candado en _can y descarga que no toca la base':
+    html.includes('id="apptab-hunter"') && html.includes('id="view-hunter"') &&
+    html.includes('id="hun-q"') && html.includes('id="hun-list"') &&
+    html.includes('id="hun-img"') && html.includes('onclick="_hunBajar()"') &&
+    _authSrc.includes("if(_esHunter()&&f.indexOf('opcion_')!==0)return false;") &&
+    _authSrc.includes('function _esHunter(') && _authSrc.includes('function _rolVigente(') &&
+    _authSrc.includes('var _VISTAS=') && _authSrc.includes('function _vista(') &&
+    _authSrc.includes("_libWrap('_hunBajar',['jspdf'])") &&
+    !!_hunSrc && !!_hunBody &&
+    ['_hunInit','_hunCargar','_hunTraerTodo','_hunRender','_hunElegir','_hunBajar','_hunOficiales','_hunAvisos']
+      .every(f => _hunSrc.includes('function ' + f + '(')) &&
+    _hunSrc.includes('var _HUN_PAGINA=1000') &&            // PostgREST corta en 1000 filas
+    _hunSrc.includes('_pgVals(r,opt,legal,') &&            // reusa el motor del masivo
+    _hunSrc.includes('_fgWithOpt(opt,') && _hunSrc.includes('fullRes(v)') &&
+    !/\.insert\(|\.update\(|\.upsert\(|\.delete\(|savePadron|padron_replace/.test(_hunSrc) &&
+    !/fgSavePDF|savePDF|_padAfterFlyer|addHistory/.test(_hunBody),
   'cashback: solapa + guardado en la nube': html.includes('id="at-cashback"') && html.includes('id="cashback-list"') && _authSrc.includes('function loadCashback(') && _authSrc.includes('function saveCashback(') && _authSrc.includes('function renderCashbackAdmin('),
   'cashback: se aplica a todos al loguear': _authSrc.includes("loadCashback(false,function(){if(typeof redraw==='function')redraw();});"),
   'padron: sin oficiales asignados': _authSrc.includes('function _padAsesoresLbl(') && _authSrc.includes('sin oficiales asignados') && _authSrc.includes('function _padShowNote('),

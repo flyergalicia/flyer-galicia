@@ -551,8 +551,8 @@ function dlAsesoresTemplate(){
   showToast('Plantilla descargada!');
 }
 
-// Devuelve el badge HTML del rol (admin / vip / pro / asesor).
-var _ROLE_LBL={admin:'Admin',vip:'VIP',pro:'Pro',asesor:'Asesor'};
+// Devuelve el badge HTML del rol (admin / vip / pro / asesor / hunter).
+var _ROLE_LBL={admin:'Admin',vip:'VIP',pro:'Pro',asesor:'Asesor',hunter:'Hunter'};
 function _roleBadge(role){
   var cls=_ROLE_LBL[role]?role:'asesor';
   return '<span class="badge badge-'+cls+'">'+_ROLE_LBL[cls]+'</span>';
@@ -705,6 +705,7 @@ function _libInit(){
   _libWrap('exportFlyerLogsExcel',['xlsx']);
   _libWrap('_padXlsx',['xlsx']);
   _libWrap('_asXlsx',['xlsx']);                  // descarga de "Mis asesores"
+  _libWrap('_hunBajar',['jspdf']);               // perfil Hunter
   _libWrap('descargarExcelPromos',['exceljs']);
 }
 // Bajar el PDF es la acción central de la app: apenas la pantalla queda quieta
@@ -949,7 +950,9 @@ function _showApp(){
   setTimeout(_fgPrevAbrir,8000);
   document.getElementById('hdr-right').style.display='flex';
   document.getElementById('login-ov').style.display='none';
-  document.getElementById('layout').style.display='grid';
+  // El Hunter no tiene armador: su pantalla la abre switchApp('hunter') desde
+  // _applyFacultades/_inicioListo. Sin esta guarda se ve el armador un instante.
+  if(!_esHunter())document.getElementById('layout').style.display='grid';
 }
 
 // Muestra cuántas cuentas están pendientes de aprobación en el botón Admin
@@ -1110,7 +1113,11 @@ function _facMe(f){
 var _FAC_DEF={
   asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false},
   vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false},
-  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false}
+  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false},
+  // El Hunter no tiene NINGUNA de estas: lo único que se le decide son las filas
+  // opcion_N (qué flyers puede bajar). El candado está en _can, así que esta fila
+  // es sólo la foto coherente de lo que se guarda.
+  hunter:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -1166,7 +1173,7 @@ function _facRows(){
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
   return rows;
 }
-var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro']];
+var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro'],['hunter','Hunter']];
 // Mezcla lo guardado sobre los defaults: así una facultad NUEVA agregada más
 // adelante arranca con un valor sano aunque el JSON viejo no la tenga.
 function _facMerge(saved){
@@ -1208,7 +1215,17 @@ function saveFacultades(roles,cb){
 // _simRole no es null mientras el admin está simulando. Mientras dura, _can deja
 // de darle el bypass de admin: ve exactamente lo que vería ese perfil.
 var _simRole=null;
+// El rol que manda ahora mismo (el simulado gana, para que la vista previa sea fiel).
+function _rolVigente(){return _simRole||_myRole;}
+// Perfil HUNTER: la app se reduce a buscar una empresa ya cargada y bajar su flyer.
+// No arma, no carga, no edita. Ver el bloque "PERFIL HUNTER" al final del archivo.
+function _esHunter(){return _rolVigente()==='hunter';}
 function _can(f){
+  // Candado del perfil Hunter: lo ÚNICO que puede tener habilitado es qué flyers
+  // ve (las opcion_N). Así no hay que apagar feature por feature —ni acordarse de
+  // apagar la próxima que se agregue— y una facultad tildada por error tampoco lo
+  // alcanza. El admin que simula "hunter" cae acá también.
+  if(_esHunter()&&f.indexOf('opcion_')!==0)return false;
   if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);
   if(_admin)return _facMe(f); // todo, menos lo que se destildó a sí mismo
   return !!((_FAC&&_FAC[_myRole]||{})[f]);
@@ -1227,6 +1244,8 @@ function _applyFacultades(){
   var dp=document.getElementById('hdr-dd-pass');if(dp)dp.style.display=_adminNow()?'none':'flex';
   var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_adminNow()?'inline-flex':'none';
   var dn=document.getElementById('hdr-dd-notes');if(dn)dn.style.display=_can('notas')?'flex':'none';
+  // El tutorial recorre el armador: a un Hunter no le aplica ni un capítulo.
+  var dt=document.getElementById('hdr-dd-tour');if(dt)dt.style.display=_esHunter()?'none':'flex';
 
   if(_can('asesores_guardados')){_initAsesoresUI();_loadAsesores();} // trae la lista de la nube una vez
   _facShowAsesores(_can('asesores_guardados'));
@@ -1265,33 +1284,65 @@ function _applyFacultades(){
     if(!hay&&t.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
   });
 
-  // Solapa de primer nivel "Promociones": si el perfil pierde la facultad
-  // estando parado ahí (o durante la vista previa de otro rol), lo vuelve a
-  // la vista del flyer.
-  var canPromos=_can('promos_buscar');
-  var atab=document.getElementById('apptab-promos');
-  if(atab){
-    atab.style.display=canPromos?'':'none';
-    if(!canPromos&&atab.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
+  // Solapas de primer nivel que NO son el armador (Promociones, Buscar flyer):
+  // cada una se ve si su condición da true, y si el perfil la pierde estando
+  // parado ahí (o durante la vista previa de otro rol) se lo saca de esa pantalla.
+  _VISTAS.forEach(function(v){
+    var t=_apptab(v.id);if(!t)return;
+    var ok=v.ver();
+    t.style.display=ok?'':'none';
+    if(!ok&&t.classList.contains('active')&&typeof switchApp==='function')switchApp('flyer');
+  });
+
+  // El Hunter no arma flyers: las solapas del armador no existen para él (el
+  // bucle de arriba puede haber mostrado una solapa de rubros porque tiene
+  // habilitada esa opción para DESCARGARLA, que no es lo mismo que armarla).
+  // Bidireccional como todo lo de acá: "Flyer Galicia" no tiene facultad propia,
+  // así que si no se la vuelve a mostrar explícitamente, salir de la vista previa
+  // de un Hunter dejaba al admin sin armador hasta recargar la página.
+  var _hun=_esHunter();
+  var tFly=_apptab('flyer');if(tFly)tFly.style.display=_hun?'none':'';
+  if(_hun){
+    _OPC_SOLAPAS.forEach(function(s){var t=_apptab(s);if(t)t.style.display='none';});
+    var layH=document.getElementById('layout');if(layH)layH.style.display='none';
+    if(typeof switchApp==='function')switchApp('hunter');
   }
   _inicioListo('fac'); // recién acá se sabe qué solapas ve este perfil
 }
 
-// Solapas de primer nivel del header: "Flyer Galicia" y "Flyer Rubros" (las dos
-// usan el MISMO layout/armador: cambia qué opciones lista la barra y si se ven
-// los campos del beneficio) y "Promociones" (vista propia, gateada por la
-// facultad promos_buscar).
+// Solapas de primer nivel del header. Las del armador ("Flyer Galicia", "Flyer
+// Rubros", "Flyer Sueldo") usan el MISMO layout: cambia qué opciones lista la
+// barra y si se ven los campos del beneficio. Las demás tienen pantalla propia y
+// salen del registro de abajo.
+//
+// Vistas de primer nivel que NO son el armador: cada una tiene su propio <div>,
+// su condición para existir y qué hacer al abrirla. Sumar una es una entrada acá
+// + su div en _build.mjs, igual que _SOLAPAS para las del armador (antes
+// "Promociones" estaba escrita a mano en switchApp, _fgSyncVista y
+// _applyFacultades, y sumar una segunda era duplicar los tres).
+var _VISTAS=[
+  {id:'promos',el:'view-promos',ver:function(){return _can('promos_buscar');},
+   init:function(){if(typeof initPromosTab==='function')initPromosTab();}},
+  {id:'hunter',el:'view-hunter',ver:function(){return _esHunter();},
+   init:function(){if(typeof _hunInit==='function')_hunInit();}}
+];
+function _vista(id){for(var i=0;i<_VISTAS.length;i++)if(_VISTAS[i].id===id)return _VISTAS[i];return null;}
 function switchApp(view){
-  var lay=document.getElementById('layout'),pv=document.getElementById('view-promos');
-  if(view==='promos'&&!_can('promos_buscar'))view='flyer'; // por si lo llaman sin permiso
+  var lay=document.getElementById('layout');
+  var vi=_vista(view);
+  if(vi&&!vi.ver())view='flyer'; // por si lo llaman sin permiso
+  if(_esHunter())view='hunter';  // su única pantalla: no hay armador al que volver
   if(_esSolapaArmador(view)&&view!=='flyer'&&!_facOptsDe(view).length)view='flyer';
+  vi=_vista(view);
   var arm=_esSolapaArmador(view);
   if(lay)lay.style.display=arm?'grid':'none';
-  if(pv)pv.style.display=(view==='promos')?'grid':'none';
-  var tp=document.getElementById('apptab-promos');if(tp)tp.classList.toggle('active',view==='promos');
-  if(view==='promos'){
+  _VISTAS.forEach(function(v){
+    var el=document.getElementById(v.el);if(el)el.style.display=(v.id===view)?'grid':'none';
+    var t=_apptab(v.id);if(t)t.classList.toggle('active',v.id===view);
+  });
+  if(vi){
     _OPC_SOLAPAS.forEach(function(s){var t=_apptab(s);if(t)t.classList.remove('active');});
-    if(typeof initPromosTab==='function')initPromosTab();
+    vi.init();
     return;
   }
   // Armador: si la opción activa no es de esta solapa, paso a la última que usé
@@ -1310,11 +1361,10 @@ var _fgUltOpt={flyer:1}; // las demás solapas se anotan solas al visitarlas
 function _fgSyncVista(){
   var v=_optSolapa(_fgOpt),cambio=(v!==_fgVista);
   _fgVista=v;_fgUltOpt[v]=_optN(_fgOpt);
-  var tp=document.getElementById('apptab-promos');
   var lay=document.getElementById('layout'),enArmador=!!(lay&&lay.style.display==='grid');
   if(enArmador){
     _OPC_SOLAPAS.forEach(function(s){var t=_apptab(s);if(t)t.classList.toggle('active',v===s);});
-    if(tp)tp.classList.remove('active');
+    _VISTAS.forEach(function(x){var t=_apptab(x.id);if(t)t.classList.remove('active');});
   }
   if(cambio)_facSyncOptBar();else _fgRenderOptBar();
   var bf=document.getElementById('fg-benef-fields');if(bf)bf.style.display=_solCfg(v).benef?'':'none';
@@ -1417,6 +1467,11 @@ function renderFacultades(){
       '<div><div class="fac-name">'+f[1]+'</div><div class="fac-desc">'+f[2]+'</div></div>'+
       meCell+
       _FAC_ROLES.map(function(r){
+        // El Hunter sólo descarga: de todas estas filas, las únicas que significan
+        // algo para él son las opcion_N (qué flyers puede bajar). El resto no se
+        // puede tildar, y si quedó tildado en el JSON viejo _can lo ignora igual.
+        if(r[0]==='hunter'&&id.indexOf('opcion_')!==0)
+          return '<div title="No aplica al perfil Hunter: s&oacute;lo busca una empresa y baja su flyer" style="color:var(--gray)">&mdash;</div>';
         var on=_facEdit[r[0]]&&_facEdit[r[0]][id];
         return '<div><input type="checkbox"'+(on?' checked':'')+
           ' onchange="_facField(\''+r[0]+'\',\''+id+'\',this.checked)"></div>';
@@ -3870,7 +3925,8 @@ function _askOption(title,cb){
 // se renombran con 4 toques seguidos (sólo admin), igual que las opciones de la
 // barra. Se guardan en _titulos.json y los ven todos los usuarios.
 var TITULOS_FILE='_titulos.json',_TIT={};
-var _TIT_DEF={ptitle:'Flyer Galicia 5.5',promos:'Promociones',promos_ptitle:'Buscador de Promociones'};
+var _TIT_DEF={ptitle:'Flyer Galicia 5.5',promos:'Promociones',promos_ptitle:'Buscador de Promociones',
+  hunter:'Buscar flyer',hunter_ptitle:'Flyer por empresa'};
 // Un título por solapa del armador, derivado del registro: la solapa nueva
 // aparece sola en los 4 toques y en _titulos.json, sin tocar esta lista.
 _SOLAPAS.forEach(function(s){_TIT_DEF[s.id]=s.def;});
@@ -3949,6 +4005,7 @@ function _titGuardarOrden(){
 function _titElem(key){
   if(key==='ptitle')return document.querySelector('#layout .panel .ptitle');
   if(key==='promos_ptitle')return document.querySelector('#view-promos .ptitle');
+  if(key==='hunter_ptitle')return document.querySelector('#view-hunter .ptitle');
   return document.querySelector('#apptab-'+key+' h1');
 }
 function _titLabel(key){return (_TIT[key]&&String(_TIT[key]).trim())||_TIT_DEF[key]||'';}
@@ -7441,8 +7498,10 @@ function _padRow(r){
 }
 // Busca por CUIT (si hay 3+ dígitos) o por coincidencia parcial de la razón social:
 // todas las palabras que escribís tienen que estar en el nombre, en cualquier orden.
-function padronSearch(q,limit){
-  var rows=_padron||[],lim=limit||60;
+// El tercer parámetro deja buscar en OTRA lista que no sea el padrón propio (lo
+// usa el perfil Hunter, que busca en las empresas de todos los oficiales).
+function padronSearch(q,limit,lista){
+  var rows=lista||_padron||[],lim=limit||60;
   var t=_padNorm(q);
   if(!t)return rows.slice(0,lim);
   var dig=_padDigits(q),toks=t.split(' ').filter(Boolean),out=[];
@@ -10743,4 +10802,176 @@ function _fgUxInit(){
   try{_fgShareInit();}catch(e){console.warn('share:',e);}
   try{_fgWorkInit();}catch(e){console.warn('work:',e);}
   try{_fgTipInit();}catch(e){console.warn('tip:',e);}
+}
+
+// ══ PERFIL HUNTER — buscar una empresa y bajar SU flyer ══════════════════════
+// El Hunter no arma nada: escribe el nombre de una empresa que algún oficial ya
+// cargó y se baja el PDF que le corresponde, con los oficiales y el cashback que
+// esa empresa tenga guardados. Todo esto REUSA el camino del generador masivo
+// (_pgOptDe → _fgWithOpt → _pgVals → fullRes): no hay un segundo armador, es el
+// mismo motor con una fila sola.
+//
+// Lo que NO hace, a propósito:
+//   · no pasa por fgSavePDF/fgSavePNG: ésas leen #filename y disparan
+//     _padAfterFlyer, que ofrece dar de alta o actualizar la empresa — justo lo
+//     que un Hunter no puede hacer;
+//   · no toca el formulario del armador (fullRes no lee inputs, ver fgDrawAll);
+//   · no escribe NADA en la base, salvo el registro de la descarga en flyer_logs.
+// Quién ve qué lo hace cumplir la RLS (migración 011_rol_hunter.sql), no esta
+// pantalla: el candado de la interfaz está en _can (ver _esHunter).
+var _HUN_MAX=40;      // filas listadas por búsqueda
+var _HUN_PAGINA=1000; // PostgREST corta en 1000 filas: sin paginar faltarían empresas
+var _hunRows=null,_hunHits=[],_hunSel=-1,_hunV=null,_hunCv=null,_hunFn='',_hunBusy=false,_hunCargando=false;
+
+// Se llama en cada switchApp('hunter'); los listeners se ponen una sola vez.
+function _hunInit(){
+  var q=document.getElementById('hun-q');
+  if(q&&!q.dataset.hunOk){
+    q.dataset.hunOk='1';
+    q.addEventListener('input',_hunRender);
+    q.addEventListener('keydown',function(e){
+      if(e.key==='Enter'&&_hunHits.length){e.preventDefault();_hunElegir(0);return;}
+      if(e.key==='Escape'){q.value='';_hunRender();}
+    });
+  }
+  _hunCargar(false,function(){if(q&&!_hunCargando){try{q.focus();}catch(e){}}});
+}
+
+// Todas las empresas que la RLS deja ver (para un Hunter: las de todos los
+// oficiales). Sin .eq('user_id') a propósito — el filtro lo hace el servidor.
+function _hunCargar(force,cb){
+  if(_hunRows&&!force){if(cb)cb(_hunRows);return;}
+  if(!_me){_hunRows=[];_hunRender();if(cb)cb(_hunRows);return;}
+  if(_hunCargando){if(cb)cb(null);return;}
+  _hunCargando=true;_hunRender();
+  _hunTraerTodo(0,[],function(err,filas){
+    _hunCargando=false;
+    if(err){
+      _hunRows=_hunRows||[];
+      var est=document.getElementById('hun-estado');
+      if(est)est.textContent='No se pudieron cargar las empresas: '+((err&&err.message)||err);
+      if(cb)cb(_hunRows);return;
+    }
+    _hunRows=_padSane(filas);
+    // El orden lo pone el cliente: el de la base es por id (hace falta una clave
+    // única para paginar sin repetir ni saltear filas) y dos oficiales pueden
+    // tener cargada la misma razón social.
+    _hunRows.sort(function(a,b){return _padNorm(a.empresa).localeCompare(_padNorm(b.empresa));});
+    _hunSel=-1;
+    _hunRender();
+    if(cb)cb(_hunRows);
+  });
+}
+function _hunTraerTodo(desde,acc,cb){
+  _sb.from(_PADRON_TABLE).select(_PADRON_COLS+',id').order('id',{ascending:true})
+    .range(desde,desde+_HUN_PAGINA-1)
+    .then(function(r){
+      if(r&&r.error){cb(r.error,acc);return;}
+      var filas=(r&&r.data)||[];
+      acc=acc.concat(filas);
+      if(filas.length===_HUN_PAGINA)_hunTraerTodo(desde+_HUN_PAGINA,acc,cb);
+      else cb(null,acc);
+    }).catch(function(e){cb(e,acc);});
+}
+
+// Los oficiales POR NOMBRE: es lo que distingue dos cargas de la misma empresa
+// (el nombre de quien la cargó no se puede mostrar: la RLS no le deja leer los
+// perfiles de los demás) y además es lo que va impreso en el flyer.
+function _hunOficiales(r){
+  var ns=[];
+  ((r&&r.asesores)||[]).forEach(function(a){var n=((a&&a.nombre)||'').trim();if(n)ns.push(n);});
+  return ns.length?ns.join('  ·  '):'sin oficiales asignados';
+}
+// Los avisos del generador, con el único que habla del formulario reescrito: el
+// Hunter no tiene formulario del que sacar el tope.
+function _hunAvisos(r,opt){
+  return _pgAvisos(r,opt).map(function(a){
+    return a.indexOf('sin tope')===0?'sin tope cargado: sale $24.000':a;
+  });
+}
+function _hunRender(){
+  var list=document.getElementById('hun-list'),est=document.getElementById('hun-estado');
+  if(!list)return;
+  if(_hunCargando){if(est)est.textContent='Buscando las empresas cargadas…';list.innerHTML='';return;}
+  var q=(document.getElementById('hun-q')||{}).value||'';
+  var total=(_hunRows||[]).length;
+  if(!total){
+    if(est)est.textContent='';
+    list.innerHTML='<div class="hun-nada">Todav&iacute;a no hay ninguna empresa cargada.</div>';
+    return;
+  }
+  _hunHits=padronSearch(q,_HUN_MAX,_hunRows);
+  if(!_hunHits.length){
+    if(est)est.textContent='';
+    list.innerHTML='<div class="hun-nada"><strong>No figura.</strong><br>Ninguna de las '+total+
+      ' empresas cargadas coincide con &laquo;'+_escHtml(q.trim())+'&raquo;. Si corresponde, pedile al oficial que la cargue.</div>';
+    return;
+  }
+  var n=_hunHits.length;
+  if(est)est.textContent=q.trim()
+    ? (n+' de '+total+(n>=_HUN_MAX?' — se muestran las primeras '+_HUN_MAX:''))
+    : (total+(total===1?' empresa cargada':' empresas cargadas')+(total>_HUN_MAX?' — se muestran las primeras '+_HUN_MAX+', escribí para filtrar':''));
+  // En el onclick va SÓLO el índice, nunca texto de otro usuario (el navegador
+  // decodifica las entidades antes de ejecutar el JS: escapar ahí no alcanza).
+  list.innerHTML=_hunHits.map(function(r,i){
+    var opt=_pgOptDe(r),av=_hunAvisos(r,opt);
+    return '<div class="hun-row'+(i===_hunSel?' sel':'')+(opt>0?'':' hun-no')+'" onclick="_hunElegir('+i+')">'+
+      '<div class="hun-emp">'+_escHtml(r.empresa||'(sin nombre)')+'</div>'+
+      '<div class="hun-sub">'+_escHtml(_padSubtitulo(r))+'</div>'+
+      '<div class="hun-of">'+_escHtml(_hunOficiales(r))+'</div>'+
+      '<div class="hun-tag">'+_escHtml(_pgFormatoLbl(opt))+'</div>'+
+      (av.length?'<div class="hun-av">'+_escHtml(av.join('  ·  '))+'</div>':'')+
+    '</div>';
+  }).join('');
+}
+
+// Arma el flyer de esa fila y lo muestra. Un flyer a la vez: fgDrawAll escribe
+// los globales _fgExtra / _fgContentBottomBase que después lee _fgFinalHeightBase.
+function _hunElegir(i){
+  if(_hunBusy)return;
+  var r=_hunHits[i];if(!r)return;
+  _hunSel=i;_hunRender();
+  var dl=document.getElementById('hun-dl'),img=document.getElementById('hun-img'),vac=document.getElementById('hun-vacio');
+  _hunV=null;_hunCv=null;_hunFn='';
+  if(dl)dl.disabled=true;
+  var opt=_pgOptDe(r);
+  if(opt<=0){
+    if(img)img.style.display='none';
+    if(vac){vac.style.display='';
+      vac.innerHTML='<strong>No hay flyer disponible para esta empresa.</strong><br>'+_escHtml(_hunAvisos(r,opt).join('  ·  '));}
+    return;
+  }
+  if(img)img.style.display='none';
+  if(vac){vac.style.display='';vac.textContent='Armando el flyer…';}
+  _hunBusy=true;
+  _fgWithOpt(opt,function(){
+    try{
+      // El legal lo acaba de aplicar la opción (_fgApplyOption corre antes que
+      // este callback), así que el textarea ya tiene el de ESTE flyer.
+      var legal=(document.getElementById('legal-text')||{}).value||'';
+      // Sin formulario del que sacar el tope: el de fábrica, igual que el masivo.
+      var v=_pgVals(r,opt,legal,'$24.000',{sinCB:[],sinOf:[],sinTope:[]});
+      var fc=fullRes(v);
+      _hunV=v;_hunCv=fc;_hunFn='Flyer '+_fgSafeName(v.empresa||'empresa');
+      if(img){img.src=fc.toDataURL('image/jpeg',0.9);img.style.display='';}
+      if(vac)vac.style.display='none';
+      if(dl)dl.disabled=false;
+    }catch(e){
+      if(img)img.style.display='none';
+      if(vac){vac.style.display='';vac.textContent='No se pudo armar el flyer: '+((e&&e.message)||e);}
+      console.error('hunter:',e);
+    }
+    _hunBusy=false;
+  });
+}
+// Descarga. jsPDF se trae bajo demanda (_libWrap en _libInit).
+function _hunBajar(){
+  if(!_hunCv||!_hunV){showToast('Elegí una empresa de la lista.');return;}
+  var fn=_hunFn||'Flyer',f;
+  try{f=_fgPdfFile(_hunCv,fn);}catch(e){showToast('No se pudo armar el PDF: '+((e&&e.message)||e));return;}
+  var url=URL.createObjectURL(f),a=document.createElement('a');
+  a.download=fn+'.pdf';a.href=url;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);if(a.parentNode)a.parentNode.removeChild(a);},1500);
+  logFlyerToSupabase(_hunV,fn,'pdf'); // queda en Registros, como cualquier descarga
+  showToast('Flyer descargado');
 }
