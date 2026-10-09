@@ -903,6 +903,10 @@ function checkProfile(user){
     var hAv=document.getElementById('hdr-avatar');if(hAv)hAv.textContent=_initials(_myName,'');
     var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_admin?'inline-flex':'none';
     if(_admin)_refreshPendingBadge(); // el panel admin sigue siendo exclusivo del admin
+    // Cambios de oficiales propuestos por un Hunter, a la espera de que ESTE
+    // usuario (dueño o su suplente) los apruebe. El cartel sale una vez, al
+    // entrar; el número en "Base de datos" queda mientras no se resuelvan.
+    _propCargarPendientes(_propCartel);
     // Aplicar imagen del flyer activo (Opción 1)
     _fetchActiveFlyer(function(imageUrl){
       _showApp();
@@ -1117,7 +1121,7 @@ var _FAC_DEF={
   // El Hunter no tiene NINGUNA de estas: lo único que se le decide son las filas
   // opcion_N (qué flyers puede bajar). El candado está en _can, así que esta fila
   // es sólo la foto coherente de lo que se guarda.
-  hunter:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false}
+  hunter:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,proponer_oficiales:false}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -1176,6 +1180,7 @@ function _facRows(){
   rows.push(['guardar_trabajo','Guardar historial y borrador','El <strong>Historial</strong> queda guardado en el dispositivo (hoy se borra al cerrar o recargar la p&aacute;gina) y el formulario se guarda solo mientras escribe: si cierra la pesta&ntilde;a a mitad de un flyer, al volver le ofrece <em>&laquo;Seguir con ese flyer&raquo;</em>. Todo vive en su navegador, nada sale a la nube.']);
   rows.push(['oficiales_sede','Oficiales por sede','Suma una barrita en <strong>Otros &rarr; Oficiales por sede</strong>, para los flyers donde el banco pone un referente por zona. Prendida: puede cargar <strong>hasta 8 oficiales</strong> (en vez de 4), ponerle a cada uno su <strong>ubicaci&oacute;n</strong> (sale con el pin &#128205; y en negrita arriba del nombre) y escribir el <strong>t&iacute;tulo</strong> que va arriba del bloque. Apagada, el armador queda igual que siempre. Los oficiales 5 al 8 se cargan igual que los otros (Pegar y asesores guardados); lo &uacute;nico que no los alcanza es la carga masiva: la base de empresas y el Excel del masivo siguen trayendo hasta 4.']);
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
+  rows.push(['proponer_oficiales','Proponer cambios de oficiales','S&oacute;lo aplica al perfil <strong>Hunter</strong>: le agrega un bot&oacute;n &laquo;&#9998; Oficiales&raquo; en cada empresa para proponer agregar, corregir o quitar un oficial. El cambio <strong>no impacta</strong> hasta que lo aprueba el oficial due&ntilde;o de esa empresa (o su suplente); hasta entonces, el flyer sigue saliendo con los datos de hoy.']);
   return rows;
 }
 var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro'],['hunter','Hunter']];
@@ -1270,7 +1275,10 @@ function _applyFacultades(){
   // (asesores_guardados). Alcanza con UNA para que el ítem aparezca; _bdSync
   // decide qué solapas se ven y cierra la pantalla si no queda ninguna.
   var dpad=document.getElementById('hdr-dd-padron');
-  if(dpad)dpad.style.display=(_can('padron_buscar')||_can('asesores_guardados'))?'flex':'none';
+  // + _propPendCount: el suplente (o el dueño) tiene que ver el ítem aunque no
+  // tenga él mismo padron_buscar/asesores_guardados habilitado.
+  if(dpad)dpad.style.display=(_can('padron_buscar')||_can('asesores_guardados')||_propPendCount>0)?'flex':'none';
+  _propBadgeSync();
   _bdSync();
   _mpRefresh(); // tarjeta "todo el segmento" del masivo (sólo con empresas cargadas)
 
@@ -7575,7 +7583,13 @@ function _padSane(rows){
     }
     var emp=(r.empresa==null?'':String(r.empresa)).trim();
     if(!emp&&!cu.length)return;
-    out.push({empresa:emp,cuits:cu,config:(r.config==null?'':String(r.config)).trim(),asesores:as,rubro:_padRubroSane(r.rubro)});
+    var o={empresa:emp,cuits:cu,config:(r.config==null?'':String(r.config)).trim(),asesores:as,rubro:_padRubroSane(r.rubro)};
+    // Passthrough opcional: sólo lo lleva si la consulta lo pidió (loadPadron no
+    // selecciona ni id ni user_id; el Hunter sí, porque los necesita para
+    // proponer un cambio al dueño correcto).
+    if(r.id!=null)o.id=r.id;
+    if(r.user_id!=null)o.user_id=r.user_id;
+    out.push(o);
   });
   return out;
 }
@@ -8421,8 +8435,15 @@ function _padMineStyle(){
 // admin puede quitarla en caliente o estar en vista previa de otro perfil.
 function _bdPanes(){
   var p=[];
-  if(_can('padron_buscar'))p.push({id:'empresas',blk:'at-varios',lbl:'Mis empresas'});
-  if(_can('asesores_guardados'))p.push({id:'asesores',blk:'at-asesores',lbl:'Mis asesores'});
+  if(_can('padron_buscar'))p.push({id:'empresas',blk:'at-varios',lbl:'Mis empresas',render:function(){renderPadronAdmin(true);}});
+  if(_can('asesores_guardados'))p.push({id:'asesores',blk:'at-asesores',lbl:'Mis asesores',render:function(){renderAsesoresAdmin(false);}});
+  // "Cambios pendientes": se ve si tiene empresas propias (es candidato a
+  // recibir propuestas) o si YA tiene algo para resolver (el caso del
+  // suplente, que puede no tener padrón propio).
+  if(_can('padron_buscar')||_propPendCount>0)
+    p.push({id:'propuestas',blk:'at-propuestas',
+      lbl:'Cambios pendientes'+(_propPendCount?(' ('+_propPendCount+')'):''),
+      render:function(){_propRenderPendientes();}});
   return p;
 }
 function openMiPadron(pane){
@@ -8464,13 +8485,13 @@ function _bdShow(pane,forzar){
   if(!forzar&&pane===_bdPane)return;
   if(!forzar&&!_bdLeaveOk(function(){_bdShow(pane,true);}))return;
   _bdPane=pane;
-  var wanted=(pane==='asesores')?'at-asesores':'at-varios';
+  var def=_bdPanes().filter(function(p){return p.id===pane;})[0];
+  var wanted=def?def.blk:'at-varios';
   document.querySelectorAll('#pad-mine .pm-body .bd-pane').forEach(function(el){
     el.classList.toggle('bd-on',el.id===wanted);
   });
   _bdRenderTabs();
-  if(pane==='asesores')renderAsesoresAdmin(false);
-  else renderPadronAdmin(true);
+  if(def&&def.render)def.render();
 }
 // Se llama desde _applyFacultades: si cambian las facultades con la pantalla
 // abierta (o el admin entra/sale de la vista previa), la deja consistente.
@@ -10967,6 +10988,7 @@ function _hunInit(){
   }
   _hunPrevInitGestos();
   _hunMetasCargar(_hunRender);
+  if(_can('proponer_oficiales'))_hunPropCargarMias(_hunRender);
   _hunCargar(false,function(){if(q&&!_hunCargando){try{q.focus();}catch(e){}}});
 }
 
@@ -11000,7 +11022,10 @@ function _hunCargar(force,cb){
   });
 }
 function _hunTraerTodo(desde,acc,cb){
-  _sb.from(_PADRON_TABLE).select(_PADRON_COLS+',id').order('id',{ascending:true})
+  // ',user_id': quién es el dueño — lo necesita la propuesta de cambio de
+  // oficiales (padron_propuesta_crear exige el dueño) y la tarjeta "pendiente
+  // de aprobación" (compara contra _hunPropMias).
+  _sb.from(_PADRON_TABLE).select(_PADRON_COLS+',id,user_id').order('id',{ascending:true})
     .range(desde,desde+_HUN_PAGINA-1)
     .then(function(r){
       if(r&&r.error){cb(r.error,acc);return;}
@@ -11050,6 +11075,14 @@ function _hunRender(){
     var chk=_hunMultiOn?('<label class="hun-chk-wrap" onclick="event.stopPropagation()">'+
       '<input type="checkbox" class="hun-chk"'+(puede?'':' disabled')+
       (_hunMultiSel[r._hi]?' checked':'')+' onchange="_hunMultiChk('+r._hi+',this.checked)"></label>'):'';
+    // ✎ Oficiales: sólo con la facultad, y no si YA hay una propuesta tuya
+    // pendiente (padron_propuesta_crear la rechazaría igual, mejor avisarlo
+    // antes de abrir el modal). Pendiente propia: tarjeta en vez de botón.
+    var propBtn='',propTag='';
+    if(_can('proponer_oficiales')){
+      if(_hunPropPendiente(r))propTag='<div class="hun-prop-tag">Propusiste un cambio: pendiente de aprobaci&oacute;n</div>';
+      else propBtn='<button type="button" class="hun-prop-btn" onclick="event.stopPropagation();_hunAbrirPropuesta('+i+')">&#9998; Oficiales</button>';
+    }
     // La casilla va como flex-item propio al lado del cuerpo (no mezclada con
     // empresa/subtítulo/oficiales/tag, que siguen apiladas verticalmente): sin
     // este envoltorio, volver .hun-row flex habría puesto esas líneas en fila.
@@ -11061,6 +11094,7 @@ function _hunRender(){
         '<div class="hun-of">'+_escHtml(_hunOficiales(r))+'</div>'+
         '<div class="hun-tag">'+_escHtml(_hunFlyerLbl(opt))+'</div>'+
         (av.length?'<div class="hun-av">'+_escHtml(av.join('  ·  '))+'</div>':'')+
+        propTag+propBtn+
       '</div>'+
     '</div>';
   }).join('');
@@ -11258,4 +11292,280 @@ function _hunBajar(){
   setTimeout(function(){URL.revokeObjectURL(url);if(a.parentNode)a.parentNode.removeChild(a);},1500);
   logFlyerToSupabase(_hunV,fn,'pdf'); // queda en Registros, como cualquier descarga
   showToast('Flyer descargado');
+}
+
+// ══ FIN PERFIL HUNTER (búsqueda y descarga) — lo de abajo SÍ escribe en la base ══
+
+// ══ PROPUESTAS DE CAMBIO DE OFICIALES ═════════════════════════════════════
+// El Hunter ve un oficial desactualizado y PROPONE arreglarlo: sólo oficiales
+// (nombre/celular/mail), nunca cashback, rubro, CUIT o razón social. El
+// cambio no impacta nada hasta que lo apruebe el OFICIAL DUEÑO de esa
+// empresa, o la persona que ese oficial puso como suplente (por vacaciones).
+// Mientras está pendiente, el flyer sigue saliendo con los datos de hoy — ver
+// _hunOptDe/_pgVals más arriba, que no miran esto para nada.
+//
+// Todo lo que escribe pasa por tres funciones de la base (seguridad real, no
+// cosmética): padron_propuesta_crear / _aprobar / _rechazar (migración
+// 012_propuestas_oficiales.sql). Esta sección del archivo SÍ escribe —por eso
+// vive después de la marca de abajo, afuera de lo que el build verifica como
+// "la pantalla de buscar y bajar no toca la base".
+
+// ── LADO HUNTER: proponer ───────────────────────────────────────────────────
+var _hunPropMias={},_hunPropFila=null;
+// Mis propias propuestas (RLS: "creada_por = auth.uid()" ya me las deja ver).
+// Sólo importan las PENDIENTES para la tarjeta "pendiente de aprobación" en
+// la lista; una vez resuelta, la fila vuelve a verse como cualquier otra.
+function _hunPropCargarMias(cb){
+  if(!_me){if(cb)cb();return;}
+  _sb.from('padron_propuestas').select('dueno_id,empresa_key,estado').eq('creada_por',_me.id).eq('estado','pendiente')
+    .then(function(r){
+      _hunPropMias={};
+      ((r&&r.data)||[]).forEach(function(p){_hunPropMias[p.dueno_id+'|'+p.empresa_key]=true;});
+      if(cb)cb();
+    }).catch(function(){if(cb)cb();});
+}
+function _hunPropPendiente(r){return !!(r&&r.user_id&&_hunPropMias[r.user_id+'|'+_padNorm(r.empresa)]);}
+
+// El modal: 4 slots de oficial (igual que el editor de "Mis empresas"), con
+// Pegar + autocompletar mail, un resumen de qué cambia y una nota opcional.
+function _hunPropStyle(){
+  if(document.getElementById('hun-prop-style'))return;
+  var st=document.createElement('style');st.id='hun-prop-style';
+  st.textContent=
+    '.hp-slot{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px}'+
+    '.hp-slot-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'+
+    '.hp-slot-h b{font-size:.72rem;color:var(--gray)}'+
+    '.hp-paste-tg{font-size:.66rem;color:var(--accent-2,#1d4070);cursor:pointer;text-decoration:underline}'+
+    '.hp-slot input{width:100%;margin-bottom:5px}'+
+    '.hp-paste-ta{width:100%;font-size:.76rem;margin-bottom:5px;resize:vertical}'+
+    '.hp-paste-res{font-size:.66rem;color:var(--gray);margin-bottom:4px}'+
+    '.hp-diff{font-size:.74rem;line-height:1.6}'+
+    '.hp-diff li{margin-bottom:2px}';
+  document.head.appendChild(st);
+}
+function _hunPropSlotHtml(i,a){
+  a=a||{};
+  return '<div class="hp-slot" data-n="'+i+'">'+
+    '<div class="hp-slot-h"><b>Oficial '+(i+1)+'</b>'+
+      '<span class="hp-paste-tg" onclick="_hunPropPasteToggle('+i+')">&#9889; Pegar</span></div>'+
+    '<div class="hp-paste-wrap" id="hp-paste-'+i+'" style="display:none">'+
+      '<textarea class="login-inp hp-paste-ta" id="hp-paste-ta-'+i+'" rows="2" '+
+        'placeholder="Pegá el nombre, celular y/o mail" oninput="_hunPropPasteRun('+i+')"></textarea>'+
+      '<div class="hp-paste-res" id="hp-paste-res-'+i+'"></div>'+
+    '</div>'+
+    '<input type="text" class="login-inp" id="hp-nombre-'+i+'" placeholder="Nombre" value="'+_escAttr(a.nombre||'')+'" '+
+      'oninput="_hunPropAutoMail('+i+');_hunPropDiffSync()">'+
+    '<input type="text" class="login-inp" id="hp-celular-'+i+'" placeholder="Celular" value="'+_escAttr(a.celular||'')+'" oninput="_hunPropDiffSync()">'+
+    '<input type="text" class="login-inp" id="hp-email-'+i+'" placeholder="Mail" value="'+_escAttr(a.email||'')+'" oninput="_hunPropDiffSync()">'+
+  '</div>';
+}
+function _hunPropAutoMail(i){
+  var nombre=(document.getElementById('hp-nombre-'+i)||{}).value||'';
+  var email=document.getElementById('hp-email-'+i);
+  if(email&&!email.value&&!email.dataset.manual&&nombre.trim())email.value=_fgMailFromName(nombre);
+}
+function _hunPropPasteToggle(i){
+  var w=document.getElementById('hp-paste-'+i);if(!w)return;
+  var abrir=(w.style.display==='none'||!w.style.display);
+  w.style.display=abrir?'block':'none';
+  if(abrir){var ta=document.getElementById('hp-paste-ta-'+i);if(ta){ta.value='';setTimeout(function(){ta.focus();},0);}}
+}
+var _hunPropPasteT={};
+function _hunPropPasteRun(i){
+  clearTimeout(_hunPropPasteT[i]);
+  _hunPropPasteT[i]=setTimeout(function(){
+    var ta=document.getElementById('hp-paste-ta-'+i);if(!ta)return;
+    var p=_fgParseContacto(ta.value);
+    var res=document.getElementById('hp-paste-res-'+i);
+    var chips=[];
+    if(p.nombre){document.getElementById('hp-nombre-'+i).value=p.nombre;chips.push('nombre');}
+    if(p.celular){document.getElementById('hp-celular-'+i).value=p.celular;chips.push('celular');}
+    if(p.email){var em=document.getElementById('hp-email-'+i);em.value=p.email;em.dataset.manual='1';chips.push('mail');}
+    if(res)res.textContent=chips.length?('Completé: '+chips.join(', ')+(p.avisos.length?' — '+p.avisos.join('; '):'')):'No encontré nada reconocible.';
+    _hunPropAutoMail(i);_hunPropDiffSync();
+  },180);
+}
+function _hunPropLeerSlots(){
+  var out=[];
+  for(var i=0;i<4;i++){
+    out.push({
+      nombre:((document.getElementById('hp-nombre-'+i)||{}).value||'').trim(),
+      celular:((document.getElementById('hp-celular-'+i)||{}).value||'').trim(),
+      email:((document.getElementById('hp-email-'+i)||{}).value||'').trim()
+    });
+  }
+  return out;
+}
+function _hunPropDiffSync(){
+  var el=document.getElementById('hun-prop-diff');if(!el||!_hunPropFila)return;
+  var diff=_plogAsesorDiff(_hunPropFila.asesores||[],_hunPropLeerSlots());
+  el.innerHTML=diff.length
+    ? '<strong>Vas a proponer:</strong><ul class="hp-diff">'+diff.map(function(p){return '<li>'+_escHtml(p[0])+': '+_escHtml(p[1])+'</li>';}).join('')+'</ul>'
+    : 'Todavía no cambiaste nada.';
+  var btn=document.getElementById('hun-prop-enviar');if(btn)btn.disabled=!diff.length;
+}
+function _hunPropCerrar(){
+  var ov=document.getElementById('pad-upd-ov');
+  if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
+  _hunPropFila=null;
+}
+function _hunAbrirPropuesta(i){
+  if(!_can('proponer_oficiales')){showToast('No tenés habilitado proponer cambios.');return;}
+  var r=_hunHits[i];if(!r)return;
+  if(!r.user_id){showToast('No se pudo identificar al oficial dueño de esta empresa.');return;}
+  if(_hunPropPendiente(r)){showToast('Ya hay una propuesta tuya pendiente para esta empresa.');return;}
+  _hunPropFila=r;
+  _padStyle();_hunPropStyle();
+  var as=(r.asesores||[]).slice(0,4);while(as.length<4)as.push({nombre:'',celular:'',email:''});
+  _padModal(
+    '<h3>&#9998; Proponer un cambio de oficiales</h3>'+
+    '<p class="pu-sub">Empresa: <strong>'+_escHtml(r.empresa||'')+'</strong>. El cambio queda <strong>pendiente</strong> hasta que el oficial due&ntilde;o (o su suplente) lo apruebe; hasta entonces el flyer sigue saliendo con los datos de hoy.</p>'+
+    as.map(function(a,i){return _hunPropSlotHtml(i,a);}).join('')+
+    '<div class="pu-fld"><label class="pu-lbl">Nota para el oficial (opcional)</label>'+
+      '<textarea id="hun-prop-nota" class="login-inp" rows="2" placeholder="Ej: el celular de Juan qued&oacute; desactualizado"></textarea></div>'+
+    '<div id="hun-prop-diff" class="pu-hint"></div>'+
+    '<div class="pu-foot">'+
+      '<button type="button" class="pu-no" onclick="_hunPropCerrar()">Cancelar</button>'+
+      '<button type="button" class="pu-si" id="hun-prop-enviar" onclick="_hunPropuestaEnviar()" disabled>Enviar propuesta</button>'+
+    '</div>'
+  );
+  _hunPropDiffSync();
+}
+function _hunPropuestaEnviar(){
+  if(!_hunPropFila)return;
+  var btn=document.getElementById('hun-prop-enviar');if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+  var nota=((document.getElementById('hun-prop-nota')||{}).value||'').trim();
+  _sb.rpc('padron_propuesta_crear',{
+    p_empresa:_hunPropFila.empresa, p_dueno:_hunPropFila.user_id,
+    p_asesores:_hunPropLeerSlots(), p_nota:nota||null
+  }).then(function(r){
+    if(r&&r.error){
+      showToast('No se pudo enviar: '+r.error.message);
+      if(btn){btn.disabled=false;btn.textContent='Enviar propuesta';}
+      return;
+    }
+    showToast('Propuesta enviada: queda pendiente de aprobación.');
+    _hunPropCerrar();
+    _hunPropCargarMias(_hunRender);
+  }).catch(function(e){
+    showToast('No se pudo enviar: '+((e&&e.message)||e));
+    if(btn){btn.disabled=false;btn.textContent='Enviar propuesta';}
+  });
+}
+
+// ── LADO OFICIAL: aprobar / rechazar / elegir suplente ──────────────────────
+var _propPendCount=0,_propPendientes=[],_propColegas=null,_mySuplenteId=undefined,_propRechazoAbierto={};
+// Todo lo PENDIENTE que la RLS me deja ver y que no creé yo mismo: soy el
+// dueño, o soy el suplente del dueño (padron_propuestas: ver, migración 012).
+function _propCargarPendientes(cb){
+  if(!_me){_propPendientes=[];_propPendCount=0;_propBadgeSync();if(cb)cb();return;}
+  _sb.from('padron_propuestas').select('*').eq('estado','pendiente').order('created_at',{ascending:false})
+    .then(function(r){
+      var rows=(r&&r.data)||[];
+      _propPendientes=rows.filter(function(x){return x.creada_por!==_me.id;});
+      _propPendCount=_propPendientes.length;
+      _propBadgeSync();
+      if(cb)cb();
+    }).catch(function(){if(cb)cb();});
+}
+function _propCartel(){
+  if(!_propPendCount)return;
+  _fgToastLargo('Ten&eacute;s '+_propPendCount+(_propPendCount===1?' cambio de oficiales':' cambios de oficiales')+
+    ' para revisar — tu nombre &rarr; Base de datos &rarr; Cambios pendientes.',6000);
+}
+function _propBadgeSync(){
+  var dp=document.getElementById('hdr-dd-padron');if(!dp)return;
+  var b=document.getElementById('bd-badge');
+  if(!b){
+    var sp=dp.querySelector('span');
+    if(sp&&sp.parentNode){b=document.createElement('span');b.id='bd-badge';sp.parentNode.insertBefore(b,sp.nextSibling);}
+  }
+  if(b)b.innerHTML=_propPendCount>0?' <span style="background:#fff;color:var(--red);border-radius:10px;padding:0 6px;font-size:.66rem;font-weight:800;margin-left:2px">'+_propPendCount+'</span>':'';
+}
+function _propColegasCargar(cb){
+  if(_propColegas){if(cb)cb(_propColegas);return;}
+  _sb.rpc('colegas_para_suplente').then(function(r){
+    _propColegas=(r&&r.data)||[];
+    if(cb)cb(_propColegas);
+  }).catch(function(){_propColegas=[];if(cb)cb(_propColegas);});
+}
+function _propSuplenteCargar(cb){
+  if(_mySuplenteId!==undefined){if(cb)cb();return;}
+  _sb.from('profiles').select('suplente_id').eq('id',_me.id).single().then(function(r){
+    _mySuplenteId=(r&&r.data&&r.data.suplente_id)||null;
+    if(cb)cb();
+  }).catch(function(){_mySuplenteId=null;if(cb)cb();});
+}
+function _propSuplenteGuardar(val){
+  _sb.from('profiles').update({suplente_id:val||null}).eq('id',_me.id).then(function(r){
+    if(r&&r.error){showToast('No se pudo guardar: '+r.error.message);return;}
+    _mySuplenteId=val||null;
+    showToast(val?'Suplente guardado':'Suplente quitado');
+  });
+}
+function _propSuplenteHtml(){
+  var opts=(_propColegas||[]).map(function(c){
+    return '<option value="'+_escAttr(c.id)+'"'+(c.id===_mySuplenteId?' selected':'')+'>'+_escHtml(c.nombre)+'</option>';
+  }).join('');
+  return '<div class="pu-fld" style="margin-bottom:16px">'+
+    '<label class="pu-lbl">Mi suplente</label>'+
+    '<div class="pu-hint" style="margin-bottom:6px">Mientras est&eacute; elegido, esa persona tambi&eacute;n puede aprobar tus propuestas (por ejemplo, durante tus vacaciones). Sin fechas: lo saca vos cuando vuelvas.</div>'+
+    '<select class="login-inp" id="prop-suplente-sel" onchange="_propSuplenteGuardar(this.value)">'+
+      '<option value="">Ninguno</option>'+opts+
+    '</select></div>';
+}
+function _propRenderPendientes(){
+  var host=document.getElementById('at-propuestas');if(!host)return;
+  _padStyle();
+  host.innerHTML='<p class="ap-sec">Cambios pendientes</p>'+
+    '<div id="prop-suplente-box">Cargando…</div>'+
+    '<div id="prop-list">Cargando…</div>';
+  _propColegasCargar(function(){
+    _propSuplenteCargar(function(){
+      var box=document.getElementById('prop-suplente-box');if(box)box.innerHTML=_propSuplenteHtml();
+    });
+  });
+  var list=document.getElementById('prop-list');
+  if(!_propPendientes.length){
+    list.innerHTML='<p style="font-size:.78rem;color:var(--gray)">No ten&eacute;s cambios pendientes de revisar.</p>';
+    return;
+  }
+  // En los onclick va SÓLO el id de la propuesta: todo lo demás es texto de
+  // otro usuario y va siempre a través de _escHtml.
+  list.innerHTML=_propPendientes.map(function(p){
+    var diff=_plogAsesorDiff(p.asesores_antes||[],p.asesores||[]);
+    var abierto=!!_propRechazoAbierto[p.id];
+    return '<div class="pad-erow" style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+        '<div><strong>'+_escHtml(p.empresa||'')+'</strong><div class="pu-hint">propuesto por '+_escHtml(p.creada_por_nombre||'alguien')+' · '+_escHtml(_fmtDate(p.created_at))+'</div></div>'+
+      '</div>'+
+      (diff.length?'<ul class="hp-diff" style="margin:8px 0">'+diff.map(function(d){return '<li>'+_escHtml(d[0])+': '+_escHtml(d[1])+'</li>';}).join('')+'</ul>':'')+
+      (p.nota?'<div class="pu-hint" style="margin-bottom:8px">Nota: '+_escHtml(p.nota)+'</div>':'')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button type="button" class="usr-btn ok" onclick="_propAprobar(\''+p.id+'\')">Aprobar</button>'+
+        '<button type="button" class="usr-btn warn" onclick="_propRechazoToggle(\''+p.id+'\')">Rechazar</button>'+
+      '</div>'+
+      (abierto?(
+        '<div style="margin-top:8px"><textarea class="login-inp" id="prop-motivo-'+p.id+'" rows="2" placeholder="Motivo (opcional)"></textarea>'+
+        '<button type="button" class="usr-btn warn" onclick="_propRechazar(\''+p.id+'\')">Confirmar rechazo</button></div>'
+      ):'')+
+    '</div>';
+  }).join('');
+}
+function _propRechazoToggle(id){_propRechazoAbierto[id]=!_propRechazoAbierto[id];_propRenderPendientes();}
+function _propAprobar(id){
+  _sb.rpc('padron_propuesta_aprobar',{p_id:id}).then(function(r){
+    if(r&&r.error){showToast('No se pudo aprobar: '+r.error.message);return;}
+    showToast('Cambio aplicado');
+    _propCargarPendientes(_propRenderPendientes);
+  }).catch(function(e){showToast('No se pudo aprobar: '+((e&&e.message)||e));});
+}
+function _propRechazar(id){
+  var motivo=((document.getElementById('prop-motivo-'+id)||{}).value||'').trim();
+  _sb.rpc('padron_propuesta_rechazar',{p_id:id,p_motivo:motivo||null}).then(function(r){
+    if(r&&r.error){showToast('No se pudo rechazar: '+r.error.message);return;}
+    delete _propRechazoAbierto[id];
+    showToast('Propuesta rechazada');
+    _propCargarPendientes(_propRenderPendientes);
+  }).catch(function(e){showToast('No se pudo rechazar: '+((e&&e.message)||e));});
 }

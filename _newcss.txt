@@ -1067,3 +1067,10 @@ a.fg-otros-item{text-decoration:none;}
   .hun-head{position:static;flex-wrap:wrap;}
   .hun-otros .fg-otros-menu{right:auto;left:0;}
 }
+/* Propuestas de cambio de oficiales (fila del Hunter + panel del dueño). */
+.hun-prop-tag{display:inline-block;margin-top:6px;font-size:.66rem;color:#9a6b00;
+  background:#fdf0d5;border-radius:6px;padding:3px 8px;}
+.hun-prop-btn{display:inline-block;margin-top:6px;font-size:.68rem;font-weight:700;
+  color:var(--accent-2,#1d4070);background:none;border:1px solid var(--accent-line,var(--border));
+  border-radius:6px;padding:3px 9px;cursor:pointer;}
+.hun-prop-btn:hover{border-color:var(--accent,#1d4070);}

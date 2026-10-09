@@ -185,7 +185,9 @@ html = html.replace(
       // Excel, editar en línea, generar flyers) y "Mis asesores" (ver y corregir
       // los guardados). _applyFacultades la muestra a quien tenga AL MENOS UNA de
       // las facultades padron_buscar / asesores_guardados.
-      '<button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none">' + ICO_DB + '<span>Base de datos</span></button>' +
+      // El badge (span vacío) lo llena _propBadgeSync cuando hay propuestas
+      // esperando que ESTE usuario (dueño o suplente) las apruebe.
+      '<button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none">' + ICO_DB + '<span>Base de datos</span><span id="bd-badge"></span></button>' +
       // Tutorial guiado (para todos). El menú se cierra desde el propio tour.
       '<button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()">' + ICO_HELP + '<span>Ver tutorial</span></button>' +
       '<div class="hdr-dd-sep"></div>' +
@@ -479,6 +481,11 @@ const adminPanel = `<div id="admin-panel">
         <button type="button" class="usr-btn del" onclick="_asEditDiscard(true)">Descartar cambios</button>
       </div>
     </div>
+
+    <!-- Propuestas de cambio de oficiales: un Hunter las crea desde su
+         pantalla; acá las aprueba o rechaza el dueño (o su suplente). El
+         contenido lo pinta _propRenderPendientes (auth.js). -->
+    <div id="at-propuestas" class="bd-pane" style="display:none"></div>
 
     <div id="at-padronotros" style="display:none">
       <p class="ap-sec">Empresas de otros usuarios</p>
@@ -883,7 +890,12 @@ const _cdnTags = html.match(/<script src="https:\/\/[^"]+"[^>]*>/g) || [];
 // Bloque del perfil Hunter y cuerpo de su descarga, para poder verificar por lo
 // que NO tienen (que no escriban en la base ni pasen por el armador).
 const _hunIni = _authSrc.indexOf('var _HUN_MAX=');
-const _hunSrc = _hunIni < 0 ? '' : _authSrc.slice(_hunIni);
+// Acotado a la pantalla de buscar/armar/bajar: el módulo de propuestas (que SÍ
+// escribe — una propuesta, una aprobación) vive después de la marca "FIN
+// PERFIL HUNTER" y queda deliberadamente afuera de este rango.
+const _hunFin = _authSrc.indexOf('FIN PERFIL HUNTER');
+const _hunSrc = _hunIni < 0 ? '' : _authSrc.slice(_hunIni, _hunFin < 0 ? undefined : _hunFin);
+const _propSrc = _hunFin < 0 ? '' : _authSrc.slice(_hunFin);
 const _hunBody = (_authSrc.match(/function _hunBajar\(\)\{[\s\S]*?\n\}/) || [''])[0];
 const checks = {
   'CSS full-screen': html.includes('height:100vh;overflow:hidden'),
@@ -982,14 +994,35 @@ const checks = {
   'padron: lupita solo admin': _authSrc.includes('_fgEnsurePadronBtn();') && _authSrc.includes('function applyPadronRow('),
   // "Base de datos" en el menú del nombre: la pantalla propia sin pasar por el
   // panel Admin. Se ve con CUALQUIERA de las dos facultades (empresas o asesores).
-  'base de datos: pantalla propia (menu del nombre)': html.includes('id="hdr-dd-padron"') && html.includes('Base de datos') && _authSrc.includes('function openMiPadron(') && _authSrc.includes('function closeMiPadron(') && _authSrc.includes("if(dpad)dpad.style.display=(_can('padron_buscar')||_can('asesores_guardados'))?'flex':'none';") && _authSrc.includes('onclick="openMiPadron()"') && !_authSrc.includes('Panel Administrador &rarr; Varios'),
+  'base de datos: pantalla propia (menu del nombre)': html.includes('id="hdr-dd-padron"') && html.includes('Base de datos') && _authSrc.includes('function openMiPadron(') && _authSrc.includes('function closeMiPadron(') && _authSrc.includes("if(dpad)dpad.style.display=(_can('padron_buscar')||_can('asesores_guardados')||_propPendCount>0)?'flex':'none';") && _authSrc.includes('onclick="openMiPadron()"') && !_authSrc.includes('Panel Administrador &rarr; Varios'),
   'base de datos: solapa Mis empresas': html.includes('id="at-varios"') && html.includes('id="padron-xls"') && _authSrc.includes("if(t==='varios')renderPadronAdmin(true);"),
   // Mis asesores: ver, corregir, agregar, borrar, importar y bajar Excel. Antes
   // sólo existía el popover del armador (nombres, sin poder corregir nada).
   'base de datos: solapa Mis asesores (ver/editar/Excel)': html.includes('id="at-asesores"') && html.includes('data-tab="asesores"') && html.includes('id="asesores-xls"') && html.includes('id="asesores-list"') && _authSrc.includes('function renderAsesoresAdmin(') && _authSrc.includes('function _asEditSave(') && _authSrc.includes('function dlAsesores(') && _authSrc.includes('function dlAsesoresTemplate(') && _authSrc.includes("if(t==='asesores')renderAsesoresAdmin(true);") && _authSrc.includes("_libWrap('_asXlsx'"),
   // Las dos solapas internas del overlay: la barra la dibuja JS (en el panel
   // admin esos bloques ya son sub-solapas) y aparece sólo si hay más de una.
-  'base de datos: dos solapas internas segun facultad': (html.match(/class="bd-pane"/g)||[]).length === 2 && _authSrc.includes('function _bdPanes(') && _authSrc.includes('function _bdShow(') && _authSrc.includes('function _bdSync(') && _authSrc.includes('function _bdLeaveOk(') && _authSrc.includes('.stab:not(.ltab):not(.bdtab)') && _authSrc.includes('#pad-mine .pm-body .bd-pane.bd-on'),
+  // Subió a 3 con "Cambios pendientes" (propuestas de oficiales, 2026-10-09);
+  // _bdPanes ahora trae su propio render() en vez de que _bdShow adivine el
+  // bloque por un if/else hardcodeado.
+  'base de datos: solapas internas segun facultad (3, con render propio)': (html.match(/class="bd-pane"/g)||[]).length === 3 && _authSrc.includes('function _bdPanes(') && _authSrc.includes('function _bdShow(') && _authSrc.includes('function _bdSync(') && _authSrc.includes('function _bdLeaveOk(') && _authSrc.includes('.stab:not(.ltab):not(.bdtab)') && _authSrc.includes('#pad-mine .pm-body .bd-pane.bd-on') && _authSrc.includes('var def=_bdPanes()') && !_authSrc.includes("var wanted=(pane==='asesores')?'at-asesores':'at-varios';"),
+  // Propuestas de cambio de oficiales: el Hunter propone, el dueño (o su
+  // suplente) aprueba. Todo lo que escribe pasa por las 3 funciones de la
+  // migración 012 — nunca un insert/update directo a padron_empresas desde el
+  // cliente — y el módulo entero vive DESPUÉS de "FIN PERFIL HUNTER", afuera
+  // del rango que _hunSrc verifica como "nunca escribe".
+  'propuestas: proponer (hunter) y aprobar/rechazar (oficial), vía RPC':
+    html.includes('id="at-propuestas"') && html.includes('class="bd-pane"') &&
+    _authSrc.includes('FIN PERFIL HUNTER') && !!_propSrc &&
+    ['_hunPropCargarMias','_hunPropPendiente','_hunAbrirPropuesta','_hunPropuestaEnviar',
+     '_propCargarPendientes','_propCartel','_propBadgeSync','_propColegasCargar','_propSuplenteCargar',
+     '_propSuplenteGuardar','_propRenderPendientes','_propAprobar','_propRechazar']
+      .every(f => _propSrc.includes('function ' + f + '(')) &&
+    _propSrc.includes("_sb.rpc('padron_propuesta_crear'") &&
+    _propSrc.includes("_sb.rpc('padron_propuesta_aprobar'") &&
+    _propSrc.includes("_sb.rpc('padron_propuesta_rechazar'") &&
+    _propSrc.includes("_sb.rpc('colegas_para_suplente')") &&
+    !/padron_replace|\.update\(\{asesores/.test(_propSrc) &&            // nunca pisa el padrón entero
+    _hunSrc.includes('_hunPropPendiente(r)') && _hunSrc.includes('_hunAbrirPropuesta('),
   // Guardarraíl del renombrado: nada de "padrón" a la vista. Los comentarios del
   // código sí lo dicen (explican por qué las tablas se llaman padron_*).
   // Sólo las formas CON tilde (texto visible): los ids internos (padron-xls,
