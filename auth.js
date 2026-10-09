@@ -907,6 +907,8 @@ function checkProfile(user){
     // usuario (dueño o su suplente) los apruebe. El cartel sale una vez, al
     // entrar; el número en "Base de datos" queda mientras no se resuelvan.
     _propCargarPendientes(_propCartel);
+    // Al Hunter: consultas sin responder y cambios resueltos que todavía no vio.
+    if(p.role==='hunter')_hunPropCargarMias(_hunPropCartel);
     // Aplicar imagen del flyer activo (Opción 1)
     _fetchActiveFlyer(function(imageUrl){
       _showApp();
@@ -1235,7 +1237,7 @@ function _esHunter(){return _rolVigente()==='hunter';}
 // (ni hay que acordarse de apagar la próxima facultad que se agregue, ni una
 // tildada por error en el JSON lo alcanza). Ampliada el 2026-10-09: Promociones,
 // Bloc de notas, Tutorial y Proponer cambios de oficiales.
-var _HUN_FAC={promos_buscar:1,notas:1,tutorial_auto:1,proponer_oficiales:1};
+var _HUN_FAC={promos_buscar:1,notas:1,tutorial_auto:1,proponer_oficiales:1,asesores_guardados:1};
 function _can(f){
   // Candado del perfil Hunter. El admin que simula "hunter" cae acá también.
   if(_esHunter()&&f.indexOf('opcion_')!==0&&!_HUN_FAC[f])return false;
@@ -1261,6 +1263,7 @@ function _applyFacultades(){
   // El Hunter ya tiene su propio capítulo (ver _tourCapitulos): el ítem se ve
   // para todos, como para el resto de los roles.
   var dt=document.getElementById('hdr-dd-tour');if(dt)dt.style.display='flex';
+  _hunPropBadgeSync(); // "Cambios pendientes de aprobación" (sólo Hunter con la facultad)
 
   if(_can('asesores_guardados')){_initAsesoresUI();_loadAsesores();} // trae la lista de la nube una vez
   _facShowAsesores(_can('asesores_guardados'));
@@ -1444,9 +1447,18 @@ function stopFacSim(){
   _facSimBar();
   _applyFacultades();
 }
+// La barra negra de abajo es position:fixed: sin esto tapaba el final de la
+// lista y del flyer. Publica su alto real en --simbar-h y las pantallas
+// (.layout/.promos-view/.hunter-view) se achican esa cantidad.
+function _facSimAlto(){
+  var b=document.getElementById('fac-simbar');
+  if(b)document.documentElement.style.setProperty('--simbar-h',(b.offsetHeight||0)+'px');
+  else document.documentElement.style.removeProperty('--simbar-h');
+}
+window.addEventListener('resize',function(){if(_simRole)_facSimAlto();});
 function _facSimBar(){
   var b=document.getElementById('fac-simbar');
-  if(!_simRole){if(b&&b.parentNode)b.parentNode.removeChild(b);return;}
+  if(!_simRole){if(b&&b.parentNode)b.parentNode.removeChild(b);_facSimAlto();return;}
   if(!b){
     b=document.createElement('div');b.id='fac-simbar';
     document.body.appendChild(b);
@@ -1454,6 +1466,7 @@ function _facSimBar(){
   b.innerHTML='<span>Vista previa: <strong>'+_escHtml(_ROLE_LBL[_simRole]||_simRole)+'</strong>. '+
     'As&iacute; ve la app este perfil.</span>'+
     '<button onclick="stopFacSim()">Salir de la vista previa</button>';
+  _facSimAlto();
 }
 
 // Panel admin → Admin → Facultades. Trabaja sobre una copia (_facEdit) y sólo
@@ -9978,7 +9991,7 @@ function _tourCapitulos(){
        texto:'Con <kbd>+</kbd> / <kbd>&minus;</kbd> o la rueda del mouse acerc&aacute;s el flyer para revisar un dato, y arrastr&aacute;s para recorrerlo.',
        antes:irHunter},
       {target:'#hun-otros',titulo:'&laquo;Otros&raquo;: m&aacute;s herramientas',
-       texto:'Ac&aacute; est&aacute;n <strong>Beneficios Haberes</strong> (el tablero), este mismo <strong>instructivo</strong> y la <strong>descarga de varias empresas juntas</strong> en un ZIP.',
+       texto:'Ac&aacute; est&aacute;n <strong>Beneficios Haberes</strong> (el tablero), y la <strong>descarga de varias empresas juntas</strong> en un ZIP. El instructivo completo est&aacute; en tu nombre &rarr; <strong>Ver tutorial</strong>.',
        antes:irHunterOtros},
       {target:'#hun-dl',titulo:'Descargar PDF',
        texto:'Baja el flyer con los datos que esa empresa tiene cargados <strong>hoy</strong>. Si propusiste un cambio de oficial, sigue sali&eacute;ndo as&iacute; hasta que el oficial lo apruebe.',
@@ -10645,6 +10658,9 @@ function _fgHayDialogo(){
   var ap=document.getElementById('admin-panel');if(ap&&ap.style.display&&ap.style.display!=='none')return true;
   var lo=document.getElementById('login-ov');if(lo&&lo.style.display!=='none')return true;
   var cm=document.getElementById('cal-modal');if(cm&&cm.classList.contains('show'))return true;
+  // pad-upd-ov: modal de proponer cambios / "Mis cambios" del Hunter (se crea y
+  // se borra del DOM, como fg-cf-ov).
+  if(document.getElementById('pad-upd-ov'))return true;
   var ids=['pass-modal','notes-modal','user-modal','pad-mine-ov'];
   for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el&&el.style.display&&el.style.display!=='none')return true;}
   return false;
@@ -10657,6 +10673,10 @@ function _fgArmadorVisible(){
 function _fgPromosVisible(){
   var pv=document.getElementById('view-promos');
   return !!(pv&&pv.style.display&&pv.style.display!=='none');
+}
+function _fgHunterVisible(){
+  var hv=document.getElementById('view-hunter');
+  return !!(hv&&hv.style.display&&hv.style.display!=='none');
 }
 function _fgKbdInit(){
   // Solapas del panel: aria-selected/tabindex al cambiar (switchTab lo trae el template)
@@ -10695,6 +10715,17 @@ function _fgKbdInit(){
         if(vb&&vb.disabled)return; // ya está trabajando: no encolar otra
         e.preventDefault();
         if(enActivas)buscarPromosActivas();else validarPromos();
+        return;
+      }
+      // Hunter: con empresas tildadas baja el ZIP de todas; si no, el PDF de la
+      // que está viendo. Nunca los dos, y nunca si ya está generando.
+      if(_fgHunterVisible()){
+        if(_hunMultiOn&&_hunMultiCount()>0){
+          var md=document.getElementById('hun-multi-dl');
+          if(md&&md.disabled)return;
+          e.preventDefault();_hunMultiBajar();return;
+        }
+        if(_hunCv&&!_hunBusy){e.preventDefault();_hunBajar();}
       }
       return;
     }
@@ -10702,6 +10733,7 @@ function _fgKbdInit(){
       var m=document.getElementById('modal');
       if(m&&m.classList.contains('show')){closeModal();return;}
       var om=document.getElementById('fg-otros-menu');if(om&&!om.hidden)fgToggleOtros(false);
+      var hm=document.getElementById('hun-otros-menu');if(hm&&!hm.hidden&&typeof _hunToggleOtros==='function')_hunToggleOtros(false);
     }
   });
 }
@@ -10792,7 +10824,7 @@ function _fgTipInit(){
   if(!window.matchMedia||!matchMedia('(hover:hover) and (pointer:fine)').matches)return;
   // Los botones que tienen atajo. Mismo globito en los dos: en cada vista,
   // Ctrl+Enter hace lo principal de esa pantalla.
-  ['btn-dl-pdf','promos-validar-btn'].forEach(function(id){
+  ['btn-dl-pdf','promos-validar-btn','hun-dl','hun-multi-dl'].forEach(function(id){
     var b=document.getElementById(id);
     if(b&&!b.getAttribute('data-fgtip'))b.setAttribute('data-fgtip',_fgTipMod()+' + Enter');
   });
@@ -10982,7 +11014,7 @@ function _hunInit(){
     q.dataset.hunOk='1';
     q.addEventListener('input',_hunRender);
     q.addEventListener('keydown',function(e){
-      if(e.key==='Enter'&&_hunHits.length){e.preventDefault();_hunElegir(0);return;}
+      if(e.key==='Enter'&&!e.ctrlKey&&!e.metaKey&&_hunHits.length){e.preventDefault();_hunElegir(0);return;}
       if(e.key==='Escape'){q.value='';_hunRender();}
     });
   }
@@ -11080,7 +11112,12 @@ function _hunRender(){
     // antes de abrir el modal). Pendiente propia: tarjeta en vez de botón.
     var propBtn='',propTag='';
     if(_can('proponer_oficiales')){
-      if(_hunPropPendiente(r))propTag='<div class="hun-prop-tag">Propusiste un cambio: pendiente de aprobaci&oacute;n</div>';
+      if(_hunPropPendiente(r)){
+        var _pe=_hunPropEstado(r);
+        propTag=(_pe==='consulta')
+          ?'<div class="hun-prop-tag hun-prop-consulta">El oficial te hizo una consulta &middot; tu nombre &rarr; Cambios pendientes</div>'
+          :'<div class="hun-prop-tag">Propusiste un cambio: pendiente de aprobaci&oacute;n</div>';
+      }
       else propBtn='<button type="button" class="hun-prop-btn" onclick="event.stopPropagation();_hunAbrirPropuesta('+i+')">&#9998; Oficiales</button>';
     }
     // La casilla va como flex-item propio al lado del cuerpo (no mezclada con
@@ -11187,7 +11224,6 @@ function _hunToggleOtros(force){
 function _hunOtrosOutside(e){var m=document.getElementById('hun-otros-menu');if(m&&!m.hidden&&e.target&&!e.target.closest('#hun-otros'))_hunToggleOtros(false);}
 function _hunOtrosOpen(){_hunToggleOtros(true);}
 function _hunOtrosClose(){_hunToggleOtros(false);}
-function _hunOtrosAyuda(){_hunOtrosClose();if(typeof _tourStart==='function')_tourStart('hunter');}
 
 // ── DESCARGA MÚLTIPLE: buscar, tildar varias y bajarlas en un ZIP ──────────
 // Reusa el motor del generador masivo (_pgGenerarRows) con un resolutor PROPIO
@@ -11217,8 +11253,29 @@ function _hunMultiBarSync(){
   bar.style.display=_hunMultiOn?'flex':'none';
   var n=_hunMultiCount();
   var txt=document.getElementById('hun-multi-count');if(txt)txt.textContent=n+(n===1?' empresa tildada':' empresas tildadas');
-  var dl=document.getElementById('hun-multi-dl');if(dl)dl.disabled=!n;
+  var dl=document.getElementById('hun-multi-dl');
+  if(dl){dl.disabled=!n;dl.textContent=n?('Descargar ZIP ('+n+')'):'Descargar ZIP';}
+  _hunMultiSelRender();
 }
+// Las empresas tildadas, ARRIBA y siempre a la vista (aunque el buscador esté
+// mostrando otras), para revisar qué se va a bajar antes de dar el OK. La
+// selección vive en _hunMultiSel por índice estable (_hi); acá se arma desde
+// _hunRows, no desde lo filtrado.
+function _hunMultiSelRender(){
+  var box=document.getElementById('hun-multi-sel');if(!box)return;
+  var sel=(_hunRows||[]).filter(function(r){return _hunMultiSel[r._hi];});
+  if(!_hunMultiOn||!sel.length){box.style.display='none';box.innerHTML='';return;}
+  box.style.display='block';
+  // En el onclick va sólo el índice estable.
+  box.innerHTML='<div class="hun-sel-h">Seleccionadas ('+sel.length+')</div>'+
+    sel.map(function(r){
+      var opt=_hunOptDe(r);
+      return '<div class="hun-sel-row"><div class="hun-sel-b"><span class="hun-sel-e">'+_escHtml(r.empresa||'(sin nombre)')+'</span>'+
+        '<span class="hun-sel-d">'+_escHtml(_hunFlyerLbl(opt))+' &middot; '+_escHtml(_hunOficiales(r))+'</span></div>'+
+        '<button type="button" class="hun-sel-x" title="Quitar de la selecci&oacute;n" aria-label="Quitar" onclick="_hunMultiQuitar('+r._hi+')">&#10005;</button></div>';
+    }).join('');
+}
+function _hunMultiQuitar(hi){delete _hunMultiSel[hi];_hunRender();}
 function _hunMultiCancelar(){_hunMultiOn=false;_hunMultiSel={};_hunRender();}
 function _hunMultiBajar(){
   var n=_hunMultiCount();if(!n)return;
@@ -11301,62 +11358,76 @@ function _hunBajar(){
 // (nombre/celular/mail), nunca cashback, rubro, CUIT o razón social. El
 // cambio no impacta nada hasta que lo apruebe el OFICIAL DUEÑO de esa
 // empresa, o la persona que ese oficial puso como suplente (por vacaciones).
-// Mientras está pendiente, el flyer sigue saliendo con los datos de hoy — ver
+// Mientras está abierta, el flyer sigue saliendo con los datos de hoy — ver
 // _hunOptDe/_pgVals más arriba, que no miran esto para nada.
 //
-// Todo lo que escribe pasa por tres funciones de la base (seguridad real, no
-// cosmética): padron_propuesta_crear / _aprobar / _rechazar (migración
-// 012_propuestas_oficiales.sql). Esta sección del archivo SÍ escribe —por eso
-// vive después de la marca de abajo, afuera de lo que el build verifica como
-// "la pantalla de buscar y bajar no toca la base".
+// Conversación (migración 013): el dueño puede REPREGUNTAR (la propuesta pasa
+// a "consulta") y el hunter responde y, si hace falta, corrige los oficiales
+// (vuelve a "pendiente"). Al aprobar o rechazar se puede dejar un comentario.
+// Todo queda en un hilo (padron_propuesta_mensajes) que ven los dos lados.
+//
+// Todo lo que escribe pasa por funciones security definer de la base
+// (padron_propuesta_crear / _consultar / _responder / _aprobar / _rechazar):
+// seguridad real, no cosmética. Esta sección SÍ escribe —por eso vive después
+// de la marca de arriba, afuera de lo que el build verifica como "la pantalla
+// de buscar y bajar no toca la base".
 
-// ── LADO HUNTER: proponer ───────────────────────────────────────────────────
-var _hunPropMias={},_hunPropFila=null;
-// Mis propias propuestas (RLS: "creada_por = auth.uid()" ya me las deja ver).
-// Sólo importan las PENDIENTES para la tarjeta "pendiente de aprobación" en
-// la lista; una vez resuelta, la fila vuelve a verse como cualquier otra.
-function _hunPropCargarMias(cb){
-  if(!_me){if(cb)cb();return;}
-  _sb.from('padron_propuestas').select('dueno_id,empresa_key,estado').eq('creada_por',_me.id).eq('estado','pendiente')
+var _PROP_ESTADO={pendiente:'Pendiente de aprobación',consulta:'El oficial te hizo una consulta',
+  aprobada:'Aprobado',rechazada:'Rechazado'};
+var _PROP_TIPO={nota:'Nota',consulta:'Consulta',respuesta:'Respuesta',aprobacion:'Aprobó',rechazo:'Rechazó'};
+// Hilos por propuesta: {id: [mensajes]}. Se cargan junto con las propuestas.
+var _propHilos={};
+function _propCargarHilos(ids,cb){
+  if(!ids||!ids.length){if(cb)cb();return;}
+  _sb.from('padron_propuesta_mensajes').select('*').in('propuesta_id',ids).order('created_at',{ascending:true})
     .then(function(r){
-      _hunPropMias={};
-      ((r&&r.data)||[]).forEach(function(p){_hunPropMias[p.dueno_id+'|'+p.empresa_key]=true;});
+      ((r&&r.data)||[]).forEach(function(m){(_propHilos[m.propuesta_id]=_propHilos[m.propuesta_id]||[]).push(m);});
       if(cb)cb();
     }).catch(function(){if(cb)cb();});
 }
-function _hunPropPendiente(r){return !!(r&&r.user_id&&_hunPropMias[r.user_id+'|'+_padNorm(r.empresa)]);}
-
-// El modal: 4 slots de oficial (igual que el editor de "Mis empresas"), con
-// Pegar + autocompletar mail, un resumen de qué cambia y una nota opcional.
-function _hunPropStyle(){
-  if(document.getElementById('hun-prop-style'))return;
-  var st=document.createElement('style');st.id='hun-prop-style';
-  st.textContent=
-    '.hp-slot{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px}'+
-    '.hp-slot-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'+
-    '.hp-slot-h b{font-size:.72rem;color:var(--gray)}'+
-    '.hp-paste-tg{font-size:.66rem;color:var(--accent-2,#1d4070);cursor:pointer;text-decoration:underline}'+
-    '.hp-slot input{width:100%;margin-bottom:5px}'+
-    '.hp-paste-ta{width:100%;font-size:.76rem;margin-bottom:5px;resize:vertical}'+
-    '.hp-paste-res{font-size:.66rem;color:var(--gray);margin-bottom:4px}'+
-    '.hp-diff{font-size:.74rem;line-height:1.6}'+
-    '.hp-diff li{margin-bottom:2px}';
-  document.head.appendChild(st);
+function _propHiloReset(ids){(ids||[]).forEach(function(id){delete _propHilos[id];});}
+function _propHiloHtml(id){
+  var ms=(_propHilos[id]||[]).filter(function(m){return (m.texto||'').trim();});
+  if(!ms.length)return '';
+  return '<div class="prop-hilo">'+ms.map(function(m){
+    var lado=m.rol==='hunter'?'hun':'ofi';
+    return '<div class="prop-msg prop-msg-'+lado+'">'+
+      '<div class="prop-msg-h"><strong>'+_escHtml(m.autor_nombre||(m.rol==='hunter'?'Hunter':'Oficial'))+'</strong>'+
+        ' &middot; '+_escHtml(_PROP_TIPO[m.tipo]||'')+' &middot; '+_escHtml(_fmtDate(m.created_at))+'</div>'+
+      '<div class="prop-msg-t">'+_escHtml(m.texto)+'</div></div>';
+  }).join('')+'</div>';
 }
+function _propDiffHtml(antes,despues){
+  var diff=_plogAsesorDiff(antes||[],despues||[]);
+  if(!diff.length)return '<div class="pu-hint">Sin cambios en los oficiales.</div>';
+  return '<ul class="prop-diff">'+diff.map(function(d){return '<li><b>'+_escHtml(d[0])+':</b> '+_escHtml(d[1])+'</li>';}).join('')+'</ul>';
+}
+function _propChip(estado){return '<span class="prop-chip prop-chip-'+_escAttr(estado)+'">'+_escHtml(_PROP_ESTADO[estado]||estado)+'</span>';}
+// Los toasts son texto plano (fgShowToast usa textContent): nada de entidades.
+function _propToast(msg){_fgToastLargo(msg,6000);}
+
+// ── Slots de oficiales (proponer y responder comparten el mismo editor) ────
+var _hunPropFila=null,_hunPropBase=[],_hunPropModo='crear',_hunPropId=null;
 function _hunPropSlotHtml(i,a){
   a=a||{};
   return '<div class="hp-slot" data-n="'+i+'">'+
-    '<div class="hp-slot-h"><b>Oficial '+(i+1)+'</b>'+
-      '<span class="hp-paste-tg" onclick="_hunPropPasteToggle('+i+')">&#9889; Pegar</span></div>'+
+    '<div class="hp-slot-h"><b>Oficial '+(i+1)+'</b><span class="hp-acts">'+
+      '<button type="button" class="hp-act" onclick="_hunPropPasteToggle('+i+')">&#9889; Pegar</button>'+
+      '<button type="button" class="hp-act" onclick="_hpGuardadosAbrir('+i+',this)">&#9734; Guardados</button>'+
+      '<button type="button" class="hp-act" onclick="_hpGuardar('+i+')">&#43; Guardar este</button>'+
+    '</span></div>'+
     '<div class="hp-paste-wrap" id="hp-paste-'+i+'" style="display:none">'+
       '<textarea class="login-inp hp-paste-ta" id="hp-paste-ta-'+i+'" rows="2" '+
-        'placeholder="Pegá el nombre, celular y/o mail" oninput="_hunPropPasteRun('+i+')"></textarea>'+
+        'placeholder="Peg&aacute; el nombre, celular y/o mail" oninput="_hunPropPasteRun('+i+')"></textarea>'+
       '<div class="hp-paste-res" id="hp-paste-res-'+i+'"></div>'+
     '</div>'+
-    '<input type="text" class="login-inp" id="hp-nombre-'+i+'" placeholder="Nombre" value="'+_escAttr(a.nombre||'')+'" '+
-      'oninput="_hunPropAutoMail('+i+');_hunPropDiffSync()">'+
-    '<input type="text" class="login-inp" id="hp-celular-'+i+'" placeholder="Celular" value="'+_escAttr(a.celular||'')+'" oninput="_hunPropDiffSync()">'+
-    '<input type="text" class="login-inp" id="hp-email-'+i+'" placeholder="Mail" value="'+_escAttr(a.email||'')+'" oninput="_hunPropDiffSync()">'+
+    '<div class="hp-row">'+
+      '<input type="text" class="login-inp" id="hp-nombre-'+i+'" placeholder="Nombre" value="'+_escAttr(a.nombre||'')+'" '+
+        'oninput="_hunPropAutoMail('+i+');_hunPropDiffSync()">'+
+      '<input type="text" class="login-inp" id="hp-celular-'+i+'" placeholder="Celular" value="'+_escAttr(a.celular||'')+'" oninput="_hunPropDiffSync()">'+
+      '<input type="text" class="login-inp" id="hp-email-'+i+'" placeholder="Mail" value="'+_escAttr(a.email||'')+'" '+
+        'oninput="this.dataset.manual=\'1\';_hunPropDiffSync()">'+
+    '</div>'+
   '</div>';
 }
 function _hunPropAutoMail(i){
@@ -11397,81 +11468,270 @@ function _hunPropLeerSlots(){
   return out;
 }
 function _hunPropDiffSync(){
-  var el=document.getElementById('hun-prop-diff');if(!el||!_hunPropFila)return;
-  var diff=_plogAsesorDiff(_hunPropFila.asesores||[],_hunPropLeerSlots());
+  var el=document.getElementById('hun-prop-diff');if(!el)return;
+  var diff=_plogAsesorDiff(_hunPropBase||[],_hunPropLeerSlots());
   el.innerHTML=diff.length
-    ? '<strong>Vas a proponer:</strong><ul class="hp-diff">'+diff.map(function(p){return '<li>'+_escHtml(p[0])+': '+_escHtml(p[1])+'</li>';}).join('')+'</ul>'
-    : 'Todavía no cambiaste nada.';
-  var btn=document.getElementById('hun-prop-enviar');if(btn)btn.disabled=!diff.length;
+    ? '<div class="prop-diff-t">Vas a proponer</div><ul class="prop-diff">'+diff.map(function(p){return '<li><b>'+_escHtml(p[0])+':</b> '+_escHtml(p[1])+'</li>';}).join('')+'</ul>'
+    : '<div class="pu-hint">Todav&iacute;a no cambiaste ning&uacute;n oficial.</div>';
+  var btn=document.getElementById('hun-prop-enviar');if(!btn)return;
+  // Proponer exige un cambio; responder una consulta puede ser sólo texto.
+  if(_hunPropModo==='crear')btn.disabled=!diff.length;
+  else{var t=((document.getElementById('hun-prop-nota')||{}).value||'').trim();btn.disabled=!diff.length&&!t;}
 }
 function _hunPropCerrar(){
-  var ov=document.getElementById('pad-upd-ov');
-  if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
-  _hunPropFila=null;
+  _hpGuardadosCerrar();
+  var o=document.getElementById('pad-upd-ov');
+  if(o&&o.parentNode)o.parentNode.removeChild(o);
+  _hunPropFila=null;_hunPropBase=[];_hunPropId=null;_hunPropModo='crear';
+}
+
+// ── Asesores pre-guardados dentro del modal (la misma lista del armador:
+//    tabla asesores_guardados, por cuenta; _loadAsesores/_saveAsesores no
+//    dependen del DOM del armador). ────────────────────────────────────────
+function _hpGuardadosCerrar(){
+  var p=document.getElementById('hp-as-pop');if(p&&p.parentNode)p.parentNode.removeChild(p);
+  document.removeEventListener('click',_hpGuardadosFuera);
+}
+function _hpGuardadosFuera(e){
+  var p=document.getElementById('hp-as-pop');
+  if(p&&e&&e.target&&!(p.contains&&p.contains(e.target)))_hpGuardadosCerrar();
+}
+function _hpGuardadosAbrir(i,anchor){
+  _hpGuardadosCerrar();
+  var pop=document.createElement('div');pop.id='hp-as-pop';pop.className='hp-as-pop';
+  pop.innerHTML='<div class="hp-as-h">Mis oficiales guardados</div><div class="hp-as-list">Cargando&hellip;</div>';
+  document.body.appendChild(pop);
+  if(anchor&&anchor.getBoundingClientRect){
+    var r=anchor.getBoundingClientRect();
+    pop.style.top=Math.round(r.bottom+4)+'px';
+    pop.style.left=Math.round(Math.max(8,Math.min(r.right-260,(window.innerWidth||1200)-268)))+'px';
+  }
+  setTimeout(function(){document.addEventListener('click',_hpGuardadosFuera);},0);
+  _loadAsesores(function(lista){
+    var host=pop.querySelector('.hp-as-list')||pop;
+    if(!lista||!lista.length){
+      host.innerHTML='<div class="hp-as-vacio">Todav&iacute;a no guardaste ning&uacute;n oficial. Us&aacute; <b>+ Guardar este</b> en un oficial cargado.</div>';
+      return;
+    }
+    // En el onclick van sólo los índices (slot y posición en la lista).
+    host.innerHTML=lista.map(function(a,k){
+      return '<button type="button" class="hp-as-item" onclick="_hpGuardadoAplicar('+i+','+k+')">'+
+        '<span class="hp-as-n">'+_escHtml(a.name||a.nombre||'(sin nombre)')+'</span>'+
+        '<span class="hp-as-d">'+_escHtml([a.celular,a.email].filter(Boolean).join(' · '))+'</span></button>';
+    }).join('');
+  });
+}
+function _hpGuardadoAplicar(i,k){
+  var a=_asesores[k];if(!a)return;
+  var n=document.getElementById('hp-nombre-'+i),c=document.getElementById('hp-celular-'+i),m=document.getElementById('hp-email-'+i);
+  if(n)n.value=a.nombre||a.name||'';
+  if(c)c.value=a.celular||'';
+  if(m){m.value=a.email||'';m.dataset.manual='1';}
+  _hpGuardadosCerrar();
+  _hunPropDiffSync();
+}
+function _hpGuardar(i){
+  var a={
+    nombre:((document.getElementById('hp-nombre-'+i)||{}).value||'').trim(),
+    celular:((document.getElementById('hp-celular-'+i)||{}).value||'').trim(),
+    email:((document.getElementById('hp-email-'+i)||{}).value||'').trim()
+  };
+  if(!a.nombre){showToast('Completá al menos el nombre para guardarlo.');return;}
+  _loadAsesores(function(){
+    var ya=_asesores.some(function(x){return _padNorm(x.nombre)===_padNorm(a.nombre)&&_padNorm(x.email)===_padNorm(a.email);});
+    if(ya){showToast(a.nombre+' ya está en tus guardados.');return;}
+    // El rótulo es el nombre (sin cuadro de texto nativo: se corrige después en Mis asesores).
+    _asesores.unshift({id:_asId(),name:a.nombre,nombre:a.nombre,celular:a.celular,email:a.email});
+    _saveAsesores(function(ok){if(ok!==false)showToast(a.nombre+' guardado en tus oficiales.');});
+  });
+}
+
+// ── LADO HUNTER: proponer ───────────────────────────────────────────────────
+// Mis propuestas (RLS: "creada_por = auth.uid()" ya me las deja ver).
+// _hunPropMias: empresa abierta (pendiente o consulta) → {id, estado}, para la
+// tarjeta de la fila. _hunPropLista: todas, para "Mis cambios propuestos".
+var _hunPropMias={},_hunPropLista=[],_hunPropAviso=0;
+function _hunPropVistoKey(){return 'fg_hunprop_visto_'+(_me?_me.id:'anon');}
+function _hunPropVisto(){try{return localStorage.getItem(_hunPropVistoKey())||'';}catch(e){return '';}}
+function _hunPropMarcarVisto(){try{localStorage.setItem(_hunPropVistoKey(),new Date().toISOString());}catch(e){}}
+function _hunPropCargarMias(cb){
+  if(!_me){if(cb)cb();return;}
+  _sb.from('padron_propuestas')
+    .select('id,dueno_id,empresa_key,empresa,estado,asesores_antes,asesores,created_at,resuelta_at,motivo')
+    .eq('creada_por',_me.id).order('created_at',{ascending:false}).limit(100)
+    .then(function(r){
+      _hunPropLista=(r&&r.data)||[];
+      _hunPropMias={};
+      var visto=_hunPropVisto(),aviso=0;
+      _hunPropLista.forEach(function(p){
+        if(p.estado==='pendiente'||p.estado==='consulta')_hunPropMias[p.dueno_id+'|'+p.empresa_key]={id:p.id,estado:p.estado};
+        // Para avisarle: consultas que esperan su respuesta + lo resuelto que no vio.
+        if(p.estado==='consulta')aviso++;
+        else if((p.estado==='aprobada'||p.estado==='rechazada')&&p.resuelta_at&&p.resuelta_at>visto)aviso++;
+      });
+      _hunPropAviso=aviso;
+      _hunPropBadgeSync();
+      if(cb)cb();
+    }).catch(function(){if(cb)cb();});
+}
+function _hunPropPendiente(r){return !!(r&&r.user_id&&_hunPropMias[r.user_id+'|'+_padNorm(r.empresa)]);}
+function _hunPropEstado(r){
+  var x=r&&r.user_id&&_hunPropMias[r.user_id+'|'+_padNorm(r.empresa)];
+  if(!x)return '';
+  return (x===true)?'pendiente':(x.estado||'pendiente');
+}
+function _hunPropBadgeSync(){
+  var it=document.getElementById('hdr-dd-hunprop');
+  if(it)it.style.display=(_esHunter()&&_can('proponer_oficiales'))?'flex':'none';
+  var b=document.getElementById('hunprop-badge');
+  if(b)b.innerHTML=_hunPropAviso>0?'<span class="fg-badge">'+_hunPropAviso+'</span>':'';
+}
+function _hunPropCartel(){
+  var cons=_hunPropLista.filter(function(p){return p.estado==='consulta';}).length;
+  var res=_hunPropAviso-cons;
+  if(!cons&&!res)return;
+  var partes=[];
+  if(cons)partes.push(cons===1?'1 consulta sobre un cambio que propusiste':cons+' consultas sobre cambios que propusiste');
+  if(res>0)partes.push(res===1?'1 cambio resuelto':res+' cambios resueltos');
+  _propToast('Tenés '+partes.join(' y ')+'. Tu nombre → Cambios pendientes de aprobación.');
+}
+
+// El modal de proponer/responder: título, contexto, los 4 slots, el campo de
+// texto y el resumen de qué cambia. Más ancho que el modal genérico.
+function _hunPropModal(o){
+  _padStyle();
+  var as=(o.asesores||[]).slice(0,4);while(as.length<4)as.push({nombre:'',celular:'',email:''});
+  _padModal(
+    '<h3>'+o.titulo+'</h3>'+
+    '<p class="pu-sub">'+o.sub+'</p>'+
+    (o.hilo||'')+
+    '<div class="hp-slots">'+as.map(function(a,i){return _hunPropSlotHtml(i,a);}).join('')+'</div>'+
+    '<div class="pu-fld"><label class="pu-lbl">'+o.lblTexto+'</label>'+
+      '<textarea id="hun-prop-nota" class="login-inp" rows="2" placeholder="'+o.phTexto+'" oninput="_hunPropDiffSync()"></textarea></div>'+
+    '<div id="hun-prop-diff" class="hp-diffbox"></div>'+
+    '<div class="pu-foot">'+
+      '<button type="button" class="pu-no" onclick="_hunPropCerrar()">Cancelar</button>'+
+      '<button type="button" class="pu-si" id="hun-prop-enviar" onclick="_hunPropuestaEnviar()" disabled>'+o.btn+'</button>'+
+    '</div>'
+  );
+  var box=document.getElementById('pad-upd');if(box)box.classList.add('pu-wide');
+  _hunPropDiffSync();
 }
 function _hunAbrirPropuesta(i){
   if(!_can('proponer_oficiales')){showToast('No tenés habilitado proponer cambios.');return;}
   var r=_hunHits[i];if(!r)return;
   if(!r.user_id){showToast('No se pudo identificar al oficial dueño de esta empresa.');return;}
-  if(_hunPropPendiente(r)){showToast('Ya hay una propuesta tuya pendiente para esta empresa.');return;}
-  _hunPropFila=r;
-  _padStyle();_hunPropStyle();
-  var as=(r.asesores||[]).slice(0,4);while(as.length<4)as.push({nombre:'',celular:'',email:''});
-  _padModal(
-    '<h3>&#9998; Proponer un cambio de oficiales</h3>'+
-    '<p class="pu-sub">Empresa: <strong>'+_escHtml(r.empresa||'')+'</strong>. El cambio queda <strong>pendiente</strong> hasta que el oficial due&ntilde;o (o su suplente) lo apruebe; hasta entonces el flyer sigue saliendo con los datos de hoy.</p>'+
-    as.map(function(a,i){return _hunPropSlotHtml(i,a);}).join('')+
-    '<div class="pu-fld"><label class="pu-lbl">Nota para el oficial (opcional)</label>'+
-      '<textarea id="hun-prop-nota" class="login-inp" rows="2" placeholder="Ej: el celular de Juan qued&oacute; desactualizado"></textarea></div>'+
-    '<div id="hun-prop-diff" class="pu-hint"></div>'+
-    '<div class="pu-foot">'+
-      '<button type="button" class="pu-no" onclick="_hunPropCerrar()">Cancelar</button>'+
-      '<button type="button" class="pu-si" id="hun-prop-enviar" onclick="_hunPropuestaEnviar()" disabled>Enviar propuesta</button>'+
-    '</div>'
-  );
-  _hunPropDiffSync();
+  if(_hunPropPendiente(r)){showToast('Ya hay un cambio tuyo abierto para esta empresa: miralo en tu nombre → Cambios pendientes de aprobación.');return;}
+  _hunPropFila=r;_hunPropBase=r.asesores||[];_hunPropModo='crear';_hunPropId=null;
+  _hunPropModal({
+    titulo:'&#9998; Proponer un cambio de oficiales',
+    sub:'<strong>'+_escHtml(r.empresa||'')+'</strong> &middot; El cambio queda <strong>pendiente</strong> hasta que lo apruebe el oficial due&ntilde;o (o su suplente). Mientras tanto, el flyer sigue saliendo con los datos de hoy.',
+    asesores:r.asesores,
+    lblTexto:'Nota para el oficial (opcional)',phTexto:'Ej: el celular de Juan qued&oacute; desactualizado',
+    btn:'Enviar propuesta'
+  });
+}
+// Responder una consulta: mismos slots, precargados con lo que había
+// propuesto; el resumen compara contra los oficiales de hoy.
+function _hunResponder(id){
+  var p=_hunPropLista.filter(function(x){return x.id===id;})[0];if(!p)return;
+  _hunPropCerrar();
+  _hunPropFila={empresa:p.empresa,user_id:p.dueno_id};
+  _hunPropBase=p.asesores_antes||[];_hunPropModo='responder';_hunPropId=id;
+  _hunPropModal({
+    titulo:'&#128172; Responder la consulta',
+    sub:'<strong>'+_escHtml(p.empresa||'')+'</strong> &middot; Contest&aacute; y, si hace falta, correg&iacute; los oficiales. Vuelve a quedar pendiente de aprobaci&oacute;n.',
+    hilo:_propHiloHtml(id),
+    asesores:p.asesores,
+    lblTexto:'Tu respuesta',phTexto:'Ej: confirmado con el cliente, el celular nuevo es ese',
+    btn:'Responder y reenviar'
+  });
 }
 function _hunPropuestaEnviar(){
   if(!_hunPropFila)return;
-  var btn=document.getElementById('hun-prop-enviar');if(btn){btn.disabled=true;btn.textContent='Enviando...';}
-  var nota=((document.getElementById('hun-prop-nota')||{}).value||'').trim();
-  _sb.rpc('padron_propuesta_crear',{
-    p_empresa:_hunPropFila.empresa, p_dueno:_hunPropFila.user_id,
-    p_asesores:_hunPropLeerSlots(), p_nota:nota||null
-  }).then(function(r){
+  var btn=document.getElementById('hun-prop-enviar');
+  var lbl=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+  var texto=((document.getElementById('hun-prop-nota')||{}).value||'').trim();
+  var req=(_hunPropModo==='responder')
+    ? _sb.rpc('padron_propuesta_responder',{p_id:_hunPropId,p_texto:texto,p_asesores:_hunPropLeerSlots()})
+    : _sb.rpc('padron_propuesta_crear',{p_empresa:_hunPropFila.empresa,p_dueno:_hunPropFila.user_id,
+        p_asesores:_hunPropLeerSlots(),p_nota:texto||null});
+  var modo=_hunPropModo,pid=_hunPropId;
+  req.then(function(r){
     if(r&&r.error){
       showToast('No se pudo enviar: '+r.error.message);
-      if(btn){btn.disabled=false;btn.textContent='Enviar propuesta';}
+      if(btn){btn.disabled=false;btn.textContent=lbl;}
       return;
     }
-    showToast('Propuesta enviada: queda pendiente de aprobación.');
+    showToast(modo==='responder'?'Respuesta enviada: vuelve a quedar pendiente de aprobación.':'Propuesta enviada: queda pendiente de aprobación.');
     _hunPropCerrar();
-    _hunPropCargarMias(_hunRender);
+    if(pid)_propHiloReset([pid]);
+    _hunPropCargarMias(function(){_hunRender();if(document.getElementById('mis-cambios-list'))_hunMisCambiosRender();});
   }).catch(function(e){
     showToast('No se pudo enviar: '+((e&&e.message)||e));
-    if(btn){btn.disabled=false;btn.textContent='Enviar propuesta';}
+    if(btn){btn.disabled=false;btn.textContent=lbl;}
   });
 }
 
-// ── LADO OFICIAL: aprobar / rechazar / elegir suplente ──────────────────────
-var _propPendCount=0,_propPendientes=[],_propColegas=null,_mySuplenteId=undefined,_propRechazoAbierto={};
-// Todo lo PENDIENTE que la RLS me deja ver y que no creé yo mismo: soy el
-// dueño, o soy el suplente del dueño (padron_propuestas: ver, migración 012).
+// ── "Cambios pendientes de aprobación" (menú del nombre del Hunter) ─────────
+function openMisCambios(){
+  if(!_can('proponer_oficiales'))return;
+  _hunPropCerrar();
+  _padStyle();
+  _padModal('<h3>&#128203; Mis cambios propuestos</h3>'+
+    '<p class="pu-sub">Lo que propusiste y en qu&eacute; qued&oacute;. Si el oficial te hizo una consulta, respondela desde ac&aacute;.</p>'+
+    '<div id="mis-cambios-list" class="prop-list">Cargando&hellip;</div>'+
+    '<div class="pu-foot"><button type="button" class="pu-no" onclick="_hunPropCerrar()">Cerrar</button></div>');
+  var box=document.getElementById('pad-upd');if(box)box.classList.add('pu-wide');
+  _hunPropCargarMias(function(){
+    _propCargarHilos(_hunPropLista.map(function(p){return p.id;}).filter(function(id){return !_propHilos[id];}),function(){
+      _hunMisCambiosRender();
+      // Lo que ve ahora deja de contar como novedad.
+      _hunPropMarcarVisto();
+      _hunPropAviso=_hunPropLista.filter(function(p){return p.estado==='consulta';}).length;
+      _hunPropBadgeSync();
+    });
+  });
+}
+function _hunMisCambiosRender(){
+  var host=document.getElementById('mis-cambios-list');if(!host)return;
+  if(!_hunPropLista.length){host.innerHTML='<div class="prop-vacio">Todav&iacute;a no propusiste ning&uacute;n cambio.</div>';return;}
+  // Primero lo que espera algo de él (consulta), después lo abierto, después lo resuelto.
+  var orden={consulta:0,pendiente:1,aprobada:2,rechazada:2};
+  var lista=_hunPropLista.slice().sort(function(a,b){return (orden[a.estado]-orden[b.estado])||(a.created_at<b.created_at?1:-1);});
+  host.innerHTML=lista.map(function(p){
+    return '<div class="prop-card prop-card-'+_escAttr(p.estado)+'">'+
+      '<div class="prop-card-h"><div><div class="prop-emp">'+_escHtml(p.empresa||'')+'</div>'+
+        '<div class="prop-meta">Propuesto '+_escHtml(_fmtDate(p.created_at))+'</div></div>'+_propChip(p.estado)+'</div>'+
+      _propDiffHtml(p.asesores_antes,p.asesores)+
+      _propHiloHtml(p.id)+
+      (p.estado==='consulta'?'<div class="prop-acts"><button type="button" class="prop-btn prop-btn-pri" onclick="_hunResponder(\''+p.id+'\')">Responder</button></div>':'')+
+    '</div>';
+  }).join('');
+}
+
+// ── LADO OFICIAL: aprobar / repreguntar / rechazar / elegir suplente ───────
+var _propPendCount=0,_propPendientes=[],_propColegas=null,_mySuplenteId=undefined;
+// Todo lo ABIERTO (pendiente o en consulta) que la RLS me deja ver y que no
+// creé yo: soy el dueño, o soy el suplente del dueño. El número del badge
+// cuenta sólo lo que espera MI acción (pendiente); lo que está en consulta
+// espera al hunter.
 function _propCargarPendientes(cb){
   if(!_me){_propPendientes=[];_propPendCount=0;_propBadgeSync();if(cb)cb();return;}
-  _sb.from('padron_propuestas').select('*').eq('estado','pendiente').order('created_at',{ascending:false})
+  _sb.from('padron_propuestas').select('*').in('estado',['pendiente','consulta']).order('created_at',{ascending:false})
     .then(function(r){
       var rows=(r&&r.data)||[];
       _propPendientes=rows.filter(function(x){return x.creada_por!==_me.id;});
-      _propPendCount=_propPendientes.length;
+      _propPendCount=_propPendientes.filter(function(x){return x.estado!=='consulta';}).length;
       _propBadgeSync();
       if(cb)cb();
     }).catch(function(){if(cb)cb();});
 }
 function _propCartel(){
   if(!_propPendCount)return;
-  _fgToastLargo('Ten&eacute;s '+_propPendCount+(_propPendCount===1?' cambio de oficiales':' cambios de oficiales')+
-    ' para revisar — tu nombre &rarr; Base de datos &rarr; Cambios pendientes.',6000);
+  _propToast('Tenés '+_propPendCount+(_propPendCount===1?' cambio de oficiales':' cambios de oficiales')+
+    ' para revisar. Tu nombre → Base de datos → Cambios pendientes.');
 }
 function _propBadgeSync(){
   var dp=document.getElementById('hdr-dd-padron');if(!dp)return;
@@ -11480,7 +11740,7 @@ function _propBadgeSync(){
     var sp=dp.querySelector('span');
     if(sp&&sp.parentNode){b=document.createElement('span');b.id='bd-badge';sp.parentNode.insertBefore(b,sp.nextSibling);}
   }
-  if(b)b.innerHTML=_propPendCount>0?' <span style="background:#fff;color:var(--red);border-radius:10px;padding:0 6px;font-size:.66rem;font-weight:800;margin-left:2px">'+_propPendCount+'</span>':'';
+  if(b)b.innerHTML=_propPendCount>0?'<span class="fg-badge">'+_propPendCount+'</span>':'';
 }
 function _propColegasCargar(cb){
   if(_propColegas){if(cb)cb(_propColegas);return;}
@@ -11507,65 +11767,95 @@ function _propSuplenteHtml(){
   var opts=(_propColegas||[]).map(function(c){
     return '<option value="'+_escAttr(c.id)+'"'+(c.id===_mySuplenteId?' selected':'')+'>'+_escHtml(c.nombre)+'</option>';
   }).join('');
-  return '<div class="pu-fld" style="margin-bottom:16px">'+
-    '<label class="pu-lbl">Mi suplente</label>'+
-    '<div class="pu-hint" style="margin-bottom:6px">Mientras est&eacute; elegido, esa persona tambi&eacute;n puede aprobar tus propuestas (por ejemplo, durante tus vacaciones). Sin fechas: lo saca vos cuando vuelvas.</div>'+
+  return '<div class="prop-suplente">'+
+    '<div><div class="prop-suplente-t">Mi suplente</div>'+
+    '<div class="pu-hint">Mientras est&eacute; elegido, esa persona tambi&eacute;n puede revisar y aprobar los cambios de tus empresas (por ejemplo, durante tus vacaciones). Lo sac&aacute;s vos cuando vuelvas.</div></div>'+
     '<select class="login-inp" id="prop-suplente-sel" onchange="_propSuplenteGuardar(this.value)">'+
       '<option value="">Ninguno</option>'+opts+
     '</select></div>';
 }
 function _propRenderPendientes(){
   var host=document.getElementById('at-propuestas');if(!host)return;
-  _padStyle();
   host.innerHTML='<p class="ap-sec">Cambios pendientes</p>'+
-    '<div id="prop-suplente-box">Cargando…</div>'+
-    '<div id="prop-list">Cargando…</div>';
+    '<div id="prop-suplente-box"></div>'+
+    '<div id="prop-list" class="prop-list">Cargando&hellip;</div>';
   _propColegasCargar(function(){
     _propSuplenteCargar(function(){
       var box=document.getElementById('prop-suplente-box');if(box)box.innerHTML=_propSuplenteHtml();
     });
   });
-  var list=document.getElementById('prop-list');
+  _propCargarHilos(_propPendientes.map(function(p){return p.id;}).filter(function(id){return !_propHilos[id];}),_propPintarLista);
+}
+function _propPintarLista(){
+  var list=document.getElementById('prop-list');if(!list)return;
   if(!_propPendientes.length){
-    list.innerHTML='<p style="font-size:.78rem;color:var(--gray)">No ten&eacute;s cambios pendientes de revisar.</p>';
+    list.innerHTML='<div class="prop-vacio">No ten&eacute;s cambios para revisar.</div>';
     return;
   }
-  // En los onclick va SÓLO el id de la propuesta: todo lo demás es texto de
-  // otro usuario y va siempre a través de _escHtml.
+  // En los onclick va SÓLO el id de la propuesta (lo genera la base): todo lo
+  // demás es texto de otro usuario y va siempre a través de _escHtml.
   list.innerHTML=_propPendientes.map(function(p){
-    var diff=_plogAsesorDiff(p.asesores_antes||[],p.asesores||[]);
-    var abierto=!!_propRechazoAbierto[p.id];
-    return '<div class="pad-erow" style="margin-bottom:10px">'+
-      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
-        '<div><strong>'+_escHtml(p.empresa||'')+'</strong><div class="pu-hint">propuesto por '+_escHtml(p.creada_por_nombre||'alguien')+' · '+_escHtml(_fmtDate(p.created_at))+'</div></div>'+
+    var esperando=p.estado==='consulta';
+    return '<div class="prop-card prop-card-'+_escAttr(p.estado)+'">'+
+      '<div class="prop-card-h"><div><div class="prop-emp">'+_escHtml(p.empresa||'')+'</div>'+
+        '<div class="prop-meta">Propuesto por '+_escHtml(p.creada_por_nombre||'alguien')+' &middot; '+_escHtml(_fmtDate(p.created_at))+'</div></div>'+
+        (esperando?'<span class="prop-chip prop-chip-consulta">Esperando respuesta del hunter</span>':_propChip('pendiente'))+'</div>'+
+      _propDiffHtml(p.asesores_antes,p.asesores)+
+      _propHiloHtml(p.id)+
+      '<div class="prop-acts">'+
+        '<button type="button" class="prop-btn prop-btn-ok" onclick="_propAccion(\''+p.id+'\',\'aprobar\')">Aprobar</button>'+
+        (esperando?'':'<button type="button" class="prop-btn" onclick="_propAccion(\''+p.id+'\',\'consultar\')">Repreguntar</button>')+
+        '<button type="button" class="prop-btn prop-btn-no" onclick="_propAccion(\''+p.id+'\',\'rechazar\')">Rechazar</button>'+
       '</div>'+
-      (diff.length?'<ul class="hp-diff" style="margin:8px 0">'+diff.map(function(d){return '<li>'+_escHtml(d[0])+': '+_escHtml(d[1])+'</li>';}).join('')+'</ul>':'')+
-      (p.nota?'<div class="pu-hint" style="margin-bottom:8px">Nota: '+_escHtml(p.nota)+'</div>':'')+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-        '<button type="button" class="usr-btn ok" onclick="_propAprobar(\''+p.id+'\')">Aprobar</button>'+
-        '<button type="button" class="usr-btn warn" onclick="_propRechazoToggle(\''+p.id+'\')">Rechazar</button>'+
-      '</div>'+
-      (abierto?(
-        '<div style="margin-top:8px"><textarea class="login-inp" id="prop-motivo-'+p.id+'" rows="2" placeholder="Motivo (opcional)"></textarea>'+
-        '<button type="button" class="usr-btn warn" onclick="_propRechazar(\''+p.id+'\')">Confirmar rechazo</button></div>'
-      ):'')+
+      '<div class="prop-acc" id="prop-acc-'+p.id+'" style="display:none"></div>'+
     '</div>';
   }).join('');
 }
-function _propRechazoToggle(id){_propRechazoAbierto[id]=!_propRechazoAbierto[id];_propRenderPendientes();}
-function _propAprobar(id){
-  _sb.rpc('padron_propuesta_aprobar',{p_id:id}).then(function(r){
-    if(r&&r.error){showToast('No se pudo aprobar: '+r.error.message);return;}
-    showToast('Cambio aplicado');
-    _propCargarPendientes(_propRenderPendientes);
-  }).catch(function(e){showToast('No se pudo aprobar: '+((e&&e.message)||e));});
+// Abre (o cierra) el campo de la acción EN EL LUGAR, sin repintar la lista:
+// así no se pierde lo que se esté escribiendo en otra tarjeta.
+var _PROP_ACC={
+  aprobar:{lbl:'Comentario para el hunter (opcional)',ph:'Ej: gracias, ya quedó actualizado',btn:'Confirmar aprobación',cls:'prop-btn-ok'},
+  consultar:{lbl:'Tu consulta',ph:'Ej: ¿confirmaste el celular con el cliente?',btn:'Enviar consulta',cls:'prop-btn-pri'},
+  rechazar:{lbl:'Motivo (opcional)',ph:'Ej: ese oficial ya no atiende la empresa',btn:'Confirmar rechazo',cls:'prop-btn-no'}
+};
+function _propAccion(id,tipo){
+  var box=document.getElementById('prop-acc-'+id);if(!box)return;
+  if(box.style.display!=='none'&&box.dataset.tipo===tipo){box.style.display='none';return;}
+  var d=_PROP_ACC[tipo];if(!d)return;
+  box.dataset.tipo=tipo;
+  box.innerHTML='<label class="pu-lbl">'+d.lbl+'</label>'+
+    '<textarea class="login-inp" id="prop-txt-'+id+'" rows="2" placeholder="'+_escAttr(d.ph)+'"></textarea>'+
+    '<div class="prop-acts"><button type="button" class="prop-btn '+d.cls+'" onclick="_propConfirmar(\''+id+'\')">'+d.btn+'</button>'+
+    '<button type="button" class="prop-btn prop-btn-link" onclick="_propAccion(\''+id+'\',\''+tipo+'\')">Cancelar</button></div>';
+  box.style.display='block';
+  setTimeout(function(){var t=document.getElementById('prop-txt-'+id);if(t&&t.focus)t.focus();},0);
 }
-function _propRechazar(id){
-  var motivo=((document.getElementById('prop-motivo-'+id)||{}).value||'').trim();
-  _sb.rpc('padron_propuesta_rechazar',{p_id:id,p_motivo:motivo||null}).then(function(r){
-    if(r&&r.error){showToast('No se pudo rechazar: '+r.error.message);return;}
-    delete _propRechazoAbierto[id];
-    showToast('Propuesta rechazada');
+function _propConfirmar(id){
+  var box=document.getElementById('prop-acc-'+id);if(!box)return;
+  var txt=((document.getElementById('prop-txt-'+id)||{}).value||'').trim();
+  if(box.dataset.tipo==='aprobar')_propAprobar(id,txt);
+  else if(box.dataset.tipo==='consultar')_propConsultar(id,txt);
+  else _propRechazar(id,txt);
+}
+function _propTrasResolver(id,msg){
+  return function(r){
+    if(r&&r.error){showToast('No se pudo: '+r.error.message);return;}
+    showToast(msg);
+    _propHiloReset([id]);
     _propCargarPendientes(_propRenderPendientes);
-  }).catch(function(e){showToast('No se pudo rechazar: '+((e&&e.message)||e));});
+  };
+}
+function _propFallo(e){showToast('No se pudo: '+((e&&e.message)||e));}
+function _propAprobar(id,comentario){
+  _sb.rpc('padron_propuesta_aprobar',{p_id:id,p_comentario:comentario||null})
+    .then(_propTrasResolver(id,'Cambio aplicado')).catch(_propFallo);
+}
+function _propConsultar(id,texto){
+  if(!texto){showToast('Escribí la consulta.');return;}
+  _sb.rpc('padron_propuesta_consultar',{p_id:id,p_texto:texto})
+    .then(_propTrasResolver(id,'Consulta enviada al hunter')).catch(_propFallo);
+}
+function _propRechazar(id,motivo){
+  _sb.rpc('padron_propuesta_rechazar',{p_id:id,p_motivo:motivo||null})
+    .then(_propTrasResolver(id,'Propuesta rechazada')).catch(_propFallo);
 }

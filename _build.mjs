@@ -14,6 +14,9 @@ const galiciaLogoWhite = '<div class="lg-logo"><svg class="lg-iso" viewBox="0 0 
 // Íconos monocromáticos (estilo Feather) para el menú de usuario. Heredan el color
 // del texto (currentColor) → look sobrio, sin emojis de color que quedan mal.
 const _svgIco = (p) => '<svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+// Para botones y menús "Otros": .ico se achica solo (.btn .ico 16px, .fg-otros-item .ico 14px).
+// _svgIco (dd-svg) NO sirve ahí: sin tamaño propio, el SVG se estira al ancho disponible.
+const _ico = (p) => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + p + '</svg>';
 const ICO_LOCK = _svgIco('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>');
 const ICO_MOON = _svgIco('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>');
 const ICO_DOC  = _svgIco('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>');
@@ -189,6 +192,9 @@ html = html.replace(
       // esperando que ESTE usuario (dueño o suplente) las apruebe.
       '<button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none">' + ICO_DB + '<span>Base de datos</span><span id="bd-badge"></span></button>' +
       // Tutorial guiado (para todos). El menú se cierra desde el propio tour.
+      // Sólo Hunter con la facultad (lo muestra _hunPropBadgeSync). El número son
+      // las consultas sin responder + lo resuelto que todavía no vio.
+      '<button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none">' + ICO_DOC + '<span>Cambios pendientes de aprobaci&oacute;n</span><span id="hunprop-badge"></span></button>' +
       '<button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()">' + ICO_HELP + '<span>Ver tutorial</span></button>' +
       '<div class="hdr-dd-sep"></div>' +
       '<button class="hdr-dd-item danger" onclick="doLogout()">' + ICO_OUT + '<span>Salir</span></button>' +
@@ -679,9 +685,11 @@ const hunterView = '<div class="hunter-view" id="view-hunter" style="display:non
       '<span class="hun-multi-count" id="hun-multi-count">0 empresas tildadas</span>' +
       '<div class="hun-multi-prog" id="hun-multi-prog" style="display:none"><div class="hun-multi-fill" id="hun-multi-fill"></div></div>' +
       '<span class="hun-multi-txt" id="hun-multi-txt"></span>' +
-      '<button type="button" class="usr-btn edit" id="hun-multi-dl" onclick="_hunMultiBajar()" disabled>Descargar ZIP</button>' +
-      '<button type="button" class="usr-btn warn" onclick="_hunMultiCancelar()">Cancelar</button>' +
+      '<button type="button" class="btn bp hun-multi-dl" id="hun-multi-dl" onclick="_hunMultiBajar()" disabled>Descargar ZIP</button>' +
+      '<button type="button" class="hun-multi-cancel" onclick="_hunMultiCancelar()">Cancelar</button>' +
     '</div>' +
+    // Las tildadas, arriba y siempre a la vista (las llena _hunMultiSelRender).
+    '<div class="hun-sel" id="hun-multi-sel" style="display:none"></div>' +
     '<div class="hun-list" id="hun-list"></div>' +
   '</div>' +
   '<div class="hun-prev">' +
@@ -697,17 +705,15 @@ const hunterView = '<div class="hunter-view" id="view-hunter" style="display:non
         '<button type="button" class="zoom-btn" onclick="_hunZoomReset()" title="Restablecer zoom" style="font-size:.75rem">&#10226;</button>' +
       '</div>' +
       '<button class="btn bp hun-dl" id="hun-dl" onclick="_hunBajar()" disabled>' +
-        _svgIco('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>') +
+        _ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>') +
         ' Descargar PDF</button>' +
       '<div class="fg-otros hun-otros" id="hun-otros">' +
         '<button type="button" class="fg-otros-tg" onclick="_hunToggleOtros()" aria-expanded="false" aria-controls="hun-otros-menu">Otros <span class="fg-otros-caret" aria-hidden="true">&#9662;</span></button>' +
         '<div class="fg-otros-menu" id="hun-otros-menu" hidden>' +
           '<a class="fg-otros-item" id="hun-otros-benef" href="' + HUN_BENEF_URL + '" target="_blank" rel="noopener noreferrer">' +
-            _svgIco('<path d="M3 3v18h18"/><path d="M18.7 8l-5.3 5.3-4-4L3 15.6"/>') + ' Beneficios Haberes</a>' +
-          '<button type="button" class="fg-otros-item" id="hun-otros-ayuda" onclick="_hunOtrosAyuda()">' +
-            _svgIco('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12" y2="17"/>') + ' Instructivo de uso</button>' +
+            _ico('<path d="M3 3v18h18"/><path d="M18.7 8l-5.3 5.3-4-4L3 15.6"/>') + ' Beneficios Haberes</a>' +
           '<button type="button" class="fg-otros-item" id="hun-otros-multi" onclick="_hunMultiToggle()">' +
-            _svgIco('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>') + ' Descarga m&uacute;ltiple</button>' +
+            _ico('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>') + ' Descarga m&uacute;ltiple</button>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -1010,6 +1016,23 @@ const checks = {
   // migración 012 — nunca un insert/update directo a padron_empresas desde el
   // cliente — y el módulo entero vive DESPUÉS de "FIN PERFIL HUNTER", afuera
   // del rango que _hunSrc verifica como "nunca escribe".
+  // Fase 3 del Hunter (2026-10-09): las tildadas quedan arriba, Ctrl+Enter, la
+  // barra de vista previa que ya no tapa, íconos chicos (class="ico", no dd-svg),
+  // y la conversación sobre los cambios (repreguntar / responder / comentar).
+  'hunter fase 3: tildadas arriba, Ctrl+Enter, simbar, iconos, conversacion':
+    html.includes('id="hun-multi-sel"') && _authSrc.includes('function _hunMultiSelRender(') && _authSrc.includes('function _hunMultiQuitar(') &&
+    _authSrc.includes('function _fgHunterVisible(') && _authSrc.includes('_hunMultiBajar();return;') &&
+    _authSrc.includes('!e.ctrlKey&&!e.metaKey&&_hunHits.length') &&
+    _authSrc.includes("if(document.getElementById('pad-upd-ov'))return true;") &&
+    _authSrc.includes('function _facSimAlto(') && newCSS.includes('--simbar-h') &&
+    !html.includes('id="hun-otros-ayuda"') && !_authSrc.includes('_hunOtrosAyuda') &&
+    !/id="hun-(otros|dl)[^>]*>[^<]*<svg class="dd-svg"/.test(html) &&
+    html.includes('id="hdr-dd-hunprop"') && html.includes('onclick="closeUserMenu();openMisCambios()"') &&
+    ['openMisCambios','_hunMisCambiosRender','_hunPropBadgeSync','_hunPropCartel','_hunResponder','_propAccion','_propConfirmar','_propConsultar','_hpGuardadosAbrir','_hpGuardadoAplicar','_hpGuardar']
+      .every(f => _propSrc.includes('function ' + f + '(')) &&
+    _propSrc.includes("_sb.rpc('padron_propuesta_consultar'") && _propSrc.includes("_sb.rpc('padron_propuesta_responder'") &&
+    _propSrc.includes('p_comentario:comentario||null') &&
+    !_propSrc.includes(" prompt(") && !_propSrc.includes("=prompt("),
   'propuestas: proponer (hunter) y aprobar/rechazar (oficial), vía RPC':
     html.includes('id="at-propuestas"') && html.includes('class="bd-pane"') &&
     _authSrc.includes('FIN PERFIL HUNTER') && !!_propSrc &&
@@ -1321,7 +1344,7 @@ const checks = {
   // Promociones. Los dos botones llevan el mismo globito.
   'ux: Ctrl+Enter tambien valida promociones':
     _authSrc.includes('function _fgPromosVisible(') &&
-    _authSrc.includes("['btn-dl-pdf','promos-validar-btn'].forEach") &&
+    _authSrc.includes("['btn-dl-pdf','promos-validar-btn','hun-dl','hun-multi-dl'].forEach") &&
     /_fgPromosVisible\(\)&&typeof validarPromos==='function'/.test(_authSrc),
   'ux: teclado (solapas + Ctrl+Enter + Esc)': html.includes('role="tablist"') && _authSrc.includes('function _fgKbdInit(') && _authSrc.includes("(e.ctrlKey||e.metaKey)&&e.key==='Enter'"),
   'ux: negrita del legal': html.includes('onclick="fgLegalBold()"') && _authSrc.includes('function fgLegalBold(') && _authSrc.includes("(e.key==='b'||e.key==='B')"),
