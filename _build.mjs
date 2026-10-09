@@ -656,20 +656,53 @@ const adminBackdrop = `<div id="admin-backdrop" onclick="closeAdminPanel()"></di
 // _source.html— porque ese archivo se regenera entero al subir un flyer nuevo.
 // No usa la clase .prev del armador a propósito: calcSC() hace
 // querySelector('.prev') y no tiene por qué encontrarse con esta pantalla.
+// Tablero de Beneficios Haberes (Power BI): abre en pestaña nueva, no embebido
+// (la CSP tiene default-src 'self'; un <iframe> de app.powerbi.com quedaría
+// bloqueado, y la navegación de primer nivel no está restringida).
+const HUN_BENEF_URL = 'https://app.powerbi.com/groups/b5dbdf80-3bb7-4a0e-9f78-1a9cd8dc26c1/reports/a60e3ec9-1933-41ba-a817-45877a061d72/ReportSection?experience=power-bi';
 const hunterView = '<div class="hunter-view" id="view-hunter" style="display:none">' +
   '<div class="panel">' +
     '<div class="ptitle">Flyer por empresa</div>' +
     '<div class="hun-ayuda">Escrib&iacute; el nombre de la empresa (o su CUIT) y baj&aacute; el flyer que le corresponde, con sus oficiales y su cashback.</div>' +
     '<div class="field"><label>Empresa</label><input type="text" id="hun-q" placeholder="Nombre de la empresa o CUIT" autocomplete="off"></div>' +
     '<div class="hun-estado" id="hun-estado"></div>' +
+    // Barra de la descarga múltiple: oculta hasta que se prende desde "Otros".
+    '<div class="hun-multi-bar" id="hun-multi-bar" style="display:none">' +
+      '<label class="hun-multi-all"><input type="checkbox" onchange="_hunMultiTildarVisibles(this.checked)"> Tildar todas</label>' +
+      '<span class="hun-multi-count" id="hun-multi-count">0 empresas tildadas</span>' +
+      '<div class="hun-multi-prog" id="hun-multi-prog" style="display:none"><div class="hun-multi-fill" id="hun-multi-fill"></div></div>' +
+      '<span class="hun-multi-txt" id="hun-multi-txt"></span>' +
+      '<button type="button" class="usr-btn edit" id="hun-multi-dl" onclick="_hunMultiBajar()" disabled>Descargar ZIP</button>' +
+      '<button type="button" class="usr-btn warn" onclick="_hunMultiCancelar()">Cancelar</button>' +
+    '</div>' +
     '<div class="hun-list" id="hun-list"></div>' +
   '</div>' +
   '<div class="hun-prev">' +
     '<div class="hun-head">' +
       '<div class="plabel">Vista previa</div>' +
+      // Sin la clase genérica "zoom-bar": en el panel premium esa clase tiene
+      // position:absolute!important pensada para flotar sobre .prev, y acá
+      // rompería el header sticky. .zoom-btn/.zoom-pct sí son seguras de reusar.
+      '<div class="hun-zoom-bar">' +
+        '<button type="button" class="zoom-btn" onclick="_hunZoomOut()" title="Alejar">&#8722;</button>' +
+        '<span class="zoom-pct" id="hun-zoom-pct">100%</span>' +
+        '<button type="button" class="zoom-btn" onclick="_hunZoomIn()" title="Acercar">&#43;</button>' +
+        '<button type="button" class="zoom-btn" onclick="_hunZoomReset()" title="Restablecer zoom" style="font-size:.75rem">&#10226;</button>' +
+      '</div>' +
       '<button class="btn bp hun-dl" id="hun-dl" onclick="_hunBajar()" disabled>' +
         _svgIco('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>') +
         ' Descargar PDF</button>' +
+      '<div class="fg-otros hun-otros" id="hun-otros">' +
+        '<button type="button" class="fg-otros-tg" onclick="_hunToggleOtros()" aria-expanded="false" aria-controls="hun-otros-menu">Otros <span class="fg-otros-caret" aria-hidden="true">&#9662;</span></button>' +
+        '<div class="fg-otros-menu" id="hun-otros-menu" hidden>' +
+          '<a class="fg-otros-item" id="hun-otros-benef" href="' + HUN_BENEF_URL + '" target="_blank" rel="noopener noreferrer">' +
+            _svgIco('<path d="M3 3v18h18"/><path d="M18.7 8l-5.3 5.3-4-4L3 15.6"/>') + ' Beneficios Haberes</a>' +
+          '<button type="button" class="fg-otros-item" id="hun-otros-ayuda" onclick="_hunOtrosAyuda()">' +
+            _svgIco('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12" y2="17"/>') + ' Instructivo de uso</button>' +
+          '<button type="button" class="fg-otros-item" id="hun-otros-multi" onclick="_hunMultiToggle()">' +
+            _svgIco('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>') + ' Descarga m&uacute;ltiple</button>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
     '<div class="hun-vacio" id="hun-vacio">Eleg&iacute; una empresa de la lista para ver su flyer.</div>' +
     '<img id="hun-img" class="hun-img" alt="Flyer de la empresa elegida" style="display:none">' +
@@ -1077,7 +1110,8 @@ const checks = {
     html.includes('id="apptab-hunter"') && html.includes('id="view-hunter"') &&
     html.includes('id="hun-q"') && html.includes('id="hun-list"') &&
     html.includes('id="hun-img"') && html.includes('onclick="_hunBajar()"') &&
-    _authSrc.includes("if(_esHunter()&&f.indexOf('opcion_')!==0)return false;") &&
+    _authSrc.includes("if(_esHunter()&&f.indexOf('opcion_')!==0&&!_HUN_FAC[f])return false;") &&
+    _authSrc.includes('var _HUN_FAC=') &&
     _authSrc.includes('function _esHunter(') && _authSrc.includes('function _rolVigente(') &&
     _authSrc.includes('var _VISTAS=') && _authSrc.includes('function _vista(') &&
     _authSrc.includes("_libWrap('_hunBajar',['jspdf'])") &&

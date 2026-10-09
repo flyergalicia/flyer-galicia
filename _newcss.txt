@@ -1031,8 +1031,39 @@ html.dark .stat-card.sc-yellow span,html.dark .stat-card.sc-yellow strong{color:
 .hun-vacio{margin:auto 0;padding:24px;font-size:.78rem;color:var(--gray);text-align:center;line-height:1.6;}
 .hun-img{display:block;max-width:100%;height:auto;margin-top:14px;border-radius:6px;
   box-shadow:0 2px 14px rgba(0,0,0,.14);}
+/* Con zoom activo la imagen puede ser más ancha que el contenedor: "safe center"
+   evita que el centrado flex recorte el lado izquierdo sin dejar de dónde
+   agarrarse para scrollear (mismo invariante que .prev del armador). */
+.hun-prev{align-items:safe center;}
+.hun-prev.panning{cursor:grabbing;user-select:none;}
+/* Barra de zoom propia (no reusa .zoom-bar: esa clase tiene position:absolute
+   !important en el panel premium, pensada para flotar sobre .prev). Vive dentro
+   de .hun-head, que ya es sticky; .zoom-btn/.zoom-pct sí se reusan tal cual. */
+.hun-zoom-bar{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+/* "Otros" propio: a diferencia del del armador (que vive al pie de los
+   botones, en flujo), éste cuelga de un header sticky, así que el menú va
+   ANCLADO como dropdown (position:absolute) en vez de empujar contenido. */
+.hun-otros{position:relative;flex-shrink:0;}
+.hun-otros .fg-otros-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:20;
+  min-width:230px;background:var(--card);border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.14);padding:6px;}
+.hun-otros .fg-otros-item{white-space:nowrap;}
+a.fg-otros-item{text-decoration:none;}
+/* Descarga múltiple: casilla por fila y la barra de progreso/acciones. */
+.hun-chk-wrap{display:flex;align-items:center;margin-right:2px;}
+.hun-chk{width:16px;height:16px;cursor:pointer;}
+.hun-row{display:flex;align-items:flex-start;gap:8px;}
+.hun-row-body{flex:1;min-width:0;}
+.hun-multi-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);
+  border:1px solid var(--accent-line);border-radius:9px;padding:8px 12px;margin-bottom:10px;font-size:.74rem;}
+.hun-multi-all{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.hun-multi-count{color:var(--gray);white-space:nowrap;}
+.hun-multi-prog{flex:1;min-width:80px;height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.hun-multi-fill{height:100%;width:0;background:var(--accent);transition:width .2s;}
+.hun-multi-txt{color:var(--gray);font-size:.7rem;}
 @media (max-width:900px){
   .hunter-view{grid-template-columns:1fr;height:auto;overflow:visible;}
   .hun-prev{height:auto;overflow:visible;}
-  .hun-head{position:static;}
+  .hun-head{position:static;flex-wrap:wrap;}
+  .hun-otros .fg-otros-menu{right:auto;left:0;}
 }

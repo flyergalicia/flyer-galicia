@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"}}'>
-<meta name="build-v" content="478c7f801d">
+<meta name="build-v" content="ad8a35855f">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1141,13 +1141,44 @@ html.dark .stat-card.sc-yellow span,html.dark .stat-card.sc-yellow strong{color:
 .hun-vacio{margin:auto 0;padding:24px;font-size:.78rem;color:var(--gray);text-align:center;line-height:1.6;}
 .hun-img{display:block;max-width:100%;height:auto;margin-top:14px;border-radius:6px;
   box-shadow:0 2px 14px rgba(0,0,0,.14);}
+/* Con zoom activo la imagen puede ser más ancha que el contenedor: "safe center"
+   evita que el centrado flex recorte el lado izquierdo sin dejar de dónde
+   agarrarse para scrollear (mismo invariante que .prev del armador). */
+.hun-prev{align-items:safe center;}
+.hun-prev.panning{cursor:grabbing;user-select:none;}
+/* Barra de zoom propia (no reusa .zoom-bar: esa clase tiene position:absolute
+   !important en el panel premium, pensada para flotar sobre .prev). Vive dentro
+   de .hun-head, que ya es sticky; .zoom-btn/.zoom-pct sí se reusan tal cual. */
+.hun-zoom-bar{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+/* "Otros" propio: a diferencia del del armador (que vive al pie de los
+   botones, en flujo), éste cuelga de un header sticky, así que el menú va
+   ANCLADO como dropdown (position:absolute) en vez de empujar contenido. */
+.hun-otros{position:relative;flex-shrink:0;}
+.hun-otros .fg-otros-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:20;
+  min-width:230px;background:var(--card);border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.14);padding:6px;}
+.hun-otros .fg-otros-item{white-space:nowrap;}
+a.fg-otros-item{text-decoration:none;}
+/* Descarga múltiple: casilla por fila y la barra de progreso/acciones. */
+.hun-chk-wrap{display:flex;align-items:center;margin-right:2px;}
+.hun-chk{width:16px;height:16px;cursor:pointer;}
+.hun-row{display:flex;align-items:flex-start;gap:8px;}
+.hun-row-body{flex:1;min-width:0;}
+.hun-multi-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);
+  border:1px solid var(--accent-line);border-radius:9px;padding:8px 12px;margin-bottom:10px;font-size:.74rem;}
+.hun-multi-all{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.hun-multi-count{color:var(--gray);white-space:nowrap;}
+.hun-multi-prog{flex:1;min-width:80px;height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.hun-multi-fill{height:100%;width:0;background:var(--accent);transition:width .2s;}
+.hun-multi-txt{color:var(--gray);font-size:.7rem;}
 @media (max-width:900px){
   .hunter-view{grid-template-columns:1fr;height:auto;overflow:visible;}
   .hun-prev{height:auto;overflow:visible;}
-  .hun-head{position:static;}
+  .hun-head{position:static;flex-wrap:wrap;}
+  .hun-otros .fg-otros-menu{right:auto;left:0;}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=8b8d7a0375"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=a6128afeaa"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
@@ -1948,6 +1979,6 @@ baseImg.dataset.fallback="flyer_default.jpg";
   </div>
 </div>
 <div id="toast"></div>
-<div class="hunter-view" id="view-hunter" style="display:none"><div class="panel"><div class="ptitle">Flyer por empresa</div><div class="hun-ayuda">Escrib&iacute; el nombre de la empresa (o su CUIT) y baj&aacute; el flyer que le corresponde, con sus oficiales y su cashback.</div><div class="field"><label>Empresa</label><input type="text" id="hun-q" placeholder="Nombre de la empresa o CUIT" autocomplete="off"></div><div class="hun-estado" id="hun-estado"></div><div class="hun-list" id="hun-list"></div></div><div class="hun-prev"><div class="hun-head"><div class="plabel">Vista previa</div><button class="btn bp hun-dl" id="hun-dl" onclick="_hunBajar()" disabled><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</button></div><div class="hun-vacio" id="hun-vacio">Eleg&iacute; una empresa de la lista para ver su flyer.</div><img id="hun-img" class="hun-img" alt="Flyer de la empresa elegida" style="display:none"></div></div>
+<div class="hunter-view" id="view-hunter" style="display:none"><div class="panel"><div class="ptitle">Flyer por empresa</div><div class="hun-ayuda">Escrib&iacute; el nombre de la empresa (o su CUIT) y baj&aacute; el flyer que le corresponde, con sus oficiales y su cashback.</div><div class="field"><label>Empresa</label><input type="text" id="hun-q" placeholder="Nombre de la empresa o CUIT" autocomplete="off"></div><div class="hun-estado" id="hun-estado"></div><div class="hun-multi-bar" id="hun-multi-bar" style="display:none"><label class="hun-multi-all"><input type="checkbox" onchange="_hunMultiTildarVisibles(this.checked)"> Tildar todas</label><span class="hun-multi-count" id="hun-multi-count">0 empresas tildadas</span><div class="hun-multi-prog" id="hun-multi-prog" style="display:none"><div class="hun-multi-fill" id="hun-multi-fill"></div></div><span class="hun-multi-txt" id="hun-multi-txt"></span><button type="button" class="usr-btn edit" id="hun-multi-dl" onclick="_hunMultiBajar()" disabled>Descargar ZIP</button><button type="button" class="usr-btn warn" onclick="_hunMultiCancelar()">Cancelar</button></div><div class="hun-list" id="hun-list"></div></div><div class="hun-prev"><div class="hun-head"><div class="plabel">Vista previa</div><div class="hun-zoom-bar"><button type="button" class="zoom-btn" onclick="_hunZoomOut()" title="Alejar">&#8722;</button><span class="zoom-pct" id="hun-zoom-pct">100%</span><button type="button" class="zoom-btn" onclick="_hunZoomIn()" title="Acercar">&#43;</button><button type="button" class="zoom-btn" onclick="_hunZoomReset()" title="Restablecer zoom" style="font-size:.75rem">&#10226;</button></div><button class="btn bp hun-dl" id="hun-dl" onclick="_hunBajar()" disabled><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PDF</button><div class="fg-otros hun-otros" id="hun-otros"><button type="button" class="fg-otros-tg" onclick="_hunToggleOtros()" aria-expanded="false" aria-controls="hun-otros-menu">Otros <span class="fg-otros-caret" aria-hidden="true">&#9662;</span></button><div class="fg-otros-menu" id="hun-otros-menu" hidden><a class="fg-otros-item" id="hun-otros-benef" href="https://app.powerbi.com/groups/b5dbdf80-3bb7-4a0e-9f78-1a9cd8dc26c1/reports/a60e3ec9-1933-41ba-a817-45877a061d72/ReportSection?experience=power-bi" target="_blank" rel="noopener noreferrer"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.3 5.3-4-4L3 15.6"/></svg> Beneficios Haberes</a><button type="button" class="fg-otros-item" id="hun-otros-ayuda" onclick="_hunOtrosAyuda()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12" y2="17"/></svg> Instructivo de uso</button><button type="button" class="fg-otros-item" id="hun-otros-multi" onclick="_hunMultiToggle()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Descarga m&uacute;ltiple</button></div></div></div><div class="hun-vacio" id="hun-vacio">Eleg&iacute; una empresa de la lista para ver su flyer.</div><img id="hun-img" class="hun-img" alt="Flyer de la empresa elegida" style="display:none"></div></div>
 </body>
 </html>

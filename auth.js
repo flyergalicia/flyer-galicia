@@ -1225,12 +1225,15 @@ function _rolVigente(){return _simRole||_myRole;}
 // Perfil HUNTER: la app se reduce a buscar una empresa ya cargada y bajar su flyer.
 // No arma, no carga, no edita. Ver el bloque "PERFIL HUNTER" al final del archivo.
 function _esHunter(){return _rolVigente()==='hunter';}
+// Lo único que un Hunter puede tener habilitado además de qué flyers ve
+// (opcion_N): esta lista corta. Todo lo demás sigue apagándose de una sola vez
+// (ni hay que acordarse de apagar la próxima facultad que se agregue, ni una
+// tildada por error en el JSON lo alcanza). Ampliada el 2026-10-09: Promociones,
+// Bloc de notas, Tutorial y Proponer cambios de oficiales.
+var _HUN_FAC={promos_buscar:1,notas:1,tutorial_auto:1,proponer_oficiales:1};
 function _can(f){
-  // Candado del perfil Hunter: lo ÚNICO que puede tener habilitado es qué flyers
-  // ve (las opcion_N). Así no hay que apagar feature por feature —ni acordarse de
-  // apagar la próxima que se agregue— y una facultad tildada por error tampoco lo
-  // alcanza. El admin que simula "hunter" cae acá también.
-  if(_esHunter()&&f.indexOf('opcion_')!==0)return false;
+  // Candado del perfil Hunter. El admin que simula "hunter" cae acá también.
+  if(_esHunter()&&f.indexOf('opcion_')!==0&&!_HUN_FAC[f])return false;
   if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);
   if(_admin)return _facMe(f); // todo, menos lo que se destildó a sí mismo
   return !!((_FAC&&_FAC[_myRole]||{})[f]);
@@ -1250,7 +1253,9 @@ function _applyFacultades(){
   var ab=document.getElementById('hdr-admin-btn');if(ab)ab.style.display=_adminNow()?'inline-flex':'none';
   var dn=document.getElementById('hdr-dd-notes');if(dn)dn.style.display=_can('notas')?'flex':'none';
   // El tutorial recorre el armador: a un Hunter no le aplica ni un capítulo.
-  var dt=document.getElementById('hdr-dd-tour');if(dt)dt.style.display=_esHunter()?'none':'flex';
+  // El Hunter ya tiene su propio capítulo (ver _tourCapitulos): el ítem se ve
+  // para todos, como para el resto de los roles.
+  var dt=document.getElementById('hdr-dd-tour');if(dt)dt.style.display='flex';
 
   if(_can('asesores_guardados')){_initAsesoresUI();_loadAsesores();} // trae la lista de la nube una vez
   _facShowAsesores(_can('asesores_guardados'));
@@ -1310,7 +1315,11 @@ function _applyFacultades(){
   if(_hun){
     _OPC_SOLAPAS.forEach(function(s){var t=_apptab(s);if(t)t.style.display='none';});
     var layH=document.getElementById('layout');if(layH)layH.style.display='none';
-    if(typeof switchApp==='function')switchApp('hunter');
+    // No lo reubica si ya está parado en una vista propia (Promociones, Buscar
+    // flyer): si no, cada pasada de _applyFacultades —p.ej. al abrir/cerrar la
+    // vista previa de otro rol— lo sacaba de Promociones de vuelta a su pantalla.
+    var yaPermitida=_VISTAS.some(function(v){var t=_apptab(v.id);return v.ver()&&t&&t.classList.contains('active');});
+    if(!yaPermitida&&typeof switchApp==='function')switchApp('hunter');
   }
   _inicioListo('fac'); // recién acá se sabe qué solapas ve este perfil
 }
@@ -1336,7 +1345,9 @@ function switchApp(view){
   var lay=document.getElementById('layout');
   var vi=_vista(view);
   if(vi&&!vi.ver())view='flyer'; // por si lo llaman sin permiso
-  if(_esHunter())view='hunter';  // su única pantalla: no hay armador al que volver
+  // El Hunter nunca llega al armador, pero SÍ puede entrar a una vista propia
+  // que tenga habilitada (hoy: Promociones, además de su pantalla de siempre).
+  if(_esHunter()&&!_vista(view))view='hunter';
   if(_esSolapaArmador(view)&&view!=='flyer'&&!_facOptsDe(view).length)view='flyer';
   vi=_vista(view);
   var arm=_esSolapaArmador(view);
@@ -1472,10 +1483,11 @@ function renderFacultades(){
       '<div><div class="fac-name">'+f[1]+'</div><div class="fac-desc">'+f[2]+'</div></div>'+
       meCell+
       _FAC_ROLES.map(function(r){
-        // El Hunter sólo descarga: de todas estas filas, las únicas que significan
-        // algo para él son las opcion_N (qué flyers puede bajar). El resto no se
-        // puede tildar, y si quedó tildado en el JSON viejo _can lo ignora igual.
-        if(r[0]==='hunter'&&id.indexOf('opcion_')!==0)
+        // El Hunter sólo descarga: de todas estas filas, las que significan algo
+        // para él son las opcion_N (qué flyers puede bajar) y la lista corta de
+        // _HUN_FAC (Promociones, Notas, Tutorial, Proponer cambios). El resto no
+        // se puede tildar, y si quedó tildado en el JSON viejo _can lo ignora igual.
+        if(r[0]==='hunter'&&id.indexOf('opcion_')!==0&&!_HUN_FAC[id])
           return '<div title="No aplica al perfil Hunter: s&oacute;lo busca una empresa y baja su flyer" style="color:var(--gray)">&mdash;</div>';
         var on=_facEdit[r[0]]&&_facEdit[r[0]][id];
         return '<div><input type="checkbox"'+(on?' checked':'')+
@@ -8180,10 +8192,15 @@ function _pgGenerar(){
 // Motor común: genera el ZIP de esas filas del padrón. ui = ids de la barra de
 // progreso y el botón a usar (el generador de Mi padrón y la tarjeta del masivo
 // tienen cada uno los suyos); zipBase = prefijo del nombre del ZIP.
-function _pgGenerarRows(rows,fmt,ui,zipBase){
+// resolver: opcional, qué función decide el flyer de cada fila (default
+// _pgOptDe, el del dueño del padrón). El Hunter le pasa _hunOptDe —mismo
+// motor, pero ESE resolutor sólo elige opciones que de verdad tienen flyer
+// cargado— así no reaparece el problema del flyer viejo con otro resolutor.
+function _pgGenerarRows(rows,fmt,ui,zipBase,resolver){
   if(_pgBusy||!rows||!rows.length)return;
+  var optDe=resolver||_pgOptDe;
   var grupos={},orden=[],res={total:0,fmt:fmt,fecha:new Date(),porOpt:{},sinOf:[],sinCB:[],sinTope:[],omitidas:[],errores:[],carpetas:{}};
-  rows.forEach(function(r){var o=_pgOptDe(r);if(o<=0){res.omitidas.push(r.empresa+(o<0?' (rubro '+_optLabel(-o)+' no habilitado)':' (sin opción habilitada)'));return;}if(!grupos[o]){grupos[o]=[];orden.push(o);}grupos[o].push(r);});
+  rows.forEach(function(r){var o=optDe(r);if(o<=0){res.omitidas.push(r.empresa+(o<0?' (rubro '+_optLabel(-o)+' no habilitado)':' (sin opción habilitada)'));return;}if(!grupos[o]){grupos[o]=[];orden.push(o);}grupos[o].push(r);});
   if(!orden.length){showToast('Ninguna de las empresas tildadas se puede generar con tu perfil');return;}
   // Última parada antes de generar: en qué flyer cae cada empresa. Con 180 flyers,
   // descubrir un desvío después es rehacer todo (y mandar flyers equivocados).
@@ -9825,7 +9842,7 @@ function _tourCapitulos(){
   var puedePad=_can('padron_buscar'),puedePegar=_can('pegar_oficial'),puedeNotas=_can('notas'),
       puedeAs=_can('asesores_guardados'),puedePromos=_can('promos_buscar'),varias=_facOptsDe('flyer').length>1,
       puedeRubros=_facOptsDe('rubros').length>0,puedeSedes=_can('oficiales_sede'),
-      guardaTrabajo=_can('guardar_trabajo');
+      guardaTrabajo=_can('guardar_trabajo'),esHunter=_esHunter();
   // El menú "Otros" se abre para hablar de Compartir / PNG / Oficiales por sede, y
   // lo cierra cualquier paso que se vaya a otra parte de la pantalla.
   function cerrarOtros(){if(typeof fgToggleOtros==='function')fgToggleOtros(false);}
@@ -9834,6 +9851,8 @@ function _tourCapitulos(){
   function irRubros(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('rubros');if(typeof switchTab==='function')switchTab('individual');}
   function irMasivo(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('masivo');}
   function irHistorial(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('historial');}
+  function irHunter(){closeUserMenu();if(typeof switchApp==='function')switchApp('hunter');if(typeof _hunOtrosClose==='function')_hunOtrosClose();}
+  function irHunterOtros(){closeUserMenu();if(typeof switchApp==='function')switchApp('hunter');if(typeof _hunOtrosOpen==='function')_hunOtrosOpen();}
   // Los pasos de Promociones son los de la solapa "Buscar". Si el usuario está en
   // "Activas" SIN resultados, se vuelve a "Buscar"; con resultados cargados no se
   // toca nada (cambiar de solapa vacía la tabla) y los pasos que no se vean se
@@ -9845,7 +9864,7 @@ function _tourCapitulos(){
   }
   function elPtabActivas(){var t=document.querySelectorAll('.promos-view .tabs .ptab');return t[1]||null;}
   return [
-    {id:'flyer',titulo:'Armar un flyer',pasos:[
+    {id:'flyer',titulo:'Armar un flyer',cond:!esHunter,pasos:[
       {target:'#empresa',titulo:'Empez&aacute; por la empresa',
        texto:'Escrib&iacute; la raz&oacute;n social: el flyer de la derecha se actualiza al instante y el <strong>nombre del archivo</strong> se arma solo con ese nombre.'+(puedePad?' Si la empresa ya est&aacute; en tu base, mientras tipe&aacute;s te la sugiere.':''),
        antes:irIndividual},
@@ -9889,7 +9908,7 @@ function _tourCapitulos(){
        texto:'Para los flyers en los que el banco pone un referente por zona. Prendida, carg&aacute;s <strong>hasta 8 oficiales</strong>, cada uno con su <strong>ubicaci&oacute;n</strong> (sale con el pin &#128205; y en negrita arriba del nombre) y un <strong>t&iacute;tulo</strong> que va arriba de todo el bloque. Al apagarla se borran las ubicaciones, el t&iacute;tulo y los oficiales 5 al 8 (te pregunta antes). La lupa y el Excel del masivo siguen trayendo hasta 4.',
        antes:irOtros}
     ]},
-    {id:'masivo',titulo:'Masivo',pasos:[
+    {id:'masivo',titulo:'Masivo',cond:!esHunter,pasos:[
       {target:'.template-btn',titulo:'Muchas empresas de una vez',
        texto:'Baj&aacute; la <strong>plantilla Excel</strong>: una fila por empresa (raz&oacute;n social, cashback y hasta 4 asesores). Es el mismo formato que us&aacute;s en <strong>Base de datos</strong>.',
        antes:irMasivo},
@@ -9900,7 +9919,7 @@ function _tourCapitulos(){
        texto:'Si ya tenés tu base cargada, ac&aacute; abajo sale <strong>&laquo;Todo el segmento&raquo;</strong>: un click y te baja el flyer de todas las empresas de tu base que usan <strong>este formato</strong> (con sus oficiales, cashback y topes). Para bajar <em>todas</em> tus empresas, cada una con el formato que le toca, est&aacute; <strong>Base de datos &rarr; Generar flyers</strong>.',
        antes:irMasivo}
     ]},
-    {id:'historial',titulo:'Historial',pasos:[
+    {id:'historial',titulo:'Historial',cond:!esHunter,pasos:[
       {target:function(){return document.querySelectorAll('.tabs .tab')[2]||null;},
        titulo:guardaTrabajo?'Tus flyers quedan guardados':'Lo que generaste en esta sesi&oacute;n',
        texto:'Cada flyer descargado queda listado ac&aacute;: pod&eacute;s <strong>volver a bajar el PDF</strong> o <strong>recargar</strong> sus datos en el formulario para retocarlo. '+
@@ -9927,6 +9946,23 @@ function _tourCapitulos(){
       {target:'#hdr-dd-tour',titulo:'Ver tutorial',
        texto:'Este recorrido queda siempre ac&aacute; para repasarlo cuando quieras.',antes:_tourAbrirMenu}
     ]},
+    {id:'hunter',titulo:'Buscar flyer',cond:esHunter,pasos:[
+      {target:'#hun-q',titulo:'Busc&aacute; la empresa',
+       texto:'Escrib&iacute; la raz&oacute;n social o el <strong>CUIT</strong>. Si alg&uacute;n oficial la carg&oacute;, te aparece en la lista.',
+       antes:irHunter},
+      {target:'#hun-list',titulo:'Eleg&iacute; la empresa',
+       texto:'Si dos oficiales distintos cargaron la misma empresa, aparecen las <strong>dos filas</strong> por separado: fij&aacute;te los nombres antes de elegir. Si dice <strong>&laquo;No figura&raquo;</strong>, nadie la carg&oacute; todav&iacute;a.',
+       antes:irHunter},
+      {target:'.hun-zoom-bar',titulo:'Acerc&aacute; la imagen',
+       texto:'Con <kbd>+</kbd> / <kbd>&minus;</kbd> o la rueda del mouse acerc&aacute;s el flyer para revisar un dato, y arrastr&aacute;s para recorrerlo.',
+       antes:irHunter},
+      {target:'#hun-otros',titulo:'&laquo;Otros&raquo;: m&aacute;s herramientas',
+       texto:'Ac&aacute; est&aacute;n <strong>Beneficios Haberes</strong> (el tablero), este mismo <strong>instructivo</strong> y la <strong>descarga de varias empresas juntas</strong> en un ZIP.',
+       antes:irHunterOtros},
+      {target:'#hun-dl',titulo:'Descargar PDF',
+       texto:'Baja el flyer con los datos que esa empresa tiene cargados <strong>hoy</strong>. Si propusiste un cambio de oficial, sigue sali&eacute;ndo as&iacute; hasta que el oficial lo apruebe.',
+       antes:irHunter}
+    ]},
     {id:'promos',titulo:'Promociones',cond:puedePromos,pasos:[
       {target:'#promos-prov',titulo:'Primero, tu provincia',
        texto:'La provincia que elijas ac&aacute; vale para las <strong>dos solapas</strong>: quedan s&oacute;lo las promociones que corren en esa zona. Justo abajo, <strong>&laquo;Ocultar las de compra online&raquo;</strong> saca las de internet (no tienen local, as&iacute; que valen desde cualquier provincia).',
@@ -9947,12 +9983,12 @@ function _tourCapitulos(){
        texto:'La app se guarda una copia del listado de Galicia para no pedirlo cada vez (arriba te dice de cu&aacute;ndo es). Si Galicia carg&oacute; promociones nuevas hoy, toc&aacute; <strong>Actualizar cat&aacute;logo ahora</strong> y las trae.',
        antes:irPromos}
     ]},
-    {id:'opciones',titulo:'Opciones',cond:varias,pasos:[
+    {id:'opciones',titulo:'Opciones',cond:varias&&!esHunter,pasos:[
       {target:'#fg-optbar',titulo:'Varios armadores',
        texto:'Cada opci&oacute;n tiene su propio flyer y su propio legal. Cambi&aacute;s ac&aacute; y todo lo dem&aacute;s (individual, masivo, historial) usa el flyer de esa opci&oacute;n. Los datos que cargaste no se pierden al cambiar.',
        antes:irIndividual}
     ]},
-    {id:'rubros',titulo:'Flyer Rubros',cond:puedeRubros,pasos:[
+    {id:'rubros',titulo:'Flyer Rubros',cond:puedeRubros&&!esHunter,pasos:[
       {target:'#apptab-rubros',titulo:'Flyers con beneficio exclusivo',
        texto:'El mismo armador, pero con los flyers que traen el cuadro <strong>&laquo;&iexcl;Beneficio exclusivo EMPRESA!&raquo;</strong> (combustible, supermercado...). Eleg&iacute;s el rubro en la barra de arriba del formulario.',
        antes:irRubros},
@@ -10842,6 +10878,10 @@ var _HUN_MAX=40;      // filas listadas por búsqueda
 var _HUN_PAGINA=1000; // PostgREST corta en 1000 filas: sin paginar faltarían empresas
 var _HUN_TOPE_DEF='$24.000'; // tope de reintegro del template, si la empresa no trae uno
 var _hunRows=null,_hunHits=[],_hunSel=-1,_hunV=null,_hunCv=null,_hunFn='',_hunBusy=false,_hunCargando=false;
+// Zoom/paneo de la vista previa (sobre un <img>, no el canvas del armador: ver
+// el bloque "ZOOM Y PANEO" más abajo). Descarga múltiple: selección por índice
+// estable de fila (ver "_hi" en _hunCargar).
+var _hunZoom=1,_HUN_ZOOM_MAX=3,_hunMultiOn=false,_hunMultiSel={};
 
 // ── QUÉ FLYER LE TOCA A CADA EMPRESA ────────────────────────────────────────
 // Reglas acordadas con el usuario el 2026-10-08, después de que el Hunter sacara
@@ -10925,6 +10965,7 @@ function _hunInit(){
       if(e.key==='Escape'){q.value='';_hunRender();}
     });
   }
+  _hunPrevInitGestos();
   _hunMetasCargar(_hunRender);
   _hunCargar(false,function(){if(q&&!_hunCargando){try{q.focus();}catch(e){}}});
 }
@@ -10949,7 +10990,11 @@ function _hunCargar(force,cb){
     // única para paginar sin repetir ni saltear filas) y dos oficiales pueden
     // tener cargada la misma razón social.
     _hunRows.sort(function(a,b){return _padNorm(a.empresa).localeCompare(_padNorm(b.empresa));});
-    _hunSel=-1;
+    // Índice ESTABLE por fila (para la descarga múltiple: la selección sobrevive
+    // a que la lista se filtre al tipear, porque _hunHits son las mismas
+    // referencias que _hunRows, no copias).
+    _hunRows.forEach(function(r,i){r._hi=i;});
+    _hunSel=-1;_hunMultiSel={};
     _hunRender();
     if(cb)cb(_hunRows);
   });
@@ -10999,21 +11044,154 @@ function _hunRender(){
   // En el onclick va SÓLO el índice, nunca texto de otro usuario (el navegador
   // decodifica las entidades antes de ejecutar el JS: escapar ahí no alcanza).
   list.innerHTML=_hunHits.map(function(r,i){
-    var opt=_hunOptDe(r),av=_hunAvisos(r,opt);
-    return '<div class="hun-row'+(i===_hunSel?' sel':'')+(opt>0?'':' hun-no')+'" onclick="_hunElegir('+i+')">'+
-      '<div class="hun-emp">'+_escHtml(r.empresa||'(sin nombre)')+'</div>'+
-      '<div class="hun-sub">'+_escHtml(_padSubtitulo(r))+'</div>'+
-      '<div class="hun-of">'+_escHtml(_hunOficiales(r))+'</div>'+
-      '<div class="hun-tag">'+_escHtml(_hunFlyerLbl(opt))+'</div>'+
-      (av.length?'<div class="hun-av">'+_escHtml(av.join('  ·  '))+'</div>':'')+
+    var opt=_hunOptDe(r),av=_hunAvisos(r,opt),puede=opt>0;
+    // Modo descarga múltiple: casilla por fila (sólo tildable si se puede armar),
+    // el click en la fila sigue abriendo la vista previa como siempre.
+    var chk=_hunMultiOn?('<label class="hun-chk-wrap" onclick="event.stopPropagation()">'+
+      '<input type="checkbox" class="hun-chk"'+(puede?'':' disabled')+
+      (_hunMultiSel[r._hi]?' checked':'')+' onchange="_hunMultiChk('+r._hi+',this.checked)"></label>'):'';
+    // La casilla va como flex-item propio al lado del cuerpo (no mezclada con
+    // empresa/subtítulo/oficiales/tag, que siguen apiladas verticalmente): sin
+    // este envoltorio, volver .hun-row flex habría puesto esas líneas en fila.
+    return '<div class="hun-row'+(i===_hunSel?' sel':'')+(puede?'':' hun-no')+'" onclick="_hunElegir('+i+')">'+
+      chk+
+      '<div class="hun-row-body">'+
+        '<div class="hun-emp">'+_escHtml(r.empresa||'(sin nombre)')+'</div>'+
+        '<div class="hun-sub">'+_escHtml(_padSubtitulo(r))+'</div>'+
+        '<div class="hun-of">'+_escHtml(_hunOficiales(r))+'</div>'+
+        '<div class="hun-tag">'+_escHtml(_hunFlyerLbl(opt))+'</div>'+
+        (av.length?'<div class="hun-av">'+_escHtml(av.join('  ·  '))+'</div>':'')+
+      '</div>'+
     '</div>';
   }).join('');
+  _hunMultiBarSync();
 }
 
 // Carga la opción y recién devuelve el cache cuando está aplicada. No usa
 // _fgWithOpt a propósito: ése, si la opción pedida ya es la activa, llama al
 // callback sin cargar nada — y al entrar la activa es la 1, que acá no tiene
 // flyer. Así el cache queda siempre poblado y se puede verificar.
+// ── ZOOM Y PANEO (sobre un <img>, no sobre el canvas del armador) ───────────
+// No reusa zoomIn/zoomOut/calcSC del armador: esas funciones son globales
+// acopladas a SC+redraw() y redibujarían el canvas oculto del armador, y
+// #zoom-pct es un id único que se pisaría con el de esta pantalla. Sí se copia
+// la matemática del anclaje al cursor (acumular pasos → requestAnimationFrame →
+// fracción del rect → corregir scrollLeft/scrollTop con el rect nuevo): es
+// agnóstica del canvas, sólo necesita un contenedor con scroll.
+function _hunPrevEl(){return document.querySelector('.hun-prev');}
+function _hunImgEl(){return document.getElementById('hun-img');}
+// Ancho "a 100%": el de la imagen o el que entra en el contenedor, el que sea
+// menor (mismo criterio que calcSC, sin el tope de 0.55 — acá no hay costo de
+// redibujar: es una imagen ya hecha).
+function _hunBaseWidth(){
+  var img=_hunImgEl(),p=_hunPrevEl();
+  if(!img||!img.naturalWidth||!p)return 0;
+  var pw=Math.max(p.clientWidth-40,200);
+  return Math.min(img.naturalWidth,pw);
+}
+function _hunUpdateZoomPct(){var el=document.getElementById('hun-zoom-pct');if(el)el.textContent=Math.round(_hunZoom*100)+'%';}
+function _hunZoomAplicar(){
+  var img=_hunImgEl();if(!img)return;
+  if(_hunZoom===1||!img.naturalWidth){img.style.width='';img.style.maxWidth='';}
+  else{img.style.maxWidth='none';img.style.width=Math.round(_hunBaseWidth()*_hunZoom)+'px';}
+  _hunUpdateZoomPct();
+}
+function _hunZoomIn(){_hunZoom=Math.min(_hunZoom*1.25,_HUN_ZOOM_MAX);_hunZoomAplicar();}
+function _hunZoomOut(){_hunZoom=Math.max(_hunZoom/1.25,0.2);_hunZoomAplicar();}
+function _hunZoomReset(){_hunZoom=1;_hunZoomAplicar();}
+var _hunResizeT=null;
+window.addEventListener('resize',function(){clearTimeout(_hunResizeT);_hunResizeT=setTimeout(function(){if(_hunZoom!==1)_hunZoomAplicar();},150);});
+// Rueda anclada al cursor + paneo con drag. Se instala una sola vez (idempotente
+// vía dataset), igual que el del armador (auth.js, dentro de initApp()).
+function _hunPrevInitGestos(){
+  var prevEl=_hunPrevEl();if(!prevEl||prevEl.dataset.hunGestOk)return;prevEl.dataset.hunGestOk='1';
+  var _pwPend=null,_pwPasos=0,_pwX=0,_pwY=0;
+  prevEl.addEventListener('wheel',function(e){
+    var img=_hunImgEl();if(!img||!img.naturalWidth)return;
+    e.preventDefault();
+    _pwPasos+=(e.deltaY<0?1:-1);_pwX=e.clientX;_pwY=e.clientY;
+    if(_pwPend)return;
+    _pwPend=requestAnimationFrame(function(){
+      _pwPend=null;
+      var pasos=_pwPasos;_pwPasos=0;if(!pasos)return;
+      var rBefore=img.getBoundingClientRect();
+      var fx=Math.min(Math.max((_pwX-rBefore.left)/rBefore.width,0),1);
+      var fy=Math.min(Math.max((_pwY-rBefore.top)/rBefore.height,0),1);
+      var z0=_hunZoom;
+      for(var i=0;i<Math.abs(pasos);i++)_hunZoom=pasos>0?Math.min(_hunZoom*1.25,_HUN_ZOOM_MAX):Math.max(_hunZoom/1.25,0.2);
+      if(_hunZoom===z0)return;
+      _hunZoomAplicar();
+      var rAfter=img.getBoundingClientRect();
+      prevEl.scrollLeft+=(rAfter.left+fx*rAfter.width)-_pwX;
+      prevEl.scrollTop+=(rAfter.top+fy*rAfter.height)-_pwY;
+    });
+  },{passive:false});
+  var _pd=false,_px,_py,_psx,_psy;
+  prevEl.addEventListener('mousedown',function(e){
+    if(e.button!==0||e.target.closest('.hun-head')||e.target.tagName==='BUTTON'||e.target.tagName==='A')return;
+    _pd=true;_px=e.clientX;_py=e.clientY;_psx=prevEl.scrollLeft;_psy=prevEl.scrollTop;
+    prevEl.classList.add('panning');e.preventDefault();
+  });
+  document.addEventListener('mousemove',function(e){if(!_pd)return;prevEl.scrollLeft=_psx-(e.clientX-_px);prevEl.scrollTop=_psy-(e.clientY-_py);});
+  document.addEventListener('mouseup',function(){if(_pd){_pd=false;prevEl.classList.remove('panning');}});
+  document.addEventListener('mouseleave',function(){if(_pd){_pd=false;prevEl.classList.remove('panning');}});
+}
+
+// ── MENÚ "OTROS": Beneficios Haberes, Instructivo, Descarga múltiple ───────
+// A diferencia del "Otros" del armador (que nunca se cierra solo), éste SÍ se
+// cierra al tocar afuera, con el mismo patrón que el menú del nombre
+// (toggleUserMenu/_closeUserMenuOutside): el setTimeout(...,0) es necesario,
+// sin él el mismo click que abre el menú lo cierra en el acto.
+function _hunOtrosEls(){return {tg:document.querySelector('#hun-otros .fg-otros-tg'),menu:document.getElementById('hun-otros-menu')};}
+function _hunToggleOtros(force){
+  var e=_hunOtrosEls();if(!e.tg||!e.menu)return;
+  var abrir=(force===undefined)?e.menu.hidden:!!force;
+  e.menu.hidden=!abrir;e.tg.setAttribute('aria-expanded',abrir?'true':'false');
+  if(abrir)setTimeout(function(){document.addEventListener('click',_hunOtrosOutside);},0);
+  else document.removeEventListener('click',_hunOtrosOutside);
+}
+function _hunOtrosOutside(e){var m=document.getElementById('hun-otros-menu');if(m&&!m.hidden&&e.target&&!e.target.closest('#hun-otros'))_hunToggleOtros(false);}
+function _hunOtrosOpen(){_hunToggleOtros(true);}
+function _hunOtrosClose(){_hunToggleOtros(false);}
+function _hunOtrosAyuda(){_hunOtrosClose();if(typeof _tourStart==='function')_tourStart('hunter');}
+
+// ── DESCARGA MÚLTIPLE: buscar, tildar varias y bajarlas en un ZIP ──────────
+// Reusa el motor del generador masivo (_pgGenerarRows) con un resolutor PROPIO
+// (_hunOptDe), no el del dueño del padrón: es el que garantiza que sólo entren
+// opciones habilitadas y con flyer realmente cargado (ver el bloque de arriba),
+// así no reaparece el problema del flyer viejo con este camino alternativo.
+function _hunMultiToggle(){
+  _hunOtrosClose();
+  _hunMultiOn=!_hunMultiOn;
+  if(!_hunMultiOn)_hunMultiSel={};
+  _hunRender();
+}
+function _hunMultiChk(hi,on){
+  if(on)_hunMultiSel[hi]=1;else delete _hunMultiSel[hi];
+  _hunMultiBarSync();
+}
+function _hunMultiCount(){return Object.keys(_hunMultiSel).length;}
+function _hunMultiTildarVisibles(on){
+  _hunHits.forEach(function(r){
+    if(_hunOptDe(r)<=0)return; // no se puede armar: no se tilda
+    if(on)_hunMultiSel[r._hi]=1;else delete _hunMultiSel[r._hi];
+  });
+  _hunRender();
+}
+function _hunMultiBarSync(){
+  var bar=document.getElementById('hun-multi-bar');if(!bar)return;
+  bar.style.display=_hunMultiOn?'flex':'none';
+  var n=_hunMultiCount();
+  var txt=document.getElementById('hun-multi-count');if(txt)txt.textContent=n+(n===1?' empresa tildada':' empresas tildadas');
+  var dl=document.getElementById('hun-multi-dl');if(dl)dl.disabled=!n;
+}
+function _hunMultiCancelar(){_hunMultiOn=false;_hunMultiSel={};_hunRender();}
+function _hunMultiBajar(){
+  var n=_hunMultiCount();if(!n)return;
+  var rows=[];(_hunRows||[]).forEach(function(r){if(_hunMultiSel[r._hi])rows.push(r);});
+  _pgGenerarRows(rows,'pdf',{prog:'hun-multi-prog',fill:'hun-multi-fill',txt:'hun-multi-txt',btn:'hun-multi-dl'},'Flyers_Empresas',_hunOptDe);
+}
+
 function _hunConOpt(opt,cb){
   opt=_optN(opt);
   var c=_fgOptCache[opt];
@@ -11056,7 +11234,10 @@ function _hunElegir(i){
       var v=_pgVals(r,opt,legal,_HUN_TOPE_DEF,{sinCB:[],sinOf:[],sinTope:[]});
       var fc=fullRes(v);
       _hunV=v;_hunCv=fc;_hunFn='Flyer '+_fgSafeName(v.empresa||'empresa');
-      if(img){img.src=fc.toDataURL('image/jpeg',0.9);img.style.display='';}
+      // Nueva empresa: arranca otra vez al 100% (y recién ahí se reaplica, una
+      // vez que el navegador terminó de medir la imagen nueva).
+      _hunZoom=1;
+      if(img){img.onload=_hunZoomAplicar;img.src=fc.toDataURL('image/jpeg',0.9);img.style.display='';}
       if(vac)vac.style.display='none';
       if(dl)dl.disabled=false;
     }catch(e){
