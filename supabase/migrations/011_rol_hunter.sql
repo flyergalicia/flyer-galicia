@@ -15,11 +15,14 @@
 -- Mismo procedimiento que 002_rol_pro.sql: la tabla profiles no se crea en este
 -- repo, así que no sabemos el nombre del CHECK; se busca cualquiera que mencione
 -- la columna role, se elimina y se recrea con el valor nuevo.
+-- Nota: el nombre de la variable NO puede repetir el alias de la tabla en el
+-- SELECT del FOR (acá "con" chocaba con "pg_constraint con"): plpgsql tira
+-- "record is not assigned yet" al toparse con la ambigüedad. Por eso v_con.
 do $$
 declare
-  con record;
+  v_con record;
 begin
-  for con in
+  for v_con in
     select con.conname
       from pg_constraint con
       join pg_class rel on rel.oid = con.conrelid
@@ -29,8 +32,8 @@ begin
        and con.contype = 'c'
        and pg_get_constraintdef(con.oid) ilike '%role%'
   loop
-    execute format('alter table public.profiles drop constraint %I', con.conname);
-    raise notice 'Constraint eliminado: %', con.conname;
+    execute format('alter table public.profiles drop constraint %I', v_con.conname);
+    raise notice 'Constraint eliminado: %', v_con.conname;
   end loop;
 
   alter table public.profiles
