@@ -170,7 +170,7 @@ html = html.replace(
   '<div class="header-text app-tab" id="apptab-hunter" style="display:none" onclick="switchApp(\'hunter\')"><h1>Buscar flyer</h1><span>HUNTER</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
-    '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
+    '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span class="hdr-msg" id="hdr-msg" style="display:none"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
     '<div class="hdr-dropdown" id="hdr-dropdown">' +
       '<div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div>' +
       '<div class="hdr-dd-sep"></div>' +
@@ -194,7 +194,7 @@ html = html.replace(
       // Tutorial guiado (para todos). El menú se cierra desde el propio tour.
       // Sólo Hunter con la facultad (lo muestra _hunPropBadgeSync). El número son
       // las consultas sin responder + lo resuelto que todavía no vio.
-      '<button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none">' + ICO_DOC + '<span>Cambios pendientes de aprobaci&oacute;n</span><span id="hunprop-badge"></span></button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none">' + ICO_DOC + '<span>Modificaciones Pendientes</span><span id="hunprop-badge"></span></button>' +
       '<button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()">' + ICO_HELP + '<span>Ver tutorial</span></button>' +
       '<div class="hdr-dd-sep"></div>' +
       '<button class="hdr-dd-item danger" onclick="doLogout()">' + ICO_OUT + '<span>Salir</span></button>' +

@@ -1184,3 +1184,11 @@ ul.prop-diff li{padding:2px 0;border:0;}
 .prop-suplente>div{flex:1;min-width:220px;}
 .prop-suplente-t{font-weight:800;font-size:.82rem;margin-bottom:2px;color:var(--ink);}
 .prop-suplente select{width:auto;min-width:200px;margin:0;}
+
+/* ===== Marca de novedades en el encabezado (cambios de oficiales) ===== */
+.hdr-user-btn{position:relative;}
+.hdr-msg{position:absolute;top:-4px;left:21px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;box-sizing:border-box;
+  align-items:center;justify-content:center;background:var(--accent);color:#fff;font:800 .6rem "Figtree",sans-serif;line-height:1;
+  border:2px solid #fff;animation:hdrMsgPulse 2.2s ease-out infinite;pointer-events:none;letter-spacing:0;text-transform:none;}
+@keyframes hdrMsgPulse{0%{box-shadow:0 0 0 0 var(--accent-ring,rgba(255,92,0,.45));}70%{box-shadow:0 0 0 7px transparent;}100%{box-shadow:0 0 0 0 transparent;}}
+@media (prefers-reduced-motion:reduce){.hdr-msg{animation:none;}}

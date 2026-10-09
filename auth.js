@@ -907,6 +907,7 @@ function checkProfile(user){
     // usuario (dueño o su suplente) los apruebe. El cartel sale una vez, al
     // entrar; el número en "Base de datos" queda mientras no se resuelvan.
     _propCargarPendientes(_propCartel);
+    _msgPollInit();
     // Al Hunter: consultas sin responder y cambios resueltos que todavía no vio.
     if(p.role==='hunter')_hunPropCargarMias(_hunPropCartel);
     // Aplicar imagen del flyer activo (Opción 1)
@@ -1263,7 +1264,7 @@ function _applyFacultades(){
   // El Hunter ya tiene su propio capítulo (ver _tourCapitulos): el ítem se ve
   // para todos, como para el resto de los roles.
   var dt=document.getElementById('hdr-dd-tour');if(dt)dt.style.display='flex';
-  _hunPropBadgeSync(); // "Cambios pendientes de aprobación" (sólo Hunter con la facultad)
+  _hunPropBadgeSync(); // "Modificaciones Pendientes" (sólo Hunter con la facultad)
 
   if(_can('asesores_guardados')){_initAsesoresUI();_loadAsesores();} // trae la lista de la nube una vez
   _facShowAsesores(_can('asesores_guardados'));
@@ -11585,6 +11586,38 @@ function _hunPropBadgeSync(){
   if(it)it.style.display=(_esHunter()&&_can('proponer_oficiales'))?'flex':'none';
   var b=document.getElementById('hunprop-badge');
   if(b)b.innerHTML=_hunPropAviso>0?'<span class="fg-badge">'+_hunPropAviso+'</span>':'';
+  _hdrMsgSync();
+}
+// Marca en el encabezado (visible en cualquier pantalla, sin abrir el menú):
+// suma lo que espera MI acción como oficial/suplente + lo que me contestaron
+// o resolvieron como Hunter. Si es 0 no se ve nada.
+function _hdrMsgSync(){
+  var m=document.getElementById('hdr-msg');if(!m)return;
+  var ofi=_propPendCount||0,hun=_esHunter()?(_hunPropAviso||0):0,n=ofi+hun;
+  m.style.display=n>0?'inline-flex':'none';
+  m.textContent=n>9?'9+':String(n);
+  var btn=m.parentNode,tip='';
+  if(n>0){
+    var p=[];
+    if(ofi)p.push(ofi===1?'1 cambio de oficiales para revisar':ofi+' cambios de oficiales para revisar');
+    if(hun)p.push(hun===1?'1 novedad en tus modificaciones':hun+' novedades en tus modificaciones');
+    tip='Tenés '+p.join(' y ');
+  }
+  if(btn&&btn.setAttribute)btn.setAttribute('title',tip);
+}
+// Refresco liviano cada 90 s (sólo con la pestaña a la vista) para que la marca
+// aparezca sin recargar la página.
+var _msgPollT=null;
+function _msgPollInit(){
+  if(_msgPollT)return;
+  _msgPollT=setInterval(function(){
+    if(!_me||document.hidden)return;
+    _propCargarPendientes();
+    if(_esHunter()&&_can('proponer_oficiales'))_hunPropCargarMias(function(){
+      if(document.getElementById('mis-cambios-list'))return;
+      if(document.getElementById('hun-list'))_hunRender();
+    });
+  },90000);
 }
 function _hunPropCartel(){
   var cons=_hunPropLista.filter(function(p){return p.estado==='consulta';}).length;
@@ -11593,7 +11626,7 @@ function _hunPropCartel(){
   var partes=[];
   if(cons)partes.push(cons===1?'1 consulta sobre un cambio que propusiste':cons+' consultas sobre cambios que propusiste');
   if(res>0)partes.push(res===1?'1 cambio resuelto':res+' cambios resueltos');
-  _propToast('Tenés '+partes.join(' y ')+'. Tu nombre → Cambios pendientes de aprobación.');
+  _propToast('Tenés '+partes.join(' y ')+'. Tu nombre → Modificaciones Pendientes.');
 }
 
 // El modal de proponer/responder: título, contexto, los 4 slots, el campo de
@@ -11621,7 +11654,7 @@ function _hunAbrirPropuesta(i){
   if(!_can('proponer_oficiales')){showToast('No tenés habilitado proponer cambios.');return;}
   var r=_hunHits[i];if(!r)return;
   if(!r.user_id){showToast('No se pudo identificar al oficial dueño de esta empresa.');return;}
-  if(_hunPropPendiente(r)){showToast('Ya hay un cambio tuyo abierto para esta empresa: miralo en tu nombre → Cambios pendientes de aprobación.');return;}
+  if(_hunPropPendiente(r)){showToast('Ya hay un cambio tuyo abierto para esta empresa: miralo en tu nombre → Modificaciones Pendientes.');return;}
   _hunPropFila=r;_hunPropBase=r.asesores||[];_hunPropModo='crear';_hunPropId=null;
   _hunPropModal({
     titulo:'&#9998; Proponer un cambio de oficiales',
@@ -11674,7 +11707,7 @@ function _hunPropuestaEnviar(){
   });
 }
 
-// ── "Cambios pendientes de aprobación" (menú del nombre del Hunter) ─────────
+// ── "Modificaciones Pendientes" (menú del nombre del Hunter) ─────────
 function openMisCambios(){
   if(!_can('proponer_oficiales'))return;
   _hunPropCerrar();
@@ -11734,6 +11767,7 @@ function _propCartel(){
     ' para revisar. Tu nombre → Base de datos → Cambios pendientes.');
 }
 function _propBadgeSync(){
+  _hdrMsgSync();
   var dp=document.getElementById('hdr-dd-padron');if(!dp)return;
   var b=document.getElementById('bd-badge');
   if(!b){
