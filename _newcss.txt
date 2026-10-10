@@ -1192,3 +1192,28 @@ ul.prop-diff li{padding:2px 0;border:0;}
   border:2px solid #fff;animation:hdrMsgPulse 2.2s ease-out infinite;pointer-events:none;letter-spacing:0;text-transform:none;}
 @keyframes hdrMsgPulse{0%{box-shadow:0 0 0 0 var(--accent-ring,rgba(255,92,0,.45));}70%{box-shadow:0 0 0 7px transparent;}100%{box-shadow:0 0 0 0 transparent;}}
 @media (prefers-reduced-motion:reduce){.hdr-msg{animation:none;}}
+
+
+/* ===== GESTIONES COMERCIALES: lo que se ve antes de bajar gestiones.js (el resto viaja con el módulo) ===== */
+.ges-view{display:block;overflow:auto;height:calc(100vh - 62px - var(--simbar-h,0px));background:var(--paper,var(--light));}
+.ges-root{max-width:1240px;margin:0 auto;padding:18px 18px 48px;}
+@media (max-width:900px){.ges-view{height:auto;overflow:visible;}.ges-root{padding:14px 16px 40px;}}
+.hun-ges{display:inline-flex;align-items:center;gap:6px;}
+.hun-ges .ico{width:16px;height:16px;}
+.ges-flag{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:var(--r-m,12px);padding:12px 14px;margin-bottom:16px;}
+.ges-flag:empty{display:none;}
+.ges-flag-t{font-weight:800;font-size:.86rem;color:var(--ink);display:flex;align-items:center;gap:8px;}
+.ges-flag-new{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:#fff;border-radius:10px;padding:2px 7px;}
+.ges-flag-d{font-size:.74rem;color:var(--gray);margin:2px 0 10px;line-height:1.45;}
+.ges-flag-ops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+@media (max-width:640px){.ges-flag-ops{grid-template-columns:1fr;}}
+.ges-flag-op{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--border);background:var(--card);border-radius:var(--r-s,8px);padding:9px 11px;cursor:pointer;color:var(--ink);}
+.ges-flag-op b{font-size:.8rem;}
+.ges-flag-op span{font-size:.68rem;color:var(--gray);line-height:1.35;}
+.ges-flag-op.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring,rgba(242,97,34,.16));}
+.ges-flag-op.on b{color:var(--accent-2,var(--accent));}
+.dd-prueba{display:flex;flex-wrap:wrap;gap:4px;padding:2px 12px 8px;}
+.dd-prueba button{border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:14px;padding:4px 10px;font-size:.7rem;font-weight:700;cursor:pointer;}
+.dd-prueba button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.badge-lider{background:#E3F2FD;color:#0D47A1;}
+html.dark .badge-lider{background:#13263D;color:#90CAF9;}

@@ -552,7 +552,7 @@ function dlAsesoresTemplate(){
 }
 
 // Devuelve el badge HTML del rol (admin / vip / pro / asesor / hunter).
-var _ROLE_LBL={admin:'Admin',vip:'VIP',pro:'Pro',asesor:'Asesor',hunter:'Hunter'};
+var _ROLE_LBL={admin:'Admin',vip:'VIP',pro:'Pro',asesor:'Asesor',hunter:'Hunter',lider:'Líder'};
 function _roleBadge(role){
   var cls=_ROLE_LBL[role]?role:'asesor';
   return '<span class="badge badge-'+cls+'">'+_ROLE_LBL[cls]+'</span>';
@@ -663,6 +663,7 @@ function _libReady(n){
   if(n==='xlsx')return typeof XLSX!=='undefined';
   if(n==='jszip')return typeof JSZip!=='undefined';
   if(n==='exceljs')return typeof ExcelJS!=='undefined'&&!!ExcelJS.Workbook;
+  if(n==='ges')return typeof window.gesInit==='function';
   return true;
 }
 function _lib(names){
@@ -875,6 +876,10 @@ function checkProfile(user){
     _me=user;_admin=(p.role==='admin');_myRole=p.role||'asesor';_myName=p.full_name||p.email_asesor||user.email;
     // Facultades propias del admin (columna "Vos" en Facultades): null = todo.
     _myFac=(_admin&&p.facultades&&typeof p.facultades==='object'&&!Array.isArray(p.facultades))?p.facultades:null;
+    // Gestiones comerciales: cuenta de prueba (Prospect) y el interruptor general.
+    // Cuando llega el interruptor se re-aplica el gating (es idempotente).
+    _esPrueba=!!p.es_prueba;_myLiderId=p.lider_id||null;
+    _gesFlagCargar(function(){if(_facLoaded)_applyFacultades();_gesAvisoCargar();});
     loadCashback(false,function(){if(typeof redraw==='function')redraw();}); // monto vigente, aunque el admin lo haya cambiado
     // El gating de la interfaz depende de la matriz de facultades, que viene de
     // la nube: por eso se aplica dentro del callback y no acá suelto. Corre en
@@ -1124,7 +1129,10 @@ var _FAC_DEF={
   // El Hunter no tiene NINGUNA de estas: lo único que se le decide son las filas
   // opcion_N (qué flyers puede bajar). El candado está en _can, así que esta fila
   // es sólo la foto coherente de lo que se guarda.
-  hunter:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,proponer_oficiales:false}
+  hunter:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,proponer_oficiales:false},
+  // El Líder sólo mira el tablero de su equipo: igual que el Hunter, el candado
+  // está en _can (_LID_FAC) y esta fila es la foto de lo que se guarda.
+  lider:{padron_buscar:false,pegar_oficial:false,notas:true,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,gestiones:true}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -1137,7 +1145,7 @@ function _facOptList(){return (typeof _FG_OPTS!=='undefined'&&_FG_OPTS.length)?_
 // de que heredara la Opción 1 —"VIEJO FLYER", sin imagen— y sacara el flyer de
 // ejemplo del template con las coordenadas por defecto).
 function _facDefault(role,key){
-  if(key.indexOf('opcion_')===0)return role!=='hunter'&&key==='opcion_1';
+  if(key.indexOf('opcion_')===0)return role!=='hunter'&&role!=='lider'&&key==='opcion_1';
   return !!((_FAC_DEF[role]||{})[key]);
 }
 // Opciones de UNA solapa, en orden de número. Es la lista completa (habilitadas
@@ -1184,9 +1192,10 @@ function _facRows(){
   rows.push(['oficiales_sede','Oficiales por sede','Suma una barrita en <strong>Otros &rarr; Oficiales por sede</strong>, para los flyers donde el banco pone un referente por zona. Prendida: puede cargar <strong>hasta 8 oficiales</strong> (en vez de 4), ponerle a cada uno su <strong>ubicaci&oacute;n</strong> (sale con el pin &#128205; y en negrita arriba del nombre) y escribir el <strong>t&iacute;tulo</strong> que va arriba del bloque. Apagada, el armador queda igual que siempre. Los oficiales 5 al 8 se cargan igual que los otros (Pegar y asesores guardados); lo &uacute;nico que no los alcanza es la carga masiva: la base de empresas y el Excel del masivo siguen trayendo hasta 4.']);
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
   rows.push(['proponer_oficiales','Proponer cambios de oficiales','S&oacute;lo aplica al perfil <strong>Hunter</strong>: le agrega un bot&oacute;n &laquo;&#9998; Oficiales&raquo; en cada empresa para proponer agregar, corregir o quitar un oficial. El cambio <strong>no impacta</strong> hasta que lo aprueba el oficial due&ntilde;o de esa empresa (o su suplente); hasta entonces, el flyer sigue saliendo con los datos de hoy.']);
+  rows.push(['gestiones','Gestiones comerciales','Registrar visitas, ferias y acciones en empresas, con sus prospectos y altas, y ver el tablero. El <strong>Hunter</strong> registra (bot&oacute;n &laquo;Registrar gesti&oacute;n&raquo;), el <strong>oficial</strong> deriva visitas de sus empresas y ve c&oacute;mo le fue, y el <strong>L&iacute;der</strong> ve el tablero de su equipo. S&oacute;lo cuenta si el interruptor de arriba est&aacute; en &laquo;Activo&raquo;.']);
   return rows;
 }
-var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro'],['hunter','Hunter']];
+var _FAC_ROLES=[['asesor','Asesor'],['vip','VIP'],['pro','Pro'],['hunter','Hunter'],['lider','L\u00edder']];
 // Mezcla lo guardado sobre los defaults: así una facultad NUEVA agregada más
 // adelante arranca con un valor sano aunque el JSON viejo no la tenga.
 function _facMerge(saved){
@@ -1238,10 +1247,14 @@ function _esHunter(){return _rolVigente()==='hunter';}
 // (ni hay que acordarse de apagar la próxima facultad que se agregue, ni una
 // tildada por error en el JSON lo alcanza). Ampliada el 2026-10-09: Promociones,
 // Bloc de notas, Tutorial y Proponer cambios de oficiales.
-var _HUN_FAC={promos_buscar:1,notas:1,tutorial_auto:1,proponer_oficiales:1,asesores_guardados:1};
+var _HUN_FAC={promos_buscar:1,notas:1,tutorial_auto:1,proponer_oficiales:1,asesores_guardados:1,gestiones:1};
+// Perfil LÍDER: no arma ni baja flyers; mira el tablero de Gestiones de su equipo.
+function _esLider(){return _rolVigente()==='lider';}
+var _LID_FAC={notas:1,tutorial_auto:1,gestiones:1};
 function _can(f){
   // Candado del perfil Hunter. El admin que simula "hunter" cae acá también.
   if(_esHunter()&&f.indexOf('opcion_')!==0&&!_HUN_FAC[f])return false;
+  if(_esLider()&&!_LID_FAC[f])return false;
   if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);
   if(_admin)return _facMe(f); // todo, menos lo que se destildó a sí mismo
   return !!((_FAC&&_FAC[_myRole]||{})[f]);
@@ -1333,6 +1346,15 @@ function _applyFacultades(){
     var yaPermitida=_VISTAS.some(function(v){var t=_apptab(v.id);return v.ver()&&t&&t.classList.contains('active');});
     if(!yaPermitida&&typeof switchApp==='function')switchApp('hunter');
   }
+  // Líder: lo mismo que el Hunter, pero su pantalla es el tablero de Gestiones.
+  if(_esLider()){
+    if(tFly)tFly.style.display='none';
+    _OPC_SOLAPAS.forEach(function(s){var t=_apptab(s);if(t)t.style.display='none';});
+    var layL=document.getElementById('layout');if(layL)layL.style.display='none';
+    var yaL=_VISTAS.some(function(v){var t=_apptab(v.id);return v.ver()&&t&&t.classList.contains('active');});
+    if(!yaL&&typeof switchApp==='function')switchApp('gestiones');
+  }
+  _gesSync();
   _inicioListo('fac'); // recién acá se sabe qué solapas ve este perfil
 }
 
@@ -1350,7 +1372,10 @@ var _VISTAS=[
   {id:'promos',el:'view-promos',ver:function(){return _can('promos_buscar');},
    init:function(){if(typeof initPromosTab==='function')initPromosTab();}},
   {id:'hunter',el:'view-hunter',ver:function(){return _esHunter();},
-   init:function(){if(typeof _hunInit==='function')_hunInit();}}
+   init:function(){if(typeof _hunInit==='function')_hunInit();}},
+  // Gestiones comerciales: el código vive en gestiones.js y se baja recién acá.
+  {id:'gestiones',el:'view-gestiones',ver:function(){return _gesOn();},
+   init:function(){_gesAbrir('gesInit');}}
 ];
 function _vista(id){for(var i=0;i<_VISTAS.length;i++)if(_VISTAS[i].id===id)return _VISTAS[i];return null;}
 function switchApp(view){
@@ -1360,6 +1385,7 @@ function switchApp(view){
   // El Hunter nunca llega al armador, pero SÍ puede entrar a una vista propia
   // que tenga habilitada (hoy: Promociones, además de su pantalla de siempre).
   if(_esHunter()&&!_vista(view))view='hunter';
+  if(_esLider()&&!_vista(view))view='gestiones';
   if(_esSolapaArmador(view)&&view!=='flyer'&&!_facOptsDe(view).length)view='flyer';
   vi=_vista(view);
   var arm=_esSolapaArmador(view);
@@ -1511,6 +1537,8 @@ function renderFacultades(){
         // se puede tildar, y si quedó tildado en el JSON viejo _can lo ignora igual.
         if(r[0]==='hunter'&&id.indexOf('opcion_')!==0&&!_HUN_FAC[id])
           return '<div title="No aplica al perfil Hunter: s&oacute;lo busca una empresa y baja su flyer" style="color:var(--gray)">&mdash;</div>';
+        if(r[0]==='lider'&&!_LID_FAC[id])
+          return '<div title="No aplica al perfil L&iacute;der: s&oacute;lo mira el tablero de su equipo" style="color:var(--gray)">&mdash;</div>';
         var on=_facEdit[r[0]]&&_facEdit[r[0]][id];
         return '<div><input type="checkbox"'+(on?' checked':'')+
           ' onchange="_facField(\''+r[0]+'\',\''+id+'\',this.checked)"></div>';
@@ -1518,6 +1546,7 @@ function renderFacultades(){
     '</div>';
   }).join('');
   host.innerHTML='<div class="fac-grid">'+head+rows+'</div>';
+  _gesFlagRender();
 }
 // Qué grupos de opciones están desplegados. Arrancan TODOS plegados (la lista de
 // opciones crece con cada flyer nuevo y así la pantalla se lee de un vistazo);
@@ -3285,6 +3314,7 @@ function openNewUser(){
   document.getElementById('um-pass-wrap').style.display='block';
   document.getElementById('um-role').value='asesor';
   document.getElementById('um-status').value='active';
+  _umLiderFill(null);
   document.getElementById('um-submit').textContent='Crear usuario';
   document.getElementById('um-err').textContent='';
   document.getElementById('user-modal').style.display='flex';
@@ -3305,12 +3335,24 @@ function openEditUser(uid){
   var pl=document.querySelector('#um-pass-wrap label');if(pl)pl.textContent='Nueva contraseña (opcional)';
   document.getElementById('um-role').value=u.role||'asesor';
   document.getElementById('um-status').value=u.status||'active';
+  _umLiderFill(u.lider_id||null,u.id);
   document.getElementById('um-submit').textContent='Guardar cambios';
   document.getElementById('um-err').textContent='';
   document.getElementById('user-modal').style.display='flex';
   setTimeout(function(){document.getElementById('um-name').focus();},100);
 }
 
+// "Líder a cargo": a qué Líder responde este usuario (arma los equipos que ve
+// cada Líder en Gestiones). Se listan los usuarios con rol Líder.
+function _umLiderFill(actual,yo){
+  var s=document.getElementById('um-lider');if(!s)return;
+  var lids=(_allUsers||[]).filter(function(u){return u.role==='lider'&&u.id!==yo;});
+  s.innerHTML='<option value="">Sin l\u00edder</option>'+lids.map(function(u){
+    return '<option value="'+_escAttr(u.id)+'"'+(u.id===actual?' selected':'')+'>'+_escHtml(u.full_name||u.email||'Sin nombre')+'</option>';
+  }).join('');
+  var w=document.getElementById('um-lider-wrap');if(w)w.style.display=lids.length?'':'none';
+}
+function _umLiderVal(){var s=document.getElementById('um-lider');return (s&&s.value)||null;}
 function closeUserModal(){
   document.getElementById('user-modal').style.display='none';
   _editUid=null;
@@ -3331,7 +3373,7 @@ function submitUser(){
     btn.textContent='Guardando...';btn.disabled=true;
     // El perfil (rol/estado/nombre) se actualiza con RLS (admin). La contraseña,
     // si se ingresó, va por la Edge Function.
-    _sb.from('profiles').update({full_name:name,role:role,status:status}).eq('id',_editUid).then(function(r){
+    _sb.from('profiles').update({full_name:name,role:role,status:status,lider_id:_umLiderVal()}).eq('id',_editUid).then(function(r){
       if(r.error){btn.textContent='Guardar cambios';btn.disabled=false;errEl.textContent=r.error.message;return;}
       if(!pass){btn.textContent='Guardar cambios';btn.disabled=false;closeUserModal();loadUsers();loadStats();_refreshPendingBadge();showToast('Usuario actualizado');return;}
       _callFn('set_password',{uid:_editUid,password:pass},function(err){
@@ -3347,7 +3389,10 @@ function submitUser(){
     _callFn('create_user',{email:email,password:pass,full_name:name,role:role,status:status},function(err){
       btn.textContent='Crear usuario';btn.disabled=false;
       if(err){errEl.textContent=err;return;}
-      closeUserModal();loadUsers();loadStats();_refreshPendingBadge();showToast('✅ Usuario creado exitosamente');
+      // El líder se asigna después del alta (la Edge Function no lo conoce).
+      var lid=_umLiderVal();
+      var fin=function(){closeUserModal();loadUsers();loadStats();_refreshPendingBadge();showToast('✅ Usuario creado exitosamente');};
+      if(lid)_sb.from('profiles').update({lider_id:lid}).eq('email',email.toLowerCase()).then(fin);else fin();
     });
   }
 }
@@ -11593,7 +11638,7 @@ function _hunPropBadgeSync(){
 // o resolvieron como Hunter. Si es 0 no se ve nada.
 function _hdrMsgSync(){
   var m=document.getElementById('hdr-msg');if(!m)return;
-  var ofi=_propPendCount||0,hun=_esHunter()?(_hunPropAviso||0):0,n=ofi+hun;
+  var ofi=_propPendCount||0,hun=_esHunter()?(_hunPropAviso||0):0,ges=_gesAviso||0,n=ofi+hun+ges;
   m.style.display=n>0?'inline-flex':'none';
   m.textContent=n>9?'9+':String(n);
   var btn=m.parentNode,tip='';
@@ -11601,6 +11646,7 @@ function _hdrMsgSync(){
     var p=[];
     if(ofi)p.push(ofi===1?'1 cambio de oficiales para revisar':ofi+' cambios de oficiales para revisar');
     if(hun)p.push(hun===1?'1 novedad en tus modificaciones':hun+' novedades en tus modificaciones');
+    if(ges)p.push(ges===1?'1 visita nueva que te derivaron':ges+' visitas nuevas que te derivaron');
     tip='Tenés '+p.join(' y ');
   }
   if(btn&&btn.setAttribute)btn.setAttribute('title',tip);
@@ -11613,6 +11659,7 @@ function _msgPollInit(){
   _msgPollT=setInterval(function(){
     if(!_me||document.hidden)return;
     _propCargarPendientes();
+    _gesAvisoCargar();
     if(_esHunter()&&_can('proponer_oficiales'))_hunPropCargarMias(function(){
       if(document.getElementById('mis-cambios-list'))return;
       if(document.getElementById('hun-list'))_hunRender();
@@ -11892,4 +11939,102 @@ function _propConsultar(id,texto){
 function _propRechazar(id,motivo){
   _sb.rpc('padron_propuesta_rechazar',{p_id:id,p_motivo:motivo||null})
     .then(_propTrasResolver(id,'Propuesta rechazada')).catch(_propFallo);
+}
+
+
+// ══ GESTIONES COMERCIALES: interruptor, cuenta de prueba y enganches ══════════
+// Visitas, ferias y acciones en empresas, con sus prospectos y altas, y el
+// tablero para el Líder. Todo el código de esas pantallas vive en gestiones.js
+// y se baja recién cuando alguien abre "Gestiones" o "Registrar gestión": quien
+// no lo usa no paga nada en la carga. Acá queda sólo lo que tiene que estar
+// siempre: el interruptor, la marca del avatar y los botones.
+//
+// Interruptor (tabla app_flags, lo cambia el admin en Facultades):
+//   off    → no existe para nadie (las policies de la base también lo cortan).
+//   prueba → sólo el admin y las cuentas de prueba, sin mirar Facultades.
+//   on     → según Facultades → "Gestiones comerciales" (el Líder siempre).
+var _gesFlag='off',_esPrueba=false,_myLiderId=null,_gesAviso=0;
+function _gesOn(){
+  if(_gesFlag==='prueba')return !!(_admin||_esPrueba);
+  if(_gesFlag!=='on')return false;
+  return _esLider()||_can('gestiones');
+}
+function _gesFlagCargar(cb){
+  _sb.from('app_flags').select('valor').eq('clave','gestiones').maybeSingle()
+    .then(function(r){_gesFlag=(r&&r.data&&r.data.valor)||'off';if(cb)cb();})
+    .catch(function(){_gesFlag='off';if(cb)cb();});
+}
+// Visitas que un oficial le derivó a este hunter y todavía no abrió: suman a la
+// marca del avatar. Es un count (head:true): no baja filas.
+function _gesAvisoCargar(){
+  if(!_me||!_gesOn()){if(_gesAviso){_gesAviso=0;_hdrMsgSync();}return;}
+  _sb.from('gestiones').select('id',{count:'exact',head:true}).eq('hunter_id',_me.id).eq('visto_hunter',false)
+    .then(function(r){
+      _gesAviso=(r&&r.count)||0;_hdrMsgSync();
+      if(typeof window.gesAvisoSync==='function')window.gesAvisoSync();
+    }).catch(function(){});
+}
+// Botones que dependen del interruptor. Bidireccional, como todo el gating.
+function _gesSync(){
+  var on=_gesOn();
+  var b=document.getElementById('hun-ges');if(b)b.style.display=on?'':'none';
+  var pr=document.getElementById('hdr-dd-prueba');
+  if(pr){pr.style.display=_esPrueba?'block':'none';if(_esPrueba)_pruebaRender();}
+  if(!on&&_gesAviso){_gesAviso=0;_hdrMsgSync();}
+}
+function _gesAbrir(fn,arg){
+  _lib(['ges']).then(function(){window[fn](arg);})
+    .catch(function(){showToast('No se pudo cargar Gestiones. Revisá la conexión e intentá de nuevo.');});
+}
+// Desde la pantalla del Hunter, con la empresa que tiene elegida.
+function _hunGesRegistrar(){
+  var r=(typeof _hunSel==='number'&&_hunSel>=0)?_hunHits[_hunSel]:null;
+  if(!r){showToast('Elegí primero una empresa de la lista.');return;}
+  _gesAbrir('gesRegistrar',r);
+}
+
+// ── Interruptor en Admin → Facultades ──
+function _gesFlagRender(){
+  var host=document.getElementById('ges-flag');if(!host)return;
+  var ops=[
+    ['off','Apagado','Nadie lo ve.'],
+    ['prueba','En prueba','S&oacute;lo vos y la cuenta de prueba (Prospect).'],
+    ['on','Activo','Lo ve cada perfil seg&uacute;n la fila &laquo;Gestiones comerciales&raquo; de abajo. El L&iacute;der siempre.']
+  ];
+  host.innerHTML='<div class="ges-flag-t">Gestiones comerciales <span class="ges-flag-new">Nuevo</span></div>'+
+    '<div class="ges-flag-d">Visitas, ferias, prospectos, altas y el tablero del L&iacute;der. Prendelo para probarlo sin que lo vea nadie m&aacute;s.</div>'+
+    '<div class="ges-flag-ops" role="radiogroup" aria-label="Estado de Gestiones comerciales">'+ops.map(function(o){
+      return '<button type="button" role="radio" aria-checked="'+(_gesFlag===o[0])+'" class="ges-flag-op'+(_gesFlag===o[0]?' on':'')+'" onclick="_gesFlagSet(\''+o[0]+'\')">'+
+        '<b>'+o[1]+'</b><span>'+o[2]+'</span></button>';
+    }).join('')+'</div>';
+}
+function _gesFlagSet(v){
+  if(!_adminNow()||v===_gesFlag)return;
+  var antes=_gesFlag;_gesFlag=v;_gesFlagRender();
+  _sb.from('app_flags').upsert({clave:'gestiones',valor:v,updated_at:new Date().toISOString()},{onConflict:'clave'})
+    .then(function(r){
+      if(r&&r.error){_gesFlag=antes;_gesFlagRender();showToast('No se pudo guardar: '+r.error.message);return;}
+      _applyFacultades();
+      showToast(v==='off'?'Gestiones comerciales: apagado.':v==='prueba'?'Gestiones comerciales: en prueba (sólo vos y Prospect).':'Gestiones comerciales: activo según Facultades.');
+    });
+}
+
+// ── Cuenta de prueba: cambiar de perfil desde el menú del nombre ──
+// El cambio es REAL (la base lo deja sólo a cuentas marcadas es_prueba, y nunca
+// a admin): así se prueba el circuito completo con otra sesión de verdad.
+var _PRUEBA_ROLES=[['hunter','Hunter'],['vip','VIP'],['asesor','Asesor'],['pro','Pro'],['lider','Líder']];
+function _pruebaRender(){
+  var host=document.getElementById('hdr-dd-prueba');if(!host)return;
+  host.innerHTML='<div class="hdr-dd-lbl">Probar como (cuenta de prueba)</div><div class="dd-prueba">'+
+    _PRUEBA_ROLES.map(function(r){
+      return '<button type="button" class="'+(_myRole===r[0]?'on':'')+'" onclick="_pruebaRol(\''+r[0]+'\')">'+r[1]+'</button>';
+    }).join('')+'</div>';
+}
+function _pruebaRol(role){
+  if(!_esPrueba||role===_myRole)return;
+  _sb.rpc('prueba_cambiar_rol',{p_role:role}).then(function(r){
+    if(r&&r.error){showToast('No se pudo cambiar: '+r.error.message);return;}
+    showToast('Listo: ahora sos '+(_ROLE_LBL[role]||role)+'. Recargando…');
+    setTimeout(function(){location.reload();},700);
+  });
 }

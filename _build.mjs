@@ -117,6 +117,11 @@ for (const [name, url] of Object.entries(LAZY_LIBS)) {
   _lazyMeta[name] = { src: url, integrity: SRI[url] };
   html = html.replace(`<script src="${url}" integrity="${SRI[url]}" crossorigin="anonymous"></script>\n`, '');
 }
+// gestiones.js (Gestiones comerciales) también se baja recién cuando alguien abre
+// esa pantalla: va en la misma meta, con hash de contenido (cache-busting) y SRI.
+const _gesSrc = readFileSync('gestiones.js', 'utf8');
+const _gesHash = createHash('sha1').update(_gesSrc).digest('hex').slice(0, 10);
+_lazyMeta.ges = { src: 'gestiones.js?v=' + _gesHash, integrity: 'sha384-' + createHash('sha384').update(_gesSrc).digest('base64') };
 // El comentario del template sobre ExcelJS queda huérfano sin el <script>: se saca también.
 html = html.replace(/<!-- ExcelJS:[\s\S]*?-->\n/, '');
 html = html.replace('<meta name="viewport"', `<meta name="fg-libs" content='${JSON.stringify(_lazyMeta)}'>\n<meta name="viewport"`);
@@ -168,6 +173,9 @@ html = html.replace(
   // Perfil Hunter: su única solapa (ver _VISTAS en auth.js). La muestra
   // _applyFacultades sólo para ese rol, y para ese rol esconde las del armador.
   '<div class="header-text app-tab" id="apptab-hunter" style="display:none" onclick="switchApp(\'hunter\')"><h1>Buscar flyer</h1><span>HUNTER</span></div>' +
+  // Gestiones comerciales (visitas, prospectos, altas, tablero). La muestra
+  // _applyFacultades según el interruptor (app_flags) y Facultades.
+  '<div class="header-text app-tab" id="apptab-gestiones" style="display:none" onclick="switchApp(\'gestiones\')"><h1>Gestiones</h1><span>COMERCIAL</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
   '<div class="hdr-user-menu">' +
     '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span class="hdr-msg" id="hdr-msg" style="display:none"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
@@ -196,6 +204,8 @@ html = html.replace(
       // las consultas sin responder + lo resuelto que todavía no vio.
       '<button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none">' + ICO_DOC + '<span>Modificaciones Pendientes</span><span id="hunprop-badge"></span></button>' +
       '<button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()">' + ICO_HELP + '<span>Ver tutorial</span></button>' +
+      // Sólo la cuenta de prueba (profiles.es_prueba): la llena _pruebaRender.
+      '<div id="hdr-dd-prueba" style="display:none"></div>' +
       '<div class="hdr-dd-sep"></div>' +
       '<button class="hdr-dd-item danger" onclick="doLogout()">' + ICO_OUT + '<span>Salir</span></button>' +
     '</div>' +
@@ -429,6 +439,7 @@ const adminPanel = `<div id="admin-panel">
     <div id="at-facultades" style="display:none">
       <p class="ap-sec">Facultades por perfil</p>
       <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Tild&aacute; qu&eacute; <strong>funcionalidades</strong> tiene cada perfil. Al guardar, el cambio impacta para todos los usuarios de ese perfil la pr&oacute;xima vez que entren.<br><br>La columna <strong>Vos</strong> es <strong>tu propia cuenta</strong>: destild&aacute; lo que no uses (por ejemplo, una opci&oacute;n del armador que no te sirve) y la app se te simplifica. No afecta al otro administrador ni al Panel Administrador, que siempre queda disponible; pod&eacute;s volver a tildarlo cuando quieras.<br><br>Toc&aacute; el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesi&oacute;n. Para volver, us&aacute; el bot&oacute;n de la barra de abajo.<br><br>Esto controla <strong>qu&eacute; ve y qu&eacute; puede usar cada uno en la pantalla</strong>. Las acciones sensibles (crear o borrar usuarios, cambiar la configuraci&oacute;n global) siguen siendo exclusivas del administrador y las controla el servidor.</p>
+      <div class="ges-flag" id="ges-flag"></div>
       <div id="fac-grid"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="btn-submit" id="fac-save" onclick="saveFacultadesChanges()" style="padding:8px 16px">Guardar cambios</button>
@@ -579,8 +590,13 @@ const userModal = `<div id="user-modal">
             <option value="vip">VIP</option>
             <option value="pro">Pro</option>
             <option value="hunter">Hunter</option>
+            <option value="lider">L&iacute;der</option>
             <option value="admin">Administrador</option>
           </select>
+        </div>
+        <div id="um-lider-wrap" style="display:none">
+          <label class="login-lbl">L&iacute;der a cargo</label>
+          <select id="um-lider" class="login-inp"></select>
         </div>
         <div class="um-full">
           <label class="login-lbl">Estado</label>
@@ -707,6 +723,10 @@ const hunterView = '<div class="hunter-view" id="view-hunter" style="display:non
       '<button class="btn bp hun-dl" id="hun-dl" onclick="_hunBajar()" disabled>' +
         _ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>') +
         ' Descargar PDF</button>' +
+      // Gestiones comerciales: lo muestra _gesSync según el interruptor.
+      '<button type="button" class="btn hun-ges" id="hun-ges" onclick="_hunGesRegistrar()" style="display:none">' +
+        _ico('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>') +
+        ' Registrar gesti&oacute;n</button>' +
       '<div class="fg-otros hun-otros" id="hun-otros">' +
         '<button type="button" class="fg-otros-tg" onclick="_hunToggleOtros()" aria-expanded="false" aria-controls="hun-otros-menu">Otros <span class="fg-otros-caret" aria-hidden="true">&#9662;</span></button>' +
         '<div class="fg-otros-menu" id="hun-otros-menu" hidden>' +
@@ -722,7 +742,8 @@ const hunterView = '<div class="hunter-view" id="view-hunter" style="display:non
   '</div>' +
 '</div>';
 
-html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n' + hunterView + '\n</body>');
+const gestionesView = '<div class="ges-view" id="view-gestiones" style="display:none"><div id="ges-root" class="ges-root"></div></div>';
+html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n' + hunterView + '\n' + gestionesView + '\n</body>');
 
 // ── ZOOM TOOLBAR EN EL PREVIEW ───────────────────────────────────────────────
 html = html.replace(
@@ -856,7 +877,7 @@ const exportHtml = html
   // Reemplazo por FUNCIÓN: con un string, "$'" / "$&" dentro de auth.js (ej. el
   // '$'+importe del cartel de Rubros) se interpretan como patrones de replace y
   // duplican el resto del HTML (el export pasó de 2,2 a 4,1 MB sin que nadie lo note).
-  .replace(AUTH_TAG, () => '<script>\n' + _authSrc + '\n</script>')
+  .replace(AUTH_TAG, () => '<script>\n' + _authSrc + '\n</script>\n<script>\n' + _gesSrc + '\n</script>')
   .replace(CSP_META + '\n', '');
 const _htmlLenConImagen = html.length;
 // ── IMAGEN BASE FUERA DE index.html ─────────────────────────────────────────
@@ -917,7 +938,7 @@ const checks = {
   'CSP: en index.html, no en export': html.includes(CSP_META) && html.indexOf(CSP_META) < html.indexOf('<script src=') && !exportHtml.includes('Content-Security-Policy'),
   'export: auth.js inlineado': !exportHtml.includes('auth.js?v=') && !_authSrc.includes('</script>'),
   // Un "$'" en auth.js duplicaba el resto del HTML dentro del export (patrón de String.replace)
-  'export: sin HTML duplicado (una sola imagen base, un solo auth.js)': (exportHtml.match(/baseImg\.src="data:image/g) || []).length === 1 && (exportHtml.match(/function _installFlyerEngine\(/g) || []).length === 1 && exportHtml.length < _htmlLenConImagen + _authSrc.length + 200,
+  'export: sin HTML duplicado (una sola imagen base, un solo auth.js)': (exportHtml.match(/baseImg\.src="data:image/g) || []).length === 1 && (exportHtml.match(/function _installFlyerEngine\(/g) || []).length === 1 && exportHtml.length < _htmlLenConImagen + _authSrc.length + _gesSrc.length + 230,
   // La imagen de ejemplo del template no viaja en index.html: queda en flyer_default.jpg
   // y la app la carga sólo si no hay flyer activo (index_export.html sí la conserva).
   'imagen base fuera de index.html (fallback flyer_default)': !!_imgBuf && _imgBuf.length > 100000 && !html.includes('baseImg.src="data:image') && html.includes(`baseImg.dataset.fallback="${_imgFile}"`) && html.length < 400000 && _authSrc.includes('baseImg.dataset.fallback'),
@@ -1136,6 +1157,14 @@ const checks = {
   'facultades: gating bidireccional (quitar tambien saca)': _authSrc.includes('function _facShowPaste(') && _authSrc.includes('function _facShowAsesores(') && _authSrc.includes('function _facSyncOptBar('),
   'facultades: gating aplicado tras cargar la matriz': _authSrc.includes('loadFacultades(false,_applyFacultades);') && !_authSrc.includes('if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();}'),
   'rol Pro': html.includes('<option value="pro">Pro</option>') && _authSrc.includes("pro:'Pro'"),
+  'gestiones: modulo aparte bajo demanda, interruptor, Lider y cuenta de prueba':
+    html.includes('id="apptab-gestiones"') && html.includes('id="view-gestiones"') && html.includes('id="hun-ges"') &&
+    html.includes('id="ges-flag"') && html.includes('id="hdr-dd-prueba"') && html.includes('<option value="lider">') &&
+    !html.includes('<script src="gestiones.js') && html.includes('"ges":{"src":"gestiones.js?v=') &&
+    exportHtml.includes('function gesInit(') && !_gesSrc.includes('</script>') &&
+    _authSrc.includes("if(_esLider()&&!_LID_FAC[f])return false;") && _authSrc.includes("if(n==='ges')return typeof window.gesInit==='function';") &&
+    _authSrc.includes("{id:'gestiones',el:'view-gestiones'") && _authSrc.includes("_sb.rpc('prueba_cambiar_rol'") &&
+    _gesSrc.includes("_sb.rpc('gestiones_tablero'") && !/service_role|SUPA_SERVICE/.test(_gesSrc),
   'rol Hunter': html.includes('<option value="hunter">Hunter</option>') && _authSrc.includes("hunter:'Hunter'") && _authSrc.includes("['hunter','Hunter']"),
   // Perfil Hunter: UNA solapa, buscar y bajar. Tres cosas que no se pueden
   // romper sin que se note: (1) el candado del rol es UNA línea en _can, que
@@ -1152,7 +1181,7 @@ const checks = {
   // sea: nunca usa _pgOptDe); (3) antes de dibujar se verifica que la opción
   // cargada trajo su propia imagen.
   'hunter: usa el flyer vigente habilitado, con su legal, o no lo arma':
-    _authSrc.includes("if(key.indexOf('opcion_')===0)return role!=='hunter'&&key==='opcion_1';") &&
+    _authSrc.includes("if(key.indexOf('opcion_')===0)return role!=='hunter'&&role!=='lider'&&key==='opcion_1';") &&
     ['_hunMetasCargar','_hunUsable','_hunVigente','_hunOptDe','_hunFlyerLbl','_hunConOpt']
       .every(f => _hunSrc.includes('function ' + f + '(')) &&
     _hunSrc.includes("_hunMeta[n]=!!(d&&d.imageUrl);") &&
