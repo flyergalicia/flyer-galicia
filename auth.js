@@ -852,7 +852,7 @@ function doRegister(){
 }
 
 function checkProfile(user){
-  _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades').eq('id',user.id).single().then(function(r){
+  _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades,es_prueba,lider_id').eq('id',user.id).single().then(function(r){
     var p=r.data;
     if(r.error||!p||p.status!=='active'){
       var msg;
@@ -964,7 +964,8 @@ function _showApp(){
   document.getElementById('login-ov').style.display='none';
   // El Hunter no tiene armador: su pantalla la abre switchApp('hunter') desde
   // _applyFacultades/_inicioListo. Sin esta guarda se ve el armador un instante.
-  if(!_esHunter())document.getElementById('layout').style.display='grid';
+  // Tampoco el Líder: su pantalla es el tablero de Gestiones.
+  if(!_esHunter()&&!_esLider())document.getElementById('layout').style.display='grid';
 }
 
 // Muestra cuántas cuentas están pendientes de aprobación en el botón Admin
@@ -9922,7 +9923,9 @@ function _tourCapitulos(){
   var puedePad=_can('padron_buscar'),puedePegar=_can('pegar_oficial'),puedeNotas=_can('notas'),
       puedeAs=_can('asesores_guardados'),puedePromos=_can('promos_buscar'),varias=_facOptsDe('flyer').length>1,
       puedeRubros=_facOptsDe('rubros').length>0,puedeSedes=_can('oficiales_sede'),
-      guardaTrabajo=_can('guardar_trabajo'),esHunter=_esHunter();
+      guardaTrabajo=_can('guardar_trabajo'),esHunter=_esHunter(),
+      // El Líder tampoco tiene armador: ni un capítulo del armador le aplica.
+      sinArm=esHunter||_esLider(),puedeGes=(typeof _gesOn==='function')&&_gesOn();
   // El menú "Otros" se abre para hablar de Compartir / PNG / Oficiales por sede, y
   // lo cierra cualquier paso que se vaya a otra parte de la pantalla.
   function cerrarOtros(){if(typeof fgToggleOtros==='function')fgToggleOtros(false);}
@@ -9944,7 +9947,7 @@ function _tourCapitulos(){
   }
   function elPtabActivas(){var t=document.querySelectorAll('.promos-view .tabs .ptab');return t[1]||null;}
   return [
-    {id:'flyer',titulo:'Armar un flyer',cond:!esHunter,pasos:[
+    {id:'flyer',titulo:'Armar un flyer',cond:!sinArm,pasos:[
       {target:'#empresa',titulo:'Empez&aacute; por la empresa',
        texto:'Escrib&iacute; la raz&oacute;n social: el flyer de la derecha se actualiza al instante y el <strong>nombre del archivo</strong> se arma solo con ese nombre.'+(puedePad?' Si la empresa ya est&aacute; en tu base, mientras tipe&aacute;s te la sugiere.':''),
        antes:irIndividual},
@@ -9988,7 +9991,7 @@ function _tourCapitulos(){
        texto:'Para los flyers en los que el banco pone un referente por zona. Prendida, carg&aacute;s <strong>hasta 8 oficiales</strong>, cada uno con su <strong>ubicaci&oacute;n</strong> (sale con el pin &#128205; y en negrita arriba del nombre) y un <strong>t&iacute;tulo</strong> que va arriba de todo el bloque. Al apagarla se borran las ubicaciones, el t&iacute;tulo y los oficiales 5 al 8 (te pregunta antes). La lupa y el Excel del masivo siguen trayendo hasta 4.',
        antes:irOtros}
     ]},
-    {id:'masivo',titulo:'Masivo',cond:!esHunter,pasos:[
+    {id:'masivo',titulo:'Masivo',cond:!sinArm,pasos:[
       {target:'.template-btn',titulo:'Muchas empresas de una vez',
        texto:'Baj&aacute; la <strong>plantilla Excel</strong>: una fila por empresa (raz&oacute;n social, cashback y hasta 4 asesores). Es el mismo formato que us&aacute;s en <strong>Base de datos</strong>.',
        antes:irMasivo},
@@ -9999,7 +10002,7 @@ function _tourCapitulos(){
        texto:'Si ya tenés tu base cargada, ac&aacute; abajo sale <strong>&laquo;Todo el segmento&raquo;</strong>: un click y te baja el flyer de todas las empresas de tu base que usan <strong>este formato</strong> (con sus oficiales, cashback y topes). Para bajar <em>todas</em> tus empresas, cada una con el formato que le toca, est&aacute; <strong>Base de datos &rarr; Generar flyers</strong>.',
        antes:irMasivo}
     ]},
-    {id:'historial',titulo:'Historial',cond:!esHunter,pasos:[
+    {id:'historial',titulo:'Historial',cond:!sinArm,pasos:[
       {target:function(){return document.querySelectorAll('.tabs .tab')[2]||null;},
        titulo:guardaTrabajo?'Tus flyers quedan guardados':'Lo que generaste en esta sesi&oacute;n',
        texto:'Cada flyer descargado queda listado ac&aacute;: pod&eacute;s <strong>volver a bajar el PDF</strong> o <strong>recargar</strong> sus datos en el formulario para retocarlo. '+
@@ -10063,12 +10066,20 @@ function _tourCapitulos(){
        texto:'La app se guarda una copia del listado de Galicia para no pedirlo cada vez (arriba te dice de cu&aacute;ndo es). Si Galicia carg&oacute; promociones nuevas hoy, toc&aacute; <strong>Actualizar cat&aacute;logo ahora</strong> y las trae.',
        antes:irPromos}
     ]},
-    {id:'opciones',titulo:'Opciones',cond:varias&&!esHunter,pasos:[
+    {id:'gestiones',titulo:'Gestiones',cond:puedeGes,pasos:[
+      {target:'#hun-ges',titulo:'Registr&aacute; la gesti&oacute;n',cond:esHunter,
+       texto:'Despu&eacute;s de cada visita o feria, con la empresa elegida, toc&aacute; <strong>Registrar gesti&oacute;n</strong>. El oficial que te la cedi&oacute; se completa solo.',
+       antes:irHunter},
+      {target:'#apptab-gestiones',titulo:'Gestiones comerciales',
+       texto:'Ac&aacute; est&aacute;n las visitas (las que te derivaron y las que registraste), los <strong>prospectos</strong> y las <strong>altas</strong> de cada una, y el <strong>tablero</strong> con la conversi&oacute;n.',
+       antes:function(){cerrarOtros();closeUserMenu();}}
+    ]},
+    {id:'opciones',titulo:'Opciones',cond:varias&&!sinArm,pasos:[
       {target:'#fg-optbar',titulo:'Varios armadores',
        texto:'Cada opci&oacute;n tiene su propio flyer y su propio legal. Cambi&aacute;s ac&aacute; y todo lo dem&aacute;s (individual, masivo, historial) usa el flyer de esa opci&oacute;n. Los datos que cargaste no se pierden al cambiar.',
        antes:irIndividual}
     ]},
-    {id:'rubros',titulo:'Flyer Rubros',cond:puedeRubros&&!esHunter,pasos:[
+    {id:'rubros',titulo:'Flyer Rubros',cond:puedeRubros&&!sinArm,pasos:[
       {target:'#apptab-rubros',titulo:'Flyers con beneficio exclusivo',
        texto:'El mismo armador, pero con los flyers que traen el cuadro <strong>&laquo;&iexcl;Beneficio exclusivo EMPRESA!&raquo;</strong> (combustible, supermercado...). Eleg&iacute;s el rubro en la barra de arriba del formulario.',
        antes:irRubros},

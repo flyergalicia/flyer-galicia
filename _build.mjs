@@ -1151,7 +1151,7 @@ const checks = {
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
   // El admin se puede destildar cosas a sí mismo (columna "Vos", guardada por
   // cuenta en profiles.facultades): ya no hay bypass fijo en _can.
-  'facultades: columna Vos del admin (profiles.facultades)': _authSrc.includes('function _facMe(') && _authSrc.includes('if(_admin)return _facMe(f);') && _authSrc.includes("update({facultades:me})") && _authSrc.includes('function _facFieldMe(') && _authSrc.includes(',facultades\').eq(\'id\',user.id)') && !_authSrc.includes('checked disabled title="El administrador siempre tiene todas') && !html.includes('por eso su columna no se puede editar'),
+  'facultades: columna Vos del admin (profiles.facultades)': _authSrc.includes('function _facMe(') && _authSrc.includes('if(_admin)return _facMe(f);') && _authSrc.includes("update({facultades:me})") && _authSrc.includes('function _facFieldMe(') && _authSrc.includes(',facultades,es_prueba,lider_id\').eq(\'id\',user.id)') && !_authSrc.includes('checked disabled title="El administrador siempre tiene todas') && !html.includes('por eso su columna no se puede editar'),
   // Data → Cambios en las empresas: lo escribe padron_replace (servidor, migración 007).
   'base de datos: cambios en las empresas (solapa Data)': html.includes('id="at-padronlog"') && html.includes('data-tab="padronlog"') && html.includes('id="plog-list"') && _authSrc.includes('function loadPadronLog(') && _authSrc.includes('function exportPadronLog(') && _authSrc.includes("'padronlog'") && _authSrc.includes("if(t==='padronlog')loadPadronLog();") && _authSrc.includes("_sb.from('padron_log')"),
   'facultades: gating bidireccional (quitar tambien saca)': _authSrc.includes('function _facShowPaste(') && _authSrc.includes('function _facShowAsesores(') && _authSrc.includes('function _facSyncOptBar('),
@@ -1164,6 +1164,8 @@ const checks = {
     exportHtml.includes('function gesInit(') && !_gesSrc.includes('</script>') &&
     _authSrc.includes("if(_esLider()&&!_LID_FAC[f])return false;") && _authSrc.includes("if(n==='ges')return typeof window.gesInit==='function';") &&
     _authSrc.includes("{id:'gestiones',el:'view-gestiones'") && _authSrc.includes("_sb.rpc('prueba_cambiar_rol'") &&
+    _authSrc.includes("status,facultades,es_prueba,lider_id')") &&   // sin esto Prospect entra como usuario común
+    _authSrc.includes("if(!_esHunter()&&!_esLider())document.getElementById('layout').style.display='grid';") &&
     _gesSrc.includes("_sb.rpc('gestiones_tablero'") && !/service_role|SUPA_SERVICE/.test(_gesSrc),
   'rol Hunter': html.includes('<option value="hunter">Hunter</option>') && _authSrc.includes("hunter:'Hunter'") && _authSrc.includes("['hunter','Hunter']"),
   // Perfil Hunter: UNA solapa, buscar y bajar. Tres cosas que no se pueden

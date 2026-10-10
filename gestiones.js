@@ -102,6 +102,11 @@ function gesTabs(){
   return [['empresas','Mis empresas'],['lista','Gestiones'],['tablero','Tablero']];
 }
 function gesInit(tab){
+  if(typeof _gesOn==='function'&&!_gesOn()){
+    var root=document.getElementById('ges-root');
+    if(root)root.innerHTML='<div class="ges-vacio" style="margin-top:24px">Gestiones comerciales todav\u00eda no est\u00e1 habilitado. Cuando el administrador lo active, tu tablero aparece ac\u00e1.</div>';
+    return;
+  }
   var tabs=gesTabs();
   // Si cambió el perfil (vista previa del admin) la solapa anterior puede no existir.
   if(tab)GES.tab=tab;
@@ -140,6 +145,8 @@ function gesErr(e){
 }
 // Lo llama auth.js cuando cambia el número de derivadas nuevas.
 function gesAvisoSync(){
+  if(GES._ultAviso===_gesAviso)return;
+  GES._ultAviso=_gesAviso;
   var v=document.getElementById('view-gestiones');
   if(v&&v.style.display!=='none'&&!GES.det&&GES.tab==='lista'){GES.lista=null;gesRender();}
 }
@@ -606,7 +613,7 @@ function gesDesde(per){
 }
 function gesTablero(){
   var f=GES.f;
-  var args={p_desde:gesDesde(f.per),p_hasta:gesHoy(),p_tipo:f.tipo||null,p_hunter:f.hun||null,p_dueno:f.due||null,p_prueba:gesPuedePrueba()&&!!f.prueba};
+  var args={p_desde:gesDesde(f.per),p_hasta:null,p_tipo:f.tipo||null,p_hunter:f.hun||null,p_dueno:f.due||null,p_prueba:gesPuedePrueba()&&!!f.prueba};
   Promise.all([_sb.rpc('gestiones_tablero',args),gesPersonas()]).then(function(res){
     var r=res[0];if(r&&r.error)throw r.error;
     GES.tablero=r.data;gesTableroPintar();
