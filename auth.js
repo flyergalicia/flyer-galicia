@@ -924,8 +924,13 @@ function checkProfile(user){
       _showApp();
       // Con la app ya visible, re-aplico: es idempotente, y recién acá puede
       // corregir la opción activa si este perfil no tiene habilitada la 1.
-      if(_facLoaded){_applyFacultades();_tourAutoStart();}
-      else loadFacultades(false,function(){_applyFacultades();_tourAutoStart();});
+      // La imagen de ejemplo (flyer_default.jpg, 1,3 MB) sólo hace falta si el
+      // perfil SE QUEDA en la Opción 1 y ésta no tiene flyer. Se decide después
+      // de aplicar facultades: _facSyncOptBar ya lo pasó a su primera opción, que
+      // trae su propia imagen. Antes se bajaba siempre, aunque nadie la viera.
+      var _fb1=function(){if(!imageUrl&&_optN(_fgOpt)===1&&_can('opcion_1'))_fgBaseFallback();};
+      if(_facLoaded){_applyFacultades();_tourAutoStart();_fb1();}
+      else loadFacultades(false,function(){_applyFacultades();_tourAutoStart();_fb1();});
       // Cacheo la Opción 1 para que volver a ella sea instantáneo
       _fgOptCache[1]={loaded:true,cfg:window.FLYER_CFG||null,imageUrl:imageUrl,
         name:_activeFlyerName,legal:null,img:null};
@@ -944,8 +949,12 @@ function checkProfile(user){
           console.warn('Active flyer image failed:',imageUrl);
           _fgBaseFallback();
         };
-        _ni.src=imageUrl+'&_r='+Date.now();
-      }else _fgBaseFallback();
+        // Sin anti-caché: imageUrl ya trae ?v=<hora de activación> (cada activación
+        // y recalibración escribe uno nuevo), así que un flyer nuevo es otra
+        // dirección y se baja; el mismo flyer sale de la memoria del navegador
+        // en vez de bajar ~1 MB en cada ingreso.
+        _ni.src=imageUrl;
+      }
     });
   });
 }
@@ -3956,7 +3965,7 @@ function switchFlyerOption(opt,cb){
       var im=new Image();im.crossOrigin='anonymous';
       im.onload=function(){cache.img=im;done(cache);};
       im.onerror=function(){done(cache,'No se pudo cargar la imagen de '+_optLabel(opt));};
-      im.src=cache.imageUrl+(cache.imageUrl.indexOf('?')>=0?'&':'?')+'_r='+Date.now();
+      im.src=cache.imageUrl; // versionada por ?v= al activar: ver la carga inicial
     });
   });
 }
