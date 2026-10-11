@@ -1167,6 +1167,14 @@ const checks = {
     _authSrc.includes("status,facultades,es_prueba,lider_id')") &&   // sin esto Prospect entra como usuario común
     _authSrc.includes("if(!_esHunter()&&!_esLider())document.getElementById('layout').style.display='grid';") &&
     _gesSrc.includes("_sb.rpc('gestiones_tablero'") && !/service_role|SUPA_SERVICE/.test(_gesSrc),
+  'preview: zoom con Ctrl + rueda (la rueda sola recorre), armador y Hunter':
+    (_authSrc.match(/if\(!\(e\.ctrlKey\|\|e\.metaKey\)\)\{_zoomTip\(prevEl\);return;\}/g) || []).length === 2 &&
+    _authSrc.includes('function _zoomTip('),
+  'gestiones: Accion/Feria, repeticion cada N dias y "solo lo mio" del admin':
+    _gesSrc.includes("var GES_TIPO={accion:") && !/visita:'Visita'/.test(_gesSrc) &&
+    _gesSrc.includes("var GES_FREC={unica:") && !/semanal|quincenal/.test(_gesSrc) &&
+    (_gesSrc.match(/p_solo_mio:gesSoloMio\(\)/g) || []).length === 2 &&
+    _gesSrc.includes('function gesCrearSerie(') && _gesSrc.includes('function gesOfrecerProxima('),
   'rol Hunter': html.includes('<option value="hunter">Hunter</option>') && _authSrc.includes("hunter:'Hunter'") && _authSrc.includes("['hunter','Hunter']"),
   // Perfil Hunter: UNA solapa, buscar y bajar. Tres cosas que no se pueden
   // romper sin que se note: (1) el candado del rol es UNA línea en _can, que

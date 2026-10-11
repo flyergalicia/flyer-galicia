@@ -750,6 +750,10 @@ function initApp(){
     // zoom+redibujo por cuadro, anclado a la última posición del cursor.
     var _pwPend=null,_pwPasos=0,_pwX=0,_pwY=0;
     prevEl.addEventListener('wheel',function(e){
+      // Zoom sólo con Ctrl (o el pellizco del touchpad, que llega como wheel +
+      // ctrlKey). La rueda sola recorre el flyer acercado con el scroll nativo
+      // (decisión del 2026-10-11, como Canva/Figma/PDF: sin zoom sin querer).
+      if(!(e.ctrlKey||e.metaKey)){_zoomTip(prevEl);return;}
       e.preventDefault();
       _pwPasos+=(e.deltaY<0?1:-1);_pwX=e.clientX;_pwY=e.clientY;
       if(_pwPend)return;
@@ -9973,7 +9977,7 @@ function _tourCapitulos(){
        texto:'Seleccion&aacute; un tramo del legal y toc&aacute; <strong>B</strong> (o <kbd>Ctrl</kbd>+<kbd>B</kbd>): te pone los asteriscos por vos. Toc&aacute;ndolo de nuevo sobre el mismo texto, se los saca. Los asteriscos se ven ac&aacute; porque son la marca; en el flyer sale la negrita.',
        antes:irIndividual},
       {target:'.zoom-bar',titulo:'Vista previa',
-       texto:'Acerc&aacute; o alej&aacute; con <kbd>+</kbd> / <kbd>&minus;</kbd> (o la rueda del mouse) y <strong>arrastr&aacute;</strong> la imagen para recorrerla. Lo que ves ac&aacute; es exactamente lo que se descarga.',
+       texto:'Acerc&aacute; o alej&aacute; con <kbd>+</kbd> / <kbd>&minus;</kbd> o con <kbd>Ctrl</kbd> + ruedita (pellizcando en el touchpad), y recorr&eacute; la imagen con la ruedita o <strong>arrastr&aacute;ndola</strong>. Lo que ves ac&aacute; es exactamente lo que se descarga.',
        antes:irIndividual},
       {target:'.btns .btn.bblue',titulo:'Verlo en grande',
        texto:'Abre el flyer a pantalla completa para revisarlo con tranquilidad antes de mandarlo, con <strong>Descargar PDF</strong>, <strong>Compartir</strong> y <strong>PNG</strong> ah&iacute; mismo. Se cierra con <kbd>Esc</kbd>.',
@@ -10037,7 +10041,7 @@ function _tourCapitulos(){
        texto:'Si dos oficiales distintos cargaron la misma empresa, aparecen las <strong>dos filas</strong> por separado: fij&aacute;te los nombres antes de elegir. Si dice <strong>&laquo;No figura&raquo;</strong>, nadie la carg&oacute; todav&iacute;a.',
        antes:irHunter},
       {target:'.hun-zoom-bar',titulo:'Acerc&aacute; la imagen',
-       texto:'Con <kbd>+</kbd> / <kbd>&minus;</kbd> o la rueda del mouse acerc&aacute;s el flyer para revisar un dato, y arrastr&aacute;s para recorrerlo.',
+       texto:'Con <kbd>+</kbd> / <kbd>&minus;</kbd> o <kbd>Ctrl</kbd> + ruedita acerc&aacute;s el flyer para revisar un dato; con la ruedita sola o arrastrando lo recorr&eacute;s.',
        antes:irHunter},
       {target:'#hun-otros',titulo:'&laquo;Otros&raquo;: m&aacute;s herramientas',
        texto:'Ac&aacute; est&aacute;n <strong>Beneficios Haberes</strong> (el tablero), y la <strong>descarga de varias empresas juntas</strong> en un ZIP. El instructivo completo est&aacute; en tu nombre &rarr; <strong>Ver tutorial</strong>.',
@@ -11231,11 +11235,20 @@ var _hunResizeT=null;
 window.addEventListener('resize',function(){clearTimeout(_hunResizeT);_hunResizeT=setTimeout(function(){if(_hunZoom!==1)_hunZoomAplicar();},150);});
 // Rueda anclada al cursor + paneo con drag. Se instala una sola vez (idempotente
 // vía dataset), igual que el del armador (auth.js, dentro de initApp()).
+// La primera vez que alguien usa la rueda sola sobre una vista previa que no
+// tiene nada para recorrer (o sea, probablemente quería acercar), un aviso de
+// una línea. Una sola vez por navegador.
+function _zoomTip(el){
+  if(el&&el.scrollHeight>el.clientHeight+2)return; // estaba recorriendo: no molestar
+  try{if(localStorage.getItem('fg_tip_zoom'))return;localStorage.setItem('fg_tip_zoom','1');}catch(e){return;}
+  showToast('Para acercar el flyer: Ctrl + ruedita (o pellizcá en el touchpad). También con + y −.');
+}
 function _hunPrevInitGestos(){
   var prevEl=_hunPrevEl();if(!prevEl||prevEl.dataset.hunGestOk)return;prevEl.dataset.hunGestOk='1';
   var _pwPend=null,_pwPasos=0,_pwX=0,_pwY=0;
   prevEl.addEventListener('wheel',function(e){
     var img=_hunImgEl();if(!img||!img.naturalWidth)return;
+    if(!(e.ctrlKey||e.metaKey)){_zoomTip(prevEl);return;} // igual que el armador
     e.preventDefault();
     _pwPasos+=(e.deltaY<0?1:-1);_pwX=e.clientX;_pwY=e.clientY;
     if(_pwPend)return;

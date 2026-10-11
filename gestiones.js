@@ -12,18 +12,21 @@
 
 // Estilos de estas pantallas: viajan con el módulo (no en index.html), así
 // quien nunca abre Gestiones no los baja. Se inyectan una sola vez.
+// Repetición y cabecera del admin (2026-10-11).
+var GES_CSS_2=".ges-top-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}\n.ges-rep{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:.76rem;font-weight:600;color:var(--ink);}\n.ges-rep[hidden],.ges-mini[hidden]{display:none;}\n.ges-inp-n{width:64px;text-align:center;}\n.ges-atajos{display:inline-flex;gap:4px;}\n.ges-atajos button{border:1px solid var(--border);background:var(--card);color:var(--ink-2,var(--ink));border-radius:12px;padding:3px 9px;font-size:.68rem;font-weight:700;cursor:pointer;}\n.ges-atajos button:hover{border-color:var(--accent-line);color:var(--accent-2,var(--accent));}\n#gf-rep-ayuda{margin-top:4px;font-weight:400;line-height:1.4;}";
 var GES_CSS=":root{--ges-ok:#2E7D32;--ges-ok-soft:#E6F3E7;--ges-info:#1D4070;--ges-info-soft:#E8EEF7;--ges-warn:#9A5B00;--ges-warn-soft:#FFF2DC;--ges-b1:#F5B79A;--ges-grid:#EDE7DC;}\nhtml.dark{--ges-ok:#7BC47F;--ges-ok-soft:#1C2E1E;--ges-info:#8FB3E8;--ges-info-soft:#1C2636;--ges-warn:#F0B35A;--ges-warn-soft:#33281A;--ges-b1:#7A3E22;--ges-grid:#2A2E34;}\n.ges-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}\n.ges-h1{font-size:1.12rem;font-weight:800;margin:0 0 2px;color:var(--ink);text-wrap:balance;}\n.ges-sub{font-size:.78rem;color:var(--gray);margin:0 0 12px;line-height:1.45;}\n.ges-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap;}\n.ges-tab{border:0;background:none;padding:9px 14px;font-size:.8rem;font-weight:700;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;gap:6px;align-items:center;}\n.ges-tab:hover{color:var(--ink);}\n.ges-tab.on{color:var(--accent-2,var(--accent));border-bottom-color:var(--accent);}\n.ges-tab .fg-badge{margin-left:0;}\n.ges-cargando,.ges-vacio{padding:22px;text-align:center;color:var(--gray);font-size:.8rem;line-height:1.55;}\n.ges-vacio{border:1px dashed var(--border);border-radius:var(--r-m,12px);background:var(--card);}\n.ges-vacio .btn{margin-top:10px;}\n.ges-nota,.ges-mini{font-size:.68rem;color:var(--gray);}\n.ges-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-m,12px);box-shadow:var(--sh-1);}\n.ges-pad{padding:14px 16px;}\n.ges-lbl{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gray);}\n.ges-inp{border:1px solid var(--border);background:var(--field,var(--card));color:var(--ink);border-radius:var(--r-s,8px);padding:8px 10px;font-size:.8rem;min-width:0;}\n.ges-inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring,rgba(242,97,34,.16));}\n.ges-sel{min-width:150px;}\n.ges-tool{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}\n.ges-tool input[type=search]{flex:1;min-width:200px;}\n.ges-btn-sm{padding:6px 12px !important;font-size:.74rem !important;}\n.ges-link{border:0;background:none;color:var(--accent-2,var(--accent));font-weight:700;font-size:.76rem;cursor:pointer;padding:2px 0;}\n.ges-peligro{color:var(--danger) !important;}\n.ges-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:.64rem;font-weight:800;white-space:nowrap;}\n.ges-c-info{background:var(--ges-info-soft);color:var(--ges-info);}\n.ges-c-ok{background:var(--ges-ok-soft);color:var(--ges-ok);}\n.ges-c-bad{background:var(--danger-soft);color:var(--danger);}\n.ges-c-warn{background:var(--ges-warn-soft);color:var(--ges-warn);}\n.ges-ok{color:var(--ges-ok);}\n.ges-prueba{color:var(--ges-warn);font-weight:700;}\n.ges-list{display:flex;flex-direction:column;gap:8px;}\n.ges-row{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;border:1px solid var(--border);background:var(--card);border-radius:var(--r-s,8px);padding:10px 12px;cursor:pointer;box-shadow:var(--sh-1);color:var(--ink);}\n.ges-row:hover{border-color:var(--accent-line);}\n.ges-row.nueva{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring,rgba(242,97,34,.16));}\n.ges-row-t{display:flex;justify-content:space-between;align-items:center;gap:8px;}\n.ges-row-e{font-weight:800;font-size:.86rem;}\n.ges-row-d,.ges-row-n{font-size:.72rem;color:var(--gray);}\n.ges-row-n b{color:var(--ink);}\n.ges-row-n b.ges-ok{color:var(--ges-ok);}\n.ges-row-nueva{font-size:.72rem;color:var(--accent-2,var(--accent));font-weight:700;}\n.ges-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px;}\n.ges-kpis.ges-k4{grid-template-columns:repeat(4,minmax(0,1fr));}\n.ges-kpis.ges-k5{grid-template-columns:repeat(5,minmax(0,1fr));}\n.ges-kpi{padding:12px 14px;}\n.ges-kv{font-size:1.5rem;font-weight:800;line-height:1.1;margin-top:4px;color:var(--ink);font-variant-numeric:tabular-nums;}\n.ges-kd{font-size:.66rem;color:var(--gray);margin-top:2px;}\n.ges-kpi.hi{border-color:var(--accent-line);background:linear-gradient(180deg,var(--accent-soft),var(--card));}\n.ges-kpi.hi .ges-kv{color:var(--accent-2,var(--accent));}\n@media (max-width:1000px){.ges-kpis,.ges-kpis.ges-k5{grid-template-columns:repeat(3,minmax(0,1fr));}}\n@media (max-width:520px){.ges-kpis,.ges-kpis.ges-k4,.ges-kpis.ges-k5{grid-template-columns:repeat(2,minmax(0,1fr));}}\n.ges-tw{overflow-x:auto;}\n.ges-tbl{border-collapse:collapse;width:100%;font-size:.78rem;color:var(--ink);}\n.ges-tbl th{text-align:left;font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray);font-weight:800;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}\n.ges-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}\n.ges-tbl tr:last-child td{border-bottom:0;}\n.ges-tbl .r{text-align:right;font-variant-numeric:tabular-nums;}\n.ges-num{font-variant-numeric:tabular-nums;white-space:nowrap;}\n.ges-hb{display:flex;align-items:center;gap:8px;}\n.ges-hb span{font-size:.7rem;font-weight:700;min-width:34px;font-variant-numeric:tabular-nums;}\n.ges-bar{flex:1;height:6px;border-radius:3px;background:var(--ges-grid);overflow:hidden;min-width:50px;}\n.ges-bar i{display:block;height:100%;background:var(--accent);border-radius:3px;}\n.ges-est{border:1px solid var(--border);background:var(--field,var(--card));color:var(--ink);border-radius:6px;padding:4px 6px;font-size:.72rem;font-weight:700;}\n.ges-est.alta{background:var(--ges-ok-soft);color:var(--ges-ok);border-color:transparent;}\n.ges-est.desc{background:var(--danger-soft);color:var(--danger);border-color:transparent;}\n.ges-est.gest{background:var(--ges-warn-soft);color:var(--ges-warn);border-color:transparent;}\nspan.ges-est{display:inline-block;}\n.ges-x{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--gray);cursor:pointer;font-size:1rem;line-height:1;}\n.ges-x:hover{background:var(--danger-soft);color:var(--danger);}\n.ges-det-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-top:6px;}\n.ges-acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}\n.ges-auto{display:flex;gap:8px;align-items:center;background:var(--ges-info-soft);color:var(--ges-info);border-radius:var(--r-s,8px);padding:9px 12px;font-size:.76rem;margin:0 0 12px;line-height:1.45;white-space:pre-wrap;}\n.ges-auto b{font-weight:800;}\n.ges-aviso{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:var(--r-s,8px);padding:9px 12px;font-size:.76rem;margin:0 0 12px;color:var(--ink);}\n.ges-ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap;}\n.ges-ct{font-weight:800;font-size:.86rem;color:var(--ink);}\n.ges-add{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-top:12px;align-items:center;}\n@media (max-width:640px){.ges-add{grid-template-columns:1fr 1fr;}.ges-add input:first-child{grid-column:1/-1;}}\n.ges-paste{margin-top:12px;border:1px dashed var(--accent-line);border-radius:var(--r-s,8px);padding:10px 12px;background:var(--accent-soft);}\n.ges-paste summary{cursor:pointer;font-weight:700;font-size:.78rem;color:var(--ink);}\n.ges-paste textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:.74rem;margin:6px 0;resize:vertical;box-sizing:border-box;}\n.ges-paste-res{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}\n.ges-filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;}\n.ges-filtros label{display:flex;flex-direction:column;gap:4px;}\n.ges-filtros .ges-check{flex-direction:row;align-items:center;gap:6px;font-size:.76rem;color:var(--ink);padding-bottom:8px;}\n.ges-xls{margin-left:auto;}\n.ges-g2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;margin-bottom:14px;}\n.ges-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}\n@media (max-width:1000px){.ges-g2,.ges-g3{grid-template-columns:1fr;}}\n.ges-leg{display:flex;gap:12px;font-size:.68rem;color:var(--gray);}\n.ges-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}\n.ges-leg i.l1{background:var(--ges-b1);}\n.ges-leg i.l2{background:var(--accent);}\n.ges-svg{width:100%;height:auto;display:block;}\n.ges-svg .ges-grid{stroke:var(--ges-grid);stroke-width:1;}\n.ges-svg .ges-ax{font-size:10px;fill:var(--gray);}\n.ges-svg .ges-val{font-size:10px;font-weight:700;fill:var(--ink);}\n.ges-svg .ges-b1{fill:var(--ges-b1);}\n.ges-svg .ges-b2{fill:var(--accent);}\n.ges-fun{display:flex;flex-direction:column;gap:9px;}\n.ges-fun-r{display:grid;grid-template-columns:96px minmax(0,1fr) 64px;gap:10px;align-items:center;font-size:.76rem;color:var(--ink);}\n.ges-fun-b{height:24px;border-radius:6px;background:var(--accent);display:flex;align-items:center;padding-left:8px;color:#fff;font-weight:800;font-size:.72rem;min-width:30px;box-sizing:border-box;white-space:nowrap;}\n.ges-fun-b.f2{background:var(--accent-2,var(--accent));}\n.ges-fun-b.f3{background:var(--ges-ok);}\n.ges-fun-p{text-align:right;color:var(--gray);font-weight:700;font-size:.7rem;font-variant-numeric:tabular-nums;}\n.ges-ov{position:fixed;inset:0;background:rgba(20,18,15,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10000;}\n.ges-mod{background:var(--card);color:var(--ink);border-radius:var(--r-m,12px);box-shadow:var(--sh-3);width:min(580px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:18px 20px;box-sizing:border-box;}\n.ges-mt{margin:0 0 2px;font-size:1.02rem;font-weight:800;}\n.ges-ms{margin:0 0 12px;font-size:.78rem;color:var(--gray);}\n.ges-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;}\n.ges-form .full{grid-column:1/-1;}\n.ges-form label,.ges-form .ges-fl{display:flex;flex-direction:column;gap:5px;font-size:.7rem;font-weight:700;color:var(--ink-2,var(--gray));}\n.ges-form textarea{resize:vertical;}\n@media (max-width:520px){.ges-form{grid-template-columns:1fr;}}\n.ges-pills{display:flex;gap:6px;flex-wrap:wrap;}\n.ges-pills button{border:1px solid var(--border);background:var(--card);color:var(--ink-2,var(--ink));border-radius:20px;padding:6px 12px;font-size:.74rem;font-weight:700;cursor:pointer;}\n.ges-pills button[aria-pressed=\"true\"]{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-2,var(--accent));}\n.ges-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}";
-(function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS;document.head.appendChild(st);})();
+(function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2;document.head.appendChild(st);})();
 
 var GES_RENTAS=['Hasta $1,5 M','De $1,5 a 3 M','De $3 a 6 M','Más de $6 M'];
-var GES_TIPO={visita:'Visita',feria:'Feria',accion:'Acción'};
+var GES_TIPO={accion:'Acción',feria:'Feria'};
 var GES_MOD={presencial:'Presencial',virtual:'Virtual'};
-var GES_FREC={unica:'Única',semanal:'Semanal',quincenal:'Quincenal',mensual:'Mensual'};
+var GES_FREC={unica:'Única',repite:'Se repite'};
+var GES_VECES_MAX=24; // tope al crear una serie de una vez (la base admite hasta 52)
 var GES_EST={planificada:'Planificada',realizada:'Realizada',cancelada:'Cancelada'};
 var GES_PEST={prospecto:'Prospecto',en_gestion:'En gestión',alta:'Alta',descartado:'Descartado'};
 var GES_MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
-var GES={tab:null,lista:null,listaP:null,personas:null,perP:null,det:null,detG:null,detPros:[],
+var GES={verTodo:(function(){try{return localStorage.getItem('fg_ges_vertodo')==='1';}catch(e){return false;}})(),tab:null,lista:null,listaP:null,personas:null,perP:null,det:null,detG:null,detPros:[],
   q:'',fEst:'',empresas:null,qEmp:'',tab0:null,
   f:{per:'90',tipo:'',hun:'',due:'',prueba:true},tablero:null};
 
@@ -42,6 +45,15 @@ function gesN(x){return (+x||0).toLocaleString('es-AR');}
 function gesYo(){return _me?_me.id:null;}
 function gesRol(){return _rolVigente();}
 function gesEsAdmin(){return !!_admin;}
+// El admin entra viendo lo suyo (como un oficial más) y con "Ver todo" ve todo.
+// Los demás ya ven sólo lo suyo por la RLS: para ellos no cambia nada.
+function gesSoloMio(){return gesEsAdmin()&&!GES.verTodo;}
+function gesVerTodo(){
+  GES.verTodo=!GES.verTodo;
+  try{localStorage.setItem('fg_ges_vertodo',GES.verTodo?'1':'0');}catch(e){}
+  // También se descarta un pedido en curso: traería lo del filtro anterior.
+  GES.lista=null;GES.listaP=null;GES.tablero=null;GES.det=null;gesRender();
+}
 function gesPuedePrueba(){return !!(_admin||_esPrueba);}
 function gesNom(id){
   if(!id)return '—';
@@ -87,7 +99,7 @@ function gesPersonas(){
 function gesLista(force){
   if(GES.lista&&!force)return Promise.resolve(GES.lista);
   if(GES.listaP&&!force)return GES.listaP;
-  GES.listaP=_sb.rpc('gestiones_lista',{p_limit:500}).then(function(r){
+  GES.listaP=_sb.rpc('gestiones_lista',{p_limit:500,p_solo_mio:gesSoloMio()}).then(function(r){
     if(r&&r.error)throw r.error;
     GES.lista=(r&&r.data)||[];GES.listaP=null;return GES.lista;
   }).catch(function(e){GES.listaP=null;throw e;});
@@ -120,7 +132,11 @@ function gesRender(){
   var tabs=gesTabs();
   var head='<div class="ges-top"><div><h2 class="ges-h1">Gestiones comerciales</h2>'+
     '<p class="ges-sub">'+gesSubtitulo()+'</p></div>'+
+    '<div class="ges-top-acts">'+
     (_esPrueba?'<span class="ges-chip ges-c-warn" title="Lo que hagas con esta cuenta queda marcado como prueba y no suma en el tablero de los demás">Cuenta de prueba</span>':'')+
+    (gesEsAdmin()&&!_esPrueba?'<span class="ges-chip '+(GES.verTodo?'ges-c-info':'ges-c-ok')+'">'+(GES.verTodo?'Viendo: todo el equipo':'Viendo: lo tuyo')+'</span>'+
+      '<button type="button" class="btn bg ges-btn-sm" onclick="gesVerTodo()">'+(GES.verTodo?'Sólo lo mío':'Ver todo')+'</button>':'')+
+    '</div>'+
     '</div>'+
     '<div class="ges-tabs" role="tablist">'+tabs.map(function(t){
       return '<button type="button" role="tab" aria-selected="'+(GES.tab===t[0]&&!GES.det)+'" class="ges-tab'+(GES.tab===t[0]&&!GES.det?' on':'')+'" onclick="gesIr(\''+t[0]+'\')">'+t[1]+
@@ -134,8 +150,8 @@ function gesRender(){
 }
 function gesSubtitulo(){
   var r=gesRol();
-  if(r==='hunter')return 'Las visitas que te derivaron y las que registraste. Después de cada una cargá los prospectos y marcá las altas.';
-  if(r==='lider')return 'Cómo viene tu equipo: visitas, prospectos, altas y conversión.';
+  if(r==='hunter')return 'Las acciones que te derivaron y las que registraste. Después de cada una cargá los prospectos y marcá las altas.';
+  if(r==='lider')return 'Cómo viene tu equipo: acciones, prospectos, altas y conversión.';
   return 'Lo que se hizo con tus empresas. Vos derivás; la carga la hacen los hunters.';
 }
 function gesBody(html){var b=document.getElementById('ges-body');if(b)b.innerHTML=html;}
@@ -180,7 +196,7 @@ function gesListaRender(){
     var filas=vis.length?vis.slice(0,300).map(gesFila).join(''):
       '<div class="ges-vacio">'+(l.length?'Nada coincide con el filtro.':(gesRol()==='hunter'?
         'Todavía no hay gestiones. Buscá una empresa en <b>Buscar flyer</b> y tocá <b>Registrar gestión</b>.':
-        'Todavía no hay gestiones. Derivá una visita desde <b>Mis empresas</b>.'))+'</div>';
+        'Todavía no hay gestiones. Derivá una acción desde <b>Mis empresas</b>.'))+'</div>';
     gesBody(tool+'<div class="ges-list" id="ges-list">'+filas+'</div>'+(vis.length>300?'<p class="ges-nota">Se muestran las 300 más recientes. Usá el buscador para encontrar otras.</p>':''));
   }).catch(gesErr);
 }
@@ -203,7 +219,7 @@ function gesFila(g){
   return '<button type="button" class="ges-row'+(gesNueva(g)?' nueva':'')+'" onclick="gesAbrirDet(\''+g.id+'\')">'+
     '<span class="ges-row-t"><span class="ges-row-e">'+gesE(g.empresa)+'</span>'+gesChipEst(g)+'</span>'+
     '<span class="ges-row-d">'+GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+
-      (g.frecuencia&&g.frecuencia!=='unica'?' &middot; '+GES_FREC[g.frecuencia].toLowerCase():'')+' &middot; '+quien+
+      (g.frecuencia==='repite'?' &middot; '+gesE(gesRepTxt(g)):'')+' &middot; '+quien+
       (g.prueba?' &middot; <span class="ges-prueba">prueba</span>':'')+'</span>'+
     (g.estado==='realizada'?'<span class="ges-row-n"><b>'+gesN(g.n_pros)+'</b> prospectos &middot; <b class="ges-ok">'+gesN(g.n_altas)+'</b> altas &middot; '+gesPct(g.n_altas,g.n_pros)+'</span>':'')+
     (gesNueva(g)?'<span class="ges-row-nueva">Nueva'+(g.nota?': '+gesE(g.nota):'')+'</span>':'')+
@@ -225,12 +241,12 @@ function gesEmpresas(){
       if(g.estado==='planificada')x.plan++;
     });
     var tot={v:0,p:0,a:0};Object.keys(st).forEach(function(k){tot.v+=st[k].v;tot.p+=st[k].p;tot.a+=st[k].a;});
-    var kp='<div class="ges-kpis ges-k4">'+gesKpi('Visitas realizadas',gesN(tot.v),'en tus empresas')+gesKpi('Prospectos',gesN(tot.p),'')+
+    var kp='<div class="ges-kpis ges-k4">'+gesKpi('Acciones realizadas',gesN(tot.v),'en tus empresas')+gesKpi('Prospectos',gesN(tot.p),'')+
       gesKpi('Altas',gesN(tot.a),'sueldos en Galicia',true)+gesKpi('Conversión',gesPct(tot.a,tot.p),'altas ÷ prospectos')+'</div>';
     if(!emps.length){gesBody(kp+'<div class="ges-vacio">Todavía no tenés empresas cargadas. Cargalas en tu nombre &rarr; <b>Base de datos</b> &rarr; Mis empresas y vuelven a aparecer acá para derivarlas.</div>');return;}
     GES._emps=emps.map(function(e){var k=_padNorm(e.empresa);return {empresa:e.empresa,k:k,s:st[k]||{v:0,p:0,a:0,plan:0}};});
     gesBody(kp+'<div class="ges-tool"><input type="search" class="ges-inp" placeholder="Buscar en tus empresas" value="'+_escAttr(GES.qEmp)+'" oninput="GES.qEmp=this.value;gesEmpPintar()" autocomplete="off"></div>'+
-      '<div class="ges-card"><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Empresa</th><th class="r">Visitas</th><th class="r">Prospectos</th><th class="r">Altas</th><th>Conversión</th><th>Último hunter</th><th></th></tr></thead>'+
+      '<div class="ges-card"><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Empresa</th><th class="r">Acciones</th><th class="r">Prospectos</th><th class="r">Altas</th><th>Conversión</th><th>Último hunter</th><th></th></tr></thead>'+
       '<tbody id="ges-emp-tb"></tbody></table></div></div>');
     gesEmpPintar();
   }).catch(gesErr);
@@ -268,6 +284,11 @@ function gesPills(name,opts,val){
 }
 function gesPill(b){
   var p=b.parentNode;p.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
+  if(p.getAttribute('data-name')==='frecuencia'){
+    var on=b.getAttribute('data-v')==='repite';
+    ['gf-rep','gf-rep-ayuda'].forEach(function(id){var e=document.getElementById(id);if(e)e.hidden=!on;});
+    if(on){var c=document.getElementById('gf-cada');if(c&&!c.value)c.focus();}
+  }
 }
 function gesPillVal(name){
   var ov=document.getElementById('ges-ov');if(!ov)return null;
@@ -280,6 +301,41 @@ function gesPillVal(name){
   return null;
 }
 function gesVal(id){var e=document.getElementById(id);return e?e.value:'';}
+// null si está bien; si no, el texto del aviso.
+function gesRepError(d){
+  if(d.frecuencia!=='repite')return null;
+  if(!(d.cada_dias>=1&&d.cada_dias<=365))return 'Indicá cada cuántos días se repite (de 1 a 365).';
+  if(d.veces!=null&&!(d.veces>=2&&d.veces<=GES_VECES_MAX))return 'La cantidad de veces va de 2 a '+GES_VECES_MAX+' (o dejala vacía si no sabés).';
+  return null;
+}
+function gesSumarDias(iso,n){var a=String(iso).split('-'),d=new Date(+a[0],+a[1]-1,+a[2]);d.setDate(d.getDate()+n);return gesIso(d);}
+function gesRepTxt(g){
+  if(!g||g.frecuencia!=='repite')return '';
+  return 'Cada '+(g.cada_dias||'?')+' días'+(g.veces?' · vez '+(g.vez||1)+' de '+g.veces:(g.vez>1?' · vez '+g.vez:''));
+}
+// Serie con cantidad conocida: después de guardar la 1ª, crea las demás ya
+// planificadas (fecha + k·N), con el mismo serie_id y vez 2..X.
+function gesCrearSerie(p,cb){
+  if(p.frecuencia!=='repite'||!p.veces||p.veces<2){cb(0);return;}
+  var filas=[];
+  for(var k=1;k<p.veces;k++){
+    var n={empresa:p.empresa,tipo:p.tipo,modalidad:p.modalidad,frecuencia:'repite',cada_dias:p.cada_dias,veces:p.veces,vez:k+1,
+      serie_id:p.serie_id,fecha:gesSumarDias(p.fecha,k*p.cada_dias),estado:'planificada',dotacion:p.dotacion,nota:p.nota,origen:p.origen};
+    if(p.origen==='derivada')n.hunter_id=p.hunter_id;else n.dueno_id=p.dueno_id;
+    filas.push(n);
+  }
+  _sb.from('gestiones').insert(filas).select().then(function(r){
+    if(r&&r.error){showToast('Se guardó la primera, pero no las otras fechas: '+r.error.message);cb(-1);return;}
+    cb(filas.length);
+  });
+}
+// Serie sin fin: al completar una, ofrecer la siguiente.
+function gesOfrecerProxima(g){
+  if(!g||g.frecuencia!=='repite'||g.veces||!g.cada_dias||g.estado!=='realizada')return;
+  var f=gesSumarDias(g.fecha,g.cada_dias);
+  fgConfirm('¿Creamos la próxima para el '+gesFecha(f)+'?\nSe repite cada '+g.cada_dias+' días. Queda planificada, con los mismos datos.',{ok:'Crear la próxima',cancelar:'Ahora no',peligro:false})
+    .then(function(ok){if(ok)gesRepetir(g);});
+}
 function gesInt(id){var v=gesVal(id).replace(/\D/g,'');return v===''?null:Math.min(1000000,parseInt(v,10));}
 
 // Formulario común de registrar / derivar / editar.
@@ -287,9 +343,9 @@ function gesFormHtml(g,modo){
   g=g||{};
   var hoy=gesHoy();
   var h='<div class="ges-form">'+
-    '<div class="full ges-fl"><span>Tipo</span>'+gesPills('tipo',GES_TIPO,g.tipo||'visita')+'</div>'+
+    '<div class="ges-fl"><span>Tipo</span>'+gesPills('tipo',GES_TIPO,g.tipo||'accion')+'</div>'+
     '<div class="ges-fl"><span>Modalidad</span>'+gesPills('modalidad',GES_MOD,g.modalidad||'presencial')+'</div>'+
-    '<div class="ges-fl"><span>¿Se repite?</span>'+gesPills('frecuencia',GES_FREC,g.frecuencia||'unica')+'</div>'+
+    gesRepHtml(g,modo)+
     '<label><span>Fecha</span><input type="date" id="gf-fecha" class="ges-inp" value="'+_escAttr(g.fecha||hoy)+'"></label>';
   if(modo==='derivar'){
     h+='<label><span>Hunter</span><select id="gf-hunter" class="ges-inp">'+gesHuntersOpts(g.hunter_id)+'</select></label>';
@@ -306,6 +362,22 @@ function gesFormHtml(g,modo){
   '</div>';
   return h;
 }
+// "¿Se repite?": Única, o cada N días (atajos 7/15/30) y, si se sabe, cuántas
+// veces. Con la cantidad, al guardar se crean todas las fechas juntas.
+function gesRepHtml(g,modo){
+  var fr=g.frecuencia==='repite'?'repite':'unica';
+  var serie=modo==='editar'&&g.veces&&g.vez; // en una serie ya armada no se cambia la cantidad
+  return '<div class="full ges-fl"><span>¿Se repite?</span>'+gesPills('frecuencia',GES_FREC,fr)+
+    '<div class="ges-rep" id="gf-rep"'+(fr==='repite'?'':' hidden')+'>'+
+      '<span>Cada</span><input type="text" inputmode="numeric" id="gf-cada" class="ges-inp ges-inp-n" maxlength="3" value="'+(g.cada_dias||'')+'" placeholder="15" aria-label="Cada cuántos días"><span>días</span>'+
+      '<span class="ges-atajos">'+[7,15,30].map(function(n){return '<button type="button" onclick="gesCada('+n+')">'+n+'</button>';}).join('')+'</span>'+
+      (serie?'<span class="ges-mini">Vez '+g.vez+' de '+g.veces+'</span>':
+        '<span>&middot;</span><input type="text" inputmode="numeric" id="gf-veces" class="ges-inp ges-inp-n" maxlength="2" value="'+(g.veces||'')+'" placeholder="sin fin" aria-label="Cantidad de veces"><span>veces</span>')+
+    '</div>'+
+    (modo==='editar'?'':'<div class="ges-mini" id="gf-rep-ayuda"'+(fr==='repite'?'':' hidden')+'>Si pon&eacute;s la cantidad de veces se crean todas las fechas ya planificadas. Si la dej&aacute;s vac&iacute;a, cuando completes una te ofrece crear la siguiente.</div>')+
+  '</div>';
+}
+function gesCada(n){var i=document.getElementById('gf-cada');if(i){i.value=n;i.focus();}}
 function gesHuntersOpts(sel){
   var ps=GES.personas||{},ids=Object.keys(ps).filter(function(id){return ps[id].rol==='hunter';});
   ids.sort(function(a,b){return ps[a].nombre.localeCompare(ps[b].nombre);});
@@ -315,8 +387,12 @@ function gesHuntersOpts(sel){
   }).join('');
 }
 function gesFormLeer(modo){
-  var d={tipo:gesPillVal('tipo'),modalidad:gesPillVal('modalidad'),frecuencia:gesPillVal('frecuencia'),
+  var d={tipo:gesPillVal('tipo')||'accion',modalidad:gesPillVal('modalidad')||'presencial',frecuencia:gesPillVal('frecuencia')||'unica',
     fecha:gesVal('gf-fecha')||gesHoy(),nota:gesVal('gf-nota').trim()||null};
+  if(d.frecuencia==='repite'){
+    d.cada_dias=gesInt('gf-cada');
+    if(document.getElementById('gf-veces'))d.veces=gesInt('gf-veces');
+  }else{d.cada_dias=null;d.veces=null;d.vez=null;}
   if(modo==='derivar'){d.hunter_id=gesVal('gf-hunter');d.estado='planificada';}
   else{
     d.estado=gesVal('gf-estado')||'realizada';d.dotacion=gesInt('gf-dot');d.asistentes=gesInt('gf-asis');
@@ -342,7 +418,7 @@ function gesRegistrar(r){
       .eq('dueno_id',r.user_id).eq('empresa_key',String(r.empresa).trim().toLowerCase()).order('fecha').limit(3)
       .then(function(q){
         var l=(q&&q.data)||[],host=document.getElementById('ges-reg-plan');if(!host||!l.length)return;
-        host.innerHTML='<div class="ges-aviso">Ya tenés '+(l.length===1?'una visita planificada':l.length+' visitas planificadas')+' para esta empresa. '+
+        host.innerHTML='<div class="ges-aviso">Ya tenés '+(l.length===1?'una acción planificada':l.length+' acciones planificadas')+' para esta empresa. '+
           l.map(function(g){return '<button type="button" class="ges-link" onclick="gesCerrar();gesAbrirDet(\''+g.id+'\',true)">Completar la del '+gesE(gesFecha(g.fecha))+'</button>';}).join(' ')+'</div>';
       });
   });
@@ -350,15 +426,21 @@ function gesRegistrar(r){
 function gesRegistrarOk(){
   var r=GES._reg;if(!r)return;
   var d=gesFormLeer('registrar');
-  if(d.estado==='realizada'&&d.fecha>gesHoy()){showToast('Una visita realizada no puede tener fecha futura. Ponela como Planificada o cambiá la fecha.');return;}
+  if(d.estado==='realizada'&&d.fecha>gesHoy()){showToast('Una acción realizada no puede tener fecha futura. Ponela como Planificada o cambiá la fecha.');return;}
+  var er=gesRepError(d);if(er){showToast(er);return;}
+  if(d.frecuencia==='repite')d.vez=1;
   var b=document.getElementById('ges-reg-ok');if(b){b.disabled=true;b.textContent='Guardando…';}
   d.empresa=r.empresa;d.dueno_id=r.user_id;d.origen='propia';
   _sb.from('gestiones').insert(d).select().single().then(function(res){
     if(res&&res.error){if(b){b.disabled=false;b.textContent='Guardar y cargar prospectos';}showToast('No se pudo guardar: '+res.error.message);return;}
     gesCerrar();GES.lista=null;
-    showToast('Gestión guardada. Ahora cargá los prospectos.');
-    GES.det=res.data.id;GES.tab='lista';
-    switchApp('gestiones');
+    var g=res.data;
+    gesCrearSerie(g,function(n){
+      showToast(n>0?'Guardada, y planificadas las otras '+n+' fechas. Ahora cargá los prospectos.':'Gestión guardada. Ahora cargá los prospectos.');
+      GES.det=g.id;GES.tab='lista';
+      switchApp('gestiones');
+      if(!n)gesOfrecerProxima(g);
+    });
   });
 }
 
@@ -377,13 +459,17 @@ function gesDerivarOk(){
   var e=GES._der;if(!e)return;
   var d=gesFormLeer('derivar');
   if(!d.hunter_id){showToast('Elegí a qué hunter se la derivás.');return;}
+  var er=gesRepError(d);if(er){showToast(er);return;}
+  if(d.frecuencia==='repite')d.vez=1;
   var b=document.getElementById('ges-der-ok');if(b){b.disabled=true;b.textContent='Derivando…';}
   d.empresa=e.empresa;d.origen='derivada';
   _sb.from('gestiones').insert(d).select().single().then(function(res){
     if(res&&res.error){if(b){b.disabled=false;b.textContent='Derivar';}showToast('No se pudo derivar: '+res.error.message);return;}
     gesCerrar();GES.lista=null;
-    showToast('Derivada a '+gesNom(d.hunter_id)+'. Le aparece en Gestiones y en la marca de su avatar.');
-    gesRender();
+    gesCrearSerie(res.data,function(n){
+      showToast('Derivada a '+gesNom(d.hunter_id)+(n>0?', con las '+(n+1)+' fechas planificadas':'')+'. Le aparece en Gestiones y en la marca de su avatar.');
+      gesRender();
+    });
   });
 }
 
@@ -401,8 +487,8 @@ function gesDetalle(id){
     GES.detG=g;GES.detPros=(res[1]&&res[1].data)||[];
     // La abrió el hunter al que se la derivaron: deja de contar como nueva.
     if(gesNueva(g)){
-      _sb.from('gestiones').update({visto_hunter:true}).eq('id',g.id).then(function(){
-        g.visto_hunter=true;if(GES.lista)GES.lista.forEach(function(x){if(x.id===g.id)x.visto_hunter=true;});
+      _sb.from('gestiones').update({visto_hunter:true}).eq('serie_id',g.serie_id).eq('hunter_id',gesYo()).then(function(){
+        g.visto_hunter=true;if(GES.lista)GES.lista.forEach(function(x){if(x.serie_id===g.serie_id&&x.hunter_id===g.hunter_id)x.visto_hunter=true;});
         if(typeof _gesAvisoCargar==='function')_gesAvisoCargar();
       });
     }
@@ -417,11 +503,11 @@ function gesDetPintar(){
   var acts='';
   if(ed&&g.estado==='planificada')acts+='<button type="button" class="btn bp ges-btn-sm" onclick="gesEditar(true)">Marcar como realizada</button>';
   if(ed)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesEditar(false)">Editar datos</button>';
-  if(ed&&g.frecuencia&&g.frecuencia!=='unica')acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesRepetir()">Repetir: próxima fecha</button>';
+  if(ed&&g.frecuencia==='repite'&&!g.veces)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesRepetir()">Crear la próxima (+'+(g.cada_dias||30)+' días)</button>';
   if(gesPuedeBorrar(g))acts+='<button type="button" class="btn bg ges-btn-sm ges-peligro" onclick="gesBorrar()">Eliminar</button>';
   var h='<button type="button" class="ges-link" onclick="gesVolver()">&larr; Volver</button>'+
     '<div class="ges-det-top"><div><h3 class="ges-h1">'+gesE(g.empresa)+'</h3>'+
-    '<p class="ges-sub">'+GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+' &middot; Frecuencia: '+GES_FREC[g.frecuencia].toLowerCase()+
+    '<p class="ges-sub">'+GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+(g.frecuencia==='repite'?' &middot; '+gesE(gesRepTxt(g)):' &middot; Única vez')+
       ' &middot; Hunter: '+gesE(gesNom(g.hunter_id))+' &middot; Oficial: '+gesE(gesNom(g.dueno_id))+
       (g.origen==='derivada'?' &middot; Derivada por '+gesE(gesNom(g.creada_por)):'')+(g.prueba?' &middot; <span class="ges-prueba">prueba</span>':'')+'</p></div>'+
     '<div class="ges-acts">'+gesChipEst(g)+acts+'</div></div>'+
@@ -556,7 +642,7 @@ function gesEditar(realizada){
   var g=GES.detG;if(!g)return;
   var base=Object.assign({},g);if(realizada){base.estado='realizada';if(base.fecha>gesHoy())base.fecha=gesHoy();}
   gesPersonas().then(function(){
-    gesModal('<h3 class="ges-mt">'+(realizada?'Completar la visita':'Editar datos')+'</h3><p class="ges-ms">'+gesE(g.empresa)+'</p>'+
+    gesModal('<h3 class="ges-mt">'+(realizada?'Completar la acción':'Editar datos')+'</h3><p class="ges-ms">'+gesE(g.empresa)+'</p>'+
       gesFormHtml(base,'editar')+
       '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cancelar</button>'+
       '<button type="button" class="btn bp" id="ges-ed-ok" onclick="gesEditarOk()">Guardar</button></div>');
@@ -565,23 +651,25 @@ function gesEditar(realizada){
 function gesEditarOk(){
   var g=GES.detG;if(!g)return;
   var d=gesFormLeer('editar');
-  if(d.estado==='realizada'&&d.fecha>gesHoy()){showToast('Una visita realizada no puede tener fecha futura.');return;}
+  if(d.estado==='realizada'&&d.fecha>gesHoy()){showToast('Una acción realizada no puede tener fecha futura.');return;}
+  if(d.frecuencia==='repite'&&g.veces&&d.veces===undefined)d.veces=g.veces; // serie ya armada: la cantidad no se toca
+  var er=gesRepError(d);if(er){showToast(er);return;}
+  if(d.frecuencia==='repite'&&!g.vez)d.vez=1;
+  var antes=g.estado;
   var b=document.getElementById('ges-ed-ok');if(b){b.disabled=true;b.textContent='Guardando…';}
   _sb.from('gestiones').update(d).eq('id',g.id).select().single().then(function(res){
     if(res&&res.error){if(b){b.disabled=false;b.textContent='Guardar';}showToast('No se pudo guardar: '+res.error.message);return;}
     gesCerrar();GES.detG=res.data;GES.lista=null;gesDetPintar();showToast('Guardado.');
+    if(antes!=='realizada')gesOfrecerProxima(res.data);
   });
 }
 // Feria o acción que se repite: crea la próxima fecha con los mismos datos.
-function gesRepetir(){
-  var g=GES.detG;if(!g)return;
-  var a=g.fecha.split('-'),d=new Date(+a[0],+a[1]-1,+a[2]);
-  if(g.frecuencia==='semanal')d.setDate(d.getDate()+7);
-  else if(g.frecuencia==='quincenal')d.setDate(d.getDate()+14);
-  else d.setMonth(d.getMonth()+1);
+function gesRepetir(base){
+  var g=base||GES.detG;if(!g)return;
+  var cada=g.cada_dias||30;
   var yo=gesYo();
-  var n={empresa:g.empresa,tipo:g.tipo,modalidad:g.modalidad,frecuencia:g.frecuencia,serie_id:g.serie_id,
-    fecha:gesIso(d),estado:'planificada',dotacion:g.dotacion,nota:'Repetición de la del '+gesFecha(g.fecha)};
+  var n={empresa:g.empresa,tipo:g.tipo,modalidad:g.modalidad,frecuencia:'repite',cada_dias:cada,veces:null,vez:(g.vez||1)+1,serie_id:g.serie_id,
+    fecha:gesSumarDias(g.fecha,cada),estado:'planificada',dotacion:g.dotacion,nota:'Repetición de la del '+gesFecha(g.fecha)};
   // Si la repite el oficial que la derivó, sigue siendo derivada al mismo hunter;
   // si la repite el hunter, es suya (el oficial dueño se mantiene).
   if(g.origen==='derivada'&&g.creada_por===yo){n.origen='derivada';n.hunter_id=g.hunter_id;}
@@ -613,7 +701,7 @@ function gesDesde(per){
 }
 function gesTablero(){
   var f=GES.f;
-  var args={p_desde:gesDesde(f.per),p_hasta:null,p_tipo:f.tipo||null,p_hunter:f.hun||null,p_dueno:f.due||null,p_prueba:gesPuedePrueba()&&!!f.prueba};
+  var args={p_desde:gesDesde(f.per),p_hasta:null,p_tipo:f.tipo||null,p_hunter:f.hun||null,p_dueno:f.due||null,p_prueba:gesPuedePrueba()&&!!f.prueba,p_solo_mio:gesSoloMio()};
   Promise.all([_sb.rpc('gestiones_tablero',args),gesPersonas()]).then(function(res){
     var r=res[0];if(r&&r.error)throw r.error;
     GES.tablero=r.data;gesTableroPintar();
@@ -628,14 +716,14 @@ function gesTableroPintar(){
   var filtros='<div class="ges-filtros">'+
     '<label><span class="ges-lbl">Período</span><select class="ges-inp ges-sel" onchange="GES.f.per=this.value;gesTablero()">'+
       [['30','Últimos 30 días'],['90','Últimos 90 días'],['anio','Este año'],['todo','Todo']].map(function(o){return '<option value="'+o[0]+'"'+(f.per===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'+
-    '<label><span class="ges-lbl">Tipo</span><select class="ges-inp ges-sel" onchange="GES.f.tipo=this.value;gesTablero()">'+opt('t',[['visita','Visitas'],['feria','Ferias'],['accion','Acciones']],f.tipo,'Todos')+'</select></label>'+
+    '<label><span class="ges-lbl">Tipo</span><select class="ges-inp ges-sel" onchange="GES.f.tipo=this.value;gesTablero()">'+opt('t',[['accion','Acciones'],['feria','Ferias']],f.tipo,'Todos')+'</select></label>'+
     (gesRol()!=='hunter'?'<label><span class="ges-lbl">Hunter</span><select class="ges-inp ges-sel" onchange="GES.f.hun=this.value;gesTablero()">'+opt('h',huns,f.hun,'Todos')+'</select></label>':'')+
     '<label><span class="ges-lbl">Oficial que cede</span><select class="ges-inp ges-sel" onchange="GES.f.due=this.value;gesTablero()">'+opt('d',dues,f.due,'Todos')+'</select></label>'+
     (gesPuedePrueba()?'<label class="ges-check"><input type="checkbox"'+(f.prueba?' checked':'')+' onchange="GES.f.prueba=this.checked;gesTablero()"> Incluir pruebas</label>':'')+
     '<button type="button" class="btn bg ges-xls" onclick="gesExcel()">Descargar Excel</button>'+
   '</div>';
   var vis=+k.visitas||0,asis=+k.asistentes||0,pros=+k.prospectos||0,alt=+k.altas||0;
-  var kpis='<div class="ges-kpis">'+gesKpi('Visitas',gesN(vis),(+k.planificadas?gesN(k.planificadas)+' planificadas':'realizadas'))+
+  var kpis='<div class="ges-kpis">'+gesKpi('Acciones',gesN(vis),(+k.planificadas?gesN(k.planificadas)+' planificadas':'realizadas'))+
     gesKpi('Empresas',gesN(k.empresas),'distintas')+gesKpi('Asistentes',gesN(asis),'contactados')+
     gesKpi('Prospectos',gesN(pros),asis?gesPct(pros,asis)+' de los asistentes':'')+
     gesKpi('Altas',gesN(alt),'sueldos en Galicia')+gesKpi('Conversión',gesPct(alt,pros),'altas ÷ prospectos',true)+'</div>';
@@ -644,7 +732,7 @@ function gesTableroPintar(){
     return;
   }
   var rankH=gesRank(gesRol()==='hunter'?'Por hunter':'Hunters',t.por_hunter||[],function(x){return gesNom(x.id);});
-  var rankD=gesRank('Oficiales que ceden visitas',t.por_dueno||[],function(x){return gesNom(x.id);});
+  var rankD=gesRank('Oficiales que ceden acciones',t.por_dueno||[],function(x){return gesNom(x.id);});
   var rankE=gesRankEmp(t.por_empresa||[]);
   gesBody(filtros+kpis+
     '<div class="ges-g2"><section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Evolución mensual</span>'+
@@ -691,18 +779,18 @@ function gesRentas(rows){
 function gesRank(tit,rows,nom){
   rows=rows.filter(function(x){return x.id;}).slice().sort(function(a,b){return b.altas-a.altas||b.visitas-a.visitas;});
   var mx=Math.max.apply(null,rows.map(function(r){return +r.altas;}).concat([1]));
-  return '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">'+tit+'</span></div><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th class="r">Visitas</th><th class="r">Altas</th><th>Conv.</th></tr></thead><tbody>'+
+  return '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">'+tit+'</span></div><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th class="r">Acciones</th><th class="r">Altas</th><th>Conv.</th></tr></thead><tbody>'+
     (rows.length?rows.slice(0,12).map(function(r){return '<tr><td>'+gesE(nom(r))+'</td><td class="r">'+r.visitas+'</td><td class="r"><b>'+r.altas+'</b></td>'+
       '<td><div class="ges-hb"><div class="ges-bar"><i style="width:'+Math.round(r.altas*100/mx)+'%"></i></div><span>'+gesPct(r.altas,r.prospectos)+'</span></div></td></tr>';}).join(''):
       '<tr><td colspan="4" class="ges-mini">Sin datos.</td></tr>')+'</tbody></table></div></section>';
 }
 function gesRankEmp(rows){
-  return '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Empresas con más altas</span></div><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Empresa</th><th class="r">Visitas</th><th class="r">Altas</th><th class="r">Conv.</th></tr></thead><tbody>'+
+  return '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Empresas con más altas</span></div><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Empresa</th><th class="r">Acciones</th><th class="r">Altas</th><th class="r">Conv.</th></tr></thead><tbody>'+
     (rows.length?rows.slice(0,10).map(function(r){return '<tr><td>'+gesE(r.empresa)+'<div class="ges-mini">'+gesE(gesNom(r.dueno))+'</div></td><td class="r">'+r.visitas+'</td><td class="r"><b>'+r.altas+'</b></td><td class="r">'+gesPct(r.altas,r.prospectos)+'</td></tr>';}).join(''):
       '<tr><td colspan="4" class="ges-mini">Sin datos.</td></tr>')+'</tbody></table></div></section>';
 }
 function gesPorTipo(rows){
-  var orden=['visita|presencial','visita|virtual','feria|presencial','feria|virtual','accion|presencial','accion|virtual'];
+  var orden=['accion|presencial','accion|virtual','feria|presencial','feria|virtual'];
   rows=rows.slice().sort(function(a,b){return orden.indexOf(a.tipo+'|'+a.modalidad)-orden.indexOf(b.tipo+'|'+b.modalidad);});
   return '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Tipo</th><th class="r">Cantidad</th><th class="r">Prospectos</th><th class="r">Altas</th><th class="r">Altas por acción</th><th class="r">Conversión</th></tr></thead><tbody>'+
     (rows.length?rows.map(function(r){return '<tr><td>'+GES_TIPO[r.tipo]+' '+(GES_MOD[r.modalidad]||'').toLowerCase()+'</td><td class="r">'+r.visitas+'</td><td class="r">'+r.prospectos+'</td><td class="r"><b>'+r.altas+'</b></td>'+
@@ -726,15 +814,15 @@ function gesExcel(){
     });
     var wb=XLSX.utils.book_new();
     var resu=[['Gestiones comerciales'],['Período',desde?('Desde '+desde):'Todo'],['Generado',new Date().toLocaleString('es-AR')],[],
-      ['Visitas realizadas',+k.visitas||0],['Planificadas',+k.planificadas||0],['Empresas',+k.empresas||0],['Asistentes',+k.asistentes||0],
+      ['Acciones realizadas',+k.visitas||0],['Planificadas',+k.planificadas||0],['Empresas',+k.empresas||0],['Asistentes',+k.asistentes||0],
       ['Prospectos',+k.prospectos||0],['Altas',+k.altas||0],['Conversión',(+k.prospectos?(+k.altas/+k.prospectos):0)]];
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resu),'Resumen');
-    var rk=function(rows){return rows.filter(function(x){return x.id;}).map(function(x){return {Nombre:gesNom(x.id),Visitas:x.visitas,Prospectos:x.prospectos,Altas:x.altas,'Conversión':x.prospectos?x.altas/x.prospectos:0};});};
+    var rk=function(rows){return rows.filter(function(x){return x.id;}).map(function(x){return {Nombre:gesNom(x.id),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas,'Conversión':x.prospectos?x.altas/x.prospectos:0};});};
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rk(t.por_hunter||[])),'Por hunter');
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rk(t.por_dueno||[])),'Por oficial');
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((t.por_empresa||[]).map(function(x){return {Empresa:x.empresa,Oficial:gesNom(x.dueno),Visitas:x.visitas,Prospectos:x.prospectos,Altas:x.altas};})),'Por empresa');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((t.por_empresa||[]).map(function(x){return {Empresa:x.empresa,Oficial:gesNom(x.dueno),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas};})),'Por empresa');
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(l.map(function(g){return {
-      Fecha:g.fecha,Empresa:g.empresa,Tipo:GES_TIPO[g.tipo],Modalidad:GES_MOD[g.modalidad],Frecuencia:GES_FREC[g.frecuencia],Estado:GES_EST[g.estado],
+      Fecha:g.fecha,Empresa:g.empresa,Tipo:GES_TIPO[g.tipo],Modalidad:GES_MOD[g.modalidad],'Se repite':gesRepTxt(g),Estado:GES_EST[g.estado],
       Hunter:gesNom(g.hunter_id),'Oficial (cede)':gesNom(g.dueno_id),Origen:g.origen==='derivada'?'Derivada':'Propia',
       'Dotación':g.dotacion,Asistentes:g.asistentes,Prospectos:+g.n_pros||0,Altas:+g.n_altas||0,Nota:g.nota||'',Prueba:g.prueba?'Sí':''};})),'Gestiones');
     XLSX.writeFile(wb,'Gestiones_'+gesHoy()+'.xlsx');
