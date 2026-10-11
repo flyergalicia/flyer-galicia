@@ -1217,3 +1217,11 @@ ul.prop-diff li{padding:2px 0;border:0;}
 .dd-prueba button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
 .badge-lider{background:#E3F2FD;color:#0D47A1;}
 html.dark .badge-lider{background:#13263D;color:#90CAF9;}
+
+/* ===== Menú del nombre: un renglón por ítem + avisos de Gestiones (2026-10-11) ===== */
+.hdr-dd-item>span:not([id]){white-space:nowrap;}
+#hunprop-badge:empty,#bd-badge:empty{display:none !important;}
+#apptab-gestiones{position:relative;}
+.tab-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;box-sizing:border-box;
+  display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font:800 .58rem "Figtree",sans-serif;
+  font-style:normal;line-height:1;letter-spacing:0;pointer-events:none;box-shadow:0 0 0 2px var(--hd-btn-bg,#fff);}

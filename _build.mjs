@@ -202,7 +202,7 @@ html = html.replace(
       // Tutorial guiado (para todos). El menú se cierra desde el propio tour.
       // Sólo Hunter con la facultad (lo muestra _hunPropBadgeSync). El número son
       // las consultas sin responder + lo resuelto que todavía no vio.
-      '<button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none">' + ICO_DOC + '<span>Modificaciones Pendientes</span><span id="hunprop-badge"></span></button>' +
+      '<button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none">' + ICO_DOC + '<span>Mis propuestas</span><span id="hunprop-badge"></span></button>' +
       '<button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()">' + ICO_HELP + '<span>Ver tutorial</span></button>' +
       // Sólo la cuenta de prueba (profiles.es_prueba): la llena _pruebaRender.
       '<div id="hdr-dd-prueba" style="display:none"></div>' +
@@ -1175,6 +1175,11 @@ const checks = {
     _gesSrc.includes("var GES_FREC={unica:") && !/semanal|quincenal/.test(_gesSrc) &&
     (_gesSrc.match(/p_solo_mio:gesSoloMio\(\)/g) || []).length === 2 &&
     _gesSrc.includes('function gesCrearSerie(') && _gesSrc.includes('function gesOfrecerProxima('),
+  'avisos de gestiones (hunter y dueño) y menu "Mis propuestas"':
+    html.includes('<span>Mis propuestas</span><span id="hunprop-badge">') && !/Modificaciones Pendientes|Cambios pendientes de aprobaci/.test(html) &&
+    _authSrc.includes('function _gesAvisar(') && _authSrc.includes('function _gesBadgeSync(') &&
+    _authSrc.includes("visto_hunter.eq.false),and(dueno_id.eq.") &&
+    _gesSrc.includes("_sb.rpc('gestion_marcar_vista'") && !_gesSrc.includes("update({visto_hunter:true})"),
   'rol Hunter': html.includes('<option value="hunter">Hunter</option>') && _authSrc.includes("hunter:'Hunter'") && _authSrc.includes("['hunter','Hunter']"),
   // Perfil Hunter: UNA solapa, buscar y bajar. Tres cosas que no se pueden
   // romper sin que se note: (1) el candado del rol es UNA línea en _can, que

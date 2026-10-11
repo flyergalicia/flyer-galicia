@@ -1282,7 +1282,7 @@ function _applyFacultades(){
   // El Hunter ya tiene su propio capítulo (ver _tourCapitulos): el ítem se ve
   // para todos, como para el resto de los roles.
   var dt=document.getElementById('hdr-dd-tour');if(dt)dt.style.display='flex';
-  _hunPropBadgeSync(); // "Modificaciones Pendientes" (sólo Hunter con la facultad)
+  _hunPropBadgeSync(); // "Mis propuestas" (sólo Hunter con la facultad)
 
   if(_can('asesores_guardados')){_initAsesoresUI();_loadAsesores();} // trae la lista de la nube una vez
   _facShowAsesores(_can('asesores_guardados'));
@@ -11250,7 +11250,7 @@ function _hunRender(){
       if(_hunPropPendiente(r)){
         var _pe=_hunPropEstado(r);
         propTag=(_pe==='consulta')
-          ?'<div class="hun-prop-tag hun-prop-consulta">El oficial te hizo una consulta &middot; tu nombre &rarr; Cambios pendientes</div>'
+          ?'<div class="hun-prop-tag hun-prop-consulta">El oficial te hizo una consulta &middot; tu nombre &rarr; Mis propuestas</div>'
           :'<div class="hun-prop-tag">Propusiste un cambio: pendiente de aprobaci&oacute;n</div>';
       }
       else propBtn='<button type="button" class="hun-prop-btn" onclick="event.stopPropagation();_hunAbrirPropuesta('+i+')">&#9998; Oficiales</button>';
@@ -11693,7 +11693,7 @@ function _hpGuardar(i){
 // ── LADO HUNTER: proponer ───────────────────────────────────────────────────
 // Mis propuestas (RLS: "creada_por = auth.uid()" ya me las deja ver).
 // _hunPropMias: empresa abierta (pendiente o consulta) → {id, estado}, para la
-// tarjeta de la fila. _hunPropLista: todas, para "Mis cambios propuestos".
+// tarjeta de la fila. _hunPropLista: todas, para "Mis propuestas".
 var _hunPropMias={},_hunPropLista=[],_hunPropAviso=0;
 function _hunPropVistoKey(){return 'fg_hunprop_visto_'+(_me?_me.id:'anon');}
 function _hunPropVisto(){try{return localStorage.getItem(_hunPropVistoKey())||'';}catch(e){return '';}}
@@ -11744,7 +11744,7 @@ function _hdrMsgSync(){
     var p=[];
     if(ofi)p.push(ofi===1?'1 cambio de oficiales para revisar':ofi+' cambios de oficiales para revisar');
     if(hun)p.push(hun===1?'1 novedad en tus modificaciones':hun+' novedades en tus modificaciones');
-    if(ges)p.push(ges===1?'1 visita nueva que te derivaron':ges+' visitas nuevas que te derivaron');
+    if(ges)p.push(ges===1?'1 novedad en Gestiones':ges+' novedades en Gestiones');
     tip='Tenés '+p.join(' y ');
   }
   if(btn&&btn.setAttribute)btn.setAttribute('title',tip);
@@ -11771,7 +11771,7 @@ function _hunPropCartel(){
   var partes=[];
   if(cons)partes.push(cons===1?'1 consulta sobre un cambio que propusiste':cons+' consultas sobre cambios que propusiste');
   if(res>0)partes.push(res===1?'1 cambio resuelto':res+' cambios resueltos');
-  _propToast('Tenés '+partes.join(' y ')+'. Tu nombre → Modificaciones Pendientes.');
+  _propToast('Tenés '+partes.join(' y ')+'. Tu nombre → Mis propuestas.');
 }
 
 // El modal de proponer/responder: título, contexto, los 4 slots, el campo de
@@ -11799,7 +11799,7 @@ function _hunAbrirPropuesta(i){
   if(!_can('proponer_oficiales')){showToast('No tenés habilitado proponer cambios.');return;}
   var r=_hunHits[i];if(!r)return;
   if(!r.user_id){showToast('No se pudo identificar al oficial dueño de esta empresa.');return;}
-  if(_hunPropPendiente(r)){showToast('Ya hay un cambio tuyo abierto para esta empresa: miralo en tu nombre → Modificaciones Pendientes.');return;}
+  if(_hunPropPendiente(r)){showToast('Ya hay un cambio tuyo abierto para esta empresa: miralo en tu nombre → Mis propuestas.');return;}
   _hunPropFila=r;_hunPropBase=r.asesores||[];_hunPropModo='crear';_hunPropId=null;
   _hunPropModal({
     titulo:'&#9998; Proponer un cambio de oficiales',
@@ -11852,12 +11852,12 @@ function _hunPropuestaEnviar(){
   });
 }
 
-// ── "Modificaciones Pendientes" (menú del nombre del Hunter) ─────────
+// ── "Mis propuestas" (menú del nombre del Hunter) ─────────
 function openMisCambios(){
   if(!_can('proponer_oficiales'))return;
   _hunPropCerrar();
   _padStyle();
-  _padModal('<h3>&#128203; Mis cambios propuestos</h3>'+
+  _padModal('<h3>&#128203; Mis propuestas</h3>'+
     '<p class="pu-sub">Lo que propusiste y en qu&eacute; qued&oacute;. Si el oficial te hizo una consulta, respondela desde ac&aacute;.</p>'+
     '<div id="mis-cambios-list" class="prop-list">Cargando&hellip;</div>'+
     '<div class="pu-foot"><button type="button" class="pu-no" onclick="_hunPropCerrar()">Cerrar</button></div>');
@@ -12059,18 +12059,75 @@ function _gesOn(){
 }
 function _gesFlagCargar(cb){
   _sb.from('app_flags').select('valor').eq('clave','gestiones').maybeSingle()
-    .then(function(r){_gesFlag=(r&&r.data&&r.data.valor)||'off';if(cb)cb();})
-    .catch(function(){_gesFlag='off';if(cb)cb();});
+    .then(function(r){_gesFlag=(r&&r.data&&r.data.valor)||'off';},function(){_gesFlag='off';})
+    .then(function(){if(cb)cb();});
 }
 // Visitas que un oficial le derivó a este hunter y todavía no abrió: suman a la
 // marca del avatar. Es un count (head:true): no baja filas.
+// Novedades sin ver, por SERIE (una serie de 3 fechas es un solo aviso):
+//   - como hunter: lo que me derivaron y no abrí (visto_hunter);
+//   - como oficial dueño: un hunter registró en una empresa mía o completó una
+//     que derivé (visto_dueno, lo pone el servidor).
+// Al entrar sale un cartel con el resumen; después, en cada refresco, un aviso
+// sólo por lo que llegó nuevo. Son pocas filas y las filtra la RLS.
+var _gesNov=[],_gesAvisados=null,_gesNombres=null;
 function _gesAvisoCargar(){
-  if(!_me||!_gesOn()){if(_gesAviso){_gesAviso=0;_hdrMsgSync();}return;}
-  _sb.from('gestiones').select('id',{count:'exact',head:true}).eq('hunter_id',_me.id).eq('visto_hunter',false)
+  if(!_me||!_gesOn()){if(_gesAviso){_gesAviso=0;_gesNov=[];_hdrMsgSync();_gesBadgeSync();}return;}
+  var yo=_me.id;
+  _sb.from('gestiones').select('serie_id,empresa,origen,estado,creada_por,hunter_id,dueno_id,visto_hunter,visto_dueno')
+    .or('and(hunter_id.eq.'+yo+',visto_hunter.eq.false),and(dueno_id.eq.'+yo+',visto_dueno.eq.false)')
+    .order('created_at',{ascending:false}).limit(200)
     .then(function(r){
-      _gesAviso=(r&&r.count)||0;_hdrMsgSync();
+      var vistas={},nov=[];
+      ((r&&r.data)||[]).forEach(function(g){
+        var esHun=g.hunter_id===yo&&!g.visto_hunter,esDue=g.dueno_id===yo&&!g.visto_dueno;
+        if(esHun&&!vistas['h'+g.serie_id]){vistas['h'+g.serie_id]=1;nov.push({serie:g.serie_id,empresa:g.empresa,tipo:'derivada',quien:g.creada_por});}
+        if(esDue&&!vistas['d'+g.serie_id]){vistas['d'+g.serie_id]=1;
+          nov.push({serie:g.serie_id,empresa:g.empresa,tipo:(g.origen==='derivada'?'completada':'registro'),quien:g.hunter_id});}
+      });
+      _gesNov=nov;_gesAviso=nov.length;_hdrMsgSync();_gesBadgeSync();
       if(typeof window.gesAvisoSync==='function')window.gesAvisoSync();
+      _gesAvisar();
     }).catch(function(){});
+}
+// Primera carga: cartel con todo. Después: sólo lo que no se avisó antes.
+function _gesAvisar(){
+  var primera=!_gesAvisados;
+  if(primera)_gesAvisados={};
+  var nuevas=_gesNov.filter(function(n){return !_gesAvisados[n.tipo+n.serie];});
+  nuevas.forEach(function(n){_gesAvisados[n.tipo+n.serie]=1;});
+  if(!nuevas.length)return;
+  _gesNombresCargar(function(){
+    var msg=_gesAvisoTexto(nuevas,primera);if(!msg)return;
+    // Si al entrar ya salió el cartel de propuestas, éste espera su turno.
+    var demora=(primera&&((_propPendCount||0)+(_esHunter()?(_hunPropAviso||0):0)>0))?6500:0;
+    setTimeout(function(){_propToast(msg);},demora);
+  });
+}
+function _gesNombresCargar(cb){
+  if(_gesNombres){cb();return;}
+  _sb.rpc('gestiones_personas').then(function(r){
+    _gesNombres={};((r&&r.data)||[]).forEach(function(p){_gesNombres[p.id]=p.nombre;});cb();
+  }).catch(function(){_gesNombres={};cb();});
+}
+function _gesQuien(id){return (_gesNombres&&_gesNombres[id])||'Un hunter';}
+function _gesAvisoTexto(l,primera){
+  var der=l.filter(function(n){return n.tipo==='derivada';}),due=l.filter(function(n){return n.tipo!=='derivada';});
+  var partes=[];
+  if(der.length===1)partes.push(_gesQuien(der[0].quien)+' te derivó una acción en '+der[0].empresa);
+  else if(der.length>1)partes.push('Te derivaron '+der.length+' acciones nuevas: '+der.slice(0,3).map(function(n){return n.empresa;}).join(', ')+(der.length>3?'…':''));
+  if(due.length===1){var d=due[0];partes.push(_gesQuien(d.quien)+(d.tipo==='completada'?' completó la acción que derivaste en ':' registró una acción en ')+d.empresa);}
+  else if(due.length>1)partes.push('Hay novedades en '+due.length+' acciones de tus empresas: '+due.slice(0,3).map(function(n){return n.empresa;}).join(', ')+(due.length>3?'…':''));
+  if(!partes.length)return '';
+  return partes.join('. ')+'. '+(l.length===1?'Está':'Están')+' en Gestiones.';
+}
+// Numerito en la solapa "Gestiones" del header.
+function _gesBadgeSync(){
+  var t=document.getElementById('apptab-gestiones');if(!t)return;
+  var b=document.getElementById('ges-tab-badge');
+  if(!b){b=document.createElement('i');b.id='ges-tab-badge';b.className='tab-badge';t.appendChild(b);}
+  b.textContent=_gesAviso>9?'9+':String(_gesAviso||'');
+  b.style.display=_gesAviso>0?'':'none';
 }
 // Botones que dependen del interruptor. Bidireccional, como todo el gating.
 function _gesSync(){
