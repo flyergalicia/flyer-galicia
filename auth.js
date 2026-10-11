@@ -10838,9 +10838,11 @@ function _fgKbdInit(){
       }
       if((t.classList.contains('toggle-row')||t.classList.contains('ftag')||t.classList.contains('app-tab'))&&(e.key==='Enter'||e.key===' ')){e.preventDefault();t.click();return;}
     }
-    // Ctrl+G = "Registrar gestión" en la pantalla del Hunter (G de gestión).
-    // Sólo ahí y con Gestiones prendido; en el resto queda el del navegador.
-    if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&(e.key==='g'||e.key==='G')){
+    // Alt+G = "Registrar gestión" en la pantalla del Hunter (G de gestión).
+    // Ctrl+G no: en algunos navegadores busca en internet. AltGr llega como
+    // Ctrl+Alt, por eso se excluye Ctrl (no choca con escribir @). Se mira
+    // e.code porque en Mac Opción+G escribe "©" en e.key.
+    if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&(e.code==='KeyG'||e.key==='g'||e.key==='G')){
       if(!_fgHayDialogo()&&_fgHunterVisible()&&_gesOn()){e.preventDefault();_hunGesRegistrar();return;}
     }
     // Ctrl+Enter = la acción principal de la vista en la que estás: en el
