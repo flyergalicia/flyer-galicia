@@ -10796,6 +10796,7 @@ function _fgHayDialogo(){
   // pad-upd-ov: modal de proponer cambios / "Mis cambios" del Hunter (se crea y
   // se borra del DOM, como fg-cf-ov).
   if(document.getElementById('pad-upd-ov'))return true;
+  if(document.getElementById('ges-ov'))return true; // modales de Gestiones
   var ids=['pass-modal','notes-modal','user-modal','pad-mine-ov'];
   for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el&&el.style.display&&el.style.display!=='none')return true;}
   return false;
@@ -10836,6 +10837,11 @@ function _fgKbdInit(){
         if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();var j=(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[j].focus();tabs[j].click();return;}
       }
       if((t.classList.contains('toggle-row')||t.classList.contains('ftag')||t.classList.contains('app-tab'))&&(e.key==='Enter'||e.key===' ')){e.preventDefault();t.click();return;}
+    }
+    // Ctrl+G = "Registrar gestión" en la pantalla del Hunter (G de gestión).
+    // Sólo ahí y con Gestiones prendido; en el resto queda el del navegador.
+    if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&(e.key==='g'||e.key==='G')){
+      if(!_fgHayDialogo()&&_fgHunterVisible()&&_gesOn()){e.preventDefault();_hunGesRegistrar();return;}
     }
     // Ctrl+Enter = la acción principal de la vista en la que estás: en el
     // armador descarga el PDF, en Promociones valida la lista de marcas. Anda
@@ -11900,7 +11906,10 @@ function _propCargarPendientes(cb){
   _sb.from('padron_propuestas').select('*').in('estado',['pendiente','consulta']).order('created_at',{ascending:false})
     .then(function(r){
       var rows=(r&&r.data)||[];
-      _propPendientes=rows.filter(function(x){return x.creada_por!==_me.id;});
+      // Las propias no (las revisa el dueño), salvo que la empresa sea mía:
+      // pasa al simular el Hunter sobre mi propia base. Si no, quedaba
+      // abierta para siempre y trababa nuevas propuestas de esa empresa.
+      _propPendientes=rows.filter(function(x){return x.creada_por!==_me.id||x.dueno_id===_me.id;});
       _propPendCount=_propPendientes.filter(function(x){return x.estado!=='consulta';}).length;
       _propBadgeSync();
       if(cb)cb();

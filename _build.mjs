@@ -724,7 +724,7 @@ const hunterView = '<div class="hunter-view" id="view-hunter" style="display:non
         _ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>') +
         ' Descargar PDF</button>' +
       // Gestiones comerciales: lo muestra _gesSync según el interruptor.
-      '<button type="button" class="btn hun-ges" id="hun-ges" onclick="_hunGesRegistrar()" style="display:none">' +
+      '<button type="button" class="btn hun-ges" id="hun-ges" onclick="_hunGesRegistrar()" title="Registrar gesti&oacute;n de la empresa elegida (Ctrl+G)" aria-keyshortcuts="Control+G" style="display:none">' +
         _ico('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>') +
         ' Registrar gesti&oacute;n</button>' +
       '<div class="fg-otros hun-otros" id="hun-otros">' +
