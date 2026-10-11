@@ -4371,7 +4371,7 @@ var _CFG_BASES=[
     // Black/Platinum en la de abajo) y de ahí sale la muestra del color de fondo.
     montos:{y:824,fs:46,mh:46,boxes:[
       {xc:626,ew:240,col:'#1d4070'},{xc:890,ew:240,col:'#1d4070'},
-      {xc:626,ew:240,y:905,col:'#1d4070'},{xc:890,ew:240,y:905,col:'#1d4070'}]},
+      {xc:626,ew:240,y:905,col:'#f5921e'},{xc:890,ew:240,y:905,col:'#f5921e'}]},
     contacto:{ex:150,ey:6107,ew:940,ew3:1140,eh:130,y1:6137,y2:6167,y3:6196,
       xSingle:620,xLeft:310,xRight:930,fnBold:25,frReg:23},
     legal:{x0:79,yStart:6350,yEnd:7360,maxW:1085,fs:12,lh:16}
@@ -4384,7 +4384,7 @@ var _CFG_BASES=[
     empresa:{xc:620,yc:658,lh:46,mw:1100,fs:42,ex:70},
     montos:{y:839,fs:46,mh:46,boxes:[
       {xc:651,ew:240,col:'#1d4070'},{xc:915,ew:240,col:'#1d4070'},
-      {xc:651,ew:240,y:920,col:'#1d4070'},{xc:915,ew:240,y:920,col:'#1d4070'}]},
+      {xc:651,ew:240,y:920,col:'#f5921e'},{xc:915,ew:240,y:920,col:'#f5921e'}]},
     contacto:{ex:150,ey:6157,ew:940,ew3:1140,eh:130,y1:6187,y2:6216,y3:6245,
       xSingle:620,xLeft:310,xRight:930,fnBold:25,frReg:23},
     legal:{x0:79,yStart:6410,yEnd:7690,maxW:1085,fs:12,lh:16}
@@ -6269,7 +6269,20 @@ function _calEnsureDom(){
   st.textContent=
     '#cal-modal{position:fixed;inset:0;z-index:100000;background:rgba(20,18,16,.72);display:none;padding:16px}'+
     '#cal-modal.show{display:flex;align-items:stretch;justify-content:center}'+
-    '.cal-card{background:#fff;color:#1a1a1a;width:100%;max-width:720px;margin:auto;max-height:96vh;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}'+
+    '.cal-card{position:relative;background:#fff;color:#1a1a1a;width:100%;max-width:720px;margin:auto;max-height:calc(100vh - 32px);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}'+
+    // Tamaño a mano (grip de la esquina / «Ampliar»): _calSizeSet pone width/height en línea
+    '.cal-card.sized{max-width:none}'+
+    // Imagen arriba, controles abajo con su propia barra: los controles ya no le
+    // comen el alto a la imagen. Con la barrita (.cal-split) arrastrada, la imagen
+    // queda con alto fijo y los controles toman el resto.
+    '.cal-ctl{flex:0 1 auto;overflow:auto;min-height:60px}'+
+    '.cal-card.split .cal-body{flex:0 0 auto}.cal-card.split .cal-ctl{flex:1 1 0}'+
+    '.cal-split{flex:0 0 auto;height:9px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;border-top:1px solid rgba(128,128,128,.25);background:rgba(128,128,128,.08);touch-action:none}'+
+    '.cal-split:hover{background:rgba(245,146,30,.18)}'+
+    '.cal-split::before{content:"";width:46px;height:3px;border-radius:2px;background:rgba(128,128,128,.55)}'+
+    '.cal-grip{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;touch-action:none;z-index:2;'+
+      'background:linear-gradient(135deg,transparent 50%,rgba(128,128,128,.55) 50%,rgba(128,128,128,.55) 58%,transparent 58%,transparent 70%,rgba(128,128,128,.55) 70%,rgba(128,128,128,.55) 78%,transparent 78%)}'+
+    '@media (max-width:900px){.cal-split,.cal-grip,#cal-ampliar{display:none}}'+
     'html.dark .cal-card{background:#22242a;color:#e9e9ea}'+
     '.cal-hd{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid rgba(128,128,128,.25)}'+
     '.cal-hd h3{margin:0;font-size:1rem;flex:1}'+
@@ -6277,7 +6290,7 @@ function _calEnsureDom(){
     '.cal-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;cursor:pointer;border:1.5px solid transparent;font-size:.7rem;user-select:none}'+
     '.cal-chip .dot{width:11px;height:11px;border-radius:3px;display:inline-block}'+
     '.cal-chip.on{border-color:currentColor;font-weight:700}'+
-    '.cal-body{flex:1;overflow:auto;background:#e9e9e6;padding:16px}'+
+    '.cal-body{flex:1 1 0;min-height:150px;overflow:auto;background:#e9e9e6;padding:16px}'+
     'html.dark .cal-body{background:#15161a}'+
     '.cal-body canvas{display:block;margin:0 auto;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18);touch-action:none;cursor:grab}'+
     '.cal-zoom{display:inline-flex;gap:4px;align-items:center}.cal-zoom button{padding:2px 8px;font-size:.72rem;border:1px solid rgba(128,128,128,.4);border-radius:6px;background:transparent;color:inherit;cursor:pointer}.cal-zoom button:hover{border-color:var(--orange,#f5921e)}'+
@@ -6317,6 +6330,8 @@ function _calEnsureDom(){
         '<button class="ap-close" onclick="_calClose()">&#10005;</button></div>'+
       '<div class="cal-legend" id="cal-legend"></div>'+
       '<div class="cal-body"><canvas id="cal-cv"></canvas></div>'+
+      '<div class="cal-split" id="cal-split" title="Arrastr&aacute; para agrandar la imagen (doble clic: volver al reparto normal)"></div>'+
+      '<div class="cal-ctl">'+
       '<div style="padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.72rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
         '<label>Partir de esta base:</label>'+
         '<select id="cal-base">'+_CFG_BASES.map(function(b){return '<option value="'+b.id+'">'+_escHtml(b.nombre)+'</option>';}).join('')+'</select>'+
@@ -6344,7 +6359,10 @@ function _calEnsureDom(){
         '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre}, {importe} y {importe2} (segundo tope, cuadro &laquo;Ambos&raquo;) los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
       '</div>'+
       '<div class="cal-ft"><span>Eleg&iacute; una zona arriba (se ve s&oacute;lo esa; tocala de nuevo para ver todas) y arrastrala en la imagen: ah&iacute; mismo te aparecen su <b>tama&ntilde;o, peso y color</b>. Los cuatro montos se mueven juntos con &laquo;Montos (todo)&raquo; o de a uno eligiendo cada importe. Flechas del teclado = ajuste fino (Shift = 10px). <b>Ctrl + rueda</b> = zoom.</span><span class="sp"></span>'+
-        '<span class="cal-zoom"><button type="button" onclick="_calZoom(1/1.25)" title="Alejar">&minus;</button><button type="button" id="cal-zoom-pct" onclick="_calZoom(0)" title="Volver al tama&ntilde;o inicial">100%</button><button type="button" onclick="_calZoom(1.25)" title="Acercar">+</button></span></div>'+
+        '<span class="cal-zoom"><button type="button" onclick="_calZoom(1/1.25)" title="Alejar">&minus;</button><button type="button" id="cal-zoom-pct" onclick="_calZoom(0)" title="Volver al tama&ntilde;o inicial">100%</button><button type="button" onclick="_calZoom(1.25)" title="Acercar">+</button></span>'+
+        '<span class="cal-zoom"><button type="button" id="cal-ampliar" onclick="_calAmpliar()" title="Agrandar el editor a casi toda la pantalla (o volver al tama&ntilde;o normal)">&#x2922; Ampliar</button></span></div>'+
+      '</div>'+ // .cal-ctl
+      '<div class="cal-grip" id="cal-grip" title="Arrastr&aacute; para cambiar el ancho y el alto del editor (doble clic: tama&ntilde;o normal)"></div>'+
     '</div>';
   document.body.appendChild(m);
   var cv=document.getElementById('cal-cv');
@@ -6353,6 +6371,61 @@ function _calEnsureDom(){
   cv.addEventListener('pointermove',_calMove);
   window.addEventListener('pointerup',_calUp);
   document.addEventListener('keydown',_calKey);
+  _calResizeBind(document.getElementById('cal-split'),'split');
+  _calResizeBind(document.getElementById('cal-grip'),'card');
+}
+// ── Tamaño del editor (pedido del admin: con muchas líneas en el cartel la
+// imagen quedaba en una franja). La barrita entre imagen y controles fija el
+// alto de la imagen; el grip de la esquina, el ancho y alto de la tarjeta (que
+// está centrada, por eso crece el doble de lo que se mueve el cursor). Se
+// recuerda por navegador en localStorage; null = como venía.
+var _CAL_SIZE_KEY='fg_cal_size';
+function _calSizeLoad(){try{return JSON.parse(localStorage.getItem(_CAL_SIZE_KEY)||'null')||{};}catch(e){return {};}}
+function _calSizeSave(s){try{localStorage.setItem(_CAL_SIZE_KEY,JSON.stringify(s));}catch(e){}}
+// Aplica {w,h,bh} recortado a la ventana actual. En pantallas chicas no se toca nada.
+function _calSizeSet(s){
+  var card=document.querySelector('#cal-modal .cal-card'),body=document.querySelector('#cal-modal .cal-body');if(!card||!body)return;
+  var chica=(window.innerWidth||0)<=900;
+  var W=(window.innerWidth||800)-32,H=(window.innerHeight||600)-32;
+  if(!chica&&s.w){card.style.width=Math.max(480,Math.min(W,s.w))+'px';card.classList.add('sized');}
+  else{card.style.width='';card.classList.remove('sized');}
+  if(!chica&&s.h)card.style.height=Math.max(320,Math.min(H,s.h))+'px';else card.style.height='';
+  // tope: lo que entra en la tarjeta dejando la barrita y 60px de controles
+  var tope=(card.style.height?card.clientHeight:H)-body.offsetTop-9-60;
+  if(!chica&&s.bh){body.style.height=Math.max(150,Math.min(tope,s.bh))+'px';card.classList.add('split');}
+  else{body.style.height='';card.classList.remove('split');}
+}
+function _calSizeApply(){_calSizeSet(_calSizeLoad());}
+function _calAmpliar(){
+  var s=_calSizeLoad(),W=(window.innerWidth||800)-32,H=(window.innerHeight||600)-32;
+  var grande=s.w>=W-4&&s.h>=H-4;
+  s=grande?{}:{w:W,h:H,bh:s.bh||null};
+  _calSizeSave(s);_calSizeSet(s);
+}
+function _calResizeBind(el,modo){
+  if(!el)return;
+  var st=null;
+  el.addEventListener('pointerdown',function(e){
+    var card=document.querySelector('#cal-modal .cal-card'),body=document.querySelector('#cal-modal .cal-body'),ctl=document.querySelector('#cal-modal .cal-ctl');
+    if(!card||!body||!ctl)return;
+    e.preventDefault();el.setPointerCapture(e.pointerId);
+    st={x:e.clientX,y:e.clientY,w:card.offsetWidth,h:card.offsetHeight,bh:body.offsetHeight,
+      bmax:body.offsetHeight+ctl.offsetHeight-60}; // a los controles les quedan al menos 60px
+  });
+  el.addEventListener('pointermove',function(e){
+    if(!st)return;
+    var s=_calSizeLoad();
+    if(modo==='split')s.bh=Math.max(150,Math.min(st.bmax,st.bh+(e.clientY-st.y)));
+    else{s.w=st.w+2*(e.clientX-st.x);s.h=st.h+2*(e.clientY-st.y);}
+    _calSizeSet(s);el._s=s;
+  });
+  function fin(){if(st&&el._s)_calSizeSave(el._s);st=null;el._s=null;}
+  el.addEventListener('pointerup',fin);el.addEventListener('pointercancel',fin);
+  el.addEventListener('dblclick',function(){
+    var s=_calSizeLoad();
+    if(modo==='split')delete s.bh;else{delete s.w;delete s.h;}
+    _calSizeSave(s);_calSizeSet(s);
+  });
 }
 // Edición de una línea del cartel desde la tabla del calibrador.
 function _calBenefLinea(i,k,val){
@@ -6754,6 +6827,7 @@ function _calOpen(img,name,url,opt){
   _cal.ds0=_cal.ds;
   var zp=document.getElementById('cal-zoom-pct');if(zp)zp.textContent='100%';
   document.getElementById('cal-modal').classList.add('show');
+  _calSizeApply(); // el tamaño del editor que dejó la última vez
   var t=document.getElementById('cal-title');if(t)t.textContent='Calibrar flyer — '+_optLabel(opt)+(_calEsRubros()?' (Flyer Rubros)':'');
   var hInput=document.getElementById('cal-height');if(hInput)hInput.value='';
   _calRenderLegend();_calBenefRowSync();
