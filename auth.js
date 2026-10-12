@@ -1044,6 +1044,7 @@ function submitMyPass(){
     _sb.auth.updateUser({password:np}).then(function(r2){
       btn.textContent='Cambiar contraseña';btn.disabled=false;
       if(r2.error){errEl.textContent=r2.error.message;return;}
+      _callFn('notify_self_password',{},function(){}); // aviso por mail (no se espera)
       okEl.textContent='✅ Tu contraseña se cambió correctamente.';
       document.getElementById('mp-cur').value='';
       document.getElementById('mp-new').value='';
@@ -3286,10 +3287,12 @@ function deleteUser(btn,uid){
   });
 }
 
+// Va por la Edge Function (no por un update directo) para que le llegue el
+// mail de "tu cuenta ya está activa".
 function approveUser(btn,uid){
   btn.disabled=true;
-  _sb.from('profiles').update({status:'active'}).eq('id',uid).then(function(r){
-    if(r&&r.error){btn.disabled=false;showToast('No se pudo aprobar: '+r.error.message);return;}
+  _callFn('approve_user',{uid:uid},function(err){
+    if(err){btn.disabled=false;showToast('No se pudo aprobar: '+err);return;}
     loadUsers();loadStats();_refreshPendingBadge();showToast('Usuario aprobado');
   });
 }
@@ -3385,10 +3388,16 @@ function submitUser(){
   if(_editUid){
     if(pass&&pass.length<8){errEl.textContent='La nueva contraseña debe tener al menos 8 caracteres.';return;}
     btn.textContent='Guardando...';btn.disabled=true;
+    // Si pasa de no-activo a activo, después del guardado sale el mail de
+    // "tu cuenta ya está activa" (approve_user es idempotente).
+    var _uPrev=(_allUsers||[]).find(function(x){return x.id===_editUid;});
+    var _activa=status==='active'&&_uPrev&&_uPrev.status!=='active'&&_uPrev.status!=='reset_pending';
+    var _uid=_editUid;
     // El perfil (rol/estado/nombre) se actualiza con RLS (admin). La contraseña,
     // si se ingresó, va por la Edge Function.
     _sb.from('profiles').update({full_name:name,role:role,status:status,lider_id:_umLiderVal()}).eq('id',_editUid).then(function(r){
       if(r.error){btn.textContent='Guardar cambios';btn.disabled=false;errEl.textContent=r.error.message;return;}
+      if(_activa)_callFn('approve_user',{uid:_uid},function(){});
       if(!pass){btn.textContent='Guardar cambios';btn.disabled=false;closeUserModal();loadUsers();loadStats();_refreshPendingBadge();showToast('Usuario actualizado');return;}
       _callFn('set_password',{uid:_editUid,password:pass},function(err){
         btn.textContent='Guardar cambios';btn.disabled=false;
@@ -7556,6 +7565,9 @@ function _fmtDate(iso){
 // que la plantilla del masivo + la columna cuit (que el masivo ignora), así un solo
 // archivo sirve para las dos cosas.
 var _padron=null,_padronAt='',_padHits=[];
+// true si la última lectura del padrón falló: el freno del Excel no puede
+// comparar contra lo guardado, así que no se reemplaza nada a ciegas.
+var _padLoadErr=false;
 var _PAD_HEAD=(function(){
   var h=['empresa','cuit','config'];
   [1,2,3,4].forEach(function(i){h.push('asesor'+i+'_nombre','asesor'+i+'_celular','asesor'+i+'_email');});
@@ -7756,8 +7768,9 @@ function loadPadron(force,cb){
     .then(function(r){
       if(r.error){
         showToast('No se pudieron cargar tus empresas: '+r.error.message);
-        _padron=_padron||[];if(cb)cb(_padron);return;
+        _padLoadErr=true;_padron=_padron||[];if(cb)cb(_padron);return;
       }
+      _padLoadErr=false;
       _padron=_padSane(r.data);
       _padronAt=_padUltimo(r.data);
       _pgSel={}; // los índices del generador ya no valen
@@ -7822,12 +7835,26 @@ function importPadron(input){
       // Valido ANTES de guardar: si hay algo raro (cashback que no se entiende,
       // columna faltante, CUIT corto) lo muestro y decidís vos.
       var informe=_padValidate(raw);
-      if(informe.problemas.length){_padAskImport(informe);return;}
-      if(st)st.innerHTML='<span style="color:var(--gray)">Guardando '+informe.rows.length+' empresas...</span>';
-      savePadron(informe.rows,function(ok){
-        if(!ok){renderPadronAdmin();return;}
-        showToast('Empresas actualizadas: '+informe.rows.length);
-        renderPadronAdmin();
+      // Freno: comparo contra lo guardado RECIÉN leído de la base (no la copia
+      // en memoria) y, si se pierde o cambia algo, muestro el resumen antes de
+      // reemplazar. Sólo guarda directo la primera carga (no había nada).
+      loadPadron(true,function(actual){
+        if(_padLoadErr){
+          showToast('No pude leer tus empresas guardadas para compararlas: no se reemplazó nada. Probá de nuevo.');
+          renderPadronAdmin();return;
+        }
+        informe.diff=_padImportDiff(actual,informe.rows);
+        if(informe.problemas.length||(informe.diff.actual&&informe.diff.hayCambios)){_padAskImport(informe);return;}
+        if(informe.diff.actual&&!informe.diff.hayCambios){
+          showToast('El Excel es igual a lo que ya tenés: no hubo nada que cambiar');
+          renderPadronAdmin();return;
+        }
+        if(st)st.innerHTML='<span style="color:var(--gray)">Guardando '+informe.rows.length+' empresas...</span>';
+        savePadron(informe.rows,function(ok){
+          if(!ok){renderPadronAdmin();return;}
+          showToast('Empresas actualizadas: '+informe.rows.length);
+          renderPadronAdmin();
+        });
       });
     }catch(err){
       showToast('No se pudo leer el Excel: '+(err&&err.message||err));
@@ -9037,7 +9064,18 @@ function _padStyle(){
     '#pad-upd .pu-foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px 16px}'+
     '#pad-upd button{border:none;border-radius:8px;padding:9px 15px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}'+
     '#pad-upd .pu-no{background:rgba(128,128,128,.16);color:inherit}'+
-    '#pad-upd .pu-si{background:var(--red,#c62828);color:#fff}';
+    '#pad-upd .pu-si{background:var(--red,#c62828);color:#fff}'+
+    // freno del Excel: resumen de lo que cambia antes de reemplazar
+    '#pad-upd .pu-dif{margin:12px 18px 4px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}'+
+    '#pad-upd .pu-dif div{border-radius:8px;padding:7px 4px;text-align:center;background:rgba(128,128,128,.1);font-size:.64rem;line-height:1.3}'+
+    '#pad-upd .pu-dif b{display:block;font-size:1.05rem}'+
+    '#pad-upd .pu-dif .pu-van{background:var(--danger-soft,#FDE3E3);color:var(--danger,#B3261E)}'+
+    '#pad-upd details{margin:6px 18px 0;font-size:.74rem}'+
+    '#pad-upd summary{cursor:pointer;font-weight:600;padding:3px 0}'+
+    '#pad-upd details p{margin:4px 0 2px 14px;line-height:1.5;color:var(--gray,#888)}'+
+    '#pad-upd .pu-alerta{margin:10px 18px 0;padding:8px 10px;border-radius:8px;font-size:.74rem;line-height:1.45;'+
+      'background:var(--danger-soft,#FDE3E3);color:var(--danger,#B3261E)}'+
+    '@media (max-width:420px){#pad-upd .pu-dif{grid-template-columns:repeat(2,1fr)}}';
   document.head.appendChild(st);
 }
 // Campo de CUIT + preview en vivo de lo que se va a guardar.
@@ -9400,20 +9438,100 @@ function _padValidate(raw){
   return {rows:rows,problemas:prob,descartadas:desc,graves:prob.filter(function(p){return p.grave;}).length};
 }
 
+// ── FRENO DEL EXCEL: qué cambia antes de reemplazar ─────────────────────────
+// Subir un Excel REEMPLAZA todas las empresas, y la base no tiene copias de
+// seguridad: una copia vieja o una hoja filtrada borraba empresas sin avisar.
+// Ahora se compara contra lo guardado y se muestra el resumen antes de pisar.
+// La razón social es la clave (no el CUIT: dos grupos pueden compartirlo).
+function _padImpKey(r){return _padNorm(r&&r.empresa)||('#cuit:'+((r&&r.cuits)||[]).join(','));}
+function _padImpLbl(r){
+  return (r&&r.empresa)||('(sin razón social) '+((r&&r.cuits)||[]).map(_padFmtCuit).join(', '));
+}
+// Qué cambió entre dos versiones de la misma empresa (vacío = igual).
+function _padImpCambios(a,b){
+  var que=[];
+  var ca=(a.cuits||[]).slice().sort().join(','),cb=(b.cuits||[]).slice().sort().join(',');
+  if(ca!==cb)que.push('CUIT');
+  if(_padCfgOf(a.config)!==_padCfgOf(b.config))que.push('cashback');
+  for(var n=0;n<4;n++){
+    var x=(a.asesores&&a.asesores[n])||{},y=(b.asesores&&b.asesores[n])||{};
+    if(String(x.nombre||'').trim()!==String(y.nombre||'').trim()||
+       String(x.celular||'').trim()!==String(y.celular||'').trim()||
+       String(x.email||'').trim().toLowerCase()!==String(y.email||'').trim().toLowerCase())que.push('oficial '+(n+1));
+  }
+  if(!_padRubroIgual(a.rubro,b.rubro))que.push('rubro');
+  return que;
+}
+function _padImportDiff(actual,nuevas){
+  var A={},N={},kA=[],kN=[];
+  (actual||[]).forEach(function(r){var k=_padImpKey(r);if(!A[k]){A[k]=[];kA.push(k);}A[k].push(r);});
+  (nuevas||[]).forEach(function(r){var k=_padImpKey(r);if(!N[k]){N[k]=[];kN.push(k);}N[k].push(r);});
+  var d={se_van:[],entran:[],cambian:[],iguales:0,actual:(actual||[]).length,nuevas:(nuevas||[]).length};
+  kA.forEach(function(k){if(!N[k])A[k].forEach(function(r){d.se_van.push(_padImpLbl(r));});});
+  kN.forEach(function(k){
+    if(!A[k]){N[k].forEach(function(r){d.entran.push(_padImpLbl(r));});return;}
+    var a=A[k],b=N[k];
+    // Razón social repetida: si cambia cuántas veces figura, lo digo tal cual
+    // en vez de inventar qué fila "cambió" contra cuál.
+    if(a.length!==b.length){
+      d.cambian.push({empresa:_padImpLbl(b[0]),que:['figura '+b.length+' veces (antes '+a.length+')']});return;
+    }
+    for(var i=0;i<b.length;i++){
+      var que=_padImpCambios(a[i],b[i]);
+      if(que.length)d.cambian.push({empresa:_padImpLbl(b[i]),que:que});else d.iguales++;
+    }
+  });
+  d.hayCambios=!!(d.se_van.length||d.entran.length||d.cambian.length);
+  return d;
+}
+function _padImportResumen(d){
+  function lista(arr,f){
+    var n=Math.min(arr.length,10),out=[];
+    for(var i=0;i<n;i++)out.push(f(arr[i]));
+    if(arr.length>n)out.push('y '+(arr.length-n)+' m&aacute;s');
+    return out.join('<br>');
+  }
+  function det(tit,arr,f,abierto){
+    return arr.length?('<details'+(abierto?' open':'')+'><summary>'+tit+' ('+arr.length+')</summary><p>'+lista(arr,f)+'</p></details>'):'';
+  }
+  var esc=function(s){return _escHtml(s);};
+  var pct=d.actual?d.se_van.length/d.actual:0;
+  return '<p class="pu-sub">Hoy ten&eacute;s <strong>'+d.actual+' empresa'+(d.actual===1?'':'s')+'</strong>. '+
+      'Este Excel trae <strong>'+d.nuevas+'</strong> y <strong>reemplaza todo</strong> lo que ten&eacute;s guardado:</p>'+
+    '<div class="pu-dif">'+
+      '<div class="'+(d.se_van.length?'pu-van':'')+'"><b>'+d.se_van.length+'</b>se van</div>'+
+      '<div><b>'+d.entran.length+'</b>entran</div>'+
+      '<div><b>'+d.cambian.length+'</b>cambian</div>'+
+      '<div><b>'+d.iguales+'</b>sin cambios</div>'+
+    '</div>'+
+    (pct>0.2?('<div class="pu-alerta">&#9888; <strong>Se borra'+(d.se_van.length>1?'n ':' ')+d.se_van.length+' de tus '+d.actual+' empresas.</strong> '+
+      '&iquest;Es el Excel correcto? Puede ser una copia vieja o una hoja filtrada.</div>'):'')+
+    det('Se van',d.se_van,esc,pct>0.2||d.se_van.length<=5)+
+    det('Entran',d.entran,esc,false)+
+    det('Cambian',d.cambian,function(c){return esc(c.empresa)+' &mdash; '+esc(c.que.join(', '));},false);
+}
+
 // ── Popup del informe de importación ────────────────────────────────────────
+// rep.diff (si viene) = comparación con lo guardado; rep.problemas = avisos del
+// formato. Un solo cartel con las dos cosas.
 var _padImportPend=null;
 function _padAskImport(rep){
   _padImportPend=rep;
   _padPending=null;
-  var graves=rep.graves>0;
-  _padModal('<h3>'+(graves?'&#9888; Revis&aacute; el Excel':'&#8505; Informe de la carga')+'</h3>'+
-    '<p class="pu-sub">Le&iacute; <strong>'+rep.rows.length+' empresa'+(rep.rows.length===1?'':'s')+'</strong>'+
-      (graves?', pero hay cosas que conviene corregir antes de guardar:':', con estas observaciones:')+'</p>'+
-    '<ul><li>'+rep.problemas.map(function(p){return p.txt;}).join('</li><li>')+'</li></ul>'+
-    '<p class="pu-sub">Si cancel&aacute;s, tus empresas quedan como estaban y pod&eacute;s corregir el Excel y volver a subirlo.</p>'+
+  var graves=rep.graves>0,d=rep.diff,hayDif=!!(d&&d.actual);
+  var tit=graves?'&#9888; Revis&aacute; el Excel':(hayDif?'&#128194; Antes de reemplazar tus empresas':'&#8505; Informe de la carga');
+  _padModal('<h3>'+tit+'</h3>'+
+    (hayDif?_padImportResumen(d):'')+
+    (rep.problemas.length?(
+      '<p class="pu-sub"'+(hayDif?' style="margin-top:14px"':'')+'>'+
+        (hayDif?'Adem&aacute;s, ':'')+(hayDif?'le&iacute;':'Le&iacute;')+' <strong>'+rep.rows.length+' empresa'+(rep.rows.length===1?'':'s')+'</strong>'+
+        (graves?', pero hay cosas que conviene corregir antes de guardar:':', con estas observaciones:')+'</p>'+
+      '<ul><li>'+rep.problemas.map(function(p){return p.txt;}).join('</li><li>')+'</li></ul>'):'')+
+    '<p class="pu-sub"'+(rep.problemas.length?'':' style="margin-top:12px"')+'>Si cancel&aacute;s, tus empresas quedan como estaban'+
+      (rep.problemas.length?' y pod&eacute;s corregir el Excel y volver a subirlo':'')+'.</p>'+
     '<div class="pu-foot">'+
       '<button class="pu-no" onclick="_padImportCancel()">Cancelar</button>'+
-      '<button class="pu-si" onclick="_padImportGo()">Guardar igual ('+rep.rows.length+')</button>'+
+      '<button class="pu-si" onclick="_padImportGo()">'+(hayDif?'Reemplazar':'Guardar igual')+' ('+rep.rows.length+')</button>'+
     '</div>');
 }
 function _padImportCancel(){

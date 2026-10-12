@@ -15,6 +15,9 @@
 //   deny_reset     (admin)    -> descarta el pedido y reactiva la cuenta
 //   create_user    (admin)    -> crea usuario con rol/estado elegido por el admin
 //   set_password   (admin)    -> cambia la clave de un usuario
+//   approve_user   (admin)    -> activa una cuenta pendiente/inactiva
+//   notify_self_password (con sesión) -> sólo manda el aviso al propio usuario
+//   Todas avisan por mail a quien corresponda (ver avisar()).
 //
 // request_reset NUNCA cambia la clave real en el momento: si lo hiciera,
 // cualquiera sin sesión podría pisarle la contraseña a otra persona con solo
@@ -56,6 +59,63 @@ async function requireAdmin(req: Request): Promise<boolean> {
   const { data: prof } = await admin
     .from("profiles").select("role,status").eq("id", data.user.id).single();
   return !!prof && prof.role === "admin" && prof.status === "active";
+}
+
+// ── Mails de aviso ───────────────────────────────────────────────────────────
+// Los manda una cuenta de Gmail propia de la app a través de un Google Apps
+// Script publicado como aplicación web (supabase/mail/apps-script.gs): gratis y
+// sin claves de mail guardadas acá. Si los secretos no están cargados, no se
+// manda nada y todo sigue funcionando igual.
+// Reglas fijas: sólo texto, NUNCA la clave y NUNCA links (ya saben dónde está
+// la app; así no se parece a un phishing y no hay nada que robar). Un mail que
+// falla jamás hace fallar la operación.
+const MAIL_URL = Deno.env.get("MAIL_HOOK_URL") || "";
+const MAIL_SECRET = Deno.env.get("MAIL_HOOK_SECRET") || "";
+const MAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const PIE = "\n\n—\nArmador de flyers\nAviso automático. Nunca te vamos a pedir tu clave por mail.";
+
+async function enviar(to: string[], subject: string, body: string): Promise<void> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(MAIL_URL, {
+      method: "POST",
+      // text/plain: el Apps Script lee el cuerpo crudo (evita el preflight).
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ secret: MAIL_SECRET, to: to.join(","), subject, body: body + PIE }),
+      signal: ctl.signal,
+    });
+    const txt = await r.text();
+    if (!r.ok || !/"ok":\s*true/.test(txt)) console.error("mail: respuesta inesperada", r.status, txt.slice(0, 200));
+  } catch (e) {
+    console.error("mail:", String((e as Error)?.message || e));
+  } finally {
+    clearTimeout(t);
+  }
+}
+// Se manda en segundo plano (la respuesta no espera al mail): así tampoco se
+// puede deducir por la demora si un mail tiene cuenta o no.
+function avisar(to: string | string[] | null | undefined, subject: string, body: string): void {
+  if (!MAIL_URL || !MAIL_SECRET) return;
+  const list = (Array.isArray(to) ? to : [to]).map((x) => String(x || "").trim().toLowerCase()).filter((x) => MAIL_RE.test(x));
+  if (!list.length) return;
+  const p = enviar([...new Set(list)], subject, body);
+  // deno-lint-ignore no-explicit-any
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt && typeof rt.waitUntil === "function") rt.waitUntil(p);
+}
+async function mailsAdmins(): Promise<string[]> {
+  const { data } = await admin.from("profiles").select("email").eq("role", "admin").eq("status", "active");
+  return (data || []).map((r: { email: string | null }) => r.email || "").filter(Boolean);
+}
+async function perfil(uid: string): Promise<{ email: string; nombre: string; status: string } | null> {
+  const { data } = await admin.from("profiles").select("email,full_name,status").eq("id", uid).maybeSingle();
+  if (!data) return null;
+  return { email: data.email || "", nombre: data.full_name || "", status: data.status || "" };
+}
+function hola(nombre: string): string {
+  const n = String(nombre || "").trim().split(" ")[0];
+  return n ? `Hola ${n}:` : "Hola:";
 }
 
 function isDup(m: string): boolean {
@@ -106,6 +166,12 @@ Deno.serve(async (req: Request) => {
         { id: data.user.id, full_name, email, email_asesor: email, status: "pending", role: "asesor" },
         { onConflict: "id" },
       );
+      avisar(await mailsAdmins(), "Nuevo pedido de acceso: " + full_name,
+        `${full_name} (${email}) se registró en el Armador de flyers y está esperando tu aprobación.\n\n` +
+        `Entrá al panel de Admin → Usuarios para aprobarlo o rechazarlo.`);
+      avisar(email, "Recibimos tu pedido de acceso",
+        `${hola(full_name)}\n\nRecibimos tu pedido para usar el Armador de flyers. Te vamos a avisar por este ` +
+        `medio cuando el administrador lo apruebe.\n\nSi no fuiste vos, ignorá este mensaje.`);
       return json({ ok: true });
     }
 
@@ -117,7 +183,7 @@ Deno.serve(async (req: Request) => {
       // de averiguar qué mails tienen usuario acá.
       const generic = { ok: true };
       const { data: prof } = await admin
-        .from("profiles").select("id,status,last_reset_request_at").eq("email", email).maybeSingle();
+        .from("profiles").select("id,status,last_reset_request_at,full_name").eq("email", email).maybeSingle();
       if (!prof) return json(generic);
       // Sólo cuentas activas (o con un pedido ya en curso) pueden pedir cambio
       // de clave. Una cuenta desactivada o nunca aprobada NO: si se dejara,
@@ -135,6 +201,14 @@ Deno.serve(async (req: Request) => {
       await admin.from("profiles")
         .update({ status: "reset_pending", last_reset_request_at: new Date().toISOString() })
         .eq("id", prof.id);
+      const quien = prof.full_name || email;
+      avisar(await mailsAdmins(), "Pedido de cambio de clave: " + quien,
+        `${quien} (${email}) pidió cambiar su clave.\n\n` +
+        `Entrá al panel de Admin → Usuarios para aprobar o rechazar el cambio.`);
+      avisar(email, "Recibimos un pedido para cambiar tu clave",
+        `${hola(prof.full_name)}\n\nRecibimos un pedido para cambiar la clave de tu cuenta del Armador de flyers. ` +
+        `El administrador lo va a revisar y te avisamos cuando esté listo.\n\n` +
+        `Si NO fuiste vos, avisale al administrador cuanto antes: mientras no lo apruebe, tu clave actual sigue siendo la misma.`);
       return json(generic);
     }
 
@@ -149,6 +223,10 @@ Deno.serve(async (req: Request) => {
       if (error) return json({ error: error.message }, 400);
       await admin.from("pending_password_resets").delete().eq("user_id", uid);
       await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+      const pa = await perfil(uid);
+      if (pa) avisar(pa.email, "Tu clave nueva ya funciona",
+        `${hola(pa.nombre)}\n\nEl administrador aprobó tu cambio de clave. Ya podés entrar al Armador de flyers ` +
+        `con tu mail y la clave nueva que elegiste.`);
       return json({ ok: true });
     }
 
@@ -158,6 +236,45 @@ Deno.serve(async (req: Request) => {
       if (!uid) return json({ error: "Datos inválidos" }, 400);
       await admin.from("pending_password_resets").delete().eq("user_id", uid);
       await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+      const pd = await perfil(uid);
+      if (pd) avisar(pd.email, "Tu pedido de cambio de clave fue rechazado",
+        `${hola(pd.nombre)}\n\nEl administrador rechazó el pedido para cambiar tu clave. ` +
+        `Seguí entrando con la clave que ya tenías.\n\nSi necesitás cambiarla, hablá con el administrador.`);
+      return json({ ok: true });
+    }
+
+    // Aprueba una cuenta (pending/inactive → active) y le avisa por mail.
+    // Idempotente: el panel también la llama después de pasar a alguien a
+    // "activo" desde Editar usuario, sólo para que salga el aviso.
+    if (action === "approve_user") {
+      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const uid = String(body.uid || "");
+      if (!uid) return json({ error: "Datos inválidos" }, 400);
+      const pu = await perfil(uid);
+      if (!pu) return json({ error: "No existe ese usuario." }, 404);
+      // Un cambio de clave pendiente se resuelve aprobando o rechazando ese
+      // pedido: activar la cuenta acá lo dejaría colgado.
+      if (pu.status === "reset_pending") return json({ error: "Tiene un cambio de clave pendiente: aprobalo o rechazalo." }, 400);
+      if (pu.status !== "active") {
+        const { error } = await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+        if (error) return json({ error: error.message }, 400);
+      }
+      avisar(pu.email, "Tu cuenta ya está activa",
+        `${hola(pu.nombre)}\n\nEl administrador aprobó tu cuenta del Armador de flyers. Ya podés entrar con tu mail y tu clave.`);
+      return json({ ok: true });
+    }
+
+    // Aviso al propio usuario cuando cambia su clave desde el menú (el cambio
+    // lo hace el navegador con su sesión; acá sólo sale el mail, y sólo a él).
+    if (action === "notify_self_password") {
+      const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      if (!token) return json({ error: "No autorizado" }, 403);
+      const { data: u } = await admin.auth.getUser(token);
+      if (!u?.user) return json({ error: "No autorizado" }, 403);
+      const ps = await perfil(u.user.id);
+      avisar(u.user.email || ps?.email, "Se cambió la clave de tu cuenta",
+        `${hola(ps?.nombre || "")}\n\nSe cambió la clave de tu cuenta del Armador de flyers.\n\n` +
+        `Si NO fuiste vos, avisale al administrador cuanto antes.`);
       return json({ ok: true });
     }
 
@@ -179,6 +296,11 @@ Deno.serve(async (req: Request) => {
         { id: data.user.id, email, email_asesor: email, full_name, role, status },
         { onConflict: "id" },
       );
+      // Sólo si quedó activa: una cuenta creada inactiva recibe el aviso
+      // cuando se la active (approve_user).
+      if (status === "active") avisar(email, "Te crearon una cuenta en el Armador de flyers",
+        `${hola(full_name)}\n\nEl administrador te creó una cuenta en el Armador de flyers. ` +
+        `Tu usuario es este mail. La clave te la pasa el administrador.`);
       return json({ ok: true, id: data.user.id });
     }
 
@@ -189,6 +311,10 @@ Deno.serve(async (req: Request) => {
       if (!uid || password.length < 8) return json({ error: "Datos inválidos" }, 400);
       const { error } = await admin.auth.admin.updateUserById(uid, { password });
       if (error) return json({ error: error.message }, 400);
+      const pp = await perfil(uid);
+      if (pp) avisar(pp.email, "El administrador cambió tu clave",
+        `${hola(pp.nombre)}\n\nEl administrador cambió la clave de tu cuenta del Armador de flyers. La nueva te la pasa él.\n\n` +
+        `Si no esperabas este cambio, hablá con el administrador.`);
       return json({ ok: true });
     }
 

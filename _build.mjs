@@ -1016,6 +1016,10 @@ const checks = {
   // en el JSON publico del bucket (que se leia sin login).
   'padron: privado por usuario (tabla, no archivo)': _authSrc.includes("var _PADRON_TABLE='padron_empresas'") && _authSrc.includes(".eq('user_id',_me.id)") && _authSrc.includes("_sb.rpc('padron_replace'") && !_authSrc.includes("_PADRON_FILE"),
   'base de datos: empresas por usuario (solo lectura)': html.includes('id="at-padronotros"') && html.includes('id="po-user"') && _authSrc.includes('function loadPadronDe(') && _authSrc.includes('function dlPadronDe(') && _authSrc.includes(".neq('role','admin')"),
+  // Freno del Excel: subir un Excel reemplaza TODO; antes de pisar se compara
+  // contra lo guardado (leído de nuevo) y se muestra el resumen. Si la lectura
+  // falla, no se reemplaza nada.
+  'padron: freno del Excel': (() => { const m = _authSrc.match(/function importPadron\([\s\S]*?\r?\n}\r?\n/); return !!m && m[0].includes('loadPadron(true') && m[0].includes('_padImportDiff(') && m[0].includes('if(_padLoadErr)') && m[0].indexOf('_padAskImport(') < m[0].indexOf('savePadron('); })() && _authSrc.includes('function _padImportResumen('),
   'padron: motor': _authSrc.includes('function padronSearch(') && _authSrc.includes('_PADRON_TABLE') && _authSrc.includes('function _padCuits('),
   'padron: excel': _authSrc.includes('function importPadron(') && _authSrc.includes('function dlPadron(') && _authSrc.includes('function dlPadronTemplate('),
   'padron: lupita solo admin': _authSrc.includes('_fgEnsurePadronBtn();') && _authSrc.includes('function applyPadronRow('),
