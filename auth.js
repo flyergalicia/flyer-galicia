@@ -1405,6 +1405,8 @@ function switchApp(view){
   vi=_vista(view);
   var arm=_esSolapaArmador(view);
   if(lay)lay.style.display=arm?'grid':'none';
+  document.body.classList.toggle('en-armador',!!arm);
+  _mvInit();
   _VISTAS.forEach(function(v){
     var el=document.getElementById(v.el);if(el)el.style.display=(v.id===view)?'grid':'none';
     var t=_apptab(v.id);if(t)t.classList.toggle('active',v.id===view);
@@ -1423,6 +1425,26 @@ function switchApp(view){
   }
   _fgSyncVista();
 }
+// Celular: selector fijo Editar / Vista previa. Sólo sube o baja la página hasta
+// el panel o hasta el flyer (no oculta nada, así el zoom y el canvas no se tocan).
+function _mvInit(){
+  if(document.getElementById('mv-toggle'))return;
+  var d=document.createElement('div');d.id='mv-toggle';d.setAttribute('role','group');d.setAttribute('aria-label','Ir a');
+  d.innerHTML='<button type="button" class="on" data-mv="edit">Editar</button><button type="button" data-mv="prev">Vista previa</button>';
+  document.body.appendChild(d);
+  function marcar(w){Array.prototype.forEach.call(d.querySelectorAll('button'),function(b){b.classList.toggle('on',b.dataset.mv===w);});}
+  d.addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('button');if(!b)return;
+    var pv=document.querySelector('#layout .prev');
+    if(b.dataset.mv==='prev'&&pv){var y=pv.getBoundingClientRect().top+window.pageYOffset-70;window.scrollTo({top:y,behavior:'smooth'});}
+    else window.scrollTo({top:0,behavior:'smooth'});
+    marcar(b.dataset.mv);
+  });
+  window.addEventListener('scroll',function(){
+    var pv=document.querySelector('#layout .prev');if(!pv)return;
+    marcar(pv.getBoundingClientRect().top<window.innerHeight*0.45?'prev':'edit');
+  },{passive:true});
+}
 // Última opción usada en cada solapa, para volver a la misma al cambiar de solapa.
 var _fgUltOpt={flyer:1}; // las demás solapas se anotan solas al visitarlas
 // Deja la interfaz acorde a la opción activa: solapa del header marcada, barra
@@ -1436,6 +1458,7 @@ function _fgSyncVista(){
     _VISTAS.forEach(function(x){var t=_apptab(x.id);if(t)t.classList.remove('active');});
   }
   if(cambio)_facSyncOptBar();else _fgRenderOptBar();
+  _ptitleSync();
   var bf=document.getElementById('fg-benef-fields');if(bf)bf.style.display=_solCfg(v).benef?'':'none';
   _fgMarcarMontoFlyer(); // el cuadro "Montos activos" marca cuál sale impreso
   if(typeof _mpRefresh==='function'&&_facLoaded)_mpRefresh(); // la tarjeta del masivo sigue a la opción activa
@@ -1857,7 +1880,7 @@ function _promosSetSyncInfo(meta){
   }
   var d=new Date(meta.last_sync_at);
   el.textContent='Catálogo actualizado: '+d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+
-    _promosHace(d)+' — '+(meta.total||0)+' promociones.';
+    _promosHace(d)+'. '+(meta.total||0).toLocaleString('es-AR')+' promociones.';
 }
 // Antigüedad de la copia en palabras. Importa que se vea: Galicia publica las
 // promos nuevas en tandas a lo largo del día, así que "de hace 20 horas" ya
@@ -1866,7 +1889,9 @@ function _promosHace(d){
   var min=Math.round((Date.now()-d.getTime())/60000);
   if(min<60)return '';
   var hs=Math.round(min/60);
-  return hs<24?(' (hace '+hs+' h)'):(' (hace '+Math.round(hs/24)+' días)');
+  if(hs<24)return ' (hace '+hs+' h)';
+  var dd=Math.round(hs/24);
+  return ' (hace '+dd+(dd===1?' día)':' días)');
 }
 
 // Trae el catálogo completo a memoria + la metadata de sincronización. Si la
@@ -1994,7 +2019,7 @@ function syncPromosCatalogo(manual,cb){
   if(cb)_promosSyncWaiters.push(cb);
   _promosSyncing=true;
   var btn=document.getElementById('promos-sync-btn');
-  _promosBtnOcupado(btn,'Sincronizando...');
+  _promosBtnOcupado(btn,'Actualizando catálogo…');
   _callPromosFn('sync',{},function(err,d){
     _promosSyncing=false;
     _promosBtnOcupado(btn,'');
@@ -2003,7 +2028,9 @@ function syncPromosCatalogo(manual,cb){
       // Si es manual siempre avisa; si fue el auto-sync en segundo plano, avisa
       // igual cuando no hay NADA cargado (si no, el usuario se queda mirando un
       // catálogo vacío sin ninguna pista de por qué).
-      if(manual||!_promosCat||!_promosCat.length)showToast('No se pudo actualizar el catálogo de promociones: '+err);
+      if(manual||!_promosCat||!_promosCat.length)showToast(/\b403\b/.test(String(err))
+        ?'Galicia no dejó actualizar el catálogo ahora. Seguís viendo la última copia guardada.'
+        :'No se pudo actualizar el catálogo de promociones: '+err);
       _promosSyncDone(err);
       return;
     }
@@ -4131,8 +4158,15 @@ function _titLabel(key){return (_TIT[key]&&String(_TIT[key]).trim())||_TIT_DEF[k
 function _titAplicar(){
   Object.keys(_TIT_DEF).forEach(function(k){
     var el=_titElem(k);if(!el||el.querySelector('input'))return;
-    el.textContent=_titLabel(k);
+    el.textContent=_titLabel(k==='ptitle'?_ptitleKey():k);
   });
+}
+// El título del panel izquierdo sigue a la solapa del armador a la vista: en
+// Flyer Eminent / Flyer Rubros dice el nombre de ESA solapa, no "Flyer Galicia 5.5".
+function _ptitleKey(){return(_fgVista&&_fgVista!=='flyer'&&_TIT_DEF[_fgVista])?_fgVista:'ptitle';}
+function _ptitleSync(){
+  var el=_titElem('ptitle');if(!el||el.querySelector('input'))return;
+  el.textContent=_titLabel(_ptitleKey());
 }
 function loadTitulos(cb){
   fetch(FLYERS_PUBLIC+TITULOS_FILE+'?t='+Date.now(),{cache:'no-cache'})
@@ -5860,9 +5894,16 @@ function _fgHistWhen(h){
   if(ayer)return 'ayer '+h.hora;
   return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+h.hora;
 }
+// Historial vacío: dice qué pasó y qué hacer (el botón vuelve a Individual).
+function _histVacioHtml(){
+  return '<div class="history-empty"><span class="he-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>'
+    +'<strong>Todavía no hay flyers en tu historial</strong>'
+    +'<span>Armá uno en Individual y queda guardado acá.</span>'
+    +'<button class="btn bp" onclick="switchTab(\'individual\')">Ir a Individual</button></div>';
+}
 function fgRenderHistory(){
   var el=document.getElementById('history-list');if(!el)return;
-  if(!flyerHistory.length){el.innerHTML='<div class="history-empty">&#128337; Todavía no generaste ningún flyer.</div>';return;}
+  if(!flyerHistory.length){el.innerHTML=_histVacioHtml();return;}
   el.innerHTML=flyerHistory.map(function(h,i){
     var o=_optN(h.opt||1);
     return '<div class="hist-item" onclick="loadHistory('+i+')" style="border-left:4px solid '+_optColor(o)+'">'
@@ -8211,7 +8252,7 @@ function _mpEnsure(){
       '<p id="fg-mp-txt" style="font-size:.72rem;color:var(--gray);line-height:1.45;margin:0 0 8px"></p>'+
       '<button class="btn bgreen" id="fg-mp-btn" style="width:100%" onclick="_mpGenerar()">&#9889; Descargar todos</button>'+
       '<div id="fg-mp-prog" style="display:none;margin-top:8px"><div class="progress-bar" style="display:block"><div class="progress-fill" id="fg-mp-fill" style="width:0%"></div></div><div class="progress-text" id="fg-mp-text"></div></div>'+
-      '<p style="font-size:.68rem;color:var(--gray);line-height:1.45;margin:8px 0 0">&#128161; Si quer&eacute;s descargar <strong>todas tus empresas</strong> (cada una en su formato), and&aacute; a <a href="#" onclick="openMiPadron();return false" style="color:var(--red);font-weight:600">Base de datos &rarr; Generar flyers</a>.</p>'+
+      '<p style="font-size:.68rem;color:var(--gray);line-height:1.45;margin:8px 0 0">&iquest;Quer&eacute;s bajar <b style="display:inline;font-size:inherit;text-transform:none;letter-spacing:0;font-weight:700">todas tus empresas</b>, cada una en su formato? And&aacute; a <a href="#" onclick="openMiPadron();return false" style="color:var(--red);font-weight:600">Base de datos &rarr; Generar flyers</a>.</p>'+
     '</div>';
   tab.appendChild(d);
 }
@@ -11259,7 +11300,10 @@ function _hunOptDe(r){
   return cg.length?_hunVigente(cg):_HUN_SIN_GENERICO;
 }
 function _hunFlyerLbl(opt){
-  if(opt>0)return _solapaLabel(_optSolapa(opt))+' · '+_optLabel(opt);
+  if(opt>0){
+    var sl=_solapaLabel(_optSolapa(opt)),ol=_optLabel(opt);
+    return sl===ol?sl:sl+' · '+ol; // "Flyer · Flyer" no aporta nada
+  }
   if(opt===_HUN_RUBRO_NO_HABIL)return 'sin flyer para su rubro';
   if(opt===_HUN_RUBRO_RARO)return 'rubro sin identificar';
   return 'sin flyer habilitado';
@@ -11270,7 +11314,7 @@ function _hunAvisos(r,opt){
   else if(opt===_HUN_RUBRO_RARO)a.push('no se puede saber de qué rubro es: hay que revisarla en la base de datos');
   else if(opt<=0)a.push('no hay ningún flyer habilitado para tu perfil');
   if(opt>0){
-    if(!_padNumAsesores(r))a.push('sin oficiales asignados: el flyer sale sin datos de contacto');
+    if(!_padNumAsesores(r))a.push('el flyer sale sin datos de contacto');
     if(_padCfgOf(r.config)<0)a.push('sin cashback: sale sin importes');
     if(_optSolapa(opt)==='rubros'&&!_padRubroSane(r.rubro).importe)a.push('sin tope cargado: sale '+_HUN_TOPE_DEF);
   }
@@ -11398,7 +11442,7 @@ function _hunRender(){
       '<div class="hun-row-body">'+
         '<div class="hun-emp">'+_escHtml(r.empresa||'(sin nombre)')+'</div>'+
         '<div class="hun-sub">'+_escHtml(_padSubtitulo(r))+'</div>'+
-        '<div class="hun-of">'+_escHtml(_hunOficiales(r))+'</div>'+
+        (((r&&r.asesores)||[]).some(function(a){return a&&(a.nombre||'').trim();})?'<div class="hun-of">'+_escHtml(_hunOficiales(r))+'</div>':'')+
         '<div class="hun-tag">'+_escHtml(_hunFlyerLbl(opt))+'</div>'+
         (av.length?'<div class="hun-av">'+_escHtml(av.join('  ·  '))+'</div>':'')+
         propTag+propBtn+

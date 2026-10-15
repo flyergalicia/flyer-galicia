@@ -116,7 +116,7 @@ function gesTabs(){
 function gesInit(tab){
   if(typeof _gesOn==='function'&&!_gesOn()){
     var root=document.getElementById('ges-root');
-    if(root)root.innerHTML='<div class="ges-vacio" style="margin-top:24px">Gestiones comerciales todav\u00eda no est\u00e1 habilitado. Cuando el administrador lo active, tu tablero aparece ac\u00e1.</div>';
+    if(root)root.innerHTML='<div class="ges-vacio" style="margin-top:24px"><strong style="color:var(--ink)">Gestiones todav\u00eda no est\u00e1 activo</strong><span>Cuando el administrador lo active, tu tablero aparece ac\u00e1.</span></div>';
     return;
   }
   var tabs=gesTabs();
@@ -227,7 +227,7 @@ function gesFila(g){
     '<span class="ges-row-d">'+GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+
       (g.frecuencia==='repite'?' &middot; '+gesE(gesRepTxt(g)):'')+' &middot; '+quien+
       (g.prueba?' &middot; <span class="ges-prueba">prueba</span>':'')+'</span>'+
-    (g.estado==='realizada'?'<span class="ges-row-n"><b>'+gesN(g.n_pros)+'</b> prospectos &middot; <b class="ges-ok">'+gesN(g.n_altas)+'</b> altas &middot; '+gesPct(g.n_altas,g.n_pros)+'</span>':'')+
+    (g.estado==='realizada'?'<span class="ges-row-n"><b>'+gesN(g.n_pros)+'</b> prospectos &middot; <b class="ges-ok">'+gesN(g.n_altas)+'</b> '+(+g.n_altas===1?'alta':'altas')+' &middot; '+gesPct(g.n_altas,g.n_pros)+'</span>':'')+
     (gesNueva(g)?'<span class="ges-row-nueva">'+gesNuevaTxt(g)+'</span>':'')+
   '</button>';
 }

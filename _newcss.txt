@@ -1225,3 +1225,28 @@ html.dark .badge-lider{background:#13263D;color:#90CAF9;}
 .tab-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;box-sizing:border-box;
   display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font:800 .58rem "Figtree",sans-serif;
   font-style:normal;line-height:1;letter-spacing:0;pointer-events:none;box-shadow:0 0 0 2px var(--hd-btn-bg,#fff);}
+
+/* ── Pulido 2026-10: selectores propios, estados vacíos, tarjetas alineadas ── */
+.field select,.field input[type=month]{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-s);background:var(--field);color:var(--ink);font-family:"Figtree",system-ui,sans-serif;font-size:.8rem;transition:border-color .15s,box-shadow .15s;}
+.field select{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B655C' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;}
+.field select:focus,.field input[type=month]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring);outline:none;background-color:var(--card);}
+html.dark .field select,html.dark .field input[type=month]{background-color:var(--field);color:var(--ink);border-color:var(--border);color-scheme:dark;}
+#promos-sync-btn:disabled{opacity:.75;cursor:progress;}
+.history-empty,.ges-vacio{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:22px 16px;color:var(--gray);line-height:1.45;}
+.history-empty .he-ic{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;}
+.history-empty .he-ic svg{width:20px;height:20px;}
+.history-empty strong{color:var(--ink);font-size:.82rem;}
+.history-empty .btn{width:auto;padding:8px 16px;margin-top:4px;}
+/* Tarjetas del panel Admin: el número siempre abajo, alineado, aunque el rótulo ocupe dos líneas */
+.stat-card{display:flex;flex-direction:column;justify-content:space-between;}
+.stat-card span{min-height:2.4em;}
+
+/* Celular: selector fijo Editar / Vista previa (solo baja o sube la página; no esconde nada) */
+#mv-toggle{display:none;}
+@media (max-width:900px){
+  body.en-armador #mv-toggle{display:flex;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:140;gap:4px;padding:4px;border-radius:99px;background:var(--card);border:1px solid var(--border);box-shadow:0 6px 18px rgba(0,0,0,.16);}
+  #mv-toggle button{border:0;background:transparent;color:var(--gray);font:700 .76rem "Figtree",system-ui,sans-serif;padding:8px 16px;border-radius:99px;cursor:pointer;}
+  #mv-toggle button.on{background:var(--accent);color:#fff;}
+}

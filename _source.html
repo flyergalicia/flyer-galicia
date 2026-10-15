@@ -713,7 +713,7 @@ function addHistory(v,fn,canvas){
 }
 function renderHistory(){
   var el=document.getElementById("history-list");
-  if(!flyerHistory.length){el.innerHTML='<div class="history-empty">&#128337; Todavía no generaste ningún flyer.</div>';return;}
+  if(!flyerHistory.length){el.innerHTML=(typeof _histVacioHtml==='function'?_histVacioHtml():'<div class="history-empty">Todavía no generaste ningún flyer.</div>');return;}
   el.innerHTML=flyerHistory.map(function(h,i){
     return '<div class="hist-item" onclick="loadHistory('+i+')">'
       +'<img class="hist-thumb" src="'+h.thumb+'">'
