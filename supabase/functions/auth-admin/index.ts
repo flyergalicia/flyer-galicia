@@ -66,15 +66,71 @@ async function requireAdmin(req: Request): Promise<boolean> {
 // Script publicado como aplicación web (supabase/mail/apps-script.gs): gratis y
 // sin claves de mail guardadas acá. Si los secretos no están cargados, no se
 // manda nada y todo sigue funcionando igual.
-// Reglas fijas: sólo texto, NUNCA la clave y NUNCA links (ya saben dónde está
-// la app; así no se parece a un phishing y no hay nada que robar). Un mail que
-// falla jamás hace fallar la operación.
+// Reglas fijas: NUNCA la contraseña y NUNCA links ni imágenes (ya saben dónde
+// está la app; así no se parece a un phishing y no hay nada que robar). Un mail
+// que falla jamás hace fallar la operación.
 const MAIL_URL = Deno.env.get("MAIL_HOOK_URL") || "";
 const MAIL_SECRET = Deno.env.get("MAIL_HOOK_SECRET") || "";
 const MAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const PIE = "\n\n—\nArmador de flyers\nAviso automático. Nunca te vamos a pedir tu clave por mail.";
 
-async function enviar(to: string[], subject: string, body: string): Promise<void> {
+// Un mail = asunto + contenido estructurado. Se arma en dos versiones: HTML con
+// el aspecto de la app y texto plano (para clientes que no muestran HTML).
+type Mail = {
+  asunto: string;
+  titulo: string;
+  saludo?: string; // "Hola Ana:"
+  parrafos: string[];
+  datos?: [string, string][]; // recuadro con datos (etiqueta, valor)
+  alerta?: string; // aviso destacado, ej. "¿No fuiste vos?..."
+};
+
+const ACENTO = "#F26122";
+const MARINO = "#14213D";
+function esc(s: unknown): string {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function armarTexto(m: Mail): string {
+  const l: string[] = [m.titulo.toUpperCase(), ""];
+  if (m.saludo) l.push(m.saludo, "");
+  m.parrafos.forEach((p) => l.push(p, ""));
+  if (m.datos?.length) { m.datos.forEach(([k, v]) => l.push(`${k}: ${v}`)); l.push(""); }
+  if (m.alerta) l.push("IMPORTANTE: " + m.alerta, "");
+  l.push("—", "Armador de flyers · Mensaje automático.", "Nunca te vamos a pedir tu contraseña por mail.");
+  return l.join("\n");
+}
+// Tablas + estilos en línea: es lo único que respetan Outlook y Gmail.
+function armarHtml(m: Mail): string {
+  const F = "font-family:'Segoe UI',Helvetica,Arial,sans-serif;";
+  const parrafos = m.parrafos.map((p) =>
+    `<p style="${F}margin:0 0 14px;font-size:15px;line-height:1.6;color:#2b2f36">${esc(p)}</p>`).join("");
+  const datos = m.datos?.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;background:#f6f7f9;border-radius:8px"><tr><td style="padding:12px 16px">` +
+      m.datos.map(([k, v]) =>
+        `<div style="${F}font-size:14px;line-height:1.7;color:#2b2f36"><span style="color:#6b7280">${esc(k)}:</span> <strong>${esc(v)}</strong></div>`).join("") +
+      `</td></tr></table>`
+    : "";
+  const alerta = m.alerta
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px"><tr>` +
+      `<td style="border-left:4px solid ${ACENTO};background:#fff4ed;padding:12px 16px;border-radius:0 8px 8px 0">` +
+      `<div style="${F}font-size:14px;line-height:1.55;color:#7a3300"><strong>Importante.</strong> ${esc(m.alerta)}</div></td></tr></table>`
+    : "";
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(m.asunto)}</title></head>` +
+    `<body style="margin:0;padding:0;background:#eceef2">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceef2"><tr><td align="center" style="padding:28px 12px">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden">` +
+    `<tr><td style="background:${MARINO};padding:20px 28px;border-bottom:4px solid ${ACENTO}">` +
+    `<div style="${F}font-size:18px;font-weight:700;letter-spacing:.2px;color:#ffffff">Armador de flyers</div></td></tr>` +
+    `<tr><td style="padding:28px 28px 10px">` +
+    `<h1 style="${F}margin:0 0 18px;font-size:21px;line-height:1.3;color:${MARINO}">${esc(m.titulo)}</h1>` +
+    (m.saludo ? `<p style="${F}margin:0 0 14px;font-size:15px;line-height:1.6;color:#2b2f36">${esc(m.saludo)}</p>` : "") +
+    parrafos + datos + alerta +
+    `</td></tr>` +
+    `<tr><td style="padding:14px 28px 24px;border-top:1px solid #e5e7eb">` +
+    `<div style="${F}font-size:12px;line-height:1.6;color:#6b7280">Mensaje automático del Armador de flyers.<br>Nunca te vamos a pedir tu contraseña por mail.</div>` +
+    `</td></tr></table></td></tr></table></body></html>`;
+}
+
+async function enviar(to: string[], m: Mail): Promise<void> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 8000);
   try {
@@ -82,7 +138,9 @@ async function enviar(to: string[], subject: string, body: string): Promise<void
       method: "POST",
       // text/plain: el Apps Script lee el cuerpo crudo (evita el preflight).
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ secret: MAIL_SECRET, to: to.join(","), subject, body: body + PIE }),
+      body: JSON.stringify({
+        secret: MAIL_SECRET, to: to.join(","), subject: m.asunto, body: armarTexto(m), html: armarHtml(m),
+      }),
       signal: ctl.signal,
     });
     const txt = await r.text();
@@ -95,11 +153,11 @@ async function enviar(to: string[], subject: string, body: string): Promise<void
 }
 // Se manda en segundo plano (la respuesta no espera al mail): así tampoco se
 // puede deducir por la demora si un mail tiene cuenta o no.
-function avisar(to: string | string[] | null | undefined, subject: string, body: string): void {
+function avisar(to: string | string[] | null | undefined, m: Mail): void {
   if (!MAIL_URL || !MAIL_SECRET) return;
   const list = (Array.isArray(to) ? to : [to]).map((x) => String(x || "").trim().toLowerCase()).filter((x) => MAIL_RE.test(x));
   if (!list.length) return;
-  const p = enviar([...new Set(list)], subject, body);
+  const p = enviar([...new Set(list)], m);
   // deno-lint-ignore no-explicit-any
   const rt = (globalThis as any).EdgeRuntime;
   if (rt && typeof rt.waitUntil === "function") rt.waitUntil(p);
@@ -117,6 +175,87 @@ function hola(nombre: string): string {
   const n = String(nombre || "").trim().split(" ")[0];
   return n ? `Hola ${n}:` : "Hola:";
 }
+
+// Los textos de cada aviso, en un solo lugar. Ninguno lleva la contraseña.
+const NO_FUI_YO = "Si no fuiste vos, avisale al administrador cuanto antes.";
+const MAILS = {
+  accesoAdmin: (nombre: string, email: string): Mail => ({
+    asunto: "Armador de flyers · Nueva solicitud de acceso",
+    titulo: "Nueva solicitud de acceso",
+    parrafos: ["Una persona pidió acceso al Armador de flyers y está esperando tu aprobación."],
+    datos: [["Nombre", nombre], ["Mail", email]],
+  }),
+  accesoUsuario: (nombre: string): Mail => ({
+    asunto: "Armador de flyers · Recibimos tu solicitud",
+    titulo: "Recibimos tu solicitud de acceso",
+    saludo: hola(nombre),
+    parrafos: [
+      "Recibimos tu solicitud para usar el Armador de flyers. Un administrador la va a revisar y te avisaremos por este medio cuando tu cuenta esté activa.",
+      "Si no realizaste esta solicitud, podés ignorar este mensaje.",
+    ],
+  }),
+  cuentaActiva: (nombre: string): Mail => ({
+    asunto: "Armador de flyers · Tu cuenta ya está activa",
+    titulo: "Tu cuenta ya está activa",
+    saludo: hola(nombre),
+    parrafos: ["Un administrador aprobó tu cuenta. Ya podés ingresar al Armador de flyers con tu mail y tu contraseña."],
+  }),
+  cuentaCreada: (nombre: string, email: string): Mail => ({
+    asunto: "Armador de flyers · Se creó tu cuenta",
+    titulo: "Se creó tu cuenta",
+    saludo: hola(nombre),
+    parrafos: [
+      "Un administrador creó tu cuenta en el Armador de flyers.",
+      "La contraseña inicial te la comunica el administrador. Te recomendamos cambiarla en tu primer ingreso, desde el menú de tu nombre → Cambiar contraseña.",
+    ],
+    datos: [["Usuario", email]],
+  }),
+  resetAdmin: (nombre: string, email: string): Mail => ({
+    asunto: "Armador de flyers · Pedido de cambio de contraseña",
+    titulo: "Pedido de cambio de contraseña",
+    parrafos: ["Una persona pidió cambiar su contraseña. Revisalo en el panel de Administración → Usuarios y aprobalo o rechazalo."],
+    datos: [["Nombre", nombre], ["Mail", email]],
+  }),
+  resetUsuario: (nombre: string): Mail => ({
+    asunto: "Armador de flyers · Recibimos tu pedido de cambio de contraseña",
+    titulo: "Recibimos tu pedido de cambio de contraseña",
+    saludo: hola(nombre),
+    parrafos: [
+      "Un administrador va a revisar tu pedido y te avisaremos por este medio cuando esté resuelto.",
+      "Mientras tanto, tu contraseña actual sigue vigente.",
+    ],
+    alerta: "Si no fuiste vos quien lo pidió, avisale al administrador cuanto antes.",
+  }),
+  resetAprobado: (nombre: string): Mail => ({
+    asunto: "Armador de flyers · Tu nueva contraseña ya está activa",
+    titulo: "Tu nueva contraseña ya está activa",
+    saludo: hola(nombre),
+    parrafos: ["Un administrador aprobó tu cambio de contraseña. Ya podés ingresar al Armador de flyers con la contraseña nueva que elegiste."],
+  }),
+  resetRechazado: (nombre: string): Mail => ({
+    asunto: "Armador de flyers · Tu pedido de cambio de contraseña no fue aprobado",
+    titulo: "Tu pedido de cambio de contraseña no fue aprobado",
+    saludo: hola(nombre),
+    parrafos: [
+      "Un administrador no aprobó el cambio. Seguí ingresando con tu contraseña actual, que no se modificó.",
+      "Si necesitás cambiarla, comunicate con el administrador.",
+    ],
+  }),
+  claveCambiadaAdmin: (nombre: string): Mail => ({
+    asunto: "Armador de flyers · Un administrador cambió tu contraseña",
+    titulo: "Un administrador cambió tu contraseña",
+    saludo: hola(nombre),
+    parrafos: ["Un administrador cambió la contraseña de tu cuenta. La nueva te la comunica él directamente."],
+    alerta: "Si no esperabas este cambio, hablá con el administrador.",
+  }),
+  claveCambiadaPropia: (nombre: string): Mail => ({
+    asunto: "Armador de flyers · Cambiaste tu contraseña",
+    titulo: "Cambiaste tu contraseña",
+    saludo: hola(nombre),
+    parrafos: ["Te confirmamos que la contraseña de tu cuenta del Armador de flyers fue modificada."],
+    alerta: NO_FUI_YO,
+  }),
+};
 
 function isDup(m: string): boolean {
   return /already|registered|exists/i.test(m);
@@ -166,12 +305,8 @@ Deno.serve(async (req: Request) => {
         { id: data.user.id, full_name, email, email_asesor: email, status: "pending", role: "asesor" },
         { onConflict: "id" },
       );
-      avisar(await mailsAdmins(), "Nuevo pedido de acceso: " + full_name,
-        `${full_name} (${email}) se registró en el Armador de flyers y está esperando tu aprobación.\n\n` +
-        `Entrá al panel de Admin → Usuarios para aprobarlo o rechazarlo.`);
-      avisar(email, "Recibimos tu pedido de acceso",
-        `${hola(full_name)}\n\nRecibimos tu pedido para usar el Armador de flyers. Te vamos a avisar por este ` +
-        `medio cuando el administrador lo apruebe.\n\nSi no fuiste vos, ignorá este mensaje.`);
+      avisar(await mailsAdmins(), MAILS.accesoAdmin(full_name, email));
+      avisar(email, MAILS.accesoUsuario(full_name));
       return json({ ok: true });
     }
 
@@ -202,13 +337,8 @@ Deno.serve(async (req: Request) => {
         .update({ status: "reset_pending", last_reset_request_at: new Date().toISOString() })
         .eq("id", prof.id);
       const quien = prof.full_name || email;
-      avisar(await mailsAdmins(), "Pedido de cambio de clave: " + quien,
-        `${quien} (${email}) pidió cambiar su clave.\n\n` +
-        `Entrá al panel de Admin → Usuarios para aprobar o rechazar el cambio.`);
-      avisar(email, "Recibimos un pedido para cambiar tu clave",
-        `${hola(prof.full_name)}\n\nRecibimos un pedido para cambiar la clave de tu cuenta del Armador de flyers. ` +
-        `El administrador lo va a revisar y te avisamos cuando esté listo.\n\n` +
-        `Si NO fuiste vos, avisale al administrador cuanto antes: mientras no lo apruebe, tu clave actual sigue siendo la misma.`);
+      avisar(await mailsAdmins(), MAILS.resetAdmin(quien, email));
+      avisar(email, MAILS.resetUsuario(prof.full_name));
       return json(generic);
     }
 
@@ -224,9 +354,7 @@ Deno.serve(async (req: Request) => {
       await admin.from("pending_password_resets").delete().eq("user_id", uid);
       await admin.from("profiles").update({ status: "active" }).eq("id", uid);
       const pa = await perfil(uid);
-      if (pa) avisar(pa.email, "Tu clave nueva ya funciona",
-        `${hola(pa.nombre)}\n\nEl administrador aprobó tu cambio de clave. Ya podés entrar al Armador de flyers ` +
-        `con tu mail y la clave nueva que elegiste.`);
+      if (pa) avisar(pa.email, MAILS.resetAprobado(pa.nombre));
       return json({ ok: true });
     }
 
@@ -237,9 +365,7 @@ Deno.serve(async (req: Request) => {
       await admin.from("pending_password_resets").delete().eq("user_id", uid);
       await admin.from("profiles").update({ status: "active" }).eq("id", uid);
       const pd = await perfil(uid);
-      if (pd) avisar(pd.email, "Tu pedido de cambio de clave fue rechazado",
-        `${hola(pd.nombre)}\n\nEl administrador rechazó el pedido para cambiar tu clave. ` +
-        `Seguí entrando con la clave que ya tenías.\n\nSi necesitás cambiarla, hablá con el administrador.`);
+      if (pd) avisar(pd.email, MAILS.resetRechazado(pd.nombre));
       return json({ ok: true });
     }
 
@@ -259,8 +385,7 @@ Deno.serve(async (req: Request) => {
         const { error } = await admin.from("profiles").update({ status: "active" }).eq("id", uid);
         if (error) return json({ error: error.message }, 400);
       }
-      avisar(pu.email, "Tu cuenta ya está activa",
-        `${hola(pu.nombre)}\n\nEl administrador aprobó tu cuenta del Armador de flyers. Ya podés entrar con tu mail y tu clave.`);
+      avisar(pu.email, MAILS.cuentaActiva(pu.nombre));
       return json({ ok: true });
     }
 
@@ -272,9 +397,7 @@ Deno.serve(async (req: Request) => {
       const { data: u } = await admin.auth.getUser(token);
       if (!u?.user) return json({ error: "No autorizado" }, 403);
       const ps = await perfil(u.user.id);
-      avisar(u.user.email || ps?.email, "Se cambió la clave de tu cuenta",
-        `${hola(ps?.nombre || "")}\n\nSe cambió la clave de tu cuenta del Armador de flyers.\n\n` +
-        `Si NO fuiste vos, avisale al administrador cuanto antes.`);
+      avisar(u.user.email || ps?.email, MAILS.claveCambiadaPropia(ps?.nombre || ""));
       return json({ ok: true });
     }
 
@@ -298,9 +421,7 @@ Deno.serve(async (req: Request) => {
       );
       // Sólo si quedó activa: una cuenta creada inactiva recibe el aviso
       // cuando se la active (approve_user).
-      if (status === "active") avisar(email, "Te crearon una cuenta en el Armador de flyers",
-        `${hola(full_name)}\n\nEl administrador te creó una cuenta en el Armador de flyers. ` +
-        `Tu usuario es este mail. La clave te la pasa el administrador.`);
+      if (status === "active") avisar(email, MAILS.cuentaCreada(full_name, email));
       return json({ ok: true, id: data.user.id });
     }
 
@@ -312,9 +433,7 @@ Deno.serve(async (req: Request) => {
       const { error } = await admin.auth.admin.updateUserById(uid, { password });
       if (error) return json({ error: error.message }, 400);
       const pp = await perfil(uid);
-      if (pp) avisar(pp.email, "El administrador cambió tu clave",
-        `${hola(pp.nombre)}\n\nEl administrador cambió la clave de tu cuenta del Armador de flyers. La nueva te la pasa él.\n\n` +
-        `Si no esperabas este cambio, hablá con el administrador.`);
+      if (pp) avisar(pp.email, MAILS.claveCambiadaAdmin(pp.nombre));
       return json({ ok: true });
     }
 

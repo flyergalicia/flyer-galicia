@@ -22,7 +22,7 @@
  *  6. Copiar la "URL de la aplicación web" (termina en /exec) y pasársela a
  *     Claude.
  *
- * Si algún día se cambia el código: "Implementar" → "Administrar
+ * Si algún día se cambia el código (ej. para sumar el diseño HTML de los mails): "Implementar" → "Administrar
  * implementaciones" → lápiz → Versión "Nueva versión" → "Implementar"
  * (así la URL no cambia).
  */
@@ -41,8 +41,12 @@ function doPost(e) {
     var body = String(d.body || '').slice(0, 4000);
     if (!subject || !body) return resp({ ok: false, error: 'faltan datos' });
     if (MailApp.getRemainingDailyQuota() < to.length) return resp({ ok: false, error: 'sin cupo diario' });
-    // Sólo texto plano: nada de HTML ni links.
-    MailApp.sendEmail({ to: to.join(','), subject: subject, body: body, name: NOMBRE });
+    // Versión con diseño (HTML, sin links ni imágenes) + texto plano de respaldo.
+    // Si no llega 'html', sale sólo el texto.
+    var html = String(d.html || '').slice(0, 20000);
+    var op = { to: to.join(','), subject: subject, body: body, name: NOMBRE };
+    if (html) op.htmlBody = html;
+    MailApp.sendEmail(op);
     return resp({ ok: true });
   } catch (err) {
     return resp({ ok: false, error: String(err && err.message || err) });
