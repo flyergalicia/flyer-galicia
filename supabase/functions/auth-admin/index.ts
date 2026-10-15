@@ -162,7 +162,13 @@ function avisar(to: string | string[] | null | undefined, m: Mail): void {
   const rt = (globalThis as any).EdgeRuntime;
   if (rt && typeof rt.waitUntil === "function") rt.waitUntil(p);
 }
+// A dónde llegan los avisos al administrador. Se fija con el secreto MAIL_ADMIN
+// (lista separada por comas): el mail con el que el admin ingresa a la app
+// puede no ser el que quiere para estos avisos (en la base figura el de
+// ingreso). Sin ese secreto, se usan los mails de los admin activos.
+const MAIL_ADMIN = (Deno.env.get("MAIL_ADMIN") || "").split(",").map((x) => x.trim()).filter((x) => MAIL_RE.test(x));
 async function mailsAdmins(): Promise<string[]> {
+  if (MAIL_ADMIN.length) return MAIL_ADMIN;
   const { data } = await admin.from("profiles").select("email").eq("role", "admin").eq("status", "active");
   return (data || []).map((r: { email: string | null }) => r.email || "").filter(Boolean);
 }
