@@ -34,6 +34,94 @@ function _callEdgeFn(url,action,payload,cb){
   }).catch(function(e){cb((e&&e.message)||'Error de red');});
 }
 
+// ── JSON DE CONFIGURACIÓN DEL BUCKET ─────────────────────────────────────────────
+// Opciones, facultades, títulos, cashback, y el flyer activo y el legal de cada
+// opción son JSON públicos del bucket. Se piden SIEMPRE frescos (?t= + no-cache):
+// un cambio del admin se ve en la próxima carga (invariante: los JSON no se
+// cachean). Lo único que se reusa es una descarga pedida por adelantado
+// (_bucketJsonPre) que todavía nadie usó y tiene menos de _BJ_FRESCO: así el
+// ingreso pide todo junto apenas sabe que hay sesión, y cada cargador toma su
+// archivo cuando le toca, sin otra vuelta a la red. La primera lectura la
+// consume; la siguiente (un "Recargar" del admin, por ejemplo) vuelve a pedir.
+// Devuelve una promesa con el JSON, o null si el archivo no existe (404).
+var _BJ_FRESCO=30000,_bjPre={};
+function _bucketJsonPedir(file){
+  return fetch(FLYERS_PUBLIC+file+'?t='+Date.now(),{cache:'no-cache'})
+    .then(function(r){return r.ok?r.json():null;});
+}
+function _bucketJsonPre(file){
+  var e=_bjPre[file];
+  if(e&&Date.now()-e.t<_BJ_FRESCO)return e.p;
+  var p=_bucketJsonPedir(file);
+  p.catch(function(){}); // si falla, lo atiende quien la consuma (con su propio catch)
+  _bjPre[file]={t:Date.now(),p:p};
+  return p;
+}
+function _bucketJson(file){
+  var e=_bjPre[file];
+  if(e){delete _bjPre[file];if(Date.now()-e.t<_BJ_FRESCO)return e.p;}
+  return _bucketJsonPedir(file);
+}
+// Ingreso: lo que la app va a necesitar sí o sí se pide JUNTO, mientras se
+// consulta el perfil. Antes iba en fila (perfil → opciones → facultades → datos
+// de la opción → legal → imagen): seis vueltas a la red hasta ver el flyer. Esto
+// sólo PIDE: el orden en que se APLICA cada cosa no cambia (las facultades
+// siguen esperando al perfil y a las opciones). Además adelanta la opción con
+// la que este usuario arrancó la vez anterior (fg_ultopt_<uid>, la anota
+// _fgPrevAbrir): sus datos, su legal y su imagen ya están viniendo cuando las
+// facultades confirman cuál le toca. Si la predicción falla, se pierden unos KB.
+var _fgPreImg={};
+function _fgPrecargaInicio(uid){
+  [OPCIONES_FILE,FACULTADES_FILE,TITULOS_FILE,CASHBACK_FILE].forEach(_bucketJsonPre);
+  var ult={};try{ult=JSON.parse(localStorage.getItem('fg_ultopt_'+uid)||'{}')||{};}catch(e){}
+  if(typeof ult!=='object')ult={o:ult}; // sólo el número de opción, sin imagen
+  var n=parseInt(ult.o,10)||0;
+  _fgPrecargaOpt(1,n<=1,n===1?ult.img:'');
+  if(n>1)_fgPrecargaOpt(n,true,ult.img);
+}
+// Nombres "crudos": _activeFile/_legalFile pasan por _optN, que antes de que
+// lleguen las opciones sólo conoce la 1, 2 y 3. imgUrl: la imagen que tenía la
+// vez anterior; se empieza a bajar YA (si el admin la cambió, llega la nueva con
+// los datos de la opción y ésa se descarta).
+function _fgPrecargaOpt(n,conImagen,imgUrl){
+  var act=n===1?'_active.json':'_active'+n+'.json',leg=n===1?'_legal.json':'_legal'+n+'.json';
+  _bucketJsonPre(leg);
+  function bajar(url){
+    if(!conImagen||!url||(_fgPreImg[n]&&_fgPreImg[n].src===url))return;
+    var im=new Image();im.crossOrigin='anonymous';im.src=url;
+    _fgPreImg[n]=im;
+  }
+  if(typeof imgUrl==='string'&&imgUrl.indexOf(FLYERS_PUBLIC)===0)bajar(imgUrl);
+  _bucketJsonPre(act).then(function(d){if(d&&d.imageUrl)bajar(d.imageUrl);},function(){});
+}
+// La imagen precargada de una opción, si es la que pide url y no falló. Se usa
+// una sola vez: después cada carga de esa opción crea la suya, como siempre.
+function _fgPreImgDe(n,url){
+  var im=_fgPreImg[n];delete _fgPreImg[n];
+  if(!im||!url||im.src!==url)return null;
+  if(im.complete&&!im.naturalWidth)return null; // falló: que la pida de nuevo
+  return im;
+}
+
+// ── LECTURAS COMPLETAS (sin el corte de 1000 filas) ─────────────────────────────
+// PostgREST devuelve como mucho 1000 filas por consulta: sin paginar, una lista
+// más larga llega cortada EN SILENCIO. Pasó con el catálogo de promociones y con
+// las empresas del Hunter, y seguía pasando en los Excel de Registros, de flyers
+// generados y de cambios de empresas. armar(desde,hasta) arma la consulta de ESA
+// tanda, siempre con un orden estable (sin él, las tandas pueden repetir o
+// saltear filas). cb(error, filas): todas juntas, o las que llegaron hasta el error.
+var _SB_PAGINA=1000;
+function _sbTodo(armar,cb,pagina,desde,acc){
+  pagina=pagina||_SB_PAGINA;desde=desde||0;acc=acc||[];
+  armar(desde,desde+pagina-1).then(function(r){
+    if(r&&r.error){cb(r.error,acc);return;}
+    var filas=(r&&r.data)||[];
+    acc=acc.concat(filas);
+    if(filas.length===pagina)_sbTodo(armar,cb,pagina,desde+pagina,acc);
+    else cb(null,acc);
+  },function(e){cb(e,acc);});
+}
+
 // ── TEMA CLARO / OSCURO ─────────────────────────────────────────────────────────
 // La preferencia se guarda en localStorage (por navegador). Disponible para todos
 // los usuarios logueados (asesor y admin) desde el botón del header.
@@ -734,7 +822,7 @@ function initApp(){
   _fgUxInit();           // validación en línea, negrita del legal, teclado, "Otros", compartir
   _libInit();            // PDF/Excel/ZIP se cargan la primera vez que se usan (va después del motor: envuelve sus overrides)
   _sb.auth.onAuthStateChange(function(event){
-    if(event==='PASSWORD_RECOVERY'){showLoginView('forgot');}
+    if(event==='PASSWORD_RECOVERY'){_bootFin();showLoginView('forgot');}
     // Sesión cerrada por afuera (venció el refresh token, logout desde otra
     // pestaña): sin esto la app seguía "logueada" con _me seteado, y cada
     // guardado/registro fallaba en silencio. Recargar la lleva al login.
@@ -742,7 +830,11 @@ function initApp(){
   });
   _sb.auth.getSession().then(function(r){
     if(r.data&&r.data.session){checkProfile(r.data.session.user);}
-  });
+    else _bootFin(); // la sesión guardada ya no sirve: el formulario de siempre
+  }).catch(function(){_bootFin();});
+  // Red de seguridad del "Ingresando…": si la app no terminó de entrar en 10 s
+  // (red caída), aparece el formulario para que se pueda volver a intentar.
+  setTimeout(_bootFin,10000);
   var prevEl=document.querySelector('.prev');
   if(prevEl){
     // La rueda manda decenas de eventos por gesto; cada uno redibujaba el flyer entero
@@ -796,6 +888,13 @@ function initApp(){
   }
 }
 
+// "Ingresando…": si al abrir hay una sesión guardada, el script de arranque
+// (themeBoot en _build.mjs) marca <html> con fg-boot y el CSS cambia la tarjeta
+// del formulario por el aviso; antes se veía el formulario de usuario y clave un
+// instante aunque ya estuvieras adentro. Esto lo saca: cuando la app se muestra
+// o cuando hace falta el formulario (sesión vencida, cuenta pendiente/inactiva,
+// recuperar clave, o 10 s sin poder entrar).
+function _bootFin(){document.documentElement.classList.remove('fg-boot');}
 function showLoginView(v){
   ['login','forgot','register'].forEach(function(x){
     var el=document.getElementById('lv-'+x);
@@ -856,9 +955,11 @@ function doRegister(){
 }
 
 function checkProfile(user){
+  _fgPrecargaInicio(user.id); // la configuración viene en paralelo con el perfil
   _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades,es_prueba,lider_id').eq('id',user.id).single().then(function(r){
     var p=r.data;
     if(r.error||!p||p.status!=='active'){
+      _bootFin(); // hace falta el formulario: el mensaje va ahí
       var msg;
       if(r.error)msg='Error: '+r.error.message;
       else if(p&&p.status==='pending')msg='Tu cuenta está pendiente de aprobación del administrador.';
@@ -920,7 +1021,7 @@ function checkProfile(user){
     // Al Hunter: consultas sin responder y cambios resueltos que todavía no vio.
     if(p.role==='hunter')_hunPropCargarMias(_hunPropCartel);
     // Aplicar imagen del flyer activo (Opción 1)
-    _fetchActiveFlyer(function(imageUrl){
+    _fetchActiveFlyer(function(imageUrl,_nombre1,cfg1){
       _showApp();
       // Con la app ya visible, re-aplico: es idempotente, y recién acá puede
       // corregir la opción activa si este perfil no tiene habilitada la 1.
@@ -931,29 +1032,42 @@ function checkProfile(user){
       var _fb1=function(){if(!imageUrl&&_optN(_fgOpt)===1&&_can('opcion_1'))_fgBaseFallback();};
       if(_facLoaded){_applyFacultades();_tourAutoStart();_fb1();}
       else loadFacultades(false,function(){_applyFacultades();_tourAutoStart();_fb1();});
-      // Cacheo la Opción 1 para que volver a ella sea instantáneo
-      _fgOptCache[1]={loaded:true,cfg:window.FLYER_CFG||null,imageUrl:imageUrl,
+      // Cacheo la Opción 1 para que volver a ella sea instantáneo. El mapa es el
+      // de SU _active.json (cfg1), no window.FLYER_CFG: si el perfil ya pasó a la
+      // opción que le toca, el global es el de esa otra.
+      _fgOptCache[1]={loaded:true,cfg:cfg1||_readDocCfg()||null,imageUrl:imageUrl,
         name:_activeFlyerName,legal:null,img:null};
       // el legal viene de la misma descarga de arriba; si ya llegó, esto lo copia al caché
       _legal1P.then(function(t){_fgLegalArrived(1,t);});
       if(imageUrl&&window.baseImg){
-        var _ni=new Image();
-        _ni.crossOrigin='anonymous';
-        _ni.onload=function(){
-          window.baseImg=_ni;
+        // La imagen de la Opción 1 puede llegar DESPUÉS de que el perfil pasó a la
+        // opción que le toca (la 1 suele no estar habilitada): en ese caso se
+        // guarda en su caché y NO tapa a la que está en pantalla. Antes la pisaba:
+        // se veía el flyer de la 1 con el mapa de la otra (verificado con una
+        // imagen lenta en la prueba de arranque).
+        var _ni=_fgPreImgDe(1,imageUrl);
+        var _listo1=function(){
           if(_fgOptCache[1])_fgOptCache[1].img=_ni;
+          if(_optN(_fgOpt)!==1)return;
+          window.baseImg=_ni;
           if(typeof calcSC==='function')calcSC();
           if(typeof redraw==='function')redraw();
         };
-        _ni.onerror=function(){
-          console.warn('Active flyer image failed:',imageUrl);
-          _fgBaseFallback();
-        };
-        // Sin anti-caché: imageUrl ya trae ?v=<hora de activación> (cada activación
-        // y recalibración escribe uno nuevo), así que un flyer nuevo es otra
-        // dirección y se baja; el mismo flyer sale de la memoria del navegador
-        // en vez de bajar ~1 MB en cada ingreso.
-        _ni.src=imageUrl;
+        if(_ni&&_ni.complete)_listo1();
+        else{
+          var _pre1=!!_ni;
+          if(!_ni){_ni=new Image();_ni.crossOrigin='anonymous';}
+          _ni.onload=_listo1;
+          _ni.onerror=function(){
+            console.warn('Active flyer image failed:',imageUrl);
+            if(_optN(_fgOpt)===1)_fgBaseFallback();
+          };
+          // Sin anti-caché: imageUrl ya trae ?v=<hora de activación> (cada activación
+          // y recalibración escribe uno nuevo), así que un flyer nuevo es otra
+          // dirección y se baja; el mismo flyer sale de la memoria del navegador
+          // en vez de bajar ~1 MB en cada ingreso.
+          if(!_pre1)_ni.src=imageUrl;
+        }
       }
     });
   });
@@ -975,6 +1089,7 @@ function _showApp(){
   setTimeout(_fgPrevAbrir,8000);
   document.getElementById('hdr-right').style.display='flex';
   document.getElementById('login-ov').style.display='none';
+  _bootFin();
   // El Hunter no tiene armador: su pantalla la abre switchApp('hunter') desde
   // _applyFacultades/_inicioListo. Sin esta guarda se ve el armador un instante.
   // Tampoco el Líder: su pantalla es el tablero de Gestiones.
@@ -1228,15 +1343,23 @@ function _facMerge(saved){
 function loadFacultades(force,cb){
   loadOpciones(false,function(){_loadFacultadesRaw(force,cb);});
 }
+// Una sola descarga en vuelo: al entrar la pedían dos caminos a la vez (el que
+// aplica el gating y el de _showApp) y el archivo bajaba dos veces. Los que
+// llegan mientras viene se suman y se avisan juntos.
+var _facCbs=null;
 function _loadFacultadesRaw(force,cb){
   if(_facLoaded&&!force){if(cb)cb();return;}
-  fetch(FLYERS_PUBLIC+FACULTADES_FILE+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(d){
-      _FAC=_facMerge(d&&d.roles);
-      _facLoaded=true;
-      if(cb)cb();
-    }).catch(function(){_FAC=_facMerge(null);_facLoaded=true;if(cb)cb();});
+  if(_facCbs){if(cb)_facCbs.push(cb);return;}
+  _facCbs=cb?[cb]:[];
+  function fin(roles){
+    _FAC=_facMerge(roles);
+    _facLoaded=true;
+    var cbs=_facCbs;_facCbs=null;
+    cbs.forEach(function(f){try{f();}catch(e){console.error('facultades:',e);}});
+  }
+  _bucketJson(FACULTADES_FILE)
+    .then(function(d){return d&&d.roles;},function(){return null;})
+    .then(fin);
 }
 function saveFacultades(roles,cb){
   var meta=JSON.stringify({roles:roles,updated_at:new Date().toISOString()});
@@ -1418,8 +1541,12 @@ function switchApp(view){
   }
   // Armador: si la opción activa no es de esta solapa, paso a la última que usé
   // en ella (o a la primera habilitada). switchFlyerOption → _fgSyncVista marca
-  // la solapa y rearma la barra.
-  if(_optSolapa(_fgOpt)!==view){
+  // la solapa y rearma la barra. También si es de esta solapa pero el perfil no
+  // la tiene habilitada (al entrar todos arrancan en la 1, que casi nadie
+  // tiene): así la solapa de arranque cae en una opción permitida, llegue
+  // primero lo que llegue de la red. Sin facultades cargadas no hay ninguna
+  // habilitada y no se mueve nada, como antes.
+  if(_optSolapa(_fgOpt)!==view||!_can('opcion_'+_optN(_fgOpt))){
     var opts=_facOptsDe(view),ult=_fgUltOpt[view];
     if(opts.length){switchFlyerOption(opts.indexOf(ult)>=0?ult:opts[0]);return;}
   }
@@ -1912,20 +2039,13 @@ var _PROMOS_PAGINA=1000;
 var _PROMOS_FRESCURA_MS=6*3600*1000;
 function _promosTraerTodo(desde,acc,cb){
   // El .order('id') es imprescindible: sin un orden estable, paginar con
-  // .range() puede repetir o saltearse filas entre tandas.
-  _sb.from('promos_galicia_cache')
-    .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias')
-    .order('id',{ascending:true})
-    .range(desde,desde+_PROMOS_PAGINA-1)
-    .then(function(r){
-      if(r&&r.error){cb(r.error,acc);return;}
-      var filas=(r&&r.data)||[];
-      acc=acc.concat(filas);
-      // Si vino una tanda completa puede haber más; si vino corta, terminó.
-      if(filas.length===_PROMOS_PAGINA)_promosTraerTodo(desde+_PROMOS_PAGINA,acc,cb);
-      else cb(null,acc);
-    })
-    .catch(function(e){cb(e,acc);});
+  // .range() puede repetir o saltearse filas entre tandas (ver _sbTodo).
+  _sbTodo(function(d,h){
+    return _sb.from('promos_galicia_cache')
+      .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias')
+      .order('id',{ascending:true})
+      .range(d,h);
+  },cb,_PROMOS_PAGINA,desde,acc);
 }
 
 // Quienes esperan a que termine la carga en curso. Antes, si "Validar" se
@@ -2051,7 +2171,19 @@ function _promoDecodeEntities(s){
   for(var k in _PROMO_ENTITIES)s=s.split(k).join(_PROMO_ENTITIES[k]);
   return s;
 }
+// El resultado depende sólo del texto, así que se recuerda: "Validar" compara
+// cada marca contra las ~1.900 promos del catálogo y normalizaba el título de
+// cada una en cada marca (con 60 marcas, ~350.000 veces: la pantalla quedaba
+// congelada unos segundos). Ahora cada texto se normaliza una sola vez.
+var _promoNormC=new Map();
 function _promoNormalizar(s){
+  var k=String(s||''),v=_promoNormC.get(k);
+  if(v!==undefined)return v;
+  if(_promoNormC.size>=50000)_promoNormC.clear(); // techo de memoria
+  _promoNormC.set(k,v=_promoNormalizarCalc(k));
+  return v;
+}
+function _promoNormalizarCalc(s){
   return _promoDecodeEntities(s).toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g,'') // saca acentos (rango de marcas diacríticas combinantes)
     .replace(/['’´]/g,'') // saca apóstrofos sin dejar espacio (mcdonald's -> mcdonalds)
@@ -2071,12 +2203,26 @@ function _promoEsGenerica(t){return _PROMO_STOPWORDS.indexOf(t)>=0;}
 // Busca candidatos de una marca en el catálogo, con un puntaje de confianza.
 // Devuelve como mucho un candidato por título único (una marca puede tener
 // varias promos, una por tarjeta: no son "candidatos distintos" compitiendo).
+// Título normalizado, sus palabras y su forma sin espacios, POR PROMO: se arman
+// una vez y se recuerdan mientras exista el objeto (un catálogo nuevo trae
+// objetos nuevos; si el título cambiara, se rearma). Las palabras son de sólo
+// lectura: nadie las modifica.
+var _promoIdxC=(typeof WeakMap==='function')?new WeakMap():null;
+function _promoIdx(p){
+  var obj=!!(p&&typeof p==='object'),t=obj?p.titulo:undefined;
+  var e=(_promoIdxC&&obj)?_promoIdxC.get(p):null;
+  if(e&&e.t===t)return e;
+  var n=_promoNormalizar(t);
+  e={t:t,n:n,toks:_promoTokens(n),sinEsp:n.replace(/ /g,'')};
+  if(_promoIdxC&&obj)_promoIdxC.set(p,e);
+  return e;
+}
 function _promoBuscarCandidatos(marca,catalogo){
   var nMarca=_promoNormalizar(marca),tokensMarca=_promoTokens(nMarca);
   var sinEspMarca=_promoSinEspacios(marca);
   var scored=catalogo.map(function(p){
-    var nTitulo=_promoNormalizar(p.titulo),tokensTitulo=_promoTokens(nTitulo),score=0;
-    var sinEspTitulo=_promoSinEspacios(p.titulo);
+    var ix=_promoIdx(p),nTitulo=ix.n,tokensTitulo=ix.toks,score=0;
+    var sinEspTitulo=ix.sinEsp;
     if(nTitulo===nMarca)score=100;
     // "SushiClub" == "Sushi Club": misma marca escrita distinto.
     else if(sinEspMarca&&sinEspMarca===sinEspTitulo)score=95;
@@ -2948,8 +3094,7 @@ function _fgRenderCfgBtns(){
 }
 function loadCashback(force,cb){
   if(_cashbackLoaded&&!force){if(cb)cb();return;}
-  fetch(FLYERS_PUBLIC+CASHBACK_FILE+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
+  _bucketJson(CASHBACK_FILE)
     .then(function(d){
       if(d&&Array.isArray(d.configs)&&d.configs.length)_cbAplicar(d.configs);
       else _fgRenderCfgBtns();
@@ -3079,8 +3224,7 @@ function saveCashbackChanges(){
 // importa: '' se muestra vacío; null no debe pisar nada.
 function loadGlobalLegal(toEditor,opt){
   opt=_optN(opt);
-  return fetch(FLYERS_PUBLIC+_legalFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
+  return _bucketJson(_legalFile(opt))
     .then(function(d){
       var txt=(d&&typeof d.text==='string')?d.text:null;
       if(toEditor){var el=document.getElementById(_glegalId(opt));if(el)el.value=txt||'';}
@@ -3200,8 +3344,13 @@ function switchLegalTab(el,n){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function loadStats(){
-  _sb.from('profiles').select('id,role,status,full_name,email_asesor,last_login').order('last_login',{ascending:false}).then(function(r1){
-    _sb.from('flyer_logs').select('id',{count:'exact',head:true}).not('user_id','is',null).then(function(r2){
+  // Los usuarios y el total de flyers se piden a la vez (antes uno detrás del otro).
+  Promise.all([
+    _sb.from('profiles').select('id,role,status,full_name,email_asesor,last_login').order('last_login',{ascending:false}),
+    _sb.from('flyer_logs').select('id',{count:'exact',head:true}).not('user_id','is',null)
+  ]).then(function(res){
+    var r1=res[0]||{},r2=res[1]||{};
+    (function(){
       var p=r1.data||[];
       var act=p.filter(function(x){return x.status==='active';}).length;
       var adm=p.filter(function(x){return x.role==='admin';}).length;
@@ -3229,7 +3378,7 @@ function loadStats(){
           '<span class="recent-time">'+_fmtDate(u.last_login)+'</span>'+
           '</div>';
       }).join('');
-    });
+    })();
   });
 }
 
@@ -3508,7 +3657,12 @@ function uploadFile(file,opt){
   _rasterizeFlyer(file,function(blob,cvs){
     if(!blob){_upProg(false);errEl.textContent='No se pudo procesar el archivo.';return;}
     var imgName='flyer_'+Date.now()+'_op'+_optN(opt||1)+'.jpg'; // _opN: la opción queda en el nombre (ver _upOptDe)
-    _sb.storage.from('flyers').upload(imgName,blob,{contentType:'image/jpeg',upsert:true}).then(function(r){
+    // Caché de un año: el nombre lleva la hora, así que este archivo nunca se
+    // vuelve a escribir (un flyer nuevo es otro archivo) y cada usuario lo baja
+    // UNA vez en vez de una vez por hora (~1 MB). Sólo para nombres únicos: un
+    // archivo de nombre fijo que se re-sube (_active_img.jpg) queda en 1 hora,
+    // si no se seguiría viendo el viejo.
+    _sb.storage.from('flyers').upload(imgName,blob,{contentType:'image/jpeg',upsert:true,cacheControl:'31536000'}).then(function(r){
       _upProg(false);
       if(r.error){errEl.textContent='Error al subir: '+r.error.message;return;}
       okEl.textContent='¡Flyer convertido! Acomodá las zonas y guardá ('+_optLabel(opt||1)+').';
@@ -3703,12 +3857,20 @@ function _aplicarOpciones(list){
   _OPC={};l.forEach(function(o){_OPC[o.n]=o;});
   _FG_OPTS=l.map(function(o){return o.n;});
 }
+// Igual que las facultades: una sola descarga en vuelo, los demás esperan.
+var _opcCbs=null;
 function loadOpciones(force,cb){
   if(_opcLoaded&&!force){if(cb)cb();return;}
-  fetch(FLYERS_PUBLIC+OPCIONES_FILE+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(d){_aplicarOpciones(d&&d.opts);_opcLoaded=true;if(cb)cb();})
-    .catch(function(){_aplicarOpciones(null);_opcLoaded=true;if(cb)cb();});
+  if(_opcCbs){if(cb)_opcCbs.push(cb);return;}
+  _opcCbs=cb?[cb]:[];
+  function fin(list){
+    _aplicarOpciones(list);_opcLoaded=true;
+    var cbs=_opcCbs;_opcCbs=null;
+    cbs.forEach(function(f){try{f();}catch(e){console.error('opciones:',e);}});
+  }
+  _bucketJson(OPCIONES_FILE)
+    .then(function(d){return d&&d.opts;},function(){return null;})
+    .then(fin);
 }
 function saveOpciones(list,cb){
   var l=_opcSane(list);
@@ -3776,8 +3938,7 @@ function _optBadge(opt,extraCss){
     ';color:#fff;letter-spacing:.3px;'+(extraCss||'')+'" title="'+_escHtml(_optLabel(n))+'">OP.'+n+'</span>';
 }
 function _fetchActiveMeta(opt,cb){
-  fetch(FLYERS_PUBLIC+_activeFile(opt)+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
+  _bucketJson(_activeFile(opt))
     .then(function(d){cb(d||null);}).catch(function(){cb(null);});
 }
 // Barra de opciones: se inyecta arriba de los tabs Individual/Masivo/Historial.
@@ -3992,16 +4153,24 @@ function switchFlyerOption(opt,cb){
     if(_optN(_fgOpt)===opt){_fgApplyOption(cache);if(aviso)showToast(aviso);}
     waiters.forEach(function(f){try{f();}catch(e){console.error('switchFlyerOption cb:',e);}});
   };
+  // El legal se pide JUNTO con los datos de la opción (antes recién cuando éstos
+  // llegaban: una vuelta más a la red en cada cambio de opción). Se aplica en el
+  // mismo orden que siempre: primero los datos, después el legal, después la imagen.
+  var legalP=loadGlobalLegal(false,opt);
   _fetchActiveMeta(opt,function(d){
     var cache=_fgOptCache[opt]={loaded:false,cfg:(d&&d.cfg)||null,
       imageUrl:(d&&d.imageUrl)||null,name:(d&&d.name)||'',legal:null,img:null,legalEdited:keepEdited};
-    loadGlobalLegal(false,opt).then(function(txt){
+    legalP.then(function(txt){
       cache.legal=(typeof txt==='string')?txt:(opt===1?(window.LEGAL_DEFAULT||''):'');
       if(!cache.imageUrl){done(cache,_optLabel(opt)+' todavía no tiene flyer: subilo desde el panel.');return;}
-      var im=new Image();im.crossOrigin='anonymous';
+      // Si el ingreso ya la venía bajando (_fgPrecargaInicio), se usa esa.
+      var im=_fgPreImgDe(opt,cache.imageUrl);
+      if(im&&im.complete){cache.img=im;done(cache);return;}
+      var pre=!!im;
+      if(!im){im=new Image();im.crossOrigin='anonymous';}
       im.onload=function(){cache.img=im;done(cache);};
       im.onerror=function(){done(cache,'No se pudo cargar la imagen de '+_optLabel(opt));};
-      im.src=cache.imageUrl; // versionada por ?v= al activar: ver la carga inicial
+      if(!pre)im.src=cache.imageUrl; // versionada por ?v= al activar: ver la carga inicial
     });
   });
 }
@@ -4121,7 +4290,16 @@ var _inicioOrden=false,_inicioFac=false,_inicioHecho=false,_solapaAMano=false;
 // _fgApplyOption (cuando llegó la imagen de la otra), y como red de seguridad un
 // timeout en _showApp, para que un error de red no deje la pantalla en blanco.
 var _fgPrevGate=true;
-function _fgPrevAbrir(){if(!_fgPrevGate)return;_fgPrevGate=false;if(typeof redraw==='function')redraw();}
+function _fgPrevAbrir(){
+  if(!_fgPrevGate)return;_fgPrevGate=false;
+  // Con qué opción (y qué imagen) arrancó: la próxima vez _fgPrecargaInicio la
+  // empieza a bajar mientras se consulta el perfil.
+  try{
+    if(_me){var n=_optN(_fgOpt),c=_fgOptCache[n];
+      localStorage.setItem('fg_ultopt_'+_me.id,JSON.stringify({o:n,img:(c&&c.imageUrl)||''}));}
+  }catch(e){}
+  if(typeof redraw==='function')redraw();
+}
 function _inicioSolapaInit(){
   var h=document.querySelector('header');
   if(!h||h.dataset.inicioOk)return;
@@ -4169,8 +4347,7 @@ function _ptitleSync(){
   el.textContent=_titLabel(_ptitleKey());
 }
 function loadTitulos(cb){
-  fetch(FLYERS_PUBLIC+TITULOS_FILE+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
+  _bucketJson(TITULOS_FILE)
     .then(function(d){
       _TIT={};
       if(d&&typeof d==='object')Object.keys(_TIT_DEF).forEach(function(k){if(typeof d[k]==='string')_TIT[k]=d[k].replace(/[<>]/g,'').trim().slice(0,40);});
@@ -4258,16 +4435,18 @@ function _titGestosOrden(){
 // imageUrl apunta a _active_img.jpg subido al bucket (imagen extraída del HTML)
 
 function _fetchActiveFlyer(cb){
-  fetch(FLYERS_PUBLIC+'_active.json?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;})
+  _bucketJson('_active.json')
     .then(function(d){
       _activeFlyerUrl=(d&&d.imageUrl)||null;
       _activeFlyerName=(d&&d.name)||'';
+      var cfg=(d&&d.cfg&&typeof d.cfg==='object')?d.cfg:null;
       // El flyer activo trae su propio "mapa" de coordenadas → se dibuja alineado.
-      if(d&&d.cfg&&typeof d.cfg==='object')window.FLYER_CFG=d.cfg;
-      if(cb)cb(_activeFlyerUrl,_activeFlyerName);
+      // Sólo si la que está en pantalla sigue siendo la Opción 1: si el perfil ya
+      // pasó a la opción que le toca, ponerle el mapa de la 1 la desalinearía.
+      if(cfg&&_optN(_fgOpt)===1)window.FLYER_CFG=cfg;
+      if(cb)cb(_activeFlyerUrl,_activeFlyerName,cfg);
     })
-    .catch(function(){_activeFlyerUrl=null;_activeFlyerName='';if(cb)cb(null,'');});
+    .catch(function(){_activeFlyerUrl=null;_activeFlyerName='';if(cb)cb(null,'',null);});
 }
 
 // Al activar: descarga el HTML, extrae la imagen en base64, la sube como _active_img.jpg
@@ -4748,9 +4927,26 @@ function fgDrawAll(c,s,v){
 // mismo que sale en el flyer descargado.
 // Muestrea 5 puntos y devuelve la mediana (una letra suelta no lo desvía). Si la
 // imagen no deja leer píxeles (cargada sin CORS), cae en fallback.
+// El color de un punto fijo de una imagen fija no cambia: se recuerda por imagen
+// y coordenadas (antes se leían píxeles 5-6 veces en cada tecla). Si la imagen
+// cambia de tamaño se olvida todo; con un tope, porque el calibrador pide puntos
+// nuevos a cada paso del arrastre. Un fallo (imagen sin CORS) no se recuerda.
 var _fgBgCv=null,_fgBgCtx=null;
+var _fgBgMemo=(typeof WeakMap==='function')?new WeakMap():null;
 function _fgBgMuestra(bx0,bx1,by,fallback){
   var im=window.baseImg;if(!im||!im.width)return fallback;
+  var mem=null,clave=bx0+'|'+bx1+'|'+by+'|'+_fgSE(1);
+  if(_fgBgMemo){
+    mem=_fgBgMemo.get(im);
+    if(!mem||mem.w!==im.width||mem.h!==im.height||mem.n>400){mem={w:im.width,h:im.height,n:0,c:Object.create(null)};_fgBgMemo.set(im,mem);}
+    var ya=mem.c[clave];if(ya!==undefined)return ya;
+  }
+  var col=_fgBgLeer(im,bx0,bx1,by,null);
+  if(col===null)return fallback;
+  if(mem){mem.c[clave]=col;mem.n++;}
+  return col;
+}
+function _fgBgLeer(im,bx0,bx1,by,fallback){
   try{
     var k=_fgSE(1);                                   // base → píxeles reales de la imagen
     var y=Math.max(0,Math.min(im.height-1,Math.round(by*k)));
@@ -5319,13 +5515,22 @@ function fgRedraw(){
   cc.clearRect(0,0,w,h);cc.drawImage(full,0,0);
 }
 // Descarga / preview modal / historial: canvas full-res ya recortado.
+// El canvas grande de trabajo (el flyer entero sin recortar, ~35 MB de memoria)
+// se reutiliza entre llamadas, como el de la vista previa: el masivo y "Generar
+// flyers" creaban y tiraban uno por flyer. save/restore deja el contexto en su
+// estado inicial en cada vuelta, igual que si fuera nuevo. El que se DEVUELVE
+// (recortado) sigue siendo nuevo cada vez: quien lo recibe puede guardarlo.
+var _fgResCv=null;
 function fgFullRes(v){
   _fgExtra=_fgExtraBaseFor(v);
-  var full=document.createElement('canvas');full.width=baseImg.width;
-  full.height=Math.round(baseImg.height+_fgExtra);
-  fgDrawAll(full.getContext('2d'),1.0,v); // setea _fgContentBottomBase
+  var W=baseImg.width,H=Math.round(baseImg.height+_fgExtra);
+  if(!_fgResCv)_fgResCv=document.createElement('canvas');
+  var full=_fgResCv,fctx=full.getContext('2d');
+  if(full.width!==W||full.height!==H){full.width=W;full.height=H;}else fctx.clearRect(0,0,W,H);
+  fctx.save();
+  try{fgDrawAll(fctx,1.0,v);}finally{fctx.restore();} // setea _fgContentBottomBase
   var h=Math.min(full.height,Math.round(_fgFinalHeightBase()));
-  var out=document.createElement('canvas');out.width=baseImg.width;out.height=h;
+  var out=document.createElement('canvas');out.width=W;out.height=h;
   out.getContext('2d').drawImage(full,0,0);
   return out;
 }
@@ -6147,8 +6352,7 @@ function _rasterizeFlyer(file,cb){
 }
 // Mapa de calibraciones por flyer: { "flyer_123.jpg": {cfg}, ... }
 function _loadFlyerCfgs(cb){
-  fetch(FLYERS_PUBLIC+'_flyer_cfgs.json?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():{};}).catch(function(){return {};})
+  _bucketJson('_flyer_cfgs.json').catch(function(){return {};})
     .then(function(m){cb(m&&typeof m==='object'?m:{});});
 }
 function _saveFlyerCfg(name,cfg,cb){
@@ -7043,14 +7247,31 @@ function logFlyerBulkToSupabase(n,origen){
   }).catch(function(e){console.warn('flyer_logs bulk failed:',e);});
 }
 // ── DESCARGAS: registro + historial con opción ────────────────────────────────
+// El PDF de un flyer (canvas ya recortado): una página de 210 mm de ancho y el
+// alto exacto del flyer, con la imagen en JPEG 0,95. Era el mismo bloque copiado
+// en cuatro lugares (descarga, masivo, generar desde la base y compartir).
+function _fgPdfDe(fc){
+  var jsPDF=window.jspdf.jsPDF,pw=210,ph=(fc.height/fc.width)*pw;
+  var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
+  pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+  return pdf;
+}
+// Generación en tanda (masivo, "Generar flyers", descarga múltiple del Hunter):
+// entre flyer y flyer se cede el hilo lo justo para que se pinte la barra de
+// progreso, un cuadro. Antes había pausas fijas de 200/120/60 ms: con 100 flyers
+// eran 12 a 20 segundos de espera pura. El setTimeout de respaldo cubre la
+// pestaña en segundo plano, donde requestAnimationFrame no corre.
+function _fgCeder(fn){
+  var hecho=false;
+  function seguir(){if(hecho)return;hecho=true;fn();}
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(function(){setTimeout(seguir,0);});
+  setTimeout(seguir,50);
+}
 // OJO: logFlyerToSupabase existía pero NADIE lo llamaba => no se registraba ninguna
 // descarga. Lo engancho acá pisando savePDF/savePNG de _source.html (que regenera).
 function fgSavePDF(fc,v,force){
   if(!force&&_padCheckRubro(_padFilaActual(),'descarga',function(){fgSavePDF(fc,v,true);}))return;
-  var jsPDF=window.jspdf.jsPDF;
-  var pw=210,ph=(fc.height/fc.width)*pw;
-  var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
-  pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+  var pdf=_fgPdfDe(fc);
   var fn=buildFn(document.getElementById('filename').value,v);
   pdf.save(fn+'.pdf');
   addHistory(v,fn,fc);
@@ -7143,11 +7364,7 @@ function fgGenAll(){
       v['has'+i]=nom!=='';
       v['nombre'+sfx]=nom;v['celular'+sfx]=ce?'Cel: '+ce:'';v['email'+sfx]=ma;
     });
-    var fc=fullRes(v);
-    var jsPDF=window.jspdf.jsPDF;
-    var pw=210,ph=(fc.height/fc.width)*pw;
-    var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
-    pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
+    var fc=fullRes(v),pdf=_fgPdfDe(fc);
     // Dos filas con la misma razón social generaban el MISMO nombre y la segunda
     // pisaba a la primera: el ZIP salía con menos flyers de los que decía.
     var base='Flyer '+_fgSafeName(v.empresa),nom=base;
@@ -7157,7 +7374,7 @@ function fgGenAll(){
     cur++;
     if(pf)pf.style.width=Math.round((cur/total)*100)+'%';
     if(pt)pt.textContent=cur<total?('Generando '+(cur+1)+' de '+total+'...'):'Finalizando...';
-    setTimeout(next,200);
+    _fgCeder(next);
   }
   next();
 }
@@ -7212,9 +7429,16 @@ function loadRegistros(){
   if(qemp.trim())query=query.ilike('empresa','%'+qemp.trim()+'%');
   if(qfrom)query=query.gte('created_at',qfrom+'T00:00:00');
   if(qto)query=query.lte('created_at',qto+'T23:59:59');
-  query.limit(300).then(function(r){
+  // Los registros y los nombres de los usuarios se piden A LA VEZ (antes los
+  // nombres recién cuando llegaban los registros: una vuelta más a la red).
+  var r=null,profileMap=null;
+  query.limit(300).then(function(x){r=x;pintar();});
+  _loadProfileMap(function(m){profileMap=m;pintar();});
+  function pintar(){
+    if(!r)return;
     if(r.error){container.innerHTML='<p style="color:var(--red);font-size:.8rem">Error: '+_escHtml(r.error.message)+'</p>';return;}
-    _loadProfileMap(function(profileMap){
+    if(!profileMap)return;
+    (function(){
       var data=(r.data||[]).filter(function(row){return row.user_id;});
       if(qusr.trim()){
         var ql=qusr.trim().toLowerCase();
@@ -7255,8 +7479,8 @@ function loadRegistros(){
           '<span class="reg-fecha">'+_fmtDate(row.created_at)+'</span>'+
           '</div>';
       }).join('');
-    });
-  });
+    })();
+  }
 }
 
 function exportRegistros(){
@@ -7266,13 +7490,21 @@ function exportRegistros(){
   var qusr=(document.getElementById('reg-q-user')||{}).value||'';
   var qfrom=(document.getElementById('reg-q-from')||{}).value||'';
   var qto=(document.getElementById('reg-q-to')||{}).value||'';
-  var query=_sb.from('flyer_logs').select('id,user_id,empresa,config_name,format,flyer_type,created_at')
-    .not('user_id','is',null).order('created_at',{ascending:false});
-  if(qemp.trim())query=query.ilike('empresa','%'+qemp.trim()+'%');
-  if(qfrom)query=query.gte('created_at',qfrom+'T00:00:00');
-  if(qto)query=query.lte('created_at',qto+'T23:59:59');
-  query.then(function(r){
-    if(btn){btn.textContent='&#11015; Exportar Excel';btn.disabled=false;}
+  // TODO lo que coincide, por tandas (_sbTodo): antes se cortaba en 1000 filas sin
+  // avisar. El id desempata el orden para que ninguna tanda repita ni saltee filas.
+  function armar(d,h){
+    var query=_sb.from('flyer_logs').select('id,user_id,empresa,config_name,format,flyer_type,created_at')
+      .not('user_id','is',null).order('created_at',{ascending:false}).order('id',{ascending:false});
+    if(qemp.trim())query=query.ilike('empresa','%'+qemp.trim()+'%');
+    if(qfrom)query=query.gte('created_at',qfrom+'T00:00:00');
+    if(qto)query=query.lte('created_at',qto+'T23:59:59');
+    return query.range(d,h);
+  }
+  _sbTodo(armar,function(err,filas){
+    // innerHTML: con textContent el botón quedaba mostrando "&#11015;" en letras.
+    if(btn){btn.innerHTML='&#11015; Exportar Excel';btn.disabled=false;}
+    if(err){showToast('No se pudo exportar: '+(err.message||err));return;}
+    var r={data:filas};
     if(!r.data||!r.data.length){showToast('Sin datos para exportar');return;}
     _loadProfileMap(function(profileMap){
       var data=r.data.filter(function(row){return row.user_id;});
@@ -7450,10 +7682,12 @@ function exportPadronLog(){
   var btn=document.getElementById('btn-export-plog');
   if(btn){btn.textContent='Exportando...';btn.disabled=true;}
   var f=_plogFiltros();
-  _plogQuery(f,0).then(function(r){
+  // Todo el registro que coincide, por tandas (antes se cortaba en 1000 sin avisar).
+  _sbTodo(function(d,h){return _plogQuery(f,0).range(d,h);},function(err,filas){
+    var r={data:filas,error:err};
     if(btn){btn.innerHTML='&#11015; Exportar Excel';btn.disabled=false;}
     var data=_plogFiltraUser(r.data||[],f).filter(_plogRelevante);
-    if(r.error||!data.length){showToast(r.error?('Error: '+r.error.message):'Sin datos para exportar');return;}
+    if(r.error||!data.length){showToast(r.error?('Error: '+(r.error.message||r.error)):'Sin datos para exportar');return;}
     var rows=data.map(function(row){
       return{
         'Fecha/Hora':row.created_at?new Date(row.created_at).toLocaleString('es-AR'):'',
@@ -7475,15 +7709,21 @@ function exportPadronLog(){
 
 function loadFlyerLogs(){
   var el=document.getElementById('recent-flyers');if(!el)return;
+  // Los últimos flyers y los nombres de los usuarios, a la vez.
+  var r=null,profileMap=null;
   _sb.from('flyer_logs').select('id,user_id,empresa,config_name,format,created_at')
     .not('user_id','is',null)
     .order('created_at',{ascending:false}).limit(10)
-    .then(function(r){
+    .then(function(x){r=x;pintar();});
+  _loadProfileMap(function(m){profileMap=m;pintar();});
+  function pintar(){
+      if(!r)return;
       var data=(r.data||[]).filter(function(row){return row.user_id;});
       if(!data.length){
         el.innerHTML='<p style="color:var(--gray);font-size:.8rem">Sin flyers generados aún. Cuando un usuario descargue un flyer aparecerá aquí.</p>';return;
       }
-      _loadProfileMap(function(profileMap){
+      if(!profileMap)return;
+      (function(){
         el.innerHTML=data.map(function(row){
           var nombre=profileMap[row.user_id]||row.user_id||'Usuario';
           var ini=_initials(nombre,'');
@@ -7496,16 +7736,22 @@ function loadFlyerLogs(){
             '<span class="recent-time">'+_fmtDate(row.created_at)+'</span>'+
             '</div>';
         }).join('');
-      });
-    });
+      })();
+  }
 }
 
 function exportFlyerLogsExcel(){
   var btn=document.getElementById('btn-export-excel');
   if(btn){btn.textContent='Exportando...';btn.disabled=true;}
-  _sb.from('flyer_logs').select('id,user_id,empresa,config_name,format,created_at')
-    .not('user_id','is',null).order('created_at',{ascending:false}).then(function(r){
-    if(btn){btn.textContent='&#11015; Exportar Excel';btn.disabled=false;}
+  // Todos los registros, por tandas (antes se cortaba en 1000 sin avisar).
+  _sbTodo(function(d,h){
+    return _sb.from('flyer_logs').select('id,user_id,empresa,config_name,format,created_at')
+      .not('user_id','is',null).order('created_at',{ascending:false}).order('id',{ascending:false}).range(d,h);
+  },function(err,filas){
+    // innerHTML: con textContent el botón quedaba mostrando "&#11015;" en letras.
+    if(btn){btn.innerHTML='&#11015; Exportar Excel';btn.disabled=false;}
+    if(err){showToast('No se pudo exportar: '+(err.message||err));return;}
+    var r={data:filas};
     if(!r.data||!r.data.length){showToast('Sin datos para exportar');return;}
     _loadProfileMap(function(profileMap){
       var rows=r.data.filter(function(row){return row.user_id;}).map(function(row){
@@ -7698,7 +7944,18 @@ function _padRubroLabel(r){
 }
 function _padRubroIgual(a,b){a=_padRubroSane(a);b=_padRubroSane(b);return a.opcion===b.opcion&&(!a.opcion||(a.importe===b.importe&&(a.importe2||a.importe)===(b.importe2||b.importe)));}
 
+// Se recuerda por texto (depende sólo de él): el buscador de empresas y el del
+// Hunter normalizaban la razón social de CADA fila en cada tecla, y el orden de
+// la lista del Hunter, dos veces por comparación.
+var _padNormC=new Map();
 function _padNorm(s){
+  var k=(s==null?'':String(s)),v=_padNormC.get(k);
+  if(v!==undefined)return v;
+  if(_padNormC.size>=50000)_padNormC.clear(); // techo de memoria
+  _padNormC.set(k,v=_padNormCalc(k));
+  return v;
+}
+function _padNormCalc(s){
   return (s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 }
 function _padKey(s){return _padNorm(s).replace(/[^a-z0-9]/g,'');}
@@ -8453,7 +8710,7 @@ function _pgGenerarRows(rows,fmt,ui,zipBase,resolver){
       var lista=grupos[opt],k=0,carpeta=_fgSafeName(_pgFormatoLbl(opt).replace(' · ',' - ')),usados={};
       res.carpetas[opt]=carpeta;
       function uno(){
-        if(k>=lista.length){setTimeout(grupo,60);return;}
+        if(k>=lista.length){_fgCeder(grupo);return;}
         var r=lista[k++];
         if(txt)txt.textContent='Generando '+(hecho+1)+' de '+n+' — '+_pgFormatoLbl(opt)+': '+(r.empresa||'');
         try{
@@ -8461,16 +8718,11 @@ function _pgGenerarRows(rows,fmt,ui,zipBase,resolver){
           var base='Flyer '+_fgSafeName(v.empresa||'empresa'),nom=base;
           usados[base]=(usados[base]||0)+1;if(usados[base]>1)nom=base+' ('+usados[base]+')';
           if(fmt==='png')zip.file(carpeta+'/'+nom+'.png',fc.toDataURL('image/png').split(',')[1],{base64:true});
-          else{
-            var jsPDF=window.jspdf.jsPDF,pw=210,ph=(fc.height/fc.width)*pw;
-            var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
-            pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
-            zip.file(carpeta+'/'+nom+'.pdf',pdf.output('arraybuffer'));
-          }
+          else zip.file(carpeta+'/'+nom+'.pdf',_fgPdfDe(fc).output('arraybuffer'));
           res.total++;res.porOpt[opt]=(res.porOpt[opt]||0)+1;
         }catch(e){res.errores.push((r.empresa||'?')+': '+((e&&e.message)||e));}
         hecho++;if(fill)fill.style.width=Math.round(hecho/n*100)+'%';
-        setTimeout(uno,120);
+        _fgCeder(uno);
       }
       uno();
     });
@@ -10867,10 +11119,7 @@ function _fgBusy(btn,on){
   else{if(btn.dataset.fgHtml)btn.innerHTML=btn.dataset.fgHtml;btn.classList.remove('fg-busy');}
 }
 function _fgPdfFile(fc,fn){
-  var jsPDF=window.jspdf.jsPDF,pw=210,ph=(fc.height/fc.width)*pw;
-  var pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pw,ph]});
-  pdf.addImage(fc.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,ph);
-  return new File([pdf.output('blob')],fn+'.pdf',{type:'application/pdf'});
+  return new File([_fgPdfDe(fc).output('blob')],fn+'.pdf',{type:'application/pdf'});
 }
 function _fgCompartirCanvas(fc,v,force){
   if(!force&&typeof _padCheckRubro==='function'&&_padCheckRubro(_padFilaActual(),'descarga',function(){_fgCompartirCanvas(fc,v,true);}))return;
@@ -11357,7 +11606,11 @@ function _hunCargar(force,cb){
     // El orden lo pone el cliente: el de la base es por id (hace falta una clave
     // única para paginar sin repetir ni saltear filas) y dos oficiales pueden
     // tener cargada la misma razón social.
-    _hunRows.sort(function(a,b){return _padNorm(a.empresa).localeCompare(_padNorm(b.empresa));});
+    // Collator: compara igual que localeCompare (mismo idioma y opciones por
+    // defecto) pero sin rearmar el comparador en cada una de las miles de
+    // comparaciones del orden.
+    var _col=(typeof Intl!=='undefined'&&Intl.Collator)?new Intl.Collator():null;
+    _hunRows.sort(function(a,b){var x=_padNorm(a.empresa),y=_padNorm(b.empresa);return _col?_col.compare(x,y):x.localeCompare(y);});
     // Índice ESTABLE por fila (para la descarga múltiple: la selección sobrevive
     // a que la lista se filtre al tipear, porque _hunHits son las mismas
     // referencias que _hunRows, no copias).
@@ -11370,16 +11623,10 @@ function _hunCargar(force,cb){
 function _hunTraerTodo(desde,acc,cb){
   // ',user_id': quién es el dueño — lo necesita la propuesta de cambio de
   // oficiales (padron_propuesta_crear exige el dueño) y la tarjeta "pendiente
-  // de aprobación" (compara contra _hunPropMias).
-  _sb.from(_PADRON_TABLE).select(_PADRON_COLS+',id,user_id').order('id',{ascending:true})
-    .range(desde,desde+_HUN_PAGINA-1)
-    .then(function(r){
-      if(r&&r.error){cb(r.error,acc);return;}
-      var filas=(r&&r.data)||[];
-      acc=acc.concat(filas);
-      if(filas.length===_HUN_PAGINA)_hunTraerTodo(desde+_HUN_PAGINA,acc,cb);
-      else cb(null,acc);
-    }).catch(function(e){cb(e,acc);});
+  // de aprobación" (compara contra _hunPropMias). Por tandas: ver _sbTodo.
+  _sbTodo(function(d,h){
+    return _sb.from(_PADRON_TABLE).select(_PADRON_COLS+',id,user_id').order('id',{ascending:true}).range(d,h);
+  },cb,_HUN_PAGINA,desde,acc);
 }
 
 // Los oficiales POR NOMBRE: es lo que distingue dos cargas de la misma empresa

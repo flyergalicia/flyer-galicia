@@ -16,3 +16,6 @@ _padmin_*.html
 *.xlsx
 # Pruebas y parches de una sola vez (el repo es PUBLICO)
 scratchpad/
+# Capturas y logs de las pruebas con navegador: muestran la app logueada (con
+# nombres reales) y el repo es PUBLICO. Nunca se suben.
+.playwright-mcp/

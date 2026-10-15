@@ -69,6 +69,11 @@ if (_fontM) {
 html = html.replace(/<img src="data:image[^"]*" alt="Galicia" class="header-logo">/, headerIso);
 
 // ── SDK SUPABASE + auth.js EXTERNO ─────────────────────────────────────────
+// Origen del proyecto Supabase (el mismo SUPA_URL de auth.js: hay un check abajo
+// que avisa si alguna vez difieren) y la clave con la que supabase-js guarda la
+// sesión en localStorage ("sb-<ref>-auth-token", la lee themeBoot).
+const SUPA_ORIGIN = 'https://cajyjnxjbobdpltflgnb.supabase.co';
+const SB_SESSION_KEY = 'sb-' + new URL(SUPA_ORIGIN).hostname.split('.')[0] + '-auth-token';
 // Versión FIJA de supabase-js (antes era "@2" flotante: cualquier release nueva
 // del CDN entraba sola a producción y no se podía verificar su integridad).
 const SUPABASE_JS_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
@@ -151,6 +156,16 @@ const CSP_META = `<meta http-equiv="Content-Security-Policy" content="${CSP}">`;
 // Tiene que ir ANTES del primer <script> para cubrirlos a todos.
 html = html.replace('<meta charset="UTF-8">', '<meta charset="UTF-8">\n' + CSP_META);
 
+// ── PRECONEXIÓN A SUPABASE ──────────────────────────────────────────────────
+// Los primeros pedidos a la nube (perfil, configuración, imagen del flyer) salen
+// recién cuando auth.js terminó de bajar y de correr. Con el preconnect el
+// navegador abre la conexión (DNS + TCP + TLS) mientras tanto: una vuelta de red
+// menos antes de ver el flyer. Lleva crossorigin porque todos esos pedidos son
+// CORS anónimos (fetch de supabase-js, imágenes con crossOrigin='anonymous'):
+// sin el atributo, la conexión ya abierta no se reusaría. Va también en el export.
+const PRECONNECT_SUPA = `<link rel="preconnect" href="${SUPA_ORIGIN}" crossorigin>`;
+html = html.replace(CSP_META, () => CSP_META + '\n' + PRECONNECT_SUPA);
+
 // ── LAYOUT ID + oculto ─────────────────────────────────────────────────────
 html = html.replace('<div class="layout">', '<div class="layout" id="layout" style="display:none">');
 
@@ -230,6 +245,12 @@ const loginOverlay = `<div id="login-ov">
   </div>
   <div class="login-card">
 
+    <div id="lv-boot" role="status" aria-live="polite">
+      <span class="lv-boot-spin" aria-hidden="true"></span>
+      <h2 class="login-card-title">Ingresando&hellip;</h2>
+      <p class="login-card-sub">Estamos abriendo tu armador.</p>
+    </div>
+
     <div id="lv-login">
       <h2 class="login-card-title">Flyer Galicia</h2>
       <p class="login-card-sub">Ingres&aacute; con tu cuenta para continuar</p>
@@ -283,7 +304,10 @@ const loginOverlay = `<div id="login-ov">
  </div>
 </div>`;
 // Aplica el tema guardado lo antes posible para evitar parpadeo (flash) al cargar.
-const themeBoot = `<script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');}catch(e){document.documentElement.classList.add('t-marfil');}</script>`;
+// Y si hay una sesión de Supabase guardada, marca fg-boot: la tarjeta del ingreso
+// muestra "Ingresando…" en vez del formulario (antes el formulario aparecía un
+// instante aunque ya estuvieras adentro). auth.js la saca con _bootFin.
+const themeBoot = `<script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('${SB_SESSION_KEY}'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>`;
 html = html.replace('<body>', '<body>\n' + themeBoot + '\n' + loginOverlay);
 
 // ── ADMIN PANEL ─────────────────────────────────────────────────────────────
@@ -764,7 +788,10 @@ html = html.replace(
 // que esos reemplazos no agregaban nada y se fueron con las funciones.
 
 // ── CANVAS DINAMICO ─────────────────────────────────────────────────────────
-// Reemplazar baseImg.onload para usar calcSC (definida en auth.js)
+// Reemplazar baseImg.onload para usar calcSC (definida en auth.js).
+// El reencaje al cambiar el tamaño de la ventana lo hace auth.js (un solo
+// listener, con demora): acá había otro sin demora que repetía el mismo trabajo
+// en cada evento del arrastre.
 const oldOnload = `baseImg.onload=function(){
   cv.width=Math.round(baseImg.width*SC);
   cv.height=Math.round(baseImg.height*SC);
@@ -775,10 +802,7 @@ const newOnload = `baseImg.onload=function(){
   calcSC();
   redraw();
   updateFnPreview();
-};
-window.addEventListener('resize', function(){
-  if(baseImg.complete && baseImg.naturalWidth){ calcSC(); redraw(); }
-});`;
+};`;
 html = html.replace(oldOnload, newOnload);
 
 // ── initApp en DOMContentLoaded ─────────────────────────────────────────────
@@ -1098,7 +1122,7 @@ const checks = {
   'promos: match tolerante a espacios y palabras genericas': _authSrc.includes('function _promoSinEspacios(') && _authSrc.includes('var _PROMO_STOPWORDS=') && _authSrc.includes('function _promoEsGenerica(') && _authSrc.includes('sinEspMarca===sinEspTitulo') && html.includes('id="promos-validar-btn"') && _authSrc.includes('function _promosValidarBtn('),
   // El catalogo tiene ~1700 filas y PostgREST corta en 1000: sin paginar, las
   // marcas de la cola (SushiClub, Starbucks, Freddo...) no existian para la app.
-  'promos: catalogo paginado (limite de 1000 de PostgREST)': _authSrc.includes('function _promosTraerTodo(') && _authSrc.includes('var _PROMOS_PAGINA=1000') && _authSrc.includes(".order('id',{ascending:true})") && _authSrc.includes('.range(desde,desde+_PROMOS_PAGINA-1)'),
+  'promos: catalogo paginado (limite de 1000 de PostgREST)': _authSrc.includes('function _promosTraerTodo(') && _authSrc.includes('var _PROMOS_PAGINA=1000') && _authSrc.includes('function _sbTodo(') && /function _promosTraerTodo\([\s\S]*?\.order\('id',\{ascending:true\}\)\s*\.range\(d,h\);\s*\},cb,_PROMOS_PAGINA,desde,acc\);/.test(_authSrc),
   // Filtros por columna + buscador general, repintando solo el tbody para no
   // perder el foco del input en cada tecla.
   'promos: filtros por columna + buscador': html.includes('id="promos-buscar"') && html.includes('id="promos-search-box"') && _authSrc.includes('var _promosFiltros=') && _authSrc.includes('function _promoCoincideFiltro(') && _authSrc.includes('function _promosPintarFilas(') && _authSrc.includes("id=\"promos-tbody\"") && _authSrc.includes('function _promoLimpiarFiltros('),
@@ -1412,6 +1436,43 @@ const checks = {
   // measureText por palabra, ~1000 palabras en cada tecla).
   'perf: redraw coalescido por frame': _authSrc.includes('function fgRedrawCoalesced(') && _authSrc.includes('window.redraw=fgRedrawCoalesced') && _authSrc.includes('window.redrawNow=fgRedraw') && _authSrc.includes('requestAnimationFrame(function(){_fgRafId=0;fgRedraw();})'),
   'perf: legal con cache de medidas y de word-wrap': _authSrc.includes('function _fgMeas(') && _authSrc.includes('_fgLegalC[ck]') && _authSrc.includes('var ck=fs+') && !/c\.font=\(seg\.bold\?"bold ":""\)\+fs\+"px Arial/.test(_authSrc),
+  // ── Arranque (2026-10-14): de ~6 vueltas a la red en fila hasta ver el flyer a ~2 ──
+  // La conexión con Supabase se abre mientras baja auth.js, y apunta al MISMO
+  // proyecto que usa auth.js.
+  'perf: preconnect a Supabase (antes de los scripts)': html.includes(PRECONNECT_SUPA) && html.indexOf(PRECONNECT_SUPA) < html.indexOf('<script') && _authSrc.includes("var SUPA_URL='" + SUPA_ORIGIN + "'"),
+  // Todos los JSON del bucket pasan por _bucketJson (un solo fetch en el código),
+  // y el ingreso los pide juntos mientras consulta el perfil.
+  'perf: configuracion del bucket pedida junta al entrar (_bucketJson)': _authSrc.includes('function _bucketJson(') && _authSrc.includes('function _fgPrecargaInicio(') && _authSrc.includes('_fgPrecargaInicio(user.id)') && (_authSrc.match(/fetch\(FLYERS_PUBLIC\+/g) || []).length === 1,
+  'perf: facultades y opciones sin descargas repetidas': _authSrc.includes('if(_facCbs){if(cb)_facCbs.push(cb);return;}') && _authSrc.includes('if(_opcCbs){if(cb)_opcCbs.push(cb);return;}'),
+  'perf: legal de la opcion en paralelo con sus datos': /var legalP=loadGlobalLegal\(false,opt\);\s*_fetchActiveMeta\(opt,/.test(_authSrc),
+  // La imagen (y el mapa) de la Opción 1 que llegan tarde no tapan a la opción
+  // que el perfil ya tiene en pantalla.
+  'arranque: la Opcion 1 no pisa a otra opcion': _authSrc.includes('if(_optN(_fgOpt)!==1)return;') && _authSrc.includes('if(cfg&&_optN(_fgOpt)===1)window.FLYER_CFG=cfg;') && _authSrc.includes("||!_can('opcion_'+_optN(_fgOpt))){"),
+  'ux: Ingresando con sesion guardada (sin el formulario)': html.includes('id="lv-boot"') && html.includes(`localStorage.getItem('${SB_SESSION_KEY}'))_h.classList.add('fg-boot')`) && html.includes('html.fg-boot #lv-login') && _authSrc.includes('function _bootFin(') && (_authSrc.match(/_bootFin\(\)/g) || []).length >= 5,
+  // La caché de un año va SÓLO en archivos de nombre único (llevan la hora): uno
+  // de nombre fijo que se re-sube se seguiría viendo viejo un año.
+  'perf: imagenes de flyer con cache larga (solo nombres unicos)': (_authSrc.match(/cacheControl:'31536000'/g) || []).length === 1 && /var imgName='flyer_'\+Date\.now\(\)[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*_sb\.storage\.from\('flyers'\)\.upload\(imgName,blob,\{[^}]*cacheControl:'31536000'/.test(_authSrc),
+  // ── Operaciones que congelaban la pantalla (2026-10-14) ──
+  // Normalizar texto es puro: se recuerda por texto (y las palabras de cada promo,
+  // por promo). "Validar" de Promociones normalizaba ~350.000 veces.
+  'perf: normalizaciones recordadas (promos y empresas)': _authSrc.includes('function _promoNormalizarCalc(') && _authSrc.includes('var _promoNormC=new Map();') && _authSrc.includes('function _padNormCalc(') && _authSrc.includes('var _padNormC=new Map();') && _authSrc.includes('var ix=_promoIdx(p),nTitulo=ix.n,tokensTitulo=ix.toks'),
+  // Masivo / Generar flyers / descarga múltiple: sin pausas fijas entre flyers, un
+  // solo armado del PDF y el canvas grande reutilizado.
+  'perf: generacion en tanda sin pausas fijas': _authSrc.includes('function _fgCeder(') && !/setTimeout\((next|uno|grupo),\d+\)/.test(_authSrc) && (_authSrc.match(/_fgCeder\((next|uno|grupo)\)/g) || []).length === 3,
+  'perf: un solo armado del PDF (_fgPdfDe)': _authSrc.includes('function _fgPdfDe(') && (_authSrc.match(/pdf\.addImage\(/g) || []).length === 1 && (_authSrc.match(/new jsPDF\(/g) || []).length === 1,
+  'perf: canvas de alta resolucion reutilizado': _authSrc.includes('var _fgResCv=null;') && _authSrc.includes('fctx.save();') && _authSrc.includes('finally{fctx.restore();}'),
+  'perf: color de fondo de la vista previa recordado': _authSrc.includes('var _fgBgMemo=') && _authSrc.includes('function _fgBgLeer('),
+  // ── Errores de la revisión (2026-10-14) ──
+  // Los Excel de Registros / Flyers generados / Cambios de empresas se cortaban en
+  // 1000 filas sin avisar: ahora paginan, igual que el catálogo y el Hunter.
+  'exportes completos (sin el corte de 1000 filas)': _authSrc.includes('function _sbTodo(') &&
+    ['exportRegistros', 'exportFlyerLogsExcel', 'exportPadronLog'].every(f => ((_authSrc.match(new RegExp('function ' + f + '\\(\\)\\{[\\s\\S]*?\\n\\}')) || [''])[0]).includes('_sbTodo(')) &&
+    /function _hunTraerTodo\([\s\S]*?_sbTodo\(/.test(_authSrc),
+  // Las Edge Functions importan supabase-js con la MISMA versión fija que la app
+  // (con "@2" cada deploy tomaba la última 2.x sin que nadie la probara).
+  'seg: Edge Functions con supabase-js fijo (misma version que la app)': ['auth-admin', 'promos-galicia'].every(f =>
+    readFileSync(`supabase/functions/${f}/index.ts`, 'utf8').includes('https://esm.sh/@supabase/supabase-js@' + (SUPABASE_JS_URL.match(/supabase-js@([\d.]+)\//) || [])[1] + '"')),
+  'perf: un solo listener de resize (el de auth.js, con demora)': !/window\.addEventListener\('resize', function\(\)\{\s*if\(baseImg\.complete/.test(html) && _authSrc.includes("window.addEventListener('resize',function(){clearTimeout(_fgResizeT)"),
 };
 let _fallos = 0;
 for (const [k, v] of Object.entries(checks)) {

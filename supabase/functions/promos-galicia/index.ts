@@ -18,7 +18,9 @@
 // cliente para mostrar/ocultar la pestaña, pero validado acá del lado
 // servidor: la facultad del cliente es sólo interfaz, esto es lo que de
 // verdad autoriza o rechaza).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Versión FIJA, la misma que usa la app (SUPABASE_JS_URL en _build.mjs): con "@2"
+// cada deploy tomaba la última 2.x que hubiera, sin que nadie la probara.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("ADMIN_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -47,21 +49,21 @@ async function requireCan(req: Request): Promise<boolean> {
   if (!token) return false;
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data?.user) return false;
-  const { data: prof } = await admin
-    .from("profiles").select("role,status").eq("id", data.user.id).single();
+  // El perfil y las facultades se piden A LA VEZ (antes uno detrás del otro: cada
+  // llamada a esta función, por ejemplo cada tanda de fechas "Desde", pagaba
+  // una vuelta de red de más). Si las facultades no se pueden leer, no autoriza.
+  const [{ data: prof }, fac] = await Promise.all([
+    admin.from("profiles").select("role,status").eq("id", data.user.id).single(),
+    fetch(SUPABASE_URL + "/storage/v1/object/public/flyers/_facultades.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null),
+  ]);
   // Sólo cuentas activas: una desactivada/pendiente conserva el JWT hasta que
   // vence, pero no tiene que poder disparar consultas hacia Galicia.
   if (!prof || prof.status !== "active") return false;
   const role = prof.role || "";
   if (role === "admin") return true;
-  try {
-    const r = await fetch(SUPABASE_URL + "/storage/v1/object/public/flyers/_facultades.json");
-    if (!r.ok) return false;
-    const fac = await r.json();
-    return !!(fac?.roles?.[role]?.promos_buscar);
-  } catch {
-    return false;
-  }
+  return !!(fac?.roles?.[role]?.promos_buscar);
 }
 
 // ── Cliente hacia la API de Galicia (imitando el navegador real) ───────────

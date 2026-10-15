@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=46171d2395","integrity":"sha384-Y5OWpBlQHiMfPB36M2zCqjsvEsgSehtG6g+HlYqAF/FROCtSSicy0LEVshXDUa0B"}}'>
-<meta name="build-v" content="1fe8e41469">
+<meta name="build-v" content="0b751a9aa2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -949,6 +950,16 @@ html.dark .login-link{color:#7FB2FF;}
   .login-hero svg.lh-art{display:none;}
   .login-card{padding:26px 22px;}
 }
+/* "Ingresando…": con una sesión guardada (html.fg-boot, lo pone themeBoot) la
+   tarjeta muestra el aviso en vez del formulario. auth.js saca la clase al
+   mostrar la app o cuando hace falta el formulario (_bootFin). El !important
+   gana al display en línea que pone showLoginView. */
+#lv-boot{display:none;}
+html.fg-boot #lv-login,html.fg-boot #lv-forgot,html.fg-boot #lv-register{display:none !important;}
+html.fg-boot #lv-boot{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:240px;}
+#lv-boot .login-card-sub{margin:4px 0 0;}
+.lv-boot-spin{width:40px;height:40px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:fgBootSpin .8s linear infinite;margin-bottom:18px;}
+@keyframes fgBootSpin{to{transform:rotate(360deg);}}
 
 /* ---------- Panel admin ---------- */
 #admin-panel{background:var(--paper);}
@@ -1361,9 +1372,9 @@ html.dark .field select,html.dark .field input[type=month]{background-color:var(
   #mv-toggle button.on{background:var(--accent);color:#fff;}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=bab5fa88ac"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=a39c5d0cf2"></script></head>
 <body>
-<script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
+<script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
  <div class="login-shell">
   <div class="login-hero">
@@ -1372,6 +1383,12 @@ html.dark .field select,html.dark .field input[type=month]{background-color:var(
     <svg class="lh-art" viewBox="0 0 200 150" aria-hidden="true"><rect x="110" y="18" width="82" height="130" rx="6" fill="#fff" opacity=".5"/><rect x="70" y="30" width="82" height="130" rx="6" fill="#fff" opacity=".96"/><rect class="a-acc" x="80" y="40" width="62" height="22" rx="3"/><rect class="a-line" x="80" y="70" width="62" height="5" rx="2"/><rect class="a-line" x="80" y="80" width="46" height="5" rx="2"/><rect class="a-ink" x="80" y="96" width="28" height="14" rx="3"/><rect class="a-acc" x="114" y="96" width="28" height="14" rx="3"/><rect x="80" y="118" width="62" height="4" rx="2" fill="#F5DCC3"/><rect x="80" y="126" width="50" height="4" rx="2" fill="#F5DCC3"/><circle class="a-ink" cx="52" cy="112" r="22"/><path d="M40 112l9 9 17-19" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>
   <div class="login-card">
+
+    <div id="lv-boot" role="status" aria-live="polite">
+      <span class="lv-boot-spin" aria-hidden="true"></span>
+      <h2 class="login-card-title">Ingresando&hellip;</h2>
+      <p class="login-card-sub">Estamos abriendo tu armador.</p>
+    </div>
 
     <div id="lv-login">
       <h2 class="login-card-title">Flyer Galicia</h2>
@@ -1720,9 +1737,6 @@ baseImg.onload=function(){
   redraw();
   updateFnPreview();
 };
-window.addEventListener('resize', function(){
-  if(baseImg.complete && baseImg.naturalWidth){ calcSC(); redraw(); }
-});
 
 // ── TEXTO LEGAL EN CANVAS ────────────────────────────────
 // Zona: x=39 a x=1201 (1162px ancho), y_start=5640, fs=12px, lh=17px

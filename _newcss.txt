@@ -839,6 +839,16 @@ html.dark .login-link{color:#7FB2FF;}
   .login-hero svg.lh-art{display:none;}
   .login-card{padding:26px 22px;}
 }
+/* "Ingresando…": con una sesión guardada (html.fg-boot, lo pone themeBoot) la
+   tarjeta muestra el aviso en vez del formulario. auth.js saca la clase al
+   mostrar la app o cuando hace falta el formulario (_bootFin). El !important
+   gana al display en línea que pone showLoginView. */
+#lv-boot{display:none;}
+html.fg-boot #lv-login,html.fg-boot #lv-forgot,html.fg-boot #lv-register{display:none !important;}
+html.fg-boot #lv-boot{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:240px;}
+#lv-boot .login-card-sub{margin:4px 0 0;}
+.lv-boot-spin{width:40px;height:40px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:fgBootSpin .8s linear infinite;margin-bottom:18px;}
+@keyframes fgBootSpin{to{transform:rotate(360deg);}}
 
 /* ---------- Panel admin ---------- */
 #admin-panel{background:var(--paper);}
