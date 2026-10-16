@@ -2104,7 +2104,7 @@ function _promosSetSyncInfo(meta){
   }
   var d=new Date(meta.last_sync_at);
   el.textContent='Catálogo actualizado: '+d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+
-    _promosHace(d)+'. '+(meta.total||0).toLocaleString('es-AR')+' promociones.';
+    _promosHace(d)+'. '+(meta.total||0).toLocaleString('es-AR')+' promociones. Se actualiza solo todos los días a las 9.';
 }
 // Antigüedad de la copia en palabras. Importa que se vea: Galicia publica las
 // promos nuevas en tandas a lo largo del día, así que "de hace 20 horas" ya
@@ -2118,22 +2118,18 @@ function _promosHace(d){
   return ' (hace '+dd+(dd===1?' día)':' días)');
 }
 
-// Trae el catálogo completo a memoria + la metadata de sincronización. Si la
-// copia está vieja (ver _PROMOS_FRESCURA_MS) o nunca se sincronizó, dispara un sync solo antes
-// de mostrar nada, así el asesor no tiene que acordarse de apretar "Actualizar".
+// Trae el catálogo completo a memoria + la metadata de sincronización. Sólo
+// dispara un sync si el catálogo nunca se sincronizó: la copia la refresca
+// todos los días a las 9 una tarea programada en la base (pg_cron, migración
+// 024), y para lo publicado durante el día está el botón "Actualizar catálogo
+// ahora". Antes se refrescaba sola al abrir la solapa (copia de más de 6 h) y
+// al no encontrar una marca, y las dos cosas hacían esperar al asesor (pedido
+// del dueño, 16-oct-2026).
 // PostgREST corta cada consulta en 1000 filas. El catálogo tiene ~1700, así
 // que una sola select devolvía apenas las primeras 1000 y TODA marca que
 // cayera más abajo (SushiClub, Starbucks, Freddo, Volta...) parecía "no
 // existir". Por eso hay que traerlo por tandas hasta que una venga incompleta.
 var _PROMOS_PAGINA=1000;
-// Cuánto puede tener la copia antes de refrescarla sola al abrir la pestaña.
-// Estaba en 26hs y era demasiado: Galicia publica las campañas nuevas en tandas
-// durante el día (el 2026-10-02, con una copia de 23hs, faltaban 246 promos
-// nuevas — entre ellas Kosiuko, que arrancaba el 10/10) y esas marcas salían
-// como "no encontrada" aunque existieran. Un sync cuesta ~25 llamadas a Galicia
-// y lo comparten todos los usuarios, así que bajarlo a 6hs son 4 syncs al día
-// en el peor caso.
-var _PROMOS_FRESCURA_MS=6*3600*1000;
 function _promosTraerTodo(desde,acc,cb){
   // El .order('id') es imprescindible: sin un orden estable, paginar con
   // .range() puede repetir o saltearse filas entre tandas (ver _sbTodo).
@@ -2191,12 +2187,11 @@ function loadPromosCatalogo(cb){
     _promosPoblarProvincias();
     _promosPoblarRubros();
     _promosCatLoading=false;
-    var vencida=!meta||!meta.last_sync_at||(Date.now()-new Date(meta.last_sync_at).getTime())>_PROMOS_FRESCURA_MS;
-    // Auto-sync si la copia está vieja o si nunca se sincronizó (catálogo
-    // vacío y meta sin fecha). No se dispara cuando el vacío se explica por un
-    // error o por RLS (meta dice que hay filas): ahí sincronizar no arregla nada.
+    // Auto-sync sólo si nunca se sincronizó (catálogo vacío y meta sin fecha).
+    // No se dispara cuando el vacío se explica por un error o por RLS (meta
+    // dice que hay filas): ahí sincronizar no arregla nada.
     var nuncaSync=!_promosCat.length&&!(meta&&meta.total>0);
-    if(!(catRes&&catRes.error)&&((vencida&&_promosCat.length)||nuncaSync)&&!_promosSyncing){syncPromosCatalogo(false);}
+    if(!(catRes&&catRes.error)&&nuncaSync&&!_promosSyncing){syncPromosCatalogo(false);}
     _promosCatDone();
   }).catch(function(e){
     console.error('loadPromosCatalogo:',e);
@@ -2440,15 +2435,10 @@ function validarPromos(){
   // esperar que lo descubra mirando la tabla fila por fila.
   var aRevisar=resultados.filter(function(r){return r.necesitaRevision;});
   var noHallada=resultados.filter(function(r){return r.estado==='NO_ENCONTRADA';});
-  // Una marca sin ninguna coincidencia es, casi siempre, una promo que Galicia
-  // publicó después del último sync: la copia local no la tiene todavía. Antes
-  // de dar el "no existe" por bueno se refresca el catálogo y se vuelve a
-  // validar sola (una vez por visita). La tabla ya está pintada, así que si el
-  // sync falla el asesor igual se queda con el resultado de la copia vieja.
-  if(noHallada.length&&_promosPuedeResync()){
-    _promosResyncYRevalidar(noHallada);
-    return;
-  }
+  // Una marca sin ninguna coincidencia puede ser una promo que Galicia publicó
+  // después de la actualización de las 9. Antes se refrescaba el catálogo y se
+  // revalidaba sola, pero hacía esperar cada vez; ahora se avisa y el asesor
+  // decide si toca "Actualizar catálogo ahora".
   if(aRevisar.length||noHallada.length){
     var partes=[];
     if(aRevisar.length){
@@ -2457,7 +2447,8 @@ function validarPromos(){
       }).join(', ')+(aRevisar.length>3?'...':''));
     }
     if(noHallada.length){
-      partes.push(noHallada.length+' sin coincidencia: '+noHallada.slice(0,4).map(function(r){return r.marca;}).join(', ')+(noHallada.length>4?'...':''));
+      partes.push(noHallada.length+' sin coincidencia: '+noHallada.slice(0,4).map(function(r){return r.marca;}).join(', ')+(noHallada.length>4?'...':'')+
+        '. Si es una promo nueva de hoy, tocá «Actualizar catálogo ahora» y volvé a validar');
     }
     showToast(partes.join(' · '));
   }
@@ -2466,33 +2457,6 @@ function validarPromos(){
   // que son los que se van a mostrar como certeros.
   var ids=resultados.filter(function(r){return r.promo&&!r.necesitaRevision;}).map(function(r){return r.promo.id;});
   if(ids.length)_promosPedirDetalle(ids,resultados);
-}
-
-// ── Segunda oportunidad para las marcas "no encontradas" ───────────────────
-// Sólo una vez por visita, y sólo si el catálogo no se sincronizó ya en esta
-// carga: si viene recién bajado de Galicia, el "no está" es verdad y repetir el
-// sync sería hacer esperar al asesor para nada.
-var _promosResyncHecho=false;
-function _promosPuedeResync(){
-  if(_promosResyncHecho)return false;
-  // Con un sync en vuelo vale esperarlo: la copia nueva todavía no se vio.
-  if(_promosSyncing)return true;
-  return !_promosAutoSynced;
-}
-function _promosResyncYRevalidar(noHallada){
-  _promosResyncHecho=true;
-  var btn=_promosValidarBtn();
-  _promosBtnOcupado(btn,'Buscando promos nuevas...');
-  showToast('No encontré '+noHallada.slice(0,3).map(function(r){return r.marca;}).join(', ')+
-    (noHallada.length>3?' y '+(noHallada.length-3)+' más':'')+'. Puede ser una promo nueva: actualizo el catálogo y reviso de nuevo.');
-  syncPromosCatalogo(false,function(){
-    _promosBtnOcupado(btn,'');
-    // Se vuelve a validar pase lo que pase: con la copia nueva si el sync
-    // anduvo, y con la vieja si falló. Esta segunda vuelta ya no reintenta
-    // (_promosResyncHecho), así que termina en el aviso de siempre y en el
-    // pedido de las fechas "Desde".
-    validarPromos();
-  });
 }
 
 // ── Solapa "Promociones activas" ───────────────────────────────────────────
@@ -10799,7 +10763,7 @@ function _tourCapitulos(){
        texto:'La otra solapa va al rev&eacute;s: no peg&aacute;s nada y te trae <strong>todas las promociones vigentes</strong> de esa provincia. Adentro afin&aacute;s por <strong>localidad</strong> y por <strong>rubro</strong>, y con <strong>&laquo;Una sola fila por marca&raquo;</strong> queda una l&iacute;nea por marca (la que vence m&aacute;s tarde; el <strong>+N</strong> te dice cu&aacute;ntas junt&oacute; y cu&aacute;les). La fecha de inicio no viene en el listado: la trae el bot&oacute;n <strong>Completar fechas &laquo;Desde&raquo;</strong>. Ojo: al cambiar de solapa se vac&iacute;a la tabla.',
        antes:irPromos},
       {target:'#promos-sync-btn',titulo:'El cat&aacute;logo de Galicia',
-       texto:'La app se guarda una copia del listado de Galicia para no pedirlo cada vez (arriba te dice de cu&aacute;ndo es). Si Galicia carg&oacute; promociones nuevas hoy, toc&aacute; <strong>Actualizar cat&aacute;logo ahora</strong> y las trae.',
+       texto:'La app se guarda una copia del listado de Galicia para no pedirlo cada vez (arriba te dice de cu&aacute;ndo es) y la renueva sola <strong>todos los d&iacute;as a las 9</strong>. Si Galicia carg&oacute; promociones nuevas hoy, toc&aacute; <strong>Actualizar cat&aacute;logo ahora</strong> y las trae.',
        antes:irPromos}
     ]},
     {id:'gestiones',titulo:'Gestiones',cond:puedeGes,pasos:[

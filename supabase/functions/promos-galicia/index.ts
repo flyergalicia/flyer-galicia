@@ -67,6 +67,20 @@ async function requireCan(req: Request): Promise<boolean> {
   return !!(fac?.roles?.[role]?.promos_buscar);
 }
 
+// ── Tarea programada: la base dispara el sync todos los días a las 9 ───────
+// pg_cron (migración 024) llama a esta función sin usuario, con el header
+// x-cron-secret. La clave vive en los secretos de la función
+// (PROMOS_CRON_SECRET) y en el Vault de la base, nunca en el repo. Sólo
+// habilita la acción "sync": no da acceso a nada más.
+function esCron(req: Request): boolean {
+  const esperado = Deno.env.get("PROMOS_CRON_SECRET") || "";
+  const recibido = req.headers.get("x-cron-secret") || "";
+  if (esperado.length < 32 || recibido.length !== esperado.length) return false;
+  let dif = 0;
+  for (let i = 0; i < esperado.length; i++) dif |= esperado.charCodeAt(i) ^ recibido.charCodeAt(i);
+  return dif === 0;
+}
+
 // ── Cliente hacia la API de Galicia (imitando el navegador real) ───────────
 const GALICIA_BFF = "https://loyalty.bff.bancogalicia.com.ar/api/portal";
 const GALICIA_HEADERS: Record<string, string> = {
@@ -332,7 +346,7 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json(); } catch { /* body vacío */ }
   const action = body?.action;
 
-  const can = await requireCan(req);
+  const can = (action === "sync" && esCron(req)) || await requireCan(req);
   if (!can) return json({ error: "No autorizado" }, 403);
 
   try {
