@@ -2899,9 +2899,14 @@ function _promoFilaHtml(r,i){
     candSel='<select class="promos-cand-sel" onchange="_promoElegirCandidato('+i+',this.value)">'+
       '<option value="-1"'+(!r.promo?' selected':'')+'>— Elegir coincidencia —</option>'+opts+'</select>';
   }
-  return '<tr class="'+(r.excluir?'excluida':'')+'">'+
+  // Eligiendo marcas para "Armar franja": la primera columna es el botón "+"
+  // (con el número de orden si ya está elegida).
+  var eleg=(_fgElegir&&act&&r.promo&&r.promo.imagen)?_fgElegirNum(r):-1;
+  var primera=eleg>=0?
+    '<td><button type="button" class="promos-elegir'+(eleg?' on':'')+'" onclick="fgElegirToggle('+i+')" aria-pressed="'+(eleg?'true':'false')+'" title="'+(eleg?'Sacar de la franja':'Agregar a la franja')+'">'+(eleg?eleg:'+')+'</button></td>':
     '<td><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
-      ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>'+
+      ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>';
+  return '<tr class="'+(r.excluir?'excluida':'')+(eleg>0?' elegida':'')+'">'+primera+
     '<td>'+logo+'</td>'+
     (act?'':'<td>'+_escHtml(r.marca)+'</td>')+
     '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
@@ -12423,7 +12428,10 @@ function _fgLgAPantalla(x,y,w,h){
 }
 function fgLogosModo(on){
   _fgLg.on=(on===undefined)?!_fgLg.on:!!on;
-  if(!_fgLg.on&&_fgFr.modo){_fgFr.modo=false;var pv=document.querySelector('.prev');if(pv)pv.classList.remove('fg-fr-on');}
+  if(!_fgLg.on){
+    _fgFr.pendiente=null; // "Listo": lo que quedaba elegido para una franja ya no vuelve a aparecer
+    if(_fgFr.modo){_fgFr.modo=false;var pv=document.querySelector('.prev');if(pv)pv.classList.remove('fg-fr-on');}
+  }
   var prev=document.querySelector('.prev');if(prev)prev.classList.toggle('fg-lg-on',_fgLg.on);
   if(_fgLg.on&&!_promosCat)loadPromosCatalogo(); // así la ventana abre con la lista ya cargada
   _fgLgBarra();_fgLgMarcas();
@@ -12832,6 +12840,7 @@ var _FG_FR_MAX=30;
 var _fgFr={modo:false};
 function fgFranjaModo(on){
   _fgFr.modo=(on===undefined)?!_fgFr.modo:!!on;
+  if(!_fgFr.modo&&on===undefined)_fgFr.pendiente=null; // tocó "Cancelar franja": se descarta lo pendiente
   if(_fgFr.modo&&!_fgLg.on)fgLogosModo(true);
   var prev=document.querySelector('.prev');if(prev)prev.classList.toggle('fg-fr-on',_fgFr.modo);
   _fgLgBarra();
@@ -12910,6 +12919,89 @@ function _fgFrSolapa(a,r){
   var ix=Math.min(a.ox+a.ow,r.x+r.w)-Math.max(a.ox,r.x),iy=Math.min(a.oy+a.oh,r.y+r.h)-Math.max(a.oy,r.y);
   return (ix>0&&iy>0)?ix*iy/Math.max(1,Math.min(a.ow*a.oh,r.w*r.h)):0;
 }
+// ·· Elegir en Promociones → Activas, a pantalla completa ··
+// La ventana de la franja se cierra pero su selección (_fgElegir.st) sigue viva:
+// en la tabla de Activas cada fila trae un botón "+" (con el número de orden si
+// ya está elegida) y arriba una barra fija con "Volver a la franja". Volver
+// reabre la ventana con lo elegido y con los filtros que se dejaron en Activas.
+var _fgElegir=null;
+function _fgFrIrActivas(st){
+  _fgElegir={st:st};
+  switchApp('promos');
+  if(typeof switchPromoTab==='function')switchPromoTab('activas');
+  // los mismos filtros que en la ventana
+  _promosFiltros.repetidas=st.una!==false?'ocultar':'';
+  var um=document.getElementById('promos-unamarca');if(um)um.checked=st.una!==false;
+  _promosFiltros.online=st.sinOnline?'ocultar':'';
+  var so=document.getElementById('promos-sinubic');if(so)so.checked=!!st.sinOnline;
+  function seguir(){
+    if(!_fgElegir||_fgElegir.st!==st)return;
+    _fgElegirBar();
+    if(!st.prov){showToast('Elegí una provincia a la izquierda y tocá «Ver promociones».');renderPromosResultados();return;}
+    var sp=document.getElementById('promos-prov');if(sp)sp.value=st.prov;
+    _promosProv=st.prov;_promosLoc='';_promosLocIds=null;_promosPoblarLocalidades();
+    if(st.loc){_promosLoc=st.loc;var sl=document.getElementById('promos-loc');if(sl)sl.value=st.loc;}
+    _promosRubro=st.rubro||'';var sr=document.getElementById('promos-rubro');if(sr)sr.value=_promosRubro;
+    buscarPromosActivas();
+  }
+  if(_promosCat&&_promosCat.length)seguir();else loadPromosCatalogo(seguir);
+}
+function _fgElegirBar(){
+  var host=document.querySelector('.promos-results');if(!host)return;
+  var b=document.getElementById('fg-elegir-bar');
+  host.classList.toggle('eligiendo',!!_fgElegir); // en el celular la barra va fija abajo: se deja lugar
+  if(!_fgElegir){if(b)b.remove();return;}
+  if(!b){b=document.createElement('div');b.id='fg-elegir-bar';b.className='fg-elegir-bar';b.setAttribute('role','region');b.setAttribute('aria-label','Marcas elegidas para la franja');host.insertBefore(b,host.firstChild);}
+  var S=_fgElegir.st.sel,n=S.length;
+  b.innerHTML='<div class="fg-elegir-txt"><b>Armar franja</b> &middot; '+(n?n+(n===1?' marca elegida':' marcas elegidas')+': <span>'+S.slice(0,5).map(function(x,i){return (i+1)+'. '+_escHtml(x.t);}).join(', ')+(n>5?'&hellip;':'')+'</span>':'Toc&aacute; <b>+</b> en las marcas que quer&eacute;s, en el orden en que van.')+'</div>'+
+    '<div class="fg-elegir-acts"><button type="button" class="btn bg" onclick="fgElegirCancelar()">Cancelar</button>'+
+    '<button type="button" class="btn bp" onclick="fgElegirVolver()">Volver a la franja'+(n?' ('+n+')':'')+'</button></div>';
+}
+// Botón "+" de una fila de Activas (i = índice en _promosResultados).
+function fgElegirToggle(i){
+  if(!_fgElegir)return;
+  var r=(_promosResultados||[])[i];if(!r||!r.promo||!r.promo.imagen)return;
+  var S=_fgElegir.st.sel,img=r.promo.imagen,k=-1;
+  for(var j=0;j<S.length;j++)if(S[j].img===img){k=j;break;}
+  if(k>=0)S.splice(k,1);
+  else{
+    if(S.length>=_FG_FR_MAX){showToast('Hasta '+_FG_FR_MAX+' logos por franja.');return;}
+    S.push({img:img,t:_promoDecodeEntities(r.promo.titulo||'')});
+    _fgLgTraer(img).catch(function(){});
+  }
+  _promosPintarFilas();_fgElegirBar();
+}
+function _fgElegirNum(r){
+  if(!_fgElegir||!r||!r.promo)return 0;
+  var S=_fgElegir.st.sel;for(var j=0;j<S.length;j++)if(S[j].img===r.promo.imagen)return j+1;return 0;
+}
+function fgElegirVolver(){
+  var st=_fgElegir&&_fgElegir.st;
+  _fgElegir=null;_fgElegirBar();if(typeof _promosPintarFilas==='function')_promosPintarFilas();
+  if(!st)return;
+  // los filtros que se dejaron en Activas vuelven a la ventana
+  st.prov=_promosProv||'';st.loc=_promosLoc||'';st.rubro=_promosRubro||'';
+  st.una=_promosFiltros.repetidas==='ocultar';st.sinOnline=_promosFiltros.online==='ocultar';
+  switchApp(_optSolapa(_fgOpt));
+  if(_fgLgSrc()!==st.src){
+    // otro flyer: el recuadro de antes no sirve, pero lo elegido no se pierde.
+    // Se marca la franja en este flyer y la ventana abre con esas marcas.
+    _fgFrSt=null;
+    _fgFr.pendiente={sel:st.sel,cols:st.cols,q:st.q,rubro:st.rubro,prov:st.prov,loc:st.loc,una:st.una,sinOnline:st.sinOnline};
+    if(!_fgLg.on)fgLogosModo(true);
+    fgFranjaModo(true);
+    showToast('Cambió el flyer mientras elegías. Marcá la franja en este flyer: tus '+st.sel.length+' marcas siguen elegidas.');
+    return;
+  }
+  if(!_fgLg.on)fgLogosModo(true);
+  _fgFrAbrir(st.rect,st);
+}
+function fgElegirCancelar(callado){
+  var st=_fgElegir&&_fgElegir.st;
+  _fgElegir=null;_fgElegirBar();if(typeof _promosPintarFilas==='function')_promosPintarFilas();
+  if(st&&_fgFrSt===st)_fgFrSt=null;
+  if(!callado)showToast('Listo: no se armó la franja.');
+}
 // Recuadro marcado en pantalla → abrir la ventana.
 function _fgFrDesdeRecuadro(ax,ay,bx,by){
   var a=_fgLgAImagen(Math.min(ax,bx),Math.min(ay,by)),b=_fgLgAImagen(Math.max(ax,bx),Math.max(ay,by));
@@ -12919,16 +13011,25 @@ function _fgFrDesdeRecuadro(ax,ay,bx,by){
   _fgFrAbrir(det);
 }
 var _fgFrSt=null;
-function _fgFrAbrir(rect){
-  var info;
-  try{info=_fgFrDetectar(rect.x,rect.y,rect.w,rect.h);}catch(e){showToast('No se pudo leer el flyer.');return;}
-  // ¿ya había una franja armada en este lugar? se retoma su selección
-  var previa=_fgLgActivos().filter(function(e){return e.franjaBase&&_fgFrSolapa(e,rect)>0.5;})[0]||null;
-  if(previa)rect={x:previa.ox,y:previa.oy,w:previa.ow,h:previa.oh,bg:previa.bg,corta:false};
-  var st=_fgFrSt={rect:rect,info:previa?previa.franjaInfo:info,previa:previa,
-    sel:previa?JSON.parse(JSON.stringify(previa.franjaSel||[])):[],cols:previa?(previa.franjaCols||0):0,
-    q:'',rubro:'',prov:_fgLgV.prov||_promosProv||'',loc:_fgLgV.prov?(_fgLgV.loc||''):(_promosLoc||''),una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline,res:[],src:_fgLgSrc()};
-  if(!previa)st.info.bg=rect.bg||st.info.bg;
+// reuso = una selección en curso (vuelve de elegir en Promociones → Activas).
+function _fgFrAbrir(rect,reuso){
+  var st,previa;
+  if(reuso){st=_fgFrSt=reuso;previa=st.previa;rect=st.rect;}
+  else{
+    if(_fgElegir)fgElegirCancelar(true); // una franja nueva deja atrás la que se estaba eligiendo en Activas
+    var info;
+    try{info=_fgFrDetectar(rect.x,rect.y,rect.w,rect.h);}catch(e){showToast('No se pudo leer el flyer.');return;}
+    // ¿ya había una franja armada en este lugar? se retoma su selección
+    previa=_fgLgActivos().filter(function(e){return e.franjaBase&&_fgFrSolapa(e,rect)>0.5;})[0]||null;
+    if(previa)rect={x:previa.ox,y:previa.oy,w:previa.ow,h:previa.oh,bg:previa.bg,corta:false};
+    st=_fgFrSt={rect:rect,info:previa?previa.franjaInfo:info,previa:previa,
+      sel:previa?JSON.parse(JSON.stringify(previa.franjaSel||[])):[],cols:previa?(previa.franjaCols||0):0,
+      q:'',rubro:'',prov:_fgLgV.prov||_promosProv||'',loc:_fgLgV.prov?(_fgLgV.loc||''):(_promosLoc||''),una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline,res:[],src:_fgLgSrc()};
+    if(!previa)st.info.bg=rect.bg||st.info.bg;
+    // lo elegido en Activas para una franja de otro flyer (ver fgElegirVolver)
+    var pend=_fgFr.pendiente;_fgFr.pendiente=null;
+    if(pend){st.sel=pend.sel;st.cols=pend.cols||0;st.rubro=pend.rubro||'';st.prov=pend.prov||'';st.loc=pend.loc||'';st.una=pend.una!==false;st.sinOnline=!!pend.sinOnline;}
+  }
   var v=document.getElementById('fg-fr-ov');if(v)v.remove();
   var ov=document.createElement('div');ov.id='fg-fr-ov';ov.className='fg-cf-ov';
   ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-labelledby','fg-fr-t');
@@ -12942,7 +13043,10 @@ function _fgFrAbrir(rect){
     '<div class="fg-fr-cols">'+
       '<div class="fg-fr-izq">'+
         _fgPfHtml('fg-fr','Buscar marca')+
-        '<div class="fg-lg-info" id="fg-fr-info"></div>'+
+        '<div class="fg-fr-infofila"><div class="fg-lg-info" id="fg-fr-info"></div>'+
+          (_can('promos_buscar')?'<button type="button" class="fg-fr-act" id="fg-fr-act" title="Abre Promociones &rarr; Activas con estos filtros, a pantalla completa: eleg&iacute;s ah&iacute; y volv&eacute;s a esta ventana con todo">'+
+            '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> Elegir en pantalla completa</button>':'')+
+        '</div>'+
         '<div class="fg-lg-list fg-fr-list" id="fg-fr-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
       '</div>'+
       '<div class="fg-fr-der">'+
@@ -12962,6 +13066,9 @@ function _fgFrAbrir(rect){
   document.addEventListener('keydown',tecla,true);
   document.getElementById('fg-fr-x').onclick=cerrar;
   document.getElementById('fg-fr-no').onclick=cerrar;
+  var ira=document.getElementById('fg-fr-act');
+  // la ventana se va pero la selección (st) sigue viva hasta volver o cancelar
+  if(ira)ira.onclick=function(){document.removeEventListener('keydown',tecla,true);ov.remove();_fgFrIrActivas(st);};
   var qt=document.getElementById('fg-fr-quitar');
   if(qt)qt.onclick=function(){
     var fid=previa.franja;cerrar();
@@ -13054,11 +13161,67 @@ function _fgFrSelPintar(){
   var n=st.sel.length;
   if(ok)ok.textContent=n?('Poner '+n+(n===1?' logo':' logos')):'Poner logos';
   box.innerHTML=n?st.sel.map(function(s,i){
-    return '<div class="fg-fr-it"><b>'+(i+1)+'</b><span>'+_escHtml(s.t)+'</span>'+
+    return '<div class="fg-fr-it" data-i="'+i+'"><span class="fg-fr-mango" aria-hidden="true" title="Mantené apretado y arrastrá para cambiar el orden">&#10303;</span><b>'+(i+1)+'</b><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
       '<button type="button" data-a="arr" data-i="'+i+'" aria-label="Subir"'+(i===0?' disabled':'')+'>&uarr;</button>'+
       '<button type="button" data-a="aba" data-i="'+i+'" aria-label="Bajar"'+(i===n-1?' disabled':'')+'>&darr;</button>'+
       '<button type="button" data-a="x" data-i="'+i+'" aria-label="Quitar">&times;</button></div>';
   }).join(''):'<div class="fg-fr-vac">Tild&aacute; marcas a la izquierda. El orden en que las tild&aacute;s es el orden en el flyer.</div>';
+  _fgFrDragInit();
+}
+// ·· Ordenar "Tu selección" arrastrando ··
+// Con el mouse se arrastra desde cualquier parte de la fila (después de moverlo
+// unos píxeles, así un clic en una flecha sigue siendo un clic); con el dedo,
+// desde el agarre ⠿ (si no, no se podría recorrer la lista). Una línea naranja
+// marca dónde va a caer; al soltar se reordena y se rearma la vista previa.
+function _fgFrDragInit(){
+  var box=document.getElementById('fg-fr-sel');if(!box||box._arrastre)return;box._arrastre=true;
+  var d=null,linea=null;
+  function filas(){return Array.prototype.slice.call(box.querySelectorAll('.fg-fr-it'));}
+  function empezar(){
+    d.on=true;d.it.classList.add('lift');box.classList.add('ordenando');
+    d.rects=filas().map(function(x){return x.getBoundingClientRect();});
+    try{box.setPointerCapture(d.id);}catch(x){}
+    if(!linea){linea=document.createElement('div');linea.className='fg-fr-linea';}
+    box.appendChild(linea);
+  }
+  function terminar(soltar){
+    if(!d)return;
+    var x=d;d=null;
+    if(linea&&linea.parentNode)linea.parentNode.removeChild(linea);
+    box.classList.remove('ordenando');
+    if(!x.on)return;
+    x.it.classList.remove('lift');x.it.style.transform='';
+    var st=_fgFrSt;
+    if(soltar&&st&&x.to!=null&&x.to!==x.from&&x.to!==x.from+1){
+      var it=st.sel.splice(x.from,1)[0],dest=x.to>x.from?x.to-1:x.to;
+      st.sel.splice(dest,0,it);
+      _fgFrLista();_fgFrSelPintar();_fgFrPreview();
+    }
+  }
+  box.addEventListener('pointerdown',function(e){
+    var it=e.target.closest&&e.target.closest('.fg-fr-it');if(!it||(e.target.closest&&e.target.closest('button')))return;
+    var mango=!!(e.target.closest&&e.target.closest('.fg-fr-mango'));
+    if(e.pointerType==='mouse'){if(e.button!==0)return;}
+    else if(!mango)return;
+    d={it:it,from:+it.getAttribute('data-i'),y0:e.clientY,id:e.pointerId,on:false,to:null};
+    if(mango){e.preventDefault();empezar();}
+  });
+  box.addEventListener('pointermove',function(e){
+    if(!d||e.pointerId!==d.id)return;
+    if(!d.on){if(Math.abs(e.clientY-d.y0)<5)return;empezar();}
+    e.preventDefault();
+    var dy=e.clientY-d.y0;d.it.style.transform='translateY('+dy+'px)';
+    // posición de destino: antes de la primera fila cuyo centro está debajo del puntero
+    var R=d.rects,to=R.length;
+    for(var i=0;i<R.length;i++){if(e.clientY<R[i].top+R[i].height/2){to=i;break;}}
+    d.to=to;
+    var b=box.getBoundingClientRect(),y=(to<R.length?R[to].top:R[R.length-1].bottom)-b.top+box.scrollTop-3;
+    linea.style.top=Math.round(y)+'px';
+    linea.hidden=(to===d.from||to===d.from+1);
+  });
+  box.addEventListener('pointerup',function(){terminar(true);});
+  box.addEventListener('pointercancel',function(){terminar(false);});
+  box.addEventListener('lostpointercapture',function(){if(d&&d.on)terminar(true);});
 }
 // Vista previa: el pedazo del flyer con la franja ya armada (los logos que
 // todavía se están bajando se ven como un cuadrito gris con su número).
