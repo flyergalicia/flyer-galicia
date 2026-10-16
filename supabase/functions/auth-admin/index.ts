@@ -84,15 +84,73 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
 // reactive. Un pedido de cambio de clave pendiente NO lo frena: ese pedido lo
 // puede iniciar cualquiera sabiendo el mail, y si bloqueara, un desconocido
 // podría dejar sin acceso al admin. Antes alcanzaba con el rol.
-async function requireAdmin(req: Request): Promise<boolean> {
+// Devuelve quién es (para la auditoría) o null si no es un admin válido.
+type Actor = { id: string; email: string };
+async function requireAdmin(req: Request): Promise<Actor | null> {
   const auth = req.headers.get("Authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "");
-  if (!token) return false;
+  if (!token) return null;
   const { data, error } = await admin.auth.getUser(token);
-  if (error || !data?.user) return false;
+  if (error || !data?.user) return null;
   const { data: prof } = await admin
     .from("profiles").select("role,status").eq("id", data.user.id).single();
-  return !!prof && prof.role === "admin" && (prof.status === "active" || prof.status === "reset_pending");
+  const ok = !!prof && prof.role === "admin" && (prof.status === "active" || prof.status === "reset_pending");
+  return ok ? { id: data.user.id, email: data.user.email || "" } : null;
+}
+
+// ── Límite por IP (acciones públicas) ─────────────────────────────────────────
+// La IP la pone el proxy de Supabase (Cloudflare) en cf-connecting-ip y quien
+// llama no la puede falsear (probado: mandar x-forwarded-for / x-real-ip
+// inventados no cambia la IP contada). x-forwarded-for y x-real-ip SÍ los puede
+// escribir el cliente, así que NO se usan: sin esa cabecera no hay límite
+// (antes que un límite que se evade cambiando una cabecera).
+// En una oficina muchas personas comparten IP, así que los topes son holgados:
+// frenan a un script, no a compañeros.
+function ipDe(req: Request): string {
+  return (req.headers.get("cf-connecting-ip") || "").trim();
+}
+// true = puede seguir. Si no hay IP, o la base falla, deja pasar (un límite roto
+// no puede tirar abajo el alta ni la recuperación de clave).
+async function dentroDelLimite(req: Request, accion: string, max: number, segundos: number): Promise<boolean> {
+  const ip = ipDe(req);
+  if (!ip) return true;
+  try {
+    const { data, error } = await admin.rpc("rate_limit_hit", { p_clave: accion + "|" + ip, p_max: max, p_segundos: segundos });
+    if (error) { console.error("rate_limit:", error.message); return true; }
+    return data !== false;
+  } catch (e) {
+    console.error("rate_limit:", String((e as Error)?.message || e));
+    return true;
+  }
+}
+// Deshace un alta cuyo perfil no se pudo guardar. Si ni eso se puede, queda un
+// acceso sin perfil: se deja constancia en la auditoría para que el admin lo vea.
+async function deshacerAlta(uid: string, email: string, actor: Actor | null, origen: string): Promise<void> {
+  const { error } = await admin.auth.admin.deleteUser(uid);
+  if (error) {
+    console.error(origen + ": no se pudo deshacer el alta:", error.message);
+    await auditar(actor, "alta_a_medias", { id: uid, email }, { origen, error: error.message });
+  }
+}
+const MSG_DEMASIADOS = "Hiciste demasiados intentos seguidos. Esperá un rato y probá de nuevo.";
+
+// ── Auditoría ────────────────────────────────────────────────────────────────
+// Una fila por acción sensible. NUNCA se guarda una clave. Si no se puede
+// escribir, se anota en el log de la función y la operación sigue igual.
+async function auditar(
+  actor: Actor | null, accion: string,
+  objetivo?: { id?: string | null; email?: string | null } | null,
+  detalle?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const { error } = await admin.from("audit_log").insert({
+      actor_id: actor?.id ?? null, actor_email: actor?.email ?? null, accion,
+      objetivo_id: objetivo?.id ?? null, objetivo_email: objetivo?.email ?? null, detalle: detalle ?? null,
+    });
+    if (error) console.error("audit:", error.message);
+  } catch (e) {
+    console.error("audit:", String((e as Error)?.message || e));
+  }
 }
 
 // ── Mails de aviso ───────────────────────────────────────────────────────────
@@ -330,6 +388,8 @@ Deno.serve(async (req: Request) => {
       const full_name = limpiarNombre(body.full_name);
       if (!email || !full_name || password.length < 8) return json({ error: "Datos inválidos" }, 400);
       if (!DOMINIO_RE.test(email)) return json({ error: "Sólo se aceptan mails @bancogalicia.com.ar." }, 400);
+      // Tope por IP: 15 altas por hora (una oficina entera entra de sobra).
+      if (!(await dentroDelLimite(req, "register", 15, 3600))) return json({ error: MSG_DEMASIADOS }, 429);
       const { data, error } = await admin.auth.admin.createUser({
         email, password, email_confirm: true, user_metadata: { full_name },
       });
@@ -341,10 +401,17 @@ Deno.serve(async (req: Request) => {
         return json({ error: error.message }, 400);
       }
       // `email` también: request_reset busca el perfil por esa columna.
-      await admin.from("profiles").upsert(
+      const { error: eProf } = await admin.from("profiles").upsert(
         { id: data.user.id, full_name, email, email_asesor: email, status: "pending", role: "asesor" },
         { onConflict: "id" },
       );
+      if (eProf) {
+        // Un usuario de acceso sin perfil queda a medias: se deshace el alta.
+        console.error("register: perfil:", eProf.message);
+        await deshacerAlta(data.user.id, email, null, "register");
+        return json({ error: "No se pudo completar el alta. Probá de nuevo en unos minutos." }, 500);
+      }
+      await auditar(null, "register", { id: data.user.id, email }, { ip: ipDe(req) });
       avisar(await mailsAdmins(), MAILS.accesoAdmin(full_name, email));
       avisar(email, MAILS.accesoUsuario(full_name));
       return json({ ok: true });
@@ -354,6 +421,9 @@ Deno.serve(async (req: Request) => {
       const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
       if (!email || password.length < 8) return json({ error: "Datos inválidos" }, 400);
+      // Tope por IP (independiente de la cuenta): 15 pedidos por hora. Se corta
+      // antes de buscar nada, así no depende de que el mail exista.
+      if (!(await dentroDelLimite(req, "request_reset", 15, 3600))) return json({ error: MSG_DEMASIADOS }, 429);
       // Misma respuesta exista o no la cuenta: no le da a un desconocido forma
       // de averiguar qué mails tienen usuario acá.
       const generic = { ok: true };
@@ -372,13 +442,24 @@ Deno.serve(async (req: Request) => {
       // La cuenta queda marcada "reset_pending" para que el admin la vea, pero
       // sigue funcionando con la clave de siempre: si el pedido la bloqueara,
       // cualquiera con el mail ajeno podría dejar sin acceso a esa persona.
-      await admin.from("pending_password_resets").upsert(
+      const { error: eP } = await admin.from("pending_password_resets").upsert(
         { user_id: prof.id, new_password: await cifrarClave(password), requested_at: new Date().toISOString() },
         { onConflict: "user_id" },
       );
-      await admin.from("profiles")
+      if (eP) {
+        console.error("request_reset: pedido:", eP.message);
+        return json({ error: "No se pudo registrar el pedido. Probá de nuevo en unos minutos." }, 500);
+      }
+      const { error: eU } = await admin.from("profiles")
         .update({ status: "reset_pending", last_reset_request_at: new Date().toISOString() })
         .eq("id", prof.id);
+      if (eU) {
+        // Sin la marca el admin no vería el pedido: se descarta para no dejarlo huérfano.
+        console.error("request_reset: perfil:", eU.message);
+        await admin.from("pending_password_resets").delete().eq("user_id", prof.id);
+        return json({ error: "No se pudo registrar el pedido. Probá de nuevo en unos minutos." }, 500);
+      }
+      await auditar(null, "request_reset", { id: prof.id, email }, { ip: ipDe(req) });
       const quien = prof.full_name || email;
       avisar(await mailsAdmins(), MAILS.resetAdmin(quien, email));
       avisar(email, MAILS.resetUsuario(prof.full_name));
@@ -386,7 +467,8 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "approve_reset") {
-      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const actor = await requireAdmin(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
       const uid = String(body.uid || "");
       if (!uid) return json({ error: "Datos inválidos" }, 400);
       const { data: pending } = await admin
@@ -396,20 +478,36 @@ Deno.serve(async (req: Request) => {
       if (!claveNueva) return json({ error: "No se pudo leer el pedido de clave. Rechazalo y pedile a la persona que lo haga de nuevo." }, 400);
       const { error } = await admin.auth.admin.updateUserById(uid, { password: claveNueva });
       if (error) return json({ error: error.message }, 400);
-      await admin.from("pending_password_resets").delete().eq("user_id", uid);
-      await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+      // La clave ya cambió. Si ahora falla cerrar el pedido, se avisa y el admin
+      // puede volver a tocar "Aprobar": como el pedido sigue guardado, repite la
+      // misma clave y termina de cerrar (es idempotente).
+      const { error: eAct } = await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+      if (eAct) {
+        console.error("approve_reset: perfil:", eAct.message);
+        await auditar(actor, "approve_reset", { id: uid }, { parcial: true });
+        return json({ error: "La clave se cambió, pero no se pudo cerrar el pedido. Tocá Aprobar de nuevo para terminar." }, 500);
+      }
+      const { error: eDel } = await admin.from("pending_password_resets").delete().eq("user_id", uid);
+      if (eDel) console.error("approve_reset: borrar pedido:", eDel.message); // la clave ya está aplicada; el pedido viejo no hace daño
       const pa = await perfil(uid);
+      await auditar(actor, "approve_reset", { id: uid, email: pa?.email });
       if (pa) avisar(pa.email, MAILS.resetAprobado(pa.nombre));
       return json({ ok: true });
     }
 
     if (action === "deny_reset") {
-      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const actor = await requireAdmin(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
       const uid = String(body.uid || "");
       if (!uid) return json({ error: "Datos inválidos" }, 400);
-      await admin.from("pending_password_resets").delete().eq("user_id", uid);
-      await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+      const { error: eDel } = await admin.from("pending_password_resets").delete().eq("user_id", uid);
+      const { error: eAct } = await admin.from("profiles").update({ status: "active" }).eq("id", uid);
+      if (eDel || eAct) {
+        console.error("deny_reset:", eDel?.message, eAct?.message);
+        return json({ error: "No se pudo rechazar el pedido. Probá de nuevo." }, 500);
+      }
       const pd = await perfil(uid);
+      await auditar(actor, "deny_reset", { id: uid, email: pd?.email });
       if (pd) avisar(pd.email, MAILS.resetRechazado(pd.nombre));
       return json({ ok: true });
     }
@@ -418,7 +516,8 @@ Deno.serve(async (req: Request) => {
     // Idempotente: el panel también la llama después de pasar a alguien a
     // "activo" desde Editar usuario, sólo para que salga el aviso.
     if (action === "approve_user") {
-      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const actor = await requireAdmin(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
       const uid = String(body.uid || "");
       if (!uid) return json({ error: "Datos inválidos" }, 400);
       const pu = await perfil(uid);
@@ -430,6 +529,7 @@ Deno.serve(async (req: Request) => {
         const { error } = await admin.from("profiles").update({ status: "active" }).eq("id", uid);
         if (error) return json({ error: error.message }, 400);
       }
+      await auditar(actor, "approve_user", { id: uid, email: pu.email }, { estado_anterior: pu.status });
       avisar(pu.email, MAILS.cuentaActiva(pu.nombre));
       return json({ ok: true });
     }
@@ -447,7 +547,8 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "create_user") {
-      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const actor = await requireAdmin(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
       const email = String(body.email || "").trim().toLowerCase();
       const password = String(body.password || "");
       const full_name = limpiarNombre(body.full_name);
@@ -460,10 +561,17 @@ Deno.serve(async (req: Request) => {
         email, password, email_confirm: true, user_metadata: { full_name },
       });
       if (error) return json({ error: dupMsg(error.message) }, 400);
-      await admin.from("profiles").upsert(
+      const { error: eProf } = await admin.from("profiles").upsert(
         { id: data.user.id, email, email_asesor: email, full_name, role, status },
         { onConflict: "id" },
       );
+      if (eProf) {
+        // Sin perfil el rol y el estado elegidos se perderían: se deshace el alta.
+        console.error("create_user: perfil:", eProf.message);
+        await deshacerAlta(data.user.id, email, actor, "create_user");
+        return json({ error: "No se pudo crear el usuario. Probá de nuevo." }, 500);
+      }
+      await auditar(actor, "create_user", { id: data.user.id, email }, { rol: role, estado: status });
       // Sólo si quedó activa: una cuenta creada inactiva recibe el aviso
       // cuando se la active (approve_user).
       if (status === "active") avisar(email, MAILS.cuentaCreada(full_name, email));
@@ -471,29 +579,49 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "set_password") {
-      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const actor = await requireAdmin(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
       const uid = String(body.uid || "");
       const password = String(body.password || "");
       if (!uid || password.length < 8) return json({ error: "Datos inválidos" }, 400);
       const { error } = await admin.auth.admin.updateUserById(uid, { password });
       if (error) return json({ error: error.message }, 400);
       const pp = await perfil(uid);
+      await auditar(actor, "set_password", { id: uid, email: pp?.email });
       if (pp) avisar(pp.email, MAILS.claveCambiadaAdmin(pp.nombre));
       return json({ ok: true });
     }
 
     if (action === "delete_user") {
-      if (!(await requireAdmin(req))) return json({ error: "No autorizado" }, 403);
+      const actor = await requireAdmin(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
       const uid = String(body.uid || "");
       if (!uid) return json({ error: "Datos inválidos" }, 400);
       // No permitir que un admin se elimine a sí mismo.
-      const reqToken = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-      const { data: me } = await admin.auth.getUser(reqToken);
-      if (me?.user?.id === uid) return json({ error: "No podés eliminar tu propia cuenta." }, 400);
+      if (actor.id === uid) return json({ error: "No podés eliminar tu propia cuenta." }, 400);
+      // Foto del perfil antes de tocar nada: sirve para la auditoría y para
+      // devolverlo si falla el segundo paso.
+      const { data: antes } = await admin.from("profiles").select("*").eq("id", uid).maybeSingle();
       // Borrar el perfil primero; los flyer_logs quedan con user_id NULL (FK SET NULL).
-      await admin.from("profiles").delete().eq("id", uid);
+      const { error: eProf } = await admin.from("profiles").delete().eq("id", uid);
+      if (eProf) {
+        console.error("delete_user: perfil:", eProf.message);
+        return json({ error: "No se pudo eliminar el usuario. No se borró nada." }, 500);
+      }
       const { error } = await admin.auth.admin.deleteUser(uid);
-      if (error) return json({ error: error.message }, 400);
+      if (error) {
+        // El perfil ya se había borrado: se restituye para no dejar un acceso vivo sin perfil.
+        if (antes) {
+          const { error: eBack } = await admin.from("profiles").upsert(antes, { onConflict: "id" });
+          if (eBack) {
+            console.error("delete_user: restituir perfil:", eBack.message);
+            await auditar(actor, "baja_a_medias", { id: uid, email: antes?.email }, { error: error.message });
+            return json({ error: "El usuario quedó a medias (sin perfil pero con acceso). Tocá Eliminar de nuevo para terminar." }, 500);
+          }
+        }
+        return json({ error: error.message }, 400);
+      }
+      await auditar(actor, "delete_user", { id: uid, email: antes?.email }, { nombre: antes?.full_name ?? null, rol: antes?.role ?? null });
       return json({ ok: true });
     }
 

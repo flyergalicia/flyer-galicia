@@ -26,7 +26,9 @@ No hay `package.json` ni gestor de paquetes: el único build tool es `_build.mjs
 ### Backend (Supabase)
 
 - **`supabase/functions/auth-admin/index.ts`** — Edge Function (Deno) que concentra las operaciones privilegiadas (usa la `service_role` key del lado servidor). El cliente nunca tiene esa key; le pega a esta función vía `FN_URL` con el JWT de sesión en el header `Authorization`.
-- **`supabase/migrations/001_secure_rls.sql`** — políticas de Row Level Security de las tablas.
+  - Las acciones públicas (`register`, `request_reset`) tienen tope por IP (`rate_limit_hit`, migración 023) y cada acción sensible deja una fila en `audit_log` (se ve en Admin → Auditoría). Un pedido de cambio de clave deja la cuenta en `reset_pending` pero NO la bloquea; la clave pedida se guarda cifrada.
+- **`supabase/migrations/001_secure_rls.sql`** — políticas de Row Level Security de las tablas (las migraciones siguientes, `002`…`023`, las completan; se aplican a mano con `_runsql.mjs`).
+- **`supabase/INVENTARIO_RPC.md`** — qué funciones expone la base, a quién, y qué valida cada una. Revisarlo al agregar una función `security definer`.
 - **`supabase/_deployfn.mjs`** / **`supabase/_runsql.mjs`** — scripts helper para deployar la Edge Function y correr SQL contra la base, respectivamente.
 - Storage: los flyers/assets públicos se sirven desde el bucket de Supabase Storage (`FLYERS_PUBLIC` en `auth.js`).
 

@@ -326,6 +326,7 @@ const adminPanel = `<div id="admin-panel">
     <div class="stab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
     <div class="stab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
     <div class="stab" data-tab="facultades" onclick="switchAdminTab(this,'facultades')">Facultades</div>
+    <div class="stab" data-tab="auditoria" onclick="switchAdminTab(this,'auditoria')">Auditor&iacute;a</div>
   </div>
   <div class="stabs" id="sg-data" style="display:none">
     <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Mis empresas</div>
@@ -582,6 +583,34 @@ const adminPanel = `<div id="admin-panel">
       </div>
       <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="plog-count"></p>
       <div id="plog-list"></div>
+    </div>
+
+    <div id="at-auditoria" style="display:none">
+      <p class="ap-sec" style="margin:0 0 10px">Auditor&iacute;a de acciones</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Queda constancia de <strong>qui&eacute;n hizo qu&eacute;</strong> sobre las cuentas: altas, aprobaciones, cambios de contrase&ntilde;a y bajas, y tambi&eacute;n los pedidos de acceso y de cambio de contrase&ntilde;a que llegan sin sesi&oacute;n. No se guarda ninguna contrase&ntilde;a y nadie puede modificar ni borrar estos registros.</p>
+      <div class="reg-filter">
+        <div class="reg-filter-group">
+          <label>Acci&oacute;n</label>
+          <select id="aud-q-accion" onchange="loadAuditoria()">
+            <option value="">Todas</option>
+            <option value="register">Pedidos de acceso</option>
+            <option value="request_reset">Pedidos de cambio de contrase&ntilde;a</option>
+            <option value="approve_user">Cuentas aprobadas</option>
+            <option value="create_user">Usuarios creados</option>
+            <option value="approve_reset">Cambios de contrase&ntilde;a aprobados</option>
+            <option value="deny_reset">Cambios de contrase&ntilde;a rechazados</option>
+            <option value="set_password">Contrase&ntilde;as cambiadas por un admin</option>
+            <option value="delete_user">Usuarios eliminados</option>
+            <option value="alta_a_medias">Altas a medias (revisar)</option>
+            <option value="baja_a_medias">Bajas a medias (revisar)</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end">
+          <button class="btn-submit" onclick="loadAuditoria()" style="padding:7px 14px;font-size:.72rem">Actualizar</button>
+        </div>
+      </div>
+      <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="aud-count"></p>
+      <div id="aud-list"></div>
     </div>
 
   </div>
@@ -1182,6 +1211,8 @@ const checks = {
   'facultades: columna Vos del admin (profiles.facultades)': _authSrc.includes('function _facMe(') && _authSrc.includes('if(_admin)return _facMe(f);') && _authSrc.includes("update({facultades:me})") && _authSrc.includes('function _facFieldMe(') && _authSrc.includes(',facultades,es_prueba,lider_id\').eq(\'id\',user.id)') && !_authSrc.includes('checked disabled title="El administrador siempre tiene todas') && !html.includes('por eso su columna no se puede editar'),
   // Data → Cambios en las empresas: lo escribe padron_replace (servidor, migración 007).
   'base de datos: cambios en las empresas (solapa Data)': html.includes('id="at-padronlog"') && html.includes('data-tab="padronlog"') && html.includes('id="plog-list"') && _authSrc.includes('function loadPadronLog(') && _authSrc.includes('function exportPadronLog(') && _authSrc.includes("'padronlog'") && _authSrc.includes("if(t==='padronlog')loadPadronLog();") && _authSrc.includes("_sb.from('padron_log')"),
+  // Admin → Auditoría: audit_log lo escribe auth-admin (service_role), migración 023.
+  'admin: auditoria de acciones (solapa Admin)': html.includes('id="at-auditoria"') && html.includes('data-tab="auditoria"') && html.includes('id="aud-list"') && _authSrc.includes('function loadAuditoria(') && _authSrc.includes("'auditoria']") && _authSrc.includes("if(t==='auditoria')loadAuditoria();"),
   'facultades: gating bidireccional (quitar tambien saca)': _authSrc.includes('function _facShowPaste(') && _authSrc.includes('function _facShowAsesores(') && _authSrc.includes('function _facSyncOptBar('),
   'facultades: gating aplicado tras cargar la matriz': _authSrc.includes('loadFacultades(false,_applyFacultades);') && !_authSrc.includes('if(_admin){_refreshPendingBadge();_fgEnsureOptBar();_fgEnsurePadronBtn();}'),
   'rol Pro': html.includes('<option value="pro">Pro</option>') && _authSrc.includes("pro:'Pro'"),

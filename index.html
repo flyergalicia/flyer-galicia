@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=46171d2395","integrity":"sha384-Y5OWpBlQHiMfPB36M2zCqjsvEsgSehtG6g+HlYqAF/FROCtSSicy0LEVshXDUa0B"}}'>
-<meta name="build-v" content="96393ba193">
+<meta name="build-v" content="e54ca4ecf2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1372,7 +1372,7 @@ html.dark .field select,html.dark .field input[type=month]{background-color:var(
   #mv-toggle button.on{background:var(--accent);color:#fff;}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=bbcaa7b0bb"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=dd94f58996"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
@@ -1816,6 +1816,7 @@ baseImg.dataset.fallback="flyer_default.jpg";
     <div class="stab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
     <div class="stab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
     <div class="stab" data-tab="facultades" onclick="switchAdminTab(this,'facultades')">Facultades</div>
+    <div class="stab" data-tab="auditoria" onclick="switchAdminTab(this,'auditoria')">Auditor&iacute;a</div>
   </div>
   <div class="stabs" id="sg-data" style="display:none">
     <div class="stab" data-tab="varios" onclick="switchAdminTab(this,'varios')">Mis empresas</div>
@@ -2072,6 +2073,34 @@ baseImg.dataset.fallback="flyer_default.jpg";
       </div>
       <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="plog-count"></p>
       <div id="plog-list"></div>
+    </div>
+
+    <div id="at-auditoria" style="display:none">
+      <p class="ap-sec" style="margin:0 0 10px">Auditor&iacute;a de acciones</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Queda constancia de <strong>qui&eacute;n hizo qu&eacute;</strong> sobre las cuentas: altas, aprobaciones, cambios de contrase&ntilde;a y bajas, y tambi&eacute;n los pedidos de acceso y de cambio de contrase&ntilde;a que llegan sin sesi&oacute;n. No se guarda ninguna contrase&ntilde;a y nadie puede modificar ni borrar estos registros.</p>
+      <div class="reg-filter">
+        <div class="reg-filter-group">
+          <label>Acci&oacute;n</label>
+          <select id="aud-q-accion" onchange="loadAuditoria()">
+            <option value="">Todas</option>
+            <option value="register">Pedidos de acceso</option>
+            <option value="request_reset">Pedidos de cambio de contrase&ntilde;a</option>
+            <option value="approve_user">Cuentas aprobadas</option>
+            <option value="create_user">Usuarios creados</option>
+            <option value="approve_reset">Cambios de contrase&ntilde;a aprobados</option>
+            <option value="deny_reset">Cambios de contrase&ntilde;a rechazados</option>
+            <option value="set_password">Contrase&ntilde;as cambiadas por un admin</option>
+            <option value="delete_user">Usuarios eliminados</option>
+            <option value="alta_a_medias">Altas a medias (revisar)</option>
+            <option value="baja_a_medias">Bajas a medias (revisar)</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end">
+          <button class="btn-submit" onclick="loadAuditoria()" style="padding:7px 14px;font-size:.72rem">Actualizar</button>
+        </div>
+      </div>
+      <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="aud-count"></p>
+      <div id="aud-list"></div>
     </div>
 
   </div>

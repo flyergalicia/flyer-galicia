@@ -1206,7 +1206,7 @@ function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel
 
 // El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
 // _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
-var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades'],data:['varios','asesores','padronotros','padronlog'],config:['subir','cashback','legales','opciones']};
+var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades','auditoria'],data:['varios','asesores','padronotros','padronlog'],config:['subir','cashback','legales','opciones']};
 var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
 function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
@@ -1237,6 +1237,7 @@ function switchAdminTab(el,t){
   if(t==='asesores')renderAsesoresAdmin(true);
   if(t==='padronotros')loadPadronOtrosUsers(false);
   if(t==='padronlog')loadPadronLog();
+  if(t==='auditoria')loadAuditoria();
   if(t==='legales'){
     _legalesRender();
     _FG_OPTS.forEach(function(o){loadGlobalLegal(true,o);_attachLegalPaste(_glegalId(o));});
@@ -7700,6 +7701,57 @@ function loadPadronLog(){
           detWrap+
           '<div class="reg-mid"><span class="reg-lbl">Por</span> '+_escHtml(nombre)+
             (row.total!=null?' &nbsp;&middot;&nbsp; <span class="reg-lbl">Empresas:</span> '+(+row.total)+' empresa'+(+row.total!==1?'s':''):'')+'</div>'+
+        '</div>'+
+        '<span class="reg-fecha" title="'+_escAttr(row.created_at?new Date(row.created_at).toLocaleString('es-AR'):'')+'">'+_fmtDate(row.created_at)+'</span>'+
+        '</div>';
+    }).join('');
+  });
+}
+// ── ADMIN → AUDITORÍA ────────────────────────────────────────────────────────
+// Tabla audit_log (migración 023): la escribe la Edge Function auth-admin con la
+// service_role; el admin sólo la LEE (RLS) y nadie la puede modificar ni borrar.
+// Hay emails y nombres que escribió un usuario: todo se escapa antes de pintarlo.
+var _AUD_LBL={
+  register:'Pidió acceso',request_reset:'Pidió cambiar su contraseña',
+  approve_user:'Aprobó la cuenta de',create_user:'Creó el usuario',
+  approve_reset:'Aprobó el cambio de contraseña de',deny_reset:'Rechazó el cambio de contraseña de',
+  set_password:'Cambió la contraseña de',delete_user:'Eliminó al usuario',
+  alta_a_medias:'⚠ Alta a medias (revisar)',baja_a_medias:'⚠ Baja a medias (revisar)'
+};
+function _audDetalleTxt(row){
+  var d=row.detalle||{},out=[];
+  if(d.ip)out.push('IP '+d.ip);
+  if(d.rol)out.push('rol '+(_ROLE_LBL[d.rol]||d.rol));
+  if(d.estado)out.push('estado '+d.estado);
+  if(d.estado_anterior)out.push('estaba '+d.estado_anterior);
+  if(d.nombre)out.push(d.nombre);
+  if(d.parcial)out.push('quedó a medias: se pidió reintentar');
+  return out.join(' · ');
+}
+function loadAuditoria(){
+  var container=document.getElementById('aud-list');
+  if(!container)return;
+  container.innerHTML=skelRows(4);
+  var acc=((document.getElementById('aud-q-accion')||{}).value||'');
+  var q=_sb.from('audit_log').select('id,created_at,actor_email,accion,objetivo_email,detalle')
+    .order('created_at',{ascending:false}).order('id',{ascending:false}).limit(300);
+  if(acc)q=q.eq('accion',acc);
+  q.then(function(r){
+    if(r.error){container.innerHTML='<p style="color:var(--red);font-size:.8rem">Error: '+_escHtml(r.error.message)+'</p>';return;}
+    var data=r.data||[];
+    var countEl=document.getElementById('aud-count');
+    if(countEl)countEl.textContent=data.length+' registro'+(data.length!==1?'s':'')+(data.length>=300?' (se muestran los últimos 300)':'');
+    if(!data.length){container.innerHTML='<p style="color:var(--gray);font-size:.8rem">Sin registros todav&iacute;a. Desde ahora queda constancia de cada alta, aprobaci&oacute;n, cambio de contrase&ntilde;a y baja de cuentas.</p>';return;}
+    container.innerHTML=data.map(function(row){
+      var quien=row.actor_email||'Visitante (sin sesión)';
+      var col=_avatarColor(quien);
+      var det=_audDetalleTxt(row);
+      return '<div class="reg-row">'+
+        '<div class="usr-avatar sm" style="background:'+col+';flex-shrink:0">'+_escHtml(_initials(row.actor_email||'?',row.actor_email||''))+'</div>'+
+        '<div class="reg-info">'+
+          '<div class="reg-top"><span class="reg-empresa">'+_escHtml(_AUD_LBL[row.accion]||row.accion||'—')+'</span></div>'+
+          '<div class="reg-mid"><span class="reg-lbl">Cuenta</span> '+_escHtml(row.objetivo_email||'—')+'</div>'+
+          '<div class="reg-mid"><span class="reg-lbl">Por</span> '+_escHtml(quien)+(det?' &nbsp;&middot;&nbsp; <span class="reg-lbl">'+_escHtml(det)+'</span>':'')+'</div>'+
         '</div>'+
         '<span class="reg-fecha" title="'+_escAttr(row.created_at?new Date(row.created_at).toLocaleString('es-AR'):'')+'">'+_fmtDate(row.created_at)+'</span>'+
         '</div>';
