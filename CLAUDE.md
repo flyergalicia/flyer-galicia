@@ -1,57 +1,181 @@
 # CLAUDE.md
 
-Esta guía orienta a Claude Code al trabajar en este repositorio.
+Guía para cualquier herramienta de IA (o persona) que retome este proyecto. Está en español y sin datos personales ni claves, porque **el repositorio es público**.
 
-## Qué es este proyecto
+---
 
-**Armador de flyers Galicia**: una app de una sola página (SPA) que un asesor/oficial de banco usa para armar flyers de productos con sus datos (nombre, celular, mail, legajo, sucursal, etc.), pegándolos desde texto copiado o cargándolos a mano. Incluye login, roles (asesor/admin) y guardado de datos en la nube.
+## 1. Qué es este proyecto y para qué sirve
 
-No hay `package.json` ni gestor de paquetes: el único build tool es `_build.mjs`, corrido directo con Node (`node _build.mjs`).
+**Armador de flyers Galicia**: una página web (de una sola pantalla) que usa un asesor u oficial de banco para armar flyers de productos con sus datos (nombre, celular, mail, sucursal, empresa, montos de cashback, etc.). Los datos se pueden cargar a mano, pegar desde un texto copiado, traer de un padrón de empresas o cargar en masa desde un Excel. El resultado se baja como PDF o PNG.
 
-## Arquitectura: Frontend vs Backend
+Además tiene: login con roles, guardado de datos en la nube, buscador de promociones vigentes (Banco Galicia), perfil "Hunter" (busca una empresa y baja su flyer), gestiones comerciales (visitas, prospectos, altas) con tablero, panel de administración y mails de aviso.
 
-### Frontend (cliente, todo corre en el navegador)
+**Quién lo usa:** el dueño del producto trabaja en el banco y **no es programador**. Piensa en lo que ve en pantalla, no en arquitectura. Ver sección 8.
 
-- **`_source.html`** — plantilla fuente editable del HTML/CSS/estructura de la app. **Este es el archivo que se edita**, nunca `index.html` directamente.
-- **`_newcss.txt`** — bloque de overrides de CSS que el build inyecta sobre `_source.html`.
-- **`auth.js`** — toda la lógica de cliente: estado de la UI, llamadas a Supabase (auth, storage, tablas), armado del flyer, tema claro/oscuro, parseo de texto pegado (mail, celular, legajo, datos del oficial), etc. Es JS plano (sin build/transpile), pensado para correr tal cual en el navegador.
-- **`_build.mjs`** — script Node que genera los artefactos de salida a partir de las fuentes de arriba:
-  - `index.html` → producción, referencia `auth.js` como `<script src>` externo con cache-busting por hash (`auth.js?v=<hash>`). Este es el que sirve GitHub Pages.
-  - `index_export.html` → misma app pero con `auth.js` **inlineado** en el HTML, para que funcione standalone desde cualquier dominio/archivo local. Conserva la imagen del flyer de ejemplo incrustada (sirve para subirlo como flyer).
-  - `flyer_default.jpg` → la imagen de ejemplo del template, sacada de `index.html` (pesaba 1,75 MB dentro del HTML); la app la carga solo si no hay flyer activo.
-  - `version.json` → hash del build; la app lo compara con `<meta name="build-v">` y avisa "hay versión nueva" (GitHub Pages cachea `index.html` 10 min). Sin guion bajo a propósito: GitHub Pages no sirve archivos `_*`.
-  - Las librerías de exportación (jsPDF, xlsx, JSZip, ExcelJS) no van en el `<head>`: el build deja URL + hash SRI en `<meta name="fg-libs">` y `auth.js` las carga bajo demanda (`_lib`/`_libWrap`). Si se agrega una función que use alguna, envolverla en `_libInit`.
-- Nunca editar `index.html` / `index_export.html` / `version.json` / `flyer_default.jpg` a mano: son generados. Cualquier cambio va en `_source.html`, `_newcss.txt` o `auth.js`, y después se corre el build.
+---
 
-### Backend (Supabase)
+## 2. Cómo está armado
 
-- **`supabase/functions/auth-admin/index.ts`** — Edge Function (Deno) que concentra las operaciones privilegiadas (usa la `service_role` key del lado servidor). El cliente nunca tiene esa key; le pega a esta función vía `FN_URL` con el JWT de sesión en el header `Authorization`.
-  - Las acciones públicas (`register`, `request_reset`) tienen tope por IP (`rate_limit_hit`, migración 023) y cada acción sensible deja una fila en `audit_log` (se ve en Admin → Auditoría). Un pedido de cambio de clave deja la cuenta en `reset_pending` pero NO la bloquea; la clave pedida se guarda cifrada.
-- **`supabase/migrations/001_secure_rls.sql`** — políticas de Row Level Security de las tablas (las migraciones siguientes, `002`…`023`, las completan; se aplican a mano con `_runsql.mjs`).
-- **`supabase/INVENTARIO_RPC.md`** — qué funciones expone la base, a quién, y qué valida cada una. Revisarlo al agregar una función `security definer`.
-- **`supabase/_deployfn.mjs`** / **`supabase/_runsql.mjs`** — scripts helper para deployar la Edge Function y correr SQL contra la base, respectivamente.
-- Storage: los flyers/assets públicos se sirven desde el bucket de Supabase Storage (`FLYERS_PUBLIC` en `auth.js`).
+No hay `package.json` ni gestor de paquetes. La única herramienta de armado es `_build.mjs`, que se corre directo con Node: `node _build.mjs`.
 
-### Regla general de separación
+### Lo que se edita (frontend: todo corre en el navegador)
 
-- Todo lo que es **UI, estado de pantalla, parseo/formato de datos pegados, tema** → `auth.js` / `_source.html` (frontend).
-- Todo lo que requiere **credenciales privilegiadas, políticas de acceso a datos o lógica que no debe exponerse en el cliente** → `supabase/functions/` o `supabase/migrations/` (backend).
+| Archivo | Para qué sirve |
+|---|---|
+| `_source.html` | Plantilla del HTML/CSS/estructura. **Es el que se edita**, nunca `index.html`. El dueño a veces la regenera entera, por eso la lógica que debe sobrevivir va en `auth.js`. |
+| `_newcss.txt` | Estilos extra que el armado inyecta sobre `_source.html` (incluye el diseño "premium" y las paletas de color). |
+| `auth.js` | Casi toda la lógica: pantalla, login, llamadas a Supabase, motor que dibuja el flyer, calibrador, padrón, promociones, tutorial, tema claro/oscuro, parseo de texto pegado. JavaScript plano, sin transpilar. |
+| `gestiones.js` | Módulo aparte de Gestiones comerciales; se baja solo cuando hace falta. |
+| `_build.mjs` | Genera los archivos de salida y corre **chequeos de contrato** (si uno falla, no escribe `index.html`). |
 
-## Workflow de deploy
+### Lo que se genera (NO editar a mano)
+
+- `index.html` → producción (lo sirve GitHub Pages). Enlaza `auth.js?v=<hash>`.
+- `index_export.html` → misma app con `auth.js` incrustado, para usarla suelta desde cualquier lado.
+- `flyer_default.jpg` → imagen de ejemplo que se carga si no hay flyer activo.
+- `version.json` → hash del armado; la app lo compara y avisa "hay versión nueva". Sin guion bajo a propósito: GitHub Pages no sirve archivos que empiezan con `_`.
+- Las librerías de exportación (jsPDF, xlsx, JSZip, ExcelJS) no van en el `<head>`: `auth.js` las baja bajo demanda con verificación de integridad. Si se agrega una función que use alguna, hay que envolverla en `_libInit`.
+
+### Backend (carpeta `supabase/`)
+
+- `functions/auth-admin/` → Edge Function (Deno) con las operaciones privilegiadas (altas, claves, aprobaciones, auditoría, mails). Usa una llave de servidor que **el navegador nunca tiene**.
+- `functions/promos-galicia/` → Edge Function puente hacia la API de promociones del banco.
+- `migrations/001…023_*.sql` → estructura de la base y reglas de acceso (RLS). Se aplican **a mano, en orden**.
+- `INVENTARIO_RPC.md` → qué funciones expone la base, a quién y qué valida cada una. Revisarlo al agregar una función `security definer`.
+- `mail/apps-script.gs` → código del Gmail de la app (envío de avisos).
+- `_runsql.mjs` / `_deployfn.mjs` → ayudantes para correr SQL y para publicar una Edge Function.
+- `_verify_*.sql` → consultas de verificación de permisos.
+
+### Regla de separación
+
+- UI, estado de pantalla, formato de datos pegados, tema → `auth.js` / `_source.html`.
+- Credenciales privilegiadas, reglas de acceso a datos, lógica que no debe verse en el navegador → `supabase/`.
+
+### Archivos que NO son parte del proyecto activo
+
+`_backup_*` (copias puntuales), `deploy.zip`, `deploy_new.zip`, `_authjs.txt` (copia vieja de `auth.js`), `*.pptx` (presentaciones), `scratchpad/` (pruebas y parches de una sola vez; está en `.gitignore` y queda sólo en la PC).
+
+---
+
+## 3. Servicios conectados (sin claves)
+
+| Servicio | Qué se usa |
+|---|---|
+| **Supabase** | Base de datos con reglas de acceso por usuario (RLS), login, almacenamiento (bucket público donde viven flyers, legales, padrón, configuraciones en archivos `.json`) y las 2 Edge Functions. La dirección del proyecto y la clave **pública** están dentro de `auth.js` (es normal y está pensado así). |
+| **GitHub** | Repo `flyergalicia/flyer-galicia` (cuenta de trabajo, autor de commits neutro). **GitHub Pages** publica el sitio: https://flyergalicia.github.io/flyer-galicia/ (se actualiza solo 1-2 min después de subir). El repo debe seguir siendo público (en plan gratuito, privado apaga Pages). |
+| **Gmail + Apps Script** | Una casilla Gmail propia de la app manda los mails de aviso (registro, aprobación, cambio de clave). Se llama desde la Edge Function `auth-admin`. 100 mails/día gratis. |
+| **API de promociones de Galicia** | Pública; la consulta la Edge Function `promos-galicia` y guarda copia en la base. |
+| **CDN de librerías / Google Fonts** | pdf.js, jsPDF, xlsx, JSZip, ExcelJS, Figtree. Cada una con hash de integridad (SRI) y permitida en la política de seguridad (CSP) que inyecta `_build.mjs`. Si se suma un origen nuevo, hay que agregarlo a la CSP o el navegador lo bloquea en silencio. |
+
+### Dónde viven los secretos (nunca en el repo)
+
+- **Secretos de las Edge Functions** (se cargan en Supabase): `ADMIN_SECRET`-derivado para cifrar pedidos de clave, `MAIL_HOOK_URL`, `MAIL_HOOK_SECRET`, `MAIL_ADMIN`, y la llave de servidor de Supabase.
+- **Token personal de la API de gestión de Supabase** (para correr SQL y publicar funciones): lo tiene el dueño (panel de Supabase → Access tokens). Los scripts lo leen de la variable de entorno `SB_TOKEN`. **Pedírselo al usuario y pasarlo por entorno; no escribirlo en ningún archivo.**
+- **GitHub**: se autentica con el administrador de credenciales del sistema (inicio de sesión por navegador). Nunca poner un token dentro de la URL del remoto.
+- Remoto `oldorigin` = repo viejo de una cuenta personal, **congelado: no tocar** salvo pedido.
+
+---
+
+## 4. Qué se hizo hasta ahora (resumen)
+
+- **Armador completo:** motor que dibuja el flyer sobre una imagen base (se ajusta solo al tamaño real), hasta **4 oficiales** (el flyer crece), recorte del blanco inferior, legales editables con negritas y marcadores `{importe}`, PDF/PNG, historial, modo Masivo por Excel, zoom con Ctrl+rueda.
+- **Subir un flyer = PDF limpio + calibrador visual** (se arrastran las zonas; no hace falta rearmar el HTML cada mes).
+- **Varias "opciones" de armador** configurables (flyer genérico, por rubro combustible/súper, sueldo, etc.), cada una con su flyer y legal. Solo el admin ve el selector.
+- **Padrón de empresas** (Excel → búsqueda por razón social/CUIT con lupa y autocompletado; completa cashback y oficiales; avisa si el flyer no corresponde al rubro; propone actualizar el padrón al descargar). Privado por usuario con reglas de acceso.
+- **Pegar datos del oficial** (⚡ Pegar): extrae nombre, celular y mail de un texto desordenado, garantizando que no se altere ningún dígito.
+- **Buscador de Promociones** de Galicia: valida qué marcas del flyer siguen vigentes; exporta a Excel.
+- **Perfiles:** admin, VIP, asesor, Hunter, Líder, Prospect (cuenta de prueba). Facultades por perfil que el admin enciende/apaga.
+- **Gestiones comerciales** (visitas, prospectos, altas, tablero) — **en prueba**, sólo admin y cuentas de prueba.
+- **Mails de aviso** con diseño propio; freno al reemplazar el Excel de empresas (muestra qué se va/entra/cambia).
+- **Diseño:** estilo "premium", 4 paletas (la elegida: Marfil), modo oscuro, tutorial guiado.
+- **Rendimiento (oct-2026):** ingreso 3-4 veces más rápido, Validar promos y Masivo sin trabas, reglas de base 15-50 veces más rápidas, Excel sin corte en 1000 filas.
+- **Seguridad (oct-2026):** funciones de la base cerradas a visitantes, registro directo de Supabase cerrado (el alta pasa siempre por `auth-admin`), pedido de clave que **no bloquea** la cuenta y se guarda cifrado, tope por IP, tabla de auditoría (Admin → Auditoría), escape de todo texto ajeno (contra XSS), CSP + SRI.
+
+---
+
+## 5. Qué quedó pendiente o a medias (en orden de prioridad)
+
+1. **Probar el alta de usuario desde Admin → Usuarios → Nuevo usuario** (chequeo de un minuto): confirma que el alta funciona con el registro directo cerrado. Si fallara, reabrir el registro con `disable_signup=false` y avisar.
+2. **Probar un mail de aviso real de punta a punta** (por ejemplo un cambio de clave de la cuenta Prospect). Hasta hoy sólo se probó un mail de prueba.
+3. **Confirmar los rangos de renta reales** de Gestiones (`GES_RENTAS` en `gestiones.js`; hoy son de ejemplo). **No pasar Gestiones de "prueba" a "on" sin que el dueño lo pida.**
+4. **Puesta en marcha que sólo puede hacer el dueño con su sesión:** crear las opciones nuevas (Rubros, Sueldo, "Ambos") en Config → Opciones, subir cada PDF limpio, calibrar, cargar legales y habilitar en Facultades.
+5. **Variante de flyer "sin cashback":** todavía no existe. Mientras tanto, la empresa marcada sin cashback muestra su propio cartel y ese cartel **frena** el aviso de rubro (decisión del dueño).
+6. **Opciones sin imagen real** en la base (las "VIEJO…" y "Sin cashback"): si se elige una, sale descentrada. Cualquier código que elija una opción debe verificar que tenga imagen.
+7. **Contraseñas filtradas (HIBP):** requiere plan Pro de Supabase. Alternativa gratis: lista de claves comunes en la app.
+8. **"Volver a como estaba"** del Excel de empresas (propuesto, usando un registro de cambios).
+9. **Ideas propuestas y no elegidas:** Deshacer al restaurar, avisos con tipo/acción, mini vista previa fija en celular, esqueletos de carga, app instalable (PWA), vista previa de la primera fila del Masivo.
+10. **Paneo horizontal con zoom alto:** el canvas no puede ser más ancho que el panel (CSS heredado de `_source.html`). No se tocó por ser cambio de diseño en producción sin poder verlo logueado.
+11. **Calibrador:** los ajustes finos de oficiales por sede (`ehS`, `titH`, `ewS`) viven en la configuración pero no tienen campos en pantalla.
+12. **Opcional:** dar de baja el repo viejo personal; programar la sincronización de promos (hoy se dispara al abrir la solapa si la copia tiene más de 6 h).
+
+---
+
+## 6. Decisiones importantes y por qué
+
+- **Todo lo durable va en `auth.js`**, no en `_source.html`: el dueño regenera la plantilla seguido y se perdería.
+- **El formulario arranca vacío** (sin datos de ejemplo): cada uno carga lo suyo o usa asesores guardados.
+- **El padrón manda:** una empresa sin oficiales asignados limpia los campos en vez de arrastrar los del flyer anterior. **La razón social es la clave, no el CUIT** (dos grupos distintos pueden compartir CUIT). El padrón **no** se retroalimenta solo con los flyers: la fuente de verdad es el Excel del dueño.
+- **El mail del oficial se toma sólo si viene con arroba y textual** al pegar: en el banco muchos mails no derivan del nombre y deducirlo inventaba un dato.
+- **Sin cashback se marca desde el padrón** (celda vacía o "SIN"), sin agregar opciones en el armador.
+- **Zoom sólo con Ctrl + rueda** (la rueda sola recorre el flyer).
+- **Atajos nuevos con Alt, no Ctrl+letra** (en el navegador del dueño Ctrl+G busca en internet).
+- **Repo público a propósito** (Pages gratis). Por eso: `scratchpad/`, capturas de pruebas (`.playwright-mcp/`), backups y presentaciones están en `.gitignore`, y nada personal se versiona.
+- **Facultad "guardar historial y borrador" apagada por defecto** para asesores; el admin la enciende por perfil.
+- **El alta de usuarios pasa siempre por la Edge Function** `auth-admin` (exige mail del banco). El rol nunca se toma de los datos del registro.
+- **Pedido de cambio de clave no bloquea la cuenta** (si no, cualquiera con el mail ajeno podía dejar afuera a alguien). La clave pedida se guarda cifrada hasta que el admin aprueba.
+- **Los mails de aviso nunca llevan la clave ni links**, y un mail que falla nunca hace fallar la operación.
+- **Subir un Excel de empresas nunca reemplaza sin mostrar antes el resumen** (salvo la primera carga).
+- **Rendimiento:** se probó y descartó cachear la imagen achicada, partir/minificar `auth.js` o bajar la calidad JPEG (poca ganancia o afecta lo impreso). No reintentar sin medir distinto.
+- **Hallazgos de revisiones externas ya descartados** (no "arreglar" de nuevo): inyección de fórmulas en Excel (todo es `.xlsx` de texto), XSS en historial (ya se escapa), librerías sin SRI (ya lo tienen), limpiar `localStorage` al salir (rompería el historial por usuario).
+
+### Invariantes (lo acordado que ya se rompió una vez por un cambio en otra parte)
+
+1. El zoom se ancla donde está el mouse → usar `redrawNow()`, nunca `redraw()` (que difiere el dibujado).
+2. El aviso de "flyer equivocado" sale **siempre** al traer una empresa desde la lupa o el autocompletado.
+3. Todo lo que se oculta por rol se tiene que volver a mostrar en el mismo lugar (si no, el admin se queda sin armador al salir de la vista previa de Hunter).
+4. **Un flyer nuevo siempre es una dirección nueva** (`?v=<hora>`): la imagen se cachea 1 h. Nunca re-subir con el mismo nombre.
+5. Los JSON del bucket se leen **sólo** con `_bucketJson` (un único `fetch` al bucket en todo `auth.js`).
+6. Un dato que llega tarde para una opción no pisa a la opción que ya está activa.
+7. Lecturas de más de 1000 filas se paginan con `_sbTodo`.
+8. En reglas de base nuevas, `auth.uid()`, `is_active()`, `get_my_role()` y `gestiones_on()` van envueltas en `(select …)`.
+9. Funciones SQL nuevas nacen **sin** permiso para visitantes; para que las use la app con sesión hay que darles `grant execute … to authenticated`. Toda `security definer` lleva `set search_path = public`.
+10. Toda columna nueva de `profiles` que use el cliente se agrega al `select` de `checkProfile` (hay chequeo en el armado).
+11. Todo camino nuevo que muestre el formulario de ingreso debe llamar antes a `_bootFin()` (si no, queda escondido tras "Ingresando…").
+12. Todo texto que escribió otro usuario se pinta con `_escHtml`; en un `onclick` van sólo ids, nunca texto.
+13. Los teléfonos se detectan por grupos de dígitos (no con una expresión glotona) y el CUIT se tapa antes. No volver a `cfgIdx` directo para el cashback del Excel: usar `_padCfgParse`.
+14. Al insertar texto arbitrario con `.replace`, pasar siempre una función (un `$'` duplicó el HTML una vez).
+
+---
+
+## 7. Cómo se prueba y se ejecuta
+
+**Armar y publicar**
 
 1. Editar `_source.html`, `_newcss.txt` y/o `auth.js` (y `supabase/` si aplica).
-2. `node _build.mjs` → regenera `index.html` e `index_export.html`.
-3. Si se tocó `supabase/functions/auth-admin`, deployarla aparte (ver `supabase/_deployfn.mjs`).
-4. `git add -A && git commit && git push origin main` → GitHub Pages del repo `flyergalicia/flyer-galicia` rebuildea solo.
+2. `node _build.mjs` → regenera `index.html` e `index_export.html` y corre los chequeos de contrato. Si algo falla, **no** escribe nada.
+3. Si se tocó `supabase/functions/*`, publicarla aparte con `supabase/_deployfn.mjs` (necesita `SB_TOKEN` en el entorno).
+4. Si hay una migración nueva, aplicarla con `supabase/_runsql.mjs <archivo.sql>` (necesita `SB_TOKEN`) y verificarla con los `_verify_*.sql`.
+5. `git add -A && git commit && git push origin main` → GitHub Pages se actualiza solo. **Pedir confirmación al usuario antes de subir.**
 
-Nota: el detalle de repos/hosting/credenciales vive en la memoria persistente del usuario (no se repite acá para no duplicar y desactualizar dos fuentes).
+**Probar**
 
-## Archivos que NO son parte del proyecto activo
+- Abrir `index.html` por `http://localhost` (**no** por `file://`: la política de seguridad no lo permite) con cualquier servidor estático.
+- La app necesita login real de Supabase; para probar pantallas sin sesión se hacía un "bypass" desde pruebas automáticas (Playwright) seteando el estado a mano.
+- Las pruebas automáticas (sandbox de Node que evalúa `auth.js` con un DOM mínimo, Playwright para lo visual) vivieron en `scratchpad/` y **no están en el repo**. Si se retoman pruebas, volver a crearlas; el chequeo de integridad útil verifica que cada `onclick` apunte a una función existente, que no haya funciones duplicadas y que `index.html` esté al día.
+- **Si el usuario dice "no veo el cambio":** antes de buscar un bug, mirar qué versión sirve producción (`curl` a `index.html` y `auth.js`) y sugerir Ctrl+F5. GitHub Pages cachea 10 min.
+- Cuando algo no se pueda ver logueado desde la sesión, **decirlo** y pedirle al usuario que lo revise en vivo.
 
-- `_backup_20260606_003136/`, `_backup_flyerlogs_20260606_090955.json` — backups puntuales.
-- `deploy.zip`, `deploy_new.zip` — artefactos viejos de deploy manual.
-- `_authjs.txt` — snapshot viejo de `auth.js`, no se usa.
+---
 
-## Idioma
+## 8. Reglas y preferencias del usuario
 
-Responder siempre en español.
+- **Responder siempre en español, claro y sin jerga.** Nombrar las cosas como se ven en pantalla ("la lupa del buscador", "el botón Pegar"), no por el nombre de la función.
+- **Preguntarle sólo decisiones de producto** (qué ve cada perfil, cómo se llama una solapa). Las decisiones técnicas se resuelven solas y se cuentan en una línea. Si un detalle técnico lo afecta, explicarlo con una analogía corta **antes** de preguntar, y decir si tiene que hacer algo.
+- **No romper lo que ya funciona.** Es exigente con la estética y con la experiencia de uso. Invertir en verificar y decirle qué se verificó y qué no se pudo ver.
+- **Antes de arreglar hallazgos de otra IA, comprobarlos contra el código** (hay falsos positivos).
+- **No subir a GitHub ni pasar nada a producción sin su confirmación**; no encender funciones en prueba (Gestiones) por cuenta propia.
+- **Quiere ver antes de decidir** (propuestas visuales, tutorial automático apagado hasta que lo apruebe).
+- **Prioriza fluidez en las PC de sucursal:** nada pesado en lo visual.
+- **Privacidad:** identidad de trabajo separada de la personal. Autor de commits neutro; no versionar nombres, mails ni capturas con datos reales.
+- **Claves:** nunca pedirlas por chat ni escribirlas en archivos o commits; viven en variables de entorno.
+- **Orquestación con otras IA (preferencia global del usuario):** Claude resuelve solo por defecto; deriva a Gemini sólo para imágenes o segunda opinión con contexto largo, y a ChatGPT (Codex) sólo para revisión, siempre en modo lectura. Avisar en una línea por qué antes de derivar; si falla por cupo o login, decirlo sin inventar el resultado.
