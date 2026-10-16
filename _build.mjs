@@ -46,6 +46,8 @@ html = html.replace(
   '.prev{padding:16px;display:flex;flex-direction:column;align-items:center;overflow:auto;background:#e8e8e3;height:100%;}'
 );
 html = html.replace('</style>', newCSS + '</style>');
+// Tildes que faltan en la plantilla (se corrige acá: el usuario regenera _source.html)
+html = html.replace('>Configuracion de Montos<', '>Configuración de Montos<');
 
 // ── FUENTES: @import → <link> ───────────────────────────────────────────────
 // El @import adentro del <style> serializa la cadena: el navegador baja el HTML,
@@ -345,7 +347,7 @@ const adminPanel = `<div id="admin-panel">
     <div id="at-dashboard">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <p class="ap-sec" style="margin:0">Resumen general</p>
-        <button class="usr-btn ok" id="btn-export-excel" onclick="exportFlyerLogsExcel()" style="font-size:.72rem;padding:5px 10px">&#11015; Exportar Excel</button>
+        <button class="usr-btn ok" id="btn-export-excel" onclick="exportFlyerLogsExcel()" style="font-size:.75rem;padding:5px 10px">&#11015; Exportar Excel</button>
       </div>
       <div class="stat-grid">
         <div class="stat-card"><span>Total usuarios</span><strong id="stat-total">&mdash;</strong></div>
@@ -395,10 +397,10 @@ const adminPanel = `<div id="admin-panel">
       <div class="login-ok" id="upload-ok" style="margin-top:8px"></div>
       <div id="upload-progress" style="display:none;margin-top:10px">
         <div class="upload-prog"><div class="upload-prog-bar" id="upload-bar"></div></div>
-        <p style="font-size:.72rem;color:var(--gray);margin-top:4px" id="upload-pct">0%</p>
+        <p style="font-size:.75rem;color:var(--gray);margin-top:4px" id="upload-pct">0%</p>
       </div>
       <div id="upload-result" class="upload-result-box" style="display:none">
-        <p style="font-size:.7rem;color:var(--gray);margin-bottom:2px">URL p&uacute;blica:</p>
+        <p style="font-size:.75rem;color:var(--gray);margin-bottom:2px">URL p&uacute;blica:</p>
         <a id="upload-url" href="#" target="_blank" class="upload-result-url"></a>
         <div style="display:flex;gap:8px">
           <button class="usr-btn ok" onclick="copyUploadUrl()">Copiar URL</button>
@@ -411,7 +413,7 @@ const adminPanel = `<div id="admin-panel">
     <div id="at-registros" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <p class="ap-sec" style="margin:0">Registros de flyers generados</p>
-        <button class="usr-btn ok" id="btn-export-reg" onclick="exportRegistros()" style="font-size:.72rem;padding:5px 12px">&#11015; Exportar Excel</button>
+        <button class="usr-btn ok" id="btn-export-reg" onclick="exportRegistros()" style="font-size:.75rem;padding:5px 12px">&#11015; Exportar Excel</button>
       </div>
       <div class="reg-filter">
         <div class="reg-filter-group">
@@ -431,11 +433,11 @@ const adminPanel = `<div id="admin-panel">
           <input type="date" id="reg-q-to">
         </div>
         <div style="display:flex;gap:6px;align-items:flex-end">
-          <button class="btn-submit" onclick="loadRegistros()" style="padding:7px 14px;font-size:.72rem">Buscar</button>
-          <button class="btn-cancel" onclick="document.getElementById('reg-q-empresa').value='';document.getElementById('reg-q-user').value='';document.getElementById('reg-q-from').value='';document.getElementById('reg-q-to').value='';loadRegistros();" style="padding:7px 10px;font-size:.72rem">&#10005;</button>
+          <button class="btn-submit" onclick="loadRegistros()" style="padding:7px 14px;font-size:.75rem">Buscar</button>
+          <button class="btn-cancel" onclick="document.getElementById('reg-q-empresa').value='';document.getElementById('reg-q-user').value='';document.getElementById('reg-q-from').value='';document.getElementById('reg-q-to').value='';loadRegistros();" style="padding:7px 10px;font-size:.75rem">&#10005;</button>
         </div>
       </div>
-      <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="reg-count"></p>
+      <p style="font-size:.75rem;color:var(--gray);margin-bottom:8px" id="reg-count"></p>
       <div id="registros-list"></div>
     </div>
 
@@ -458,7 +460,7 @@ const adminPanel = `<div id="admin-panel">
         <button class="btn-submit" id="opciones-save" onclick="_opcGuardar()" style="padding:8px 16px">Guardar cambios</button>
         <button class="usr-btn edit" onclick="renderOpcionesAdmin(true)">Recargar</button>
       </div>
-      <p style="font-size:.72rem;color:var(--gray);margin-top:10px;line-height:1.5">Quitar una opci&oacute;n la saca de la vista de todos, pero <strong>no borra</strong> su flyer ni su legal guardados: si la volv&eacute;s a agregar con el mismo n&uacute;mero, reaparecen.<br><br>La <strong>solapa</strong> dice en qu&eacute; armador del header vive cada opci&oacute;n. <strong>Flyer Sueldo</strong> imprime <strong>un solo importe de cashback</strong> (el m&aacute;s alto de la configuraci&oacute;n que tenga elegida el asesor) en vez de los cuatro montos. Si cambi&aacute;s de solapa una opci&oacute;n que ya ten&iacute;a flyer, <strong>volv&eacute; a calibrarla</strong>: el importe &uacute;nico y las cuatro cajas se ubican por separado.</p>
+      <p style="font-size:.75rem;color:var(--gray);margin-top:10px;line-height:1.5">Quitar una opci&oacute;n la saca de la vista de todos, pero <strong>no borra</strong> su flyer ni su legal guardados: si la volv&eacute;s a agregar con el mismo n&uacute;mero, reaparecen.<br><br>La <strong>solapa</strong> dice en qu&eacute; armador del header vive cada opci&oacute;n. <strong>Flyer Sueldo</strong> imprime <strong>un solo importe de cashback</strong> (el m&aacute;s alto de la configuraci&oacute;n que tenga elegida el asesor) en vez de los cuatro montos. Si cambi&aacute;s de solapa una opci&oacute;n que ya ten&iacute;a flyer, <strong>volv&eacute; a calibrarla</strong>: el importe &uacute;nico y las cuatro cajas se ubican por separado.</p>
     </div>
 
     <div id="at-facultades" style="display:none">
@@ -547,7 +549,7 @@ const adminPanel = `<div id="admin-panel">
     <div id="at-padronlog" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <p class="ap-sec" style="margin:0">Cambios en las empresas</p>
-        <button class="usr-btn ok" id="btn-export-plog" onclick="exportPadronLog()" style="font-size:.72rem;padding:5px 12px">&#11015; Exportar Excel</button>
+        <button class="usr-btn ok" id="btn-export-plog" onclick="exportPadronLog()" style="font-size:.75rem;padding:5px 12px">&#11015; Exportar Excel</button>
       </div>
       <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Cada vez que alguien guarda sus empresas (subiendo un Excel, con el editor en l&iacute;nea o desde el armador), queda constancia de <strong>qu&eacute; empresas se agregaron, cu&aacute;les se modificaron</strong> (y qu&eacute; cambi&oacute;: CUIT, cashback u oficiales) <strong>y cu&aacute;les se borraron</strong>, con fecha, hora y qui&eacute;n lo hizo. Un cambio de raz&oacute;n social aparece como una baja m&aacute;s un alta. Ves tus propios cambios y los de asesores, VIP y Pro; los de otro administrador no.</p>
       <div class="reg-filter">
@@ -577,11 +579,11 @@ const adminPanel = `<div id="admin-panel">
           <input type="date" id="plog-q-to">
         </div>
         <div style="display:flex;gap:6px;align-items:flex-end">
-          <button class="btn-submit" onclick="loadPadronLog()" style="padding:7px 14px;font-size:.72rem">Buscar</button>
-          <button class="btn-cancel" onclick="['plog-q-user','plog-q-empresa','plog-q-accion','plog-q-from','plog-q-to'].forEach(function(i){document.getElementById(i).value='';});loadPadronLog();" style="padding:7px 10px;font-size:.72rem">&#10005;</button>
+          <button class="btn-submit" onclick="loadPadronLog()" style="padding:7px 14px;font-size:.75rem">Buscar</button>
+          <button class="btn-cancel" onclick="['plog-q-user','plog-q-empresa','plog-q-accion','plog-q-from','plog-q-to'].forEach(function(i){document.getElementById(i).value='';});loadPadronLog();" style="padding:7px 10px;font-size:.75rem">&#10005;</button>
         </div>
       </div>
-      <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="plog-count"></p>
+      <p style="font-size:.75rem;color:var(--gray);margin-bottom:8px" id="plog-count"></p>
       <div id="plog-list"></div>
     </div>
 
@@ -606,10 +608,10 @@ const adminPanel = `<div id="admin-panel">
           </select>
         </div>
         <div style="display:flex;gap:6px;align-items:flex-end">
-          <button class="btn-submit" onclick="loadAuditoria()" style="padding:7px 14px;font-size:.72rem">Actualizar</button>
+          <button class="btn-submit" onclick="loadAuditoria()" style="padding:7px 14px;font-size:.75rem">Actualizar</button>
         </div>
       </div>
-      <p style="font-size:.68rem;color:var(--gray);margin-bottom:8px" id="aud-count"></p>
+      <p style="font-size:.75rem;color:var(--gray);margin-bottom:8px" id="aud-count"></p>
       <div id="aud-list"></div>
     </div>
 
@@ -1503,7 +1505,34 @@ const checks = {
   // (con "@2" cada deploy tomaba la última 2.x sin que nadie la probara).
   'seg: Edge Functions con supabase-js fijo (misma version que la app)': ['auth-admin', 'promos-galicia'].every(f =>
     readFileSync(`supabase/functions/${f}/index.ts`, 'utf8').includes('https://esm.sh/@supabase/supabase-js@' + (SUPABASE_JS_URL.match(/supabase-js@([\d.]+)\//) || [])[1] + '"')),
-  'perf: un solo listener de resize (el de auth.js, con demora)': !/window\.addEventListener\('resize', function\(\)\{\s*if\(baseImg\.complete/.test(html) && _authSrc.includes("window.addEventListener('resize',function(){clearTimeout(_fgResizeT)"),
+  // ── Revisión Claude + Codex + Gemini (2026-10-15) ──
+  // Un corte de red al entrar ofrece Reintentar con la misma sesión (antes la cerraba).
+  'ingreso: un corte de red no cierra la sesion (tarjeta Reintentar)': _authSrc.includes('function _fgIngresoSinRed(') &&
+    /if\(r\.error&&_fgErrTransitorio\(r\)\)\{[^}]*_fgIngresoSinRed\(user\);return;\}/.test(_authSrc) && newCSS.includes('html.fg-boot #lv-red{display:none'),
+  'ingreso: errores del login en castellano': /function doLogin\(\)\{[\s\S]*?errEl\.textContent=_fgErrLogin\(r\.error\)[\s\S]*?\n\}/.test(_authSrc) &&
+    !((_authSrc.match(/function doLogin\(\)\{[\s\S]*?\n\}/) || [''])[0]).includes('r.error.message'),
+  // Los ZIP del masivo y del padrón se sueltan de la memoria; si el ZIP falla el botón no queda trabado.
+  'zip: masivo y padron sueltan la memoria (revoke)': (_authSrc.match(/_fgBajarBlob\(content,/g) || []).length === 2 && !_authSrc.includes('a.href=URL.createObjectURL(content)'),
+  'masivo: una fila o el ZIP que fallan no traban el boton': /function fgGenAll\(\)\{[\s\S]*?\}\)\.catch\(function\(e\)\{[\s\S]*?bg\.disabled=false[\s\S]*?try\{genFila\(\);\}catch/.test(_authSrc),
+  'ux: "Cargando..." se va apenas carga la opcion': _authSrc.includes('function fgHideToast(') && _authSrc.includes('fgHideToast(cargando);'),
+  'ux: tilde en Configuracion de Montos': html.includes('Configuración de Montos') && !html.includes('Configuracion de Montos'),
+  'oscuro: boton de montos elegido legible': newCSS.includes('html.dark .cfg-btn.active{background:var(--tab-on-bg)'),
+  'lupa: los puntos no cuentan al buscar (S.A. = SA)': /function padronSearch\([\s\S]*?_padSinPuntos\(_padNorm\(q\)\)[\s\S]*?_padSinPuntos\(_padNorm\(r\.empresa\)\)/.test(_authSrc),
+  // Barra fija "Vista previa · Descargar PDF · Otros" en la PC; el tutorial apunta a los botones movidos.
+  'ux: barra fija con Descargar PDF (PC) y tutorial al dia': _authSrc.includes('function _fgDockInit(') && _authSrc.includes('try{_fgDockInit();}') &&
+    newCSS.includes('.fg-dock{position:sticky') && _authSrc.includes("{target:'#btn-dl-pdf'") && !/target:'\.btns \.btn\.(bp|bblue)'/.test(_authSrc),
+  'ux: Pegar/Borrar con teclado y area tactil': (_authSrc.match(/class="fg-del" role="button" tabindex="0"/g) || []).length === 2 && _authSrc.includes('class="fg-paste-btn" id="fg-paste-btn-\'+n+\'" role="button" tabindex="0"') && newCSS.includes('.fg-del,.fg-paste-btn{min-height:32px'),
+  'ux: header del celular con logo y nombre completo': newCSS.includes('@media (max-width:480px){.header-logo{width:28px;height:28px;}}') && !/max-width:480px\)\{\s*\.header-logo\{display:none/.test(newCSS) && newCSS.includes('@media (max-width:900px){.header-right{min-width:0;}}'),
+  // El "Nombre de la empresa" en gris es sólo de la pantalla: el PDF/PNG/masivo no lo llevan.
+  'ux: vista previa vacia en gris solo en pantalla': _authSrc.includes('v._enPantalla=true;') && _authSrc.includes('fgDrawEmpresa(c,s,v.empresa,v._enPantalla)') &&
+    !((_authSrc.match(/function fgFullRes\(v\)\{[\s\S]*?\n\}/) || [''])[0]).includes('_enPantalla'),
+  // Letra mínima: nada por debajo de 11 px salvo símbolos (flechitas, la ✕) y textos de gráficos SVG.
+  'ux: letra minima (nada < 11 px salvo simbolos)': [newCSS, _authSrc, readFileSync('gestiones.js', 'utf8')].every(src => src.split('\n').every(l => {
+    const chicos = [...l.matchAll(/(?:font-size\s*:\s*|font\s*:\s*(?:(?:italic|normal|bold|bolder|lighter|[1-9]00)\s+)*)(0?\.\d+|\d+(?:\.\d+)?)(rem|px)(?![\w-])/g)]
+      .filter(m => (m[2] === 'rem' ? parseFloat(m[1]) * 16 : parseFloat(m[1])) < 10.99);
+    return !chicos.length || /caret|fac-car|as-del|fill\s*:|\[style\*=/.test(l); // [style*=…] es el selector que AGRANDA esos estilos
+  })),
+  'perf: un solo listener de resize (el de auth.js, con demora)':!/window\.addEventListener\('resize', function\(\)\{\s*if\(baseImg\.complete/.test(html) && _authSrc.includes("window.addEventListener('resize',function(){clearTimeout(_fgResizeT)"),
 };
 let _fallos = 0;
 for (const [k, v] of Object.entries(checks)) {

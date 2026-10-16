@@ -90,6 +90,7 @@ No hay `package.json` ni gestor de paquetes. La única herramienta de armado es 
 - **Diseño:** estilo "premium", 4 paletas (la elegida: Marfil), modo oscuro, tutorial guiado.
 - **Rendimiento (oct-2026):** ingreso 3-4 veces más rápido, Validar promos y Masivo sin trabas, reglas de base 15-50 veces más rápidas, Excel sin corte en 1000 filas.
 - **Seguridad (oct-2026):** funciones de la base cerradas a visitantes, registro directo de Supabase cerrado (el alta pasa siempre por `auth-admin`), pedido de clave que **no bloquea** la cuenta y se guarda cifrado, tope por IP, tabla de auditoría (Admin → Auditoría), escape de todo texto ajeno (contra XSS), CSP + SRI.
+- **Revisión Claude + Codex + Gemini (15-oct-2026):** barra fija "Vista previa · Descargar PDF · Otros" al pie del panel en PC; letra mínima 12 px en toda la interfaz (11 px en rótulos en mayúscula); logo y nombre completo en el header del celular (y arreglo del header entre 481 y 900 px); "Nombre de la empresa" en gris en la vista previa vacía; un corte de red al entrar ofrece Reintentar sin cerrar la sesión; errores del login en castellano; los ZIP del Masivo/padrón se liberan de la memoria y un error no traba el botón; la lupa ignora los puntos (S.A. = SA). Descartado a pedido del dueño: corrección de montos con formato de celda con decimales, PNG masivo con menos memoria y flechas del calibrador.
 
 ---
 
@@ -144,6 +145,10 @@ No hay `package.json` ni gestor de paquetes. La única herramienta de armado es 
 12. Todo texto que escribió otro usuario se pinta con `_escHtml`; en un `onclick` van sólo ids, nunca texto.
 13. Los teléfonos se detectan por grupos de dígitos (no con una expresión glotona) y el CUIT se tapa antes. No volver a `cfgIdx` directo para el cashback del Excel: usar `_padCfgParse`.
 14. Al insertar texto arbitrario con `.replace`, pasar siempre una función (un `$'` duplicó el HTML una vez).
+15. **Letra mínima 12 px (11 en rótulos en mayúscula)**: ninguna regla ni estilo en línea nuevo por debajo (hay chequeo en el armado). Lo que pisa a `_source.html` va en el bloque "B2" **al principio** de `_newcss.txt`: al final pisaba reglas propias (el textarea de 16 px del celular, que evita el zoom del iPhone).
+16. El "Nombre de la empresa" en gris es **sólo de la pantalla** (`v._enPantalla`, lo pone `fgRedraw`): nunca en `fgFullRes`, PDF, PNG, masivo ni historial.
+17. Los botones Vista previa / Descargar PDF / Otros viven en `#fg-dock` en la PC y vuelven a `.btns` en el celular (`_fgDockUbicar`): todo lo que los busque (tutorial incluido) va por id o por `#tab-individual`, nunca por `.btns .btn…`.
+18. Un error **pasajero** al leer el perfil (sin red, 5xx, 408, 429) NO cierra la sesión: tarjeta Reintentar (`_fgIngresoSinRed`). Sólo una respuesta real (perfil inexistente, inactivo, pendiente) la cierra.
 
 ---
 

@@ -545,7 +545,7 @@ function _asEditRenderList(){
     return;
   }
   host.innerHTML=
-    (_asEditQ?'<p style="font-size:.68rem;color:var(--gray);margin-bottom:6px">Mostrando '+idxs.length+' de '+rows.length+'.</p>':'')+
+    (_asEditQ?'<p style="font-size:.75rem;color:var(--gray);margin-bottom:6px">Mostrando '+idxs.length+' de '+rows.length+'.</p>':'')+
     idxs.map(function(i){return _asEditRowHtml(_asEdit[i],i);}).join('');
 }
 function _asEditRowHtml(a,i){
@@ -841,8 +841,13 @@ function initApp(){
     else _bootFin(); // la sesión guardada ya no sirve: el formulario de siempre
   }).catch(function(){_bootFin();});
   // Red de seguridad del "Ingresando…": si la app no terminó de entrar en 10 s
-  // (red caída), aparece el formulario para que se pueda volver a intentar.
-  setTimeout(_bootFin,10000);
+  // (red caída), aparece el formulario para que se pueda volver a intentar; si
+  // lo que no contesta es el perfil de una sesión válida, la tarjeta de
+  // Reintentar (no hace falta volver a poner la clave).
+  setTimeout(function(){
+    if(_fgIngresoPend&&!_me&&document.documentElement.classList.contains('fg-boot'))_fgIngresoSinRed(_fgIngresoPend,true);
+    else _bootFin();
+  },10000);
   var prevEl=document.querySelector('.prev');
   if(prevEl){
     // La rueda manda decenas de eventos por gesto; cada uno redibujaba el flyer entero
@@ -904,7 +909,7 @@ function initApp(){
 // recuperar clave, o 10 s sin poder entrar).
 function _bootFin(){document.documentElement.classList.remove('fg-boot');}
 function showLoginView(v){
-  ['login','forgot','register'].forEach(function(x){
+  ['login','forgot','register','red'].forEach(function(x){ // 'red' = sin conexión (_fgIngresoSinRed)
     var el=document.getElementById('lv-'+x);
     if(el)el.style.display=(x===v)?'block':'none';
   });
@@ -964,15 +969,25 @@ function doRegister(){
 
 function checkProfile(user){
   _fgPrecargaInicio(user.id); // la configuración viene en paralelo con el perfil
+  _fgIngresoPend=user;
   _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades,es_prueba,lider_id').eq('id',user.id).single().then(function(r){
+    _fgIngresoPend=null;
     var p=r.data;
+    // Un corte de red o el servidor caído NO es una cuenta rechazada: antes caía
+    // abajo, cerraba la sesión y mostraba "Error: Failed to fetch" (en una
+    // sucursal con la red inestable el asesor tenía que volver a poner la clave).
+    // Ahora se ofrece reintentar con la misma sesión.
+    if(r.error&&_fgErrTransitorio(r)){console.warn('checkProfile:',r.error);_fgIngresoSinRed(user);return;}
     // 'reset_pending' = pidió cambiar la clave y espera al admin: entra igual con
     // la clave de siempre (si se lo bloqueara, cualquiera con su mail podría dejarlo
     // afuera pidiendo un cambio de clave en su nombre).
     if(r.error||!p||(p.status!=='active'&&p.status!=='reset_pending')){
       _bootFin(); // hace falta el formulario: el mensaje va ahí
       var msg;
-      if(r.error)msg='Error: '+r.error.message;
+      if(r.error){
+        console.warn('checkProfile:',r.error);
+        msg=(r.error.code==='PGRST116')?'Tu cuenta no está habilitada. Contactá al administrador.':'No se pudo verificar tu cuenta. Volvé a ingresar.';
+      }
       else if(p&&p.status==='pending')msg='Tu cuenta está pendiente de aprobación del administrador.';
       else msg='Cuenta inactiva. Contactá al administrador.';
       // Orden importa: showLoginView limpia login-err, así que el mensaje va
@@ -1111,7 +1126,7 @@ function _refreshPendingBadge(){
   var ab=document.getElementById('hdr-admin-btn');if(!ab)return;
   _sb.from('profiles').select('id',{count:'exact',head:true}).in('status',['pending','reset_pending']).then(function(r){
     var n=r.count||0;
-    ab.innerHTML='&#9881; Admin'+(n>0?' <span style="background:#fff;color:var(--red);border-radius:10px;padding:0 6px;font-size:.66rem;font-weight:800;margin-left:2px">'+n+'</span>':'');
+    ab.innerHTML='&#9881; Admin'+(n>0?' <span style="background:#fff;color:var(--red);border-radius:10px;padding:0 6px;font-size:.75rem;font-weight:800;margin-left:2px">'+n+'</span>':'');
     // "Usuarios" quedó un nivel más abajo (dentro del pilar Admin): un puntito
     // avisa que hay algo pendiente sin tener que entrar a mirar.
     var pa=document.querySelector('.atab[data-group="admin"]');
@@ -1120,14 +1135,71 @@ function _refreshPendingBadge(){
 }
 
 
+// ── INGRESO SIN RED ──────────────────────────────────────────────────────────
+// Error "pasajero": sin respuesta (status 0, la red se cortó), tiempo agotado,
+// demasiados pedidos o el servidor caído. Lo demás (perfil inexistente, sesión
+// inválida) sí es una respuesta y sigue el camino de siempre.
+var _fgIngresoPend=null,_fgIngresoUser=null;
+function _fgErrTransitorio(r){var s=r&&r.status;return !s||s===408||s===429||s>=500;}
+// Tarjeta "No se pudo conectar" en el lugar del formulario: la sesión NO se
+// cierra; Reintentar vuelve a pedir el perfil con la misma sesión. lento = el
+// pedido no contestó en 10 s (sin esto quedaba "Ingresando…" o el formulario).
+function _fgIngresoSinRed(user,lento){
+  var card=document.querySelector('#login-ov .login-card');if(!card)return;
+  _fgIngresoUser=user||_fgIngresoUser;
+  var v=document.getElementById('lv-red');
+  if(!v){v=document.createElement('div');v.id='lv-red';v.setAttribute('role','alert');card.appendChild(v);}
+  v.innerHTML='<span class="lv-red-ico" aria-hidden="true">!</span>'+
+    '<h2 class="login-card-title">'+(lento?'Est&aacute; tardando m&aacute;s de lo normal':'No se pudo conectar')+'</h2>'+
+    '<p class="login-card-sub">Revis&aacute; la conexi&oacute;n y prob&aacute; de nuevo. Tu sesi&oacute;n sigue abierta: no hace falta volver a poner la clave.</p>'+
+    '<button class="login-submit" id="lv-red-btn" onclick="_fgReintentarIngreso()">Reintentar</button>'+
+    '<div class="login-links lv-red-links"><button class="login-link" onclick="_fgIngresarOtraCuenta()">Ingresar con otra cuenta</button></div>';
+  _bootFin();showLoginView('red');
+}
+function _fgReintentarIngreso(){
+  var b=document.getElementById('lv-red-btn');if(b){b.disabled=true;b.textContent='Conectando…';}
+  document.documentElement.classList.add('fg-boot'); // vuelve el "Ingresando…"
+  _sb.auth.getSession().then(function(r){
+    var s=r&&r.data&&r.data.session;
+    if(s){checkProfile(s.user);_fgVigilarIngreso();}
+    else if(r&&r.error)_fgIngresoSinRed(_fgIngresoUser);
+    else{_bootFin();showLoginView('login');} // la sesión venció mientras tanto
+  }).catch(function(){_fgIngresoSinRed(_fgIngresoUser);});
+}
+// Si el perfil no contesta en 10 s, la tarjeta de reintentar en vez de un
+// "Ingresando…" eterno.
+function _fgVigilarIngreso(){
+  setTimeout(function(){
+    if(_fgIngresoPend&&!_me&&document.documentElement.classList.contains('fg-boot'))_fgIngresoSinRed(_fgIngresoPend,true);
+  },10000);
+}
+// scope local: sin red, el signOut global falla ANTES de borrar la sesión del
+// navegador y el botón no hacía nada.
+function _fgIngresarOtraCuenta(){
+  _fgIngresoUser=null;
+  _sb.auth.signOut({scope:'local'}).catch(function(){}).then(function(){showLoginView('login');});
+}
+// Supabase contesta en inglés ("Invalid login credentials"): se muestra en
+// castellano. Lo que no se reconoce va con un texto general.
+function _fgErrLogin(e){
+  var m=String((e&&e.message)||''),s=e&&e.status;
+  if(/invalid login credentials|invalid_grant|invalid email or password/i.test(m))return 'Mail o contraseña incorrectos.';
+  if(/email not confirmed/i.test(m))return 'Tu cuenta todavía no está confirmada. Avisale al administrador.';
+  if(s===429||/rate limit|too many|security purposes/i.test(m))return 'Demasiados intentos seguidos. Esperá un minuto y probá de nuevo.';
+  if(/banned|disabled/i.test(m))return 'Tu cuenta está deshabilitada. Contactá al administrador.';
+  if(!s||/fetch|network/i.test(m))return 'No se pudo conectar. Revisá tu conexión y probá de nuevo.';
+  return 'No se pudo ingresar. Probá de nuevo en un momento.';
+}
+
 function doLogin(){
   var email=document.getElementById('login-email').value.trim();
   var pass=document.getElementById('login-pass').value;
   var errEl=document.getElementById('login-err');errEl.textContent='';
+  if(!email||!pass){errEl.textContent='Completá el mail y la contraseña.';return;}
   var btn=document.getElementById('login-btn');btn.textContent='Ingresando...';btn.disabled=true;
   _sb.auth.signInWithPassword({email:email,password:pass}).then(function(r){
     btn.textContent='Ingresar';btn.disabled=false;
-    if(r.error){errEl.textContent=r.error.message;return;}
+    if(r.error){errEl.textContent=_fgErrLogin(r.error);return;}
     checkProfile(r.data.user);
   }).catch(function(){
     // Sin red / error inesperado: el botón no puede quedar trabado en "Ingresando...".
@@ -1694,7 +1766,7 @@ function renderFacultades(){
   var cols='1.7fr repeat('+(_FAC_ROLES.length+1)+',minmax(64px,.6fr))';
   // Los títulos de perfil son botones: abren la vista previa de ese perfil.
   var head='<div class="fac-row fac-head" style="grid-template-columns:'+cols+'">'+
-    '<div>Funcionalidad</div><div title="Tu propia cuenta: lo que destildes ac&aacute; no afecta al otro administrador">Vos<br><span style="font-weight:400;font-size:.62rem;opacity:.7">(tu cuenta)</span></div>'+
+    '<div>Funcionalidad</div><div title="Tu propia cuenta: lo que destildes ac&aacute; no afecta al otro administrador">Vos<br><span style="font-weight:400;font-size:.75rem;opacity:.7">(tu cuenta)</span></div>'+
     _FAC_ROLES.map(function(r){
       return '<div><span class="fac-sim" onclick="startFacSim(\''+r[0]+'\')" '+
         'title="Ver la app como la ve un '+_escAttr(r[1])+'">'+_escHtml(r[1])+' <span class="fac-eye">&#128065;</span></span></div>';
@@ -3160,7 +3232,7 @@ function renderCashbackAdmin(){
       '.cb-title:hover{border-color:var(--border,#ccc)}'+
       '.cb-title-inp{font:inherit;font-weight:700;font-size:.86rem;padding:2px 6px;border:1px solid var(--red,#c33);border-radius:5px;background:#fff;color:inherit;max-width:220px}'+
       'html.dark .cb-title-inp{background:#2c2f36}'+
-      '.cb-hint{font-size:.64rem;color:var(--gray,#777)}'+
+      '.cb-hint{font-size:.75rem;color:var(--gray,#777)}'+
       '.cb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}'+
       '@media(max-width:900px){.cb-grid{grid-template-columns:1fr 1fr}.cb-head{flex-wrap:wrap}}';
     document.head.appendChild(st);
@@ -3758,12 +3830,12 @@ function _renderUploadHistory(histEl){
       if(!has)return '<div class="af-banner af-banner-empty">'+_optLabel(o)+': sin flyer activo.</div>';
       var hUrl=_upSafeUrl(d&&d.htmlUrl);
       return '<div class="af-banner"><div class="af-banner-info">'+
-        _optBadge(o,'font-size:.62rem;padding:4px 8px')+
+        _optBadge(o,'font-size:.75rem;padding:4px 8px')+
         '<span class="af-banner-name af-banner-opt" style="color:'+_optColor(o)+'">'+_escHtml(_optLabel(o))+'</span>'+
         '<span class="af-banner-name" style="font-weight:400;color:var(--gray)">'+_escHtml(d.name||'')+'</span></div>'+
         '<div style="display:flex;gap:6px">'+
-        (hUrl?'<a href="'+_escHtml(hUrl)+'" target="_blank" rel="noopener noreferrer" class="usr-btn edit" style="font-size:.65rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
-        '<button class="usr-btn warn" onclick="deactivateFlyer(this,'+o+')" style="font-size:.65rem;padding:5px 10px">Desactivar</button>'+
+        (hUrl?'<a href="'+_escHtml(hUrl)+'" target="_blank" rel="noopener noreferrer" class="usr-btn edit" style="font-size:.75rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
+        '<button class="usr-btn warn" onclick="deactivateFlyer(this,'+o+')" style="font-size:.75rem;padding:5px 10px">Desactivar</button>'+
         '</div></div>';
     }).join('');
     if(!files.length){
@@ -3778,14 +3850,14 @@ function _renderUploadHistory(histEl){
         var kb=f.metadata&&f.metadata.size?Math.round(f.metadata.size/1024)+' KB':'';
         var od=_upOptDe(f.name),isAct=od.act.length>0,home=od.home;
         var isImg=_uploadFiles[i].isImg;
-        var tag=isImg?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
+        var tag=isImg?'<span class="badge" style="font-size:.75rem;padding:3px 7px;background:#eef3fb;color:#1d4070;margin-left:6px">PDF/IMG</span>':'';
         var titulo;
         if(home){
           titulo=od.act.map(function(o){return _optBadge(o,'margin-right:5px');}).join('')+(isAct?'':_optBadge(home,'margin-right:5px;opacity:.55'))+
             '<span class="usr-row-optname" style="color:'+_optColor(home)+'">'+_escHtml(_optLabel(home))+'</span>'+
             (od.act.length>1?' <span style="font-weight:400;color:var(--gray)">+ '+od.act.slice(1).map(function(o){return _escHtml(_optLabel(o));}).join(', ')+'</span>':'')+
-            (isAct?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:var(--green,#2e7d32);color:#fff;margin-left:6px">ACTIVO</span>':
-              '<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#eee;color:#666;margin-left:6px" title="Subido para esta opci&oacute;n, pero no es el flyer activo">NO ACTIVO</span>');
+            (isAct?'<span class="badge" style="font-size:.75rem;padding:3px 7px;background:var(--green,#2e7d32);color:#fff;margin-left:6px">ACTIVO</span>':
+              '<span class="badge" style="font-size:.75rem;padding:3px 7px;background:#eee;color:#666;margin-left:6px" title="Subido para esta opci&oacute;n, pero no es el flyer activo">NO ACTIVO</span>');
         }else{
           titulo='<span style="color:var(--gray)">Sin opci&oacute;n asignada</span>';
         }
@@ -3963,7 +4035,7 @@ var _fgVista='flyer';
 function _optColor(opt){var n=_optN(opt);return (_OPC[n]&&_OPC[n].color)||_OPC_PALETA[(n-1)%_OPC_PALETA.length];}
 function _optBadge(opt,extraCss){
   var n=_optN(opt),c=_optColor(n);
-  return '<span class="badge" style="font-size:.56rem;padding:3px 7px;background:'+c+
+  return '<span class="badge" style="font-size:.75rem;padding:3px 7px;background:'+c+
     ';color:#fff;letter-spacing:.3px;'+(extraCss||'')+'" title="'+_escHtml(_optLabel(n))+'">OP.'+n+'</span>';
 }
 function _fetchActiveMeta(opt,cb){
@@ -4167,7 +4239,8 @@ function switchFlyerOption(opt,cb){
   _fgOpt=opt;_fgSyncVista(); // solapa del header + barra + campos del beneficio
   var c=_fgOptCache[opt];
   if(c&&c.loaded){_fgApplyOption(c);if(cb)cb();return;}
-  showToast('Cargando '+_optLabel(opt)+'...');
+  var cargando='Cargando '+_optLabel(opt)+'...';
+  showToast(cargando);
   // Mientras llega la opción nueva el textarea NO puede seguir mostrando el legal de
   // la anterior (se leía como "Supermercado trae el legal de otro flyer"): queda vacío
   // con un aviso, y _fgLegalShownFor=null dice que ahí no hay legal de nadie.
@@ -4179,6 +4252,7 @@ function switchFlyerOption(opt,cb){
   var keepEdited=(c&&typeof c.legalEdited==='string')?c.legalEdited:undefined; // edición real previa de ESTA opción
   var done=function(cache,aviso){
     cache.loaded=true;delete _fgOptLoading[opt];
+    fgHideToast(cargando);
     if(_optN(_fgOpt)===opt){_fgApplyOption(cache);if(aviso)showToast(aviso);}
     waiters.forEach(function(f){try{f();}catch(e){console.error('switchFlyerOption cb:',e);}});
   };
@@ -4245,7 +4319,7 @@ function _askOption(title,cb){
   function fila(sol,conRotulo){
     var os=_FG_OPTS.filter(function(o){return _optSolapa(o)===sol;});
     if(!os.length)return '';
-    return (conRotulo?'<div style="font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray,#777);margin:10px 0 5px">'+_escHtml(_solapaLabel(sol))+'</div>':'')+
+    return (conRotulo?'<div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray,#777);margin:10px 0 5px">'+_escHtml(_solapaLabel(sol))+'</div>':'')+
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+os.map(function(o){
         return '<button class="btn-submit" style="flex:1;min-width:110px;background:'+_optColor(o)+'" data-o="'+o+'">'+_escHtml(_optLabel(o))+'</button>';
       }).join('')+'</div>';
@@ -4930,7 +5004,7 @@ function fgDrawAll(c,s,v){
   }else{
     c.drawImage(baseImg,0,0,W,Math.round(H*s));
   }
-  fgDrawEmpresa(c,s,v.empresa);
+  fgDrawEmpresa(c,s,v.empresa,v._enPantalla);
   // cashUnico viaja en v (igual que benef) para que pantalla, masivo, padrón y
   // calibrador rindan igual. Un ítem viejo del historial no lo trae: si la opción
   // activa es de una solapa de monto único, se deduce de ahí.
@@ -5007,7 +5081,12 @@ function _fgPeso(p){return (p==null||p==='')?'bold ':(String(p)+' ');}
 // array de FLYER_CFG_DEFAULT y se contaminarían todas las opciones de la sesión.
 function _fgMBoxY(M,m){return (m&&m.y!=null)?m.y:M.y;}
 function _fgMBoxH(M,m){return (m&&m.mh!=null)?m.mh:M.mh;}
-function fgDrawEmpresa(c,s,empresa){
+// Vista previa con la empresa vacía: en vez de un "Por ser parte de" suelto se
+// ve, en gris, dónde va a ir el nombre. enPantalla lo pone SÓLO fgRedraw (el
+// canvas de la pantalla): el PDF, el PNG, el masivo y el historial dibujan
+// exactamente como antes.
+var _FG_EMPRESA_PH='Nombre de la empresa',_FG_EMPRESA_PH_COLOR='rgba(17,17,17,.30)';
+function fgDrawEmpresa(c,s,empresa,enPantalla){
   var E=_fgCfg().empresa,se=_fgSE(s);
   var xc=Math.round(E.xc*se),yc=Math.round(E.yc*se);
   var lh=Math.round(E.lh*se),mw=Math.round(E.mw*se),fs=Math.round(E.fs*se);
@@ -5017,6 +5096,18 @@ function fgDrawEmpresa(c,s,empresa){
   var pe=_fgPeso(E.peso);
   c.font=pe+fs+"px Arial,sans-serif";
   c.fillStyle=E.color||"#111";c.textAlign="center";c.textBaseline="middle";
+  if(enPantalla&&!String(empresa||'').trim()){
+    var p1="Por ser parte de ",w1=c.measureText(p1).width,w2=c.measureText(_FG_EMPRESA_PH).width;
+    if(w1+w2<=mw){
+      var x0=Math.round(xc-(w1+w2)/2);c.textAlign="left";
+      c.fillText(p1,x0,yc);c.fillStyle=_FG_EMPRESA_PH_COLOR;c.fillText(_FG_EMPRESA_PH,x0+w1,yc);
+      c.textAlign="center";
+    }else{
+      c.fillText("Por ser parte de",xc,yc-Math.round(lh*0.5));
+      c.fillStyle=_FG_EMPRESA_PH_COLOR;c.fillText(_FG_EMPRESA_PH,xc,yc+Math.round(lh*0.5));
+    }
+    return;
+  }
   var full="Por ser parte de "+empresa;
   if(c.measureText(full).width<=mw){c.fillText(full,xc,yc);}
   else{
@@ -5532,6 +5623,7 @@ function fgRedraw(){
   if(!window.baseImg||!baseImg.width)return;
   _fgBenefSyncNombre(); // la empresa puede cambiar sin evento input (padrón, historial)
   var v=getVals();
+  v._enPantalla=true; // sólo este canvas muestra el "Nombre de la empresa" en gris (fgDrawEmpresa)
   _fgExtra=_fgExtraBaseFor(v); // el canvas tiene que contemplar el crecimiento
   var w=Math.round(baseImg.width*SC),fh=Math.round((baseImg.height+_fgExtra)*SC);
   if(!_fgFullCv){_fgFullCv=document.createElement('canvas');_fgFullCtx=_fgFullCv.getContext('2d');}
@@ -5863,8 +5955,8 @@ function _fgShowBlock(n,show){
     if(box){
       b.sec.dataset.fgDel='1';
       box.insertAdjacentHTML('beforeend', n===1
-        ? '<span class="fg-del" onclick="event.stopPropagation();_fgClearAsesor(1,1)" title="Borrar los datos del asesor 1">&#10005; Borrar</span>'
-        : '<span class="fg-del" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
+        ? '<span class="fg-del" role="button" tabindex="0" onclick="event.stopPropagation();_fgClearAsesor(1,1)" title="Borrar los datos del asesor 1">&#10005; Borrar</span>'
+        : '<span class="fg-del" role="button" tabindex="0" onclick="event.stopPropagation();_fgRemoveAsesor('+n+')" title="Quitar asesor '+n+'">&#10005; Quitar</span>');
     }
   }
 }
@@ -5928,7 +6020,7 @@ function _fgEnsureAddBtn(){
       '.fg-sec-acts{display:inline-flex;align-items:center;gap:6px;margin-left:8px;vertical-align:middle}'+
       '.fg-sec-acts .fg-paste-btn{order:1;margin-left:0}'+
       '.fg-sec-acts .fg-del{order:2}'+
-      '.fg-del{display:inline-flex;align-items:center;font-size:.62rem;font-weight:700;'+
+      '.fg-del{display:inline-flex;align-items:center;font-size:.75rem;font-weight:700;'+
       'text-transform:none;letter-spacing:0;color:var(--gray,#999);background:rgba(128,128,128,.12);'+
       'border:1px solid transparent;border-radius:999px;padding:2px 8px;cursor:pointer;'+
       'transition:.15s;vertical-align:middle}'+
@@ -5962,7 +6054,7 @@ function _fgEnsureBenefFields(){
   if(!field||!field.parentNode)return;
   if(!document.getElementById('fg-benef-style')){
     var st=document.createElement('style');st.id='fg-benef-style';
-    st.textContent='#fg-benef-fields .fg-benef-hint{font-size:.66rem;color:var(--gray,#777);line-height:1.4;margin:-4px 0 8px}'+
+    st.textContent='#fg-benef-fields .fg-benef-hint{font-size:.75rem;color:var(--gray,#777);line-height:1.4;margin:-4px 0 8px}'+
       '#fg-benef-fields .fg-benef-nom{display:flex;gap:6px;align-items:center}#fg-benef-fields .fg-benef-nom input{flex:1;min-width:0}'+
       '#benef-nombre-auto{flex:none;width:30px;height:30px;border-radius:7px;border:1px solid rgba(128,128,128,.4);background:transparent;color:inherit;cursor:pointer;font-size:1rem;line-height:1}#benef-nombre-auto:hover{border-color:var(--orange,#f5921e);color:var(--orange,#f5921e)}';
     document.head.appendChild(st);
@@ -6021,7 +6113,7 @@ function _fgBenefFieldsSync(){
 function _fgMasivoHint(){
   var tab=document.getElementById('tab-masivo');if(!tab)return;
   var h=document.getElementById('fg-masivo-hint');
-  if(!h){h=document.createElement('div');h.id='fg-masivo-hint';h.style.cssText='font-size:.7rem;color:var(--gray,#777);line-height:1.45;margin:6px 0 10px;padding:7px 10px;border-radius:8px;background:rgba(245,146,30,.08);border:1px solid rgba(245,146,30,.3)';
+  if(!h){h=document.createElement('div');h.id='fg-masivo-hint';h.style.cssText='font-size:.75rem;color:var(--gray,#777);line-height:1.45;margin:6px 0 10px;padding:7px 10px;border-radius:8px;background:rgba(245,146,30,.08);border:1px solid rgba(245,146,30,.3)';
     var btn=tab.querySelector('.template-btn');if(btn&&btn.parentNode)btn.parentNode.insertBefore(h,btn.nextSibling);else tab.appendChild(h);}
   if(_fgVista!=='rubros'){h.style.display='none';return;}
   var campos;try{campos=_fgCfg().benef.campos||{};}catch(e){campos={};}
@@ -6579,39 +6671,39 @@ function _calEnsureDom(){
     '.cal-hd{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid rgba(128,128,128,.25)}'+
     '.cal-hd h3{margin:0;font-size:1rem;flex:1}'+
     '.cal-legend{display:flex;flex-wrap:wrap;gap:7px;padding:9px 16px;border-bottom:1px solid rgba(128,128,128,.18)}'+
-    '.cal-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;cursor:pointer;border:1.5px solid transparent;font-size:.7rem;user-select:none}'+
+    '.cal-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;cursor:pointer;border:1.5px solid transparent;font-size:.75rem;user-select:none}'+
     '.cal-chip .dot{width:11px;height:11px;border-radius:3px;display:inline-block}'+
     '.cal-chip.on{border-color:currentColor;font-weight:700}'+
     '.cal-body{flex:1 1 0;min-height:150px;overflow:auto;background:#e9e9e6;padding:16px}'+
     'html.dark .cal-body{background:#15161a}'+
     '.cal-body canvas{display:block;margin:0 auto;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18);touch-action:none;cursor:grab}'+
-    '.cal-zoom{display:inline-flex;gap:4px;align-items:center}.cal-zoom button{padding:2px 8px;font-size:.72rem;border:1px solid rgba(128,128,128,.4);border-radius:6px;background:transparent;color:inherit;cursor:pointer}.cal-zoom button:hover{border-color:var(--orange,#f5921e)}'+
-    '.cal-ft{padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);display:flex;gap:10px;align-items:center;font-size:.72rem;color:var(--gray,#777)}'+
+    '.cal-zoom{display:inline-flex;gap:4px;align-items:center}.cal-zoom button{padding:2px 8px;font-size:.75rem;border:1px solid rgba(128,128,128,.4);border-radius:6px;background:transparent;color:inherit;cursor:pointer}.cal-zoom button:hover{border-color:var(--orange,#f5921e)}'+
+    '.cal-ft{padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);display:flex;gap:10px;align-items:center;font-size:.75rem;color:var(--gray,#777)}'+
     '.cal-ft .sp{flex:1}'+
     // Propiedades de la zona elegida (tamaño, peso, color)
-    '#cal-prop-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.7rem}'+
+    '#cal-prop-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.75rem}'+
     '#cal-prop-row.show{display:block}'+
     '.cal-props{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}'+
-    '.cal-props>b{font-size:.7rem;align-self:center}'+
+    '.cal-props>b{font-size:.75rem;align-self:center}'+
     '.cal-props .sp{flex:1}'+
-    '.cal-props label{display:flex;flex-direction:column;gap:3px;font-size:.6rem;text-transform:uppercase;letter-spacing:.4px;color:var(--gray,#777)}'+
-    '.cal-props input,.cal-props select{padding:3px 5px;font-size:.68rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit;text-transform:none;letter-spacing:0}'+
+    '.cal-props label{display:flex;flex-direction:column;gap:3px;font-size:.6875rem;text-transform:uppercase;letter-spacing:.4px;color:var(--gray,#777)}'+
+    '.cal-props input,.cal-props select{padding:3px 5px;font-size:.75rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit;text-transform:none;letter-spacing:0}'+
     '.cal-props input[type=number]{width:74px}'+
     '.cal-props input[type=color]{padding:1px 2px;height:24px;width:40px;cursor:pointer}'+
     'html.dark .cal-props select{background:#22242a}'+
     '.cal-cols{display:flex;gap:4px}'+
     // Textos fijos del cartel del beneficio (sólo Flyer Rubros)
-    '#cal-benef-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.7rem}'+
+    '#cal-benef-row{display:none;padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.75rem}'+
     '#cal-benef-row.show{display:block}'+
     '.cal-bl{display:grid;grid-template-columns:18px 1fr 58px 62px 36px 62px 22px;gap:5px;align-items:center;margin-bottom:4px}'+
     '.cal-bl .dot{width:11px;height:11px;border-radius:3px;display:inline-block;cursor:pointer}'+
-    '.cal-bl input,.cal-bl select{padding:3px 5px;font-size:.68rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;min-width:0;font-family:inherit}'+
+    '.cal-bl input,.cal-bl select{padding:3px 5px;font-size:.75rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;min-width:0;font-family:inherit}'+
     'html.dark .cal-bl select{background:#22242a}'+
     '.cal-bl input[type=color]{padding:1px 2px;height:24px;cursor:pointer}'+
     '.cal-bl .x{cursor:pointer;color:var(--gray,#888);font-size:.8rem;text-align:center}.cal-bl .x:hover{color:var(--red,#e30613)}'+
-    '.cal-bl-head{color:var(--gray,#777);font-size:.6rem;text-transform:uppercase;letter-spacing:.4px}'+
+    '.cal-bl-head{color:var(--gray,#777);font-size:.6875rem;text-transform:uppercase;letter-spacing:.4px}'+
     '.cal-bl-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:7px}'+
-    '.cal-bl-top select,#cal-base{padding:3px 6px;font-size:.7rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit}'+
+    '.cal-bl-top select,#cal-base{padding:3px 6px;font-size:.75rem;border:1px solid rgba(128,128,128,.4);border-radius:5px;background:transparent;color:inherit;font-family:inherit}'+
     'html.dark .cal-bl-top select,html.dark #cal-base{background:#22242a}';
   document.head.appendChild(st);
   var m=document.createElement('div');m.id='cal-modal';
@@ -6624,31 +6716,31 @@ function _calEnsureDom(){
       '<div class="cal-body"><canvas id="cal-cv"></canvas></div>'+
       '<div class="cal-split" id="cal-split" title="Arrastr&aacute; para agrandar la imagen (doble clic: volver al reparto normal)"></div>'+
       '<div class="cal-ctl">'+
-      '<div style="padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.72rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+      '<div style="padding:9px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.75rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
         '<label>Partir de esta base:</label>'+
         '<select id="cal-base">'+_CFG_BASES.map(function(b){return '<option value="'+b.id+'">'+_escHtml(b.nombre)+'</option>';}).join('')+'</select>'+
-        '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBaseAplicar()">Cargar base</button>'+
+        '<button class="usr-btn edit" style="font-size:.75rem;padding:3px 9px" onclick="_calBaseAplicar()">Cargar base</button>'+
         '<span style="color:var(--gray)">Pone las zonas donde van en ese modelo de flyer; despu&eacute;s se retoca arrastrando. El cartel del beneficio se elige abajo, con su plantilla.</span>'+
       '</div>'+
-      '<div style="padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.72rem;display:flex;gap:12px;align-items:center">'+
+      '<div style="padding:11px 16px;border-top:1px solid rgba(128,128,128,.25);font-size:.75rem;display:flex;gap:12px;align-items:center">'+
         '<label>Altura final (px):</label><input id="cal-height" type="number" placeholder="auto" style="width:90px;padding:4px 6px" onchange="_calHeightChanged()">'+
-        '<button class="usr-btn edit" style="font-size:.65rem;padding:4px 9px" onclick="document.getElementById(\'cal-height\').value=\'\';_calHeightChanged()">Auto</button>'+
+        '<button class="usr-btn edit" style="font-size:.75rem;padding:4px 9px" onclick="document.getElementById(\'cal-height\').value=\'\';_calHeightChanged()">Auto</button>'+
         '<span style="color:var(--gray)">vac&iacute;o = corta solo despu&eacute;s de los legales (l&iacute;nea naranja)</span>'+
       '</div>'+
       // Tamaño, peso y color de la zona elegida (la arma _calPropsSync).
       '<div id="cal-prop-row"></div>'+
       // Flyer Rubros: las líneas del cartel (texto, tamaño, peso, color, alineación). Plantillas por rubro.
       '<div id="cal-benef-row">'+
-        '<div class="cal-bl-top"><b style="font-size:.7rem">Cartel del beneficio</b>'+
+        '<div class="cal-bl-top"><b style="font-size:.75rem">Cartel del beneficio</b>'+
           '<span style="color:var(--gray)">Plantilla:</span><select id="cal-benef-plantilla">'+
             Object.keys(_BENEF_PLANTILLAS).map(function(k){return '<option value="'+k+'">'+_escHtml(_BENEF_PLANTILLAS[k].nombre)+'</option>';}).join('')+
-          '</select><button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefPlantilla()">Cargar plantilla</button>'+
-          '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefCentrar(false)" title="Detecta el cuadro en la imagen y centra el bloque de l&iacute;neas ah&iacute;">&#8982; Centrar en el cuadro</button>'+
+          '</select><button class="usr-btn edit" style="font-size:.75rem;padding:3px 9px" onclick="_calBenefPlantilla()">Cargar plantilla</button>'+
+          '<button class="usr-btn edit" style="font-size:.75rem;padding:3px 9px" onclick="_calBenefCentrar(false)" title="Detecta el cuadro en la imagen y centra el bloque de l&iacute;neas ah&iacute;">&#8982; Centrar en el cuadro</button>'+
           '<span class="sp" style="flex:1"></span>'+
-          '<button class="usr-btn edit" style="font-size:.64rem;padding:3px 9px" onclick="_calBenefAgregar()">+ L&iacute;nea</button></div>'+
+          '<button class="usr-btn edit" style="font-size:.75rem;padding:3px 9px" onclick="_calBenefAgregar()">+ L&iacute;nea</button></div>'+
         '<div class="cal-bl cal-bl-head"><span></span><span>Texto ({nombre}, {importe}, {importe2}, **naranja**)</span><span>Letra px</span><span>Peso</span><span>Color</span><span>Alinear</span><span></span></div>'+
         '<div id="cal-benef-lineas"></div>'+
-        '<div style="color:var(--gray);font-size:.62rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre}, {importe} y {importe2} (segundo tope, cuadro &laquo;Ambos&raquo;) los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
+        '<div style="color:var(--gray);font-size:.75rem;margin-top:4px">El PDF va con el cuadro vac&iacute;o (s&oacute;lo el dibujo): la app escribe todas las l&iacute;neas con la misma letra. {nombre}, {importe} y {importe2} (segundo tope, cuadro &laquo;Ambos&raquo;) los carga cada asesor; **as&iacute;** sale en naranja y negrita. Al abrir y al cargar una plantilla el bloque se centra solo en el cuadro (&laquo;Centrar en el cuadro&raquo; lo vuelve a hacer). Para retocar: arrastr&aacute; &laquo;Cartel (todo)&raquo; para mover el bloque entero, o cada l&iacute;nea por separado.</div>'+
       '</div>'+
       '<div class="cal-ft"><span>Eleg&iacute; una zona arriba (se ve s&oacute;lo esa; tocala de nuevo para ver todas) y arrastrala en la imagen: ah&iacute; mismo te aparecen su <b>tama&ntilde;o, peso y color</b>. Los cuatro montos se mueven juntos con &laquo;Montos (todo)&raquo; o de a uno eligiendo cada importe. Flechas del teclado = ajuste fino (Shift = 10px). <b>Ctrl + rueda</b> = zoom.</span><span class="sp"></span>'+
         '<span class="cal-zoom"><button type="button" onclick="_calZoom(1/1.25)" title="Alejar">&minus;</button><button type="button" id="cal-zoom-pct" onclick="_calZoom(0)" title="Volver al tama&ntilde;o inicial">100%</button><button type="button" onclick="_calZoom(1.25)" title="Acercar">+</button></span>'+
@@ -7341,11 +7433,21 @@ function fgBuildFn(pattern,v){
     .replace(/{config}/g,cfg)
     .replace(/{fecha}/g,fecha));
 }
+// Baja un archivo armado en memoria (los ZIP del masivo y del padrón) y después
+// lo suelta. Sin el revoke, un ZIP de 100 flyers (~120 MB) quedaba ocupando
+// memoria hasta recargar la página. El minuto de margen es para PCs lentas o con
+// antivirus que revisan la descarga antes de escribirla.
+var _FG_SOLTAR_MS=60000;
+function _fgBajarBlob(blob,nombre){
+  var url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.download=nombre;a.href=url;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);if(a.parentNode)a.parentNode.removeChild(a);},_FG_SOLTAR_MS);
+}
 // MASIVO con hasta 4 asesores. Pisa genAll de _source.html (que sólo mapea 1 y 2).
 // Los Excel viejos (sin columnas 3/4) siguen funcionando igual.
 function fgGenAll(){
   if(!window.excelData||!excelData.length)return;
-  var total=excelData.length,cur=0,zip=new JSZip(),usados={};
+  var total=excelData.length,cur=0,zip=new JSZip(),usados={},errores=[];
   var legalText=document.getElementById('legal-text').value;
   // Flyer Rubros: si la fila no trae importe, se usa el del formulario (uno para todos)
   var enRubros=!!_solCfg(_fgVista).benef,cashUnico=!!_solCfg(_fgVista).cashUnico,impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||''),imp2Form=_fgFmtImporte((document.getElementById('benef-importe2')||{}).value||'');
@@ -7364,16 +7466,31 @@ function fgGenAll(){
   function next(){
     if(cur>=total){
       if(pt)pt.textContent='Empaquetando ZIP...';
+      // Sin el catch, si el ZIP fallaba (memoria, por ejemplo) el botón quedaba
+      // deshabilitado y la barra en "Empaquetando ZIP..." hasta recargar.
       zip.generateAsync({type:'blob'}).then(function(content){
-        var a=document.createElement('a'),d=new Date();
+        var d=new Date();
         var fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        a.download='Flyers_Galicia_'+fecha+'.zip';
-        a.href=URL.createObjectURL(content);a.click();
-        if(pt)pt.textContent='✓ ZIP con '+total+' flyers!';
+        _fgBajarBlob(content,'Flyers_Galicia_'+fecha+'.zip');
+        var ok=total-errores.length;
+        if(pt)pt.textContent='✓ ZIP con '+ok+' flyer'+(ok!==1?'s':'')+(errores.length?' — '+errores.length+' con error: '+errores.slice(0,3).join(' · ')+(errores.length>3?' …':''):'!');
         if(bg)bg.disabled=false;
-        showToast('ZIP descargado!');
+        showToast(errores.length?'ZIP descargado: '+errores.length+' fila(s) no se pudieron generar':'ZIP descargado!');
+      }).catch(function(e){
+        if(pt)pt.textContent='No se pudo armar el ZIP: '+((e&&e.message)||e);
+        if(bg)bg.disabled=false;
+        showToast('No se pudo armar el ZIP. Probá con menos filas.');
       });return;
     }
+    // Una fila que falla (un dato raro) ya no corta la tanda con el botón
+    // trabado: se anota y se sigue con la próxima, como en "Generar flyers".
+    try{genFila();}catch(e){errores.push((excelData[cur]&&(excelData[cur].empresa||excelData[cur].Empresa))||('fila '+(cur+2)));console.error('masivo:',e);}
+    cur++;
+    if(pf)pf.style.width=Math.round((cur/total)*100)+'%';
+    if(pt)pt.textContent=cur<total?('Generando '+(cur+1)+' de '+total+'...'):'Finalizando...';
+    _fgCeder(next);
+  }
+  function genFila(){
     var row=excelData[cur];
     // misma regla que el padrón: sin config válida, ese flyer sale sin montos
     var ci=_padCfgOf(row.config||row.Config||'');
@@ -7400,10 +7517,6 @@ function fgGenAll(){
     usados[base]=(usados[base]||0)+1;
     if(usados[base]>1)nom=base+' ('+usados[base]+')';
     zip.file(nom+'.pdf',pdf.output('arraybuffer'));
-    cur++;
-    if(pf)pf.style.width=Math.round((cur/total)*100)+'%';
-    if(pt)pt.textContent=cur<total?('Generando '+(cur+1)+' de '+total+'...'):'Finalizando...';
-    _fgCeder(next);
   }
   next();
 }
@@ -7485,18 +7598,18 @@ function loadRegistros(){
         var col=_avatarColor(row.user_id||'x');
         // Todo lo que viene de flyer_logs lo escribió un usuario (empresa, asesor,
         // config...): se escapa siempre antes de pintarlo en el panel del admin.
-        var fmtBadge=row.format?'<span class="badge badge-asesor" style="font-size:.58rem">'+_escHtml(String(row.format).toUpperCase())+'</span>':'';
+        var fmtBadge=row.format?'<span class="badge badge-asesor" style="font-size:.75rem">'+_escHtml(String(row.format).toUpperCase())+'</span>':'';
         var ex={};try{if(row.flyer_type)ex=JSON.parse(row.flyer_type)||{};}catch(e){}
         if(typeof ex!=='object'||Array.isArray(ex))ex={};
         // Opción usada (control de visibilidad). Registros viejos no la tienen.
-        var optBadge=ex.opcion?_optBadge(ex.opcion,'font-size:.58rem;margin-left:4px'):'';
-        var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.55rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">'+(ex.padron?'EMPRESAS':'MASIVO')+'</span>':'';
+        var optBadge=ex.opcion?_optBadge(ex.opcion,'font-size:.75rem;margin-left:4px'):'';
+        var bulkBadge=ex.masivo?'<span class="badge" style="font-size:.75rem;padding:3px 7px;background:#fff3e0;color:#b26a00;margin-left:4px">'+(ex.padron?'EMPRESAS':'MASIVO')+'</span>':'';
         var cfgHtml=ex.config?'<span class="reg-monto" style="background:#eef0ff;color:#3a3a8c">'+_escHtml(ex.config)+'</span>':'';
         // Flyer Rubros: tope del beneficio (y el nombre del cartel si difiere de la empresa)
         if(ex.importe)cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Tope de reintegro del beneficio exclusivo">Tope '+_escHtml(ex.importe)+(ex.importe2&&ex.importe2!==ex.importe?' / '+_escHtml(ex.importe2):'')+'</span>';
         if(ex.beneficio&&ex.beneficio!==(row.empresa||''))cfgHtml+='<span class="reg-monto" style="background:#fff3e0;color:#b26a00" title="Nombre en el cartel del beneficio">'+_escHtml(ex.beneficio)+'</span>';
         var cfgWrap=cfgHtml?'<div class="reg-montos">'+cfgHtml+'</div>':'';
-        var asesorHtml=ex.nombre?'<div style="font-size:.68rem;color:#555;margin-top:3px"><b>Asesor:</b> '+_escHtml(ex.nombre)+(ex.celular?' &middot; '+_escHtml(ex.celular):'')+(ex.email?' &middot; '+_escHtml(ex.email):'')+'</div>':'';
+        var asesorHtml=ex.nombre?'<div style="font-size:.75rem;color:#555;margin-top:3px"><b>Asesor:</b> '+_escHtml(ex.nombre)+(ex.celular?' &middot; '+_escHtml(ex.celular):'')+(ex.email?' &middot; '+_escHtml(ex.email):'')+'</div>':'';
         return '<div class="reg-row">'+
           '<div class="usr-avatar sm" style="background:'+col+';flex-shrink:0">'+_escHtml(ini)+'</div>'+
           '<div class="reg-info">'+
@@ -7687,9 +7800,9 @@ function loadPadronLog(){
       var ini=_initials(nombre,'');
       var col=_avatarColor(row.user_id||nombre);
       var acc=row.accion,badge;
-      if(acc==='alta')badge='<span class="badge badge-active" style="font-size:.58rem">Alta</span>';
-      else if(acc==='baja')badge='<span class="badge badge-inactive" style="font-size:.58rem">Baja</span>';
-      else badge='<span class="badge" style="font-size:.58rem;background:#eef0ff;color:#3a3a8c">Modificaci&oacute;n</span>';
+      if(acc==='alta')badge='<span class="badge badge-active" style="font-size:.75rem">Alta</span>';
+      else if(acc==='baja')badge='<span class="badge badge-inactive" style="font-size:.75rem">Baja</span>';
+      else badge='<span class="badge" style="font-size:.75rem;background:#eef0ff;color:#3a3a8c">Modificaci&oacute;n</span>';
       var det=_plogDetalle(row).map(function(p){
         return '<span class="reg-monto" style="background:#f4f4f4;color:#444"><b>'+_escHtml(p[0])+':</b> '+_escHtml(p[1])+'</span>';
       }).join('');
@@ -7903,6 +8016,13 @@ function fgShowToast(msg){
   t._tid=setTimeout(function(){if(usaClase)t.classList.remove('show');else t.style.opacity='0';},3000);
 }
 function showToast(msg){fgShowToast(msg);}
+// Saca el aviso SÓLO si todavía dice msg: un "Cargando…" no tiene que quedar
+// 3 s con el flyer ya en pantalla, pero tampoco puede borrar un aviso más nuevo.
+function fgHideToast(msg){
+  var t=document.getElementById('toast-el')||document.getElementById('toast');if(!t||t.textContent!==msg)return;
+  clearTimeout(t._tid);
+  if(t.id==='toast-el')t.classList.remove('show');else t.style.opacity='0';
+}
 
 function _initials(name,email){
   if(name&&name.trim()){var p=name.trim().split(' ');return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():p[0].substring(0,2).toUpperCase();}
@@ -8078,9 +8198,12 @@ function _padRow(r){
 // todas las palabras que escribís tienen que estar en el nombre, en cualquier orden.
 // El tercer parámetro deja buscar en OTRA lista que no sea el padrón propio (lo
 // usa el perfil Hunter, que busca en las empresas de todos los oficiales).
+// Los puntos no cuentan al BUSCAR: "AMIC S.A." encuentra "AMIC SA" y al revés.
+// Sólo acá: _padNorm también compara razones sociales (la clave del padrón).
+function _padSinPuntos(s){return s.indexOf('.')<0?s:s.replace(/\./g,'');}
 function padronSearch(q,limit,lista){
   var rows=lista||_padron||[],lim=limit||60;
-  var t=_padNorm(q);
+  var t=_padSinPuntos(_padNorm(q)).trim();
   if(!t)return rows.slice(0,lim);
   var dig=_padDigits(q),toks=t.split(' ').filter(Boolean),out=[];
   for(var i=0;i<rows.length&&out.length<lim;i++){
@@ -8090,7 +8213,7 @@ function padronSearch(q,limit,lista){
       for(var j=0;j<r.cuits.length;j++){if(r.cuits[j].indexOf(dig)>=0){hit=true;break;}}
     }
     if(!hit){
-      var e=_padNorm(r.empresa);
+      var e=_padSinPuntos(_padNorm(r.empresa));
       hit=!!e&&toks.every(function(k){return e.indexOf(k)>=0;});
     }
     if(hit)out.push(r);
@@ -8283,16 +8406,16 @@ function renderPadronAdmin(force){
     var q=(document.getElementById('padron-q')||{}).value||'';
     var res=padronSearch(q,25);
     if(!res.length){prev.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Sin resultados para "'+_escHtml(q)+'".</p>';return;}
-    prev.innerHTML='<p style="font-size:.68rem;color:var(--gray);margin:10px 0 6px">'+
+    prev.innerHTML='<p style="font-size:.75rem;color:var(--gray);margin:10px 0 6px">'+
         (q?('Coincidencias: '+res.length+(res.length>=25?'+':'')):('Primeras '+res.length+' de '+rows.length))+'</p>'+
       res.map(function(r){
         return '<div class="usr-row" style="align-items:flex-start">'+
           '<div style="flex:1;min-width:0">'+
             '<div style="font-weight:600;font-size:.82rem">'+_escHtml(r.empresa||'(sin razón social)')+'</div>'+
-            '<div style="font-size:.68rem;color:var(--gray);margin-top:2px">'+
+            '<div style="font-size:.75rem;color:var(--gray);margin-top:2px">'+
               (r.cuits.length?_escHtml(r.cuits.map(_padFmtCuit).join('  ·  ')):'sin CUIT')+'</div>'+
           '</div>'+
-          '<span style="font-size:.68rem;color:var(--gray);white-space:nowrap">'+
+          '<span style="font-size:.75rem;color:var(--gray);white-space:nowrap">'+
             _escHtml(_padCfgName(_padCfgOf(r.config)))+' &nbsp;·&nbsp; '+
             (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+
             (_padRubroLabel(r)?' &nbsp;·&nbsp; <span style="color:#b26a00" title="Beneficio por rubro (Flyer Rubros)">'+_escHtml(_padRubroLabel(r))+'</span>':'')+'</span>'+
@@ -8354,7 +8477,7 @@ function _padEditRenderShell(){
   _padEditStyle();
   var ed=document.getElementById('padron-editor');if(!ed)return;
   ed.innerHTML=
-    '<p style="font-size:.72rem;color:var(--gray);margin-bottom:10px">Los cambios quedan guardados en la nube reci&eacute;n cuando tocas <strong>Guardar cambios</strong>.</p>'+
+    '<p style="font-size:.75rem;color:var(--gray);margin-bottom:10px">Los cambios quedan guardados en la nube reci&eacute;n cuando tocas <strong>Guardar cambios</strong>.</p>'+
     '<input type="text" class="login-inp" id="padron-edit-q" placeholder="Filtrar: raz&oacute;n social o CUIT..." autocomplete="off" oninput="_padEditFilter(this.value)" style="margin-bottom:10px">'+
     '<div class="pad-elist" id="padron-edit-list"></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
@@ -8392,7 +8515,7 @@ function _padEditRenderList(){
     return;
   }
   host.innerHTML=
-    (_padEditQ?'<p style="font-size:.68rem;color:var(--gray);margin-bottom:6px">Mostrando '+idxs.length+' de '+rows.length+'.</p>':'')+
+    (_padEditQ?'<p style="font-size:.75rem;color:var(--gray);margin-bottom:6px">Mostrando '+idxs.length+' de '+rows.length+'.</p>':'')+
     idxs.map(function(i){return _padEditRowHtml(_padEdit[i],i);}).join('');
 }
 // Mantiene compatibilidad con los llamadores existentes (toggle/agregar/eliminar):
@@ -8547,16 +8670,16 @@ function renderPadronOtrosList(){
     var e=_padNorm(r.empresa);return !!e&&toks.every(function(k){return e.indexOf(k)>=0;});
   });
   if(!res.length){host.innerHTML='<p style="font-size:.78rem;color:var(--gray);margin-top:10px">Sin resultados para "'+_escHtml(q)+'".</p>';return;}
-  host.innerHTML='<p style="font-size:.68rem;color:var(--gray);margin:10px 0 6px">'+
+  host.innerHTML='<p style="font-size:.75rem;color:var(--gray);margin:10px 0 6px">'+
       (t?('Coincidencias: '+res.length):('Mostrando '+res.length))+'</p>'+
     res.map(function(r){
       return '<div class="usr-row" style="align-items:flex-start">'+
         '<div style="flex:1;min-width:0">'+
           '<div style="font-weight:600;font-size:.82rem">'+_escHtml(r.empresa||'(sin razón social)')+'</div>'+
-          '<div style="font-size:.68rem;color:var(--gray);margin-top:2px">'+
+          '<div style="font-size:.75rem;color:var(--gray);margin-top:2px">'+
             (r.cuits.length?_escHtml(r.cuits.map(_padFmtCuit).join('  ·  ')):'sin CUIT')+'</div>'+
         '</div>'+
-        '<span style="font-size:.68rem;color:var(--gray);white-space:nowrap">'+
+        '<span style="font-size:.75rem;color:var(--gray);white-space:nowrap">'+
           _escHtml(_padCfgName(_padCfgOf(r.config)))+' &nbsp;·&nbsp; '+
           (_padNumAsesores(r)?_escHtml(_padAsesoresLbl(r)):'<span style="color:#b06000">sin oficiales asignados</span>')+
           (_padRubroLabel(r)?' &nbsp;·&nbsp; <span style="color:#b26a00" title="Beneficio por rubro (Flyer Rubros)">'+_escHtml(_padRubroLabel(r))+'</span>':'')+'</span>'+
@@ -8586,10 +8709,10 @@ function _mpEnsure(){
   d.innerHTML='<div class="sec">Desde mis empresas</div>'+
     '<div class="cfg-box" id="fg-mp-box">'+
       '<strong id="fg-mp-tit">Todo el segmento</strong>'+
-      '<p id="fg-mp-txt" style="font-size:.72rem;color:var(--gray);line-height:1.45;margin:0 0 8px"></p>'+
+      '<p id="fg-mp-txt" style="font-size:.75rem;color:var(--gray);line-height:1.45;margin:0 0 8px"></p>'+
       '<button class="btn bgreen" id="fg-mp-btn" style="width:100%" onclick="_mpGenerar()">&#9889; Descargar todos</button>'+
       '<div id="fg-mp-prog" style="display:none;margin-top:8px"><div class="progress-bar" style="display:block"><div class="progress-fill" id="fg-mp-fill" style="width:0%"></div></div><div class="progress-text" id="fg-mp-text"></div></div>'+
-      '<p style="font-size:.68rem;color:var(--gray);line-height:1.45;margin:8px 0 0">&iquest;Quer&eacute;s bajar <b style="display:inline;font-size:inherit;text-transform:none;letter-spacing:0;font-weight:700">todas tus empresas</b>, cada una en su formato? And&aacute; a <a href="#" onclick="openMiPadron();return false" style="color:var(--red);font-weight:600">Base de datos &rarr; Generar flyers</a>.</p>'+
+      '<p style="font-size:.75rem;color:var(--gray);line-height:1.45;margin:8px 0 0">&iquest;Quer&eacute;s bajar <b style="display:inline;font-size:inherit;text-transform:none;letter-spacing:0;font-weight:700">todas tus empresas</b>, cada una en su formato? And&aacute; a <a href="#" onclick="openMiPadron();return false" style="color:var(--red);font-weight:600">Base de datos &rarr; Generar flyers</a>.</p>'+
     '</div>';
   tab.appendChild(d);
 }
@@ -8692,7 +8815,7 @@ function _pgRender(){
         '<select id="pg-fmt" class="login-inp" style="margin-bottom:0;width:auto;padding:6px 8px"><option value="pdf">PDF</option><option value="png">PNG</option></select>'+
         '<button type="button" class="btn-submit" id="pg-btn" style="padding:8px 16px" onclick="_pgGenerar()">&#9889; Generar ZIP</button>'+
       '</div>'+
-      '<div id="pg-count" style="font-size:.72rem;color:var(--gray);margin-bottom:6px"></div>'+
+      '<div id="pg-count" style="font-size:.75rem;color:var(--gray);margin-bottom:6px"></div>'+
       '<div id="pg-prog" style="display:none;margin:6px 0 10px"><div class="progress-bar" style="display:block"><div class="progress-fill" id="pg-fill" style="width:0%"></div></div><div class="progress-text" id="pg-text"></div></div>'+
       '<div id="pg-list"></div>';
     var q=document.getElementById('pg-q');if(q)q.value=_pgQ;
@@ -8709,14 +8832,14 @@ function _pgRender(){
       '<input type="checkbox" style="margin-top:3px;width:auto"'+(_pgSel[i]?' checked':'')+(opt>0?'':' disabled')+' onchange="_pgSet('+i+',this.checked)">'+
       '<div style="flex:1;min-width:0">'+
         '<div style="font-weight:600;font-size:.82rem">'+_escHtml(r.empresa||'(sin razón social)')+'</div>'+
-        '<div style="font-size:.68rem;color:var(--gray);margin-top:2px">'+
+        '<div style="font-size:.75rem;color:var(--gray);margin-top:2px">'+
           (r.cuits.length?_escHtml(r.cuits.map(_padFmtCuit).join('  ·  ')):'sin CUIT')+
           ' &nbsp;·&nbsp; '+_escHtml(_padCfgName(_padCfgOf(r.config)))+' &nbsp;·&nbsp; '+_escHtml(_padAsesoresLbl(r))+
           (rub?' &nbsp;·&nbsp; <span style="color:#b26a00">'+_escHtml(rub)+'</span>':'')+
         '</div>'+
-        (av.length?'<div style="font-size:.66rem;color:#b06000;margin-top:2px">&#9888; '+_escHtml(av.join(' · '))+'</div>':'')+
+        (av.length?'<div style="font-size:.75rem;color:#b06000;margin-top:2px">&#9888; '+_escHtml(av.join(' · '))+'</div>':'')+
       '</div>'+
-      '<span style="font-size:.68rem;white-space:nowrap;padding:3px 8px;border-radius:12px;background:'+(opt>0?(_optSolapa(opt)==='rubros'?'#fff3e0':'#eef3fb'):'#f3f3f3')+';color:'+(opt>0?(_optSolapa(opt)==='rubros'?'#b26a00':'#1d4070'):'#999')+'">'+_escHtml(lbl)+'</span>'+
+      '<span style="font-size:.75rem;white-space:nowrap;padding:3px 8px;border-radius:12px;background:'+(opt>0?(_optSolapa(opt)==='rubros'?'#fff3e0':'#eef3fb'):'#f3f3f3')+';color:'+(opt>0?(_optSolapa(opt)==='rubros'?'#b26a00':'#1d4070'):'#999')+'">'+_escHtml(lbl)+'</span>'+
     '</label>';
   }).join('');
 }
@@ -8813,7 +8936,7 @@ function _pgGenerarRows(rows,fmt,ui,zipBase,resolver){
     res.zip=(zipBase||'Flyers_Empresas')+'_'+fecha+'.zip';
     zip.file('Resumen.txt',_pgResumenTxt(res));
     zip.generateAsync({type:'blob'}).then(function(content){
-      var a=document.createElement('a');a.download=res.zip;a.href=URL.createObjectURL(content);a.click();
+      _fgBajarBlob(content,res.zip);
       if(res.total)logFlyerBulkToSupabase(res.total,'padron');
       if(txt)txt.textContent='✓ ZIP con '+res.total+' flyer'+(res.total!==1?'s':'')+'.';
       if(btn)btn.disabled=false;_pgBusy=false;
@@ -8860,7 +8983,7 @@ function _pgResumenModal(res){
   _padPending=null;
   _padModal('<h3>&#10003; Flyers generados</h3>'+
     '<p class="pu-sub"><strong>'+res.total+' flyer'+(res.total!==1?'s':'')+'</strong> en '+res.fmt.toUpperCase()+' &middot; <code>'+_escHtml(res.zip)+'</code> &middot; '+_escHtml(_fmtDate(res.fecha.toISOString()))+'</p>'+
-    '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin:8px 0"><thead><tr style="color:var(--gray);font-size:.68rem;text-transform:uppercase"><th style="text-align:left;padding:4px 0">Formato</th><th style="text-align:right;padding:4px 0">Cantidad</th><th style="text-align:left;padding:4px 8px">Carpeta</th></tr></thead><tbody>'+filas+'</tbody></table>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin:8px 0"><thead><tr style="color:var(--gray);font-size:.6875rem;text-transform:uppercase"><th style="text-align:left;padding:4px 0">Formato</th><th style="text-align:right;padding:4px 0">Cantidad</th><th style="text-align:left;padding:4px 8px">Carpeta</th></tr></thead><tbody>'+filas+'</tbody></table>'+
     (obs.length?'<p class="pu-sub" style="margin-top:8px"><strong>Observaciones</strong></p><ul>'+obs.join('')+'</ul>':'<p class="pu-sub">Sin observaciones: todas las empresas ten&iacute;an oficiales, cashback y topes.</p>')+
     '<p class="pu-hint">El mismo resumen va dentro del ZIP como <code>Resumen.txt</code>.</p>'+
     '<div class="pu-foot"><button class="pu-si" onclick="_padCloseUpdate(0)">Cerrar</button></div>');
@@ -8895,9 +9018,9 @@ function _fgEnsurePadronBtn(){
       '.pad-item:last-child{border-bottom:none}'+
       '.pad-item:hover,.pad-item.on{background:rgba(198,40,40,.07)}'+
       '.pad-emp{display:block;font-size:.82rem;font-weight:600}'+
-      '.pad-sub{display:block;font-size:.66rem;color:var(--gray,#888);margin-top:2px}'+
+      '.pad-sub{display:block;font-size:.75rem;color:var(--gray,#888);margin-top:2px}'+
       '.pad-empty{padding:16px 12px;font-size:.76rem;color:var(--gray,#888);text-align:center;line-height:1.5}'+
-      '.pad-more{padding:7px 12px;font-size:.64rem;color:var(--gray,#888);text-align:center;'+
+      '.pad-more{padding:7px 12px;font-size:.75rem;color:var(--gray,#888);text-align:center;'+
         'border-top:1px solid rgba(128,128,128,.16)}'+
       '#pad-sug{box-sizing:border-box;width:auto}';
     document.head.appendChild(st);
@@ -8957,7 +9080,7 @@ function _padMineStyle(){
     // el texto. Si no entran, bajan de línea (wrap) en vez de scrollear.
     '#pad-mine .pm-tabs{padding:12px 18px 0;margin:0;gap:8px;overflow:visible;overflow-x:visible;'+
       'overflow-y:visible;flex-wrap:wrap;background:none;border-bottom:none;align-items:center}'+
-    '#pad-mine .pm-tabs .stab{font-size:.72rem;padding:7px 16px;border:1.5px solid var(--border,#e2e2e2);'+
+    '#pad-mine .pm-tabs .stab{font-size:.75rem;padding:7px 16px;border:1.5px solid var(--border,#e2e2e2);'+
       'background:var(--light,#f4f4f5);color:var(--gray,#777);text-decoration:none;line-height:1.35}'+
     '#pad-mine .pm-tabs .stab:hover{border-color:var(--navy,#14213D);color:var(--ink,#111)}'+
     '#pad-mine .pm-tabs .stab.active{background:var(--navy,#14213D);border-color:var(--navy,#14213D);color:#fff}'+
@@ -8972,7 +9095,7 @@ function _padMineStyle(){
     '#pad-mine .pm-body .ap-sec{display:none}'+
     '#pad-mine .pm-body .bd-pane{display:none!important}'+
     '#pad-mine .pm-body .bd-pane.bd-on{display:block!important}'+
-    '.pad-head .pad-adm{font-size:.64rem;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;'+
+    '.pad-head .pad-adm{font-size:.75rem;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;'+
       'color:var(--red,#c62828);margin-left:auto;margin-right:10px}'+
     '.pad-head .pad-adm:hover{text-decoration:underline}'+
     '.pad-empty .usr-btn{margin-top:10px}';
@@ -9414,7 +9537,7 @@ function _padStyle(){
   if(document.getElementById('pad-upd-style'))return;
   var st=document.createElement('style');st.id='pad-upd-style';
   st.textContent=
-    '#fg-pad-note{display:none;margin-top:6px;font-size:.7rem;line-height:1.4;color:#b06000;'+
+    '#fg-pad-note{display:none;margin-top:6px;font-size:.75rem;line-height:1.4;color:#b06000;'+
       'background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.5);border-radius:7px;padding:6px 9px}'+
     '#pad-upd-ov{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:10000;display:flex;'+
       'align-items:center;justify-content:center;padding:16px}'+
@@ -9426,27 +9549,27 @@ function _padStyle(){
     '#pad-upd ul{margin:12px 18px;padding:0 0 0 4px;list-style:none}'+
     '#pad-upd li{font-size:.76rem;line-height:1.55;padding:5px 0 5px 12px;border-left:2px solid rgba(198,40,40,.35)}'+
     '#pad-upd .pu-fld{padding:4px 18px 0}'+
-    '#pad-upd .pu-lbl{display:block;font-size:.68rem;font-weight:700;text-transform:uppercase;'+
+    '#pad-upd .pu-lbl{display:block;font-size:.6875rem;font-weight:700;text-transform:uppercase;'+
       'letter-spacing:.04em;color:var(--gray,#888);margin-bottom:5px}'+
     '#pad-upd input{width:100%;box-sizing:border-box;border:1.5px solid var(--border,#ddd);border-radius:8px;'+
       'padding:9px 11px;font-size:.82rem;font-family:inherit;background:none;color:inherit;outline:none}'+
     '#pad-upd input:focus{border-color:var(--red,#c62828)}'+
     'html.dark #pad-upd input{border-color:#3a3e46}'+
-    '#pad-upd .pu-hint{font-size:.68rem;line-height:1.45;color:var(--gray,#888);margin:6px 0 0}'+
-    '#pad-upd .pu-warn{font-size:.68rem;line-height:1.45;color:#b06000;margin:6px 0 0}'+
+    '#pad-upd .pu-hint{font-size:.75rem;line-height:1.45;color:var(--gray,#888);margin:6px 0 0}'+
+    '#pad-upd .pu-warn{font-size:.75rem;line-height:1.45;color:#b06000;margin:6px 0 0}'+
     '#pad-upd .pu-foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px 16px}'+
     '#pad-upd button{border:none;border-radius:8px;padding:9px 15px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}'+
     '#pad-upd .pu-no{background:rgba(128,128,128,.16);color:inherit}'+
     '#pad-upd .pu-si{background:var(--red,#c62828);color:#fff}'+
     // freno del Excel: resumen de lo que cambia antes de reemplazar
     '#pad-upd .pu-dif{margin:12px 18px 4px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}'+
-    '#pad-upd .pu-dif div{border-radius:8px;padding:7px 4px;text-align:center;background:rgba(128,128,128,.1);font-size:.64rem;line-height:1.3}'+
+    '#pad-upd .pu-dif div{border-radius:8px;padding:7px 4px;text-align:center;background:rgba(128,128,128,.1);font-size:.75rem;line-height:1.3}'+
     '#pad-upd .pu-dif b{display:block;font-size:1.05rem}'+
     '#pad-upd .pu-dif .pu-van{background:var(--danger-soft,#FDE3E3);color:var(--danger,#B3261E)}'+
-    '#pad-upd details{margin:6px 18px 0;font-size:.74rem}'+
+    '#pad-upd details{margin:6px 18px 0;font-size:.75rem}'+
     '#pad-upd summary{cursor:pointer;font-weight:600;padding:3px 0}'+
     '#pad-upd details p{margin:4px 0 2px 14px;line-height:1.5;color:var(--gray,#888)}'+
-    '#pad-upd .pu-alerta{margin:10px 18px 0;padding:8px 10px;border-radius:8px;font-size:.74rem;line-height:1.45;'+
+    '#pad-upd .pu-alerta{margin:10px 18px 0;padding:8px 10px;border-radius:8px;font-size:.75rem;line-height:1.45;'+
       'background:var(--danger-soft,#FDE3E3);color:var(--danger,#B3261E)}'+
     '@media (max-width:420px){#pad-upd .pu-dif{grid-template-columns:repeat(2,1fr)}}';
   document.head.appendChild(st);
@@ -9945,7 +10068,7 @@ function _padCfgOf(raw){
 function _fgNoCBBadge(on){
   if(!document.getElementById('fg-nocb-style')){
     var st=document.createElement('style');st.id='fg-nocb-style';
-    st.textContent='#fg-nocb{display:none;margin:0 0 10px;font-size:.7rem;line-height:1.45;color:#b06000;'+
+    st.textContent='#fg-nocb{display:none;margin:0 0 10px;font-size:.75rem;line-height:1.45;color:#b06000;'+
       'background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.5);border-radius:7px;padding:7px 10px}';
     document.head.appendChild(st);
   }
@@ -10263,20 +10386,20 @@ function _fgPasteStyle(){
   var st=document.createElement('style');st.id='fg-paste-style';
   st.textContent=
     '.fg-paste-btn{display:inline-flex;align-items:center;gap:3px;margin-left:8px;'+
-      'font-size:.62rem;font-weight:700;text-transform:none;letter-spacing:0;'+
+      'font-size:.75rem;font-weight:700;text-transform:none;letter-spacing:0;'+
       'color:var(--gray,#888);background:rgba(128,128,128,.12);border:1px solid transparent;'+
       'border-radius:999px;padding:2px 8px;cursor:pointer;transition:.15s;vertical-align:middle}'+
     '.fg-paste-btn:hover{color:var(--red,#c62828);background:rgba(198,40,40,.1)}'+
     '.fg-paste-btn.on{color:#fff;background:var(--red,#c62828)}'+
     '.fg-paste-wrap{margin:2px 0 10px;padding:8px 9px;border:1.5px dashed rgba(128,128,128,.4);'+
       'border-radius:8px;background:rgba(128,128,128,.05)}'+
-    '.fg-paste-hint{font-size:.66rem;color:var(--gray,#888);line-height:1.4;margin-bottom:6px}'+
+    '.fg-paste-hint{font-size:.75rem;color:var(--gray,#888);line-height:1.4;margin-bottom:6px}'+
     '.fg-paste-ta{width:100%;box-sizing:border-box;min-height:52px;padding:7px 9px;'+
       'border:1.5px solid var(--border,#ddd);border-radius:7px;font-family:"DM Sans",sans-serif;'+
       'font-size:.78rem;background:var(--light,#fafafa);outline:none;resize:vertical;'+
       'color:inherit;transition:border-color .2s}'+
     '.fg-paste-ta:focus{border-color:var(--red,#c62828);background:#fff}'+
-    '.fg-paste-res{margin-top:7px;font-size:.68rem;line-height:1.5}'+
+    '.fg-paste-res{margin-top:7px;font-size:.75rem;line-height:1.5}'+
     '.fg-paste-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:3px}'+
     '.fg-paste-chip{padding:1px 7px;border-radius:999px;background:rgba(128,128,128,.14);'+
       'color:var(--gray,#888);font-weight:600}'+
@@ -10286,7 +10409,7 @@ function _fgPasteStyle(){
     '.fg-paste-warn{color:#b06000}'+
     '.fg-paste-undone{color:var(--gray,#888)}'+
     '.fg-paste-undo{margin-top:2px;border:none;background:none;color:var(--gray,#888);'+
-      'text-decoration:underline;font-size:.66rem;cursor:pointer;padding:0}'+
+      'text-decoration:underline;font-size:.75rem;cursor:pointer;padding:0}'+
     '.fg-paste-undo:hover{color:var(--red,#c62828)}';
   document.head.appendChild(st);
 }
@@ -10301,7 +10424,7 @@ function _fgEnsurePasteBtns(){
     var box=_fgSecActs(n);if(!box)continue; // va en la misma cajita que el Borrar/Quitar
     b.sec.dataset.fgPaste='1';
     box.insertAdjacentHTML('beforeend',
-      '<span class="fg-paste-btn" id="fg-paste-btn-'+n+'" '+
+      '<span class="fg-paste-btn" id="fg-paste-btn-'+n+'" role="button" tabindex="0" '+
       'onclick="event.stopPropagation();_fgTogglePaste('+n+')" '+
       'title="Pegar los datos del oficial (nombre, celular, mail) y completarlos solo">'+
       '⚡ Pegar</span>');
@@ -10474,7 +10597,7 @@ function _tourStyle(){
     '#fg-tour-tip .ft-arrow{position:absolute;width:16px;height:16px;background:inherit;transform:rotate(45deg);'+
       'box-shadow:-3px -3px 8px rgba(0,0,0,.06)}'+
     '#fg-tour-tip .ft-caps{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;padding-right:18px}'+
-    '#fg-tour-tip .ft-cap{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;'+
+    '#fg-tour-tip .ft-cap{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;'+
       'border-radius:20px;background:rgba(128,128,128,.14);color:var(--gray,#777);cursor:pointer;user-select:none}'+
     '#fg-tour-tip .ft-cap.on{background:var(--red,#e30613);color:#fff}'+
     '#fg-tour-tip .ft-cap:hover:not(.on){background:rgba(128,128,128,.26)}'+
@@ -10482,8 +10605,8 @@ function _tourStyle(){
     '#fg-tour-tip p{margin:0;font-size:.8rem;line-height:1.55;color:#333}'+
     'html.dark #fg-tour-tip p{color:#cfd2d8}'+
     '#fg-tour-tip .ft-foot{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}'+
-    '#fg-tour-tip .ft-n{font-size:.66rem;color:var(--gray,#888);margin-right:auto}'+
-    '#fg-tour-tip .ft-btn{border:none;border-radius:8px;padding:7px 11px;font-family:"Syne",sans-serif;font-size:.68rem;'+
+    '#fg-tour-tip .ft-n{font-size:.75rem;color:var(--gray,#888);margin-right:auto}'+
+    '#fg-tour-tip .ft-btn{border:none;border-radius:8px;padding:7px 11px;font-family:"Syne",sans-serif;font-size:.75rem;'+
       'font-weight:700;cursor:pointer;background:rgba(128,128,128,.14);color:inherit;transition:.15s}'+
     '#fg-tour-tip .ft-btn:hover{background:rgba(128,128,128,.28)}'+
     '#fg-tour-tip .ft-btn.main{background:var(--red,#e30613);color:#fff}'+
@@ -10491,8 +10614,8 @@ function _tourStyle(){
     '#fg-tour-tip .ft-btn:disabled{opacity:.4;cursor:default}'+
     '#fg-tour-tip .ft-x{position:absolute;top:8px;right:10px;font-size:.85rem;color:var(--gray,#888);cursor:pointer;padding:2px 5px}'+
     '#fg-tour-tip .ft-x:hover{color:var(--red,#e30613)}'+
-    '#fg-tour-tip .ft-skip{font-size:.66rem;color:var(--gray,#888);cursor:pointer;text-decoration:underline;margin-left:4px}'+
-    '#fg-tour-tip kbd{font-family:inherit;font-size:.7rem;background:rgba(128,128,128,.16);border-radius:4px;padding:1px 5px}';
+    '#fg-tour-tip .ft-skip{font-size:.75rem;color:var(--gray,#888);cursor:pointer;text-decoration:underline;margin-left:4px}'+
+    '#fg-tour-tip kbd{font-family:inherit;font-size:.75rem;background:rgba(128,128,128,.16);border-radius:4px;padding:1px 5px}';
   document.head.appendChild(st);
 }
 // Capítulos y pasos. target: selector o función → elemento. cond: si aplica al
@@ -10553,11 +10676,11 @@ function _tourCapitulos(){
       {target:'.zoom-bar',titulo:'Vista previa',
        texto:'Acerc&aacute; o alej&aacute; con <kbd>+</kbd> / <kbd>&minus;</kbd> o con <kbd>Ctrl</kbd> + ruedita (pellizcando en el touchpad), y recorr&eacute; la imagen con la ruedita o <strong>arrastr&aacute;ndola</strong>. Lo que ves ac&aacute; es exactamente lo que se descarga.',
        antes:irIndividual},
-      {target:'.btns .btn.bblue',titulo:'Verlo en grande',
+      {target:'#tab-individual .btn.bblue',titulo:'Verlo en grande',
        texto:'Abre el flyer a pantalla completa para revisarlo con tranquilidad antes de mandarlo, con <strong>Descargar PDF</strong>, <strong>Compartir</strong> y <strong>PNG</strong> ah&iacute; mismo. Se cierra con <kbd>Esc</kbd>.',
        antes:irIndividual},
-      {target:'.btns .btn.bp',titulo:'Descargar',
-       texto:'<strong>Descargar PDF</strong> (o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) lo guarda en tu equipo. En <em>Otros</em> est&aacute;n <strong>Compartir el PDF</strong> y la descarga como imagen (PNG). Si qued&oacute; un celular o un mail raro, te avisa reci&eacute;n despu&eacute;s de generar: nunca te frena el flyer. Todo queda en la solapa <em>Historial</em>.',
+      {target:'#btn-dl-pdf',titulo:'Descargar',
+       texto:'<strong>Descargar PDF</strong> (o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) lo guarda en tu equipo. En la PC est&aacute; siempre a la vista, al pie del formulario. En <em>Otros</em> est&aacute;n <strong>Compartir el PDF</strong> y la descarga como imagen (PNG). Si qued&oacute; un celular o un mail raro, te avisa reci&eacute;n despu&eacute;s de generar: nunca te frena el flyer. Todo queda en la solapa <em>Historial</em>.',
        antes:irIndividual},
       {target:'.btns .btn.bg',titulo:'Restaurar',
        texto:'Limpia empresa y oficiales, apaga lo que hayas prendido en <em>Otros</em> y vuelve el legal al texto guardado, para arrancar el pr&oacute;ximo flyer de cero.',
@@ -10841,10 +10964,10 @@ function _opcStyle(){
     '.opc-row input[type=color]{width:38px;height:34px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:2px;background:none;cursor:pointer}'+
     '.opc-row .opc-sol{height:34px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:0 8px;font-size:.76rem;font-family:inherit;background:none;color:inherit;cursor:pointer}'+
     '.opc-row .opc-sol:disabled{opacity:.6;cursor:default}'+
-    '.opc-vig{font-size:.6rem;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:10px;background:#e8f5e9;color:#1b5e20;white-space:nowrap}'+
+    '.opc-vig{font-size:.75rem;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:10px;background:#e8f5e9;color:#1b5e20;white-space:nowrap}'+
     'html.dark .opc-vig{background:#1b3a1f;color:#a5d6a7}'+
     'html.dark .opc-row .opc-sol{border-color:#3a3e46;background:#22242a}'+
-    '.opc-est{font-size:.68rem;color:var(--gray,#888);flex-basis:100%;padding-left:44px}'+
+    '.opc-est{font-size:.75rem;color:var(--gray,#888);flex-basis:100%;padding-left:44px}'+
     '.opc-est b{color:var(--green,#1a9c50)}';
   document.head.appendChild(st);
 }
@@ -10890,7 +11013,7 @@ function _opcPintar(){
           return '<option value="'+x.n+'"'+((parseInt(o.reemplaza,10)||0)===x.n?' selected':'')+'>Reemplaza a: '+_escHtml(x.nombre)+'</option>';
         }).join('')+
       '</select>')+
-      (o.n===1?'<span style="font-size:.66rem;color:var(--gray)">La de todos los asesores</span>':
+      (o.n===1?'<span style="font-size:.75rem;color:var(--gray)">La de todos los asesores</span>':
         '<button type="button" class="usr-btn warn" onclick="_opcQuitar('+i+')">Quitar</button>')+
       // Cuál es HOY el flyer que recibe las empresas de ese rubro. Se muestra para
       // no tener que deducirlo: si la vigente no es la que esperabas, se arrastra
@@ -11231,10 +11354,63 @@ function _fgCompartirCanvas(fc,v,force){
   compartir();
 }
 // "Otros ▾" debajo de los botones: acciones de poco uso (PNG).
+// En la barra fija de la PC (fg-dock) se abre hacia arriba, como un menú: ahí
+// sí se cierra al tocar afuera (abajo, en la columna del celular, sigue como siempre).
 function fgToggleOtros(force){
   var tg=document.querySelector('#fg-otros .fg-otros-tg'),m=document.getElementById('fg-otros-menu');if(!tg||!m)return;
   var abrir=(force===undefined)?m.hidden:!!force;
   m.hidden=!abrir;tg.setAttribute('aria-expanded',abrir?'true':'false');
+  document.removeEventListener('click',_fgOtrosFuera,true);
+  if(abrir&&m.closest('.fg-dock'))setTimeout(function(){document.addEventListener('click',_fgOtrosFuera,true);},0);
+}
+function _fgOtrosFuera(e){
+  var o=document.getElementById('fg-otros');
+  if(!o||o.contains(e.target))return;
+  if(e.target.closest&&e.target.closest('#fg-tour-tip'))return; // el tutorial lo abre a propósito
+  fgToggleOtros(false);
+}
+
+// ── BARRA FIJA DE ACCIONES (Vista previa · Descargar PDF · Otros) ────────────
+// En una PC de sucursal (1366×768) "Descargar PDF" quedaba ~700 px abajo del
+// formulario: había que bajar cada vez. En la PC los tres botones van en una
+// barra pegada al pie del panel, a la vista mientras se completa el formulario.
+// "Restaurar" queda en su lugar (abajo de todo), lejos del PDF: borra el
+// formulario y no conviene tenerlo a mano. En el celular todo queda como antes
+// (en columna), porque ahí está la pastilla Editar / Vista previa.
+var _fgDockMQ=null;
+function _fgDockInit(){
+  var tab=document.getElementById('tab-individual'),pdf=document.getElementById('btn-dl-pdf');
+  if(!tab||!pdf||document.getElementById('fg-dock'))return;
+  if(!pdf.parentNode||!pdf.parentNode.classList.contains('btns'))return;
+  var dock=document.createElement('div');dock.id='fg-dock';dock.className='fg-dock';
+  tab.appendChild(dock); // último del panel: así se queda pegado abajo al recorrerlo
+  var m=document.getElementById('fg-otros-menu');
+  if(m)m.addEventListener('click',function(e){ // en la barra, elegir una acción cierra el menú
+    var it=e.target.closest&&e.target.closest('.fg-otros-item');
+    if(it&&!it.classList.contains('fg-otros-sw')&&m.closest('.fg-dock'))setTimeout(function(){fgToggleOtros(false);},0);
+  });
+  _fgDockMQ=window.matchMedia?window.matchMedia('(max-width:900px)'):null;
+  _fgDockUbicar();
+  if(_fgDockMQ){
+    if(_fgDockMQ.addEventListener)_fgDockMQ.addEventListener('change',_fgDockUbicar);
+    else if(_fgDockMQ.addListener)_fgDockMQ.addListener(_fgDockUbicar);
+  }
+}
+function _fgDockUbicar(){
+  var dock=document.getElementById('fg-dock'),pdf=document.getElementById('btn-dl-pdf');if(!dock||!pdf)return;
+  var btns=document.querySelector('#tab-individual .btns'),prev=document.querySelector('#tab-individual .btn.bblue'),otros=document.getElementById('fg-otros');
+  if(!btns)return;
+  if(_fgDockMQ&&_fgDockMQ.matches){
+    // celular: el orden de siempre (Vista previa, Descargar PDF, Restaurar, Otros)
+    var rest=btns.querySelector('.btn.bg');
+    [prev,pdf].forEach(function(el){if(el)btns.insertBefore(el,rest||null);});
+    if(otros)btns.appendChild(otros);
+    dock.hidden=true;
+  }else{
+    [prev,pdf,otros].forEach(function(el){if(el)dock.appendChild(el);});
+    dock.hidden=false;
+  }
+  fgToggleOtros(false);
 }
 
 // ── NEGRITA DEL LEGAL: botón B / Ctrl+B ──────────────────────────────────────
@@ -11334,6 +11510,9 @@ function _fgKbdInit(){
         if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();var j=(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[j].focus();tabs[j].click();return;}
       }
       if((t.classList.contains('toggle-row')||t.classList.contains('ftag')||t.classList.contains('app-tab'))&&(e.key==='Enter'||e.key===' ')){e.preventDefault();t.click();return;}
+      // Cualquier otro elemento que no es <button> pero se presenta como botón
+      // (las píldoras "⚡ Pegar" y "✕ Borrar/Quitar" de cada asesor).
+      if(t.tagName!=='BUTTON'&&t.getAttribute('role')==='button'&&t.hasAttribute('tabindex')&&(e.key==='Enter'||e.key===' ')){e.preventDefault();t.click();return;}
     }
     // Alt+G = "Registrar gestión" en la pantalla del Hunter (G de gestión).
     // Ctrl+G no: en algunos navegadores busca en internet. AltGr llega como
@@ -11400,7 +11579,7 @@ function _fgTipStyle(){
     // confundía con él).
     '#fg-tip{position:fixed;z-index:9600;pointer-events:none;opacity:0;'+
       'transform:translateY(3px);transition:opacity .13s ease,transform .13s ease;'+
-      'background:var(--navy,#14213D);color:#fff;font-size:.68rem;font-weight:600;'+
+      'background:var(--navy,#14213D);color:#fff;font-size:.75rem;font-weight:600;'+
       'letter-spacing:.01em;padding:5px 9px;border-radius:7px;white-space:nowrap;'+
       'box-shadow:0 0 0 2px rgba(255,255,255,.92),0 6px 18px rgba(0,0,0,.3)}'+
     '#fg-tip.on{opacity:1;transform:translateY(0)}'+
@@ -11551,6 +11730,7 @@ function _fgUxInit(){
   try{_fgShareInit();}catch(e){console.warn('share:',e);}
   try{_fgWorkInit();}catch(e){console.warn('work:',e);}
   try{_fgTipInit();}catch(e){console.warn('tip:',e);}
+  try{_fgDockInit();}catch(e){console.warn('dock:',e);}
 }
 
 // ══ PERFIL HUNTER — buscar una empresa y bajar SU flyer ══════════════════════
