@@ -11971,8 +11971,10 @@ function _fgLgPintar(c,s,L,base,corte,extra){
       }
     }
     var dy=(e.y>=corte)?extra:0;
-    c.fillStyle=e.bg;
-    c.fillRect(Math.floor(e.x*s),Math.floor((e.y+dy)*s),Math.ceil(e.w*s)+1,Math.ceil(e.h*s)+1);
+    if(e.w>0&&e.h>0){
+      c.fillStyle=e.bg;
+      c.fillRect(Math.floor(e.x*s),Math.floor((e.y+dy)*s),Math.ceil(e.w*s)+1,Math.ceil(e.h*s)+1);
+    }
     listos.push({e:e,im:im});
   });
   listos.forEach(function(o){
@@ -12256,6 +12258,7 @@ function _fgLgInit(){
   if(!prev||!cw||document.getElementById('fg-lg-bar'))return;
   var bar=document.createElement('div');bar.id='fg-lg-bar';bar.className='fg-lg-bar';
   bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar.</span>'+
+    '<button type="button" class="fg-lg-undo fg-lg-franja" id="fg-lg-franja" onclick="fgFranjaModo()" hidden title="Rehacer toda una franja de logos de una vez, eligiendo marcas de Promociones">Armar franja</button>'+
     '<button type="button" class="fg-lg-undo" id="fg-lg-undo" onclick="fgLogosDeshacer()" hidden>Volver todos al original</button>'+
     '<span class="fg-lg-proy" id="fg-lg-proy" hidden></span>'+
     '<button type="button" class="fg-lg-undo fg-lg-guardar" id="fg-lg-guardar" onclick="fgEstGuardar()" hidden>Guardar en Estudio</button>'+
@@ -12274,7 +12277,8 @@ function _fgLgInit(){
   cvs.addEventListener('pointerdown',function(e){
     if(!_fgLg.on||e.button!==0)return;
     var p=_fgLgAImagen(e.clientX,e.clientY),i=p?_fgLgLogoEn(p.x,p.y):-1;
-    ini={x:e.clientX,y:e.clientY,touch:e.pointerType==='touch',mov:false,logo:i};
+    // en modo franja el dedo también marca el recuadro (si no, arrastrar recorre la página)
+    ini={x:e.clientX,y:e.clientY,touch:e.pointerType==='touch'&&!_fgFr.modo,mov:false,logo:_fgFr.modo?-1:i};
     if(i>=0){var L=_fgLgActivos()[i];ini.tx=L.tx;ini.ty=L.ty;}
     if(!ini.touch){e.preventDefault();e.stopPropagation();}
   });
@@ -12299,6 +12303,11 @@ function _fgLgInit(){
     if(!ini)return;var a=ini;ini=null;
     if(a.touch&&a.mov)return;
     if(a.logo>=0){_fgLg.sel=a.logo;_fgLgListo();return;}
+    if(_fgFr.modo){
+      _fgLgSel(null);
+      if(!a.mov){showToast('Arrastrá un recuadro alrededor de TODA la franja de logos.');return;}
+      fgFranjaModo(false);_fgFrDesdeRecuadro(a.x,a.y,e.clientX,e.clientY);return;
+    }
     if(a.mov){_fgLgSel(null);_fgLgElegirRecuadro(a.x,a.y,e.clientX,e.clientY);}
     else{_fgLg.sel=-1;_fgLgMarcas();_fgLgElegirPunto(a.x,a.y);}
   });
@@ -12414,6 +12423,7 @@ function _fgLgAPantalla(x,y,w,h){
 }
 function fgLogosModo(on){
   _fgLg.on=(on===undefined)?!_fgLg.on:!!on;
+  if(!_fgLg.on&&_fgFr.modo){_fgFr.modo=false;var pv=document.querySelector('.prev');if(pv)pv.classList.remove('fg-fr-on');}
   var prev=document.querySelector('.prev');if(prev)prev.classList.toggle('fg-lg-on',_fgLg.on);
   if(_fgLg.on&&!_promosCat)loadPromosCatalogo(); // así la ventana abre con la lista ya cargada
   _fgLgBarra();_fgLgMarcas();
@@ -12422,7 +12432,14 @@ function _fgLgBarra(){
   var b=document.getElementById('fg-lg-btn');if(!b)return;
   b.setAttribute('aria-pressed',_fgLg.on?'true':'false');b.classList.toggle('on',_fgLg.on);
   var t=document.getElementById('fg-lg-btn-t');if(t)t.textContent=_fgLg.on?'Listo':'Cambiar logos';
-  var tip=document.getElementById('fg-lg-tip');if(tip)tip.hidden=!_fgLg.on;
+  var tip=document.getElementById('fg-lg-tip');
+  if(tip){
+    tip.hidden=!_fgLg.on;
+    if(!tip.dataset.base)tip.dataset.base=tip.innerHTML;
+    tip.innerHTML=_fgFr.modo?'Arrastr&aacute; un recuadro alrededor de <b>toda la franja</b> de logos.':tip.dataset.base;
+  }
+  var fb=document.getElementById('fg-lg-franja');
+  if(fb){fb.hidden=!_fgLg.on;fb.classList.toggle('on',_fgFr.modo);fb.textContent=_fgFr.modo?'Cancelar franja':'Armar franja';}
   var n=_fgLgActivos().length,u=document.getElementById('fg-lg-undo');
   if(u){u.hidden=!(_fgLg.on&&n);u.textContent=n===1?'Volver el cambio al original':'Volver los '+n+' cambios al original';}
   if(_fgLg.proy&&(!n||_fgLg.src!==_fgLgSrc()))_fgLg.proy=null; // salió del diseño abierto
@@ -12475,7 +12492,8 @@ function _fgLgElegirRecuadro(ax,ay,bx,by){
 function _fgLgIndiceDe(det){
   var L=_fgLgActivos();
   for(var i=0;i<L.length;i++){
-    var e=L[i],ix=Math.min(e.ox+e.ow,det.x+det.w)-Math.max(e.ox,det.x),iy=Math.min(e.oy+e.oh,det.y+det.h)-Math.max(e.oy,det.y);
+    var e=L[i];if(e.franjaBase)continue; // la franja se retoca con "Armar franja"
+    var ix=Math.min(e.ox+e.ow,det.x+det.w)-Math.max(e.ox,det.x),iy=Math.min(e.oy+e.oh,det.y+det.h)-Math.max(e.oy,det.y);
     if(ix>0&&iy>0&&ix*iy>0.5*Math.min(e.ow*e.oh,det.w*det.h))return i;
   }
   return -1;
@@ -12674,15 +12692,15 @@ function _fgLgFiltros(){
   _fgLgLista();
 }
 // Vigentes (no vencidas ni "próximamente"), con logo, de la provincia y el
-// rubro elegidos; una por logo (la que vence más tarde) y por nombre.
-function _fgLgLista(){
-  var box=document.getElementById('fg-lg-list'),info=document.getElementById('fg-lg-info');if(!box)return;
-  var hoy=new Date(),toks=_promoTokens(_promoNormalizar(_fgLgV.q||'')),porImg={};
+// rubro elegidos; una por logo (la que vence más tarde) y por nombre. La usan
+// la ventana de un logo y la de "Armar franja".
+function _fgLgFiltrar(q,rubro,prov){
+  var hoy=new Date(),toks=_promoTokens(_promoNormalizar(q||'')),porImg={};
   (_promosCat||[]).forEach(function(p){
     if(!p.imagen||p.proximamente)return;
     if(_promoEstado(p.fecha_hasta,hoy)==='VENCIDA')return;
-    if(_fgLgV.rubro&&p.subtitulo!==_fgLgV.rubro)return;
-    if(_fgLgV.prov&&!_promoEnProvincia(p,_fgLgV.prov))return;
+    if(rubro&&p.subtitulo!==rubro)return;
+    if(prov&&!_promoEnProvincia(p,prov))return;
     if(toks.length){var n=_promoNormalizar(p.titulo||'');for(var i=0;i<toks.length;i++)if(n.indexOf(toks[i])<0)return;}
     var o=porImg[p.imagen];if(!o||_promoMejorQue(p,o))porImg[p.imagen]=p;
   });
@@ -12694,6 +12712,11 @@ function _fgLgLista(){
     if(q0){var pa=na.indexOf(q0)===0?0:1,pb=nb.indexOf(q0)===0?0:1;if(pa!==pb)return pa-pb;}
     return na<nb?-1:na>nb?1:0;
   });
+  return L;
+}
+function _fgLgLista(){
+  var box=document.getElementById('fg-lg-list'),info=document.getElementById('fg-lg-info');if(!box)return;
+  var L=_fgLgFiltrar(_fgLgV.q,_fgLgV.rubro,_fgLgV.prov);
   var MAX=60;_fgLgV.res=L.slice(0,MAX);
   if(info)info.textContent=!(_promosCat&&_promosCat.length)?'':
     (L.length?(L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes: escribí o elegí un rubro para encontrar la tuya.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+(_fgLgV.prov?' en '+_promoTitulizar(_fgLgV.prov):'')+'.'):'');
@@ -12705,6 +12728,295 @@ function _fgLgLista(){
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
       '<span class="fg-lg-it-s">'+_escHtml(p.subtitulo||'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+'</span></button>';
   }).join('');
+}
+
+// ══ ARMAR FRANJA (16-oct-2026) ════════════════════════════════════════════════
+// Para cuando hay que rehacer TODA una franja de logos ("Aprovechá beneficios…",
+// los súper) y no sólo cambiar uno o dos: se marca la franja con un recuadro, se
+// tildan marcas de Promociones en el orden en que van (después se reordenan) y
+// la app tapa la franja entera y acomoda los logos en filas, centrados y con un
+// peso visual parejo. Por defecto respeta cuántos había por fila en el original.
+// Cada logo queda como un cambio común (se ajusta con la barrita de siempre) y
+// todos llevan el mismo "franja" para volver a abrir la franja y retocarla.
+var _FG_FR_MAX=30;
+var _fgFr={modo:false};
+function fgFranjaModo(on){
+  _fgFr.modo=(on===undefined)?!_fgFr.modo:!!on;
+  if(_fgFr.modo&&!_fgLg.on)fgLogosModo(true);
+  var prev=document.querySelector('.prev');if(prev)prev.classList.toggle('fg-fr-on',_fgFr.modo);
+  _fgLgBarra();
+}
+// Logos dentro del recuadro (px de imagen) y cómo están acomodados: mismo
+// criterio que tocar un logo suelto (fondo = color que más se repite, partes a
+// menos de _FG_LG_GAP px son el mismo logo), pero para todos a la vez.
+function _fgFrDetectar(x,y,w,h){
+  var d=_fgLgPixeles(x,y,w,h),bg=_fgLgFondo(d);
+  var CS=3,cw=Math.ceil(w/CS),ch=Math.ceil(h/CS),on=new Uint8Array(cw*ch),i,j,p;
+  for(j=0;j<h;j++){
+    var f=((j/CS)|0)*cw;
+    for(i=0;i<w;i++){p=(j*w+i)*4;if(Math.max(Math.abs(d[p]-bg[0]),Math.abs(d[p+1]-bg[1]),Math.abs(d[p+2]-bg[2]))>_FG_LG_TOL)on[f+((i/CS)|0)]=1;}
+  }
+  var R=Math.ceil(_FG_LG_GAP/CS),visto=new Uint8Array(cw*ch),logos=[];
+  for(var s=0;s<cw*ch;s++){
+    if(!on[s]||visto[s])continue;
+    var cola=[s],bx0=cw,by0=ch,bx1=-1,by1=-1;visto[s]=1;
+    while(cola.length){
+      var c=cola.pop(),cx=c%cw,cy=(c/cw)|0;
+      if(cx<bx0)bx0=cx;if(cx>bx1)bx1=cx;if(cy<by0)by0=cy;if(cy>by1)by1=cy;
+      for(var ny=Math.max(0,cy-R);ny<=Math.min(ch-1,cy+R);ny++)for(var nx=Math.max(0,cx-R);nx<=Math.min(cw-1,cx+R);nx++){
+        var q=ny*cw+nx;if(on[q]&&!visto[q]){visto[q]=1;cola.push(q);}
+      }
+    }
+    var bw=(bx1-bx0+1)*CS,bh=(by1-by0+1)*CS;
+    if(bw<12&&bh<12)continue; // motitas de la compresión
+    logos.push({x:x+bx0*CS,y:y+by0*CS,w:bw,h:bh});
+  }
+  // filas por altura del centro
+  logos.sort(function(a,b){return (a.y+a.h/2)-(b.y+b.h/2);});
+  var filas=[];
+  logos.forEach(function(l){
+    var cy=l.y+l.h/2,f=filas[filas.length-1];
+    if(f&&Math.abs(cy-f.cy)<=Math.max(f.h,l.h)*0.6){f.n++;f.cy=(f.cy*(f.n-1)+cy)/f.n;f.h=Math.max(f.h,l.h);}
+    else filas.push({cy:cy,h:l.h,n:1});
+  });
+  var hs=logos.map(function(l){return l.h;}).sort(function(a,b){return a-b;});
+  return {bg:_fgLgRgb(bg),n:logos.length,filas:filas,porFila:filas.reduce(function(m,f){return Math.max(m,f.n);},0),medH:hs.length?hs[hs.length>>1]:0};
+}
+// Lugares para n logos con "cols" por fila (0 = automático: se reparten parejo
+// en las mismas filas que el original, sin pasar de los que había por fila; 8
+// logos en una franja de 2 filas → 4 y 4, no 7 y 1). Si quedan las mismas filas que en
+// el original, se usan sus alturas; si no, se reparten parejo en el recuadro.
+// La última fila, si queda corta, va centrada.
+function _fgFrLugares(st,n){
+  var r=st.rect,info=st.info,cols=st.cols;
+  if(!cols){
+    var F=info.filas.length;
+    cols=F?Math.min(info.porFila,Math.ceil(n/F)):Math.min(6,Math.max(1,n));
+  }
+  cols=Math.max(1,Math.min(cols,n||1));
+  var filas=Math.max(1,Math.ceil(n/cols)),cys=[],paso;
+  if(info.filas.length===filas&&filas>0){
+    cys=info.filas.map(function(f){return f.cy;});
+    paso=filas>1?(cys[filas-1]-cys[0])/(filas-1):r.h;
+  }else{
+    paso=r.h/filas;
+    for(var k=0;k<filas;k++)cys.push(r.y+paso*(k+0.5));
+  }
+  var celda=r.w/cols,alto=Math.min(paso*0.82,info.medH?info.medH*1.15:paso*0.7),ancho=celda*0.86,out=[];
+  for(var i=0;i<n;i++){
+    var fi=Math.floor(i/cols),c=i%cols,enFila=Math.min(cols,n-fi*cols),x0=r.x+(r.w-enFila*celda)/2;
+    out.push({cx:x0+celda*(c+0.5),cy:cys[fi],w:ancho,h:alto});
+  }
+  return out;
+}
+// Peso visual parejo: todos con más o menos la misma superficie (uno muy
+// apaisado no queda finito, uno cuadrado no queda gigante), sin pasarse del lugar.
+function _fgFrEncajar(l,asp){
+  var A=l.h*l.h*1.5,w=Math.sqrt(A*asp),h=Math.sqrt(A/asp),k=Math.min(1,l.w/w,l.h/h);
+  w*=k;h*=k;
+  return {tx:l.cx-w/2,ty:l.cy-h/2,tw:w,th:h};
+}
+function _fgFrSolapa(a,r){
+  var ix=Math.min(a.ox+a.ow,r.x+r.w)-Math.max(a.ox,r.x),iy=Math.min(a.oy+a.oh,r.y+r.h)-Math.max(a.oy,r.y);
+  return (ix>0&&iy>0)?ix*iy/Math.max(1,Math.min(a.ow*a.oh,r.w*r.h)):0;
+}
+// Recuadro marcado en pantalla → abrir la ventana.
+function _fgFrDesdeRecuadro(ax,ay,bx,by){
+  var a=_fgLgAImagen(Math.min(ax,bx),Math.min(ay,by)),b=_fgLgAImagen(Math.max(ax,bx),Math.max(ay,by));
+  if(!a||!b)return;
+  var det=_fgLgManual(a.x,a.y,b.x-a.x,b.y-a.y);
+  if(!det||det.w<60||det.h<30){showToast('Ese recuadro es muy chico. Marcá toda la franja de logos.');return;}
+  _fgFrAbrir(det);
+}
+var _fgFrSt=null;
+function _fgFrAbrir(rect){
+  var info;
+  try{info=_fgFrDetectar(rect.x,rect.y,rect.w,rect.h);}catch(e){showToast('No se pudo leer el flyer.');return;}
+  // ¿ya había una franja armada en este lugar? se retoma su selección
+  var previa=_fgLgActivos().filter(function(e){return e.franjaBase&&_fgFrSolapa(e,rect)>0.5;})[0]||null;
+  if(previa)rect={x:previa.ox,y:previa.oy,w:previa.ow,h:previa.oh,bg:previa.bg,corta:false};
+  var st=_fgFrSt={rect:rect,info:previa?previa.franjaInfo:info,previa:previa,
+    sel:previa?JSON.parse(JSON.stringify(previa.franjaSel||[])):[],cols:previa?(previa.franjaCols||0):0,
+    q:'',rubro:'',prov:_promosProv||_fgLgV.prov||'',res:[],src:_fgLgSrc()};
+  if(!previa)st.info.bg=rect.bg||st.info.bg;
+  var v=document.getElementById('fg-fr-ov');if(v)v.remove();
+  var ov=document.createElement('div');ov.id='fg-fr-ov';ov.className='fg-cf-ov';
+  ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-labelledby','fg-fr-t');
+  var I=st.info;
+  ov.innerHTML='<div class="fg-cf fg-fr">'+
+    '<div class="fg-lg-h"><div style="flex:1;min-width:0"><div class="fg-cf-t" id="fg-fr-t">Armar franja</div>'+
+      '<div class="fg-cf-b">'+(I.n?'La franja tiene <b>'+I.n+' logos</b> en '+I.filas.length+(I.filas.length===1?' fila':' filas')+' ('+I.porFila+' por fila). ':'')+
+      'Tild&aacute; las marcas en el orden en que van; despu&eacute;s pod&eacute;s reordenarlas. Vale s&oacute;lo para este flyer.</div></div>'+
+      '<button type="button" class="fg-lg-x" id="fg-fr-x" aria-label="Cerrar">&times;</button></div>'+
+    (rect.corta?'<div class="fg-lg-aviso">Ojo: el recuadro corta parte de otro dibujo del flyer y lo va a tapar a medias. Si no es lo que quer&eacute;s, cancel&aacute; y marcalo de nuevo.</div>':'')+
+    '<div class="fg-fr-cols">'+
+      '<div class="fg-fr-izq">'+
+        '<div class="fg-lg-fil"><input type="search" id="fg-fr-q" placeholder="Buscar marca" autocomplete="off">'+
+        '<select id="fg-fr-rub" aria-label="Rubro"></select><select id="fg-fr-prov" aria-label="Provincia"></select></div>'+
+        '<div class="fg-lg-info" id="fg-fr-info"></div>'+
+        '<div class="fg-lg-list fg-fr-list" id="fg-fr-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
+      '</div>'+
+      '<div class="fg-fr-der">'+
+        '<div class="fg-fr-l">As&iacute; va a quedar</div>'+
+        '<div class="fg-fr-prevbox"><canvas id="fg-fr-prev"></canvas></div>'+
+        '<div class="fg-fr-por"><label for="fg-fr-por">Por fila</label><select id="fg-fr-por"></select></div>'+
+        '<div class="fg-fr-l">Tu selecci&oacute;n <span>(en este orden)</span></div>'+
+        '<div class="fg-fr-sel" id="fg-fr-sel"></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="fg-cf-acts">'+
+      (previa?'<button type="button" class="btn bg" id="fg-fr-quitar">Volver la franja al original</button>':'')+
+      '<button type="button" class="btn bg" id="fg-fr-no">Cancelar</button><button type="button" class="btn bp" id="fg-fr-ok"></button></div></div>';
+  document.body.appendChild(ov);
+  function cerrar(){document.removeEventListener('keydown',tecla,true);ov.remove();_fgFrSt=null;}
+  function tecla(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cerrar();}}
+  document.addEventListener('keydown',tecla,true);
+  document.getElementById('fg-fr-x').onclick=cerrar;
+  document.getElementById('fg-fr-no').onclick=cerrar;
+  var qt=document.getElementById('fg-fr-quitar');
+  if(qt)qt.onclick=function(){
+    var fid=previa.franja;cerrar();
+    _fgLg.list=_fgLg.list.filter(function(e){return e.franja!==fid;});_fgLg.sel=-1;_fgLgListo();
+    showToast('La franja volvió a como viene en el flyer.');
+  };
+  var por=document.getElementById('fg-fr-por');
+  var opts='<option value="0">Autom&aacute;tico (como el original)</option>';
+  for(var k=2;k<=10;k++)opts+='<option value="'+k+'">'+k+'</option>';
+  por.innerHTML=opts;por.value=String(st.cols||0);
+  por.onchange=function(){st.cols=+por.value;_fgFrPreview();};
+  var q=document.getElementById('fg-fr-q'),t=0;
+  q.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){st.q=q.value;_fgFrLista();},120);});
+  document.getElementById('fg-fr-rub').onchange=function(){st.rubro=this.value;_fgFrLista();};
+  document.getElementById('fg-fr-prov').onchange=function(){st.prov=this.value;_fgFrLista();};
+  document.getElementById('fg-fr-list').addEventListener('click',function(e){
+    var it=e.target.closest&&e.target.closest('.fg-lg-it');if(!it)return;
+    var p=st.res[+it.getAttribute('data-i')];if(!p)return;
+    var i=_fgFrIdx(p.imagen);
+    if(i>=0)st.sel.splice(i,1);
+    else{
+      if(st.sel.length>=_FG_FR_MAX){showToast('Hasta '+_FG_FR_MAX+' logos por franja.');return;}
+      st.sel.push({img:p.imagen,t:p.titulo});
+      _fgLgTraer(p.imagen).then(function(){if(_fgFrSt===st)_fgFrPreview();}).catch(function(){
+        if(_fgFrSt!==st)return;
+        var j=_fgFrIdx(p.imagen);if(j>=0)st.sel.splice(j,1);
+        showToast('No se pudo bajar el logo de '+p.titulo+'.');_fgFrLista();_fgFrSelPintar();_fgFrPreview();
+      });
+    }
+    _fgFrLista();_fgFrSelPintar();_fgFrPreview();
+  });
+  document.getElementById('fg-fr-sel').addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('button[data-a]');if(!b)return;
+    var i=+b.getAttribute('data-i'),a=b.getAttribute('data-a'),S=st.sel;
+    if(a==='arr'&&i>0){var x=S[i];S[i]=S[i-1];S[i-1]=x;}
+    else if(a==='aba'&&i<S.length-1){var y=S[i];S[i]=S[i+1];S[i+1]=y;}
+    else if(a==='x')S.splice(i,1);
+    _fgFrLista();_fgFrSelPintar();_fgFrPreview();
+  });
+  document.getElementById('fg-fr-ok').onclick=function(){
+    if(!st.sel.length){showToast('Tildá al menos una marca.');return;}
+    var ok=this;ok.disabled=true;ok.textContent='Poniendo…';
+    _fgFrAplicar(st).then(function(n){
+      if(n===null){ // se cerró la ventana (nada que hacer) o se cambió de flyer mientras bajaban
+        if(_fgFrSt===st){cerrar();showToast('Cambiaste de flyer mientras se armaba la franja, así que no se aplicó. Volvé a marcarla en este flyer.');}
+        return;
+      }
+      cerrar();showToast('Listo: '+n+(n===1?' logo':' logos')+' en la franja. Tocá uno para ajustarlo.');},
+      function(){ok.disabled=false;_fgFrSelPintar();showToast('No se pudieron bajar algunos logos. Revisá la conexión y probá de nuevo.');});
+  };
+  // los logos que ya estaban elegidos se bajan para la vista previa
+  st.sel.forEach(function(s){_fgLgTraer(s.img).then(function(){if(_fgFrSt===st)_fgFrPreview();}).catch(function(){});});
+  _fgFrSelPintar();_fgFrPreview();
+  setTimeout(function(){try{q.focus();}catch(e){}},30);
+  if(_promosCat)_fgFrFiltros();
+  else loadPromosCatalogo(function(){if(_fgFrSt===st)_fgFrFiltros();});
+}
+function _fgFrIdx(img){var S=_fgFrSt?_fgFrSt.sel:[];for(var i=0;i<S.length;i++)if(S[i].img===img)return i;return -1;}
+function _fgFrFiltros(){
+  var st=_fgFrSt;if(!st)return;
+  var rs={};(_promosCat||[]).forEach(function(p){if(p.subtitulo)rs[p.subtitulo]=1;});
+  var rub=document.getElementById('fg-fr-rub'),prov=document.getElementById('fg-fr-prov');
+  if(rub)rub.innerHTML='<option value="">Todos los rubros</option>'+Object.keys(rs).sort().map(function(r){return '<option value="'+_escAttr(r)+'">'+_escHtml(r)+'</option>';}).join('');
+  if(prov){
+    var ps=_promosHayGeo()?_promosProvincias():[];
+    prov.hidden=!ps.length;
+    prov.innerHTML='<option value="">Todas las provincias</option>'+ps.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===st.prov?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('');
+  }
+  _fgFrLista();
+}
+function _fgFrLista(){
+  var st=_fgFrSt,box=document.getElementById('fg-fr-list'),info=document.getElementById('fg-fr-info');if(!st||!box)return;
+  if(!(_promosCat&&_promosCat.length)){box.innerHTML='<div class="fg-lg-vacio">No se pudo leer el catálogo de promociones.</div>';return;}
+  var L=_fgLgFiltrar(st.q,st.rubro,st.prov),MAX=60;
+  // las ya tildadas siempre a mano (arriba), aunque el filtro no las traiga
+  var tildadas=st.sel.map(function(s){return L.filter(function(p){return p.imagen===s.img;})[0]||{imagen:s.img,titulo:s.t,subtitulo:''};});
+  var resto=L.filter(function(p){return _fgFrIdx(p.imagen)<0;});
+  st.res=tildadas.concat(resto.slice(0,MAX));
+  if(info)info.textContent=L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes: escribí o elegí un rubro para encontrar las tuyas.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+(st.prov?' en '+_promoTitulizar(st.prov):'')+'.';
+  if(!st.res.length){box.innerHTML='<div class="fg-lg-vacio">No hay promos vigentes con ese nombre.</div>';return;}
+  box.innerHTML=st.res.map(function(p,i){
+    var n=_fgFrIdx(p.imagen);
+    return '<button type="button" class="fg-lg-it'+(n>=0?' fg-fr-on':'')+'" data-i="'+i+'" title="'+_escAttr(p.titulo)+'" aria-pressed="'+(n>=0)+'">'+
+      (n>=0?'<span class="fg-fr-num">'+(n+1)+'</span>':'')+
+      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'"></span>'+
+      '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
+      '<span class="fg-lg-it-s">'+_escHtml(p.subtitulo||'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+'</span></button>';
+  }).join('');
+}
+function _fgFrSelPintar(){
+  var st=_fgFrSt,box=document.getElementById('fg-fr-sel'),ok=document.getElementById('fg-fr-ok');if(!st||!box)return;
+  var n=st.sel.length;
+  if(ok)ok.textContent=n?('Poner '+n+(n===1?' logo':' logos')):'Poner logos';
+  box.innerHTML=n?st.sel.map(function(s,i){
+    return '<div class="fg-fr-it"><b>'+(i+1)+'</b><span>'+_escHtml(s.t)+'</span>'+
+      '<button type="button" data-a="arr" data-i="'+i+'" aria-label="Subir"'+(i===0?' disabled':'')+'>&uarr;</button>'+
+      '<button type="button" data-a="aba" data-i="'+i+'" aria-label="Bajar"'+(i===n-1?' disabled':'')+'>&darr;</button>'+
+      '<button type="button" data-a="x" data-i="'+i+'" aria-label="Quitar">&times;</button></div>';
+  }).join(''):'<div class="fg-fr-vac">Tild&aacute; marcas a la izquierda. El orden en que las tild&aacute;s es el orden en el flyer.</div>';
+}
+// Vista previa: el pedazo del flyer con la franja ya armada (los logos que
+// todavía se están bajando se ven como un cuadrito gris con su número).
+function _fgFrPreview(){
+  var st=_fgFrSt,cv2=document.getElementById('fg-fr-prev');if(!st||!cv2||!window.baseImg)return;
+  var r=st.rect,m=24,x0=Math.max(0,r.x-m),y0=Math.max(0,r.y-m),x1=Math.min(baseImg.width,r.x+r.w+m),y1=Math.min(baseImg.height,r.y+r.h+m);
+  var box=cv2.parentNode,W=Math.max(200,Math.min(560,box.clientWidth||360)),k=W/(x1-x0);
+  cv2.width=Math.round(W);cv2.height=Math.round((y1-y0)*k);
+  var g=cv2.getContext('2d');g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv2.width,cv2.height);
+  g.scale(k,k);g.translate(-x0,-y0);
+  g.drawImage(baseImg,0,0);
+  g.fillStyle=st.info.bg;g.fillRect(r.x,r.y,r.w,r.h);
+  var lug=_fgFrLugares(st,st.sel.length);
+  st.sel.forEach(function(s,i){
+    var im=_fgLg.imgs[s.img],l=lug[i];
+    if(im){var d=_fgFrEncajar(l,im.width/im.height);g.drawImage(im,d.tx,d.ty,d.tw,d.th);}
+    else{g.fillStyle='rgba(128,128,128,.18)';g.fillRect(l.cx-l.h*0.6,l.cy-l.h*0.4,l.h*1.2,l.h*0.8);
+      g.fillStyle='#777';g.font='600 '+Math.round(l.h*0.35)+'px Figtree,Arial';g.textAlign='center';g.textBaseline='middle';g.fillText(String(i+1),l.cx,l.cy);}
+  });
+}
+// Aplica: tapa la franja entera y pone los logos. Los cambios que había adentro
+// (de antes) se reemplazan.
+function _fgFrAplicar(st){
+  return Promise.all(st.sel.map(function(s){return _fgLgTraer(s.img);})).then(function(ims){
+    // mientras bajaban los logos se cerró la ventana o se cambió de flyer: no se aplica nada
+    if(_fgFrSt!==st||_fgLgSrc()!==st.src)return null;
+    if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
+    var r=st.rect,fid=(st.previa&&st.previa.franja)||('fr'+Date.now());
+    _fgLg.list=_fgLg.list.filter(function(e){
+      if(e.franja===fid)return false;
+      var cx=e.ox+e.ow/2,cy=e.oy+e.oh/2;
+      return !(cx>=r.x&&cx<=r.x+r.w&&cy>=r.y&&cy<=r.y+r.h);
+    });
+    _fgLg.list.push({x:r.x-2,y:r.y-2,w:r.w+4,h:r.h+4,bg:st.info.bg,img:'',t:'Franja',ox:r.x,oy:r.y,ow:r.w,oh:r.h,
+      franja:fid,franjaBase:true,franjaSel:JSON.parse(JSON.stringify(st.sel)),franjaCols:st.cols||0,franjaInfo:st.info});
+    var lug=_fgFrLugares(st,st.sel.length);
+    st.sel.forEach(function(s,i){
+      var im=ims[i],d=_fgFrEncajar(lug[i],im.width/im.height);
+      // sin tapado propio (w/h 0): ya lo tapa la franja
+      _fgLg.list.push({x:d.tx,y:d.ty,w:0,h:0,bg:st.info.bg,img:s.img,t:s.t,ox:d.tx,oy:d.ty,ow:d.tw,oh:d.th,
+        tx:d.tx,ty:d.ty,tw:d.tw,th:d.th,bw:d.tw,bh:d.th,franja:fid});
+    });
+    _fgLg.sel=-1;_fgLgListo();
+    return st.sel.length;
+  });
 }
 
 // ══ ESTUDIO — diseños de flyer guardados (prototipo 16-oct-2026) ═════════════
