@@ -33,6 +33,36 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 // dure la transición. Cuando se deshabiliten las legacy, ADMIN_SECRET es la que rige.
 const SERVICE_KEY = Deno.env.get("ADMIN_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// La clave nueva que alguien pide en "olvidé mi contraseña" espera en la base
+// hasta que un admin la resuelve. Se guarda CIFRADA (AES-GCM) con una clave que
+// sale del secreto de esta función: quien lea la tabla o un backup no la ve.
+// "v1:" + base64(iv 12 bytes + cifrado). Un valor sin el prefijo es un pedido
+// viejo, guardado antes de este cambio, y se acepta tal cual.
+async function _claveCifrado(): Promise<CryptoKey> {
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("fg-reset-v1|" + SERVICE_KEY));
+  return crypto.subtle.importKey("raw", h, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+async function cifrarClave(plano: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await _claveCifrado(), new TextEncoder().encode(plano)));
+  const out = new Uint8Array(iv.length + ct.length);
+  out.set(iv); out.set(ct, iv.length);
+  let bin = ""; for (const b of out) bin += String.fromCharCode(b);
+  return "v1:" + btoa(bin);
+}
+// Devuelve null si no se puede descifrar (secreto rotado o dato dañado).
+async function descifrarClave(guardado: string): Promise<string | null> {
+  if (!guardado.startsWith("v1:")) return guardado;
+  try {
+    const bin = atob(guardado.slice(3));
+    const buf = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0, 12) }, await _claveCifrado(), buf.slice(12));
+    return new TextDecoder().decode(pt);
+  } catch (_e) {
+    return null;
+  }
+}
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -50,8 +80,10 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// Admin Y activo: un admin desactivado (o con un reset pendiente) no opera
-// hasta que otro admin lo reactive. Antes alcanzaba con el rol.
+// Admin Y activo: un admin desactivado no opera hasta que otro admin lo
+// reactive. Un pedido de cambio de clave pendiente NO lo frena: ese pedido lo
+// puede iniciar cualquiera sabiendo el mail, y si bloqueara, un desconocido
+// podría dejar sin acceso al admin. Antes alcanzaba con el rol.
 async function requireAdmin(req: Request): Promise<boolean> {
   const auth = req.headers.get("Authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "");
@@ -60,7 +92,7 @@ async function requireAdmin(req: Request): Promise<boolean> {
   if (error || !data?.user) return false;
   const { data: prof } = await admin
     .from("profiles").select("role,status").eq("id", data.user.id).single();
-  return !!prof && prof.role === "admin" && prof.status === "active";
+  return !!prof && prof.role === "admin" && (prof.status === "active" || prof.status === "reset_pending");
 }
 
 // ── Mails de aviso ───────────────────────────────────────────────────────────
@@ -171,7 +203,7 @@ function avisar(to: string | string[] | null | undefined, m: Mail): void {
 const MAIL_ADMIN = (Deno.env.get("MAIL_ADMIN") || "").split(",").map((x) => x.trim()).filter((x) => MAIL_RE.test(x));
 async function mailsAdmins(): Promise<string[]> {
   if (MAIL_ADMIN.length) return MAIL_ADMIN;
-  const { data } = await admin.from("profiles").select("email").eq("role", "admin").eq("status", "active");
+  const { data } = await admin.from("profiles").select("email").eq("role", "admin").in("status", ["active", "reset_pending"]);
   return (data || []).map((r: { email: string | null }) => r.email || "").filter(Boolean);
 }
 async function perfil(uid: string): Promise<{ email: string; nombre: string; status: string } | null> {
@@ -336,9 +368,12 @@ Deno.serve(async (req: Request) => {
       // Rate-limit silencioso: un pedido nuevo por cuenta cada 15 minutos.
       const last = prof.last_reset_request_at ? new Date(prof.last_reset_request_at).getTime() : 0;
       if (Date.now() - last < 15 * 60 * 1000) return json(generic);
-      // Guarda el pedido; NO toca la clave real todavía (ver approve_reset).
+      // Guarda el pedido (cifrado); NO toca la clave real todavía (ver approve_reset).
+      // La cuenta queda marcada "reset_pending" para que el admin la vea, pero
+      // sigue funcionando con la clave de siempre: si el pedido la bloqueara,
+      // cualquiera con el mail ajeno podría dejar sin acceso a esa persona.
       await admin.from("pending_password_resets").upsert(
-        { user_id: prof.id, new_password: password, requested_at: new Date().toISOString() },
+        { user_id: prof.id, new_password: await cifrarClave(password), requested_at: new Date().toISOString() },
         { onConflict: "user_id" },
       );
       await admin.from("profiles")
@@ -357,7 +392,9 @@ Deno.serve(async (req: Request) => {
       const { data: pending } = await admin
         .from("pending_password_resets").select("new_password").eq("user_id", uid).maybeSingle();
       if (!pending) return json({ error: "No hay un cambio de clave pendiente para este usuario." }, 404);
-      const { error } = await admin.auth.admin.updateUserById(uid, { password: pending.new_password });
+      const claveNueva = await descifrarClave(String(pending.new_password || ""));
+      if (!claveNueva) return json({ error: "No se pudo leer el pedido de clave. Rechazalo y pedile a la persona que lo haga de nuevo." }, 400);
+      const { error } = await admin.auth.admin.updateUserById(uid, { password: claveNueva });
       if (error) return json({ error: error.message }, 400);
       await admin.from("pending_password_resets").delete().eq("user_id", uid);
       await admin.from("profiles").update({ status: "active" }).eq("id", uid);

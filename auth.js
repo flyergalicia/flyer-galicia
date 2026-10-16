@@ -28,10 +28,18 @@ function _callEdgeFn(url,action,payload,cb){
     var tok=s&&s.data&&s.data.session&&s.data.session.access_token;
     if(tok)headers['Authorization']='Bearer '+tok;
     var b={action:action};for(var k in payload)if(payload.hasOwnProperty(k))b[k]=payload[k];
-    return fetch(url,{method:'POST',headers:headers,body:JSON.stringify(b)})
+    // Sin tope de tiempo, una red de sucursal que se cuelga deja el botón en
+    // "Guardando..." para siempre. A los 25 s se corta y se avisa.
+    var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    var tm=ctl?setTimeout(function(){ctl.abort();},25000):0;
+    return fetch(url,{method:'POST',headers:headers,body:JSON.stringify(b),signal:ctl?ctl.signal:undefined})
       .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
-      .then(function(res){cb(res.ok?null:(res.d&&res.d.error||'Error'),res.d);});
-  }).catch(function(e){cb((e&&e.message)||'Error de red');});
+      .then(function(res){clearTimeout(tm);
+              // Si el callback del que llama falla, no es un error de red: sin este
+              // try el .catch de abajo lo tomaba por uno y lo volvía a invocar.
+              try{cb(res.ok?null:(res.d&&res.d.error||'Error'),res.d);}catch(ex){console.error(ex);}},
+            function(e){clearTimeout(tm);throw e;});
+  }).catch(function(e){cb(e&&e.name==='AbortError'?'Tardó demasiado en responder. Revisá tu conexión y probá de nuevo.':((e&&e.message)||'Error de red'));});
 }
 
 // ── JSON DE CONFIGURACIÓN DEL BUCKET ─────────────────────────────────────────────
@@ -958,12 +966,14 @@ function checkProfile(user){
   _fgPrecargaInicio(user.id); // la configuración viene en paralelo con el perfil
   _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades,es_prueba,lider_id').eq('id',user.id).single().then(function(r){
     var p=r.data;
-    if(r.error||!p||p.status!=='active'){
+    // 'reset_pending' = pidió cambiar la clave y espera al admin: entra igual con
+    // la clave de siempre (si se lo bloqueara, cualquiera con su mail podría dejarlo
+    // afuera pidiendo un cambio de clave en su nombre).
+    if(r.error||!p||(p.status!=='active'&&p.status!=='reset_pending')){
       _bootFin(); // hace falta el formulario: el mensaje va ahí
       var msg;
       if(r.error)msg='Error: '+r.error.message;
       else if(p&&p.status==='pending')msg='Tu cuenta está pendiente de aprobación del administrador.';
-      else if(p&&p.status==='reset_pending')msg='Tu cambio de contraseña está pendiente de aprobación del administrador.';
       else msg='Cuenta inactiva. Contactá al administrador.';
       // Orden importa: showLoginView limpia login-err, así que el mensaje va
       // DESPUÉS (antes se borraba en el mismo tick y el usuario no veía nada).
@@ -1119,6 +1129,10 @@ function doLogin(){
     btn.textContent='Ingresar';btn.disabled=false;
     if(r.error){errEl.textContent=r.error.message;return;}
     checkProfile(r.data.user);
+  }).catch(function(){
+    // Sin red / error inesperado: el botón no puede quedar trabado en "Ingresando...".
+    btn.textContent='Ingresar';btn.disabled=false;
+    errEl.textContent='No se pudo conectar. Revisá tu conexión y probá de nuevo.';
   });
 }
 
@@ -1153,6 +1167,10 @@ function submitMyPass(){
   if(np===cur){errEl.textContent='La nueva contraseña debe ser distinta de la actual.';return;}
   var btn=document.getElementById('mp-submit');btn.textContent='Verificando...';btn.disabled=true;
   // Reautenticamos para confirmar que la clave actual es correcta antes de cambiarla.
+  var _mpFalla=function(){
+    btn.textContent='Cambiar contraseña';btn.disabled=false;
+    errEl.textContent='No se pudo conectar. Revisá tu conexión y probá de nuevo.';
+  };
   _sb.auth.signInWithPassword({email:_me.email,password:cur}).then(function(r){
     if(r.error){btn.textContent='Cambiar contraseña';btn.disabled=false;errEl.textContent='La contraseña actual es incorrecta.';return;}
     btn.textContent='Guardando...';
@@ -1166,8 +1184,8 @@ function submitMyPass(){
       document.getElementById('mp-new2').value='';
       showToast('Contraseña actualizada');
       setTimeout(closeMyPassModal,1600);
-    });
-  });
+    }).catch(_mpFalla);
+  }).catch(_mpFalla);
 }
 
 // ── PANEL ADMIN ───────────────────────────────────────────────────────────────
@@ -2991,6 +3009,16 @@ function descargarExcelPromos(){
   // juntas: con 800 filas eso lo hace fallar. Pasado el tope se exportan los
   // datos sin logos, que es lo que importa en una lista larga.
   var CAP_LOGOS=150,conLogos=incluidos.length<=CAP_LOGOS;
+  // Los logos se bajan de a 6 a la vez (antes salían los 150 juntos y el
+  // navegador/CDN dejaba pendientes o rechazaba a los últimos).
+  var _logoCola=[],_logoAct=0,LOGOS_A_LA_VEZ=6;
+  function _logoSig(){
+    while(_logoAct<LOGOS_A_LA_VEZ&&_logoCola.length){
+      var t=_logoCola.shift();_logoAct++;
+      t.fn().then(t.ok,t.no).then(function(){_logoAct--;_logoSig();});
+    }
+  }
+  function _logoConCupo(fn){return new Promise(function(ok,no){_logoCola.push({fn:fn,ok:ok,no:no});_logoSig();});}
   var pendientes=incluidos.map(function(r,i){
     var rowIdx=i+2;
     var row=ws.addRow({
@@ -3018,14 +3046,14 @@ function descargarExcelPromos(){
     // ExcelJS sólo incrusta jpeg/png/gif; otros formatos se saltean.
     var ext=/\.jpe?g$/i.test(r.promo.imagen)?'jpeg':(/\.png$/i.test(r.promo.imagen)?'png':(/\.gif$/i.test(r.promo.imagen)?'gif':null));
     if(!ext){logosSinPoner++;return Promise.resolve();}
-    return fetch(PROMO_LOGO_BASE+r.promo.imagen).then(function(resp){
+    return _logoConCupo(function(){return fetch(PROMO_LOGO_BASE+r.promo.imagen).then(function(resp){
       return resp.ok?resp.arrayBuffer():null;
     }).then(function(buf){
       if(!buf){logosSinPoner++;return;}
       var imgId=wb.addImage({buffer:buf,extension:ext});
       ws.addImage(imgId,{tl:{col:0,row:rowIdx-1},ext:{width:26,height:26},editAs:'oneCell'});
       logosPuestos++;
-    }).catch(function(){logosSinPoner++;/* si el logo no carga, la fila igual queda con sus datos */});
+    }).catch(function(){logosSinPoner++;/* si el logo no carga, la fila igual queda con sus datos */});});
   });
 
   Promise.all(pendientes).then(function(){
@@ -6532,7 +6560,7 @@ function _calEnsureDom(){
   st.textContent=
     '#cal-modal{position:fixed;inset:0;z-index:100000;background:rgba(20,18,16,.72);display:none;padding:16px}'+
     '#cal-modal.show{display:flex;align-items:stretch;justify-content:center}'+
-    '.cal-card{position:relative;background:#fff;color:#1a1a1a;width:100%;max-width:720px;margin:auto;max-height:calc(100vh - 32px);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}'+
+    '.cal-card{position:relative;background:#fff;color:#1a1a1a;width:100%;max-width:720px;margin:auto;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}'+
     // Tamaño a mano (grip de la esquina / «Ampliar»): _calSizeSet pone width/height en línea
     '.cal-card.sized{max-width:none}'+
     // Imagen arriba, controles abajo con su propia barra: los controles ya no le

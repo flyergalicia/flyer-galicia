@@ -60,7 +60,8 @@ async function requireCan(req: Request): Promise<boolean> {
   ]);
   // Sólo cuentas activas: una desactivada/pendiente conserva el JWT hasta que
   // vence, pero no tiene que poder disparar consultas hacia Galicia.
-  if (!prof || prof.status !== "active") return false;
+  // (reset_pending = tiene un pedido de cambio de clave en curso; la cuenta anda igual)
+  if (!prof || (prof.status !== "active" && prof.status !== "reset_pending")) return false;
   const role = prof.role || "";
   if (role === "admin") return true;
   return !!(fac?.roles?.[role]?.promos_buscar);

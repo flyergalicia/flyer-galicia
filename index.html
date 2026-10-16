@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=46171d2395","integrity":"sha384-Y5OWpBlQHiMfPB36M2zCqjsvEsgSehtG6g+HlYqAF/FROCtSSicy0LEVshXDUa0B"}}'>
-<meta name="build-v" content="0b751a9aa2">
+<meta name="build-v" content="96393ba193">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -129,7 +129,7 @@ html{height:100%;overflow:hidden;}
 .login-submit{width:100%;padding:12px;background:var(--red);color:white;border:none;border-radius:9px;font-family:"Syne",sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;transition:background .2s;}
 .login-submit:hover{background:#c0000f;}
 .login-submit:disabled{opacity:0.6;cursor:not-allowed;}
-#admin-panel{position:fixed;top:0;right:0;width:700px;max-width:100vw;height:100vh;background:#f8f8f6;box-shadow:-8px 0 32px rgba(0,0,0,0.18);z-index:800;display:none;flex-direction:column;}
+#admin-panel{position:fixed;top:0;right:0;width:700px;max-width:100vw;height:100vh;height:100dvh;background:#f8f8f6;box-shadow:-8px 0 32px rgba(0,0,0,0.18);z-index:800;display:none;flex-direction:column;}
 .ap-header{padding:0 20px;height:62px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:12px;background:white;}
 .ap-title{font-family:"Syne",sans-serif;font-size:1rem;font-weight:800;flex:1;margin:0;}
 .ap-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--gray);padding:4px;line-height:1;}
@@ -680,16 +680,16 @@ html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec
   .um-grid{grid-template-columns:1fr;}
   .um-header,.um-body,.um-footer{padding-left:14px;padding-right:14px;}
   .um-footer{flex-wrap:wrap;}
-  .modal{max-width:100vw;max-height:100vh;width:100%;border-radius:0;padding:14px;}
+  .modal{max-width:100vw;max-height:100vh;max-height:100dvh;width:100%;border-radius:0;padding:14px;}
   .modal-body img{max-height:none;}
   .modal-footer{flex-wrap:wrap;}
   .notes-card{width:100%;}
-  .notes-body{flex-direction:column;height:auto;max-height:82vh;}
+  .notes-body{flex-direction:column;height:auto;max-height:82vh;max-height:82dvh;}
   .notes-side{width:100%;border-right:none;border-bottom:1.5px solid var(--border);flex-direction:row;flex-wrap:wrap;max-height:120px;}
   .login-card{padding:26px 20px !important;}
   .toast{left:12px;right:12px;bottom:12px;text-align:center;}
   #cal-modal{padding:6px;}
-  .cal-card{max-width:100%;max-height:calc(100vh - 12px);border-radius:10px;}
+  .cal-card{max-width:100%;max-height:calc(100vh - 12px);max-height:calc(100dvh - 12px);border-radius:10px;}
   .cal-hd{padding:10px 12px;flex-wrap:wrap;}
   .cal-legend{padding:7px 12px;}
   .cal-ft{flex-wrap:wrap;padding:9px 12px;}
@@ -1372,7 +1372,7 @@ html.dark .field select,html.dark .field input[type=month]{background-color:var(
   #mv-toggle button.on{background:var(--accent);color:#fff;}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=a39c5d0cf2"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=bbcaa7b0bb"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
