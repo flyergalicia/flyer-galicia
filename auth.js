@@ -1716,7 +1716,9 @@ function _facSyncOptBar(){
   if(bar&&bar.parentNode)bar.parentNode.removeChild(bar);
   // La barra lista sólo las opciones de la solapa a la vista (Flyer Galicia o Flyer Rubros).
   var opts=_facOptsDe(_fgVista);
-  if(opts.length>1)_fgEnsureOptBar();
+  // con un prototipo abierto la barra se ve aunque haya una sola opción: es la
+  // forma de volver al flyer original
+  if(opts.length>1||_fgProtos.some(function(p){return opts.indexOf(p.opcion)>=0;}))_fgEnsureOptBar();
   // Si quedó parado en una opción que este perfil no tiene, lo muevo a la primera
   // que sí (de la misma solapa; si la solapa quedó vacía, a cualquiera habilitada,
   // y _fgSyncVista cambia de solapa). Sólo con la app ya visible, para no pisar
@@ -4102,7 +4104,12 @@ function _fgEnsureOptBar(){
   if(!document.getElementById('fg-optbar-style'))document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
   bar.innerHTML=_facOptsDe(_fgVista).map(function(o){
-    return '<div class="fgo" data-o="'+o+'" onclick="switchFlyerOption('+o+')">'+_escHtml(_optLabel(o))+'</div>';
+    // los diseños de Estudio abiertos con "Usar" van al lado de su flyer base
+    var protos=_fgProtos.filter(function(p){return p.opcion===o;}).map(function(p){
+      return '<div class="fgp" data-p="'+_escAttr(p.id)+'" onclick="fgProtoAbrir(\''+_escAttr(p.id)+'\')" title="Prototipo de Estudio sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda ac&aacute; hasta que recargues la p&aacute;gina; el dise&ntilde;o sigue guardado en Estudio.">'+
+        '<span class="fgp-t">'+_escHtml(p.nombre)+'</span><button type="button" class="fgp-x" onclick="fgProtoCerrar(\''+_escAttr(p.id)+'\',event)" aria-label="Cerrar prototipo" title="Cerrar (sigue guardado en Estudio)">&times;</button></div>';
+    }).join('');
+    return '<div class="fgo" data-o="'+o+'" onclick="fgOptElegir('+o+')">'+_escHtml(_optLabel(o))+'</div>'+protos;
   }).join('');
   tabs.parentNode.insertBefore(bar,tabs);
   if(_admin)_fgOptBarGestos(bar);
@@ -4110,8 +4117,10 @@ function _fgEnsureOptBar(){
 }
 function _fgRenderOptBar(){
   var bar=document.getElementById('fg-optbar');if(!bar)return;
+  var pAct=_fgProtoActivo();
+  bar.querySelectorAll('.fgp').forEach(function(x){x.classList.toggle('on',!!pAct&&x.getAttribute('data-p')===pAct.id);});
   bar.querySelectorAll('.fgo').forEach(function(x){
-    var o=+x.getAttribute('data-o'),on=(o===_optN(_fgOpt));
+    var o=+x.getAttribute('data-o'),on=(o===_optN(_fgOpt))&&!pAct;
     x.classList.toggle('on',on);
     // la opción activa se pinta con SU color (mismo que registros/historial)
     x.style.color=on?_optColor(o):'';
@@ -4637,8 +4646,14 @@ function activateFlyer(htmlUrl,name,btn,opt){
     });
 }
 
-function deactivateFlyer(btn,opt){
+function deactivateFlyer(btn,opt,ok){
   opt=_optN(opt);
+  // Sin flyer activo, esa opción muestra el flyer de ejemplo con las posiciones
+  // por defecto ("se ve con formato mal"): no puede pasar por un clic de más.
+  if(!ok){
+    fgConfirm('¿Desactivar el flyer de «'+_optLabel(opt)+'»?',{texto:'Mientras no tenga un flyer activo, quien use esa opción va a ver el flyer de ejemplo. Lo podés volver a activar desde la lista de versiones de abajo.',ok:'Desactivar'},function(si){if(si)deactivateFlyer(btn,opt,true);});
+    return;
+  }
   if(btn){btn.disabled=true;btn.textContent='Desactivando...';}
   var data=JSON.stringify({name:'',imageUrl:null,updated_at:new Date().toISOString()});
   _sb.storage.from('flyers').upload(_activeFile(opt),new Blob([data],{type:'application/json'}),{contentType:'application/json',upsert:true})
@@ -11921,6 +11936,7 @@ function _fgLgSrc(){return (window.baseImg&&baseImg.src)||'';}
 function _fgLgActivos(){return (_fgLg.list.length&&_fgLg.src===_fgLgSrc())?_fgLg.list:[];}
 function _fgLgLimpiar(){
   _fgLg.list=[];_fgLg.src=_fgLgSrc();_fgLg.sel=-1;_fgLg.proy=null;
+  if(_fgProtoAct){_fgProtoAct=null;if(typeof _fgRenderOptBar==='function')_fgRenderOptBar();}
   _fgLgBarra();_fgLgMarcas();
 }
 // Para fgGetVals: copia plana (el historial la guarda tal cual).
@@ -12791,6 +12807,9 @@ function fgEstGuardar(){
       if(r.error){ok.disabled=false;ok.textContent='Guardar';showToast('No se pudo guardar: '+_estErr(r.error));return;}
       cerrar();
       _fgLg.proy={id:r.data.id,nombre:r.data.nombre,empresa:r.data.empresa,mio:true,estado:r.data.estado};
+      // si estaba en un prototipo: la pestaña pasa a ser la del diseño guardado
+      var pa=_fgProtoAct&&_fgProtoBuscar(_fgProtoAct);
+      if(pa&&modo==='mismo'){pa.nombre=r.data.nombre;pa.empresa=r.data.empresa;pa.cambios=JSON.parse(JSON.stringify(L));pa.subidos=sub.mapa;_facSyncOptBar();_fgRenderOptBar();}
       _estUpsert(r.data);_fgLgBarra();
       showToast(modo==='mismo'?'Cambios guardados en «'+r.data.nombre+'».':'Guardado en Estudio: «'+r.data.nombre+'».');
     },function(e){ok.disabled=false;ok.textContent='Guardar';showToast('No se pudo guardar: '+_estErr(e));});
@@ -12814,22 +12833,12 @@ function _estUpsert(d){
 function _fgLgProySync(){
   if(_fgLg.proy&&(!_fgLgActivos().length&&!_fgLg.list.length||_fgLg.src!==_fgLgSrc()))_fgLg.proy=null;
 }
-function fgEstSoltar(){_fgLg.proy=null;_fgLgBarra();}
+function fgEstSoltar(){_fgLg.proy=null;_fgProtoAct=null;_fgLgBarra();_fgRenderOptBar();}
 
 // ·· Usar un diseño ··
 function _estDatos(id){
   return _sb.from('flyer_disenos').select('id,datos,opcion,base_name,nombre,empresa,user_id,estado').eq('id',id).single()
     .then(function(r){if(r.error)throw r.error;return r.data;});
-}
-// Espera a que el armador termine de cargar la imagen de esa opción.
-function _estEsperarOpcion(n,cb){
-  var t0=Date.now();
-  (function mirar(){
-    var ok=_optN(_fgOpt)===n&&window.baseImg&&baseImg.complete&&baseImg.naturalWidth>0&&!_fgPrevGate;
-    if(ok&&_fgOptCache[n]&&_fgOptCache[n].img===baseImg)return cb(true);
-    if(Date.now()-t0>20000)return cb(false);
-    setTimeout(mirar,120);
-  })();
 }
 function _estCargarImg(src){
   return new Promise(function(res,rej){var i=new Image();i.onload=function(){res(i);};i.onerror=rej;i.src=src;});
@@ -12843,28 +12852,90 @@ function _estPrepararSubidos(sub){
     }).catch(function(){});
   }));
 }
+// "Usar" no pisa el flyer original: el diseño se abre como una PESTAÑA DE
+// PROTOTIPO en la barra de opciones, al lado de su flyer base y con el nombre
+// con el que se guardó. Vive en la memoria de esta pestaña (al recargar la
+// página desaparece de la barra; el diseño sigue guardado en Estudio). Los
+// cambios que se le hagan sin guardar se recuerdan mientras dure la pestaña.
+// _fgProtoTurno: cada apertura lleva un número; sólo la ÚLTIMA puede aplicarse.
+// Sin esto, abrir un prototipo y tocar otra pestaña antes de que termine de
+// cargar dejaba aplicado el anterior (y la descarga salía con ese diseño).
+var _fgProtos=[],_fgProtoAct=null,_fgProtoTurno=0;
+function _fgProtoBuscar(id){for(var i=0;i<_fgProtos.length;i++)if(_fgProtos[i].id===id)return _fgProtos[i];return null;}
+// El prototipo que se ve ahora (su diseño está aplicado sobre su flyer base).
+function _fgProtoActivo(){
+  var p=_fgProtoAct?_fgProtoBuscar(_fgProtoAct):null;
+  return (p&&_optN(_fgOpt)===p.opcion&&_fgLg.proy&&_fgLg.proy.id===p.id)?p:null;
+}
+// Antes de salir de un prototipo se guarda en memoria lo que se le cambió.
+function _fgProtoGuardarActual(){
+  var p=_fgProtoActivo();
+  if(p&&_fgLg.src===_fgLgSrc())p.cambios=JSON.parse(JSON.stringify(_fgLg.list));
+}
+function fgProtoAbrir(id){
+  var p=_fgProtoBuscar(id);if(!p)return;
+  if(_fgProtoActivo()===p)return;
+  if(_FG_OPTS.indexOf(p.opcion)<0||!_can('opcion_'+p.opcion)){showToast('El flyer base de este prototipo ya no está disponible.');return;}
+  _fgProtoGuardarActual();
+  var turno=++_fgProtoTurno;
+  _fgProtoAct=null;_fgLg.list=[];_fgLg.proy=null;_fgLg.sel=-1;
+  switchApp(_optSolapa(p.opcion));
+  function vigente(){return turno===_fgProtoTurno&&_optN(_fgOpt)===p.opcion&&_fgProtoBuscar(p.id)===p;}
+  switchFlyerOption(p.opcion,function(){
+    if(!vigente())return;
+    _estPrepararSubidos(p.subidos).then(function(){
+      if(!vigente())return; // mientras se preparaba, se eligió otra cosa
+      _fgLg.list=JSON.parse(JSON.stringify(p.cambios||[]));_fgLg.src=_fgLgSrc();_fgLg.sel=-1;
+      _fgLg.proy={id:p.id,nombre:p.nombre,empresa:p.empresa||'',mio:p.mio,estado:p.estado};
+      _fgProtoAct=p.id;
+      var e=document.getElementById('empresa');
+      if(e&&p.empresa&&!e.value.trim()){e.value=p.empresa;if(typeof updateFnPreview==='function')updateFnPreview();}
+      _fgLgListo();_fgRenderOptBar();
+      if(p.avisarCambio){p.avisarCambio=false;showToast('Ojo: el flyer «'+_optLabel(p.opcion)+'» cambió desde que se guardó este diseño. Revisá que todo haya quedado en su lugar.');}
+    });
+  });
+}
+// Elegir una opción "de verdad" en la barra. Si se estaba en un prototipo de
+// esa misma opción, se vuelve al flyer original (sin sus cambios).
+function fgOptElegir(o){
+  _fgProtoTurno++; // anula una apertura de prototipo que todavía esté cargando
+  var p=_fgProtoActivo();
+  if(p){
+    _fgProtoGuardarActual();
+    _fgProtoAct=null;_fgLg.list=[];_fgLg.proy=null;_fgLg.sel=-1;
+    if(_optN(_fgOpt)===o){_fgLgListo();_fgRenderOptBar();return;}
+  }
+  switchFlyerOption(o);
+}
+function fgProtoCerrar(id,ev){
+  if(ev){ev.stopPropagation();ev.preventDefault();}
+  var p=_fgProtoBuscar(id);if(!p)return;
+  _fgProtoTurno++;
+  if(_fgProtoActivo()===p){_fgProtoAct=null;_fgLg.list=[];_fgLg.proy=null;_fgLg.sel=-1;_fgLgListo();}
+  _fgProtos=_fgProtos.filter(function(x){return x!==p;});
+  _facSyncOptBar();_fgRenderOptBar();
+}
 function estUsar(id){
   var d0=_estBuscar(id);if(!d0)return;
   var n=+d0.opcion;
   if(_FG_OPTS.indexOf(n)<0){showToast('El flyer sobre el que se armó este diseño ya no existe.');return;}
   if(!_can('opcion_'+n)){showToast('No tenés habilitado el flyer «'+_optLabel(n)+'», que es la base de este diseño.');return;}
   showToast('Abriendo «'+d0.nombre+'»…');
+  var turno=++_fgProtoTurno; // si mientras responde la base se elige otra cosa, no se abre
   _estDatos(id).then(function(d){
-    switchApp(_optSolapa(n));
-    if(_optN(_fgOpt)!==n)switchFlyerOption(n);
-    _estEsperarOpcion(n,function(ok){
-      if(!ok){showToast('No se pudo abrir el flyer de este diseño. Probá de nuevo.');return;}
-      _estPrepararSubidos(d.datos&&d.datos.subidos).then(function(){
-        var L=(d.datos&&Array.isArray(d.datos.cambios))?d.datos.cambios:[];
-        _fgLg.list=JSON.parse(JSON.stringify(L));_fgLg.src=_fgLgSrc();_fgLg.sel=-1;
-        _fgLg.proy={id:d.id,nombre:d.nombre,empresa:d.empresa||'',mio:_estMio(d),estado:d.estado};
-        var e=document.getElementById('empresa');
-        if(e&&d.empresa&&!e.value.trim()){e.value=d.empresa;if(typeof updateFnPreview==='function')updateFnPreview();}
-        _fgLgListo();
-        var cambio=d.base_name&&d.base_name!==_estNombreImg(_fgLgSrc());
-        showToast(cambio?'Ojo: el flyer «'+_optLabel(n)+'» cambió desde que se guardó este diseño. Revisá que todo haya quedado en su lugar.':'Diseño «'+d.nombre+'» aplicado. Completá los datos y descargá.');
-      });
-    });
+    if(turno!==_fgProtoTurno)return;
+    var p=_fgProtoBuscar(d.id);
+    if(!p){p={id:d.id};_fgProtos.push(p);}
+    // siempre con lo último guardado en Estudio
+    p.nombre=d.nombre;p.empresa=d.empresa||'';p.opcion=+d.opcion;p.mio=_estMio(d);p.estado=d.estado;
+    p.cambios=(d.datos&&Array.isArray(d.datos.cambios))?d.datos.cambios:[];
+    p.subidos=(d.datos&&d.datos.subidos)||{};
+    var img=_fgOptCache[p.opcion]&&_fgOptCache[p.opcion].img;
+    p.avisarCambio=!!(d.base_name&&img&&d.base_name!==_estNombreImg(img.src));
+    if(_fgProtoActivo()===p)_fgProtoAct=null; // se vuelve a aplicar con lo guardado
+    switchApp(_optSolapa(p.opcion));
+    _facSyncOptBar();
+    fgProtoAbrir(p.id);
   }).catch(function(e){showToast('No se pudo abrir el diseño: '+_estErr(e));});
 }
 
@@ -12975,6 +13046,7 @@ function estBorrar(id){
     _sb.from('flyer_disenos').delete().eq('id',id).then(function(r){
       if(r.error){showToast('No se pudo borrar: '+_estErr(r.error));return;}
       _EST.lista=(_EST.lista||[]).filter(function(x){return x.id!==id;});
+      if(_fgProtoBuscar(id))fgProtoCerrar(id);
       if(_fgLg.proy&&_fgLg.proy.id===id)_fgLg.proy=null;
       _estBadge();_estRender();_fgLgBarra();showToast('Diseño borrado.');
     });
