@@ -1417,11 +1417,19 @@ const checks = {
   // poder decir "existe, pero no en tu provincia" en vez de "no existe".
   'promos: filtro por provincia':
     html.includes('id="promos-prov"') && html.includes('id="promos-sinubic"') &&
-    _authSrc.includes("'id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias'") &&
+    _authSrc.includes("'id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde'") &&
     _authSrc.includes('function _promoEstadoFinal(') && _authSrc.includes('function _promoEnProvincia(') &&
     _authSrc.includes('function _promoGeoConocida(') &&
     _authSrc.includes("FUERA_PROV:'Fuera de la provincia'") && _authSrc.includes("FUERA_PROV:'fuera'") &&
     _authSrc.includes("_promoTh('donde','Dónde')") && html.includes('.promos-badge.b-fuera'),
+  // "Nueva" (apareció en los últimos 7 días, columna primera_vez) y
+  // "Próximamente" (ya publicada, todavía no arrancó; con su fecha de inicio).
+  // El tilde "Sólo las nuevas" se agrega desde auth.js, no desde la plantilla.
+  'promos: nuevas y proximamente':
+    _authSrc.includes('function _promoEsNueva(') && _authSrc.includes('function _promoTildeNuevas(') &&
+    _authSrc.includes("PROXIMA:'Próximamente'") && _authSrc.includes("PROXIMA:'proxima'") &&
+    _authSrc.includes('function _promoEstadoTxt(') && _authSrc.includes('function _promoDesdeInicial(') &&
+    html.includes('.promos-badge.b-proxima') && html.includes('.promos-nueva{'),
   // Segunda solapa dentro de Promociones: lista lo vigente de una provincia sin
   // pegar marcas. Comparte tabla, filtros y Excel con el buscador.
   'promos: solapa "Activas"':

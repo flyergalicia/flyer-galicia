@@ -510,6 +510,11 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
 .promos-online{display:inline-block;padding:2px 8px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#e3eefb;color:#1f5a96;white-space:nowrap;}
 html.dark .promos-badge.b-fuera,html.dark .promos-chip.c-fuera{background:#2e2a4d;color:#b9b0f0;}
 html.dark .promos-online{background:#1e3247;color:#8fc0ec;}
+.promos-badge.b-proxima{background:#e0eefb;color:#1f5a96;}
+.promos-chip.c-proxima{background:#e0eefb;color:#1f5a96;}
+.promos-nueva{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#fff0e6;color:#b94a0c;border:1px solid #f7c9a8;white-space:nowrap;cursor:help;}
+html.dark .promos-badge.b-proxima,html.dark .promos-chip.c-proxima{background:#1e3247;color:#8fc0ec;}
+html.dark .promos-nueva{background:#3a2416;color:#f6a86f;border-color:#5a3520;}
 html.dark .promos-otras{background:#22262c;border-color:#333840;color:#9aa0a8;}
 html.dark .promos-search,html.dark .promos-filrow th{background:#22262c;border-color:#333840;color:#e9eaec;}
 html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}

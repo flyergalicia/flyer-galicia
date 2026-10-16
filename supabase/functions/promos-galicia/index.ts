@@ -81,6 +81,105 @@ function esCron(req: Request): boolean {
   return dif === 0;
 }
 
+// ── Mail al admin cuando falla la actualización de las 9 ───────────────────
+// Mismo camino que los avisos de auth-admin (Gmail de la app vía Apps Script,
+// secretos MAIL_HOOK_URL / MAIL_HOOK_SECRET / MAIL_ADMIN, compartidos por todas
+// las funciones del proyecto) y mismo aspecto: esto es una copia reducida de
+// armarHtml/enviar de auth-admin, porque cada función se publica como un único
+// archivo. Sin links ni imágenes; un mail que falla no cambia la respuesta.
+const MAIL_URL = Deno.env.get("MAIL_HOOK_URL") || "";
+const MAIL_SECRET = Deno.env.get("MAIL_HOOK_SECRET") || "";
+const MAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const MAIL_ADMIN = (Deno.env.get("MAIL_ADMIN") || "").split(",").map((x) => x.trim()).filter((x) => MAIL_RE.test(x));
+
+function esc(s: unknown): string {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+type Mail = { asunto: string; titulo: string; parrafos: string[]; datos: [string, string][] };
+function mailTexto(m: Mail): string {
+  const l: string[] = [m.titulo.toUpperCase(), ""];
+  m.parrafos.forEach((p) => l.push(p, ""));
+  m.datos.forEach(([k, v]) => l.push(`${k}: ${v}`));
+  l.push("", "—", "Armador de flyers · Mensaje automático.");
+  return l.join("\n");
+}
+function mailHtml(m: Mail): string {
+  const F = "font-family:'Segoe UI',Helvetica,Arial,sans-serif;";
+  const parrafos = m.parrafos.map((p) =>
+    `<p style="${F}margin:0 0 14px;font-size:15px;line-height:1.6;color:#2b2f36">${esc(p)}</p>`).join("");
+  const datos = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;background:#f6f7f9;border-radius:8px"><tr><td style="padding:12px 16px">` +
+    m.datos.map(([k, v]) =>
+      `<div style="${F}font-size:14px;line-height:1.7;color:#2b2f36"><span style="color:#6b7280">${esc(k)}:</span> <strong>${esc(v)}</strong></div>`).join("") +
+    `</td></tr></table>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(m.asunto)}</title></head>` +
+    `<body style="margin:0;padding:0;background:#eceef2">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceef2"><tr><td align="center" style="padding:28px 12px">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden">` +
+    `<tr><td style="background:#14213D;padding:20px 28px;border-bottom:4px solid #F26122">` +
+    `<div style="${F}font-size:18px;font-weight:700;letter-spacing:.2px;color:#ffffff">Armador de flyers</div></td></tr>` +
+    `<tr><td style="padding:28px 28px 10px">` +
+    `<h1 style="${F}margin:0 0 18px;font-size:21px;line-height:1.3;color:#14213D">${esc(m.titulo)}</h1>` +
+    parrafos + datos +
+    `</td></tr>` +
+    `<tr><td style="padding:14px 28px 24px;border-top:1px solid #e5e7eb">` +
+    `<div style="${F}font-size:12px;line-height:1.6;color:#6b7280">Mensaje automático del Armador de flyers.</div>` +
+    `</td></tr></table></td></tr></table></body></html>`;
+}
+async function mailsAdmins(): Promise<string[]> {
+  if (MAIL_ADMIN.length) return MAIL_ADMIN;
+  const { data } = await admin.from("profiles").select("email").eq("role", "admin").in("status", ["active", "reset_pending"]);
+  return (data || []).map((r: { email: string | null }) => r.email || "").filter((x: string) => MAIL_RE.test(x));
+}
+async function avisarAdmin(m: Mail): Promise<void> {
+  if (!MAIL_URL || !MAIL_SECRET) return;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const to = await mailsAdmins();
+    if (!to.length) return;
+    const r = await fetch(MAIL_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ secret: MAIL_SECRET, to: to.join(","), subject: m.asunto, body: mailTexto(m), html: mailHtml(m) }),
+      signal: ctl.signal,
+    });
+    const txt = await r.text();
+    if (!r.ok || !/"ok":\s*true/.test(txt)) console.error("mail: respuesta inesperada", r.status, txt.slice(0, 200));
+  } catch (e) {
+    console.error("mail:", String((e as Error)?.message || e));
+  } finally {
+    clearTimeout(t);
+  }
+}
+async function ultimaCopia(): Promise<string> {
+  const { data } = await admin.from("promos_galicia_meta").select("last_sync_at,total").eq("id", 1).maybeSingle();
+  if (!data?.last_sync_at) return "ninguna";
+  const f = new Date(data.last_sync_at).toLocaleString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  });
+  return `${f} (${data.total || 0} promociones)`;
+}
+const MAILS = {
+  fallo: (error: string, copia: string): Mail => ({
+    asunto: "Armador de flyers · No se pudo actualizar el catálogo de promociones",
+    titulo: "No se pudo actualizar el catálogo de promociones",
+    parrafos: [
+      "La actualización automática de las 9 falló. La solapa Promociones sigue andando con la última copia guardada, pero puede que falten promociones nuevas.",
+      "Podés reintentar con el botón «Actualizar catálogo ahora». Si vuelve a fallar, es probable que Galicia haya cambiado algo en su sitio y haya que adaptar la app.",
+    ],
+    datos: [["Error", error], ["Última copia buena", copia]],
+  }),
+  sinProvincias: (error: string): Mail => ({
+    asunto: "Armador de flyers · Promociones actualizadas sin provincias",
+    titulo: "Promociones actualizadas, pero sin las provincias",
+    parrafos: [
+      "La actualización de las 9 trajo el catálogo nuevo, pero no pudo calcular en qué provincia vale cada promoción. Se conservaron las provincias de la copia anterior, así que las promos nuevas pueden aparecer como «Fuera de la provincia».",
+      "Podés reintentar con el botón «Actualizar catálogo ahora».",
+    ],
+    datos: [["Error", error]],
+  }),
+};
+
 // ── Cliente hacia la API de Galicia (imitando el navegador real) ───────────
 const GALICIA_BFF = "https://loyalty.bff.bancogalicia.com.ar/api/portal";
 const GALICIA_HEADERS: Record<string, string> = {
@@ -225,7 +324,7 @@ async function geoPorProvincia(ruta: Ruta): Promise<{
 // la copia buena, porque el paso final borra todo lo que no vino.
 const MINIMO_RELATIVO = 0.5;
 
-async function syncCatalogo(): Promise<{ total: number; conProvincia: number; geoError: string | null; ruta: string }> {
+async function syncCatalogo(): Promise<{ total: number; proximas: number; conProvincia: number; geoError: string | null; ruta: string }> {
   const { ruta, crudo } = await conRuta(async (r) => ({ ruta: r, crudo: await listadoCompleto(r) }))
     .catch((e) => {
       throw new Error(`${(e as Error).message} al pedir el catálogo`);
@@ -258,6 +357,14 @@ async function syncCatalogo(): Promise<{ total: number; conProvincia: number; ge
     console.error("promos sync: no se pudo traer la geografía:", geoError);
   }
 
+  // Las "próximamente" (Galicia ya las publicó pero arrancan más adelante) se
+  // guardan con su fecha de inicio, que sólo viene en el detalle: son ~75, una
+  // llamada cada una de a 6. Para el resto fecha_desde queda vacía y la app la
+  // sigue pidiendo a demanda como siempre (acción "detalle"). Si el detalle
+  // falla, la promo igual queda marcada como próxima, sin fecha.
+  const proximas = list.filter((p) => p.proximamente === true).map((p) => p.id);
+  const desdeProximas = proximas.length ? await detalle(proximas, 400) : {};
+
   // Un único timestamp para todas las filas de esta corrida: así, al final,
   // "lo que quedó con updated_at viejo" es justo lo que ya no está en el
   // catálogo (se borró/venció y se cayó del listado) y se puede limpiar sin
@@ -271,7 +378,12 @@ async function syncCatalogo(): Promise<{ total: number; conProvincia: number; ge
       imagen: p.imagen || "",
       fecha_hasta: isoFecha(p.fechaHasta),
       tipo_promocion: p.tipoPromocion || "",
+      proximamente: p.proximamente === true,
+      fecha_desde: desdeProximas[String(p.id)] ?? null,
       updated_at: syncStartedAt,
+      // primera_vez NO se manda: al insertar toma now() (default de la columna)
+      // y al actualizar el upsert no la toca. Es lo que marca a una promo
+      // como "Nueva" en la app.
     };
     // Sin geografía no se manda la columna: el upsert sólo pisa las columnas
     // presentes, así que las provincias que ya estaban guardadas sobreviven.
@@ -297,6 +409,7 @@ async function syncCatalogo(): Promise<{ total: number; conProvincia: number; ge
 
   return {
     total: rows.length,
+    proximas: proximas.length,
     conProvincia: geo ? geo.porPromo.size : 0,
     geoError,
     ruta: ruta.nombre,
@@ -319,8 +432,10 @@ async function porUbicacion(provincia: string, localidad: string): Promise<{ ids
   return { ids: list.map((p) => p.id).filter((n) => Number.isFinite(n)) };
 }
 
-async function detalle(ids: number[]): Promise<Record<string, string | null>> {
-  const capped = ids.filter((n) => Number.isFinite(n)).slice(0, 80);
+// Tope de 80 por pedido desde la app (la app los manda en tandas); el sync de
+// las "próximamente" usa uno más alto.
+async function detalle(ids: number[], tope = 80): Promise<Record<string, string | null>> {
+  const capped = ids.filter((n) => Number.isFinite(n)).slice(0, tope);
   const results: Record<string, string | null> = {};
   let idx = 0;
   async function worker() {
@@ -346,8 +461,23 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json(); } catch { /* body vacío */ }
   const action = body?.action;
 
-  const can = (action === "sync" && esCron(req)) || await requireCan(req);
+  const cron = action === "sync" && esCron(req);
+  const can = cron || await requireCan(req);
   if (!can) return json({ error: "No autorizado" }, 403);
+
+  // La actualización de las 9 no tiene a nadie mirando la pantalla: si falla,
+  // se avisa por mail al admin. (La manual muestra el error en la app.)
+  if (cron) {
+    try {
+      const data = await syncCatalogo();
+      if (data.geoError) await avisarAdmin(MAILS.sinProvincias(data.geoError));
+      return json({ data });
+    } catch (e) {
+      const msg = (e as Error)?.message || "Error";
+      await avisarAdmin(MAILS.fallo(msg, await ultimaCopia()));
+      return json({ error: msg }, 500);
+    }
+  }
 
   try {
     if (action === "status") {

@@ -1978,7 +1978,38 @@ function initPromosTab(){
     var d=new Date();
     mesInp.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
   }
+  _promoTildeNuevas();
   if(!_promosCat&&!_promosCatLoading)loadPromosCatalogo();
+}
+// Tilde "Sólo las nuevas" de la solapa Activas, al lado de "Una sola fila por
+// marca". Se agrega desde acá y no en _source.html para que sobreviva si se
+// regenera la plantilla.
+function _promoTildeNuevas(){
+  if(document.getElementById('promos-nuevas'))return;
+  var um=document.getElementById('promos-unamarca');
+  var lbl=um&&um.closest('label');if(!lbl)return;
+  var l=document.createElement('label');
+  l.className='promos-chk';l.htmlFor='promos-nuevas';
+  l.title='Promociones que aparecieron en el catálogo de Galicia en los últimos '+_PROMO_NUEVA_DIAS+' días.';
+  l.innerHTML='<input type="checkbox" id="promos-nuevas" onchange="_promoSetSoloNuevas(this.checked)"> Sólo las nuevas (últimos '+_PROMO_NUEVA_DIAS+' días)';
+  lbl.parentNode.insertBefore(l,lbl.nextSibling);
+}
+function _promoSetSoloNuevas(on){
+  _promosFiltros.nuevas=on?'solo':'';
+  _promosPintarFilas();
+}
+// "Nueva" = apareció en el catálogo en los últimos 7 días (primera_vez la pone
+// la base al insertarla; null = ya estaba antes de que se llevara la cuenta).
+var _PROMO_NUEVA_DIAS=7;
+function _promoEsNueva(p){
+  if(!p||!p.primera_vez)return false;
+  var t=Date.parse(p.primera_vez);
+  return isFinite(t)&&(Date.now()-t)<_PROMO_NUEVA_DIAS*864e5;
+}
+function _promoNuevaHtml(p){
+  if(!_promoEsNueva(p))return '';
+  return ' <span class="promos-nueva" title="Apareci&oacute; en el cat&aacute;logo de Galicia el '+
+    _promosFmtFecha(String(p.primera_vez).slice(0,10))+'">Nueva</span>';
 }
 
 // ── Solapas de la vista Promociones ─────────────────────────────────────────
@@ -2103,7 +2134,7 @@ function _promosSetSyncInfo(meta){
     return;
   }
   var d=new Date(meta.last_sync_at);
-  el.textContent='Catálogo actualizado: '+d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+
+  el.textContent='Catálogo actualizado: '+d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'})+
     _promosHace(d)+'. '+(meta.total||0).toLocaleString('es-AR')+' promociones. Se actualiza solo todos los días a las 9.';
 }
 // Antigüedad de la copia en palabras. Importa que se vea: Galicia publica las
@@ -2135,7 +2166,7 @@ function _promosTraerTodo(desde,acc,cb){
   // .range() puede repetir o saltearse filas entre tandas (ver _sbTodo).
   _sbTodo(function(d,h){
     return _sb.from('promos_galicia_cache')
-      .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias')
+      .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde')
       .order('id',{ascending:true})
       .range(d,h);
   },cb,_PROMOS_PAGINA,desde,acc);
@@ -2339,11 +2370,18 @@ function _promoBuscarCandidatos(marca,catalogo){
   scored.forEach(function(c){
     var key=_promoNormalizar(c.promo.titulo);
     var actual=porTitulo[key];
-    if(!actual||c.score>actual.score||(c.score===actual.score&&(c.promo.fecha_hasta||'')>(actual.promo.fecha_hasta||'')))porTitulo[key]=c;
+    if(!actual||c.score>actual.score||(c.score===actual.score&&_promoMejorQue(c.promo,actual.promo)))porTitulo[key]=c;
   });
   var out=[];for(var k in porTitulo)out.push(porTitulo[k]);
   out.sort(function(a,b){return b.score-a.score;});
   return out;
+}
+// Entre dos promos de la misma marca, cuál sirve más para el flyer: primero
+// la que ya está vigente (una "próximamente" todavía no se puede usar) y,
+// entre iguales, la que vence más tarde.
+function _promoMejorQue(a,b){
+  if(!!a.proximamente!==!!b.proximamente)return !a.proximamente;
+  return (a.fecha_hasta||'')>(b.fecha_hasta||'');
 }
 function _promoEstado(fechaHasta,mesRef){
   if(!fechaHasta)return 'SIN_FECHA';
@@ -2353,17 +2391,32 @@ function _promoEstado(fechaHasta,mesRef){
   if(fin<=finDelMes)return 'VENCE_ESTE_MES';
   return 'VIGENTE';
 }
-var _PROMO_ESTADO_LBL={VIGENTE:'Vigente',VENCE_ESTE_MES:'Vence este mes',VENCIDA:'Vencida',REVISAR:'Revisar',NO_ENCONTRADA:'No encontrada',SIN_FECHA:'Sin fecha informada',FUERA_PROV:'Fuera de la provincia'};
-var _PROMO_ESTADO_CSS={VIGENTE:'vigente',VENCE_ESTE_MES:'vence',VENCIDA:'vencida',REVISAR:'revisar',NO_ENCONTRADA:'no',SIN_FECHA:'no',FUERA_PROV:'fuera'};
+var _PROMO_ESTADO_LBL={VIGENTE:'Vigente',VENCE_ESTE_MES:'Vence este mes',VENCIDA:'Vencida',REVISAR:'Revisar',NO_ENCONTRADA:'No encontrada',SIN_FECHA:'Sin fecha informada',FUERA_PROV:'Fuera de la provincia',PROXIMA:'Próximamente'};
+var _PROMO_ESTADO_CSS={VIGENTE:'vigente',VENCE_ESTE_MES:'vence',VENCIDA:'vencida',REVISAR:'revisar',NO_ENCONTRADA:'no',SIN_FECHA:'no',FUERA_PROV:'fuera',PROXIMA:'proxima'};
 
 // Estado de una promo ya matcheada, con la provincia elegida puesta encima.
 // Una vencida sigue diciendo "Vencida" aunque además esté fuera de la
 // provincia: es el problema más grave de los dos y el que hay que arreglar
-// primero en el flyer. Lo mismo para la que no informa fecha.
+// primero en el flyer. Lo mismo para la que no informa fecha. "Próximamente"
+// (Galicia ya la publicó pero todavía no arrancó) va después de la provincia:
+// fuera de la provincia no sirve, empiece cuando empiece.
 function _promoEstadoFinal(promo,mesRef){
   var base=_promoEstado(promo.fecha_hasta,mesRef);
   if(base==='VENCIDA'||base==='SIN_FECHA')return base;
-  return _promoEnProvincia(promo,_promosProv)?base:'FUERA_PROV';
+  if(!_promoEnProvincia(promo,_promosProv))return 'FUERA_PROV';
+  return promo.proximamente?'PROXIMA':base;
+}
+// Texto del estado como se ve en la etiqueta y en el Excel: la próxima dice
+// cuándo empieza si se sabe ("Empieza el 20/10/2026").
+function _promoEstadoTxt(r){
+  if(r.estado==='PROXIMA'&&r.fechaDesde)return 'Empieza el '+_promosFmtFecha(r.fechaDesde);
+  return _PROMO_ESTADO_LBL[r.estado]||r.estado;
+}
+// La fecha de inicio de las próximas ya viene en el catálogo: se usa de una y
+// no se le pide a Galicia (fechaDesde undefined = "falta pedirla").
+function _promoDesdeInicial(fila){
+  if(fila.promo&&fila.promo.fecha_desde)fila.fechaDesde=fila.promo.fecha_desde;
+  return fila;
 }
 // Cambiar de provincia no vuelve a matchear nada: el match no depende de la
 // geografía, sólo el veredicto. Se recalcula el estado de lo que ya está en
@@ -2415,14 +2468,14 @@ function validarPromos(){
     var ambiguo=candidatos.length>1&&candidatos[1].score>=75&&candidatos[1].score>=mejor.score-10;
     var debil=mejor.score<75;
     var necesitaRevision=ambiguo||debil;
-    return{
+    return _promoDesdeInicial({
       marca:marca,
       estado:necesitaRevision?'REVISAR':_promoEstadoFinal(mejor.promo,mesRef),
       promo:mejor.promo,
       candidatos:candidatos.slice(0,5),
       necesitaRevision:necesitaRevision,
       excluir:false
-    };
+    });
   });
 
   _promosResultados=resultados;
@@ -2517,14 +2570,14 @@ function buscarPromosActivas(){
     if(!_promoEnProvincia(pr,_promosProv))return;
     if(porId&&!porId[pr.id]&&!_promoEsOnline(pr))return; // las online no son de ninguna localidad
     if(_promosRubro&&_promoDecodeEntities(pr.subtitulo||'')!==_promosRubro)return;
-    filas.push({
+    filas.push(_promoDesdeInicial({
       marca:_promoDecodeEntities(pr.titulo||''),
-      estado:_promoEstado(pr.fecha_hasta,mesRef), // ya están todas en la provincia
+      estado:_promoEstadoFinal(pr,mesRef), // ya están todas en la provincia
       promo:pr,
       candidatos:[],
       necesitaRevision:false,
       excluir:false
-    });
+    }));
   });
   filas.sort(function(a,b){return a.marca.toLowerCase()<b.marca.toLowerCase()?-1:1;});
   _promosResultados=filas;
@@ -2614,7 +2667,7 @@ function _promoToggleExcluir(i,on){
 // ── Filtros de la tabla de resultados ───────────────────────────────────────
 // Estado de los filtros: uno por columna + el buscador general de arriba a la
 // derecha (busca en marca, coincidencia y categoría a la vez).
-var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:'',hasta:'',estado:'',online:'',repetidas:''};
+var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:'',hasta:'',estado:'',online:'',repetidas:'',nuevas:''};
 // Filtros en cero para una corrida nueva: si quedaran los de la anterior,
 // esconderían parte de los resultados y parecería que "faltan" marcas. El
 // orden también vuelve al natural. La provincia y el tilde de "ocultar las
@@ -2622,10 +2675,11 @@ var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:''
 // no un filtro de estos resultados, y perderlos en cada validación obligaría
 // a volver a elegirlos todo el tiempo.
 function _promoResetFiltros(){
-  var online=_promosFiltros.online,repetidas=_promosFiltros.repetidas;
+  var online=_promosFiltros.online,repetidas=_promosFiltros.repetidas,nuevas=_promosFiltros.nuevas;
   for(var k in _promosFiltros)_promosFiltros[k]='';
   _promosFiltros.online=online;
   _promosFiltros.repetidas=repetidas;
+  _promosFiltros.nuevas=nuevas;
   _promosOrden={campo:'',dir:1};
   var b=document.getElementById('promos-buscar');if(b)b.value='';
 }
@@ -2644,6 +2698,7 @@ function _promoLimpiarFiltros(){
   // respeten el contador y el Excel, así que limpiar los filtros lo destilda.
   var o=document.getElementById('promos-sinubic');if(o)o.checked=false;
   var um=document.getElementById('promos-unamarca');if(um)um.checked=false;
+  var nu=document.getElementById('promos-nuevas');if(nu)nu.checked=false;
   renderPromosResultados();
 }
 // Texto de cada campo tal como se ve en pantalla (para que filtrar por lo que
@@ -2672,13 +2727,14 @@ function _promoCoincideFiltro(r){
   // Las de compra online se muestran siempre marcadas; el tilde sólo las saca
   // de la vista (y por lo tanto también del contador y del Excel).
   if(f.online==='ocultar'&&c.online)return false;
+  if(f.nuevas==='solo'&&!(r.promo&&_promoEsNueva(r.promo)))return false;
   if(!contiene(c.donde,f.donde))return false;
   if(!contiene(c.desde,f.desde))return false;
   if(!contiene(c.hasta,f.hasta))return false;
   if(f.estado&&c.estado!==f.estado)return false;
   if(f.global){
     var enAlguno=contiene(c.marca,f.global)||contiene(c.match,f.global)||contiene(c.cat,f.global)||
-      contiene(c.donde,f.global)||contiene(_PROMO_ESTADO_LBL[c.estado]||'',f.global);
+      contiene(c.donde,f.global)||contiene(_promoEstadoTxt(r),f.global)||(r.promo&&_promoEsNueva(r.promo)&&contiene('Nueva',f.global));
     if(!enAlguno)return false;
   }
   return true;
@@ -2691,7 +2747,7 @@ var _promosOrden={campo:'',dir:1};
 // Primero las que NO están en el catálogo (hay que sacarlas del flyer), después
 // las vencidas, las que vencen este mes, las dudosas, y al final las que ya
 // están bien.
-var _PROMO_ORDEN_ESTADO={NO_ENCONTRADA:0,VENCIDA:1,FUERA_PROV:2,VENCE_ESTE_MES:3,REVISAR:4,SIN_FECHA:5,VIGENTE:6};
+var _PROMO_ORDEN_ESTADO={NO_ENCONTRADA:0,VENCIDA:1,FUERA_PROV:2,VENCE_ESTE_MES:3,REVISAR:4,PROXIMA:5,SIN_FECHA:6,VIGENTE:7};
 // Cada click sobre la misma columna avanza: ascendente → descendente → sin
 // orden (vuelve al orden en que el usuario pegó las marcas).
 function _promoOrdenar(campo){
@@ -2796,8 +2852,9 @@ function _promoClaveMarca(base,bases){
   }
   return base;
 }
-// De cada grupo queda la de vencimiento más lejano, que es la que sirve para
-// armar un flyer (dura más). Mismo desempate que usa el matcher del buscador.
+// De cada grupo queda la ya vigente de vencimiento más lejano, que es la que
+// sirve para armar un flyer (dura más). Mismo desempate que usa el matcher del
+// buscador (_promoMejorQue).
 function _promoUnaPorMarca(filas){
   // Las bases salen de la lista ENTERA y no de lo ya filtrado: si no, esconder
   // una fila cambiaría cómo se agrupan las demás.
@@ -2813,9 +2870,7 @@ function _promoUnaPorMarca(filas){
     if(!grupos[k]){grupos[k]={mejor:v,n:0,nombres:[]};orden.push(k);}
     var g=grupos[k];g.n++;
     if(g.nombres.indexOf(t)<0)g.nombres.push(t);
-    var fa=(g.mejor.r.promo&&g.mejor.r.promo.fecha_hasta)||'';
-    var fb=(v.r.promo&&v.r.promo.fecha_hasta)||'';
-    if(fb>fa)g.mejor=v;
+    if(v.r.promo&&(!g.mejor.r.promo||_promoMejorQue(v.r.promo,g.mejor.r.promo)))g.mejor=v;
   });
   return orden.map(function(k){
     var g=grupos[k];
@@ -2842,12 +2897,12 @@ function _promoFilaHtml(r,i){
       ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>'+
     '<td>'+logo+'</td>'+
     (act?'':'<td>'+_escHtml(r.marca)+'</td>')+
-    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoOtrasHtml(r)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
     '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
     '<td>'+_promoDondeHtml(r)+'</td>'+
     '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
     '<td>'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
-    '<td><span class="promos-badge b-'+css+'">'+_PROMO_ESTADO_LBL[r.estado]+'</span></td>'+
+    '<td><span class="promos-badge b-'+css+'">'+_escHtml(_promoEstadoTxt(r))+'</span></td>'+
     '<td>'+_promoLinkHtml(r)+'</td>'+
   '</tr>';
 }
@@ -2937,13 +2992,15 @@ function renderPromosResultados(){
     }).join('');
   }
 
-  var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0,FUERA_PROV:0};
+  var conteo={VIGENTE:0,VENCE_ESTE_MES:0,VENCIDA:0,REVISAR:0,NO_ENCONTRADA:0,SIN_FECHA:0,FUERA_PROV:0,PROXIMA:0};
   resultados.forEach(function(r){if(!r.excluir)conteo[r.estado]=(conteo[r.estado]||0)+1;});
   // Los chips también filtran: tocar "Vencidas" deja sólo esas.
   // Mismo criterio que el orden por estado: primero lo que hay que corregir en
   // el flyer (una marca que no está en el catálogo hay que sacarla), último lo
   // que ya está bien.
   var chipDefs=[['NO_ENCONTRADA','c-no'],['VENCIDA','c-vencida'],['VENCE_ESTE_MES','c-vence'],['REVISAR','c-revisar'],['VIGENTE','c-vigente']];
+  // "Próximamente" sólo cuando hay alguna: casi siempre sería un 0 de más.
+  if(conteo.PROXIMA)chipDefs.splice(chipDefs.length-1,0,['PROXIMA','c-proxima']);
   // Sin provincia elegida ese chip diría siempre 0: es ruido, no se muestra.
   if(_promosProv)chipDefs.splice(1,0,['FUERA_PROV','c-fuera']);
   sumHost.innerHTML=chipDefs.map(function(c){
@@ -3038,7 +3095,7 @@ function descargarExcelPromos(){
       {header:'En Galicia',key:'link',width:14}
     ]);
   ws.getRow(1).font={bold:true};
-  var fills={VIGENTE:'FFDFF5E1',VENCE_ESTE_MES:'FFFFF1CC',VENCIDA:'FFFCE0DF',REVISAR:'FFFFE7D1',NO_ENCONTRADA:'FFECECEC',SIN_FECHA:'FFECECEC',FUERA_PROV:'FFEAE6F9'};
+  var fills={VIGENTE:'FFDFF5E1',VENCE_ESTE_MES:'FFFFF1CC',VENCIDA:'FFFCE0DF',REVISAR:'FFFFE7D1',NO_ENCONTRADA:'FFECECEC',SIN_FECHA:'FFECECEC',FUERA_PROV:'FFEAE6F9',PROXIMA:'FFE0EEFB'};
 
   // Baja lo que se está viendo: filtros aplicados y sin las marcadas "excluir".
   var incluidos=_promosFilasVisibles().map(function(v){return v.r;}).filter(function(r){return !r.excluir;});
@@ -3066,12 +3123,12 @@ function descargarExcelPromos(){
     var rowIdx=i+2;
     var row=ws.addRow({
       marca:r.marca,
-      match:r.promo?_promoDecodeEntities(r.promo.titulo):'-',
+      match:r.promo?_promoDecodeEntities(r.promo.titulo)+(_promoEsNueva(r.promo)?' (nueva)':''):'-',
       cat:r.promo?_promoDecodeEntities(r.promo.subtitulo||'-'):'-',
       donde:r.promo?(_promoDondeTexto(r.promo)||'-'):'-',
       desde:r.promo?_promosFmtFecha(r.fechaDesde):'-',
       hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
-      estado:_PROMO_ESTADO_LBL[r.estado]||r.estado
+      estado:_promoEstadoTxt(r)
     });
     row.height=32;
     row.eachCell(function(cell){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fills[r.estado]||'FFFFFFFF'}};});
