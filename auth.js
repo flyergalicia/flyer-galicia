@@ -1160,12 +1160,17 @@ function _fgIngresoSinRed(user,lento){
 function _fgReintentarIngreso(){
   var b=document.getElementById('lv-red-btn');if(b){b.disabled=true;b.textContent='Conectando…';}
   document.documentElement.classList.add('fg-boot'); // vuelve el "Ingresando…"
+  // Si leer la sesión tampoco contesta (la red se cortó justo al tocar), a los
+  // 10 s vuelve la tarjeta: nunca un "Ingresando…" eterno.
+  var resp=false;
+  setTimeout(function(){if(!resp&&!_me)_fgIngresoSinRed(_fgIngresoUser,true);},10000);
   _sb.auth.getSession().then(function(r){
+    resp=true;
     var s=r&&r.data&&r.data.session;
     if(s){checkProfile(s.user);_fgVigilarIngreso();}
     else if(r&&r.error)_fgIngresoSinRed(_fgIngresoUser);
     else{_bootFin();showLoginView('login');} // la sesión venció mientras tanto
-  }).catch(function(){_fgIngresoSinRed(_fgIngresoUser);});
+  }).catch(function(){resp=true;_fgIngresoSinRed(_fgIngresoUser);});
 }
 // Si el perfil no contesta en 10 s, la tarjeta de reintentar en vez de un
 // "Ingresando…" eterno.
@@ -9330,6 +9335,9 @@ function _padApply(r){
     var _fn=document.getElementById('filename');
     if(_fn)_fn.value='Flyer_'+(r.empresa||'');
   }
+  // Traer una empresa SIEMPRE la trae con sus oficiales: el interruptor "Mostrar en el
+  // flyer" vale para el flyer que se está armando, no queda trabado para la próxima.
+  fgSetOficiales(true);
   var tiene=_padNumAsesores(r);
   for(var n=1;n<=4;n++){
     var a=(r.asesores&&r.asesores[n-1])||{},sfx=(n===1)?'':String(n);
@@ -9520,7 +9528,7 @@ function _padDiff(){
     var o=old[n-1],c=cur[n-1],lbl='Oficial '+n;
     if(!o.nombre&&!c.nombre)continue;
     if(!o.nombre){chg.push(lbl+': <strong>+ '+_escHtml(c.nombre)+'</strong>');continue;}
-    if(!c.nombre){chg.push(lbl+': <strong>&minus; '+_escHtml(o.nombre)+'</strong> (se quita)');continue;}
+    if(!c.nombre){chg.push('<span class="pu-quita">'+lbl+': <strong>&minus; '+_escHtml(o.nombre)+'</strong> (se quita)</span>');continue;}
     if(o.nombre!==c.nombre)chg.push(lbl+': '+_escHtml(o.nombre)+' &rarr; <strong>'+_escHtml(c.nombre)+'</strong>');
     if(o.celular!==c.celular)chg.push(lbl+' &middot; celular: '+_escHtml(o.celular||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.celular||'(vac&iacute;o)')+'</strong>');
     if(o.email!==c.email)chg.push(lbl+' &middot; mail: '+_escHtml(o.email||'(vac&iacute;o)')+' &rarr; <strong>'+_escHtml(c.email||'(vac&iacute;o)')+'</strong>');
@@ -9590,6 +9598,7 @@ function _padStyle(){
     '#pad-upd details{margin:6px 18px 0;font-size:.75rem}'+
     '#pad-upd summary{cursor:pointer;font-weight:600;padding:3px 0}'+
     '#pad-upd details p{margin:4px 0 2px 14px;line-height:1.5;color:var(--gray,#888)}'+
+    '#pad-upd .pu-quita{color:var(--danger,#B3261E)}'+
     '#pad-upd .pu-alerta{margin:10px 18px 0;padding:8px 10px;border-radius:8px;font-size:.75rem;line-height:1.45;'+
       'background:var(--danger-soft,#FDE3E3);color:var(--danger,#B3261E)}'+
     '@media (max-width:420px){#pad-upd .pu-dif{grid-template-columns:repeat(2,1fr)}}';
@@ -9702,6 +9711,11 @@ function _padAskUpdate(){
   _padModal('<h3>&#128260; Actualizar mis empresas</h3>'+
     '<p class="pu-sub">Generaste el flyer de <strong>'+_escHtml(d.empresa)+'</strong> con datos distintos '+
       'a los que ten&eacute;s guardados:</p>'+
+    // Oficiales ocultos con "Mostrar en el flyer": que quede claro, en rojo y antes
+    // de la lista, que actualizar deja la empresa guardada SIN oficiales.
+    ((!_fgOficialesOn&&_padNumAsesores(d.row))?'<div class="pu-alerta">Ocultaste los oficiales: si actualiz&aacute;s, '+
+      '<strong>esta empresa queda guardada sin sus oficiales</strong>. Si s&oacute;lo quer&iacute;as este flyer sin ellos, '+
+      'eleg&iacute; &laquo;No, dejarlo como est&aacute;&raquo;.</div>':'')+
     '<ul><li>'+d.cambios.join('</li><li>')+'</li></ul>'+
     _padCuitField((d.row.cuits||[]).map(_padFmtCuit).join(', '))+
     '<p class="pu-sub" style="margin-top:12px">Si lo actualiz&aacute;s, queda guardado para todos y la pr&oacute;xima vez '+

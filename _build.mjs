@@ -1531,6 +1531,11 @@ const checks = {
     _authSrc.includes("o['has'+n]=_fgOficialesOn&&") && _authSrc.includes('if(!_fgOficialesOn)o.sinOficiales=true;') &&
     _authSrc.includes('fgSetOficiales(!sinOf);') && /function fgResetVals\(\)\{[\s\S]*?fgSetOficiales\(true\)/.test(_authSrc) &&
     newCSS.includes('.fg-card.fg-of-off>*:not(.fg-card-h):not(.fg-of-off-msg){display:none !important;}') && newCSS.includes('.fg-of-row1{display:none !important;}'),
+  // Traer una empresa de la base vuelve a prender los oficiales (el interruptor no queda trabado).
+  'ux: traer una empresa de la base prende los oficiales': (() => { const i = _authSrc.indexOf('function _padApply(r){'); const j = _authSrc.indexOf('fgSetOficiales(true);', i); const k = _authSrc.indexOf('for(var n=1;n<=4;n++)', i); return i > 0 && j > i && j < k; })(),
+  // En "Actualizar mis empresas" lo que se quita va en rojo, y con los oficiales ocultos un aviso rojo arriba.
+  'ux: lo que se quita del padron va en rojo (y aviso si estan ocultos)': _authSrc.includes('<span class="pu-quita">') && _authSrc.includes("'#pad-upd .pu-quita{color:var(--danger,#B3261E)}'") && _authSrc.includes('esta empresa queda guardada sin sus oficiales'),
+  'ingreso: Reintentar no queda en Ingresando si leer la sesion no contesta': _authSrc.includes('if(!resp&&!_me)_fgIngresoSinRed(_fgIngresoUser,true);'),
   // Ocultar los oficiales cuenta como modificarlos: al bajar ofrece actualizar la empresa (como si los quitara).
   'ux: oficiales ocultos = modificacion para el padron': _authSrc.includes('var on=_fgOficialesOn&&_fgAsesorOn(n)'),
   // Vista previa con zoom: 100 % = entera; Ctrl+ruedita (la rueda sola recorre), doble clic, pellizco, arrastre.
