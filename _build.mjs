@@ -186,6 +186,7 @@ html = html.replace(
   '<div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp(\'flyer\')"><h1>$1</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-rubros" style="display:none" onclick="switchApp(\'rubros\')"><h1>Flyer Rubros</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-sueldo" style="display:none" onclick="switchApp(\'sueldo\')"><h1>Flyer Sueldo</h1><span>ARMADOR</span></div>' +
+  '<div class="header-text app-tab" id="apptab-estudio" style="display:none" onclick="switchApp(\'estudio\')"><h1>Estudio</h1><span>DISE\u00d1OS</span></div>' +
   '<div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp(\'promos\')"><h1>Promociones</h1><span>BUSCADOR</span></div>' +
   // Perfil Hunter: su única solapa (ver _VISTAS en auth.js). La muestra
   // _applyFacultades sólo para ese rol, y para ese rol esconde las del armador.
@@ -798,7 +799,8 @@ const hunterView = '<div class="hunter-view" id="view-hunter" style="display:non
 '</div>';
 
 const gestionesView = '<div class="ges-view" id="view-gestiones" style="display:none"><div id="ges-root" class="ges-root"></div></div>';
-html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n' + hunterView + '\n' + gestionesView + '\n</body>');
+const estudioView = '<div class="est-view" id="view-estudio" style="display:none"></div>';
+html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n' + hunterView + '\n' + gestionesView + '\n' + estudioView + '\n</body>');
 
 // ── ZOOM TOOLBAR EN EL PREVIEW ───────────────────────────────────────────────
 html = html.replace(
@@ -1140,7 +1142,7 @@ const checks = {
   'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
   // Facultades por perfil: la matriz vive en la nube y gobierna el gating de la UI
   'facultades: matriz por rol': html.includes('id="at-facultades"') && html.includes('id="fac-grid"') && _authSrc.includes('function _can(') && _authSrc.includes('function loadFacultades(') && _authSrc.includes('function _applyFacultades('),
-  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false}') && !_authSrc.includes('_canNotes'),
+  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false}') && !_authSrc.includes('_canNotes'),
   // Tutorial guiado: "Ver tutorial" en el menú para todos; el arranque
   // automático al primer ingreso es una facultad (apagada por default).
   'tutorial guiado': html.includes('id="hdr-dd-tour"') && _authSrc.includes('function _tourStart(') && _authSrc.includes('function _tourEnd(') && _authSrc.includes('function _tourCapitulos(') && _authSrc.includes("rows.push(['tutorial_auto',") && _authSrc.includes('_tourAutoStart();') && _authSrc.includes("_can('tutorial_auto')"),
@@ -1168,6 +1170,8 @@ const checks = {
   // `solapa` ('flyer'|'rubros'); las de rubros dibujan el cartel "¡Beneficio
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
   // textos fijos editables) y muestran los dos campos en el formulario.
+  'logos: cambiar, mover, textos y subir (vista previa = descarga)': _authSrc.includes('function _fgLgDibujar(') && _authSrc.includes('function _fgLgPintar(') && _authSrc.includes('_fgLgDibujar(c,s,v);') && _authSrc.includes('_fgLgVals(o);') && _authSrc.includes('function _fgLgLeerArchivo(') && _authSrc.includes('function _fgLgTxtPintar(') && _authSrc.includes('function _fgLgMoverOriginal(') && _authSrc.includes('_fgLgLimpiar(); // otra empresa') && _authSrc.includes('_fgLgLimpiar(); // Restaurar') && _authSrc.includes('function _fgLgInit(') && _authSrc.includes('_fgLgInit();'),
+  'estudio: solapa + facultad + tabla con RLS + aprobar como opcion nueva': html.includes('id="apptab-estudio"') && html.includes('id="view-estudio"') && html.indexOf('id="apptab-estudio"') < html.indexOf('id="apptab-promos"') && _authSrc.includes("{id:'estudio',el:'view-estudio'") && _authSrc.includes("rows.push(['estudio',") && _authSrc.includes('function estAprobar(') && _authSrc.includes('function _estPublicar(') && _authSrc.includes("from('flyer_disenos')") && _authSrc.includes("'_active'+n2+'.json'") && _authSrc.includes('function fgPedirTexto(') && readFileSync(new URL('./supabase/migrations/026_flyer_disenos.sql', import.meta.url), 'utf8').includes('enable row level security') && readFileSync(new URL('./supabase/migrations/026_flyer_disenos.sql', import.meta.url), 'utf8').includes('flyer_disenos_guardia'),
   'rubros: solapa + opciones por solapa + cartel del beneficio': html.includes('id="apptab-rubros"') && html.indexOf('id="apptab-rubros"') > html.indexOf('id="apptab-flyer"') && html.indexOf('id="apptab-rubros"') < html.indexOf('id="apptab-promos"') && _authSrc.includes('function _optSolapa(') && _authSrc.includes('function _facOptsDe(') && _authSrc.includes('function _fgSyncVista(') && _authSrc.includes('function fgDrawBenef(') && _authSrc.includes('if(v.benef)fgDrawBenef(c,s,v);') && _authSrc.includes('function _fgEnsureBenefFields(') && _authSrc.includes('function _fgFmtImporte(') && _authSrc.includes('function _calZones(') && _authSrc.includes('function _calBenefLinea(') && _authSrc.includes('var _BENEF_PLANTILLAS=') && _authSrc.includes('function _fgBenefLineas(') && _authSrc.includes('{importe2}') && _authSrc.includes('function _fgBenefFieldsSync(') && _authSrc.includes('function _padCheckRubro(') && _authSrc.includes("_PADRON_COLS='empresa,cuits,config,asesores,rubro,created_at'") && _authSrc.includes('ambos:{nombre:') && _authSrc.includes('function _padRubroOf(') && _authSrc.includes('id="benef-importe2"') && _authSrc.includes('function fgSavePDF(fc,v,force)') && _authSrc.includes('function _fgLegalConValores(') && _authSrc.includes('function _fgImporteSuma(') && _authSrc.includes('fgDrawLegal(c,s,_fgLegalConValores(v.legal,v))') && _authSrc.includes('function _fgBenefDetectarCuadro(') && _authSrc.includes('function _calBenefCentrar(') && _authSrc.includes('function _calBenefPlantillaPorOpcion(') && _authSrc.includes('onclick="_calBenefCentrar(false)"') && _authSrc.includes('id="cal-benef-row"') && _authSrc.includes('class="opc-sol"') && _authSrc.includes("solapa:sol") && html.includes('Flyer Rubros'),
   // Flyer Sueldo: cuarta solapa del header, clon del armador de Galicia con UN
   // solo importe de cashback en naranja (el mayor de m1..m4 de la config activa)
@@ -1492,7 +1496,7 @@ const checks = {
   'ux: Ingresando con sesion guardada (sin el formulario)': html.includes('id="lv-boot"') && html.includes(`localStorage.getItem('${SB_SESSION_KEY}'))_h.classList.add('fg-boot')`) && html.includes('html.fg-boot #lv-login') && _authSrc.includes('function _bootFin(') && (_authSrc.match(/_bootFin\(\)/g) || []).length >= 5,
   // La caché de un año va SÓLO en archivos de nombre único (llevan la hora): uno
   // de nombre fijo que se re-sube se seguiría viendo viejo un año.
-  'perf: imagenes de flyer con cache larga (solo nombres unicos)': (_authSrc.match(/cacheControl:'31536000'/g) || []).length === 1 && /var imgName='flyer_'\+Date\.now\(\)[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*_sb\.storage\.from\('flyers'\)\.upload\(imgName,blob,\{[^}]*cacheControl:'31536000'/.test(_authSrc),
+  'perf: imagenes de flyer con cache larga (solo nombres unicos)': (_authSrc.match(/cacheControl:'31536000'/g) || []).length === 2 && /var img=?|img='flyer_'+ts+'_op'+n2+'.jpg'/.test(_authSrc) && /var imgName='flyer_'\+Date\.now\(\)[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*_sb\.storage\.from\('flyers'\)\.upload\(imgName,blob,\{[^}]*cacheControl:'31536000'/.test(_authSrc),
   // ── Operaciones que congelaban la pantalla (2026-10-14) ──
   // Normalizar texto es puro: se recuerda por texto (y las palabras de cada promo,
   // por promo). "Validar" de Promociones normalizaba ~350.000 veces.

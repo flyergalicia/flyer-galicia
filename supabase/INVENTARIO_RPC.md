@@ -10,6 +10,7 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `colegas_para_suplente` | definer | no | sí | activo, auth.uid() | Lista de colegas elegibles como suplente. Exige cuenta activa. |
 | `es_lider_de` | definer | no | no | auth.uid() | Ayudante de RLS de Gestiones (jerarquía de Líder). |
 | `es_suplente_de` | definer | no | sí | auth.uid() | ¿Quien llama es suplente de ese oficial? Sólo responde sobre sí mismo. |
+| `flyer_disenos_guardia` | definer | no | no | rol, auth.uid() | Trigger de Estudio (migración 026): el dueño y el autor salen de la sesión, y la revisión (nota, opción publicada, fecha) sólo la escribe el admin. No se llama a mano. |
 | `gestion_marcar_vista` | definer | no | sí | activo, auth.uid() | Marca como vista una serie de gestiones. Exige cuenta activa y que quien llama sea parte (hunter o dueño). |
 | `gestion_prospectos_antes` | definer | no | no | auth.uid() | Trigger de Gestiones (no se llama a mano). |
 | `gestiones_antes` | definer | no | no | rol, auth.uid() | Trigger de Gestiones (no se llama a mano). |
