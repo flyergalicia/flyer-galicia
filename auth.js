@@ -4130,6 +4130,7 @@ function _fgEnsureOptBar(){
     // los diseños de Estudio abiertos con "Usar" van al lado de su flyer base
     var protos=_fgProtos.filter(function(p){return p.opcion===o;}).map(function(p){
       return '<div class="fgp" data-p="'+_escAttr(p.id)+'" onclick="fgProtoAbrir(\''+_escAttr(p.id)+'\')" title="Prototipo de Estudio sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda ac&aacute; hasta que recargues la p&aacute;gina; el dise&ntilde;o sigue guardado en Estudio.">'+
+        '<svg class="fgp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'+
         '<span class="fgp-t">'+_escHtml(p.nombre)+'</span><button type="button" class="fgp-x" onclick="fgProtoCerrar(\''+_escAttr(p.id)+'\',event)" aria-label="Cerrar prototipo" title="Cerrar (sigue guardado en Estudio)">&times;</button></div>';
     }).join('');
     return '<div class="fgo" data-o="'+o+'" onclick="fgOptElegir('+o+')">'+_escHtml(_optLabel(o))+'</div>'+protos;
@@ -12397,18 +12398,23 @@ function _fgLgHerr(capa){
   if(!h){
     h=document.createElement('div');h.id='fg-lg-herr';h.className='fg-lg-herr';
     var tactil=!!(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
-    h.innerHTML='<button type="button" data-a="menos" title="M&aacute;s chico" aria-label="M&aacute;s chico">&minus;</button>'+
+    h.setAttribute('role','toolbar');h.setAttribute('aria-label','Ajustar el elemento elegido');
+    h.innerHTML='<span class="fg-lg-herr-nom" id="fg-lg-herr-nom"></span>'+
+      '<button type="button" data-a="menos" title="M&aacute;s chico" aria-label="M&aacute;s chico">&minus;</button>'+
       '<input type="range" id="fg-lg-tam" min="30" max="250" step="5" aria-label="Tama&ntilde;o del logo">'+
       '<button type="button" data-a="mas" title="M&aacute;s grande" aria-label="M&aacute;s grande">+</button>'+
       '<span class="fg-lg-pct" id="fg-lg-pct"></span>'+
       (tactil?'<span class="fg-lg-fl"><button type="button" data-a="izq" aria-label="Mover a la izquierda">&larr;</button><button type="button" data-a="arr" aria-label="Mover arriba">&uarr;</button><button type="button" data-a="aba" aria-label="Mover abajo">&darr;</button><button type="button" data-a="der" aria-label="Mover a la derecha">&rarr;</button></span>':'')+
       '<button type="button" data-a="centrar" title="Volver a ponerlo en el medio de su lugar">Centrar</button>'+
-      '<button type="button" data-a="cambiar">Cambiar marca</button>';
+      '<button type="button" data-a="cambiar">Cambiar marca</button>'+
+      '<button type="button" data-a="soltar" class="fg-lg-herr-x" title="Listo con este" aria-label="Listo con este">&times;</button>';
     h.addEventListener('mousedown',function(e){e.stopPropagation();});   // que no "agarre" la vista previa para recorrerla
     h.addEventListener('pointerdown',function(e){e.stopPropagation();});
     h.addEventListener('click',function(e){
       var b=e.target.closest&&e.target.closest('button[data-a]');if(!b)return;
-      var a=b.getAttribute('data-a'),L2=_fgLgActivos()[_fgLg.sel];if(!L2)return;
+      var a=b.getAttribute('data-a');
+      if(a==='soltar'){_fgLg.sel=-1;_fgLgMarcas();return;}
+      var L2=_fgLgActivos()[_fgLg.sel];if(!L2)return;
       if(a==='menos')_fgLgTam(_fgLgPct(L2)-10);
       else if(a==='mas')_fgLgTam(_fgLgPct(L2)+10);
       else if(a==='centrar')_fgLgCentrar();
@@ -12417,17 +12423,15 @@ function _fgLgHerr(capa){
     });
     h.querySelector('#fg-lg-tam').addEventListener('input',function(){_fgLgTam(+this.value);});
   }
-  if(h.parentNode!==capa)capa.appendChild(h);
+  // vive al pie de la vista previa (pegada abajo mientras se recorre el flyer):
+  // al lado del logo tapaba a los vecinos
+  var prev=document.querySelector('.prev');
+  if(prev&&h.parentNode!==prev)prev.appendChild(h);
   h.hidden=false;
+  var nm=document.getElementById('fg-lg-herr-nom');if(nm)nm.textContent=(L.tipo==='txt'?'Texto: ':'')+(L.t||'Logo');
   var r=document.getElementById('fg-lg-tam');if(r&&document.activeElement!==r)r.value=_fgLgPct(L);
   var cb=h.querySelector('button[data-a=cambiar]');if(cb)cb.textContent=(L.tipo==='txt')?'Editar texto':'Cambiar';
   var pc=document.getElementById('fg-lg-pct');if(pc)pc.textContent=_fgLgPct(L)+'%';
-  // Debajo del logo; si no entra, arriba. Siempre dentro del flyer a lo ancho.
-  var p=_fgLgAPantalla(L.tx,L.ty,L.tw,L.th),W=capa.clientWidth,H=capa.clientHeight;
-  var hw=h.offsetWidth,hh=h.offsetHeight;
-  var top=p.t+p.h+8;if(top+hh>H-4&&p.t-hh-8>4)top=p.t-hh-8;
-  var left=Math.max(4,Math.min(W-hw-4,p.l+p.w/2-hw/2));
-  h.style.left=left+'px';h.style.top=top+'px';
 }
 // Pantalla → px de la imagen original. null si cae en el hueco que abre fgDrawAll.
 function _fgLgAImagen(cx,cy){
@@ -12444,8 +12448,12 @@ function _fgLgAPantalla(x,y,w,h){
   if(y>=_fgLgCorte())y+=_fgExtra;
   return {l:x*k,t:y*k,w:w*k,h:h*k};
 }
+var _fgLgTipT=0;
 function fgLogosModo(on){
   _fgLg.on=(on===undefined)?!_fgLg.on:!!on;
+  // la ayuda se muestra unos segundos al prender el modo y después se va (no tapa el flyer)
+  clearTimeout(_fgLgTipT);_fgLg.tipOff=false;
+  if(_fgLg.on)_fgLgTipT=setTimeout(function(){_fgLg.tipOff=true;_fgLgBarra();},7000);
   if(!_fgLg.on){
     _fgFr.pendiente=null; // "Listo": lo que quedaba elegido para una franja ya no vuelve a aparecer
     if(_fgFr.modo){_fgFr.modo=false;var pv=document.querySelector('.prev');if(pv)pv.classList.remove('fg-fr-on');}
@@ -12460,7 +12468,8 @@ function _fgLgBarra(){
   var t=document.getElementById('fg-lg-btn-t');if(t)t.textContent=_fgLg.on?'Listo':'Cambiar logos';
   var tip=document.getElementById('fg-lg-tip');
   if(tip){
-    tip.hidden=!_fgLg.on;
+    // en modo franja se queda: es la instrucción de lo que hay que hacer ahora
+    tip.hidden=!_fgLg.on||(_fgLg.tipOff&&!_fgFr.modo);
     if(!tip.dataset.base)tip.dataset.base=tip.innerHTML;
     tip.innerHTML=_fgFr.modo?'Arrastr&aacute; un recuadro alrededor de <b>toda la franja</b> de logos.':tip.dataset.base;
   }
@@ -12483,7 +12492,7 @@ function _fgLgMarcas(){
   // redibujar (si se la sacara del documento, la regla se soltaría al arrastrarla).
   var mk=document.getElementById('fg-lg-mk');
   if(!mk){mk=document.createElement('div');mk.id='fg-lg-mk';capa.appendChild(mk);}
-  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLgHerr(capa);return;}
+  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLgHerr(capa);return;} // (_fgLgHerr la esconde)
   mk.innerHTML=_fgLgActivos().map(function(e,i){
     // logo nuevo: su recuadro (se mueve con él); lugar vacío: lo que se tapó
     var p=_fgLgAjustable(e)?_fgLgAPantalla(e.tx,e.ty,e.tw,e.th):_fgLgAPantalla(e.x,e.y,e.w,e.h);
@@ -12588,22 +12597,25 @@ function _fgLgAbrir(det,op){
       '<input type="file" id="fg-lg-file" accept="image/png,image/jpeg,image/webp" hidden>'+
     '</div>'+
     '<div class="fg-lg-txt" id="fg-lg-txt" hidden>'+
+      '<button type="button" class="fg-lg-atras" id="fg-lg-txt-volver">&larr; Elegir una marca</button>'+
       '<label class="fg-lg-txt-l" for="fg-lg-tx">Texto <span>(Enter = otro rengl&oacute;n)</span></label>'+
       '<textarea id="fg-lg-tx" rows="2" maxlength="120" placeholder="Ej.: Martes y jueves"></textarea>'+
-      '<div class="fg-lg-txt-fila"><span class="fg-lg-txt-l">Color</span><span class="fg-lg-cols" id="fg-lg-cols"></span></div>'+
+      '<div class="fg-lg-txt-fila"><span class="fg-lg-txt-l">Color</span><span class="fg-lg-cols" id="fg-lg-cols" role="radiogroup" aria-label="Color del texto"></span><span class="fg-lg-col-nom" id="fg-lg-col-nom"></span></div>'+
       '<div class="fg-lg-txt-fila"><span class="fg-lg-txt-l">Tama&ntilde;o</span><input type="range" id="fg-lg-fs" min="10" max="120" step="1"><span class="fg-lg-pct" id="fg-lg-fs-v"></span>'+
         '<label class="fg-lg-neg"><input type="checkbox" id="fg-lg-neg"> Negrita</label></div>'+
       '<div class="fg-lg-muestra" id="fg-lg-muestra"></div>'+
-      '<div class="fg-lg-txt-acts"><button type="button" class="btn bg" id="fg-lg-txt-volver">&larr; Volver a las marcas</button><button type="button" class="btn bp" id="fg-lg-txt-ok">Poner el texto</button></div>'+
     '</div>'+
     _fgPfHtml('fg-lg','Buscar marca (ej.: Farmacia del Pueblo)')+
     (det.corta?'<div class="fg-lg-aviso">Ojo: el recuadro que marcaste corta parte de otro dibujo del flyer y lo va a tapar a medias. Si no es lo que quer&eacute;s, cancel&aacute; y marcalo de nuevo.</div>':'')+
     '<div class="fg-lg-info" id="fg-lg-info"></div>'+
     '<div class="fg-lg-list" id="fg-lg-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
-    '<div class="fg-cf-acts" id="fg-lg-acts">'+
-      (ya?'<button type="button" class="btn bg" id="fg-lg-ori-btn">Volver al original</button>':'')+
-      (det.vacio&&!ya?'':'<button type="button" class="btn bg" id="fg-lg-nada">Dejar el lugar vac&iacute;o</button>')+
-      '<button type="button" class="btn bg" id="fg-lg-no">Cancelar</button></div></div>';
+    '<div class="fg-cf-acts fg-lg-acts" id="fg-lg-acts">'+
+      '<span class="fg-lg-acts-izq">'+
+        (ya?'<button type="button" class="fg-lg-enlace" id="fg-lg-ori-btn">Volver al original</button>':'')+
+        (det.vacio&&!ya?'':'<button type="button" class="fg-lg-enlace" id="fg-lg-nada">Dejar el lugar vac&iacute;o</button>')+
+      '</span>'+
+      '<button type="button" class="btn bg" id="fg-lg-no">Cancelar</button>'+
+      '<button type="button" class="btn bp" id="fg-lg-txt-ok" hidden>Poner el texto</button></div></div>';
   document.body.appendChild(lgOv);
   // Muestra del logo original, tal cual está en el flyer.
   try{
@@ -12646,9 +12658,12 @@ function _fgLgAbrir(det,op){
   var renOrig=det.vacio?0:_fgLgRenglones(det);
   function fsSugerido(){var f=renOrig?det.h/renOrig:det.h/lineas()*0.8;return Math.max(12,Math.min(90,Math.round(f)));}
   function pintarCols(){
+    var nom='';
     document.getElementById('fg-lg-cols').innerHTML=cols.map(function(c,i){
-      return '<button type="button" class="fg-lg-col'+(c[0].toLowerCase()===String(col).toLowerCase()?' on':'')+'" data-c="'+i+'" title="'+c[1]+'" aria-label="'+c[1]+'"><span style="background:'+c[0]+'"></span>'+(c[1]==='Como estaba'?' Como estaba':'')+'</button>';
+      var on=c[0].toLowerCase()===String(col).toLowerCase();if(on)nom=c[1];
+      return '<button type="button" role="radio" aria-checked="'+on+'" class="fg-lg-col'+(on?' on':'')+'" data-c="'+i+'" title="'+c[1]+'" aria-label="'+c[1]+'"><span style="background:'+c[0]+'"></span></button>';
     }).join('');
+    document.getElementById('fg-lg-col-nom').textContent=nom;
   }
   function muestra(){
     var m=document.getElementById('fg-lg-muestra'),t=(tx.value||'').trim()?tx.value:'Así se va a ver';
@@ -12665,6 +12680,8 @@ function _fgLgAbrir(det,op){
   neg.addEventListener('change',muestra);
   function modoTexto(on){
     document.getElementById('fg-lg-txt').hidden=!on;
+    document.getElementById('fg-lg-txt-ok').hidden=!on;     // la acción principal sólo en el texto
+    document.getElementById('fg-lg-txt-volver').hidden=!!previo; // editando un texto no hay "marcas" a las que volver
     ['fg-lg-filtros','fg-lg-chk','fg-lg-info','fg-lg-list'].forEach(function(id){var x=document.getElementById(id);if(x)x.hidden=on;});
     var md=lgOv.querySelector('.fg-lg-modos');if(md)md.hidden=on;
     var av=lgOv.querySelector('.fg-lg-aviso');if(av&&on)av.hidden=false;

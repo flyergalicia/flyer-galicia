@@ -1583,3 +1583,27 @@ html.dark .fg-fr-aj-uno{background:rgba(242,97,34,.12);}
 .fg-fr-aj-fila button:hover{border-color:var(--accent);color:var(--accent-2);}
 .fg-fr-aj-fila .fg-fr-aj-lugar{font-size:.75rem;font-weight:600;}
 .fg-fr-aj-tip{font-size:.75rem;color:var(--gray);line-height:1.4;}
+/* Mejoras de Gemini (16-oct): ventana de texto ordenada, pestaña de prototipo y barrita al pie */
+.fg-lg-atras{align-self:flex-start;background:none;border:none;padding:2px 0;color:var(--accent-2);font-size:.8125rem;font-weight:700;cursor:pointer;}
+.fg-lg-atras:hover{text-decoration:underline;}
+.fg-lg-atras[hidden]{display:none;}
+.fg-lg-acts{align-items:center;}
+.fg-lg-acts-izq{margin-right:auto;display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+.fg-lg-enlace{background:none;border:none;padding:4px 0;color:var(--gray);font-size:.75rem;font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.fg-lg-enlace:hover{color:var(--ink);}
+.fg-cf-acts .btn[hidden]{display:none;}
+.fg-lg-col{position:relative;width:30px;height:30px;padding:0;border-radius:50%;justify-content:center;}
+.fg-lg-col span{width:22px;height:22px;}
+.fg-lg-col.on::after{content:"";position:absolute;left:11px;top:7px;width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);filter:drop-shadow(0 0 1px rgba(0,0,0,.8));}
+.fg-lg-col-nom{font-size:.75rem;font-weight:600;color:var(--ink-2);}
+#fg-optbar .fgp{border:none;color:var(--gray);background:none;}
+#fg-optbar .fgp.on{background:#fff;color:var(--accent-2);border:none;box-shadow:0 1px 4px rgba(0,0,0,.14);}
+html.dark #fg-optbar .fgp.on{background:#2c2f36;}
+#fg-optbar .fgp-ico{flex-shrink:0;width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.8;}
+#fg-optbar .fgp-x{color:var(--gray);opacity:0;transition:opacity .12s;}
+#fg-optbar .fgp:hover .fgp-x,#fg-optbar .fgp.on .fgp-x,#fg-optbar .fgp-x:focus-visible{opacity:.75;}
+@media (hover:none){#fg-optbar .fgp-x{opacity:.75;}}
+.fg-lg-herr{position:sticky;left:auto;top:auto;bottom:16px;align-self:center;margin-top:12px;z-index:7;max-width:calc(100% - 16px);}
+.fg-lg-herr-nom{font-size:.75rem;font-weight:700;color:var(--ink);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;}
+.fg-lg-herr .fg-lg-herr-x{min-width:30px;font-size:1rem;color:var(--gray);}
+@media (max-width:900px){.fg-lg-herr{bottom:72px;}.fg-lg-herr-nom{max-width:100%;flex-basis:100%;}}

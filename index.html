@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=2ced6c6c96","integrity":"sha384-Srwn/dWQo1eBmF0E6Qs8wcAcT1UlnYdsg43tQo1VJ+xiCHaJ4ct6q83ehewaNy+T"}}'>
-<meta name="build-v" content="66f4abb9f9">
+<meta name="build-v" content="42a5455180">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1694,8 +1694,32 @@ html.dark .fg-fr-aj-uno{background:rgba(242,97,34,.12);}
 .fg-fr-aj-fila button:hover{border-color:var(--accent);color:var(--accent-2);}
 .fg-fr-aj-fila .fg-fr-aj-lugar{font-size:.75rem;font-weight:600;}
 .fg-fr-aj-tip{font-size:.75rem;color:var(--gray);line-height:1.4;}
+/* Mejoras de Gemini (16-oct): ventana de texto ordenada, pestaña de prototipo y barrita al pie */
+.fg-lg-atras{align-self:flex-start;background:none;border:none;padding:2px 0;color:var(--accent-2);font-size:.8125rem;font-weight:700;cursor:pointer;}
+.fg-lg-atras:hover{text-decoration:underline;}
+.fg-lg-atras[hidden]{display:none;}
+.fg-lg-acts{align-items:center;}
+.fg-lg-acts-izq{margin-right:auto;display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+.fg-lg-enlace{background:none;border:none;padding:4px 0;color:var(--gray);font-size:.75rem;font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.fg-lg-enlace:hover{color:var(--ink);}
+.fg-cf-acts .btn[hidden]{display:none;}
+.fg-lg-col{position:relative;width:30px;height:30px;padding:0;border-radius:50%;justify-content:center;}
+.fg-lg-col span{width:22px;height:22px;}
+.fg-lg-col.on::after{content:"";position:absolute;left:11px;top:7px;width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);filter:drop-shadow(0 0 1px rgba(0,0,0,.8));}
+.fg-lg-col-nom{font-size:.75rem;font-weight:600;color:var(--ink-2);}
+#fg-optbar .fgp{border:none;color:var(--gray);background:none;}
+#fg-optbar .fgp.on{background:#fff;color:var(--accent-2);border:none;box-shadow:0 1px 4px rgba(0,0,0,.14);}
+html.dark #fg-optbar .fgp.on{background:#2c2f36;}
+#fg-optbar .fgp-ico{flex-shrink:0;width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.8;}
+#fg-optbar .fgp-x{color:var(--gray);opacity:0;transition:opacity .12s;}
+#fg-optbar .fgp:hover .fgp-x,#fg-optbar .fgp.on .fgp-x,#fg-optbar .fgp-x:focus-visible{opacity:.75;}
+@media (hover:none){#fg-optbar .fgp-x{opacity:.75;}}
+.fg-lg-herr{position:sticky;left:auto;top:auto;bottom:16px;align-self:center;margin-top:12px;z-index:7;max-width:calc(100% - 16px);}
+.fg-lg-herr-nom{font-size:.75rem;font-weight:700;color:var(--ink);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;}
+.fg-lg-herr .fg-lg-herr-x{min-width:30px;font-size:1rem;color:var(--gray);}
+@media (max-width:900px){.fg-lg-herr{bottom:72px;}.fg-lg-herr-nom{max-width:100%;flex-basis:100%;}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=f4367affd7"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=d5efc19eef"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
