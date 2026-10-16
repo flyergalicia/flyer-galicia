@@ -76,12 +76,59 @@ const GALICIA_HEADERS: Record<string, string> = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 };
 
-// El listado de promociones acepta filtros Provincia y Localidad. Ojo: los
-// nombres de parámetro van capitalizados tal cual; en minúscula el WAF de
-// Galicia contesta 403 (no 400), así que un typo parece "caída del servicio".
-function promosUrl(params: Record<string, string> = {}): string {
-  const qs = new URLSearchParams({ pageSize: "3000", ...params });
-  return `${GALICIA_BFF}/catalogo/v1/promociones?${qs}`;
+// Entre el 13 y el 16-oct-2026 Galicia mudó su sitio de /catalogo/v1 a
+// /personalizacion/v1 y la ruta vieja pasó a dar 403 a todo el mundo (también
+// desde su propio sitio, con un navegador real): no era un bloqueo a nosotros.
+// Se prueba la nueva primero y la vieja de respaldo, por si alguna vez vuelve.
+// Ojo con los filtros de ubicación: en la nueva van en MINÚSCULA (provincia,
+// localidad) y en la vieja capitalizados (Provincia, Localidad). Con el nombre
+// equivocado el WAF contesta 403, no 400, así que un typo parece una caída.
+// Los nombres de provincia van tal cual los da ubicacion/filtro ("NEUQUEN"):
+// con tilde o en otro formato Galicia devuelve 0 promos sin error.
+type Ruta = {
+  nombre: string;
+  catalogo: string;
+  ubicaciones: string;
+  detalle: string;
+  prov: string;
+  loc: string;
+};
+const RUTAS: Ruta[] = [
+  {
+    nombre: "personalizacion/v1",
+    catalogo: "/personalizacion/v1/promociones/catalogo",
+    ubicaciones: "/personalizacion/v1/locales/ubicacion/filtro",
+    detalle: "/personalizacion/v1/promociones/idPromocion/",
+    prov: "provincia",
+    loc: "localidad",
+  },
+  {
+    nombre: "catalogo/v1",
+    catalogo: "/catalogo/v1/promociones",
+    ubicaciones: "/catalogo/v1/locales/ubicacion/filtro",
+    detalle: "/catalogo/v1/promociones/idPromocion/",
+    prov: "Provincia",
+    loc: "Localidad",
+  },
+];
+
+// Pide a cada ruta en orden hasta que una conteste. La que anduvo queda primera
+// mientras la función siga viva, así las tandas de "detalle" no pagan cada vez
+// el 403 de una ruta muerta. Si fallan todas, el error dice qué contestó cada una.
+let rutaIdx = 0;
+async function conRuta<T>(fn: (r: Ruta) => Promise<T>): Promise<T> {
+  const errores: string[] = [];
+  for (let k = 0; k < RUTAS.length; k++) {
+    const i = (rutaIdx + k) % RUTAS.length;
+    try {
+      const res = await fn(RUTAS[i]);
+      rutaIdx = i;
+      return res;
+    } catch (e) {
+      errores.push(`${(e as Error)?.message || "error"} (${RUTAS[i].nombre})`);
+    }
+  }
+  throw new Error(errores.join("; "));
 }
 
 async function galiciaJson(url: string): Promise<any> {
@@ -90,16 +137,51 @@ async function galiciaJson(url: string): Promise<any> {
   return await r.json();
 }
 
+// El catálogo ya pasó las 2400 promos y antes se pedía con pageSize=3000 sin
+// mirar si venía entero. Ahora se pide de a 5000 y, si Galicia informa un total
+// mayor (totalSize), se siguen pidiendo páginas (page=2, 3...). Una respuesta sin
+// lista es un cambio de formato: se corta con error en vez de seguir con vacío.
+const PAGINA = 5000;
+function promosUrl(ruta: Ruta, params: Record<string, string> = {}): string {
+  const qs = new URLSearchParams({ pageSize: String(PAGINA), ...params });
+  return `${GALICIA_BFF}${ruta.catalogo}?${qs}`;
+}
+async function listadoCompleto(ruta: Ruta, params: Record<string, string> = {}): Promise<any[]> {
+  const out: any[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const p = page === 1 ? params : { ...params, page: String(page) };
+    const d = await galiciaJson(promosUrl(ruta, p));
+    const list = d?.data?.list;
+    if (!Array.isArray(list)) throw new Error("Galicia cambió el formato del listado");
+    out.push(...list);
+    const total = Number(d?.data?.totalSize);
+    if (list.length < PAGINA || !Number.isFinite(total) || out.length >= total) break;
+  }
+  return out;
+}
+
+// La ruta nueva da las fechas del detalle como DD/MM/AAAA ("24/11/2025") y el
+// listado como AAAA-MM-DDThh:mm:ss. La app espera AAAA-MM-DD para mostrar y
+// ordenar ("Desde"), así que todo se normaliza acá. Algo irreconocible → null.
+function isoFecha(f: unknown): string | null {
+  const s = String(f ?? "").trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
 // ── Geografía: qué promos se pueden usar en cada provincia ─────────────────
 // Galicia no expone la provincia dentro del catálogo; la única forma de saberlo
 // es pedir el listado filtrado provincia por provincia. Son 24 llamadas: ~8,7s
 // en serie, ~2s con 6 en paralelo (mismo patrón que detalle()). Las promos que
 // no aparecen en ninguna (~307 de 1922) son de compra online, sin local físico.
-async function geoPorProvincia(): Promise<{
+// Usa la misma ruta con la que se bajó el catálogo.
+async function geoPorProvincia(ruta: Ruta): Promise<{
   ubicaciones: any[];
   porPromo: Map<number, string[]>;
 }> {
-  const u = await galiciaJson(`${GALICIA_BFF}/catalogo/v1/locales/ubicacion/filtro`);
+  const u = await galiciaJson(`${GALICIA_BFF}${ruta.ubicaciones}`);
   const ubicaciones: any[] = Array.isArray(u?.data) ? u.data : [];
   if (!ubicaciones.length) throw new Error("Galicia no devolvió la lista de provincias");
 
@@ -112,8 +194,7 @@ async function geoPorProvincia(): Promise<{
       // Una provincia que falle aborta el sync geográfico entero: es preferible
       // conservar la geografía anterior (completa) a guardar uno incompleto,
       // que se vería como "esta marca no está en tu provincia" siendo mentira.
-      const d = await galiciaJson(promosUrl({ Provincia: prov }));
-      const list: any[] = Array.isArray(d?.data?.list) ? d.data.list : [];
+      const list = await listadoCompleto(ruta, { [ruta.prov]: prov });
       for (const p of list) {
         const arr = porPromo.get(p.id);
         if (arr) arr.push(prov);
@@ -125,12 +206,29 @@ async function geoPorProvincia(): Promise<{
   return { ubicaciones, porPromo };
 }
 
-async function syncCatalogo(): Promise<{ total: number; conProvincia: number; geoError: string | null }> {
-  const d = await galiciaJson(promosUrl()).catch((e) => {
-    throw new Error(`${(e as Error).message} al pedir el catálogo`);
-  });
-  const list: any[] = Array.isArray(d?.data?.list) ? d.data.list : [];
+// Freno contra un catálogo "raro": si Galicia devuelve mucho menos de lo que ya
+// está guardado (un cambio de formato, un filtro que dejó de andar), no se pisa
+// la copia buena, porque el paso final borra todo lo que no vino.
+const MINIMO_RELATIVO = 0.5;
+
+async function syncCatalogo(): Promise<{ total: number; conProvincia: number; geoError: string | null; ruta: string }> {
+  const { ruta, crudo } = await conRuta(async (r) => ({ ruta: r, crudo: await listadoCompleto(r) }))
+    .catch((e) => {
+      throw new Error(`${(e as Error).message} al pedir el catálogo`);
+    });
+  // Una fila sin id numérico no se puede guardar ni enlazar: se descarta sola en
+  // vez de hacer fallar la tanda entera.
+  const list = crudo.filter((p) => Number.isFinite(p?.id));
   if (!list.length) throw new Error("El catálogo de Galicia vino vacío");
+
+  const { count: guardadas } = await admin
+    .from("promos_galicia_cache").select("id", { count: "exact", head: true });
+  if (guardadas && list.length < guardadas * MINIMO_RELATIVO) {
+    throw new Error(
+      `Galicia devolvió sólo ${list.length} promociones y la copia guardada tiene ${guardadas}: ` +
+        "no se reemplaza por las dudas",
+    );
+  }
 
   // La geografía se trae ANTES del upsert para que cada fila se guarde completa
   // de una y no queden estados intermedios. Si falla, el catálogo se guarda
@@ -140,7 +238,7 @@ async function syncCatalogo(): Promise<{ total: number; conProvincia: number; ge
   let geo: { ubicaciones: any[]; porPromo: Map<number, string[]> } | null = null;
   let geoError: string | null = null;
   try {
-    geo = await geoPorProvincia();
+    geo = await geoPorProvincia(ruta);
   } catch (e) {
     geoError = (e as Error)?.message || "error desconocido";
     console.error("promos sync: no se pudo traer la geografía:", geoError);
@@ -157,7 +255,7 @@ async function syncCatalogo(): Promise<{ total: number; conProvincia: number; ge
       titulo: p.titulo || "",
       subtitulo: p.subtitulo || "",
       imagen: p.imagen || "",
-      fecha_hasta: p.fechaHasta ? String(p.fechaHasta).slice(0, 10) : null,
+      fecha_hasta: isoFecha(p.fechaHasta),
       tipo_promocion: p.tipoPromocion || "",
       updated_at: syncStartedAt,
     };
@@ -187,6 +285,7 @@ async function syncCatalogo(): Promise<{ total: number; conProvincia: number; ge
     total: rows.length,
     conProvincia: geo ? geo.porPromo.size : 0,
     geoError,
+    ruta: ruta.nombre,
   };
 }
 
@@ -197,11 +296,12 @@ async function syncCatalogo(): Promise<{ total: number; conProvincia: number; ge
 async function porUbicacion(provincia: string, localidad: string): Promise<{ ids: number[] }> {
   const prov = String(provincia || "").trim();
   if (!prov) throw new Error("Falta la provincia");
-  const params: Record<string, string> = { Provincia: prov };
   const loc = String(localidad || "").trim();
-  if (loc) params.Localidad = loc;
-  const d = await galiciaJson(promosUrl(params));
-  const list: any[] = Array.isArray(d?.data?.list) ? d.data.list : [];
+  const list = await conRuta((r) => {
+    const params: Record<string, string> = { [r.prov]: prov };
+    if (loc) params[r.loc] = loc;
+    return listadoCompleto(r, params);
+  });
   return { ids: list.map((p) => p.id).filter((n) => Number.isFinite(n)) };
 }
 
@@ -213,13 +313,8 @@ async function detalle(ids: number[]): Promise<Record<string, string | null>> {
     while (idx < capped.length) {
       const id = capped[idx++];
       try {
-        const r = await fetch(`${GALICIA_BFF}/catalogo/v1/promociones/idPromocion/${id}`, { headers: GALICIA_HEADERS });
-        if (r.ok) {
-          const d = await r.json();
-          results[String(id)] = d?.data?.fechaDesde ? String(d.data.fechaDesde).slice(0, 10) : null;
-        } else {
-          results[String(id)] = null;
-        }
+        const d = await conRuta((r) => galiciaJson(`${GALICIA_BFF}${r.detalle}${id}`));
+        results[String(id)] = isoFecha(d?.data?.fechaDesde);
       } catch {
         results[String(id)] = null;
       }
