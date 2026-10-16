@@ -12538,12 +12538,14 @@ function _fgLgListo(){
 function fgLogosDeshacer(){_fgLg.list=[];_fgLg.sel=-1;_fgLg.proy=null;_fgLgListo();showToast('Los logos volvieron a como vienen en el flyer.');}
 
 // ·· Ventana para elegir el reemplazo ··
-var _fgLgV={det:null,res:[],prov:'',rubro:'',q:''};
+var _fgLgV={det:null,res:[],prov:'',rubro:'',q:'',loc:'',una:true,sinOnline:false};
 var _FG_LG_COLORES=[['#1A1A1A','Negro'],['#6B6B6B','Gris'],['#FA6400','Naranja'],['#0B2C5F','Azul'],['#FFFFFF','Blanco']];
 function _fgLgAbrir(det,op){
   op=op||{};
   var viejo=document.getElementById('fg-lg-ov');if(viejo)viejo.remove();
-  _fgLgV.det=det;_fgLgV.q='';_fgLgV.rubro='';_fgLgV.prov=_promosProv||_fgLgV.prov||'';
+  _fgLgV.det=det;_fgLgV.q='';_fgLgV.rubro='';
+  // provincia y localidad: las de la última vez (o la de Promociones)
+  if(!_fgLgV.prov){_fgLgV.prov=_promosProv||'';_fgLgV.loc=_fgLgV.prov===_promosProv?(_promosLoc||''):'';}
   var idx=_fgLgIndiceDe(det),ya=idx>=0?_fgLgActivos()[idx]:null;
   var lgOv=document.createElement('div');lgOv.id='fg-lg-ov';lgOv.className='fg-cf-ov';
   lgOv.setAttribute('role','dialog');lgOv.setAttribute('aria-modal','true');lgOv.setAttribute('aria-labelledby','fg-lg-t');
@@ -12568,8 +12570,7 @@ function _fgLgAbrir(det,op){
       '<div class="fg-lg-muestra" id="fg-lg-muestra"></div>'+
       '<div class="fg-lg-txt-acts"><button type="button" class="btn bg" id="fg-lg-txt-volver">&larr; Volver a las marcas</button><button type="button" class="btn bp" id="fg-lg-txt-ok">Poner el texto</button></div>'+
     '</div>'+
-    '<div class="fg-lg-fil" id="fg-lg-filtros"><input type="search" id="fg-lg-q" placeholder="Buscar marca (ej.: Farmacia del Pueblo)" autocomplete="off">'+
-      '<select id="fg-lg-rub" aria-label="Rubro"></select><select id="fg-lg-prov" aria-label="Provincia"></select></div>'+
+    _fgPfHtml('fg-lg','Buscar marca (ej.: Farmacia del Pueblo)')+
     (det.corta?'<div class="fg-lg-aviso">Ojo: el recuadro que marcaste corta parte de otro dibujo del flyer y lo va a tapar a medias. Si no es lo que quer&eacute;s, cancel&aacute; y marcalo de nuevo.</div>':'')+
     '<div class="fg-lg-info" id="fg-lg-info"></div>'+
     '<div class="fg-lg-list" id="fg-lg-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
@@ -12638,7 +12639,7 @@ function _fgLgAbrir(det,op){
   neg.addEventListener('change',muestra);
   function modoTexto(on){
     document.getElementById('fg-lg-txt').hidden=!on;
-    ['fg-lg-filtros','fg-lg-info','fg-lg-list'].forEach(function(id){var x=document.getElementById(id);if(x)x.hidden=on;});
+    ['fg-lg-filtros','fg-lg-chk','fg-lg-info','fg-lg-list'].forEach(function(id){var x=document.getElementById(id);if(x)x.hidden=on;});
     var md=lgOv.querySelector('.fg-lg-modos');if(md)md.hidden=on;
     var av=lgOv.querySelector('.fg-lg-aviso');if(av&&on)av.hidden=false;
     if(on)setTimeout(function(){try{tx.focus();}catch(e){}},20);
@@ -12660,10 +12661,8 @@ function _fgLgAbrir(det,op){
   if(nada)nada.onclick=function(){cerrar();_fgLgPoner(det,'','',null);showToast('Listo: ese lugar queda vacío en este flyer.');};
   var ob=document.getElementById('fg-lg-ori-btn');
   if(ob)ob.onclick=function(){cerrar();_fgLg.list.splice(_fgLgIndiceDe(det),1);_fgLg.sel=-1;_fgLgListo();showToast('Ese logo volvió al original.');};
-  var q=document.getElementById('fg-lg-q'),t=0;
-  q.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){_fgLgV.q=q.value;_fgLgLista();},120);});
-  document.getElementById('fg-lg-rub').onchange=function(){_fgLgV.rubro=this.value;_fgLgLista();};
-  document.getElementById('fg-lg-prov').onchange=function(){_fgLgV.prov=this.value;_fgLgLista();};
+  var q=document.getElementById('fg-lg-q');
+  _fgPfInit('fg-lg',_fgLgV,function(){if(document.getElementById('fg-lg-ov'))_fgLgLista();});
   document.getElementById('fg-lg-list').addEventListener('click',function(e){
     var it=e.target.closest&&e.target.closest('.fg-lg-it');if(!it||it.disabled)return;
     var p=_fgLgV.res[+it.getAttribute('data-i')];if(!p)return;
@@ -12681,52 +12680,143 @@ function _fgLgAbrir(det,op){
   else loadPromosCatalogo(function(){if(document.getElementById('fg-lg-ov'))_fgLgFiltros();});
 }
 function _fgLgFiltros(){
+  _fgPfPoblar('fg-lg',_fgLgV);
+  _fgLgLista();
+}
+// ·· Filtros de marcas de las ventanas de logos (un logo y Armar franja) ··
+// Los mismos que la solapa "Activas" de Promociones: provincia, LOCALIDAD (se le
+// pregunta a Galicia en el momento, como allá: las de compra online valen en
+// todas), rubro, UNA POR MARCA (junta "Adidas." con "Adidas MDQ", con la misma
+// regla que Activas: _promoBaseMarca/_promoClaveMarca) y SIN LAS ONLINE.
+// st = {q, rubro, prov, loc, una, sinOnline}; px = prefijo de los ids.
+var _fgLocIds={}; // 'PROVINCIA|LOCALIDAD' → ids de Galicia | 'cargando' (si falla, se borra y se reintenta)
+function _fgPfHtml(px,ph){
+  return '<div class="fg-lg-fil" id="'+px+'-filtros"><input type="search" id="'+px+'-q" placeholder="'+ph+'" autocomplete="off">'+
+      '<select id="'+px+'-rub" aria-label="Rubro"></select><select id="'+px+'-prov" aria-label="Provincia"></select>'+
+      '<select id="'+px+'-loc" aria-label="Localidad" hidden></select></div>'+
+    '<div class="fg-lg-chk" id="'+px+'-chk"><label><input type="checkbox" id="'+px+'-una"> Una por marca</label>'+
+      '<label><input type="checkbox" id="'+px+'-onl"> Sin las de compra online</label></div>';
+}
+function _fgPfInit(px,st,cambio){
+  var q=document.getElementById(px+'-q'),t=0;
+  q.value=st.q||'';
+  q.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){st.q=q.value;cambio();},120);});
+  document.getElementById(px+'-rub').onchange=function(){st.rubro=this.value;cambio();};
+  document.getElementById(px+'-prov').onchange=function(){st.prov=this.value;st.loc='';_fgPfLocs(px,st);cambio();};
+  document.getElementById(px+'-loc').onchange=function(){st.loc=this.value;cambio();};
+  var una=document.getElementById(px+'-una'),onl=document.getElementById(px+'-onl');
+  una.checked=st.una!==false;onl.checked=!!st.sinOnline;
+  una.onchange=function(){st.una=una.checked;cambio();};
+  onl.onchange=function(){st.sinOnline=onl.checked;cambio();};
+}
+function _fgPfPoblar(px,st){
   var rs={};(_promosCat||[]).forEach(function(p){if(p.subtitulo)rs[p.subtitulo]=1;});
-  var rub=document.getElementById('fg-lg-rub'),prov=document.getElementById('fg-lg-prov');
-  if(rub)rub.innerHTML='<option value="">Todos los rubros</option>'+Object.keys(rs).sort().map(function(r){return '<option value="'+_escAttr(r)+'">'+_escHtml(r)+'</option>';}).join('');
+  var rub=document.getElementById(px+'-rub'),prov=document.getElementById(px+'-prov');
+  if(rub)rub.innerHTML='<option value="">Todos los rubros</option>'+Object.keys(rs).sort().map(function(r){return '<option value="'+_escAttr(r)+'"'+(r===st.rubro?' selected':'')+'>'+_escHtml(r)+'</option>';}).join('');
   if(prov){
     var ps=_promosHayGeo()?_promosProvincias():[];
     prov.hidden=!ps.length;
-    prov.innerHTML='<option value="">Todas las provincias</option>'+ps.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===_fgLgV.prov?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('');
+    if(st.prov&&ps.indexOf(st.prov)<0)st.prov='';
+    prov.innerHTML='<option value="">Todas las provincias</option>'+ps.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===st.prov?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('');
   }
-  _fgLgLista();
+  _fgPfLocs(px,st);
 }
-// Vigentes (no vencidas ni "próximamente"), con logo, de la provincia y el
-// rubro elegidos; una por logo (la que vence más tarde) y por nombre. La usan
-// la ventana de un logo y la de "Armar franja".
-function _fgLgFiltrar(q,rubro,prov){
-  var hoy=new Date(),toks=_promoTokens(_promoNormalizar(q||'')),porImg={};
+function _fgPfLocs(px,st){
+  var sel=document.getElementById(px+'-loc');if(!sel)return;
+  var u=null;
+  for(var i=0;i<_promosUbic.length;i++){if(String(_promosUbic[i].nombre)===st.prov){u=_promosUbic[i];break;}}
+  var locs=(u&&Array.isArray(u.localidades))?u.localidades:[];
+  if(st.loc&&locs.indexOf(st.loc)<0)st.loc='';
+  sel.hidden=!st.prov||!locs.length;
+  sel.innerHTML='<option value="">Todas las localidades</option>'+locs.map(function(n){
+    return '<option value="'+_escAttr(n)+'"'+(n===st.loc?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';
+  }).join('');
+}
+// Devuelve {lista} o {cargando:true} mientras Galicia contesta qué hay en la
+// localidad (al llegar se llama a cambio() para volver a pintar).
+function _fgPfFiltrar(st,cambio){
+  var porId=null;
+  if(st.prov&&st.loc){
+    var k=st.prov+'|'+st.loc,ids=_fgLocIds[k];
+    if(ids===undefined){
+      _fgLocIds[k]='cargando';
+      _callPromosFn('ubicacion',{provincia:st.prov,localidad:st.loc},function(err,d){
+        if(err||!d||!d.data){
+          // como en Activas: se avisa, se vuelve a 'Todas las localidades' y la
+          // próxima vez que se la elija se le vuelve a preguntar a Galicia
+          console.error('logos ubicacion:',err||d);
+          delete _fgLocIds[k];
+          var loc=st.loc;
+          if(st.prov+'|'+st.loc===k){
+            st.loc='';
+            document.querySelectorAll('select[aria-label=Localidad]').forEach(function(sl){if(sl.value===loc)sl.value='';});
+          }
+          showToast('No se pudo filtrar por localidad: se muestra toda la provincia. Probá elegirla de nuevo en un rato.');
+        }else _fgLocIds[k]=d.data.ids||[];
+        cambio();
+      });
+      return {cargando:true,lista:[]};
+    }
+    if(ids==='cargando')return {cargando:true,lista:[]};
+    if(Array.isArray(ids)){porId={};ids.forEach(function(id){porId[id]=1;});}
+  }
+  var hoy=new Date(),toks=_promoTokens(_promoNormalizar(st.q||'')),porImg={};
   (_promosCat||[]).forEach(function(p){
     if(!p.imagen||p.proximamente)return;
     if(_promoEstado(p.fecha_hasta,hoy)==='VENCIDA')return;
-    if(rubro&&p.subtitulo!==rubro)return;
-    if(prov&&!_promoEnProvincia(p,prov))return;
-    if(toks.length){var n=_promoNormalizar(p.titulo||'');for(var i=0;i<toks.length;i++)if(n.indexOf(toks[i])<0)return;}
+    if(st.rubro&&p.subtitulo!==st.rubro)return;
+    if(st.prov&&!_promoEnProvincia(p,st.prov))return;
+    var online=_promoEsOnline(p);
+    if(st.sinOnline&&online)return;
+    if(porId&&!porId[p.id]&&!online)return; // las online no son de ninguna localidad
     var o=porImg[p.imagen];if(!o||_promoMejorQue(p,o))porImg[p.imagen]=p;
   });
-  var vistos={},L=[];
-  Object.keys(porImg).forEach(function(k){var p=porImg[k],n=_promoNormalizar(p.titulo||'');if(vistos[n])return;vistos[n]=1;L.push(p);});
+  // una por logo y por nombre (siempre); y, con el tilde, una por MARCA
+  var vistos={},base=[];
+  Object.keys(porImg).forEach(function(k){var p=porImg[k],n=_promoNormalizar(p.titulo||'');if(vistos[n])return;vistos[n]=1;base.push(p);});
+  if(st.una!==false){
+    var bases={},grupos={},orden=[];
+    base.forEach(function(p){bases[_promoBaseMarca(p.titulo)]=1;});
+    base.forEach(function(p){
+      var k=_promoClaveMarca(_promoBaseMarca(p.titulo),bases);
+      if(!grupos[k]){grupos[k]=p;orden.push(k);}
+      else if(_promoMejorQue(p,grupos[k]))grupos[k]=p;
+    });
+    base=orden.map(function(k){return grupos[k];});
+  }
+  var L=toks.length?base.filter(function(p){var n=_promoNormalizar(p.titulo||'');for(var i=0;i<toks.length;i++)if(n.indexOf(toks[i])<0)return false;return true;}):base;
   var q0=toks.join(' ');
   L.sort(function(a,b){
     var na=_promoNormalizar(a.titulo||''),nb=_promoNormalizar(b.titulo||'');
     if(q0){var pa=na.indexOf(q0)===0?0:1,pb=nb.indexOf(q0)===0?0:1;if(pa!==pb)return pa-pb;}
+    // con provincia elegida, primero las que son de ahí: las online (valen en
+    // todo el país, casi siempre espectáculos) van después
+    if(st.prov){var oa=_promoEsOnline(a)?1:0,ob=_promoEsOnline(b)?1:0;if(oa!==ob)return oa-ob;}
     return na<nb?-1:na>nb?1:0;
   });
-  return L;
+  return {lista:L};
 }
+// Renglón chico de cada marca: rubro, si es de compra online (como en Activas) y hasta cuándo.
+function _fgPfSub(p){
+  return _escHtml(p.subtitulo||'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'');
+}
+// Texto de "dónde": provincia y localidad elegidas.
+function _fgPfDonde(st){return st.prov?' en '+_promoTitulizar(st.loc||st.prov):'';}
 function _fgLgLista(){
   var box=document.getElementById('fg-lg-list'),info=document.getElementById('fg-lg-info');if(!box)return;
-  var L=_fgLgFiltrar(_fgLgV.q,_fgLgV.rubro,_fgLgV.prov);
+  var r=_fgPfFiltrar(_fgLgV,function(){if(document.getElementById('fg-lg-ov'))_fgLgLista();});
+  if(r.cargando){_fgLgV.res=[];if(info)info.textContent='';box.innerHTML='<div class="fg-lg-vacio">Buscando las promos de '+_escHtml(_promoTitulizar(_fgLgV.loc))+'&hellip;</div>';return;}
+  var L=r.lista;
   var MAX=60;_fgLgV.res=L.slice(0,MAX);
   if(info)info.textContent=!(_promosCat&&_promosCat.length)?'':
-    (L.length?(L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes: escribí o elegí un rubro para encontrar la tuya.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+(_fgLgV.prov?' en '+_promoTitulizar(_fgLgV.prov):'')+'.'):'');
+    (L.length?(L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes'+_fgPfDonde(_fgLgV)+': escribí o elegí un rubro para encontrar la tuya.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+_fgPfDonde(_fgLgV)+'.'):'');
   if(!(_promosCat&&_promosCat.length)){box.innerHTML='<div class="fg-lg-vacio">No se pudo leer el catálogo de promociones.</div>';return;}
-  if(!L.length){box.innerHTML='<div class="fg-lg-vacio">No hay promos vigentes con ese nombre'+(_fgLgV.prov?' en '+_escHtml(_promoTitulizar(_fgLgV.prov)):'')+'. Si la marca no est&aacute; en Promociones, us&aacute; <b>Subir logo de la PC</b>.</div>';return;}
+  if(!L.length){box.innerHTML='<div class="fg-lg-vacio">No hay promos vigentes con esos filtros'+_escHtml(_fgPfDonde(_fgLgV))+'. Si la marca no est&aacute; en Promociones, us&aacute; <b>Subir logo de la PC</b>.</div>';return;}
   box.innerHTML=_fgLgV.res.map(function(p,i){
     return '<button type="button" class="fg-lg-it" data-i="'+i+'" title="'+_escAttr(p.titulo)+'">'+
       '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'"></span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
-      '<span class="fg-lg-it-s">'+_escHtml(p.subtitulo||'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+'</span></button>';
+      '<span class="fg-lg-it-s">'+_fgPfSub(p)+'</span></button>';
   }).join('');
 }
 
@@ -12837,7 +12927,7 @@ function _fgFrAbrir(rect){
   if(previa)rect={x:previa.ox,y:previa.oy,w:previa.ow,h:previa.oh,bg:previa.bg,corta:false};
   var st=_fgFrSt={rect:rect,info:previa?previa.franjaInfo:info,previa:previa,
     sel:previa?JSON.parse(JSON.stringify(previa.franjaSel||[])):[],cols:previa?(previa.franjaCols||0):0,
-    q:'',rubro:'',prov:_promosProv||_fgLgV.prov||'',res:[],src:_fgLgSrc()};
+    q:'',rubro:'',prov:_fgLgV.prov||_promosProv||'',loc:_fgLgV.prov?(_fgLgV.loc||''):(_promosLoc||''),una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline,res:[],src:_fgLgSrc()};
   if(!previa)st.info.bg=rect.bg||st.info.bg;
   var v=document.getElementById('fg-fr-ov');if(v)v.remove();
   var ov=document.createElement('div');ov.id='fg-fr-ov';ov.className='fg-cf-ov';
@@ -12851,8 +12941,7 @@ function _fgFrAbrir(rect){
     (rect.corta?'<div class="fg-lg-aviso">Ojo: el recuadro corta parte de otro dibujo del flyer y lo va a tapar a medias. Si no es lo que quer&eacute;s, cancel&aacute; y marcalo de nuevo.</div>':'')+
     '<div class="fg-fr-cols">'+
       '<div class="fg-fr-izq">'+
-        '<div class="fg-lg-fil"><input type="search" id="fg-fr-q" placeholder="Buscar marca" autocomplete="off">'+
-        '<select id="fg-fr-rub" aria-label="Rubro"></select><select id="fg-fr-prov" aria-label="Provincia"></select></div>'+
+        _fgPfHtml('fg-fr','Buscar marca')+
         '<div class="fg-lg-info" id="fg-fr-info"></div>'+
         '<div class="fg-lg-list fg-fr-list" id="fg-fr-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
       '</div>'+
@@ -12884,10 +12973,13 @@ function _fgFrAbrir(rect){
   for(var k=2;k<=10;k++)opts+='<option value="'+k+'">'+k+'</option>';
   por.innerHTML=opts;por.value=String(st.cols||0);
   por.onchange=function(){st.cols=+por.value;_fgFrPreview();};
-  var q=document.getElementById('fg-fr-q'),t=0;
-  q.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){st.q=q.value;_fgFrLista();},120);});
-  document.getElementById('fg-fr-rub').onchange=function(){st.rubro=this.value;_fgFrLista();};
-  document.getElementById('fg-fr-prov').onchange=function(){st.prov=this.value;_fgFrLista();};
+  var q=document.getElementById('fg-fr-q');
+  _fgPfInit('fg-fr',st,function(){
+    if(_fgFrSt!==st)return;
+    // la ventana de un logo recuerda lo elegido acá (provincia, localidad, tildes)
+    _fgLgV.prov=st.prov;_fgLgV.loc=st.loc;_fgLgV.una=st.una;_fgLgV.sinOnline=st.sinOnline;
+    _fgFrLista();
+  });
   document.getElementById('fg-fr-list').addEventListener('click',function(e){
     var it=e.target.closest&&e.target.closest('.fg-lg-it');if(!it)return;
     var p=st.res[+it.getAttribute('data-i')];if(!p)return;
@@ -12933,33 +13025,28 @@ function _fgFrAbrir(rect){
 function _fgFrIdx(img){var S=_fgFrSt?_fgFrSt.sel:[];for(var i=0;i<S.length;i++)if(S[i].img===img)return i;return -1;}
 function _fgFrFiltros(){
   var st=_fgFrSt;if(!st)return;
-  var rs={};(_promosCat||[]).forEach(function(p){if(p.subtitulo)rs[p.subtitulo]=1;});
-  var rub=document.getElementById('fg-fr-rub'),prov=document.getElementById('fg-fr-prov');
-  if(rub)rub.innerHTML='<option value="">Todos los rubros</option>'+Object.keys(rs).sort().map(function(r){return '<option value="'+_escAttr(r)+'">'+_escHtml(r)+'</option>';}).join('');
-  if(prov){
-    var ps=_promosHayGeo()?_promosProvincias():[];
-    prov.hidden=!ps.length;
-    prov.innerHTML='<option value="">Todas las provincias</option>'+ps.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===st.prov?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('');
-  }
+  _fgPfPoblar('fg-fr',st);
   _fgFrLista();
 }
 function _fgFrLista(){
   var st=_fgFrSt,box=document.getElementById('fg-fr-list'),info=document.getElementById('fg-fr-info');if(!st||!box)return;
   if(!(_promosCat&&_promosCat.length)){box.innerHTML='<div class="fg-lg-vacio">No se pudo leer el catálogo de promociones.</div>';return;}
-  var L=_fgLgFiltrar(st.q,st.rubro,st.prov),MAX=60;
+  var r=_fgPfFiltrar(st,function(){if(_fgFrSt===st)_fgFrLista();});
+  if(r.cargando){st.res=st.sel.map(function(s){return {imagen:s.img,titulo:s.t,subtitulo:''};});if(info)info.textContent='Buscando las promos de '+_promoTitulizar(st.loc)+'…';}
+  var L=r.lista,MAX=60;
   // las ya tildadas siempre a mano (arriba), aunque el filtro no las traiga
   var tildadas=st.sel.map(function(s){return L.filter(function(p){return p.imagen===s.img;})[0]||{imagen:s.img,titulo:s.t,subtitulo:''};});
   var resto=L.filter(function(p){return _fgFrIdx(p.imagen)<0;});
   st.res=tildadas.concat(resto.slice(0,MAX));
-  if(info)info.textContent=L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes: escribí o elegí un rubro para encontrar las tuyas.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+(st.prov?' en '+_promoTitulizar(st.prov):'')+'.';
-  if(!st.res.length){box.innerHTML='<div class="fg-lg-vacio">No hay promos vigentes con ese nombre.</div>';return;}
+  if(info&&!r.cargando)info.textContent=L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes'+_fgPfDonde(st)+': escribí o elegí un rubro para encontrar las tuyas.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+_fgPfDonde(st)+'.';
+  if(!st.res.length){box.innerHTML='<div class="fg-lg-vacio">'+(r.cargando?'Buscando las promos de '+_escHtml(_promoTitulizar(st.loc))+'&hellip;':'No hay promos vigentes con esos filtros.')+'</div>';return;}
   box.innerHTML=st.res.map(function(p,i){
     var n=_fgFrIdx(p.imagen);
     return '<button type="button" class="fg-lg-it'+(n>=0?' fg-fr-on':'')+'" data-i="'+i+'" title="'+_escAttr(p.titulo)+'" aria-pressed="'+(n>=0)+'">'+
       (n>=0?'<span class="fg-fr-num">'+(n+1)+'</span>':'')+
       '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'"></span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
-      '<span class="fg-lg-it-s">'+_escHtml(p.subtitulo||'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+'</span></button>';
+      '<span class="fg-lg-it-s">'+_fgPfSub(p)+'</span></button>';
   }).join('');
 }
 function _fgFrSelPintar(){

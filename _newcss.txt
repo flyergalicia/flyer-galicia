@@ -1531,3 +1531,9 @@ html.dark #fg-optbar .fgp.on{background:#2c2f36;}
 .fg-lg-it{position:relative;}
 @media (max-width:900px){.fg-fr-cols{grid-template-columns:1fr;}.fg-fr-der{order:-1;padding-top:0;}.fg-cf.fg-fr{max-height:94vh;overflow:auto;}.fg-fr-izq .fg-lg-list{max-height:52vh;}}
 .fg-fr-izq .fg-lg-fil,.fg-fr-izq .fg-lg-info{flex-shrink:0;}
+/* Tildes de los filtros de marcas (Una por marca, Sin las online) */
+.fg-lg-chk{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;flex-shrink:0;}
+.fg-lg-chk label{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:600;color:var(--ink);cursor:pointer;}
+.fg-lg-chk[hidden]{display:none;}
+.fg-lg-fil select[hidden]{display:none;}
+.fg-pf-onl{font-weight:700;color:var(--accent-2);}
