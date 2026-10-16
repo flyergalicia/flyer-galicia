@@ -2651,6 +2651,10 @@ function _promosPedirDetalle(ids,resultados){
 function _promoElegirCandidato(i,sel){
   var r=_promosResultados&&_promosResultados[i];if(!r)return;
   sel=parseInt(sel,10);
+  // Si esta fila ya estaba elegida para "Armar franja" con la coincidencia de
+  // antes, se reemplaza por la nueva en el mismo lugar del orden (o se saca si
+  // ahora no tiene coincidencia o no sirve para el flyer). Ver _fgElegir.
+  var antes=(typeof _fgElegirNum==='function')?_fgElegirNum(r):0;
   if(sel<0||!r.candidatos[sel]){
     r.promo=null;r.estado='NO_ENCONTRADA';r.necesitaRevision=false;r.fechaDesde=null;
   }else{
@@ -2659,9 +2663,19 @@ function _promoElegirCandidato(i,sel){
     r.estado=_promoEstadoFinal(r.promo,_promosMesRef||new Date());
     r.fechaDesde=null;
     // el detalle (fechaDesde) de esta única fila recién confirmada
-    _callPromosFn('detalle',{ids:[r.promo.id]},function(err,d){
-      if(!err&&d&&d.data&&d.data[r.promo.id]!==undefined){r.fechaDesde=d.data[r.promo.id];renderPromosResultados();}
+    // la respuesta vale sólo si la fila sigue con ESTA coincidencia (si se
+    // cambió otra vez mientras tanto, r.promo ya es otra o es null)
+    var pid=r.promo.id;
+    _callPromosFn('detalle',{ids:[pid]},function(err,d){
+      if(!err&&d&&d.data&&d.data[pid]!==undefined&&r.promo&&r.promo.id===pid){r.fechaDesde=d.data[pid];renderPromosResultados();}
     });
+  }
+  if(antes&&_fgElegir){
+    var S=_fgElegir.st.sel,sirve=r.promo&&r.promo.imagen&&r.estado!=='VENCIDA'&&r.estado!=='FUERA_PROV';
+    var ya=sirve&&S.some(function(x,j){return j!==antes-1&&x.img===r.promo.imagen;});
+    if(sirve&&!ya){S[antes-1]={img:r.promo.imagen,t:_promoDecodeEntities(r.promo.titulo||'')};_fgLgTraer(r.promo.imagen).catch(function(){});}
+    else S.splice(antes-1,1);
+    _fgElegirBar();
   }
   renderPromosResultados();
 }
@@ -2900,9 +2914,13 @@ function _promoFilaHtml(r,i){
       '<option value="-1"'+(!r.promo?' selected':'')+'>— Elegir coincidencia —</option>'+opts+'</select>';
   }
   // Eligiendo marcas para "Armar franja": la primera columna es el botón "+"
-  // (con el número de orden si ya está elegida).
-  var eleg=(_fgElegir&&act&&r.promo&&r.promo.imagen)?_fgElegirNum(r):-1;
-  var primera=eleg>=0?
+  // (con el número de orden si ya está elegida), en Activas y en Buscar. Una
+  // vencida o de otra provincia no va a un flyer: el "+" queda apagado y dice por qué.
+  var eleg=(_fgElegir&&r.promo&&r.promo.imagen)?_fgElegirNum(r):-1;
+  var noVa=eleg===0&&(r.estado==='VENCIDA'||r.estado==='FUERA_PROV');
+  var primera=noVa?
+    '<td><button type="button" class="promos-elegir" disabled title="'+(r.estado==='VENCIDA'?'Est&aacute; vencida: no se puede poner en la franja':'Es de otra provincia: no se puede poner en la franja')+'">+</button></td>':
+    eleg>=0?
     '<td><button type="button" class="promos-elegir'+(eleg?' on':'')+'" onclick="fgElegirToggle('+i+')" aria-pressed="'+(eleg?'true':'false')+'" title="'+(eleg?'Sacar de la franja':'Agregar a la franja')+'">'+(eleg?eleg:'+')+'</button></td>':
     '<td><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
       ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>';
@@ -12953,7 +12971,7 @@ function _fgElegirBar(){
   if(!_fgElegir){if(b)b.remove();return;}
   if(!b){b=document.createElement('div');b.id='fg-elegir-bar';b.className='fg-elegir-bar';b.setAttribute('role','region');b.setAttribute('aria-label','Marcas elegidas para la franja');host.insertBefore(b,host.firstChild);}
   var S=_fgElegir.st.sel,n=S.length;
-  b.innerHTML='<div class="fg-elegir-txt"><b>Armar franja</b> &middot; '+(n?n+(n===1?' marca elegida':' marcas elegidas')+': <span>'+S.slice(0,5).map(function(x,i){return (i+1)+'. '+_escHtml(x.t);}).join(', ')+(n>5?'&hellip;':'')+'</span>':'Toc&aacute; <b>+</b> en las marcas que quer&eacute;s, en el orden en que van.')+'</div>'+
+  b.innerHTML='<div class="fg-elegir-txt"><b>Armar franja</b> &middot; '+(n?n+(n===1?' marca elegida':' marcas elegidas')+': <span>'+S.slice(0,5).map(function(x,i){return (i+1)+'. '+_escHtml(x.t);}).join(', ')+(n>5?'&hellip;':'')+'</span>':'Toc&aacute; <b>+</b> en las marcas que quer&eacute;s, en el orden en que van. Tambi&eacute;n pod&eacute;s pegar marcas en <b>Buscar</b>, validarlas y elegir de ah&iacute;.')+'</div>'+
     '<div class="fg-elegir-acts"><button type="button" class="btn bg" onclick="fgElegirCancelar()">Cancelar</button>'+
     '<button type="button" class="btn bp" onclick="fgElegirVolver()">Volver a la franja'+(n?' ('+n+')':'')+'</button></div>';
 }
@@ -12961,6 +12979,7 @@ function _fgElegirBar(){
 function fgElegirToggle(i){
   if(!_fgElegir)return;
   var r=(_promosResultados||[])[i];if(!r||!r.promo||!r.promo.imagen)return;
+  if(!_fgElegirNum(r)&&(r.estado==='VENCIDA'||r.estado==='FUERA_PROV'))return;
   var S=_fgElegir.st.sel,img=r.promo.imagen,k=-1;
   for(var j=0;j<S.length;j++)if(S[j].img===img){k=j;break;}
   if(k>=0)S.splice(k,1);

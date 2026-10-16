@@ -1569,3 +1569,4 @@ html.dark .promos-table tr.elegida td{background:rgba(242,97,34,.14);}
   .fg-elegir-acts .btn{flex:1;}
   .promos-results.eligiendo{padding-bottom:130px !important;}
 }
+.promos-elegir:disabled{opacity:.35;cursor:not-allowed;border-color:var(--border);color:var(--gray);}
