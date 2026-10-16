@@ -1301,7 +1301,7 @@ const checks = {
   // Los asesores se aplican SIEMPRE (los tuviera o no el flyer guardado), si no
   // cargar uno de 1 asesor despues de uno de 3 dejaba pegados los dos del anterior.
   // Con el modo sedes el loop llega a 8, pero un flyer sin sedes nunca reabre 5-8.
-  'historial: aplica todos los asesores': _authSrc.includes('var hay=(k===1&&h.v.has1===undefined)') && _authSrc.includes('if(k>max)hay=false;'),
+  'historial: aplica todos los asesores': /var hay=sinOf\?[^;]*\(k===1&&h\.v\.has1===undefined\)/.test(_authSrc) && _authSrc.includes('if(k>max)hay=false;'),
   'nombre de archivo seguro': _authSrc.includes('function _fgSafeName(') && _authSrc.includes('window.buildFn=fgBuildFn'),
   'masivo: el ZIP no pisa repetidos': _authSrc.includes('usados[base]=(usados[base]||0)+1'),
   // Empresa y montos tapan su zona con el color REAL del flyer (muestreado justo
@@ -1523,9 +1523,19 @@ const checks = {
     newCSS.includes('.fg-dock{position:sticky') && _authSrc.includes("{target:'#btn-dl-pdf'") && !/target:'\.btns \.btn\.(bp|bblue)'/.test(_authSrc),
   'ux: Pegar/Borrar con teclado y area tactil': (_authSrc.match(/class="fg-del" role="button" tabindex="0"/g) || []).length === 2 && _authSrc.includes('class="fg-paste-btn" id="fg-paste-btn-\'+n+\'" role="button" tabindex="0"') && newCSS.includes('.fg-del,.fg-paste-btn{min-height:32px'),
   'ux: header del celular con logo y nombre completo': newCSS.includes('@media (max-width:480px){.header-logo{width:28px;height:28px;}}') && !/max-width:480px\)\{\s*\.header-logo\{display:none/.test(newCSS) && newCSS.includes('@media (max-width:900px){.header-right{min-width:0;}}'),
-  // El "Nombre de la empresa" en gris es sólo de la pantalla: el PDF/PNG/masivo no lo llevan.
-  'ux: vista previa vacia en gris solo en pantalla': _authSrc.includes('v._enPantalla=true;') && _authSrc.includes('fgDrawEmpresa(c,s,v.empresa,v._enPantalla)') &&
-    !((_authSrc.match(/function fgFullRes\(v\)\{[\s\S]*?\n\}/) || [''])[0]).includes('_enPantalla'),
+  // El dueño rechazó el "Nombre de la empresa" en gris en la vista previa vacía
+  // (16-oct-2026): la vista previa dibuja exactamente lo que se descarga.
+  // Interruptor "Mostrar en el flyer" en el título de Oficiales: apagado, ningún
+  // oficial en el flyer y la tarjeta los esconde SIN borrarlos (16-oct-2026).
+  'ux: interruptor de Oficiales (oculta sin borrar; historial y Restaurar)': _authSrc.includes('function fgToggleOficiales(') && _authSrc.includes('_fgOfInit();') &&
+    _authSrc.includes("o['has'+n]=_fgOficialesOn&&") && _authSrc.includes('if(!_fgOficialesOn)o.sinOficiales=true;') &&
+    _authSrc.includes('fgSetOficiales(!sinOf);') && /function fgResetVals\(\)\{[\s\S]*?fgSetOficiales\(true\)/.test(_authSrc) &&
+    newCSS.includes('.fg-card.fg-of-off>*:not(.fg-card-h):not(.fg-of-off-msg){display:none !important;}') && newCSS.includes('.fg-of-row1{display:none !important;}'),
+  // Vista previa con zoom: 100 % = entera; Ctrl+ruedita (la rueda sola recorre), doble clic, pellizco, arrastre.
+  'ux: zoom en la Vista previa (Ctrl+ruedita, doble clic, pellizco)': _authSrc.includes('function _fgMZInit(') && _authSrc.includes("try{_fgMZInit();}") &&
+    /addEventListener\('wheel',function\(e\)\{\s*if\(!\(e\.ctrlKey\|\|e\.metaKey\)\)return;/.test(_authSrc) && _authSrc.includes("addEventListener('dblclick'") &&
+    _authSrc.includes("addEventListener('touchmove'") && newCSS.includes('.modal.fg-mz{width:min(92vw,980px)'),
+  'ux: vista previa sin texto de relleno (lo que se ve es lo que se baja)':!_authSrc.includes('_enPantalla') && !_authSrc.includes('_FG_EMPRESA_PH'),
   // Letra mínima: nada por debajo de 11 px salvo símbolos (flechitas, la ✕) y textos de gráficos SVG.
   'ux: letra minima (nada < 11 px salvo simbolos)': [newCSS, _authSrc, readFileSync('gestiones.js', 'utf8')].every(src => src.split('\n').every(l => {
     const chicos = [...l.matchAll(/(?:font-size\s*:\s*|font\s*:\s*(?:(?:italic|normal|bold|bolder|lighter|[1-9]00)\s+)*)(0?\.\d+|\d+(?:\.\d+)?)(rem|px)(?![\w-])/g)]

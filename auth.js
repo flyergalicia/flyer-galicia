@@ -827,6 +827,7 @@ function initApp(){
   _fgEnsureBenefFields();// campos del beneficio exclusivo (solapa Flyer Rubros)
   _fgSyncAsesorBlocks(); // arranca mostrando sólo el Asesor 1
   _fgCardify();          // presentación: el formulario en tarjetas (después de inyectar todo)
+  _fgOfInit();           // interruptor "Mostrar en el flyer" en el título de Oficiales
   _fgUxInit();           // validación en línea, negrita del legal, teclado, "Otros", compartir
   _libInit();            // PDF/Excel/ZIP se cargan la primera vez que se usan (va después del motor: envuelve sus overrides)
   _sb.auth.onAuthStateChange(function(event){
@@ -5004,7 +5005,7 @@ function fgDrawAll(c,s,v){
   }else{
     c.drawImage(baseImg,0,0,W,Math.round(H*s));
   }
-  fgDrawEmpresa(c,s,v.empresa,v._enPantalla);
+  fgDrawEmpresa(c,s,v.empresa);
   // cashUnico viaja en v (igual que benef) para que pantalla, masivo, padrón y
   // calibrador rindan igual. Un ítem viejo del historial no lo trae: si la opción
   // activa es de una solapa de monto único, se deduce de ahí.
@@ -5081,12 +5082,7 @@ function _fgPeso(p){return (p==null||p==='')?'bold ':(String(p)+' ');}
 // array de FLYER_CFG_DEFAULT y se contaminarían todas las opciones de la sesión.
 function _fgMBoxY(M,m){return (m&&m.y!=null)?m.y:M.y;}
 function _fgMBoxH(M,m){return (m&&m.mh!=null)?m.mh:M.mh;}
-// Vista previa con la empresa vacía: en vez de un "Por ser parte de" suelto se
-// ve, en gris, dónde va a ir el nombre. enPantalla lo pone SÓLO fgRedraw (el
-// canvas de la pantalla): el PDF, el PNG, el masivo y el historial dibujan
-// exactamente como antes.
-var _FG_EMPRESA_PH='Nombre de la empresa',_FG_EMPRESA_PH_COLOR='rgba(17,17,17,.30)';
-function fgDrawEmpresa(c,s,empresa,enPantalla){
+function fgDrawEmpresa(c,s,empresa){
   var E=_fgCfg().empresa,se=_fgSE(s);
   var xc=Math.round(E.xc*se),yc=Math.round(E.yc*se);
   var lh=Math.round(E.lh*se),mw=Math.round(E.mw*se),fs=Math.round(E.fs*se);
@@ -5096,18 +5092,6 @@ function fgDrawEmpresa(c,s,empresa,enPantalla){
   var pe=_fgPeso(E.peso);
   c.font=pe+fs+"px Arial,sans-serif";
   c.fillStyle=E.color||"#111";c.textAlign="center";c.textBaseline="middle";
-  if(enPantalla&&!String(empresa||'').trim()){
-    var p1="Por ser parte de ",w1=c.measureText(p1).width,w2=c.measureText(_FG_EMPRESA_PH).width;
-    if(w1+w2<=mw){
-      var x0=Math.round(xc-(w1+w2)/2);c.textAlign="left";
-      c.fillText(p1,x0,yc);c.fillStyle=_FG_EMPRESA_PH_COLOR;c.fillText(_FG_EMPRESA_PH,x0+w1,yc);
-      c.textAlign="center";
-    }else{
-      c.fillText("Por ser parte de",xc,yc-Math.round(lh*0.5));
-      c.fillStyle=_FG_EMPRESA_PH_COLOR;c.fillText(_FG_EMPRESA_PH,xc,yc+Math.round(lh*0.5));
-    }
-    return;
-  }
   var full="Por ser parte de "+empresa;
   if(c.measureText(full).width<=mw){c.fillText(full,xc,yc);}
   else{
@@ -5623,7 +5607,6 @@ function fgRedraw(){
   if(!window.baseImg||!baseImg.width)return;
   _fgBenefSyncNombre(); // la empresa puede cambiar sin evento input (padrón, historial)
   var v=getVals();
-  v._enPantalla=true; // sólo este canvas muestra el "Nombre de la empresa" en gris (fgDrawEmpresa)
   _fgExtra=_fgExtraBaseFor(v); // el canvas tiene que contemplar el crecimiento
   var w=Math.round(baseImg.width*SC),fh=Math.round((baseImg.height+_fgExtra)*SC);
   if(!_fgFullCv){_fgFullCv=document.createElement('canvas');_fgFullCtx=_fgFullCv.getContext('2d');}
@@ -6150,6 +6133,34 @@ function _fgFixAsesorLabels(){
     if(sp)sp.textContent='Agregar asesor '+n;
   });
 }
+// ── INTERRUPTOR DE OFICIALES (en el título de la tarjeta) ─────────────────────
+// Pedido del dueño (16-oct-2026): la barrita del Asesor 1 pasó a ser un
+// interruptor de TODOS los oficiales, a la derecha del título "Oficiales".
+// Apagado: el flyer sale sin oficiales y la tarjeta esconde los asesores SIN
+// borrar nada (la clase fg-of-off los oculta por CSS: al prenderlo vuelven tal
+// cual estaban). La barrita vieja del Asesor 1 queda escondida pero en el DOM:
+// _fgBlock depende de la tripleta .sec → .toggle-row → campos, y de ahí cuelgan
+// "Pegar" y "Borrar". El masivo, el padrón y el Hunter no lo usan (arman sus
+// propios datos).
+var _fgOficialesOn=true;
+function _fgOfCard(){var f=document.getElementById('fields1');return (f&&f.closest)?f.closest('.fg-card'):null;}
+function _fgOfInit(){
+  var card=_fgOfCard();if(!card||document.getElementById('fg-of-sw'))return;
+  var h=card.querySelector('.fg-card-h');if(!h)return;
+  h.insertAdjacentHTML('beforeend','<button type="button" class="fg-of-sw" id="fg-of-sw" role="switch" aria-checked="true" '+
+    'onclick="fgToggleOficiales()" title="Mostrar u ocultar los oficiales en el flyer">Mostrar en el flyer<span class="sw on"></span></button>');
+  card.insertAdjacentHTML('beforeend','<p class="fg-of-off-msg">El flyer sale sin oficiales. Tus datos quedan guardados: prendelo y vuelven.</p>');
+  var b1=_fgBlock(1);if(b1)b1.row.classList.add('fg-of-row1'); // la barrita vieja del Asesor 1 (la esconde el CSS)
+  if(typeof a1!=='undefined'&&!a1&&typeof toggleA1==='function')toggleA1(); // sin su barrita, el Asesor 1 va siempre prendido
+  _fgOfAplicar();
+}
+function _fgOfAplicar(){
+  var card=_fgOfCard(),b=document.getElementById('fg-of-sw');
+  if(card)card.classList.toggle('fg-of-off',!_fgOficialesOn);
+  if(b){b.setAttribute('aria-checked',_fgOficialesOn?'true':'false');var sw=b.querySelector('.sw');if(sw)sw.classList.toggle('on',_fgOficialesOn);}
+}
+function fgSetOficiales(on){_fgOficialesOn=!!on;_fgOfAplicar();if(typeof redraw==='function')redraw();}
+function fgToggleOficiales(){fgSetOficiales(!_fgOficialesOn);}
 // getVals ampliado a 4 asesores —8 con el modo sedes— (pisa el de _source.html,
 // que sólo conoce 2). Los nombres de clave NO cambian (nombre, nombre2, ...): el
 // historial, el borrador, el Excel y los logs viejos dependen de ellos.
@@ -6179,10 +6190,13 @@ function fgGetVals(){
   // Los 8 slots: del 5 al 8 sólo cuentan con el modo sedes prendido.
   for(var n=1;n<=8;n++){
     var s=_fgSfx(n);
-    o['has'+n]=(n<=_fgMaxAsesores())&&_fgAsesorOn(n)&&g('nombre'+s).trim()!=='';
+    o['has'+n]=_fgOficialesOn&&(n<=_fgMaxAsesores())&&_fgAsesorOn(n)&&g('nombre'+s).trim()!=='';
     o['nombre'+s]=g('nombre'+s);o['celular'+s]=cel('celular'+s);o['email'+s]=g('email'+s);
     o['ubic'+n]=_fgSedes?_fgUbicTexto(g('ubic'+n)):''; // el pin solo = sin ubicación
   }
+  // Interruptor de Oficiales apagado: el historial y el borrador lo recuerdan
+  // (los nombres viajan igual, para que al prenderlo vuelvan).
+  if(!_fgOficialesOn)o.sinOficiales=true;
   return o;
 }
 
@@ -6284,10 +6298,13 @@ function _fgApplyHistItem(h){
     // Los asesores se aplican SIEMPRE, los tuviera o no el flyer guardado.
     // Antes sólo se tocaban los que el ítem tenía, así que cargar un flyer de 1
     // asesor después de uno de 3 dejaba pegados los otros dos del anterior.
-    var max=h.v.sedes?8:4;
+    var max=h.v.sedes?8:4,sinOf=!!h.v.sinOficiales;
     for(var k=1;k<=8;k++){
       var sfx=_fgSfx(k);
-      var hay=(k===1&&h.v.has1===undefined)?!!(h.v.nombre||'').trim():!!h.v['has'+k];
+      // Guardado con los oficiales apagados: los hasN vienen en false, pero los
+      // nombres están; se cargan igual y el interruptor queda apagado (abajo).
+      var hay=sinOf?!!(h.v['nombre'+sfx]||'').trim():
+        (k===1&&h.v.has1===undefined)?!!(h.v.nombre||'').trim():!!h.v['has'+k];
       if(k>max)hay=false; // un flyer sin modo sedes nunca reabre los slots 5-8
       if(!document.getElementById('nombre'+sfx))continue;
       s('nombre'+sfx,hay?(h.v['nombre'+sfx]||''):'');
@@ -6298,6 +6315,7 @@ function _fgApplyHistItem(h){
       else _fgSetAsesorOn(k,hay);
     }
     _fgSyncAsesorBlocks(); // muestra los bloques que el flyer del historial tenía
+    fgSetOficiales(!sinOf);
     _padRef=null;_padDismissed='';_padShowNote('');_padCloseSug(); // el historial no es una fila del padrón
     if(h.v&&h.v.nocb)_fgSetNoCB(true);
     else if(typeof setCfg==='function')setCfg(h.ac||0);
@@ -6329,6 +6347,7 @@ function fgResetVals(){
   // Va DESPUÉS de reactivar el Asesor 1: si se lo había quitado, el sync corría
   // con a1 todavía apagado y "Restaurar" dejaba el bloque 1 escondido.
   _fgSyncAsesorBlocks(); // vuelve al estado inicial: sólo Asesor 1
+  fgSetOficiales(true);  // y con los oficiales prendidos
   _fgSetNoCB(false);
   if(typeof setCfg==='function')setCfg(0);
   if(typeof updateFnPreview==='function')updateFnPreview();
@@ -11251,6 +11270,7 @@ function _fgValTodos(){_fgValInputs().forEach(_fgValField);}
 // Resumen para el aviso al generar: sólo asesores que van al flyer y sólo errores (no avisos).
 function _fgValProblemas(){
   var p=[],max=_fgMaxAsesores();
+  if(!_fgOficialesOn)return p; // sin oficiales en el flyer no hay celulares ni mails que revisar
   for(var k=1;k<=max;k++){
     if(!_fgAsesorOn(k))continue;
     var s=_fgSfx(k);
@@ -11368,6 +11388,117 @@ function _fgOtrosFuera(e){
   if(!o||o.contains(e.target))return;
   if(e.target.closest&&e.target.closest('#fg-tour-tip'))return; // el tutorial lo abre a propósito
   fgToggleOtros(false);
+}
+
+// ── ZOOM DE LA VISTA PREVIA (ventana #modal de la plantilla) ─────────────────
+// En la PC la ventana mostraba el flyer entero en una tira de ~110 px: ilegible.
+// Abre igual que antes (100 % = el flyer entero en la PC; al ancho en el
+// celular) y se acerca con − / +, Ctrl + ruedita anclada al mouse (la rueda sola
+// recorre, como en el armador), doble clic, pellizco y las teclas + − 0.
+// Arrastrando se recorre. La matemática del anclaje es la del Hunter
+// (_hunZoomAplicar); no se reusa su código porque está atado a esa pantalla.
+var _fgMZ={z:1,init:false,arrastro:false},_FG_MZ_PASO=1.25;
+function _fgMZImg(){return document.getElementById('modal-img');}
+function _fgMZBody(){var i=_fgMZImg();return (i&&i.closest)?i.closest('.modal-body'):null;}
+function _fgMZMovil(){return !!(window.matchMedia&&window.matchMedia('(max-width:900px)').matches);}
+// Ancho de la imagen a 100 %: en la PC el flyer ENTERO (cabe a lo alto y a lo
+// ancho); en el celular, al ancho de la pantalla. Nunca más grande que su tamaño real.
+function _fgMZBase(){
+  var img=_fgMZImg(),b=_fgMZBody();if(!img||!b||!img.naturalWidth)return 0;
+  var cw=Math.max(b.clientWidth-2,100),ch=Math.max(b.clientHeight-2,100);
+  var esc=_fgMZMovil()?cw/img.naturalWidth:Math.min(cw/img.naturalWidth,ch/img.naturalHeight);
+  return Math.min(esc,1)*img.naturalWidth;
+}
+function _fgMZMax(){var img=_fgMZImg(),bw=_fgMZBase();return (img&&bw)?Math.max(1,img.naturalWidth*1.5/bw):1;}
+function _fgMZAplicar(){
+  var img=_fgMZImg(),bw=_fgMZBase();if(!img||!bw)return;
+  img.classList.add('fg-mz-img');
+  img.style.width=Math.round(bw*_fgMZ.z)+'px';
+  var b=_fgMZBody();if(b)b.classList.toggle('fg-mz-zoom',_fgMZ.z>1.001);
+  var p=document.getElementById('fg-mzoom-pct');if(p)p.textContent=Math.round(_fgMZ.z*100)+'%';
+}
+// Cambia el zoom dejando quieto el punto (x,y) de la pantalla: el mouse, el
+// centro del pellizco o, con los botones, el centro de la ventana.
+function _fgMZIr(z,x,y){
+  var img=_fgMZImg(),b=_fgMZBody();if(!img||!b||!img.naturalWidth)return;
+  z=Math.min(Math.max(z,1),_fgMZMax());if(Math.abs(z-_fgMZ.z)<0.0001)return;
+  if(x==null){var rb=b.getBoundingClientRect();x=rb.left+rb.width/2;y=rb.top+rb.height/2;}
+  var r0=img.getBoundingClientRect();
+  var fx=Math.min(Math.max((x-r0.left)/r0.width,0),1),fy=Math.min(Math.max((y-r0.top)/r0.height,0),1);
+  _fgMZ.z=z;_fgMZAplicar();
+  var r1=img.getBoundingClientRect();
+  b.scrollLeft+=(r1.left+fx*r1.width)-x;b.scrollTop+=(r1.top+fy*r1.height)-y;
+}
+function fgMZoom(d){_fgMZIr(d>0?_fgMZ.z*_FG_MZ_PASO:_fgMZ.z/_FG_MZ_PASO);}
+function fgMZoomReset(){_fgMZ.z=1;_fgMZAplicar();var b=_fgMZBody();if(b){b.scrollTop=0;b.scrollLeft=0;}}
+function _fgMZInit(){
+  var m=document.getElementById('modal'),img=_fgMZImg(),b=_fgMZBody();
+  if(_fgMZ.init||!m||!img||!b)return;
+  _fgMZ.init=true;
+  var caja=m.querySelector('.modal');if(caja)caja.classList.add('fg-mz');
+  var cerrar=m.querySelector('.modal-header .modal-close');
+  if(cerrar)cerrar.insertAdjacentHTML('beforebegin',
+    '<div class="fg-mzoom" role="group" aria-label="Zoom de la vista previa">'+
+      '<button type="button" onclick="fgMZoom(-1)" aria-label="Alejar" title="Alejar (−)">&minus;</button>'+
+      '<span id="fg-mzoom-pct">100%</span>'+
+      '<button type="button" onclick="fgMZoom(1)" aria-label="Acercar" title="Acercar (+, Ctrl + ruedita o doble clic)">+</button>'+
+      '<button type="button" onclick="fgMZoomReset()" aria-label="Ver entero" title="Ver entero (0)">&#10226;</button>'+
+    '</div>');
+  img.draggable=false;
+  img.addEventListener('load',fgMZoomReset); // cada vista previa nueva arranca entera
+  var oOpen=window.openPreview,oClose=window.closeModal;
+  if(typeof oOpen==='function')window.openPreview=function(){var r=oOpen.apply(this,arguments);_fgMZ.z=1;_fgMZAplicar();b.scrollTop=0;b.scrollLeft=0;return r;};
+  if(typeof oClose==='function')window.closeModal=function(){_fgMZ.z=1;return oClose.apply(this,arguments);};
+  // Ctrl + ruedita (o pellizco en el touchpad): varios eventos por gesto se
+  // juntan en un cuadro, anclados al mouse. La rueda sola recorre la imagen.
+  var pasos=0,px=0,py=0,pend=0;
+  b.addEventListener('wheel',function(e){
+    if(!(e.ctrlKey||e.metaKey))return;
+    e.preventDefault();pasos+=(e.deltaY<0?1:-1);px=e.clientX;py=e.clientY;
+    if(pend)return;
+    pend=requestAnimationFrame(function(){pend=0;var n=pasos;pasos=0;if(n)_fgMZIr(_fgMZ.z*Math.pow(_FG_MZ_PASO,n),px,py);});
+  },{passive:false});
+  // Doble clic: acerca donde apuntás (al ancho de la ventana); otro, vuelve a verlo entero.
+  b.addEventListener('dblclick',function(e){
+    if(_fgMZ.z>1.001){fgMZoomReset();return;}
+    var bw=_fgMZBase();if(!bw)return;
+    var ancho=(b.clientWidth-2)/bw;
+    _fgMZIr(ancho>1.5?ancho:2.5,e.clientX,e.clientY);
+  });
+  // Arrastrar para recorrer (sólo con zoom). Soltar el mouse afuera de la
+  // ventana no la cierra: el clic que genera ese arrastre se descarta.
+  var arr=false,ax=0,ay=0,sx=0,sy=0;
+  b.addEventListener('mousedown',function(e){
+    if(e.button!==0||_fgMZ.z<=1.001)return;
+    arr=true;_fgMZ.arrastro=false;ax=e.clientX;ay=e.clientY;sx=b.scrollLeft;sy=b.scrollTop;
+    b.classList.add('fg-mz-pan');e.preventDefault();
+  });
+  document.addEventListener('mousemove',function(e){
+    if(!arr)return;
+    if(Math.abs(e.clientX-ax)+Math.abs(e.clientY-ay)>4)_fgMZ.arrastro=true;
+    b.scrollLeft=sx-(e.clientX-ax);b.scrollTop=sy-(e.clientY-ay);
+  });
+  document.addEventListener('mouseup',function(){if(arr){arr=false;b.classList.remove('fg-mz-pan');setTimeout(function(){_fgMZ.arrastro=false;},0);}});
+  window.addEventListener('click',function(e){if(_fgMZ.arrastro&&e.target===m){e.stopImmediatePropagation();_fgMZ.arrastro=false;}},true);
+  // Celular: pellizco con dos dedos dentro de la imagen (un dedo recorre, como siempre).
+  var pz=null;
+  function dist(t){var dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.sqrt(dx*dx+dy*dy)||1;}
+  b.addEventListener('touchstart',function(e){if(e.touches.length===2){pz={d:dist(e.touches),z:_fgMZ.z};e.preventDefault();}},{passive:false});
+  b.addEventListener('touchmove',function(e){
+    if(!pz||e.touches.length!==2)return;
+    e.preventDefault();
+    _fgMZIr(pz.z*dist(e.touches)/pz.d,(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2);
+  },{passive:false});
+  b.addEventListener('touchend',function(e){if(e.touches.length<2)pz=null;});
+  // Teclas + − 0 con la ventana abierta.
+  document.addEventListener('keydown',function(e){
+    if(!m.classList.contains('show')||e.ctrlKey||e.metaKey||e.altKey)return;
+    if(e.key==='+'||e.key==='='){e.preventDefault();fgMZoom(1);}
+    else if(e.key==='-'||e.key==='_'){e.preventDefault();fgMZoom(-1);}
+    else if(e.key==='0'){e.preventDefault();fgMZoomReset();}
+  });
+  var rt=0;
+  window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){if(m.classList.contains('show'))_fgMZAplicar();},150);});
 }
 
 // ── BARRA FIJA DE ACCIONES (Vista previa · Descargar PDF · Otros) ────────────
@@ -11731,6 +11862,7 @@ function _fgUxInit(){
   try{_fgWorkInit();}catch(e){console.warn('work:',e);}
   try{_fgTipInit();}catch(e){console.warn('tip:',e);}
   try{_fgDockInit();}catch(e){console.warn('dock:',e);}
+  try{_fgMZInit();}catch(e){console.warn('zoom vista previa:',e);}
 }
 
 // ══ PERFIL HUNTER — buscar una empresa y bajar SU flyer ══════════════════════
