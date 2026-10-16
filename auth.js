@@ -13042,7 +13042,7 @@ function _fgFrAbrir(rect,reuso){
     previa=_fgLgActivos().filter(function(e){return e.franjaBase&&_fgFrSolapa(e,rect)>0.5;})[0]||null;
     if(previa)rect={x:previa.ox,y:previa.oy,w:previa.ow,h:previa.oh,bg:previa.bg,corta:false};
     st=_fgFrSt={rect:rect,info:previa?previa.franjaInfo:info,previa:previa,
-      sel:previa?JSON.parse(JSON.stringify(previa.franjaSel||[])):[],cols:previa?(previa.franjaCols||0):0,
+      sel:previa?JSON.parse(JSON.stringify(previa.franjaSel||[])):[],cols:previa?(previa.franjaCols||0):0,kt:previa?(previa.franjaKt||1):1,elegido:-1,
       q:'',rubro:'',prov:_fgLgV.prov||_promosProv||'',loc:_fgLgV.prov?(_fgLgV.loc||''):(_promosLoc||''),una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline,res:[],src:_fgLgSrc()};
     if(!previa)st.info.bg=rect.bg||st.info.bg;
     // lo elegido en Activas para una franja de otro flyer (ver fgElegirVolver)
@@ -13070,7 +13070,8 @@ function _fgFrAbrir(rect,reuso){
       '</div>'+
       '<div class="fg-fr-der">'+
         '<div class="fg-fr-l">As&iacute; va a quedar</div>'+
-        '<div class="fg-fr-prevbox"><canvas id="fg-fr-prev"></canvas></div>'+
+        '<div class="fg-fr-prevbox"><canvas id="fg-fr-prev" aria-label="Vista previa de la franja: toc&aacute; un logo para acomodarlo"></canvas></div>'+
+        '<div class="fg-fr-ajuste" id="fg-fr-ajuste"></div>'+
         '<div class="fg-fr-por"><label for="fg-fr-por">Por fila</label><select id="fg-fr-por"></select></div>'+
         '<div class="fg-fr-l">Tu selecci&oacute;n <span>(en este orden)</span></div>'+
         '<div class="fg-fr-sel" id="fg-fr-sel"></div>'+
@@ -13085,6 +13086,7 @@ function _fgFrAbrir(rect,reuso){
   document.addEventListener('keydown',tecla,true);
   document.getElementById('fg-fr-x').onclick=cerrar;
   document.getElementById('fg-fr-no').onclick=cerrar;
+  _fgFrPrevInit(st);
   var ira=document.getElementById('fg-fr-act');
   // la ventana se va pero la selección (st) sigue viva hasta volver o cancelar
   if(ira)ira.onclick=function(){document.removeEventListener('keydown',tecla,true);ov.remove();_fgFrIrActivas(st);};
@@ -13110,6 +13112,7 @@ function _fgFrAbrir(rect,reuso){
     var it=e.target.closest&&e.target.closest('.fg-lg-it');if(!it)return;
     var p=st.res[+it.getAttribute('data-i')];if(!p)return;
     var i=_fgFrIdx(p.imagen);
+    st.elegido=-1;
     if(i>=0)st.sel.splice(i,1);
     else{
       if(st.sel.length>=_FG_FR_MAX){showToast('Hasta '+_FG_FR_MAX+' logos por franja.');return;}
@@ -13128,6 +13131,7 @@ function _fgFrAbrir(rect,reuso){
     if(a==='arr'&&i>0){var x=S[i];S[i]=S[i-1];S[i-1]=x;}
     else if(a==='aba'&&i<S.length-1){var y=S[i];S[i]=S[i+1];S[i+1]=y;}
     else if(a==='x')S.splice(i,1);
+    st.elegido=-1; // cambió el orden: se suelta el logo marcado en la vista previa
     _fgFrLista();_fgFrSelPintar();_fgFrPreview();
   });
   document.getElementById('fg-fr-ok').onclick=function(){
@@ -13213,7 +13217,7 @@ function _fgFrDragInit(){
     var st=_fgFrSt;
     if(soltar&&st&&x.to!=null&&x.to!==x.from&&x.to!==x.from+1){
       var it=st.sel.splice(x.from,1)[0],dest=x.to>x.from?x.to-1:x.to;
-      st.sel.splice(dest,0,it);
+      st.sel.splice(dest,0,it);st.elegido=-1;
       _fgFrLista();_fgFrSelPintar();_fgFrPreview();
     }
   }
@@ -13246,7 +13250,7 @@ function _fgFrDragInit(){
 // todavía se están bajando se ven como un cuadrito gris con su número).
 function _fgFrPreview(){
   var st=_fgFrSt,cv2=document.getElementById('fg-fr-prev');if(!st||!cv2||!window.baseImg)return;
-  var r=st.rect,m=24,x0=Math.max(0,r.x-m),y0=Math.max(0,r.y-m),x1=Math.min(baseImg.width,r.x+r.w+m),y1=Math.min(baseImg.height,r.y+r.h+m);
+  var r=st.rect,m=6,x0=Math.max(0,r.x-m),y0=Math.max(0,r.y-m),x1=Math.min(baseImg.width,r.x+r.w+m),y1=Math.min(baseImg.height,r.y+r.h+m);
   var box=cv2.parentNode,W=Math.max(200,Math.min(560,box.clientWidth||360)),k=W/(x1-x0);
   cv2.width=Math.round(W);cv2.height=Math.round((y1-y0)*k);
   var g=cv2.getContext('2d');g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv2.width,cv2.height);
@@ -13254,12 +13258,92 @@ function _fgFrPreview(){
   g.drawImage(baseImg,0,0);
   g.fillStyle=st.info.bg;g.fillRect(r.x,r.y,r.w,r.h);
   var lug=_fgFrLugares(st,st.sel.length);
+  st._vista={x0:x0,y0:y0,ancho:x1-x0};st._cajas=[];
   st.sel.forEach(function(s,i){
     var im=_fgLg.imgs[s.img],l=lug[i];
-    if(im){var d=_fgFrEncajar(l,im.width/im.height);g.drawImage(im,d.tx,d.ty,d.tw,d.th);}
+    if(im){
+      var d=_fgFrAjustar(st,s,_fgFrEncajar(l,im.width/im.height));
+      g.drawImage(im,d.tx,d.ty,d.tw,d.th);st._cajas[i]=d;
+      if(st.elegido===i){g.save();g.setLineDash([6/k,4/k]);g.lineWidth=2/k;g.strokeStyle='#F26122';g.strokeRect(d.tx-3/k,d.ty-3/k,d.tw+6/k,d.th+6/k);g.restore();}
+    }
     else{g.fillStyle='rgba(128,128,128,.18)';g.fillRect(l.cx-l.h*0.6,l.cy-l.h*0.4,l.h*1.2,l.h*0.8);
       g.fillStyle='#777';g.font='600 '+Math.round(l.h*0.35)+'px Figtree,Arial';g.textAlign='center';g.textBaseline='middle';g.fillText(String(i+1),l.cx,l.cy);}
   });
+  _fgFrAjustePintar();
+}
+// Punteros sobre la vista previa: tocar un logo lo marca, arrastrarlo lo corre.
+// Las reglas de tamaño viven en #fg-fr-ajuste (delegado: se rearma seguido).
+function _fgFrPrevInit(st){
+  var cv2=document.getElementById('fg-fr-prev'),aj=document.getElementById('fg-fr-ajuste');if(!cv2||!aj)return;
+  var arr=null;
+  function aImagen(e){
+    var r=cv2.getBoundingClientRect(),v=st._vista;if(!v||!r.width)return null;
+    var k=v.ancho/r.width;return {x:v.x0+(e.clientX-r.left)*k,y:v.y0+(e.clientY-r.top)*k,k:k};
+  }
+  cv2.addEventListener('pointerdown',function(e){
+    if(_fgFrSt!==st)return;
+    var p=aImagen(e);if(!p)return;
+    var hit=-1,C=st._cajas||[];
+    for(var i=C.length-1;i>=0;i--){var c=C[i];if(c&&p.x>=c.tx-6&&p.x<=c.tx+c.tw+6&&p.y>=c.ty-6&&p.y<=c.ty+c.th+6){hit=i;break;}}
+    st.elegido=hit;
+    if(hit>=0){
+      e.preventDefault();
+      var s=st.sel[hit];arr={i:hit,x:e.clientX,y:e.clientY,dx:s.dx||0,dy:s.dy||0,k:p.k,id:e.pointerId};
+      try{cv2.setPointerCapture(e.pointerId);}catch(x){}
+    }
+    _fgFrPreview();
+  });
+  cv2.addEventListener('pointermove',function(e){
+    if(!arr||e.pointerId!==arr.id||_fgFrSt!==st)return;
+    var s=st.sel[arr.i];if(!s)return;
+    s.dx=Math.round(arr.dx+(e.clientX-arr.x)*arr.k);s.dy=Math.round(arr.dy+(e.clientY-arr.y)*arr.k);
+    _fgFrPreview();
+  });
+  function fin(){arr=null;}
+  cv2.addEventListener('pointerup',fin);cv2.addEventListener('pointercancel',fin);
+  aj.addEventListener('input',function(e){
+    if(_fgFrSt!==st)return;
+    if(e.target.id==='fg-fr-kt'){st.kt=(+e.target.value||100)/100;_fgFrPreview();}
+    else if(e.target.id==='fg-fr-k1'){var s=st.sel[st.elegido];if(s){s.k=(+e.target.value||100)/100;_fgFrPreview();}}
+  });
+  aj.addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('button[data-aj]');if(!b||_fgFrSt!==st)return;
+    var s=st.sel[st.elegido];if(!s)return;
+    var a=b.getAttribute('data-aj');
+    if(a==='menos')s.k=Math.max(0.4,Math.round(((s.k||1)-0.1)*100)/100);
+    else if(a==='mas')s.k=Math.min(2.5,Math.round(((s.k||1)+0.1)*100)/100);
+    else if(a==='lugar'){s.dx=0;s.dy=0;s.k=1;}
+    _fgFrPreview();
+  });
+}
+// Ajuste a mano de un logo de la franja, hecho en la vista previa de la ventana:
+// s.dx/s.dy = cuánto se corrió de su lugar (px de imagen) y s.k = su tamaño
+// (1 = el que le tocó). st.kt = tamaño de todos. Crece desde el centro.
+function _fgFrAjustar(st,s,d){
+  var k=(s.k||1)*(st.kt||1),w=d.tw*k,h=d.th*k,cx=d.tx+d.tw/2+(s.dx||0),cy=d.ty+d.th/2+(s.dy||0);
+  return {tx:cx-w/2,ty:cy-h/2,tw:w,th:h};
+}
+// Controles debajo de la vista previa: tamaño del logo elegido y de todos.
+function _fgFrAjustePintar(){
+  var st=_fgFrSt,box=document.getElementById('fg-fr-ajuste');if(!st||!box)return;
+  var i=st.elegido,s=(i!=null&&i>=0)?st.sel[i]:null;
+  var kt=Math.round((st.kt||1)*100);
+  var todos='<div class="fg-fr-aj-fila"><span class="fg-fr-aj-l">Tama&ntilde;o de todos</span>'+
+    '<input type="range" id="fg-fr-kt" min="60" max="150" step="5" value="'+kt+'" aria-label="Tama&ntilde;o de todos los logos"><span class="fg-fr-aj-v">'+kt+'%</span></div>';
+  var uno=s?('<div class="fg-fr-aj-fila fg-fr-aj-uno"><span class="fg-fr-aj-l"><b>'+(i+1)+'.</b> '+_escHtml(s.t)+'</span>'+
+      '<button type="button" data-aj="menos" aria-label="M&aacute;s chico">&minus;</button>'+
+      '<input type="range" id="fg-fr-k1" min="40" max="250" step="5" value="'+Math.round((s.k||1)*100)+'" aria-label="Tama&ntilde;o de este logo">'+
+      '<button type="button" data-aj="mas" aria-label="M&aacute;s grande">+</button><span class="fg-fr-aj-v">'+Math.round((s.k||1)*100)+'%</span>'+
+      '<button type="button" data-aj="lugar" class="fg-fr-aj-lugar" title="Vuelve a su lugar y a su tama&ntilde;o">Volver a su lugar</button></div>'):
+    '<div class="fg-fr-aj-tip">Toc&aacute; un logo de la vista previa y arrastralo para acomodarlo; ac&aacute; abajo le cambi&aacute;s el tama&ntilde;o.</div>';
+  // no se rearma mientras se arrastra una regla (se soltaría)
+  var act=document.activeElement;
+  if(act&&box.contains(act)&&act.type==='range'){
+    var v=box.querySelectorAll('.fg-fr-aj-v');if(v[0])v[0].textContent=kt+'%';
+    if(s&&v[1])v[1].textContent=Math.round((s.k||1)*100)+'%';
+    return;
+  }
+  box.innerHTML=uno+todos;
 }
 // Aplica: tapa la franja entera y pone los logos. Los cambios que había adentro
 // (de antes) se reemplazan.
@@ -13275,10 +13359,10 @@ function _fgFrAplicar(st){
       return !(cx>=r.x&&cx<=r.x+r.w&&cy>=r.y&&cy<=r.y+r.h);
     });
     _fgLg.list.push({x:r.x-2,y:r.y-2,w:r.w+4,h:r.h+4,bg:st.info.bg,img:'',t:'Franja',ox:r.x,oy:r.y,ow:r.w,oh:r.h,
-      franja:fid,franjaBase:true,franjaSel:JSON.parse(JSON.stringify(st.sel)),franjaCols:st.cols||0,franjaInfo:st.info});
+      franja:fid,franjaBase:true,franjaSel:JSON.parse(JSON.stringify(st.sel)),franjaCols:st.cols||0,franjaKt:st.kt||1,franjaInfo:st.info});
     var lug=_fgFrLugares(st,st.sel.length);
     st.sel.forEach(function(s,i){
-      var im=ims[i],d=_fgFrEncajar(lug[i],im.width/im.height);
+      var im=ims[i],d=_fgFrAjustar(st,s,_fgFrEncajar(lug[i],im.width/im.height));
       // sin tapado propio (w/h 0): ya lo tapa la franja
       _fgLg.list.push({x:d.tx,y:d.ty,w:0,h:0,bg:st.info.bg,img:s.img,t:s.t,ox:d.tx,oy:d.ty,ow:d.tw,oh:d.th,
         tx:d.tx,ty:d.ty,tw:d.tw,th:d.th,bw:d.tw,bh:d.th,franja:fid});
@@ -13706,7 +13790,10 @@ function _estPublicar(id,d0,n,nombre){
   if(_EST.publicando){showToast('Ya hay una publicación en curso. Esperá a que termine.');return;}
   _EST.publicando=true;
   showToast('Publicando «'+nombre+'»… no cierres la página.');
-  var d,meta,legal,base,n2,img,blob,ts=Date.now();
+  // reservado: ya se subió NUESTRO _activeN.json; enLista: la opción ya figura en la
+  // lista. Si algo falla entre una cosa y la otra, se borra lo que se alcanzó a
+  // subir (si no, ese número queda ocupado para siempre sin opción).
+  var d,meta,legal,base,n2,img,blob,ts=Date.now(),reservado=false,enLista=false;
   _estDatos(id).then(function(x){d=x;
     if(d.estado!=='pedido')throw new Error('ese diseño ya no está pedido (lo cancelaron o ya se resolvió)');
     return Promise.all([_bucketJson(_activeFile(n)),_bucketJson(_legalFile(n)).catch(function(){return null;})]);
@@ -13746,6 +13833,7 @@ function _estPublicar(id,d0,n,nombre){
             if(++intentos<6&&/exist|duplicate|409/i.test((r.error.message||'')+' '+(r.error.statusCode||'')+' '+(r.error.error||''))){cand++;return reservar();}
             throw r.error;
           }
+          reservado=true;
         });
       }
       return reservar();
@@ -13785,7 +13873,7 @@ function _estPublicar(id,d0,n,nombre){
           .then(function(){if(!_OPC[n2]){if(intento<2)return guardarLista(intento+1);throw new Error('la opción nueva no quedó guardada');}});
       });
     }
-    return guardarLista(1);
+    return guardarLista(1).then(function(){enLista=true;});
   }).then(function(){
     // la ven los mismos perfiles que veían la original (sobre las facultades
     // recién leídas, no las que quedaron en memoria al entrar)
@@ -13802,7 +13890,9 @@ function _estPublicar(id,d0,n,nombre){
     });
   }).catch(function(e){
     console.error('estudio aprobar:',e);
-    showToast('No se pudo publicar: '+_estErr(e)+(n2&&!(e&&e.nada)?' (puede haber quedado a medias en la opción '+n2+': revisá Config → Opciones)':''));
+    // la opción no llegó a la lista: se borran los archivos que se alcanzaron a subir
+    if(reservado&&!enLista)_sb.storage.from('flyers').remove(['_active'+n2+'.json','_legal'+n2+'.json',img]).catch(function(){});
+    showToast('No se pudo publicar: '+_estErr(e)+(enLista&&!(e&&e.nada)?' (la opción '+n2+' quedó creada a medias: revisá Config → Opciones)':''));
     if(e&&e.nada){_EST.lista=null;_estCargar();}
   }).then(function(){_EST.publicando=false;});
 }

@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=2ced6c6c96","integrity":"sha384-Srwn/dWQo1eBmF0E6Qs8wcAcT1UlnYdsg43tQo1VJ+xiCHaJ4ct6q83ehewaNy+T"}}'>
-<meta name="build-v" content="4ac4256a24">
+<meta name="build-v" content="66f4abb9f9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1681,8 +1681,21 @@ html.dark .promos-table tr.elegida td{background:rgba(242,97,34,.14);}
   .promos-results.eligiendo{padding-bottom:130px !important;}
 }
 .promos-elegir:disabled{opacity:.35;cursor:not-allowed;border-color:var(--border);color:var(--gray);}
+/* Armar franja: acomodar y cambiar el tamaño en la vista previa */
+#fg-fr-prev{cursor:pointer;touch-action:none;}
+.fg-fr-ajuste{display:flex;flex-direction:column;gap:6px;}
+.fg-fr-aj-fila{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.75rem;color:var(--ink);}
+.fg-fr-aj-uno{padding:6px 8px;border:1px solid var(--accent-line);border-radius:8px;background:var(--accent-soft);}
+html.dark .fg-fr-aj-uno{background:rgba(242,97,34,.12);}
+.fg-fr-aj-l{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46%;}
+.fg-fr-aj-fila input[type=range]{flex:1 1 90px;min-width:70px;accent-color:var(--accent);}
+.fg-fr-aj-v{min-width:38px;text-align:right;font-weight:700;color:var(--ink-2);}
+.fg-fr-aj-fila button{min-width:28px;height:28px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--ink);font-size:.8125rem;font-weight:700;cursor:pointer;}
+.fg-fr-aj-fila button:hover{border-color:var(--accent);color:var(--accent-2);}
+.fg-fr-aj-fila .fg-fr-aj-lugar{font-size:.75rem;font-weight:600;}
+.fg-fr-aj-tip{font-size:.75rem;color:var(--gray);line-height:1.4;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=9850e194bf"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=f4367affd7"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
