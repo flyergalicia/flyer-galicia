@@ -1287,7 +1287,7 @@ const checks = {
   'cashback: solapa + guardado en la nube': html.includes('id="at-cashback"') && html.includes('id="cashback-list"') && _authSrc.includes('function loadCashback(') && _authSrc.includes('function saveCashback(') && _authSrc.includes('function renderCashbackAdmin('),
   'cashback: se aplica a todos al loguear': _authSrc.includes("loadCashback(false,function(){if(typeof redraw==='function')redraw();});"),
   'padron: sin oficiales asignados': _authSrc.includes('function _padAsesoresLbl(') && _authSrc.includes('sin oficiales asignados') && _authSrc.includes('function _padShowNote('),
-  'padron: actualizar al generar': _authSrc.includes('function _padDiff(') && _authSrc.includes('function _padAskUpdate(') && _authSrc.includes('_padAfterFlyer();'),
+  'padron: actualizar al generar': _authSrc.includes('function _padDiff(') && _authSrc.includes('function _padAskUpdate(') && /_padAfterFlyer\(v?\);/.test(_authSrc),
   'padron: alta de empresa nueva': _authSrc.includes('function _padAskNew(') && _authSrc.includes('function _padDoNew(') && _authSrc.includes('function _padFindByName(') && _authSrc.includes('function _padCuitField('),
   'padron: typeahead en empresa': _authSrc.includes('function _padSugRender(') && _authSrc.includes('function _padPickSug(') && _authSrc.includes('inp.addEventListener(\x27input\x27,_padSugRender)') && _authSrc.includes('function _padApply('),
   'padron: popup sin cierre accidental': !_authSrc.includes('ov.addEventListener('+String.fromCharCode(39)) && _authSrc.includes('onclick="_padCloseUpdate(1)"'),
@@ -1531,6 +1531,8 @@ const checks = {
     _authSrc.includes("o['has'+n]=_fgOficialesOn&&") && _authSrc.includes('if(!_fgOficialesOn)o.sinOficiales=true;') &&
     _authSrc.includes('fgSetOficiales(!sinOf);') && /function fgResetVals\(\)\{[\s\S]*?fgSetOficiales\(true\)/.test(_authSrc) &&
     newCSS.includes('.fg-card.fg-of-off>*:not(.fg-card-h):not(.fg-of-off-msg){display:none !important;}') && newCSS.includes('.fg-of-row1{display:none !important;}'),
+  // Ocultar los oficiales cuenta como modificarlos: al bajar ofrece actualizar la empresa (como si los quitara).
+  'ux: oficiales ocultos = modificacion para el padron': _authSrc.includes('var on=_fgOficialesOn&&_fgAsesorOn(n)'),
   // Vista previa con zoom: 100 % = entera; Ctrl+ruedita (la rueda sola recorre), doble clic, pellizco, arrastre.
   'ux: zoom en la Vista previa (Ctrl+ruedita, doble clic, pellizco)': _authSrc.includes('function _fgMZInit(') && _authSrc.includes("try{_fgMZInit();}") &&
     /addEventListener\('wheel',function\(e\)\{\s*if\(!\(e\.ctrlKey\|\|e\.metaKey\)\)return;/.test(_authSrc) && _authSrc.includes("addEventListener('dblclick'") &&

@@ -9479,12 +9479,14 @@ function _padCfgActual(){return _fgNoCB?-1:((typeof ac!=='undefined')?ac:0);}
 // Lo que se guarda en la celda del Excel: vacío = sin cashback.
 function _padCfgCell(i){return i<0?'':_padCfgName(i);}
 // Asesores tal como están HOY en el formulario. Un bloque apagado cuenta como vacío
-// (no se dibuja en el flyer, así que para el padrón es "no asignado").
+// (no se dibuja en el flyer, así que para el padrón es "no asignado"). Con el
+// interruptor "Mostrar en el flyer" apagado TODOS cuentan como vacíos: ocultar es
+// una modificación (pedido del dueño) y se avisa igual que si los hubiera quitado.
 function _padFormAsesores(){
   var out=[];
   for(var n=1;n<=4;n++){
     var sfx=(n===1)?'':String(n);
-    var on=_fgAsesorOn(n),nom=on?(_gv('nombre'+sfx)||'').trim():'';
+    var on=_fgOficialesOn&&_fgAsesorOn(n),nom=on?(_gv('nombre'+sfx)||'').trim():'';
     out.push({nombre:nom,
       celular:nom?(_gv('celular'+sfx)||'').trim():'',
       email  :nom?(_gv('email'+sfx)||'').trim():''});
