@@ -1663,3 +1663,15 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 /* Shift + clic: varios logos elegidos juntos */
 .fg-lg-marca.grupo{border-style:solid;background:rgba(242,97,34,.08);}
 .fg-lg-herr button[hidden]{display:none;}
+/* Cambiar logos: guías al mover y botones de alinear / duplicar */
+#fg-lg-guias{position:absolute;inset:0;pointer-events:none;}
+.fg-lg-guia{position:absolute;pointer-events:none;}
+.fg-lg-guia.v{top:0;bottom:0;width:0;border-left:2px dashed #F26122;}
+.fg-lg-guia.h{left:0;right:0;height:0;border-top:2px dashed #F26122;}
+.fg-lg-alin{display:inline-flex;gap:4px;flex-wrap:wrap;padding:0 4px;border-left:1px solid var(--border);border-right:1px solid var(--border);}
+.fg-lg-alin[hidden]{display:none;}
+.fg-lg-herr button .ico{width:15px;height:15px;}
+.fg-lg-alin button,.fg-lg-herr button[data-a=dup]{display:inline-flex;align-items:center;gap:4px;}
+.fg-lg-alin button[hidden]{display:none;}
+.fg-lg-herr button[data-a=quitar]:hover{border-color:#DC2626;color:#DC2626;}
+@media (max-width:900px){.fg-lg-alin button span,.fg-lg-herr button[data-a=dup] span{display:none;}}

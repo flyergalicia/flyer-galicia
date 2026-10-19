@@ -12343,13 +12343,16 @@ function _fgLgInit(){
     if(ini.logo>=0){
       var As=_fgLgActivos();if(!As[ini.logo])return;
       if(!ini.grupoListo){ini.grupoListo=true;_fgLg.grupo=ini.pos.map(function(p){return p.i;});_fgLg.sel=ini.logo;}
-      var k=_fgLgEscala(),dx=(e.clientX-ini.x)/k,dy=(e.clientY-ini.y)/k;
-      ini.pos.forEach(function(p){var L=As[p.i];if(L){L.tx=Math.round(p.tx+dx);L.ty=Math.round(p.ty+dy);}});
+      var k=_fgLgEscala(),dx=(e.clientX-ini.x)/k,dy=(e.clientY-ini.y)/k,G=null;
+      // guías: se pega a la línea más cercana (con Alt, sin imán)
+      if(!e.altKey){G=_fgLgGuias(ini.pos,ini.logo,dx,dy,k);dx+=G.dx;dy+=G.dy;}
+      ini.pos.forEach(function(p){var L=As[p.i];if(L){L.tx=p.tx+dx;L.ty=p.ty+dy;}});
+      _fgLgGuiasPintar(G?G.lineas:[]);
       _fgLgRedibujarPronto();
     }else _fgLgSel(ini.x,ini.y,e.clientX,e.clientY);
   });
   document.addEventListener('pointerup',function(e){
-    if(!ini)return;var a=ini;ini=null;
+    if(!ini)return;var a=ini;ini=null;_fgLgGuiasPintar([]);
     if(_fgLg.arrastre){_fgLg.arrastre=false;_fgLgHistPronto();}
     if(a.touch&&a.mov)return;
     if(a.logo>=0){
@@ -12369,7 +12372,7 @@ function _fgLgInit(){
   });
   // gesto interrumpido (el dedo pasó a recorrer la página, etc.): se suelta todo
   document.addEventListener('pointercancel',function(){
-    if(!ini)return;ini=null;_fgLgSel(null);
+    if(!ini)return;ini=null;_fgLgSel(null);_fgLgGuiasPintar([]);
     if(_fgLg.arrastre){_fgLg.arrastre=false;_fgLgListo();}
   });
   // Ctrl+Z = deshacer; Ctrl+Y o Ctrl+Shift+Z = rehacer. Sólo con el modo prendido,
@@ -12382,6 +12385,8 @@ function _fgLgInit(){
     var k=String(e.key||'').toLowerCase();
     if(k==='z'&&!e.shiftKey){e.preventDefault();fgLgDeshacer();}
     else if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();fgLgRehacer();}
+    else if(k==='c'&&!_fgLg.limpio){var tx='';try{tx=String(window.getSelection&&window.getSelection()||'');}catch(x){}if(!tx&&_fgLgCopiar())e.preventDefault();} // con texto marcado en la página, copia ese texto (lo normal)
+    else if(k==='v'&&!_fgLg.limpio&&_fgLg.copia){e.preventDefault();_fgLgPegar();}
   });
   // Escape sale de "Ver limpio"
   document.addEventListener('keydown',function(e){
@@ -12394,9 +12399,43 @@ function _fgLgInit(){
     var t=e.target&&e.target.tagName;
     if((t==='INPUT'&&e.target.type!=='range')||t==='TEXTAREA'||t==='SELECT')return;
     if(e.key==='Escape'){_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMarcas();return;}
+    if((e.key==='Delete'||e.key==='Backspace')&&!(e.target&&e.target.type==='range')){e.preventDefault();_fgLgQuitarElegidos();return;}
     var d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!d)return;
     e.preventDefault();_fgLgMover(d[0]*(e.shiftKey?10:1),d[1]*(e.shiftKey?10:1));
   });
+}
+// ·· Guías al mover ··
+// Mientras se arrastra, el recuadro de lo que se mueve (bordes y centro) se
+// compara con los bordes y centros de los demás logos cambiados, con el centro
+// del flyer y con el centro del lugar original del logo tocado. Si queda a menos
+// de 6 px de pantalla, se pega y se muestra la línea.
+function _fgLgGuias(pos,principal,dx,dy,k){
+  var As=_fgLgActivos(),mueve={},x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  pos.forEach(function(p){var L=As[p.i];if(!L)return;mueve[p.i]=1;
+    x0=Math.min(x0,p.tx+dx);y0=Math.min(y0,p.ty+dy);x1=Math.max(x1,p.tx+dx+L.tw);y1=Math.max(y1,p.ty+dy+L.th);});
+  var cx=[],cy=[];
+  As.forEach(function(L,i){if(mueve[i]||!_fgLgAjustable(L))return;cx.push(L.tx,L.tx+L.tw/2,L.tx+L.tw);cy.push(L.ty,L.ty+L.th/2,L.ty+L.th);});
+  if(window.baseImg&&baseImg.width)cx.push(baseImg.width/2);
+  var P=As[principal];if(P&&P.ow){cx.push(P.ox+P.ow/2);cy.push(P.oy+P.oh/2);}
+  var umbral=6/k;
+  function mejor(mios,cands){
+    var b=null;
+    mios.forEach(function(m){cands.forEach(function(c){var d=c-m;if(Math.abs(d)<=umbral&&(!b||Math.abs(d)<Math.abs(b.d)))b={d:d,c:c};});});
+    return b;
+  }
+  var bx=mejor([x0,(x0+x1)/2,x1],cx),by=mejor([y0,(y0+y1)/2,y1],cy),lineas=[];
+  if(bx)lineas.push({v:bx.c});if(by)lineas.push({h:by.c});
+  return {dx:bx?bx.d:0,dy:by?by.d:0,lineas:lineas};
+}
+function _fgLgGuiasPintar(lineas){
+  var capa=document.getElementById('fg-lg-capa');if(!capa)return;
+  var g=document.getElementById('fg-lg-guias');
+  if(!lineas.length){if(g)g.innerHTML='';return;}
+  if(!g){g=document.createElement('div');g.id='fg-lg-guias';capa.appendChild(g);}
+  g.innerHTML=lineas.map(function(l){
+    if(l.v!=null){var p=_fgLgAPantalla(l.v,0,0,0);return '<div class="fg-lg-guia v" style="left:'+p.l.toFixed(1)+'px"></div>';}
+    var q=_fgLgAPantalla(0,l.h,0,0);return '<div class="fg-lg-guia h" style="top:'+q.t.toFixed(1)+'px"></div>';
+  }).join('');
 }
 // Lo que se puede mover y agrandar: un logo (de Promociones, de la PC o del
 // propio flyer) o un texto. Un lugar "dejado vacío" no.
@@ -12465,6 +12504,15 @@ function _fgLgHerr(capa){
       '<span class="fg-lg-pct" id="fg-lg-pct"></span>'+
       (tactil?'<span class="fg-lg-fl"><button type="button" data-a="izq" aria-label="Mover a la izquierda">&larr;</button><button type="button" data-a="arr" aria-label="Mover arriba">&uarr;</button><button type="button" data-a="aba" aria-label="Mover abajo">&darr;</button><button type="button" data-a="der" aria-label="Mover a la derecha">&rarr;</button></span>':'')+
       '<button type="button" data-a="centrar" title="Volver a ponerlo en el medio de su lugar">Centrar</button>'+
+      '<span class="fg-lg-alin" id="fg-lg-alin" hidden>'+
+        '<button type="button" data-a="al-arr" title="Alinear arriba (con el &uacute;ltimo tocado)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="4" x2="20" y2="4"/><rect x="6" y="7" width="4" height="12"/><rect x="14" y="7" width="4" height="7"/></svg><span>Arriba</span></button>'+
+        '<button type="button" data-a="al-med" title="Alinear al medio (con el &uacute;ltimo tocado)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="12" x2="20" y2="12"/><rect x="6" y="5" width="4" height="14"/><rect x="14" y="8" width="4" height="8"/></svg><span>Al medio</span></button>'+
+        '<button type="button" data-a="al-aba" title="Alinear abajo (con el &uacute;ltimo tocado)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="5" width="4" height="12"/><rect x="14" y="10" width="4" height="7"/></svg><span>Abajo</span></button>'+
+        '<button type="button" data-a="repartir" title="Mismo espacio entre uno y otro"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="4" height="10"/><rect x="10" y="7" width="4" height="10"/><rect x="17" y="7" width="4" height="10"/></svg><span>Repartir</span></button>'+
+        '<button type="button" data-a="mismo" title="Mismo alto que el &uacute;ltimo tocado"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="7" height="12"/><rect x="14" y="6" width="7" height="12"/></svg><span>Mismo tama&ntilde;o</span></button>'+
+      '</span>'+
+      '<button type="button" data-a="dup" title="Duplicar (Ctrl+C y Ctrl+V)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span>Duplicar</span></button>'+
+      '<button type="button" data-a="quitar" title="Volver al original (Supr)" aria-label="Volver al original"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>'+
       '<button type="button" data-a="cambiar">Cambiar marca</button>'+
       '<button type="button" data-a="soltar" class="fg-lg-herr-x" title="Listo con este" aria-label="Listo con este">&times;</button>';
     h.addEventListener('mousedown',function(e){e.stopPropagation();});   // que no "agarre" la vista previa para recorrerla
@@ -12478,6 +12526,11 @@ function _fgLgHerr(capa){
       else if(a==='mas')_fgLgTam(_fgLgPct(L2)+10);
       else if(a==='centrar')_fgLgCentrar();
       else if(a==='cambiar')_fgLgCambiarMarca();
+      else if(a==='al-arr'||a==='al-med'||a==='al-aba')_fgLgAlinear(a.slice(3));
+      else if(a==='repartir')_fgLgRepartir();
+      else if(a==='mismo')_fgLgMismoTam();
+      else if(a==='dup'){if(_fgLgCopiar(true))_fgLgPegar();}
+      else if(a==='quitar')_fgLgQuitarElegidos();
       else{var m={izq:[-3,0],der:[3,0],arr:[0,-3],aba:[0,3]}[a];if(m)_fgLgMover(m[0],m[1]);}
     });
     h.querySelector('#fg-lg-tam').addEventListener('input',function(){_fgLgTam(+this.value);});
@@ -12492,6 +12545,61 @@ function _fgLgHerr(capa){
   var r=document.getElementById('fg-lg-tam');if(r&&document.activeElement!==r)r.value=_fgLgPct(L);
   var cb=h.querySelector('button[data-a=cambiar]');if(cb){cb.textContent=(L.tipo==='txt')?'Editar texto':'Cambiar';cb.hidden=nG>1;}
   var pc=document.getElementById('fg-lg-pct');if(pc)pc.textContent=_fgLgPct(L)+'%';
+  var al=document.getElementById('fg-lg-alin');if(al){al.hidden=nG<2;var rp=al.querySelector('[data-a=repartir]');if(rp)rp.hidden=nG<3;}
+}
+// ·· Alinear / repartir / mismo tamaño (con varios elegidos) ··
+// La referencia es el principal (el último tocado).
+function _fgLgAlinear(modo){
+  var As=_fgLgActivos(),P=As[_fgLg.sel],g=_fgLgElegidos();if(!P||g.length<2)return;
+  var ref=modo==='arr'?P.ty:modo==='med'?P.ty+P.th/2:P.ty+P.th;
+  g.forEach(function(i){var L=As[i];L.ty=modo==='arr'?ref:modo==='med'?ref-L.th/2:ref-L.th;});
+  _fgLgListo();
+}
+// El primero y el último quedan quietos; los del medio, con el mismo espacio
+// entre uno y otro (no entre centros: así logos de distinto ancho quedan parejos).
+function _fgLgRepartir(){
+  var As=_fgLgActivos(),g=_fgLgElegidos().slice();if(g.length<3)return;
+  g.sort(function(a,b){return (As[a].tx+As[a].tw/2)-(As[b].tx+As[b].tw/2);});
+  var pri=As[g[0]],ult=As[g[g.length-1]],anchos=0;
+  g.forEach(function(i){anchos+=As[i].tw;});
+  var hueco=((ult.tx+ult.tw)-pri.tx-anchos)/(g.length-1),x=pri.tx;
+  g.forEach(function(i){As[i].tx=x;x+=As[i].tw+hueco;});
+  _fgLgListo();
+}
+function _fgLgMismoTam(){
+  var As=_fgLgActivos(),P=As[_fgLg.sel],g=_fgLgElegidos();if(!P||g.length<2)return;
+  g.forEach(function(i){if(i===_fgLg.sel)return;var L=As[i];if(L.th>0)_fgLgTamUno(L,_fgLgPct(L)*P.th/L.th);});
+  _fgLgListo();
+}
+// ·· Duplicar (Ctrl+C / Ctrl+V) y quitar (Supr) ··
+// Una copia no tapa nada (como los logos de una franja: w/h 0) y su "lugar
+// original" es donde cae, así Centrar la deja donde está.
+function _fgLgCopiar(callado){
+  var As=_fgLgActivos(),g=_fgLgElegidos();if(!g.length)return false;
+  _fgLg.copia={src:_fgLgSrc(),items:JSON.parse(JSON.stringify(g.map(function(i){return As[i];}))),n:0};
+  if(!callado)showToast(g.length===1?'Copiado. Pegalo con Ctrl+V.':'Copiados '+g.length+'. Pegalos con Ctrl+V.');
+  return true;
+}
+function _fgLgPegar(){
+  var C=_fgLg.copia;if(!C||!C.items.length)return;
+  if(C.src!==_fgLgSrc()){showToast('Lo copiado era de otro flyer.');return;}
+  if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
+  C.n++;var off=16*C.n,nuevos=[];
+  C.items.forEach(function(o){
+    var c=JSON.parse(JSON.stringify(o));
+    ['franja','franjaBase','franjaSel','franjaCols','franjaKt','franjaInfo','vacio'].forEach(function(k){delete c[k];});
+    c.tx+=off;c.ty+=off;c.ox=c.tx;c.oy=c.ty;c.ow=c.tw;c.oh=c.th;c.x=c.tx;c.y=c.ty;c.w=0;c.h=0;c.dup=true;
+    _fgLg.list.push(c);nuevos.push(_fgLg.list.length-1);
+  });
+  _fgLg.grupo=nuevos.length>1?nuevos:[];_fgLg.sel=nuevos[nuevos.length-1];
+  _fgLgListo();
+}
+function _fgLgQuitarElegidos(){
+  var g=_fgLgElegidos();if(!g.length)return;
+  var fuera={};g.forEach(function(i){fuera[i]=1;});
+  _fgLg.list=_fgLg.list.filter(function(e,i){return !fuera[i];});
+  _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();
+  showToast((g.length===1?'Volvió al original':'Volvieron al original: '+g.length)+'. Con Ctrl+Z lo recuperás.');
 }
 // Pantalla → px de la imagen original. null si cae en el hueco que abre fgDrawAll.
 function _fgLgAImagen(cx,cy){
@@ -12701,7 +12809,7 @@ function _fgLgHistEtiqueta(a,b){
   if(cambian.length===1&&b.length>=a.length){
     var o=a[cambian[0]],e=b[cambian[0]];
     if(e.franjaBase)return 'Armar franja';
-    if(!o)return e.tipo==='txt'?'Poner '+_fgLgHistNom(e):(e.img?'Poner '+_fgLgHistNom(e):'Dejar un lugar vacío');
+    if(!o)return e.dup?'Duplicar '+_fgLgHistNom(e):(e.tipo==='txt'?'Poner '+_fgLgHistNom(e):(e.img?'Poner '+_fgLgHistNom(e):'Dejar un lugar vacío'));
     if(o.img!==e.img||o.tipo!==e.tipo||o.texto!==e.texto||o.color!==e.color||o.peso!==e.peso)
       return e.tipo==='txt'?'Cambiar '+_fgLgHistNom(e):(e.img?'Cambiar '+_fgLgHistNom(o)+' por '+_fgLgHistNom(e):'Dejar vacío');
     if(o.tw!==e.tw||o.th!==e.th||o.fs!==e.fs)return 'Tamaño de '+_fgLgHistNom(e);
@@ -12717,6 +12825,12 @@ function _fgLgHistEtiqueta(a,b){
   if(b.length<a.length){
     var falta=a.filter(function(x){var j=J(x);return !b.some(function(y){return J(y)===j;});})[0];
     return falta?'Volver '+_fgLgHistNom(falta)+' al original':'Volver un cambio al original';
+  }
+  var nuevos=b.slice(a.length);
+  if(b.length>a.length&&nuevos.every(function(x){return x.dup;})&&a.every(function(x,i){return J(x)===J(b[i]);}))return 'Duplicar '+nuevos.length;
+  if(a.length===b.length&&cambian.every(function(i){var o=a[i],e=b[i];return o.img===e.img&&o.tipo===e.tipo&&o.texto===e.texto;})){
+    var tam=cambian.some(function(i){return a[i].tw!==b[i].tw||a[i].th!==b[i].th||a[i].fs!==b[i].fs;});
+    return (tam?'Tamaño de ':'Mover ')+cambian.length+' logos';
   }
   return cambian.length+' cambios';
 }
