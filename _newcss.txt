@@ -1660,3 +1660,6 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 @keyframes fgLgFlash{0%,40%{box-shadow:0 0 0 6px rgba(242,97,34,.55);background:rgba(242,97,34,.18);}100%{box-shadow:0 0 0 0 rgba(242,97,34,0);background:transparent;}}
 @media (prefers-reduced-motion:reduce){.fg-lg-marca.flash{animation:none;outline:3px solid var(--accent);}}
 @media (max-width:900px){.fg-lg-hb span{display:none;}}
+/* Shift + clic: varios logos elegidos juntos */
+.fg-lg-marca.grupo{border-style:solid;background:rgba(242,97,34,.08);}
+.fg-lg-herr button[hidden]{display:none;}

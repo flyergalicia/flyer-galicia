@@ -11953,7 +11953,20 @@ function fgConfirm(msg,opts,cb){
 //   previa, la descarga y el historial dibujan lo mismo. Sólo datos (el logo se
 //   busca por nombre de archivo en _fgLg.imgs): v se copia con JSON.
 // · El masivo, el padrón y el Hunter no lo usan (su v no trae logos).
-var _fgLg={on:false,src:'',list:[],imgs:Object.create(null),carga:Object.create(null),sel:-1,proy:null};
+var _fgLg={on:false,src:'',list:[],imgs:Object.create(null),carga:Object.create(null),sel:-1,proy:null,grupo:[]};
+// Lo elegido: con Shift se eligen varios (_fgLg.grupo) y se mueven, agrandan o
+// centran juntos. _fgLg.sel sigue siendo "el principal" (el último tocado).
+function _fgLgElegidos(){
+  var L=_fgLgActivos(),g=(_fgLg.grupo||[]).filter(function(i){return _fgLgAjustable(L[i]);});
+  if(g.length>1)return g;
+  return (_fgLg.sel>=0&&_fgLgAjustable(L[_fgLg.sel]))?[_fgLg.sel]:[];
+}
+// Shift + clic: suma o saca un logo de lo elegido
+function _fgLgGrupoTocar(i){
+  var g=_fgLgElegidos().slice(),j=g.indexOf(i);
+  if(j>=0)g.splice(j,1);else g.push(i);
+  _fgLg.grupo=g;_fgLg.sel=g.length?g[g.length-1]:-1;
+}
 var _FG_LG_GAP=12;  // px de imagen: separación máxima entre partes de UN logo (Megatlon↔farmacity están a 18)
 var _FG_LG_TOL=40;  // diferencia de color (canal mayor) para separar el logo del fondo
 function _fgLgSrc(){return (window.baseImg&&baseImg.src)||'';}
@@ -12281,7 +12294,7 @@ function _fgLgInit(){
   var prev=document.querySelector('.prev'),cw=prev&&prev.querySelector('.cw');
   if(!prev||!cw||document.getElementById('fg-lg-bar'))return;
   var bar=document.createElement('div');bar.id='fg-lg-bar';bar.className='fg-lg-bar';
-  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar.</span>'+
+  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar. Con <b>Shift</b> eleg&iacute;s varios y los mov&eacute;s juntos.</span>'+
     '<span class="fg-lg-hist"><button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-desh" onclick="fgLgDeshacer()" hidden disabled aria-label="Deshacer">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg><span>Deshacer</span></button>'+
     '<button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-reh" onclick="fgLgRehacer()" hidden disabled aria-label="Rehacer">'+
@@ -12308,8 +12321,14 @@ function _fgLgInit(){
     if(!_fgLg.on||_fgLg.limpio||e.button!==0)return; // en "Ver limpio" el flyer no se toca
     var p=_fgLgAImagen(e.clientX,e.clientY),i=p?_fgLgLogoEn(p.x,p.y):-1;
     // en modo franja el dedo también marca el recuadro (si no, arrastrar recorre la página)
-    ini={x:e.clientX,y:e.clientY,touch:e.pointerType==='touch'&&!_fgFr.modo,mov:false,logo:_fgFr.modo?-1:i};
-    if(i>=0&&ini.logo>=0){var L=_fgLgActivos()[i];ini.tx=L.tx;ini.ty=L.ty;_fgLg.arrastre=true;}
+    ini={x:e.clientX,y:e.clientY,touch:e.pointerType==='touch'&&!_fgFr.modo,mov:false,logo:_fgFr.modo?-1:i,shift:!!e.shiftKey&&!_fgFr.modo};
+    if(i>=0&&ini.logo>=0){
+      // si toca uno que ya es parte de lo elegido, arrastra a todos; si no, sólo a ese
+      var g=_fgLgElegidos(),As=_fgLgActivos();
+      if(g.indexOf(i)<0)g=ini.shift?g.concat([i]):[i];
+      ini.pos=g.map(function(j){return {i:j,tx:As[j].tx,ty:As[j].ty};});
+      _fgLg.arrastre=true;
+    }
     if(!ini.touch){e.preventDefault();e.stopPropagation();}
   });
   cvs.addEventListener('mousedown',function(e){if(_fgLg.on&&!_fgLg.limpio){e.stopPropagation();e.preventDefault();}}); // sin esto, la vista previa se "agarra" para recorrer
@@ -12322,10 +12341,10 @@ function _fgLgInit(){
     if(Math.abs(e.clientX-ini.x)+Math.abs(e.clientY-ini.y)>8)ini.mov=true;
     if(!ini.mov||ini.touch)return;
     if(ini.logo>=0){
-      var L=_fgLgActivos()[ini.logo];if(!L)return;
-      _fgLg.sel=ini.logo;
-      var k=_fgLgEscala();
-      L.tx=Math.round(ini.tx+(e.clientX-ini.x)/k);L.ty=Math.round(ini.ty+(e.clientY-ini.y)/k);
+      var As=_fgLgActivos();if(!As[ini.logo])return;
+      if(!ini.grupoListo){ini.grupoListo=true;_fgLg.grupo=ini.pos.map(function(p){return p.i;});_fgLg.sel=ini.logo;}
+      var k=_fgLgEscala(),dx=(e.clientX-ini.x)/k,dy=(e.clientY-ini.y)/k;
+      ini.pos.forEach(function(p){var L=As[p.i];if(L){L.tx=Math.round(p.tx+dx);L.ty=Math.round(p.ty+dy);}});
       _fgLgRedibujarPronto();
     }else _fgLgSel(ini.x,ini.y,e.clientX,e.clientY);
   });
@@ -12333,12 +12352,18 @@ function _fgLgInit(){
     if(!ini)return;var a=ini;ini=null;
     if(_fgLg.arrastre){_fgLg.arrastre=false;_fgLgHistPronto();}
     if(a.touch&&a.mov)return;
-    if(a.logo>=0){_fgLg.sel=a.logo;_fgLgListo();return;}
+    if(a.logo>=0){
+      if(a.mov){_fgLgListo();return;}
+      if(a.shift)_fgLgGrupoTocar(a.logo);
+      else{var g0=_fgLgElegidos();if(g0.indexOf(a.logo)<0||g0.length<2)_fgLg.grupo=[];_fgLg.sel=a.logo;}
+      _fgLgListo();return;
+    }
     if(_fgFr.modo){
       _fgLgSel(null);
       if(!a.mov){showToast('Arrastrá un recuadro alrededor de TODA la franja de logos.');return;}
       fgFranjaModo(false);_fgFrDesdeRecuadro(a.x,a.y,e.clientX,e.clientY);return;
     }
+    if(a.mov&&a.shift){_fgLgSel(null);_fgLgElegirVarios(a.x,a.y,e.clientX,e.clientY);return;}
     if(a.mov){_fgLgSel(null);_fgLgElegirRecuadro(a.x,a.y,e.clientX,e.clientY);}
     else{_fgLg.sel=-1;_fgLgMarcas();_fgLgElegirPunto(a.x,a.y);}
   });
@@ -12368,7 +12393,7 @@ function _fgLgInit(){
     if(!_fgLg.on||_fgLg.sel<0||document.getElementById('fg-lg-ov'))return;
     var t=e.target&&e.target.tagName;
     if((t==='INPUT'&&e.target.type!=='range')||t==='TEXTAREA'||t==='SELECT')return;
-    if(e.key==='Escape'){_fgLg.sel=-1;_fgLgMarcas();return;}
+    if(e.key==='Escape'){_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMarcas();return;}
     var d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!d)return;
     e.preventDefault();_fgLgMover(d[0]*(e.shiftKey?10:1),d[1]*(e.shiftKey?10:1));
   });
@@ -12391,24 +12416,30 @@ function _fgLgRedibujarPronto(){
   _fgLgRaf=requestAnimationFrame(function(){_fgLgRaf=0;_fgLgListo();});
 }
 function _fgLgMover(dx,dy){
-  var L=_fgLgActivos()[_fgLg.sel];if(!L)return;
-  L.tx+=dx;L.ty+=dy;_fgLgRedibujarPronto();
+  var As=_fgLgActivos(),g=_fgLgElegidos();if(!g.length)return;
+  g.forEach(function(i){As[i].tx+=dx;As[i].ty+=dy;});_fgLgRedibujarPronto();
 }
 // Tamaño en % del que puso la app al elegir la marca; crece y se achica desde
 // el centro, así no se corre.
+// Con varios elegidos, cada uno crece en la misma proporción que el principal.
 function _fgLgTam(pct){
-  var L=_fgLgActivos()[_fgLg.sel];if(!L)return;
+  var As=_fgLgActivos(),P=As[_fgLg.sel];if(!P)return;
   pct=Math.max(30,Math.min(250,Math.round(pct)));
-  if(L.tipo==='txt'){L.fs=L.bfs*pct/100;_fgLgTxtMedir(L);_fgLgRedibujarPronto();return;}
+  var f=pct/Math.max(1,_fgLgPct(P));
+  _fgLgElegidos().forEach(function(i){var L=As[i];_fgLgTamUno(L,i===_fgLg.sel?pct:_fgLgPct(L)*f);});
+  _fgLgRedibujarPronto();
+}
+function _fgLgTamUno(L,pct){
+  pct=Math.max(30,Math.min(250,Math.round(pct)));
+  if(L.tipo==='txt'){L.fs=L.bfs*pct/100;_fgLgTxtMedir(L);return;}
   var cx=L.tx+L.tw/2,cy=L.ty+L.th/2;
   L.tw=L.bw*pct/100;L.th=L.bh*pct/100;L.tx=cx-L.tw/2;L.ty=cy-L.th/2;
-  _fgLgRedibujarPronto();
 }
 function _fgLgPct(L){return Math.round(L.tipo==='txt'?L.fs/L.bfs*100:L.tw/L.bw*100);}
 // Centrar = en el medio del lugar donde estaba el logo original.
 function _fgLgCentrar(){
-  var L=_fgLgActivos()[_fgLg.sel];if(!L)return;
-  L.tx=L.ox+L.ow/2-L.tw/2;L.ty=L.oy+L.oh/2-L.th/2;_fgLgListo();
+  var As=_fgLgActivos(),g=_fgLgElegidos();if(!g.length)return;
+  g.forEach(function(i){var L=As[i];L.tx=L.ox+L.ow/2-L.tw/2;L.ty=L.oy+L.oh/2-L.th/2;});_fgLgListo();
 }
 function _fgLgCambiarMarca(){
   var L=_fgLgActivos()[_fgLg.sel];if(!L)return;
@@ -12441,7 +12472,7 @@ function _fgLgHerr(capa){
     h.addEventListener('click',function(e){
       var b=e.target.closest&&e.target.closest('button[data-a]');if(!b)return;
       var a=b.getAttribute('data-a');
-      if(a==='soltar'){_fgLg.sel=-1;_fgLgMarcas();return;}
+      if(a==='soltar'){_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMarcas();return;}
       var L2=_fgLgActivos()[_fgLg.sel];if(!L2)return;
       if(a==='menos')_fgLgTam(_fgLgPct(L2)-10);
       else if(a==='mas')_fgLgTam(_fgLgPct(L2)+10);
@@ -12456,9 +12487,10 @@ function _fgLgHerr(capa){
   var prev=document.querySelector('.prev');
   if(prev&&h.parentNode!==prev)prev.appendChild(h);
   h.hidden=false;
-  var nm=document.getElementById('fg-lg-herr-nom');if(nm)nm.textContent=(L.tipo==='txt'?'Texto: ':'')+(L.t||'Logo');
+  var nG=_fgLgElegidos().length;
+  var nm=document.getElementById('fg-lg-herr-nom');if(nm)nm.title=nG>1?'Shift + clic suma o saca un logo':'';if(nm)nm.textContent=nG>1?(nG+' elegidos'):((L.tipo==='txt'?'Texto: ':'')+(L.t||'Logo'));
   var r=document.getElementById('fg-lg-tam');if(r&&document.activeElement!==r)r.value=_fgLgPct(L);
-  var cb=h.querySelector('button[data-a=cambiar]');if(cb)cb.textContent=(L.tipo==='txt')?'Editar texto':'Cambiar';
+  var cb=h.querySelector('button[data-a=cambiar]');if(cb){cb.textContent=(L.tipo==='txt')?'Editar texto':'Cambiar';cb.hidden=nG>1;}
   var pc=document.getElementById('fg-lg-pct');if(pc)pc.textContent=_fgLgPct(L)+'%';
 }
 // Pantalla → px de la imagen original. null si cae en el hueco que abre fgDrawAll.
@@ -12534,11 +12566,13 @@ function _fgLgMarcas(){
   // redibujar (si se la sacara del documento, la regla se soltaría al arrastrarla).
   var mk=document.getElementById('fg-lg-mk');
   if(!mk){mk=document.createElement('div');mk.id='fg-lg-mk';capa.appendChild(mk);}
-  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLgHerr(capa);return;} // (_fgLgHerr la esconde)
+  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLg.grupo=[];_fgLgHerr(capa);return;} // (_fgLgHerr la esconde)
+  if(_fgLg.sel<0)_fgLg.grupo=[];
+  var eleg=_fgLgElegidos();if(eleg.length<2)_fgLg.grupo=[];
   mk.innerHTML=_fgLgActivos().map(function(e,i){
     // logo nuevo: su recuadro (se mueve con él); lugar vacío: lo que se tapó
     var p=_fgLgAjustable(e)?_fgLgAPantalla(e.tx,e.ty,e.tw,e.th):_fgLgAPantalla(e.x,e.y,e.w,e.h);
-    return '<div class="fg-lg-marca'+(i===_fgLg.sel?' elegido':'')+'" style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
+    return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+'" style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
   }).join('')+'<div class="fg-lg-sel" id="fg-lg-sel" hidden></div>';
   _fgLgHerr(capa);
 }
@@ -12558,6 +12592,15 @@ function _fgLgElegirPunto(cx,cy){
   if(det.error==='grande'){showToast('Ahí no encontré un logo suelto. Arrastrá un recuadro alrededor del logo para marcarlo.');return;}
   if(det.error){showToast('Ahí no hay ningún logo. Tocá justo encima del logo que querés cambiar.');return;}
   _fgLgAbrir(det);
+}
+function _fgLgElegirVarios(ax,ay,bx,by){
+  var a=_fgLgAImagen(Math.min(ax,bx),Math.min(ay,by)),b=_fgLgAImagen(Math.max(ax,bx),Math.max(ay,by));if(!a||!b)return;
+  var g=_fgLgElegidos().slice();
+  _fgLgActivos().forEach(function(e,i){
+    if(_fgLgAjustable(e)&&e.tx<b.x&&e.tx+e.tw>a.x&&e.ty<b.y&&e.ty+e.th>a.y&&g.indexOf(i)<0)g.push(i);
+  });
+  if(!g.length){showToast('Ahí no hay logos cambiados para elegir.');return;}
+  _fgLg.grupo=g;_fgLg.sel=g[g.length-1];_fgLgListo();
 }
 function _fgLgElegirRecuadro(ax,ay,bx,by){
   var a=_fgLgAImagen(Math.min(ax,bx),Math.min(ay,by)),b=_fgLgAImagen(Math.max(ax,bx),Math.max(ay,by));
@@ -13053,15 +13096,23 @@ function _fgFrDetectar(x,y,w,h){
   return {bg:_fgLgRgb(bg),n:logos.length,filas:filas,porFila:filas.reduce(function(m,f){return Math.max(m,f.n);},0),medH:hs.length?hs[hs.length>>1]:0};
 }
 // Lugares para n logos con "cols" por fila (0 = automático: se reparten parejo
-// en las mismas filas que el original, sin pasar de los que había por fila; 8
-// logos en una franja de 2 filas → 4 y 4, no 7 y 1). Si quedan las mismas filas que en
-// el original, se usan sus alturas; si no, se reparten parejo en el recuadro.
+// en las mismas filas que el original; 8 logos en una franja de 2 filas → 4 y 4,
+// no 7 y 1; 20 en una de 2 filas de 7 → 10 y 10). Sólo se suma una fila si por
+// fila quedarían más de 1,5 veces los que había. Si quedan las mismas filas que
+// en el original, se usan sus alturas; si no, se reparten parejo DENTRO de la
+// zona donde estaban los logos (no en todo el recuadro: si el recuadro agarra
+// parte del título o del texto de abajo, la fila nueva los pisaba).
 // La última fila, si queda corta, va centrada.
 function _fgFrLugares(st,n){
   var r=st.rect,info=st.info,cols=st.cols;
   if(!cols){
     var F=info.filas.length;
-    cols=F?Math.min(info.porFila,Math.ceil(n/F)):Math.min(6,Math.max(1,n));
+    if(!F)cols=Math.min(6,Math.max(1,n));
+    else{
+      var tope=Math.max(info.porFila,Math.floor(info.porFila*1.5)),nf=F;
+      while(Math.ceil(n/nf)>tope)nf++;
+      cols=Math.ceil(n/nf);
+    }
   }
   cols=Math.max(1,Math.min(cols,n||1));
   var filas=Math.max(1,Math.ceil(n/cols)),cys=[],paso;
@@ -13069,8 +13120,13 @@ function _fgFrLugares(st,n){
     cys=info.filas.map(function(f){return f.cy;});
     paso=filas>1?(cys[filas-1]-cys[0])/(filas-1):r.h;
   }else{
-    paso=r.h/filas;
-    for(var k=0;k<filas;k++)cys.push(r.y+paso*(k+0.5));
+    var F0=info.filas,ya=r.y,yb=r.y+r.h;
+    if(F0.length>1){
+      var p0=(F0[F0.length-1].cy-F0[0].cy)/(F0.length-1);
+      ya=Math.max(r.y,F0[0].cy-p0/2);yb=Math.min(r.y+r.h,F0[F0.length-1].cy+p0/2);
+    }
+    paso=(yb-ya)/filas;
+    for(var k=0;k<filas;k++)cys.push(ya+paso*(k+0.5));
   }
   var celda=r.w/cols,alto=Math.min(paso*0.82,info.medH?info.medH*1.15:paso*0.7),ancho=celda*0.86,out=[];
   for(var i=0;i<n;i++){
@@ -13277,7 +13333,7 @@ function _fgFrAbrir(rect,reuso){
     var it=e.target.closest&&e.target.closest('.fg-lg-it');if(!it)return;
     var p=st.res[+it.getAttribute('data-i')];if(!p)return;
     var i=_fgFrIdx(p.imagen);
-    if(i>=0){st.sel.splice(i,1);st.elegido=st.elegido===i?-1:(st.elegido>i?st.elegido-1:st.elegido);}
+    if(i>=0){st.sel.splice(i,1);st.grupo=[];st.elegido=st.elegido===i?-1:(st.elegido>i?st.elegido-1:st.elegido);}
     else{
       if(st.sel.length>=_FG_FR_MAX){showToast('Hasta '+_FG_FR_MAX+' logos por franja.');return;}
       st.sel.push({img:p.imagen,t:p.titulo});
@@ -13295,9 +13351,12 @@ function _fgFrAbrir(rect,reuso){
       // tocar una fila marca su logo en la vista previa (salvo que recién se haya arrastrado)
       var fila=e.target.closest&&e.target.closest('.fg-fr-it');
       if(!fila||Date.now()-(box._soltado||0)<350)return;
-      var j=+fila.getAttribute('data-i');st.elegido=st.elegido===j?-1:j;_fgFrPreview();return;
+      var j=+fila.getAttribute('data-i');
+      if(e.shiftKey)_fgFrGrupoTocar(st,j);
+      else{st.grupo=[];st.elegido=st.elegido===j?-1:j;}
+      _fgFrPreview();return;
     }
-    var i=+b.getAttribute('data-i'),a=b.getAttribute('data-a'),S=st.sel,cur=S[st.elegido];
+    var i=+b.getAttribute('data-i'),a=b.getAttribute('data-a'),S=st.sel,cur=S[st.elegido];st.grupo=[];
     if(a==='arr'&&i>0){var x=S[i];S[i]=S[i-1];S[i-1]=x;cur=x;}
     else if(a==='aba'&&i<S.length-1){var y=S[i];S[i]=S[i+1];S[i+1]=y;cur=y;}
     else if(a==='x')S.splice(i,1);
@@ -13322,6 +13381,12 @@ function _fgFrAbrir(rect,reuso){
   setTimeout(function(){try{q.focus();}catch(e){}},30);
   if(_promosCat)_fgFrFiltros();
   else loadPromosCatalogo(function(){if(_fgFrSt===st)_fgFrFiltros();});
+}
+// Logos elegidos en la vista previa: con Shift, varios (st.grupo); si no, st.elegido.
+function _fgFrElegidos(st){
+  var g=(st.grupo||[]).filter(function(i){return i>=0&&i<st.sel.length;});
+  if(g.length>1)return g;
+  return (st.elegido!=null&&st.elegido>=0&&st.elegido<st.sel.length)?[st.elegido]:[];
 }
 function _fgFrIdx(img){var S=_fgFrSt?_fgFrSt.sel:[];for(var i=0;i<S.length;i++)if(S[i].img===img)return i;return -1;}
 function _fgFrFiltros(){
@@ -13355,23 +13420,24 @@ function _fgFrSelPintar(){
   var n=st.sel.length;
   if(ok)ok.textContent=n?('Poner '+n+(n===1?' logo':' logos')):'Poner logos';
   box.innerHTML=n?st.sel.map(function(s,i){
-    return '<div class="fg-fr-it'+(st.elegido===i?' sel':'')+'" data-i="'+i+'" title="Tocala para marcar el logo en la vista previa"><span class="fg-fr-mango" aria-hidden="true" title="Mantené apretado y arrastrá para cambiar el orden">&#10303;</span><b>'+(i+1)+'</b>'+
+    return '<div class="fg-fr-it'+(_fgFrElegidos(st).indexOf(i)>=0?' sel':'')+'" data-i="'+i+'" title="Tocala para marcar el logo en la vista previa (con Shift, varios)"><span class="fg-fr-mango" aria-hidden="true" title="Mantené apretado y arrastrá para cambiar el orden">&#10303;</span><b>'+(i+1)+'</b>'+
       '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+s.img)+'"></span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
       '<button type="button" data-a="arr" data-i="'+i+'" aria-label="Subir"'+(i===0?' disabled':'')+'>&uarr;</button>'+
       '<button type="button" data-a="aba" data-i="'+i+'" aria-label="Bajar"'+(i===n-1?' disabled':'')+'>&darr;</button>'+
       '<button type="button" data-a="x" data-i="'+i+'" aria-label="Quitar">&times;</button></div>';
   }).join(''):'<div class="fg-fr-vac">Tild&aacute; marcas a la izquierda. El orden en que las tild&aacute;s es el orden en el flyer.</div>';
-  st._marcado=st.elegido;
+  st._marcado=_fgFrElegidos(st).join(',');
   _fgFrDragInit();
 }
 // Resalta en "Tu selección" la fila del logo marcado en la vista previa
 // (sin rearmar la lista) y la trae a la vista si estaba escondida.
 function _fgFrSelMarcar(){
-  var st=_fgFrSt,box=document.getElementById('fg-fr-sel');if(!st||!box||st._marcado===st.elegido)return;
-  st._marcado=st.elegido;
+  var st=_fgFrSt,box=document.getElementById('fg-fr-sel');if(!st||!box)return;
+  var g=_fgFrElegidos(st),clave=g.join(',');if(st._marcado===clave)return;
+  st._marcado=clave;
   Array.prototype.forEach.call(box.querySelectorAll('.fg-fr-it'),function(f){
-    var on=+f.getAttribute('data-i')===st.elegido;f.classList.toggle('sel',on);
-    if(on)try{f.scrollIntoView({block:'nearest'});}catch(e){}
+    var i=+f.getAttribute('data-i'),on=g.indexOf(i)>=0;f.classList.toggle('sel',on);
+    if(i===st.elegido)try{f.scrollIntoView({block:'nearest'});}catch(e){}
   });
 }
 // ·· Ordenar "Tu selección" arrastrando ··
@@ -13401,7 +13467,7 @@ function _fgFrDragInit(){
     box._soltado=Date.now();
     if(soltar&&st&&x.to!=null&&x.to!==x.from&&x.to!==x.from+1){
       var it=st.sel.splice(x.from,1)[0],dest=x.to>x.from?x.to-1:x.to;
-      st.sel.splice(dest,0,it);st.elegido=dest; // queda marcado el que se movió
+      st.sel.splice(dest,0,it);st.elegido=dest;st.grupo=[]; // queda marcado el que se movió
       _fgFrLista();_fgFrSelPintar();_fgFrPreview();
     }
   }
@@ -13456,13 +13522,13 @@ function _fgFrPreview(){
   g.fillStyle=st.info.bg;g.fillRect(r.x,r.y,r.w,r.h);
   var lug=_fgFrLugares(st,st.sel.length);
   st._vista={x0:x0,y0:y0,ancho:x1-x0};st._cajas=[];
-  var nums=[];
+  var nums=[],eleg=_fgFrElegidos(st);
   st.sel.forEach(function(s,i){
     var im=_fgLg.imgs[s.img],l=lug[i];
     if(im){
       var d=_fgFrAjustar(st,s,_fgFrEncajar(l,im.width/im.height));
       g.drawImage(im,d.tx,d.ty,d.tw,d.th);st._cajas[i]=d;nums.push({i:i,x:d.tx,y:d.ty});
-      if(st.elegido===i){g.save();g.setLineDash([6*u,4*u]);g.lineWidth=2*u;g.strokeStyle='#F26122';g.strokeRect(d.tx-3*u,d.ty-3*u,d.tw+6*u,d.th+6*u);g.restore();}
+      if(eleg.indexOf(i)>=0){g.save();g.setLineDash([6*u,4*u]);g.lineWidth=2*u;g.strokeStyle='#F26122';g.strokeRect(d.tx-3*u,d.ty-3*u,d.tw+6*u,d.th+6*u);g.restore();}
     }
     else{g.fillStyle='rgba(128,128,128,.18)';g.fillRect(l.cx-l.h*0.6,l.cy-l.h*0.4,l.h*1.2,l.h*0.8);
       g.fillStyle='#777';g.font='600 '+Math.round(l.h*0.35)+'px Figtree,Arial';g.textAlign='center';g.textBaseline='middle';g.fillText(String(i+1),l.cx,l.cy);}
@@ -13471,7 +13537,7 @@ function _fgFrPreview(){
   var R=8*u;g.font='800 '+(10*u)+'px Figtree,Arial';g.textAlign='center';g.textBaseline='middle';
   nums.forEach(function(n){
     var cx=Math.max(x0+R+u,n.x),cy=Math.max(y0+R+u,n.y);
-    g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fillStyle=st.elegido===n.i?'#C2410C':'#F26122';g.fill();
+    g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fillStyle=eleg.indexOf(n.i)>=0?'#C2410C':'#F26122';g.fill();
     g.lineWidth=1.5*u;g.strokeStyle='#fff';g.stroke();g.fillStyle='#fff';g.fillText(String(n.i+1),cx,cy+0.5*u);
   });
   _fgFrAjustePintar();_fgFrSelMarcar();
@@ -13490,18 +13556,23 @@ function _fgFrPrevInit(st){
     var p=aImagen(e);if(!p)return;
     var hit=-1,C=st._cajas||[];
     for(var i=C.length-1;i>=0;i--){var c=C[i];if(c&&p.x>=c.tx-6&&p.x<=c.tx+c.tw+6&&p.y>=c.ty-6&&p.y<=c.ty+c.th+6){hit=i;break;}}
+    if(hit<0){if(!e.shiftKey){st.elegido=-1;st.grupo=[];}_fgFrPreview();return;}
+    e.preventDefault();
+    var g=_fgFrElegidos(st);
+    if(e.shiftKey){
+      // Shift: suma o saca ese logo; si lo sacó, no hay nada que arrastrar
+      _fgFrGrupoTocar(st,hit);g=_fgFrElegidos(st);
+      if(g.indexOf(hit)<0){_fgFrPreview();return;}
+    }else if(g.indexOf(hit)<0){st.grupo=[];g=[hit];}
     st.elegido=hit;
-    if(hit>=0){
-      e.preventDefault();
-      var s=st.sel[hit];arr={i:hit,x:e.clientX,y:e.clientY,dx:s.dx||0,dy:s.dy||0,k:p.k,id:e.pointerId};
-      try{cv2.setPointerCapture(e.pointerId);}catch(x){}
-    }
+    arr={x:e.clientX,y:e.clientY,k:p.k,id:e.pointerId,pos:g.map(function(j){var s=st.sel[j];return {s:s,dx:s.dx||0,dy:s.dy||0};})};
+    try{cv2.setPointerCapture(e.pointerId);}catch(x){}
     _fgFrPreview();
   });
   cv2.addEventListener('pointermove',function(e){
     if(!arr||e.pointerId!==arr.id||_fgFrSt!==st)return;
-    var s=st.sel[arr.i];if(!s)return;
-    s.dx=Math.round(arr.dx+(e.clientX-arr.x)*arr.k);s.dy=Math.round(arr.dy+(e.clientY-arr.y)*arr.k);
+    var ddx=(e.clientX-arr.x)*arr.k,ddy=(e.clientY-arr.y)*arr.k;
+    arr.pos.forEach(function(p){p.s.dx=Math.round(p.dx+ddx);p.s.dy=Math.round(p.dy+ddy);});
     _fgFrPreview();
   });
   function fin(){arr=null;}
@@ -13509,17 +13580,28 @@ function _fgFrPrevInit(st){
   aj.addEventListener('input',function(e){
     if(_fgFrSt!==st)return;
     if(e.target.id==='fg-fr-kt'){st.kt=(+e.target.value||100)/100;_fgFrPreview();}
-    else if(e.target.id==='fg-fr-k1'){var s=st.sel[st.elegido];if(s){s.k=(+e.target.value||100)/100;_fgFrPreview();}}
+    else if(e.target.id==='fg-fr-k1'){
+      var s=st.sel[st.elegido];if(!s)return;
+      var nk=(+e.target.value||100)/100,f=nk/(s.k||1);
+      _fgFrElegidos(st).forEach(function(j){var o=st.sel[j];o.k=j===st.elegido?nk:Math.max(0.4,Math.min(2.5,Math.round((o.k||1)*f*100)/100));});
+      _fgFrPreview();
+    }
   });
   aj.addEventListener('click',function(e){
     var b=e.target.closest&&e.target.closest('button[data-aj]');if(!b||_fgFrSt!==st)return;
-    var s=st.sel[st.elegido];if(!s)return;
-    var a=b.getAttribute('data-aj');
-    if(a==='menos')s.k=Math.max(0.4,Math.round(((s.k||1)-0.1)*100)/100);
-    else if(a==='mas')s.k=Math.min(2.5,Math.round(((s.k||1)+0.1)*100)/100);
-    else if(a==='lugar'){s.dx=0;s.dy=0;s.k=1;}
+    var a=b.getAttribute('data-aj'),G=_fgFrElegidos(st);if(!G.length)return;
+    G.forEach(function(j){var s=st.sel[j];
+      if(a==='menos')s.k=Math.max(0.4,Math.round(((s.k||1)-0.1)*100)/100);
+      else if(a==='mas')s.k=Math.min(2.5,Math.round(((s.k||1)+0.1)*100)/100);
+      else if(a==='lugar'){s.dx=0;s.dy=0;s.k=1;}
+    });
     _fgFrPreview();
   });
+}
+function _fgFrGrupoTocar(st,i){
+  var g=_fgFrElegidos(st).slice(),j=g.indexOf(i);
+  if(j>=0)g.splice(j,1);else g.push(i);
+  st.grupo=g;st.elegido=g.length?g[g.length-1]:-1;
 }
 // Ajuste a mano de un logo de la franja, hecho en la vista previa de la ventana:
 // s.dx/s.dy = cuánto se corrió de su lugar (px de imagen) y s.k = su tamaño
@@ -13535,20 +13617,21 @@ function _fgFrAjustePintar(){
   var kt=Math.round((st.kt||1)*100);
   var todos='<div class="fg-fr-aj-fila"><span class="fg-fr-aj-l">Tama&ntilde;o de todos</span>'+
     '<input type="range" id="fg-fr-kt" min="60" max="150" step="5" value="'+kt+'" aria-label="Tama&ntilde;o de todos los logos"><span class="fg-fr-aj-v">'+kt+'%</span></div>';
-  var uno=s?('<div class="fg-fr-aj-fila fg-fr-aj-uno"><span class="fg-fr-aj-l"><b>'+(i+1)+'.</b> '+_escHtml(s.t)+'</span>'+
+  var nG=_fgFrElegidos(st).length;
+  var uno=s?('<div class="fg-fr-aj-fila fg-fr-aj-uno"><span class="fg-fr-aj-l">'+(nG>1?'<b>'+nG+' elegidos</b>':'<b>'+(i+1)+'.</b> '+_escHtml(s.t))+'</span>'+
       '<button type="button" data-aj="menos" aria-label="M&aacute;s chico">&minus;</button>'+
       '<input type="range" id="fg-fr-k1" min="40" max="250" step="5" value="'+Math.round((s.k||1)*100)+'" aria-label="Tama&ntilde;o de este logo">'+
       '<button type="button" data-aj="mas" aria-label="M&aacute;s grande">+</button><span class="fg-fr-aj-v">'+Math.round((s.k||1)*100)+'%</span>'+
-      '<button type="button" data-aj="lugar" class="fg-fr-aj-lugar" title="Vuelve a su lugar y a su tama&ntilde;o">Volver a su lugar</button></div>'):
-    '<div class="fg-fr-aj-tip">Toc&aacute; un logo de la vista previa y arrastralo para acomodarlo; ac&aacute; abajo le cambi&aacute;s el tama&ntilde;o.</div>';
+      '<button type="button" data-aj="lugar" class="fg-fr-aj-lugar" title="Vuelve a su lugar y a su tama&ntilde;o">'+(nG>1?'Volver a su lugar':'Volver a su lugar')+'</button></div>'):
+    '<div class="fg-fr-aj-tip">Toc&aacute; un logo de la vista previa y arrastralo para acomodarlo (con <b>Shift</b> eleg&iacute;s varios); ac&aacute; abajo le cambi&aacute;s el tama&ntilde;o.</div>';
   // no se rearma mientras se arrastra una regla (se soltaría)
   var act=document.activeElement;
-  if(act&&box.contains(act)&&act.type==='range'){
+  if(act&&box.contains(act)&&act.type==='range'&&box._nG===nG){
     var v=box.querySelectorAll('.fg-fr-aj-v');if(v[0])v[0].textContent=kt+'%';
     if(s&&v[1])v[1].textContent=Math.round((s.k||1)*100)+'%';
     return;
   }
-  box.innerHTML=uno+todos;
+  box._nG=nG;box.innerHTML=uno+todos;
 }
 // Aplica: tapa la franja entera y pone los logos. Los cambios que había adentro
 // (de antes) se reemplazan.
