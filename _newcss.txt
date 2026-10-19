@@ -1607,3 +1607,56 @@ html.dark #fg-optbar .fgp.on{background:#2c2f36;}
 .fg-lg-herr-nom{font-size:.75rem;font-weight:700;color:var(--ink);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;}
 .fg-lg-herr .fg-lg-herr-x{min-width:30px;font-size:1rem;color:var(--gray);}
 @media (max-width:900px){.fg-lg-herr{bottom:72px;}.fg-lg-herr-nom{max-width:100%;flex-basis:100%;}}
+/* ── Armar franja: vista previa arriba, a todo el ancho y con tamaño fijo ── */
+.fg-cf.fg-fr{width:min(1200px,96vw);height:94vh;max-height:94vh;}
+.fg-fr-arriba{flex-shrink:0;display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.fg-fr-arr-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.fg-fr-amp{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--ink);font-size:.75rem;font-weight:700;cursor:pointer;}
+.fg-fr-amp:hover,.fg-fr-amp[aria-pressed=true]{border-color:var(--accent);color:var(--accent-2);}
+.fg-fr-amp .ico{width:14px;height:14px;}
+.fg-fr-prevbox{display:flex;justify-content:center;align-items:center;border:1px solid var(--border);border-radius:10px;background:#fff;overflow:hidden;line-height:0;}
+.fg-fr-prevbox canvas{width:auto;max-width:100%;height:auto;}
+.fg-fr-ctrl{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+.fg-fr-ctrl .fg-fr-ajuste{flex:1 1 420px;min-width:0;}
+.fg-fr-ctrl .fg-fr-por{flex-shrink:0;padding-top:4px;}
+.fg-fr-cols{margin-top:10px;}
+.fg-fr-izq .fg-lg-list{min-height:120px;}
+.fg-fr-der{padding-top:0;overflow:hidden;}
+.fg-fr-der .fg-fr-sel{flex:1 1 auto;min-height:0;overflow:auto;padding:2px 4px 2px 0;}
+.fg-fr-it{min-height:44px;cursor:pointer;}
+.fg-fr-it b{font-size:.9375rem;min-width:22px;text-align:center;}
+.fg-fr-mini{flex:0 0 52px !important;width:52px;height:32px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.fg-fr-mini img{max-width:46px;max-height:28px;object-fit:contain;display:block;}
+.fg-fr-it.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-ring);background:var(--accent-soft);}
+html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
+@media (max-width:900px){
+  .fg-cf.fg-fr{height:auto;}
+  .fg-fr-arriba{position:sticky;top:-16px;z-index:4;background:var(--card);margin-left:-14px;margin-right:-14px;padding:10px 14px 10px;box-shadow:0 6px 10px -8px rgba(0,0,0,.25);}
+  .fg-fr-cols{display:flex;flex-direction:column;}
+  .fg-fr-cols{flex:none;}
+  .fg-fr-izq,.fg-fr-der{flex:none;min-height:auto;}
+  .fg-fr-der{order:-1;overflow:visible;}
+  .fg-fr-der .fg-fr-sel{overflow:visible;}
+  .fg-fr-ctrl{gap:6px;}
+  .fg-fr-ctrl .fg-fr-ajuste{flex-basis:100%;}
+  .fg-fr-arr-h .fg-fr-l span,.fg-fr-aj-tip{display:none;}
+}
+.fg-fr-amp[hidden]{display:none;}
+/* ── Cambiar logos: Deshacer / Rehacer y "Vista previa" limpia ── */
+.fg-lg-hist{display:inline-flex;gap:0;border-radius:20px;box-shadow:var(--sh-1);}
+.fg-lg-hist .fg-lg-hb{display:inline-flex;align-items:center;gap:5px;box-shadow:none;}
+.fg-lg-hist .fg-lg-hb[hidden]{display:none;}
+.fg-lg-hist .fg-lg-hb:first-child{border-radius:20px 0 0 20px;}
+.fg-lg-hist .fg-lg-hb:last-child{border-radius:0 20px 20px 0;border-left:0;}
+.fg-lg-hb .ico,.fg-lg-ver .ico{width:14px;height:14px;}
+.fg-lg-hb:disabled{color:var(--gray);border-color:var(--border);cursor:default;opacity:.7;}
+.fg-lg-hb:not(:disabled):hover,.fg-lg-ver:hover{background:var(--accent-soft);}
+.fg-lg-ver{display:inline-flex;align-items:center;gap:5px;}
+.fg-lg-ver[hidden]{display:none;}
+.fg-lg-ver.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.prev.fg-lg-limpio #fg-lg-capa,.prev.fg-lg-limpio #fg-lg-herr,.prev.fg-lg-limpio .fg-lg-bar>*:not(#fg-lg-ver):not(#fg-lg-btn){display:none !important;}
+.prev.fg-lg-limpio.fg-lg-on #cv{cursor:default;}
+.fg-lg-marca.flash{animation:fgLgFlash 1.3s ease-out;}
+@keyframes fgLgFlash{0%,40%{box-shadow:0 0 0 6px rgba(242,97,34,.55);background:rgba(242,97,34,.18);}100%{box-shadow:0 0 0 0 rgba(242,97,34,0);background:transparent;}}
+@media (prefers-reduced-motion:reduce){.fg-lg-marca.flash{animation:none;outline:3px solid var(--accent);}}
+@media (max-width:900px){.fg-lg-hb span{display:none;}}
