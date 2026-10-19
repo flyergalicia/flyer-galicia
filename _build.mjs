@@ -1170,6 +1170,7 @@ const checks = {
   // `solapa` ('flyer'|'rubros'); las de rubros dibujan el cartel "¡Beneficio
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
   // textos fijos editables) y muestran los dos campos en el formulario.
+  'recortar: quita una parte, corre la calibracion y apaga los importes': _authSrc.includes('function _fgRecArte(') && _authSrc.includes('function _fgRecCfg(') && _authSrc.includes('function fgRecAplicar(') && _authSrc.includes('function fgRecQuitar(') && _authSrc.includes('if(M.off)return;') && _authSrc.includes('if(K.off)return;') && /function _fgApplyOption\(cache\)\{\s*_fgRecOlvidar\(\);/.test(_authSrc) &&_authSrc.includes('_fgRecCfg(meta.cfg||{},cortes,'),
   'logos: guias con iman, alinear/repartir, duplicar y quitar': _authSrc.includes('function _fgLgGuias(') && _authSrc.includes('function _fgLgAlinear(') && _authSrc.includes('function _fgLgRepartir(') && _authSrc.includes('function _fgLgPegar(') && _authSrc.includes('function _fgLgQuitarElegidos('),
   'logos: Shift elige varios (flyer y franja) y la franja reparte en las filas originales': _authSrc.includes('function _fgLgElegidos(') && _authSrc.includes('function _fgLgGrupoTocar(') && _authSrc.includes('function _fgFrElegidos(') && _authSrc.includes('while(Math.ceil(n/nf)>tope)nf++;'),
   'logos: deshacer/rehacer de a un paso y Ver limpio': _authSrc.includes('function _fgLgHistMarcar(') && _authSrc.includes('function fgLgDeshacer(') && _authSrc.includes('function fgLgRehacer(') && _authSrc.includes('_fgLgBarra();_fgLgMarcas();_fgLgHistPronto();') && _authSrc.includes('function fgLgLimpio(') && _authSrc.includes('if(!_fgLg.on||_fgLg.limpio||e.button!==0)return;') && _authSrc.includes('function _fgFrSelMarcar('),
@@ -1185,7 +1186,7 @@ const checks = {
   // fondo (mismo criterio que fgDrawMontos): si el PDF trae un importe impreso
   // debajo, no se asoma. Y el mayor se compara por digitos devolviendo el string
   // tal cual, asi el naranja del flyer y {cashback} en el legal dicen lo mismo.
-  'sueldo: sin cashback tapa igual con el fondo real': _authSrc.includes("var txt=v.nocb?'':_fgMontoMayor(v);") && _authSrc.includes('if(!txt)return;') && _authSrc.includes('c.fillStyle=_fgBgMuestra(K.xc-K.mw/2,K.xc+K.mw/2,') && _authSrc.includes("if(!v||v.nocb)return '';") && _authSrc.includes('function _fgMontoDig('),
+  'sueldo: sin cashback tapa igual con el fondo real': _authSrc.includes("var txt=v.nocb?'':_fgMontoMayor(v);") && _authSrc.includes('if(!txt)return;') && _authSrc.includes('c.fillStyle=_fgBgMuestra(K.xc-K.mw/2,K.xc+K.mw/2,') && _authSrc.includes("if(!v||v.nocb||_fgSinImportes())return '';") && _authSrc.includes('function _fgMontoDig('),
   // Las solapas del armador salen de UN registro (_SOLAPAS): sumar una es una
   // entrada ahi + su div en el header (arriba). Los includes negativos son para
   // que no vuelva a aparecer un 'rubros' escrito a mano en el mecanismo.
@@ -1495,7 +1496,7 @@ const checks = {
   'perf: legal de la opcion en paralelo con sus datos': /var legalP=loadGlobalLegal\(false,opt\);\s*_fetchActiveMeta\(opt,/.test(_authSrc),
   // La imagen (y el mapa) de la Opción 1 que llegan tarde no tapan a la opción
   // que el perfil ya tiene en pantalla.
-  'arranque: la Opcion 1 no pisa a otra opcion': _authSrc.includes('if(_optN(_fgOpt)!==1)return;') && _authSrc.includes('if(cfg&&_optN(_fgOpt)===1)window.FLYER_CFG=cfg;') && _authSrc.includes("||!_can('opcion_'+_optN(_fgOpt))){"),
+  'arranque: la Opcion 1 no pisa a otra opcion': _authSrc.includes('if(_optN(_fgOpt)!==1)return;') && _authSrc.includes('if(cfg&&_optN(_fgOpt)===1){_fgRecOlvidar();window.FLYER_CFG=cfg;}') && _authSrc.includes("||!_can('opcion_'+_optN(_fgOpt))){"),
   'ux: Ingresando con sesion guardada (sin el formulario)': html.includes('id="lv-boot"') && html.includes(`localStorage.getItem('${SB_SESSION_KEY}'))_h.classList.add('fg-boot')`) && html.includes('html.fg-boot #lv-login') && _authSrc.includes('function _bootFin(') && (_authSrc.match(/_bootFin\(\)/g) || []).length >= 5,
   // La caché de un año va SÓLO en archivos de nombre único (llevan la hora): uno
   // de nombre fijo que se re-sube se seguiría viendo viejo un año.

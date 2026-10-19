@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=2ced6c6c96","integrity":"sha384-Srwn/dWQo1eBmF0E6Qs8wcAcT1UlnYdsg43tQo1VJ+xiCHaJ4ct6q83ehewaNy+T"}}'>
-<meta name="build-v" content="86fddf1f6b">
+<meta name="build-v" content="5aeca92c8c">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1786,8 +1786,21 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 .fg-lg-alin button[hidden]{display:none;}
 .fg-lg-herr button[data-a=quitar]:hover{border-color:#DC2626;color:#DC2626;}
 @media (max-width:900px){.fg-lg-alin button span,.fg-lg-herr button[data-a=dup] span{display:none;}}
+/* Recortar una parte del flyer */
+.prev.fg-rec-on #cv{cursor:row-resize;touch-action:none;}
+.fg-rec-banda{position:absolute;left:0;right:0;background:rgba(220,38,38,.16);border-top:2px dashed #DC2626;border-bottom:2px dashed #DC2626;pointer-events:none;z-index:3;}
+.fg-rec-banda span{position:absolute;right:8px;top:6px;background:#DC2626;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;}
+.fg-rec-conf{position:sticky;bottom:16px;align-self:center;margin-top:12px;z-index:8;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:calc(100% - 16px);padding:10px 12px;background:var(--card);color:var(--ink);border:1px solid #F3B4B4;border-radius:12px;box-shadow:var(--sh-3,0 8px 24px rgba(0,0,0,.18));}
+.fg-rec-conf-t{flex:1 1 260px;font-size:.8125rem;line-height:1.4;}
+.fg-lg-rec.on{background:#DC2626;border-color:#DC2626;color:#fff;}
+.fg-rec-chip{display:inline-flex;align-items:center;gap:6px;}
+.fg-rec-volver{border:0;background:none;padding:0;color:var(--accent-2);font-size:.75rem;font-weight:700;text-decoration:underline;cursor:pointer;}
+.fg-card.fg-sin-importes>*:not(.sec):not(.fg-sin-imp-aviso){display:none !important;}
+.fg-sin-imp-aviso{font-size:.8125rem;color:var(--gray);line-height:1.45;padding:4px 2px;}
+@media (max-width:900px){.fg-rec-conf{bottom:72px;}}
+.fg-rec-chip[hidden]{display:none !important;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=5afea8769e"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=cf332568c5"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
