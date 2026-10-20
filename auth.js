@@ -6362,10 +6362,17 @@ function fgRenderHistory(){
 }
 // Si el ítem se generó en otra opción, cambio a esa opción ANTES de rehacer el PDF /
 // cargar los datos: si no, saldría con el flyer equivocado.
-function _fgWithOpt(o,fn2){
+function _fgWithOpt(o,fn2,_vuelta){
   o=_optN(o);
-  if(_can('opcion_'+o)&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,fn2);}
-  else if(_fgOptLoading[o])_fgOptLoading[o].push(fn2); // ya es la activa pero todavía carga: espero a que aplique
+  // Si mientras cargaba se eligió otra opción, la carga termina pero esa opción
+  // no queda aplicada: se vuelve a pedir antes de seguir (si no, el Masivo o
+  // "volver a descargar" salían con la imagen y el legal de la otra).
+  var listo=function(){
+    if(_optN(_fgOpt)!==o&&_can('opcion_'+o)&&(_vuelta||0)<3){_fgWithOpt(o,fn2,(_vuelta||0)+1);return;}
+    fn2();
+  };
+  if(_can('opcion_'+o)&&o!==_optN(_fgOpt)){showToast('Cambiando a '+_optLabel(o)+'...');switchFlyerOption(o,listo);}
+  else if(_fgOptLoading[o])_fgOptLoading[o].push(listo); // ya es la activa pero todavía carga: espero a que aplique
   else fn2();
 }
 function fgRedlPDF(i){
@@ -7575,10 +7582,17 @@ function fgGenAll(){
   var total=excelData.length,cur=0,zip=new JSZip(),usados={},errores=[];
   // Con versión "sin cashback" de la opción en pantalla: primero las filas con
   // cashback y después, en esa versión, las que no tienen (con su legal).
-  var origen=_optN(_fgOpt),V=(!_fgProtoActivo()&&!_fgRecActivo())?_fgVarianteSinCB(_fgOptBase(origen)):0,orden=[],corte=-1,cambiado=false;
+  // Funciona igual arrancando desde la original o desde la versión sin cashback:
+  // cada fila va a la que le toca y primero salen las de la opción en pantalla.
+  var origen=_optN(_fgOpt),libre=!_fgProtoActivo()&&!_fgRecActivo(),orden=[],corte=-1,cambiado=false,V=0;
+  var bOpt=_fgOptBase(origen),optSin=libre?(_fgVarianteSinCB(bOpt)||origen):origen;
+  var optCon=(libre&&origen!==bOpt&&_can('opcion_'+bOpt))?bOpt:origen;
   function _sinCB(row){return _padCfgOf(row.config||row.Config||'')<0;}
-  excelData.forEach(function(row,i){if(!V||!_sinCB(row))orden.push(i);});
-  if(V){corte=orden.length;excelData.forEach(function(row,i){if(_sinCB(row))orden.push(i);});if(corte>=orden.length||V===origen)V=0;}
+  function destinoDe(row){return _sinCB(row)?optSin:optCon;}
+  excelData.forEach(function(row,i){if(destinoDe(row)===origen)orden.push(i);});
+  corte=orden.length;
+  excelData.forEach(function(row,i){var dd=destinoDe(row);if(dd!==origen){orden.push(i);V=dd;}});
+  if(corte>=orden.length)V=0;
   var legalText=document.getElementById('legal-text').value;
   // Flyer Rubros: si la fila no trae importe, se usa el del formulario (uno para todos)
   var enRubros=!!_solCfg(_fgVista).benef,cashUnico=!!_solCfg(_fgVista).cashUnico,impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||''),imp2Form=_fgFmtImporte((document.getElementById('benef-importe2')||{}).value||'');

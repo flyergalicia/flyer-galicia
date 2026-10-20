@@ -570,9 +570,10 @@ Deno.serve(async (req: Request) => {
       // llamada no manda más mails.
       if (Date.now() - new Date(d.pedido_at).getTime() > 10 * 60 * 1000) return json({ ok: true });
       try {
-        const { data: ok1 } = await admin.rpc("rate_limit_hit", { p_clave: "estudio_pedido|" + id + "|" + d.pedido_at, p_max: 1, p_segundos: 30 * 24 * 3600 });
-        if (ok1 === false) return json({ ok: true });
-      } catch { /* sin tope disponible: igual vale el control de tiempo de arriba */ }
+        const { data: ok1, error: e1 } = await admin.rpc("rate_limit_hit", { p_clave: "estudio_pedido|" + id + "|" + d.pedido_at, p_max: 1, p_segundos: 30 * 24 * 3600 });
+        // ante la duda, no sale: el admin igual ve el numerito de pedidos en la solapa
+        if (e1 || ok1 === false) { if (e1) console.error("estudio_pedido:", e1.message); return json({ ok: true }); }
+      } catch (e) { console.error("estudio_pedido:", String((e as Error)?.message || e)); return json({ ok: true }); }
       avisar(await mailsAdmins(), MAILS.pedidoEstudio(limpiarNombre(d.autor), limpiarNombre(d.nombre), limpiarNombre(d.empresa), "Opción " + Number(d.opcion || 0)));
       return json({ ok: true });
     }

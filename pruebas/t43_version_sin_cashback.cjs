@@ -43,5 +43,18 @@ module.exports=async(browser)=>{
   ok(reg.zipOk&&reg.log.length===4,'el Masivo genera las 4 filas');
   ok(reg.log.filter(x=>/sin$/.test(x)).every(x=>/^(B|D) sin:10:sin$/.test(x))&&reg.log.filter(x=>/:con$/.test(x)).length===2,'las filas sin cashback salen con la versión sin cashback y las demás con la original');
   ok(reg.fin===9,'al terminar vuelve a la opción de origen');
+  // Masivo arrancando DESDE la versión sin cashback
+  await p.evaluate(()=>new Promise(r=>switchFlyerOption(10,r)));await p.waitForTimeout(500);
+  const reg2=await p.evaluate(async()=>{
+    window.excelData=[{empresa:'A con',config:'BAU',asesor1_nombre:'X'},{empresa:'B sin',config:'',asesor1_nombre:'Y'}];
+    const log=[];const fr=window.fullRes;window.fullRes=function(v){log.push(v.empresa+':'+_optN(_fgOpt)+':'+(_fgSinImportes()?'sin':'con'));return fr(v);};
+    const bb=window._fgBajarBlob;let zipOk=false;window._fgBajarBlob=function(b,n){zipOk=n;};
+    genAll();
+    for(let i=0;i<80&&!zipOk;i++)await new Promise(r=>setTimeout(r,250));
+    window.fullRes=fr;window._fgBajarBlob=bb;await new Promise(r=>setTimeout(r,1500));
+    return {log,fin:_optN(_fgOpt)};
+  });
+  console.log('  masivo desde la versión sin cashback:',JSON.stringify(reg2));
+  ok(reg2.log.includes('B sin:10:sin')&&reg2.log.includes('A con:9:con')&&reg2.fin===10,'desde la versión sin cashback: la empresa con cashback sale con la original y vuelve a la de origen');
   console.log('  errores:',p.errores.length,p.errores.slice(0,3));
 };
