@@ -13935,13 +13935,37 @@ function _fgFrAbrir(rect,reuso){
   if(reuso){st=_fgFrSt=reuso;previa=st.previa;rect=st.rect;}
   else{
     if(_fgElegir)fgElegirCancelar(true); // una franja nueva deja atrás la que se estaba eligiendo en Activas
+    // ¿ya había una franja armada en este lugar? Se retoma SÓLO si el centro de
+    // lo marcado cae adentro de ella (antes alcanzaba con pisarla más de la
+    // mitad: una franja nueva marcada justo abajo se tomaba como "editar la de
+    // arriba" y las marcas se mezclaban). Si no, el recuadro se recorta para no
+    // meterse en la otra franja.
+    var cxr=rect.x+rect.w/2,cyr=rect.y+rect.h/2;
+    previa=_fgLgActivos().filter(function(e){return e.franjaBase&&_fgFrSolapa(e,rect)>0.5&&cxr>=e.ox&&cxr<=e.ox+e.ow&&cyr>=e.oy&&cyr<=e.oy+e.oh;})[0]||null;
+    if(previa)rect={x:previa.ox,y:previa.oy,w:previa.ow,h:previa.oh,bg:previa.bg,corta:false};
+    else{
+      var recortado=false;
+      _fgLgActivos().forEach(function(e){
+        if(!e.franjaBase||_fgFrSolapa(e,rect)<=0)return;
+        var ecx=e.ox+e.ow/2,ecy=e.oy+e.oh/2,dx=Math.abs(cxr-ecx)/(e.ow+rect.w),dy=Math.abs(cyr-ecy)/(e.oh+rect.h);
+        if(dy>=dx){ // una arriba de la otra
+          if(ecy<cyr){var y0=e.oy+e.oh+4;rect.h-=Math.max(0,y0-rect.y);rect.y=Math.max(rect.y,y0);}
+          else{var y1=e.oy-4;rect.h=Math.min(rect.h,y1-rect.y);}
+        }else{      // una al lado de la otra
+          if(ecx<cxr){var x0=e.ox+e.ow+4;rect.w-=Math.max(0,x0-rect.x);rect.x=Math.max(rect.x,x0);}
+          else{var x1=e.ox-4;rect.w=Math.min(rect.w,x1-rect.x);}
+        }
+        recortado=true;
+      });
+      if(recortado){
+        if(rect.h<30||rect.w<60){showToast('Ese recuadro cae casi todo sobre una franja que ya armaste. Marcá la zona nueva sin pisarla.');return;}
+        showToast('Ajusté el recuadro para no pisar la franja que ya armaste.');
+      }
+    }
     var info;
     try{info=_fgFrDetectar(rect.x,rect.y,rect.w,rect.h);}catch(e){showToast('No se pudo leer el flyer.');return;}
-    // ¿ya había una franja armada en este lugar? se retoma su selección
-    previa=_fgLgActivos().filter(function(e){return e.franjaBase&&_fgFrSolapa(e,rect)>0.5;})[0]||null;
-    if(previa)rect={x:previa.ox,y:previa.oy,w:previa.ow,h:previa.oh,bg:previa.bg,corta:false};
     st=_fgFrSt={rect:rect,info:previa?previa.franjaInfo:info,previa:previa,
-      sel:previa?JSON.parse(JSON.stringify(previa.franjaSel||[])):[],cols:previa?(previa.franjaCols||0):0,kt:previa?(previa.franjaKt||1):1,elegido:-1,
+      sel:previa?_fgFrSelActual(previa):[],cols:previa?(previa.franjaCols||0):0,kt:previa?(previa.franjaKt||1):1,elegido:-1,
       q:'',rubro:'',prov:_fgLgV.prov||_promosProv||'',loc:_fgLgV.prov?(_fgLgV.loc||''):(_promosLoc||''),una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline,res:[],src:_fgLgSrc()};
     if(!previa)st.info.bg=rect.bg||st.info.bg;
     // lo elegido en Activas para una franja de otro flyer (ver fgElegirVolver)
@@ -14134,7 +14158,9 @@ function _fgFrSugerir(st){
   if(_fgFrSt!==st)return;
   var meta=(st.info&&st.info.n)||8,faltan=Math.max(0,Math.min(_FG_FR_MAX,meta)-st.sel.length);
   if(!faltan){showToast('La franja ya tiene sus '+meta+' lugares ocupados. Quitá alguna para que te sugiera otras.');return;}
-  var filtro=Object.assign({},st,{q:'',rubro:'',una:true});
+  // respeta los filtros elegidos: rubro (sólo ese), provincia y localidad (sólo
+  // las de ahí: con una zona elegida no se suman las online)
+  var filtro=Object.assign({},st,{q:'',una:true,sinOnline:!!(st.sinOnline||st.prov||st.loc)});
   var r=_fgPfFiltrar(filtro,function(){if(_fgFrSt===st)_fgFrSugerir(st);});
   if(r.cargando){showToast('Buscando las promos de la zona… en un momento sugiero.');return;}
   var ya={};st.sel.forEach(function(x){ya[x.img]=1;});
@@ -14150,8 +14176,21 @@ function _fgFrSugerir(st){
     res.forEach(function(p){if(p&&st.sel.length<tope&&_fgFrIdx(p.imagen)<0){st.sel.push({img:p.imagen,t:p.titulo,sug:true});puestas++;}});
     _fgFrLista();_fgFrSelPintar();_fgFrPreview();
     var donde=st.loc?_promoTitulizar(st.loc):(st.prov?_promoTitulizar(st.prov):'');
-    showToast(puestas?('Sugerimos '+puestas+(puestas===1?' marca':' marcas')+(donde?' de '+donde:'')+'. Quitá o reordená las que no van.'):'No se pudieron bajar los logos sugeridos. Probá de nuevo.');
+    var de=(st.rubro?' de '+st.rubro:'')+(donde?' en '+donde:'');
+    if(!puestas)showToast('No se pudieron bajar los logos sugeridos. Probá de nuevo.');
+    else if(st.sel.length<tope)showToast('Con esos filtros encontré '+puestas+(puestas===1?' marca':' marcas')+de+'; los otros lugares quedan para que elijas vos.');
+    else showToast('Sugerimos '+puestas+(puestas===1?' marca':' marcas')+de+'. Quitá o reordená las que no van.');
   });
+}
+// La selección de una franja ya armada, según lo que tiene HOY: si un logo se
+// borró (Supr) o se cambió por otra marca después de armarla, ya no vuelve al
+// retomarla. Se conservan el orden y los ajustes guardados (dx/dy/k).
+function _fgFrSelActual(base){
+  var guard=base.franjaSel||[],vivos=_fgLgActivos().filter(function(e){return e.franja===base.franja&&!e.franjaBase&&e.img;}),hay={};
+  vivos.forEach(function(e){hay[e.img]=1;});
+  var out=guard.filter(function(s){return hay[s.img];}).map(function(s){return JSON.parse(JSON.stringify(s));});
+  vivos.forEach(function(e){if(!out.some(function(s){return s.img===e.img;}))out.push({img:e.img,t:e.t});});
+  return out;
 }
 function _fgFrIdx(img){var S=_fgFrSt?_fgFrSt.sel:[];for(var i=0;i<S.length;i++)if(S[i].img===img)return i;return -1;}
 function _fgFrFiltros(){
@@ -14411,10 +14450,14 @@ function _fgFrAplicar(st){
     if(_fgFrSt!==st||_fgLgSrc()!==st.src)return null;
     if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
     var r=st.rect,fid=(st.previa&&st.previa.franja)||('fr'+Date.now());
+    var dentro=function(cx,cy){return cx>=r.x&&cx<=r.x+r.w&&cy>=r.y&&cy<=r.y+r.h;};
     _fgLg.list=_fgLg.list.filter(function(e){
       if(e.franja===fid)return false;
-      var cx=e.ox+e.ow/2,cy=e.oy+e.oh/2;
-      return !(cx>=r.x&&cx<=r.x+r.w&&cy>=r.y&&cy<=r.y+r.h);
+      if(e.franja)return true; // los de OTRA franja nunca se tocan
+      // lo de antes en esta zona se reemplaza: por su lugar original o por donde está dibujado
+      if(dentro(e.ox+e.ow/2,e.oy+e.oh/2))return false;
+      if(e.tx!=null&&!isNaN(e.tx)&&dentro(e.tx+e.tw/2,e.ty+e.th/2))return false;
+      return true;
     });
     _fgLg.list.push({x:r.x-2,y:r.y-2,w:r.w+4,h:r.h+4,bg:st.info.bg,img:'',t:'Franja',ox:r.x,oy:r.y,ow:r.w,oh:r.h,
       franja:fid,franjaBase:true,franjaSel:JSON.parse(JSON.stringify(st.sel)),franjaCols:st.cols||0,franjaKt:st.kt||1,franjaInfo:st.info});
