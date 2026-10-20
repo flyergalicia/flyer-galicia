@@ -4977,7 +4977,7 @@ function _fgMerge(a,b){var o={};for(var k in a)o[k]=a[k];if(b)for(var k2 in b)if
 function _fgCfg(){return _fgCfgDe(window.FLYER_CFG);}
 function _fgCfgDe(c){
   var d=FLYER_CFG_DEFAULT;c=c||{};var cb=c.benef||{};
-  return {imgW:c.imgW||d.imgW,imgH:c.imgH||d.imgH,
+  return {imgW:c.imgW||d.imgW,imgH:c.imgH||d.imgH,recDe:c.recDe||0,
     cropH:c.cropH||0, // altura final fijada a mano (0 = automático)
     bottomMargin:(c.bottomMargin!=null?c.bottomMargin:d.bottomMargin),
     empresa:_fgMerge(d.empresa,c.empresa),montos:_fgMerge(d.montos,c.montos),cashback:_fgMerge(d.cashback,c.cashback),
@@ -6414,6 +6414,7 @@ function _fgApplyHistItem(h){
 // GUARDADO de la opción actual, descartando mis ediciones de sesión.
 function fgResetVals(){
   _fgLgLimpiar(); // Restaurar también vuelve los logos al original
+  if(_fgRec){_fgRecOlvidar();_fgMontosVisibles();if(typeof calcSC==='function')calcSC();} // y la parte recortada
   var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
   ['empresa','nombre','celular','email','nombre2','celular2','email2',
    'nombre3','celular3','email3','nombre4','celular4','email4'].forEach(function(id){s(id,'');});
@@ -9447,6 +9448,7 @@ function _padApply(r){
   if(typeof redraw==='function')redraw();
   showToast('"'+(r.empresa||'Empresa')+'" cargada de tus empresas — '+_padAsesoresLbl(r));
   if(_ci<0)setTimeout(function(){_padAvisoSinCB(r);},120); // que no pase desapercibido
+  else if(_fgSinImportes())setTimeout(function(){_padAvisoSinImportes(r,function(){_padCheckRubro(r,'padron');});},120);
   else setTimeout(function(){_padCheckRubro(r,'padron');},120);
 }
 // Completa los topes del cartel con los del padrón (si la empresa tiene rubro).
@@ -9525,6 +9527,33 @@ function _padFilaActual(){
   return _padFindByName(emp);
 }
 // Aviso al traer del buscador una empresa marcada sin cashback.
+// La empresa SÍ tiene cashback pero el flyer en pantalla no muestra importes
+// (se recortó esa parte, o es una opción "sin cashback" publicada desde Estudio).
+// Ofrece volver a mostrarlos; después sigue con el aviso de rubro (despues()).
+function _padAvisoSinImportes(r,despues){
+  var nom='<b>'+_escHtml(r.empresa||'Esta empresa')+'</b>';
+  var orig=_fgCfg().recDe||0,puede=_fgRecActivo()||(orig&&_FG_OPTS.indexOf(orig)>=0&&_can('opcion_'+orig));
+  if(!puede){
+    _padModal('<h3>&#9888; Esta empresa tiene cashback</h3>'+
+      '<p class="pu-sub">'+nom+' tiene cashback, pero <strong>este flyer no muestra importes</strong>.</p>'+
+      '<p class="pu-sub">Si le corresponde mostrarlos, eleg&iacute; arriba el flyer original (el que tiene la parte de los importes).</p>'+
+      '<div class="pu-foot"><button class="pu-si" onclick="_padCloseUpdate(0)">Entendido</button></div>');
+    return;
+  }
+  var dlg=fgConfirm('',{titulo:'Esta empresa tiene cashback',peligro:false,ok:'Mostrar los importes',cancelar:'Seguir así',
+    texto:' '},function(si){
+      if(si){
+        if(_fgRecActivo())fgRecQuitar();
+        else fgOptElegir(orig);
+        showToast('Listo: el flyer vuelve a mostrar los importes de '+(r.empresa||'la empresa')+'.');
+      }
+      if(typeof despues==='function')setTimeout(despues,150);
+    });
+  // el cuerpo lleva el nombre en negrita (fgConfirm escribe texto plano)
+  var b=document.getElementById('fg-cf-b');
+  if(b)b.innerHTML=nom+' tiene cashback, pero este flyer no muestra importes'+(_fgRecActivo()?' (se quit&oacute; esa parte)':'')+'. &iquest;Quer&eacute;s mostrarlos?';
+  return dlg;
+}
 function _padAvisoSinCB(r){
   if(document.getElementById('pad-upd'))return;
   _padPending=null;
@@ -14466,6 +14495,7 @@ function _estPublicar(id,d0,n,nombre){
     // del diseño están en las coordenadas del flyer recortado)
     var arte=cortes.length?_fgRecArte(base,cortes):base;
     cfgN=cortes.length?_fgRecCfg(meta.cfg||{},cortes,base.naturalWidth,base.naturalHeight):(meta.cfg||{});
+    if(cortes.length)cfgN.recDe=n; // el flyer del que salió: el aviso "tiene cashback" ofrece volver a ese
     var c=document.createElement('canvas');c.width=arte.naturalWidth||arte.width;c.height=arte.naturalHeight||arte.height;
     var g=c.getContext('2d');g.drawImage(arte,0,0);
     _fgLgPintar(g,1,L,arte,Infinity,0);
