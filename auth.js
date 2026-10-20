@@ -12557,6 +12557,7 @@ function _fgLgPintar(c,s,L,base,corte,extra){
     }
     listos.push({e:e,im:im});
   });
+  c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high'; // logos achicados sin pixelar
   listos.forEach(function(o){
     var e=o.e,dy=(e.ty+e.th/2>=corte)?extra:0;
     if(e.tipo==='txt')_fgLgTxtPintar(c,s,e,dy);
@@ -12774,6 +12775,27 @@ function _fgLgTraer(file){
   _fgLg.carga[file]=p;
   return p;
 }
+// Achica una imagen de a la mitad por vez (achicar de una sola pasada pixela
+// las letras finas) y con el suavizado de mejor calidad.
+function _fgLgAchicar(src,w,h){
+  var cur=src,cw=src.naturalWidth||src.width,ch=src.naturalHeight||src.height;
+  while(cw/2>=w&&ch/2>=h){
+    var t=document.createElement('canvas');t.width=Math.round(cw/2);t.height=Math.round(ch/2);
+    var gt=t.getContext('2d');gt.imageSmoothingQuality='high';gt.drawImage(cur,0,0,t.width,t.height);
+    cur=t;cw=t.width;ch=t.height;
+  }
+  var c=document.createElement('canvas');c.width=w;c.height=h;
+  var g=c.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(cur,0,0,w,h);
+  return c;
+}
+// ¿El logo es casi todo blanco? (versión para fondos oscuros)
+function _fgLgEsBlanco(cv){
+  try{
+    var d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data,n=0,cl=0;
+    for(var p=0;p<d.length;p+=16){if(d[p+3]<128)continue;n++;if(d[p]>225&&d[p+1]>225&&d[p+2]>225)cl++;}
+    return n>20&&cl>n*0.85;
+  }catch(e){return false;}
+}
 // Logos subidos desde la PC (marcas que no están en Promociones): quedan sólo en
 // la memoria de esta pestaña, con una clave propia que nunca va a Galicia.
 var _fgLgSubidos=0;
@@ -12788,15 +12810,33 @@ function _fgLgLeerArchivo(f){
       URL.revokeObjectURL(u);
       // Una foto enorme no hace falta: el logo en el flyer mide unos cientos de px.
       var w=i.naturalWidth,h=i.naturalHeight,k=Math.min(1,1200/Math.max(w,h));
-      var c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*k));c.height=Math.max(1,Math.round(h*k));
-      c.getContext('2d').drawImage(i,0,0,c.width,c.height);
+      var c=_fgLgAchicar(i,Math.max(1,Math.round(w*k)),Math.max(1,Math.round(h*k)));
       var limpio=_fgLgLimpiarLogo(c),clave='pc:'+(++_fgLgSubidos)+':'+f.name;
+      if(_fgLgEsBlanco(limpio))showToast('Ese logo es blanco (para fondos oscuros): sobre el flyer casi no se va a ver. Si podés, subí la versión a color.');
       _fgLg.imgs[clave]=limpio;
       res({clave:clave,nombre:f.name.replace(/\.[a-z0-9]+$/i,''),logo:limpio});
     };
     i.onerror=function(){URL.revokeObjectURL(u);rej(new Error('imagen'));};
     i.src=u;
   });
+}
+// En un PNG transparente: si adentro hay un recuadro blanco grande (su caja
+// ocupa más del 25% de la imagen y la mancha llena al menos el 40% de esa caja:
+// el logo de adentro le deja huecos), se borra. Las letras blancas sueltas no
+// cumplen eso (cada una es chica) y se quedan.
+function _fgLgSinParche(d,w,h){
+  var visto=new Uint8Array(w*h),blanco=function(q){var o=q*4;return d[o+3]>200&&d[o]>235&&d[o+1]>235&&d[o+2]>235;};
+  for(var q0=0;q0<w*h;q0++){
+    if(visto[q0]||!blanco(q0))continue;
+    var comp=[],cola=[q0],x0=w,y0=h,x1=0,y1=0;visto[q0]=1;
+    while(cola.length){
+      var q=cola.pop(),x=q%w,y=(q/w)|0;comp.push(q);
+      if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      [x>0?q-1:-1,x<w-1?q+1:-1,y>0?q-w:-1,y<h-1?q+w:-1].forEach(function(n){if(n>=0&&!visto[n]&&blanco(n)){visto[n]=1;cola.push(n);}});
+    }
+    var caja=(x1-x0+1)*(y1-y0+1);
+    if(caja>=w*h*0.25&&comp.length>=caja*0.4)comp.forEach(function(q){d[q*4+3]=0;});
+  }
 }
 function _fgLgLimpiarLogo(i,sinRecorte){
   var w=i.naturalWidth||i.width,h=i.naturalHeight||i.height;
@@ -12808,16 +12848,38 @@ function _fgLgLimpiarLogo(i,sinRecorte){
   // vería como un parche).
   var esq=[0,(w-1)*4,(h-1)*w*4,((h-1)*w+w-1)*4].filter(function(o){return d[o+3]>200;});
   var ref=esq.length>=3?[0,1,2].map(function(c){var v=esq.map(function(o){return d[o+c];}).sort(function(a,b){return a-b;});return v[v.length>>1];}):[255,255,255];
-  var visto=new Uint8Array(w*h),cola=[];
-  var esFondo=function(q){var o=q*4;return d[o+3]<=24||(Math.abs(d[o]-ref[0])<=28&&Math.abs(d[o+1]-ref[1])<=28&&Math.abs(d[o+2]-ref[2])<=28);};
-  for(x=0;x<w;x++){cola.push(x,(h-1)*w+x);}
-  for(y=0;y<h;y++){cola.push(y*w,y*w+w-1);}
-  while(cola.length){
-    var q=cola.pop();if(visto[q])continue;visto[q]=1;
-    if(!esFondo(q))continue;
-    d[q*4+3]=0;
-    x=q%w;y=(q/w)|0;
-    if(x>0)cola.push(q-1);if(x<w-1)cola.push(q+1);if(y>0)cola.push(q-w);if(y<h-1)cola.push(q+w);
+  // Un PNG que YA trae el fondo transparente (la mayor parte del borde) no se
+  // limpia entero: llenar desde los bordes se comía las letras claras y dejaba
+  // sólo el contorno dentado (pasó con un logo de Toledo subido de la PC). Sólo
+  // se le saca un recuadro blanco grande de adentro, si lo tiene (_fgLgSinParche).
+  var borde=0,transp=0;
+  for(x=0;x<w;x++){borde+=2;if(d[x*4+3]<=24)transp++;if(d[((h-1)*w+x)*4+3]<=24)transp++;}
+  for(y=0;y<h;y++){borde+=2;if(d[y*w*4+3]<=24)transp++;if(d[(y*w+w-1)*4+3]<=24)transp++;}
+  if(transp>=borde*0.3)_fgLgSinParche(d,w,h);
+  else{
+    var visto=new Uint8Array(w*h),cola=[];
+    var esFondo=function(q){var o=q*4;return d[o+3]<=24||(Math.abs(d[o]-ref[0])<=28&&Math.abs(d[o+1]-ref[1])<=28&&Math.abs(d[o+2]-ref[2])<=28);};
+    for(x=0;x<w;x++){cola.push(x,(h-1)*w+x);}
+    for(y=0;y<h;y++){cola.push(y*w,y*w+w-1);}
+    while(cola.length){
+      var q=cola.pop();if(visto[q])continue;visto[q]=1;
+      if(!esFondo(q))continue;
+      d[q*4+3]=0;
+      x=q%w;y=(q/w)|0;
+      if(x>0)cola.push(q-1);if(x<w-1)cola.push(q+1);if(y>0)cola.push(q-w);if(y<h-1)cola.push(q+w);
+    }
+    // Bordes suaves: los píxeles del borde del dibujo son mezcla de tinta y fondo.
+    // Se les da transparencia según cuánto se parecen al fondo y se les quita el
+    // fondo del color (si no, queda un halo dentado del color del fondo viejo).
+    for(y=0;y<h;y++)for(x=0;x<w;x++){
+      var q2=y*w+x,o=q2*4;if(d[o+3]===0)continue;
+      if(!((x>0&&d[o-1]===0)||(x<w-1&&d[o+7]===0)||(y>0&&d[o-w*4+3]===0)||(y<h-1&&d[o+w*4+3]===0)))continue;
+      var dif=Math.max(Math.abs(d[o]-ref[0]),Math.abs(d[o+1]-ref[1]),Math.abs(d[o+2]-ref[2]));
+      if(dif>=110)continue;
+      var a=Math.max(0.15,dif/110);
+      for(var c3=0;c3<3;c3++)d[o+c3]=Math.max(0,Math.min(255,Math.round((d[o+c3]-ref[c3]*(1-a))/a)));
+      d[o+3]=Math.round(d[o+3]*a);
+    }
   }
   g.putImageData(im,0,0);
   if(sinRecorte)return k;
