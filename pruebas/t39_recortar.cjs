@@ -5,7 +5,7 @@ const ok=(c,m)=>console.log((c?'  OK  ':'  FALLA ')+m);
 // diferencia media entre dos franjas de la descarga (antes/después)
 const FR=(p,y,h)=>p.evaluate(([y,h])=>{const fc=fullRes(getVals()),c=document.createElement('canvas');c.width=fc.width;c.height=h;const g=c.getContext('2d');g.drawImage(fc,0,y,fc.width,h,0,0,fc.width,h);return Array.from(g.getImageData(0,0,fc.width,h).data.filter((_,i)=>i%16===0));},[y,h]);
 const dif=(a,b)=>{let d=0;for(let i=0;i<a.length;i++)d+=Math.abs(a[i]-b[i]);return d/a.length;};
-const foto=async(p,nom,y,h)=>{const r=await p.evaluate(([y,h])=>{const fc=fullRes(getVals());const c=document.createElement('canvas');c.width=620;c.height=Math.round(h/2);c.getContext('2d').drawImage(fc,0,y,fc.width,h,0,0,620,c.height);return c.toDataURL('image/jpeg',0.8);},[y,h]);fs.writeFileSync(__dirname+'/datos/'+nom,Buffer.from(r.split(',')[1],'base64'));};
+const foto=async(p,nom,y,h)=>{const r=await p.evaluate(([y,h])=>{const fc=fullRes(getVals());const c=document.createElement('canvas');c.width=620;c.height=Math.round(h/2);c.getContext('2d').drawImage(fc,0,y,fc.width,h,0,0,620,c.height);return c.toDataURL('image/jpeg',0.8);},[y,h]);fs.writeFileSync(__dirname+'/capturas/'+nom,Buffer.from(r.split(',')[1],'base64'));};
 module.exports=async(browser)=>{
   const p=await abrir(browser,{rol:'asesor'});
   await p.fill('#empresa','ACME S.A.');
