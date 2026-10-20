@@ -346,6 +346,12 @@ const MAILS = {
     parrafos: ["Un administrador cambió la contraseña de tu cuenta. La nueva te la comunica él directamente."],
     alerta: "Si no esperabas este cambio, hablá con el administrador.",
   }),
+  pedidoEstudio: (autor: string, diseno: string, empresa: string, opcion: string): Mail => ({
+    asunto: "Armador de flyers · Nuevo pedido en Estudio",
+    titulo: "Nuevo pedido en Estudio",
+    parrafos: ["Alguien pidió publicar un diseño de Estudio. Revisalo en la solapa Estudio → Pedidos, donde podés verlo completo y aprobarlo o no."],
+    datos: [["Autor", autor], ["Diseño", diseno], ["Empresa", empresa || "—"], ["Flyer base", opcion]],
+  }),
   claveCambiadaPropia: (nombre: string): Mail => ({
     asunto: "Armador de flyers · Cambiaste tu contraseña",
     titulo: "Cambiaste tu contraseña",
@@ -543,6 +549,31 @@ Deno.serve(async (req: Request) => {
       if (!u?.user) return json({ error: "No autorizado" }, 403);
       const ps = await perfil(u.user.id);
       avisar(u.user.email || ps?.email, MAILS.claveCambiadaPropia(ps?.nombre || ""));
+      return json({ ok: true });
+    }
+
+    // Aviso al admin cuando alguien pide publicar un diseño de Estudio. Lo pide el
+    // navegador del autor después de pasar el diseño a "pedido"; acá se valida
+    // que sea suyo y que de verdad esté pedido (si no, no sale nada).
+    if (action === "notify_estudio_pedido") {
+      const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      if (!token) return json({ error: "No autorizado" }, 403);
+      const { data: u } = await admin.auth.getUser(token);
+      if (!u?.user) return json({ error: "No autorizado" }, 403);
+      if (!(await dentroDelLimite(req, "notify_estudio_pedido", 10, 3600))) return json({ error: MSG_DEMASIADOS }, 429);
+      const id = String(body.id || "");
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Datos inválidos" }, 400);
+      const { data: d } = await admin.from("flyer_disenos").select("user_id,autor,nombre,empresa,opcion,estado,pedido_at").eq("id", id).maybeSingle();
+      if (!d || d.user_id !== u.user.id || d.estado !== "pedido" || !d.pedido_at) return json({ ok: true });
+      // UN mail por pedido (pedido_at lo pone la base al pasar a "pedido"; volver a
+      // pedir después de un rechazo es otro pedido) y sólo recién hecho: repetir la
+      // llamada no manda más mails.
+      if (Date.now() - new Date(d.pedido_at).getTime() > 10 * 60 * 1000) return json({ ok: true });
+      try {
+        const { data: ok1 } = await admin.rpc("rate_limit_hit", { p_clave: "estudio_pedido|" + id + "|" + d.pedido_at, p_max: 1, p_segundos: 30 * 24 * 3600 });
+        if (ok1 === false) return json({ ok: true });
+      } catch { /* sin tope disponible: igual vale el control de tiempo de arriba */ }
+      avisar(await mailsAdmins(), MAILS.pedidoEstudio(limpiarNombre(d.autor), limpiarNombre(d.nombre), limpiarNombre(d.empresa), "Opción " + Number(d.opcion || 0)));
       return json({ ok: true });
     }
 

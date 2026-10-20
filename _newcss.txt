@@ -1691,3 +1691,20 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 /* Borradores: pestaña punteada al lado del flyer */
 #fg-optbar .fgp.fgp-bor{border-style:dashed;}
 #fg-optbar .fgp.fgp-bor .fgp-t{font-style:italic;}
+/* Armar franja en el celular: dos pasos (en la PC no se ven) */
+.fg-fr-pasos,.fg-fr .fg-fr-sig,.fg-fr .fg-fr-atras{display:none;}
+@media (max-width:900px){
+  .fg-fr-pasos{display:flex;gap:6px;margin-top:8px;}
+  .fg-fr-pasos button{flex:1;padding:9px 6px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--ink);font-size:.8125rem;font-weight:700;cursor:pointer;}
+  .fg-fr-pasos button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .fg-fr.paso1 .fg-fr-arriba,.fg-fr.paso1 .fg-fr-der{display:none !important;}
+  .fg-fr.paso2 .fg-fr-izq{display:none !important;}
+  .fg-fr.paso1 #fg-fr-ok,.fg-fr.paso1 #fg-fr-quitar{display:none;}
+  .fg-fr.paso1 .fg-fr-sig{display:inline-flex;}
+  .fg-fr.paso2 .fg-fr-atras{display:inline-flex;}
+  .fg-fr.paso2 #fg-fr-no{display:none;}
+}
+/* Estudio: ver el flyer completo de un diseño */
+.fg-cf.fg-ver{width:min(720px,96vw);max-height:94vh;display:flex;flex-direction:column;}
+.fg-ver-img{flex:1 1 auto;min-height:0;overflow:auto;margin-top:10px;border:1px solid var(--border);border-radius:10px;background:#fff;}
+.fg-ver-cv{display:block;width:100%;height:auto;}
