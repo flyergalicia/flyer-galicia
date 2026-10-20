@@ -1397,8 +1397,14 @@ html.dark .fg-lg-tip{color:#e9eaec;}
 .cw{position:relative;}
 .fg-lg-capa{position:absolute;inset:0;pointer-events:none;}
 .prev.fg-lg-on #cv{cursor:crosshair;}
-.fg-lg-marca{position:absolute;border:2px dashed var(--accent);border-radius:4px;box-sizing:border-box;}
-.fg-lg-marca.elegido{border-style:solid;box-shadow:0 0 0 3px var(--accent-ring);}
+/* Recuadros de los cambios: invisibles en reposo (no ensucian el flyer); con el
+   mouse sobre el flyer se ven tenues y el de abajo del mouse entero (.cerca).
+   En pantallas táctiles quedan tenues siempre (no hay mouse para encontrarlos). */
+.fg-lg-marca{position:absolute;border:2px dashed transparent;border-radius:4px;box-sizing:border-box;transition:border-color .15s;}
+.cw:hover .fg-lg-marca{border-color:rgba(242,97,34,.4);}
+@media (hover:none){.cw .fg-lg-marca{border-color:rgba(242,97,34,.4);}}
+.cw .fg-lg-marca.cerca,.cw .fg-lg-marca.flash{border-color:var(--accent);}
+.cw .fg-lg-marca.elegido{border-style:solid;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring);}
 /* Barrita para ajustar el logo elegido: tamaño, centrar, cambiar marca (y flechas en pantallas táctiles) */
 .fg-lg-herr{position:absolute;pointer-events:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:calc(100% - 8px);padding:6px 8px;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-3,0 8px 24px rgba(0,0,0,.18));z-index:2;}
 .fg-lg-herr button{min-width:30px;height:30px;padding:0 9px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--ink);font-size:.75rem;font-weight:700;cursor:pointer;}
@@ -1661,7 +1667,7 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 @media (prefers-reduced-motion:reduce){.fg-lg-marca.flash{animation:none;outline:3px solid var(--accent);}}
 @media (max-width:900px){.fg-lg-hb span{display:none;}}
 /* Shift + clic: varios logos elegidos juntos */
-.fg-lg-marca.grupo{border-style:solid;background:rgba(242,97,34,.08);}
+.cw .fg-lg-marca.grupo{border-style:solid;border-color:var(--accent);background:rgba(242,97,34,.08);}
 .fg-lg-herr button[hidden]{display:none;}
 /* Cambiar logos: guías al mover y botones de alinear / duplicar */
 #fg-lg-guias{position:absolute;inset:0;pointer-events:none;}

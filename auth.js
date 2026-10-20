@@ -12574,7 +12574,10 @@ function _fgLgImg(k,base){
   var p=k.slice(5).split(',').map(Number);if(p.length!==4||p.some(isNaN))return null;
   var c=document.createElement('canvas');c.width=Math.max(1,p[2]);c.height=Math.max(1,p[3]);
   try{c.getContext('2d').drawImage(base,p[0],p[1],p[2],p[3],0,0,p[2],p[3]);}catch(e){return null;}
-  return (_fgLg.imgs[ck]=_fgLgLimpiarLogo(c));
+  // sin recortar los bordes: el logo movido se dibuja en una caja del tamaño del
+  // recuadro original; si se le recortara el blanco (que no es parejo de todos los
+  // lados), se estiraría para llenarla y saldría deformado (pasó con La Anónima)
+  return (_fgLg.imgs[ck]=_fgLgLimpiarLogo(c,true));
 }
 // ·· Textos (como los "Martes y jueves" de los súper) ··
 var _FG_LG_FUENTE='Figtree,Arial,sans-serif',_FG_LG_INTER=1.18;
@@ -12795,7 +12798,7 @@ function _fgLgLeerArchivo(f){
     i.src=u;
   });
 }
-function _fgLgLimpiarLogo(i){
+function _fgLgLimpiarLogo(i,sinRecorte){
   var w=i.naturalWidth||i.width,h=i.naturalHeight||i.height;
   var k=document.createElement('canvas');k.width=w;k.height=h;
   var g=k.getContext('2d',{willReadFrequently:true});g.drawImage(i,0,0);
@@ -12817,6 +12820,7 @@ function _fgLgLimpiarLogo(i){
     if(x>0)cola.push(q-1);if(x<w-1)cola.push(q+1);if(y>0)cola.push(q-w);if(y<h-1)cola.push(q+w);
   }
   g.putImageData(im,0,0);
+  if(sinRecorte)return k;
   var x0=w,y0=h,x1=-1,y1=-1;
   for(y=0;y<h;y++)for(x=0;x<w;x++){
     p=(y*w+x)*4;if(d[p+3]<=24)continue;
@@ -12883,6 +12887,7 @@ function _fgLgInit(){
     if(!ini){
       // la cruz de "mover" sobre los logos ya cambiados
       if(_fgLg.on&&!_fgLg.limpio&&e.target===cvs&&e.pointerType!=='touch'){var q=_fgLgAImagen(e.clientX,e.clientY);cvs.style.cursor=(q&&_fgLgLogoEn(q.x,q.y)>=0)?'move':'';}
+      _fgLgCerca(e.target===cvs&&e.pointerType!=='touch'?e:null);
       return;
     }
     if(Math.abs(e.clientX-ini.x)+Math.abs(e.clientY-ini.y)>8)ini.mov=true;
@@ -13234,15 +13239,42 @@ function _fgLgMarcas(){
   // redibujar (si se la sacara del documento, la regla se soltaría al arrastrarla).
   var mk=document.getElementById('fg-lg-mk');
   if(!mk){mk=document.createElement('div');mk.id='fg-lg-mk';capa.appendChild(mk);}
-  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLg.grupo=[];_fgLgHerr(capa);return;} // (_fgLgHerr la esconde)
+  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMkAntes=null;_fgLgHerr(capa);return;} // (_fgLgHerr la esconde)
   if(_fgLg.sel<0)_fgLg.grupo=[];
   var eleg=_fgLgElegidos();if(eleg.length<2)_fgLg.grupo=[];
-  mk.innerHTML=_fgLgActivos().map(function(e,i){
+  // los recuadros no se ven en reposo: el que se acaba de cambiar parpadea un
+  // momento para que se vea dónde fue (no al entrar al modo ni mientras se arrastra)
+  // (se dibuja varias veces por cambio: lo que parpadea se recuerda 1,3 s por su contenido)
+  var A=_fgLgActivos(),antes=_fgLgMkAntes,ahora={},nuevos=[],ya=Date.now();
+  A.forEach(function(e,i){
+    var k=JSON.stringify(e);ahora[k]=1;
+    if(antes&&!_fgLg.arrastre&&!antes[k])_fgLgMkFlash[k]=ya+1300;
+    if(_fgLgMkFlash[k]>ya)nuevos.push(i);
+  });
+  Object.keys(_fgLgMkFlash).forEach(function(k){if(_fgLgMkFlash[k]<=ya)delete _fgLgMkFlash[k];});
+  _fgLgMkAntes=ahora;
+  mk.innerHTML=A.map(function(e,i){
     // logo nuevo: su recuadro (se mueve con él); lugar vacío: lo que se tapó
     var p=_fgLgAjustable(e)?_fgLgAPantalla(e.tx,e.ty,e.tw,e.th):_fgLgAPantalla(e.x,e.y,e.w,e.h);
     return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+'" style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
   }).join('')+'<div class="fg-lg-sel" id="fg-lg-sel" hidden></div>';
+  nuevos.forEach(function(i){var m=mk.children[i],k=JSON.stringify(A[i]);if(m){m.classList.add('flash');setTimeout(function(){m.classList.remove('flash');},Math.max(0,_fgLgMkFlash[k]-ya));}});
   _fgLgHerr(capa);
+}
+var _fgLgMkAntes=null,_fgLgMkFlash={};
+// El recuadro que queda debajo del mouse se ve entero (los demás, tenues).
+function _fgLgCerca(e){
+  var mk=document.getElementById('fg-lg-mk');if(!mk)return;
+  var hit=null;
+  if(e&&_fgLg.on&&!_fgLg.limpio){
+    for(var i=mk.children.length-1;i>=0;i--){
+      var m=mk.children[i];if(!m.classList.contains('fg-lg-marca'))continue;
+      var r=m.getBoundingClientRect();
+      if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){hit=m;break;}
+    }
+  }
+  Array.prototype.forEach.call(mk.querySelectorAll('.fg-lg-marca.cerca'),function(m){if(m!==hit)m.classList.remove('cerca');});
+  if(hit)hit.classList.add('cerca');
 }
 // Recuadro que se ve mientras se arrastra (coordenadas de pantalla).
 function _fgLgSel(x0,y0,x1,y1){

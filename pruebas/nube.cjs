@@ -36,7 +36,7 @@ async function abrir(browser,o){
   const user={id:U.id,aud:'authenticated',role:'authenticated',email:U.email,app_metadata:{provider:'email'},user_metadata:{full_name:U.name}};
   const jwt=b64u({alg:'HS256',typ:'JWT'})+'.'+b64u({sub:U.id,role:'authenticated',aud:'authenticated',exp:now+3600})+'.c2ln';
   const session={access_token:jwt,token_type:'bearer',expires_in:3600,expires_at:now+3600,refresh_token:'rt',user};
-  const ctx=await browser.newContext({viewport:{width:o.w||1366,height:o.h||800},acceptDownloads:true});
+  const ctx=await browser.newContext({viewport:{width:o.w||1366,height:o.h||800},acceptDownloads:true,hasTouch:!!o.touch,isMobile:!!o.touch});
   const p=await ctx.newPage();
   p.errores=[];
   p.on('pageerror',e=>{p.errores.push(e.message);console.log('PAGEERROR',e.message);});

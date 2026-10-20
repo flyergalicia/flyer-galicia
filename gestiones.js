@@ -17,7 +17,9 @@ var GES_CSS_2=".ges-top-acts{display:flex;gap:8px;align-items:center;flex-wrap:w
 var GES_CSS=":root{--ges-ok:#2E7D32;--ges-ok-soft:#E6F3E7;--ges-info:#1D4070;--ges-info-soft:#E8EEF7;--ges-warn:#9A5B00;--ges-warn-soft:#FFF2DC;--ges-b1:#F5B79A;--ges-grid:#EDE7DC;}\nhtml.dark{--ges-ok:#7BC47F;--ges-ok-soft:#1C2E1E;--ges-info:#8FB3E8;--ges-info-soft:#1C2636;--ges-warn:#F0B35A;--ges-warn-soft:#33281A;--ges-b1:#7A3E22;--ges-grid:#2A2E34;}\n.ges-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}\n.ges-h1{font-size:1.12rem;font-weight:800;margin:0 0 2px;color:var(--ink);text-wrap:balance;}\n.ges-sub{font-size:.78rem;color:var(--gray);margin:0 0 12px;line-height:1.45;}\n.ges-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap;}\n.ges-tab{border:0;background:none;padding:9px 14px;font-size:.8rem;font-weight:700;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;gap:6px;align-items:center;}\n.ges-tab:hover{color:var(--ink);}\n.ges-tab.on{color:var(--accent-2,var(--accent));border-bottom-color:var(--accent);}\n.ges-tab .fg-badge{margin-left:0;}\n.ges-cargando,.ges-vacio{padding:22px;text-align:center;color:var(--gray);font-size:.8rem;line-height:1.55;}\n.ges-vacio{border:1px dashed var(--border);border-radius:var(--r-m,12px);background:var(--card);}\n.ges-vacio .btn{margin-top:10px;}\n.ges-nota,.ges-mini{font-size:.75rem;color:var(--gray);}\n.ges-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-m,12px);box-shadow:var(--sh-1);}\n.ges-pad{padding:14px 16px;}\n.ges-lbl{font-size:.6875rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gray);}\n.ges-inp{border:1px solid var(--border);background:var(--field,var(--card));color:var(--ink);border-radius:var(--r-s,8px);padding:8px 10px;font-size:.8rem;min-width:0;}\n.ges-inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring,rgba(242,97,34,.16));}\n.ges-sel{min-width:150px;}\n.ges-tool{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}\n.ges-tool input[type=search]{flex:1;min-width:200px;}\n.ges-btn-sm{padding:6px 12px !important;font-size:.75rem !important;}\n.ges-link{border:0;background:none;color:var(--accent-2,var(--accent));font-weight:700;font-size:.76rem;cursor:pointer;padding:2px 0;}\n.ges-peligro{color:var(--danger) !important;}\n.ges-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:.75rem;font-weight:800;white-space:nowrap;}\n.ges-c-info{background:var(--ges-info-soft);color:var(--ges-info);}\n.ges-c-ok{background:var(--ges-ok-soft);color:var(--ges-ok);}\n.ges-c-bad{background:var(--danger-soft);color:var(--danger);}\n.ges-c-warn{background:var(--ges-warn-soft);color:var(--ges-warn);}\n.ges-ok{color:var(--ges-ok);}\n.ges-prueba{color:var(--ges-warn);font-weight:700;}\n.ges-list{display:flex;flex-direction:column;gap:8px;}\n.ges-row{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;border:1px solid var(--border);background:var(--card);border-radius:var(--r-s,8px);padding:10px 12px;cursor:pointer;box-shadow:var(--sh-1);color:var(--ink);}\n.ges-row:hover{border-color:var(--accent-line);}\n.ges-row.nueva{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring,rgba(242,97,34,.16));}\n.ges-row-t{display:flex;justify-content:space-between;align-items:center;gap:8px;}\n.ges-row-e{font-weight:800;font-size:.86rem;}\n.ges-row-d,.ges-row-n{font-size:.75rem;color:var(--gray);}\n.ges-row-n b{color:var(--ink);}\n.ges-row-n b.ges-ok{color:var(--ges-ok);}\n.ges-row-nueva{font-size:.75rem;color:var(--accent-2,var(--accent));font-weight:700;}\n.ges-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px;}\n.ges-kpis.ges-k4{grid-template-columns:repeat(4,minmax(0,1fr));}\n.ges-kpis.ges-k5{grid-template-columns:repeat(5,minmax(0,1fr));}\n.ges-kpi{padding:12px 14px;}\n.ges-kv{font-size:1.5rem;font-weight:800;line-height:1.1;margin-top:4px;color:var(--ink);font-variant-numeric:tabular-nums;}\n.ges-kd{font-size:.75rem;color:var(--gray);margin-top:2px;}\n.ges-kpi.hi{border-color:var(--accent-line);background:linear-gradient(180deg,var(--accent-soft),var(--card));}\n.ges-kpi.hi .ges-kv{color:var(--accent-2,var(--accent));}\n@media (max-width:1000px){.ges-kpis,.ges-kpis.ges-k5{grid-template-columns:repeat(3,minmax(0,1fr));}}\n@media (max-width:520px){.ges-kpis,.ges-kpis.ges-k4,.ges-kpis.ges-k5{grid-template-columns:repeat(2,minmax(0,1fr));}}\n.ges-tw{overflow-x:auto;}\n.ges-tbl{border-collapse:collapse;width:100%;font-size:.78rem;color:var(--ink);}\n.ges-tbl th{text-align:left;font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray);font-weight:800;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}\n.ges-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}\n.ges-tbl tr:last-child td{border-bottom:0;}\n.ges-tbl .r{text-align:right;font-variant-numeric:tabular-nums;}\n.ges-num{font-variant-numeric:tabular-nums;white-space:nowrap;}\n.ges-hb{display:flex;align-items:center;gap:8px;}\n.ges-hb span{font-size:.75rem;font-weight:700;min-width:34px;font-variant-numeric:tabular-nums;}\n.ges-bar{flex:1;height:6px;border-radius:3px;background:var(--ges-grid);overflow:hidden;min-width:50px;}\n.ges-bar i{display:block;height:100%;background:var(--accent);border-radius:3px;}\n.ges-est{border:1px solid var(--border);background:var(--field,var(--card));color:var(--ink);border-radius:6px;padding:4px 6px;font-size:.75rem;font-weight:700;}\n.ges-est.alta{background:var(--ges-ok-soft);color:var(--ges-ok);border-color:transparent;}\n.ges-est.desc{background:var(--danger-soft);color:var(--danger);border-color:transparent;}\n.ges-est.gest{background:var(--ges-warn-soft);color:var(--ges-warn);border-color:transparent;}\nspan.ges-est{display:inline-block;}\n.ges-x{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--gray);cursor:pointer;font-size:1rem;line-height:1;}\n.ges-x:hover{background:var(--danger-soft);color:var(--danger);}\n.ges-det-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-top:6px;}\n.ges-acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}\n.ges-auto{display:flex;gap:8px;align-items:center;background:var(--ges-info-soft);color:var(--ges-info);border-radius:var(--r-s,8px);padding:9px 12px;font-size:.76rem;margin:0 0 12px;line-height:1.45;white-space:pre-wrap;}\n.ges-auto b{font-weight:800;}\n.ges-aviso{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:var(--r-s,8px);padding:9px 12px;font-size:.76rem;margin:0 0 12px;color:var(--ink);}\n.ges-ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap;}\n.ges-ct{font-weight:800;font-size:.86rem;color:var(--ink);}\n.ges-add{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-top:12px;align-items:center;}\n@media (max-width:640px){.ges-add{grid-template-columns:1fr 1fr;}.ges-add input:first-child{grid-column:1/-1;}}\n.ges-paste{margin-top:12px;border:1px dashed var(--accent-line);border-radius:var(--r-s,8px);padding:10px 12px;background:var(--accent-soft);}\n.ges-paste summary{cursor:pointer;font-weight:700;font-size:.78rem;color:var(--ink);}\n.ges-paste textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;margin:6px 0;resize:vertical;box-sizing:border-box;}\n.ges-paste-res{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}\n.ges-filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;}\n.ges-filtros label{display:flex;flex-direction:column;gap:4px;}\n.ges-filtros .ges-check{flex-direction:row;align-items:center;gap:6px;font-size:.76rem;color:var(--ink);padding-bottom:8px;}\n.ges-xls{margin-left:auto;}\n.ges-g2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;margin-bottom:14px;}\n.ges-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}\n@media (max-width:1000px){.ges-g2,.ges-g3{grid-template-columns:1fr;}}\n.ges-leg{display:flex;gap:12px;font-size:.75rem;color:var(--gray);}\n.ges-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}\n.ges-leg i.l1{background:var(--ges-b1);}\n.ges-leg i.l2{background:var(--accent);}\n.ges-svg{width:100%;height:auto;display:block;}\n.ges-svg .ges-grid{stroke:var(--ges-grid);stroke-width:1;}\n.ges-svg .ges-ax{font-size:10px;fill:var(--gray);}\n.ges-svg .ges-val{font-size:10px;font-weight:700;fill:var(--ink);}\n.ges-svg .ges-b1{fill:var(--ges-b1);}\n.ges-svg .ges-b2{fill:var(--accent);}\n.ges-fun{display:flex;flex-direction:column;gap:9px;}\n.ges-fun-r{display:grid;grid-template-columns:96px minmax(0,1fr) 64px;gap:10px;align-items:center;font-size:.76rem;color:var(--ink);}\n.ges-fun-b{height:24px;border-radius:6px;background:var(--accent);display:flex;align-items:center;padding-left:8px;color:#fff;font-weight:800;font-size:.75rem;min-width:30px;box-sizing:border-box;white-space:nowrap;}\n.ges-fun-b.f2{background:var(--accent-2,var(--accent));}\n.ges-fun-b.f3{background:var(--ges-ok);}\n.ges-fun-p{text-align:right;color:var(--gray);font-weight:700;font-size:.75rem;font-variant-numeric:tabular-nums;}\n.ges-ov{position:fixed;inset:0;background:rgba(20,18,15,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10000;}\n.ges-mod{background:var(--card);color:var(--ink);border-radius:var(--r-m,12px);box-shadow:var(--sh-3);width:min(580px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:18px 20px;box-sizing:border-box;}\n.ges-mt{margin:0 0 2px;font-size:1.02rem;font-weight:800;}\n.ges-ms{margin:0 0 12px;font-size:.78rem;color:var(--gray);}\n.ges-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;}\n.ges-form .full{grid-column:1/-1;}\n.ges-form label,.ges-form .ges-fl{display:flex;flex-direction:column;gap:5px;font-size:.75rem;font-weight:700;color:var(--ink-2,var(--gray));}\n.ges-form textarea{resize:vertical;}\n@media (max-width:520px){.ges-form{grid-template-columns:1fr;}}\n.ges-pills{display:flex;gap:6px;flex-wrap:wrap;}\n.ges-pills button{border:1px solid var(--border);background:var(--card);color:var(--ink-2,var(--ink));border-radius:20px;padding:6px 12px;font-size:.75rem;font-weight:700;cursor:pointer;}\n.ges-pills button[aria-pressed=\"true\"]{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-2,var(--accent));}\n.ges-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}";
 (function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2;document.head.appendChild(st);})();
 
-var GES_RENTAS=['Hasta $1,5 M','De $1,5 a 3 M','De $3 a 6 M','Más de $6 M'];
+// A los hunters se los mide por el paquete que capta cada alta (no por la renta).
+// La base guarda la clave (columna paquete, migración 027); el orden es el de la pantalla.
+var GES_PAQ={caja:'Caja de Ahorro',plus:'Plus',gold:'Plus Gold',platinum:'Eminent Platinum',black:'Eminent Black'};
 var GES_TIPO={accion:'Acción',feria:'Feria'};
 var GES_MOD={presencial:'Presencial',virtual:'Virtual'};
 var GES_FREC={unica:'Única',repite:'Se repite'};
@@ -74,17 +76,19 @@ function gesCuilOk(c){
   return r===+c[10];
 }
 function gesCuilFmt(c){c=gesCuilLimpio(c);return c.length===11?c.slice(0,2)+'-'+c.slice(2,10)+'-'+c[10]:c;}
-// Renta: un importe ("2.500.000", "$ 1,2 M") cae en uno de los 4 rangos (1..4).
-function gesRentaDe(v){
-  var s=String(v==null?'':v).trim();if(!s)return null;
-  var low=s.toLowerCase();
-  for(var i=0;i<GES_RENTAS.length;i++)if(low===GES_RENTAS[i].toLowerCase())return i+1;
-  var mill=/\bm(ill)?\b|millon/.test(low);
-  var num=parseFloat(low.replace(/[^\d,.]/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));
-  if(!isFinite(num)||num<=0)return null;
-  if(mill||num<1000)num=num*1000000;
-  return num<=1500000?1:num<=3000000?2:num<=6000000?3:4;
+// Paquete: la celda tiene que ser sólo el paquete ("Plus Gold", "Paquete Black",
+// "Eminent Platinum", "CA"), para no confundir un apellido con un paquete.
+function gesPaqDe(v){
+  var s=_padNorm(v).replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim().replace(/^paquete /,'');
+  if(!s)return null;
+  if(/^(caja( de ahorros?)?|ca)$/.test(s))return 'caja';
+  if(s==='plus')return 'plus';
+  if(/^(plus )?gold$/.test(s))return 'gold';
+  if(/^(eminent )?(platinum|platino)$/.test(s))return 'platinum';
+  if(/^(eminent )?black$/.test(s))return 'black';
+  return null;
 }
+function gesPaqOpts(sel){return Object.keys(GES_PAQ).map(function(k){return '<option value="'+k+'"'+(sel===k?' selected':'')+'>'+GES_PAQ[k]+'</option>';}).join('');}
 
 // ── Personas (nombres para mostrar, elegir hunter y filtrar) ────────────────
 function gesPersonas(){
@@ -531,13 +535,12 @@ function gesDetPintar(){
       gesKpi('Altas',gesN(alt),'sueldos en Galicia',true)+gesKpi('Conversión',gesPct(alt,l.length),'altas ÷ prospectos')+'</div>'+
     '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Prospectos</span>'+
       (ed?'<span class="ges-mini">Cuando el sueldo cae en Galicia, pasá el estado a <b>Alta</b>.</span>':'')+'</div>'+
-    '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th>CUIL</th><th>Renta</th><th>Estado</th>'+(ed?'<th></th>':'')+'</tr></thead><tbody>'+
+    '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th>CUIL</th><th>Paquete</th><th>Estado</th>'+(ed?'<th></th>':'')+'</tr></thead><tbody>'+
     (l.length?l.map(function(p,i){
       var cls=p.estado==='alta'?' alta':p.estado==='descartado'?' desc':p.estado==='en_gestion'?' gest':'';
       return '<tr><td>'+gesE(p.nombre)+'</td><td class="ges-num">'+(p.cuil?gesE(gesCuilFmt(p.cuil)):'<span class="ges-mini">—</span>')+'</td>'+
-        '<td>'+(ed?'<select class="ges-est" onchange="gesProsCampo('+i+',\'renta\',this.value)"><option value="">—</option>'+
-          GES_RENTAS.map(function(t,k){return '<option value="'+(k+1)+'"'+(p.renta===k+1?' selected':'')+'>'+t+'</option>';}).join('')+'</select>'
-          :(p.renta?GES_RENTAS[p.renta-1]:'—'))+'</td>'+
+        '<td>'+(ed?'<select class="ges-est" aria-label="Paquete de '+_escAttr(p.nombre)+'" onchange="gesProsCampo('+i+',\'paquete\',this.value)"><option value="">—</option>'+gesPaqOpts(p.paquete)+'</select>'
+          :(GES_PAQ[p.paquete]||'—'))+'</td>'+
         '<td>'+(ed?'<select class="ges-est'+cls+'" aria-label="Estado de '+_escAttr(p.nombre)+'" onchange="gesProsCampo('+i+',\'estado\',this.value)">'+
           Object.keys(GES_PEST).map(function(k){return '<option value="'+k+'"'+(p.estado===k?' selected':'')+'>'+GES_PEST[k]+'</option>';}).join('')+'</select>'
           :'<span class="ges-est'+cls+'">'+GES_PEST[p.estado]+'</span>')+
@@ -557,35 +560,31 @@ function gesAltaHtml(){
   return '<div class="ges-add">'+
     '<input type="text" class="ges-inp" id="gp-nom" placeholder="Nombre y apellido" maxlength="120">'+
     '<input type="text" class="ges-inp" id="gp-cuil" placeholder="CUIL (opcional)" inputmode="numeric" maxlength="13">'+
-    '<select class="ges-inp" id="gp-renta"><option value="">Renta</option>'+GES_RENTAS.map(function(t,k){return '<option value="'+(k+1)+'">'+t+'</option>';}).join('')+'</select>'+
+    '<select class="ges-inp" id="gp-paq" aria-label="Paquete"><option value="">Paquete</option>'+gesPaqOpts()+'</select>'+
     '<button type="button" class="btn bp ges-btn-sm" onclick="gesProsAgregar()">Agregar</button></div>'+
     '<details class="ges-paste"><summary>Pegar varios desde Excel</summary>'+
-    '<p class="ges-mini">Copiá las filas del Excel (nombre, CUIL y renta, en cualquier orden) y pegalas acá. La renta puede ser el importe: se ubica sola en su rango.</p>'+
-    '<textarea class="ges-inp" id="gp-paste" rows="4" oninput="gesPastePrev()" placeholder="Ana Pérez&#9;27-12345678-3&#9;2500000"></textarea>'+
+    '<p class="ges-mini">Copiá las filas del Excel (nombre, CUIL y paquete, en cualquier orden) y pegalas acá. El paquete se reconoce escrito como en la lista (Plus, Plus Gold, Eminent Black…).</p>'+
+    '<textarea class="ges-inp" id="gp-paste" rows="4" oninput="gesPastePrev()" placeholder="Ana Pérez&#9;27-12345678-3&#9;Plus Gold"></textarea>'+
     '<div class="ges-paste-res" id="gp-prev"></div>'+
     '<button type="button" class="btn bp ges-btn-sm" id="gp-paste-ok" onclick="gesPasteOk()" disabled>Agregar a la lista</button></details>';
 }
-// Parser del bloque pegado: por renglón, el CUIL es la celda de 11 dígitos, la
-// renta la celda numérica (o un rango escrito igual que en la lista) y el nombre
-// la primera celda con letras. Saltea la fila de títulos si viene.
+// Parser del bloque pegado: por renglón, el CUIL es la celda de 11 dígitos, el
+// paquete la celda que dice sólo un paquete (gesPaqDe) y el nombre la primera
+// otra celda con letras. Saltea la fila de títulos si viene.
 function gesPasteParse(t){
   var ya={};(GES.detPros||[]).forEach(function(p){if(p.cuil)ya[p.cuil]=1;});
   var vistos={};
   return String(t||'').split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean).map(function(l){
     var c=l.split(/\t|;|\s{2,}/).map(function(x){return x.trim();}).filter(Boolean);
-    if(c.length&&/nombre/i.test(l)&&/cuil|cuit|renta/i.test(l))return null;
-    var cuil=null,renta=null,nom=null;
+    if(c.length&&/nombre/i.test(l)&&/cuil|cuit|paquete/i.test(l))return null;
+    var cuil=null,paq=null,nom=null;
     c.forEach(function(x){
       var d=gesCuilLimpio(x);
       if(!cuil&&d.length===11&&/^[\d\s.\-]+$/.test(x)){cuil=d;return;}
-      if(renta==null){
-        var low=x.toLowerCase(),li=GES_RENTAS.map(function(t){return t.toLowerCase();}).indexOf(low);
-        if(li>=0){renta=li+1;return;}
-        if(/\d/.test(x)){var rr=gesRentaDe(x);if(rr){renta=rr;return;}}
-      }
+      if(!paq){var pq=gesPaqDe(x);if(pq){paq=pq;return;}}
       if(!nom&&/[a-záéíóúñ]/i.test(x))nom=x.replace(/\s+/g,' ');
     });
-    var r={nombre:nom,cuil:cuil,renta:renta,ok:true,motivo:''};
+    var r={nombre:nom,cuil:cuil,paquete:paq,ok:true,motivo:''};
     if(!nom){r.ok=false;r.motivo='sin nombre';}
     else if(cuil&&!gesCuilOk(cuil)){r.ok=false;r.motivo='CUIL inválido';}
     else if(cuil&&(ya[cuil]||vistos[cuil])){r.ok=false;r.motivo='ya está en la lista';}
@@ -607,7 +606,7 @@ function gesPasteOk(){
   var r=gesPasteParse(ta.value),ok=r.filter(function(x){return x.ok;});if(!ok.length)return;
   var b=document.getElementById('gp-paste-ok');if(b){b.disabled=true;b.textContent='Agregando…';}
   var gid=GES.detG.id;
-  _sb.from('gestion_prospectos').insert(ok.map(function(x){return {gestion_id:gid,nombre:x.nombre,cuil:x.cuil,renta:x.renta,estado:'prospecto'};})).select().then(function(res){
+  _sb.from('gestion_prospectos').insert(ok.map(function(x){return {gestion_id:gid,nombre:x.nombre,cuil:x.cuil,paquete:x.paquete,estado:'prospecto'};})).select().then(function(res){
     if(res&&res.error){showToast('No se pudo agregar: '+res.error.message);gesPastePrev();return;}
     GES.detPros=GES.detPros.concat(res.data||[]);GES.lista=null;
     var mal=r.filter(function(x){return !x.ok;});
@@ -615,17 +614,17 @@ function gesPasteOk(){
     // Lo que no entró queda en el cuadro para corregirlo.
     if(mal.length){
       var d=document.querySelector('.ges-paste');if(d)d.open=true;
-      var t2=document.getElementById('gp-paste');if(t2){t2.value=mal.map(function(x){return [x.nombre||'',x.cuil?gesCuilFmt(x.cuil):''].join('\t');}).join('\n');gesPastePrev();}
+      var t2=document.getElementById('gp-paste');if(t2){t2.value=mal.map(function(x){return [x.nombre||'',x.cuil?gesCuilFmt(x.cuil):'',GES_PAQ[x.paquete]||''].join('\t');}).join('\n');gesPastePrev();}
     }
     showToast((res.data||[]).length+' prospectos agregados'+(mal.length?'. Quedaron '+mal.length+' en el cuadro para corregir.':'.'));
   });
 }
 function gesProsAgregar(){
-  var nom=gesVal('gp-nom').trim(),cuil=gesCuilLimpio(gesVal('gp-cuil')),renta=gesVal('gp-renta');
+  var nom=gesVal('gp-nom').trim(),cuil=gesCuilLimpio(gesVal('gp-cuil')),paq=gesVal('gp-paq');
   if(!nom){showToast('Escribí el nombre.');return;}
   if(cuil&&!gesCuilOk(cuil)){showToast('Ese CUIL no es válido. Revisalo o dejalo vacío.');return;}
   if(cuil&&GES.detPros.some(function(p){return p.cuil===cuil;})){showToast('Ese CUIL ya está en la lista.');return;}
-  _sb.from('gestion_prospectos').insert({gestion_id:GES.detG.id,nombre:nom,cuil:cuil||null,renta:renta?+renta:null,estado:'prospecto'}).select().single().then(function(res){
+  _sb.from('gestion_prospectos').insert({gestion_id:GES.detG.id,nombre:nom,cuil:cuil||null,paquete:paq||null,estado:'prospecto'}).select().single().then(function(res){
     if(res&&res.error){showToast('No se pudo agregar: '+res.error.message);return;}
     GES.detPros.push(res.data);GES.lista=null;gesDetPintar();
     var n=document.getElementById('gp-nom');if(n)n.focus();
@@ -633,7 +632,7 @@ function gesProsAgregar(){
 }
 function gesProsCampo(i,campo,val){
   var p=GES.detPros[i];if(!p)return;
-  var upd={};upd[campo]=(campo==='renta')?(val?+val:null):val;
+  var upd={};upd[campo]=(campo==='paquete')?(val||null):val;
   var antes=p[campo];
   _sb.from('gestion_prospectos').update(upd).eq('id',p.id).select().single().then(function(res){
     if(res&&res.error){p[campo]=antes;gesDetPintar();showToast('No se pudo guardar: '+res.error.message);return;}
@@ -744,14 +743,14 @@ function gesTableroPintar(){
     gesBody(filtros+kpis+'<div class="ges-vacio">No hay gestiones en este período. Probá con un período más largo'+(gesPuedePrueba()&&!f.prueba?' o tildá &laquo;Incluir pruebas&raquo;':'')+'.</div>');
     return;
   }
-  var rankH=gesRank(gesRol()==='hunter'?'Por hunter':'Hunters',t.por_hunter||[],function(x){return gesNom(x.id);});
+  var rankH=gesRank(gesRol()==='hunter'?'Por hunter':'Hunters',t.por_hunter||[],function(x){return gesNom(x.id);},true);
   var rankD=gesRank('Oficiales que ceden acciones',t.por_dueno||[],function(x){return gesNom(x.id);});
   var rankE=gesRankEmp(t.por_empresa||[]);
   gesBody(filtros+kpis+
     '<div class="ges-g2"><section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Evolución mensual</span>'+
       '<span class="ges-leg"><span><i class="l1"></i>Prospectos</span><span><i class="l2"></i>Altas</span></span></div>'+gesChartMeses(t.por_mes||[])+'</section>'+
     '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Embudo</span></div>'+gesEmbudo(asis,pros,alt)+
-      '<div class="ges-ch" style="margin-top:16px"><span class="ges-ct">Altas por rango de renta</span></div>'+gesRentas(t.por_renta||[])+'</section></div>'+
+      '<div class="ges-ch" style="margin-top:16px"><span class="ges-ct">Altas por paquete</span></div>'+gesPaquetes(t.por_paquete||[])+'</section></div>'+
     '<div class="ges-g3">'+rankH+rankD+rankE+'</div>'+
     '<section class="ges-card ges-pad" style="margin-top:14px"><div class="ges-ch"><span class="ges-ct">Por tipo de acción</span></div>'+gesPorTipo(t.por_tipo||[])+'</section>');
 }
@@ -782,18 +781,25 @@ function gesEmbudo(a,p,al){
       '<span class="ges-fun-p">'+(i?gesPct(r[1],rows[i-1][1]):'')+'</span></div>';
   }).join('')+'</div>';
 }
-function gesRentas(rows){
-  var t=[0,0,0,0],sin=0;rows.forEach(function(r){if(r.renta>=1&&r.renta<=4)t[r.renta-1]+=+r.altas;else sin+=+r.altas;});
-  var tot=t.reduce(function(s,v){return s+v;},0)+sin,mx=Math.max.apply(null,t.concat([1]));
-  return '<div class="ges-fun">'+t.map(function(v,i){
-    return '<div class="ges-fun-r"><span class="ges-mini">'+GES_RENTAS[i]+'</span><div class="ges-bar"><i style="width:'+Math.round(v*100/mx)+'%"></i></div><span class="ges-fun-p">'+v+' &middot; '+gesPct(v,tot)+'</span></div>';
-  }).join('')+(sin?'<div class="ges-mini">'+sin+' alta'+(sin>1?'s':'')+' sin renta cargada</div>':'')+'</div>';
+function gesPaquetes(rows){
+  var ks=Object.keys(GES_PAQ),t={},sin=0;ks.forEach(function(k){t[k]=0;});
+  rows.forEach(function(r){if(GES_PAQ[r.paquete])t[r.paquete]+=+r.altas;else sin+=+r.altas;});
+  var vs=ks.map(function(k){return t[k];}),tot=vs.reduce(function(s,v){return s+v;},0)+sin,mx=Math.max.apply(null,vs.concat([1]));
+  return '<div class="ges-fun">'+ks.map(function(k){
+    var v=t[k];
+    return '<div class="ges-fun-r"><span class="ges-mini">'+GES_PAQ[k]+'</span><div class="ges-bar"><i style="width:'+Math.round(v*100/mx)+'%"></i></div><span class="ges-fun-p">'+v+' &middot; '+gesPct(v,tot)+'</span></div>';
+  }).join('')+(sin?'<div class="ges-mini">'+sin+' alta'+(sin>1?'s':'')+' sin paquete cargado</div>':'')+'</div>';
 }
-function gesRank(tit,rows,nom){
+// "2 Plus · 1 Plus Gold": las altas de un hunter según el paquete que captó.
+function gesPaqTxt(m){
+  m=m||{};
+  return Object.keys(GES_PAQ).filter(function(k){return +m[k];}).map(function(k){return (+m[k])+' '+GES_PAQ[k];}).join(' &middot; ');
+}
+function gesRank(tit,rows,nom,conPaq){
   rows=rows.filter(function(x){return x.id;}).slice().sort(function(a,b){return b.altas-a.altas||b.visitas-a.visitas;});
   var mx=Math.max.apply(null,rows.map(function(r){return +r.altas;}).concat([1]));
   return '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">'+tit+'</span></div><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th class="r">Acciones</th><th class="r">Altas</th><th>Conv.</th></tr></thead><tbody>'+
-    (rows.length?rows.slice(0,12).map(function(r){return '<tr><td>'+gesE(nom(r))+'</td><td class="r">'+r.visitas+'</td><td class="r"><b>'+r.altas+'</b></td>'+
+    (rows.length?rows.slice(0,12).map(function(r){return '<tr><td>'+gesE(nom(r))+(conPaq&&gesPaqTxt(r.paquetes)?'<div class="ges-mini">'+gesPaqTxt(r.paquetes)+'</div>':'')+'</td><td class="r">'+r.visitas+'</td><td class="r"><b>'+r.altas+'</b></td>'+
       '<td><div class="ges-hb"><div class="ges-bar"><i style="width:'+Math.round(r.altas*100/mx)+'%"></i></div><span>'+gesPct(r.altas,r.prospectos)+'</span></div></td></tr>';}).join(''):
       '<tr><td colspan="4" class="ges-mini">Sin datos.</td></tr>')+'</tbody></table></div></section>';
 }
@@ -828,10 +834,16 @@ function gesExcel(){
     var wb=XLSX.utils.book_new();
     var resu=[['Gestiones comerciales'],['Período',desde?('Desde '+desde):'Todo'],['Generado',new Date().toLocaleString('es-AR')],[],
       ['Acciones realizadas',+k.visitas||0],['Planificadas',+k.planificadas||0],['Empresas',+k.empresas||0],['Asistentes',+k.asistentes||0],
-      ['Prospectos',+k.prospectos||0],['Altas',+k.altas||0],['Conversión',(+k.prospectos?(+k.altas/+k.prospectos):0)]];
+      ['Prospectos',+k.prospectos||0],['Altas',+k.altas||0],['Conversión',(+k.prospectos?(+k.altas/+k.prospectos):0)],[],['Altas por paquete']];
+    var porPaq={},sinPaq=0;(t.por_paquete||[]).forEach(function(r){if(GES_PAQ[r.paquete])porPaq[r.paquete]=+r.altas;else sinPaq+=+r.altas;});
+    Object.keys(GES_PAQ).forEach(function(p){resu.push([GES_PAQ[p],porPaq[p]||0]);});
+    if(sinPaq)resu.push(['Sin paquete cargado',sinPaq]);
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resu),'Resumen');
-    var rk=function(rows){return rows.filter(function(x){return x.id;}).map(function(x){return {Nombre:gesNom(x.id),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas,'Conversión':x.prospectos?x.altas/x.prospectos:0};});};
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rk(t.por_hunter||[])),'Por hunter');
+    var rk=function(rows,conPaq){return rows.filter(function(x){return x.id;}).map(function(x){
+      var o={Nombre:gesNom(x.id),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas,'Conversión':x.prospectos?x.altas/x.prospectos:0};
+      if(conPaq)Object.keys(GES_PAQ).forEach(function(p){o[GES_PAQ[p]]=+((x.paquetes||{})[p])||0;});
+      return o;});};
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rk(t.por_hunter||[],true)),'Por hunter');
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rk(t.por_dueno||[])),'Por oficial');
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((t.por_empresa||[]).map(function(x){return {Empresa:x.empresa,Oficial:gesNom(x.dueno),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas};})),'Por empresa');
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(l.map(function(g){return {
