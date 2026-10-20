@@ -124,7 +124,7 @@ function _sbTodo(armar,cb,pagina,desde,acc){
   armar(desde,desde+pagina-1).then(function(r){
     if(r&&r.error){cb(r.error,acc);return;}
     var filas=(r&&r.data)||[];
-    acc=acc.concat(filas);
+    for(var i=0;i<filas.length;i++)acc.push(filas[i]); // sin copiar todo lo anterior en cada página
     if(filas.length===pagina)_sbTodo(armar,cb,pagina,desde+pagina,acc);
     else cb(null,acc);
   },function(e){cb(e,acc);});
@@ -336,6 +336,12 @@ function _loadAsesores(cb){
       }
       var cbs=_asCbs;_asCbs=[];
       cbs.forEach(function(f){try{f(_asesores);}catch(e){}});
+    },function(e){
+      // sin red: se sigue con la caché (si no, _asLoading quedaba prendido y
+      // "Guardar el actual" / "Eliminar" no volvían a responder)
+      _asLoading=false;console.warn('asesores_guardados:',e&&e.message);
+      var cbs=_asCbs;_asCbs=[];
+      cbs.forEach(function(f){try{f(_asesores);}catch(e2){}});
     });
 }
 // Sube la lista entera (una sola llamada atómica: borra y reinserta del lado del
@@ -663,6 +669,9 @@ function _roleBadge(role){
 // crashean aunque se regeneren con el bug. Vive en auth.js para no perderse.
 function _robustLoadExcel(input){
   var file=input&&input.files&&input.files[0];if(!file)return;
+  // se vacía el selector: si no, volver a elegir el MISMO Excel (ya corregido) no
+  // dispara nada (como en la carga de flyers y de asesores)
+  try{input.value='';}catch(e){}
   var reader=new FileReader();
   reader.onload=function(e){
     try{
@@ -1959,10 +1968,26 @@ function _promosHayGeo(){
 // Texto de la columna "Dónde". Devuelve la lista COMPLETA aunque en pantalla se
 // muestre resumida: es contra esto que corre el filtro, así que buscar "neuquen"
 // encuentra la promo aunque la celda diga "Buenos Aires y 6 más".
+// Se recuerda por la lista de provincias de la promo (no cambia una vez cargada):
+// los filtros de Promociones la armaban de nuevo por fila en cada tecla.
+var _promoDondeC=new WeakMap();
+function _promoDondeNombres(p){
+  var v=_promoDondeC.get(p.provincias);
+  if(!v)_promoDondeC.set(p.provincias,v=p.provincias.map(_promoTitulizar).sort());
+  return v;
+}
 function _promoDondeTexto(p){
   if(!_promoGeoConocida(p))return '';
   if(!p.provincias.length)return 'Online';
-  return p.provincias.map(_promoTitulizar).sort().join(', ');
+  return _promoDondeNombres(p).join(', ');
+}
+// Cuántas provincias hay en total (para resumir "Todo el país"): se pedía por
+// cada fila de la tabla y, sin la geografía cargada, recorría el catálogo entero.
+var _promoProvN={cat:null,ub:-1,n:0};
+function _promosProvinciasN(){
+  if(_promoProvN.cat!==_promosCat||_promoProvN.ub!==_promosUbic.length)
+    _promoProvN={cat:_promosCat,ub:_promosUbic.length,n:_promosProvincias().length};
+  return _promoProvN.n;
 }
 function _promoDondeHtml(r){
   var p=r.promo;
@@ -1970,8 +1995,8 @@ function _promoDondeHtml(r){
   if(!p.provincias.length){
     return '<span class="promos-online" title="Compra por internet: no tiene local, as&iacute; que sirve desde cualquier provincia.">Online</span>';
   }
-  var nombres=p.provincias.map(_promoTitulizar).sort(),full=nombres.join(', '),txt;
-  var todas=_promosProvincias().length;
+  var nombres=_promoDondeNombres(p),full=nombres.join(', '),txt;
+  var todas=_promosProvinciasN();
   // Una promo puede estar en las 24: escupir la lista entera en cada fila
   // rompía el ancho de la tabla, así que se resume y el detalle va al title.
   if(todas&&nombres.length>=todas)txt='Todo el país';
@@ -2299,8 +2324,11 @@ function syncPromosCatalogo(manual,cb){
 // mostrar; si no, "amp" quedaba colado como palabra en el normalizado y el
 // nombre se veía mal en pantalla/Excel.
 var _PROMO_ENTITIES={'&amp;':'&','&aacute;':'á','&eacute;':'é','&iacute;':'í','&oacute;':'ó','&uacute;':'ú','&ntilde;':'ñ','&Ntilde;':'Ñ','&quot;':'"','&#39;':"'",'&apos;':"'"};
+// Se llama por cada fila en cada tecla de los filtros de Promociones: las
+// entidades empiezan todas con "&", así que sin "&" no hay nada que cambiar.
 function _promoDecodeEntities(s){
   s=String(s||'');
+  if(s.indexOf('&')<0)return s;
   for(var k in _PROMO_ENTITIES)s=s.split(k).join(_PROMO_ENTITIES[k]);
   return s;
 }
@@ -2740,9 +2768,19 @@ function _promoCampos(r){
     tieneLogo:!!(r.promo&&r.promo.imagen)
   };
 }
+// Minúsculas recordadas por texto: cada tecla en un filtro pasaba a minúsculas
+// los mismos ~7 campos de cada una de las ~1.500 filas.
+var _promoMinC=new Map();
+function _promoMin(s){
+  var k=String(s),v=_promoMinC.get(k);
+  if(v!==undefined)return v;
+  if(_promoMinC.size>=50000)_promoMinC.clear(); // techo de memoria
+  _promoMinC.set(k,v=k.toLowerCase());
+  return v;
+}
 function _promoCoincideFiltro(r){
   var f=_promosFiltros,c=_promoCampos(r);
-  function contiene(txt,q){return !q||String(txt).toLowerCase().indexOf(String(q).toLowerCase())>=0;}
+  function contiene(txt,q){return !q||_promoMin(txt).indexOf(_promoMin(q))>=0;}
   if(f.logo==='con'&&!c.tieneLogo)return false;
   if(f.logo==='sin'&&c.tieneLogo)return false;
   if(!contiene(c.marca,f.marca))return false;
@@ -2856,9 +2894,16 @@ function _promoNumCols(){return _promoModoActivas()?9:10;}
 // Nombre de la marca sin la variante: Galicia carga la misma marca muchas
 // veces con un sufijo distinto ("Serú Giran - Neuquén", "Babasonicos en
 // Tucumán", "Columbia.com.ar", "Centro de Esquí Cerro Bayo - Oso Café").
+// Depende sólo del texto: se recuerda ("Una por marca" la pedía dos veces por
+// fila en cada tecla de los filtros).
+var _promoBaseC=new Map();
 function _promoBaseMarca(t){
-  var s=_promoDecodeEntities(t||'').split(/\s[-–—]\s|\s+en\s+|\.com|\s*\(/i)[0];
-  return _promoNormalizar(s)||_promoNormalizar(t);
+  var k=String(t||''),v=_promoBaseC.get(k);
+  if(v!==undefined)return v;
+  var s=_promoDecodeEntities(k).split(/\s[-–—]\s|\s+en\s+|\.com|\s*\(/i)[0];
+  if(_promoBaseC.size>=50000)_promoBaseC.clear(); // techo de memoria
+  _promoBaseC.set(k,v=_promoNormalizar(s)||_promoNormalizar(t));
+  return v;
 }
 // Agrupar por la primera palabra sería fácil y estaría mal: juntaría las 16
 // farmacias distintas de Buenos Aires ("Farmacia Selma", "Farmacia Vera"...),
@@ -3153,6 +3198,7 @@ function descargarExcelPromos(){
     }
   }
   function _logoConCupo(fn){return new Promise(function(ok,no){_logoCola.push({fn:fn,ok:ok,no:no});_logoSig();});}
+  var idPorLogo={}; // archivo del logo → promesa del id de la imagen en el Excel (o null)
   var pendientes=incluidos.map(function(r,i){
     var rowIdx=i+2;
     var row=ws.addRow({
@@ -3180,14 +3226,18 @@ function descargarExcelPromos(){
     // ExcelJS sólo incrusta jpeg/png/gif; otros formatos se saltean.
     var ext=/\.jpe?g$/i.test(r.promo.imagen)?'jpeg':(/\.png$/i.test(r.promo.imagen)?'png':(/\.gif$/i.test(r.promo.imagen)?'gif':null));
     if(!ext){logosSinPoner++;return Promise.resolve();}
-    return _logoConCupo(function(){return fetch(PROMO_LOGO_BASE+r.promo.imagen).then(function(resp){
+    // El mismo logo (una marca con varias promos) se baja e incrusta UNA vez y se
+    // reusa en cada fila: antes era una descarga y una copia en el archivo por fila.
+    var f=r.promo.imagen;
+    if(!(f in idPorLogo))idPorLogo[f]=_logoConCupo(function(){return fetch(PROMO_LOGO_BASE+f).then(function(resp){
       return resp.ok?resp.arrayBuffer():null;
-    }).then(function(buf){
-      if(!buf){logosSinPoner++;return;}
-      var imgId=wb.addImage({buffer:buf,extension:ext});
+    }).then(function(buf){return buf?wb.addImage({buffer:buf,extension:ext}):null;});})
+      .catch(function(){return null;/* si el logo no carga, la fila igual queda con sus datos */});
+    return idPorLogo[f].then(function(imgId){
+      if(imgId==null){logosSinPoner++;return;}
       ws.addImage(imgId,{tl:{col:0,row:rowIdx-1},ext:{width:26,height:26},editAs:'oneCell'});
       logosPuestos++;
-    }).catch(function(){logosSinPoner++;/* si el logo no carga, la fila igual queda con sus datos */});});
+    });
   });
 
   Promise.all(pendientes).then(function(){
@@ -5255,17 +5305,23 @@ function fgSplitBold(text){
   var clean=(text||"").replace(/\*\*([\s\S]+?)\*\*/g,function(_m,inner){var t=inner.trim();if(t)dyn.push(t);return inner;});
   return _fgPhraseSplit(clean,dyn.concat(FG_BOLD_PHRASES));
 }
+// Corta en la frase que aparece PRIMERO en el texto (a igual lugar, la que va
+// antes en la lista). Antes cortaba en la primera de la lista que apareciera en
+// cualquier lado, y lo de antes de ese corte quedaba sin negrita: con
+// "(1) Promoción del 100% de ahorro. … **tope**" el (1) salía en letra común.
 function _fgPhraseSplit(text,phrases){
   var result=[],remaining=text;
   while(remaining.length>0){
-    var found=false;
+    var bi=-1,bp='';
     for(var i=0;i<phrases.length;i++){
-      var bp=phrases[i];if(!bp)continue;
-      var idx=remaining.indexOf(bp);
-      if(idx===0){result.push({text:bp+" ",bold:true});remaining=remaining.slice(bp.length).replace(/^\s+/,"");found=true;break;}
-      else if(idx>0){result.push({text:remaining.slice(0,idx),bold:false});result.push({text:bp+" ",bold:true});remaining=remaining.slice(idx+bp.length).replace(/^\s+/,"");found=true;break;}
+      var p=phrases[i];if(!p)continue;
+      var idx=remaining.indexOf(p);
+      if(idx>=0&&(bi<0||idx<bi)){bi=idx;bp=p;if(!idx)break;}
     }
-    if(!found){result.push({text:remaining,bold:false});remaining="";}
+    if(bi<0){result.push({text:remaining,bold:false});break;}
+    if(bi>0)result.push({text:remaining.slice(0,bi),bold:false});
+    result.push({text:bp+" ",bold:true});
+    remaining=remaining.slice(bi+bp.length).replace(/^\s+/,"");
   }
   return result;
 }
@@ -5921,6 +5977,10 @@ function fgRedraw(){
 // (recortado) sigue siendo nuevo cada vez: quien lo recibe puede guardarlo.
 var _fgResCv=null;
 function fgFullRes(v){
+  // _fgExtra y _fgContentBottomBase son de la PANTALLA (Cambiar logos los usa
+  // para ubicar los toques): un flyer con otra cantidad de oficiales (historial,
+  // padrón, masivo) los cambiaba hasta el próximo redibujado. Se devuelven al salir.
+  var exAntes=_fgExtra,fondoAntes=window._fgContentBottomBase;
   _fgExtra=_fgExtraBaseFor(v);
   var W=baseImg.width,H=Math.round(baseImg.height+_fgExtra);
   if(!_fgResCv)_fgResCv=document.createElement('canvas');
@@ -5929,6 +5989,7 @@ function fgFullRes(v){
   fctx.save();
   try{fgDrawAll(fctx,1.0,v);}finally{fctx.restore();} // setea _fgContentBottomBase
   var h=Math.min(full.height,Math.round(_fgFinalHeightBase()));
+  _fgExtra=exAntes;window._fgContentBottomBase=fondoAntes;
   var out=document.createElement('canvas');out.width=W;out.height=h;
   out.getContext('2d').drawImage(full,0,0);
   return out;
@@ -8848,7 +8909,13 @@ function _padEditMatchIdxs(){
   });
   return out;
 }
-function _padEditFilter(v){_padEditQ=v;_padEditRenderList();}
+// Con muchas empresas se espera a que deje de tipear (cada pintada son miles de campos).
+var _padEditFT=0;
+function _padEditFilter(v){
+  _padEditQ=v;clearTimeout(_padEditFT);
+  if((_padEdit||[]).length<400){_padEditRenderList();return;}
+  _padEditFT=setTimeout(_padEditRenderList,150);
+}
 function _padEditRenderList(){
   var host=document.getElementById('padron-edit-list');if(!host)return;
   var rows=_padEdit||[];
@@ -8861,9 +8928,16 @@ function _padEditRenderList(){
     host.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Sin resultados para "'+_escHtml(_padEditQ)+'".</p>';
     return;
   }
+  var op=_padEditOpciones();
   host.innerHTML=
     (_padEditQ?'<p style="font-size:.75rem;color:var(--gray);margin-bottom:6px">Mostrando '+idxs.length+' de '+rows.length+'.</p>':'')+
-    idxs.map(function(i){return _padEditRowHtml(_padEdit[i],i);}).join('');
+    idxs.map(function(i){return _padEditRowHtml(_padEdit[i],i,op);}).join('');
+}
+// Las opciones de los desplegables son las mismas para todas las filas: se arman
+// una vez por pintada (con 3.000 empresas se recalculaban 3.000 veces).
+function _padEditOpciones(){
+  return {cfg:[['','Sin cashback']].concat((typeof CNAMES!=='undefined'?CNAMES:['BAU','Config 1','Config 2','Config 3','Config 4']).map(function(n){return [n,n];})),
+    rub:_padRubroOpts().filter(function(o){return _optVigente(o)===o;})};
 }
 // Mantiene compatibilidad con los llamadores existentes (toggle/agregar/eliminar):
 // si el shell ya está armado sólo refresca la lista, sin tocar el filtro en foco.
@@ -8871,28 +8945,31 @@ function renderPadronEditor(){
   if(!document.getElementById('padron-edit-list'))_padEditRenderShell();
   _padEditRenderList();
 }
-function _padEditRowHtml(r,i){
-  var cfgOpts=[['','Sin cashback']].concat((typeof CNAMES!=='undefined'?CNAMES:['BAU','Config 1','Config 2','Config 3','Config 4']).map(function(n){return [n,n];}));
+function _padEditRowHtml(r,i,op){
+  op=op||_padEditOpciones();
+  var cfgOpts=op.cfg;
   var cfgSel='<select onchange="_padEditField('+i+',\'config\',this.value)">'+
     cfgOpts.map(function(o){return '<option value="'+_escAttr(o[0])+'"'+(r.config===o[0]?' selected':'')+'>'+_escHtml(o[1])+'</option>';}).join('')+
     '</select>';
   var nAs=_padNumAsesores(r),open=!!_padEditAsOpen[i];
   // Flyer Rubros: rubro (opción) + topes; los topes sólo se habilitan con rubro
   // sólo los flyers vigentes: elegir uno ya reemplazado no tendría sentido
-  var ru=_padRubroSane(r.rubro),rOpts=_padRubroOpts().filter(function(o){return _optVigente(o)===o;});
+  var ru=_padRubroSane(r.rubro),rOpts=op.rub;
   var f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
   var rubSel=!rOpts.length?'':'<select title="Rubro (Flyer Rubros)" onchange="_padEditRubro('+i+',\'opcion\',this.value)">'+
     '<option value="0">Sin rubro</option>'+rOpts.map(function(o){return '<option value="'+o+'"'+(_padOptDeRubro(ru)===o?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
     '<input class="login-inp pad-tope" placeholder="Tope" inputmode="numeric" value="'+_escAttr(f1?f1.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe\',this.value)">'+
     '<input class="login-inp pad-tope" placeholder="Tope 2" title="Segundo tope, s&oacute;lo si difiere (cuadro Ambos)" inputmode="numeric" value="'+_escAttr((f2&&f2!==f1)?f2.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe2\',this.value)">';
-  var asHtml=r.asesores.map(function(a,n){
+  // Los oficiales se arman sólo desplegados (abrir/cerrar ya repinta la lista):
+  // plegados eran 12 campos escondidos por empresa, 36.000 con 3.000 empresas.
+  var asHtml=!open?'':r.asesores.map(function(a,n){
     return '<div class="pad-eas-row">'+
       '<input class="login-inp" placeholder="Oficial '+(n+1)+': nombre" value="'+_escAttr(a.nombre)+'" oninput="_padEditAs('+i+','+n+',\'nombre\',this.value)">'+
       '<input class="login-inp" placeholder="Celular" value="'+_escAttr(a.celular)+'" oninput="_padEditAs('+i+','+n+',\'celular\',this.value)">'+
       '<input class="login-inp" placeholder="Email" value="'+_escAttr(a.email)+'" oninput="_padEditAs('+i+','+n+',\'email\',this.value)">'+
     '</div>';
   }).join('');
-  return '<div class="pad-erow">'+
+  return '<div class="pad-erow" data-i="'+i+'">'+
     '<div class="pad-erow-main'+(rubSel?' con-rubro':'')+'">'+
       '<input class="login-inp" placeholder="Raz&oacute;n social" value="'+_escAttr(r.empresa)+'" oninput="_padEditField('+i+',\'empresa\',this.value)">'+
       '<input class="login-inp" placeholder="CUIT (separados por coma)" value="'+_escAttr(r.cuits.map(_padFmtCuit).join(', '))+'" oninput="_padEditCuits('+i+',this.value)">'+
@@ -8910,8 +8987,9 @@ function _padEditRubro(i,k,v){
   if(k==='opcion'){
     r.rubro.opcion=parseInt(v,10)||0;
     r.rubro.txt=r.rubro.opcion?String(_optLabel(r.rubro.opcion)).slice(0,40):'';
-    // habilita/deshabilita los topes de esa fila sin repintar todo
-    var row=document.querySelectorAll('#padron-edit-list .pad-erow')[i];
+    // habilita/deshabilita los topes de esa fila sin repintar todo (por su
+    // número: con el buscador puesto, la fila i no es la i-ésima de la pantalla)
+    var row=document.querySelector('#padron-edit-list .pad-erow[data-i="'+i+'"]');
     if(row)row.querySelectorAll('.pad-tope').forEach(function(el){el.disabled=!r.rubro.opcion;});
   }
   else r.rubro[k]=_padDigits(v);
@@ -8935,7 +9013,9 @@ function _padEditRemoveRow(i){
   fgConfirm('¿Eliminar '+label+' de tus empresas?',{ok:'Eliminar'},function(si){
     if(!si||!_padEdit||_padEdit[i]!==r)return;
     _padEdit.splice(i,1);
-    delete _padEditAsOpen[i];
+    // los desplegables abiertos van por número de fila: los de abajo suben uno
+    var ab={};Object.keys(_padEditAsOpen).forEach(function(k){var n=+k;if(n<i)ab[n]=_padEditAsOpen[k];else if(n>i)ab[n-1]=_padEditAsOpen[k];});
+    _padEditAsOpen=ab;
     _padEditRenderList();
   });
 }
@@ -9151,8 +9231,10 @@ function _pgAvisos(r,opt){
 }
 function _pgFiltrados(){
   if(!_padron)return [];
-  var rows=_pgQ?padronSearch(_pgQ,100000):_padron.slice();
-  return rows.map(function(r){return _padron.indexOf(r);}).filter(function(i){return i>=0;});
+  if(!_pgQ)return _padron.map(function(_,i){return i;});
+  // de fila a número con un mapa (indexOf por cada fila recorría el padrón entero)
+  var pos=new Map();_padron.forEach(function(r,i){pos.set(r,i);});
+  return padronSearch(_pgQ,100000).map(function(r){return pos.has(r)?pos.get(r):-1;}).filter(function(i){return i>=0;});
 }
 function _pgCount(){var n=0;for(var k in _pgSel)if(_pgSel[k]&&_padron&&_padron[k])n++;return n;}
 function _pgRender(){
@@ -9162,7 +9244,7 @@ function _pgRender(){
     pg.innerHTML=
       '<p style="font-size:.76rem;color:var(--gray);line-height:1.5;margin-bottom:10px">Tild&aacute; las empresas (o &laquo;Todas&raquo;) y gener&aacute; el ZIP: cada flyer sale en <strong>su formato</strong> seg&uacute;n el rubro que tenga cargado, con sus oficiales, cashback y topes. Al lado de cada empresa ves con qu&eacute; formato va a salir.</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'+
-        '<input type="text" id="pg-q" class="login-inp" placeholder="Filtrar por raz&oacute;n social o CUIT..." autocomplete="off" style="margin-bottom:0;flex:1;min-width:180px" oninput="_pgQ=this.value;_pgRender()">'+
+        '<input type="text" id="pg-q" class="login-inp" placeholder="Filtrar por raz&oacute;n social o CUIT..." autocomplete="off" style="margin-bottom:0;flex:1;min-width:180px" oninput="_pgFiltrar(this.value)">'+
         '<button type="button" class="usr-btn edit" onclick="_pgTodas(true)">Todas</button>'+
         '<button type="button" class="usr-btn edit" onclick="_pgTodas(false)">Ninguna</button>'+
         '<select id="pg-fmt" class="login-inp" style="margin-bottom:0;width:auto;padding:6px 8px"><option value="pdf">PDF</option><option value="png">PNG</option></select>'+
@@ -9174,9 +9256,7 @@ function _pgRender(){
     var q=document.getElementById('pg-q');if(q)q.value=_pgQ;
   }
   var idx=_pgFiltrados(),host=document.getElementById('pg-list');
-  var sel=_pgCount(),vis=idx.filter(function(i){return _pgSel[i];}).length;
-  var cnt=document.getElementById('pg-count');
-  if(cnt)cnt.innerHTML='<strong>'+sel+'</strong> de '+_padron.length+' empresa'+(_padron.length!==1?'s':'')+' seleccionada'+(sel!==1?'s':'')+(_pgQ?(' &middot; mostrando '+idx.length+' ('+vis+' tildada'+(vis!==1?'s':'')+')'):'');
+  _pgContar(idx);
   if(!idx.length){host.innerHTML='<p style="font-size:.78rem;color:var(--gray);margin-top:10px">Sin resultados para "'+_escHtml(_pgQ)+'".</p>';return;}
   host.innerHTML=idx.map(function(i){
     var r=_padron[i],opt=_pgOptDe(r),av=_pgAvisos(r,opt);
@@ -9196,7 +9276,21 @@ function _pgRender(){
     '</label>';
   }).join('');
 }
-function _pgSet(i,on){if(on)_pgSel[i]=true;else delete _pgSel[i];_pgRender();}
+// Mismo criterio que el buscador del editor: con muchas empresas, al dejar de tipear.
+var _pgFT=0;
+function _pgFiltrar(v){
+  _pgQ=v;clearTimeout(_pgFT);
+  if(!_padron||_padron.length<400){_pgRender();return;}
+  _pgFT=setTimeout(_pgRender,150);
+}
+function _pgContar(idx){
+  var sel=_pgCount(),vis=idx.filter(function(i){return _pgSel[i];}).length;
+  var cnt=document.getElementById('pg-count');
+  if(cnt)cnt.innerHTML='<strong>'+sel+'</strong> de '+_padron.length+' empresa'+(_padron.length!==1?'s':'')+' seleccionada'+(sel!==1?'s':'')+(_pgQ?(' &middot; mostrando '+idx.length+' ('+vis+' tildada'+(vis!==1?'s':'')+')'):'');
+}
+// Tildar una sola: el tilde ya lo puso el navegador, sólo cambia el contador
+// (antes se volvía a pintar la lista entera en cada tilde).
+function _pgSet(i,on){if(on)_pgSel[i]=true;else delete _pgSel[i];if(document.getElementById('pg-list'))_pgContar(_pgFiltrados());else _pgRender();}
 function _pgTodas(on){
   _pgFiltrados().forEach(function(i){if(on&&_pgOptDe(_padron[i])>0)_pgSel[i]=true;else if(!on)delete _pgSel[i];});
   _pgRender();
@@ -10108,13 +10202,19 @@ function _padDoUpdate(){
   var el=document.getElementById('pad-cuit');
   var btn=document.querySelector('#pad-upd .pu-si');
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  // si no se puede guardar, la empresa vuelve a como estaba (como en _padDoNew):
+  // si no, el cambio quedaba en memoria y se subía en el próximo guardado
+  var antes={config:d.row.config,asesores:d.row.asesores,rubro:d.row.rubro,cuits:d.row.cuits};
   d.row.config=d.config;   // la razón social NO se toca nunca
   d.row.asesores=d.asesores.map(function(a){return {nombre:a.nombre,celular:a.celular,email:a.email};});
   if(d.rubro)d.row.rubro=_padRubroSane(d.rubro);
   if(el)d.row.cuits=_padCuits(el.value); // el CUIT se puede completar acá mismo
   savePadron(_padron,function(ok){
     _padCloseUpdate(0);
-    if(!ok)return;
+    if(!ok){
+      for(var k in antes){if(antes[k]===undefined)delete d.row[k];else d.row[k]=antes[k];}
+      return;
+    }
     _padDismissed='';
     _padShowNote(_padNumAsesores(d.row)?'':'Esta empresa no tiene oficiales asignados.');
     showToast('Empresa actualizada: '+d.empresa);
@@ -12537,6 +12637,7 @@ function _fgLgDibujar(c,s,v){
 }
 // base = la imagen del flyer sobre la que se armaron los cambios; corte/extra =
 // el hueco que abre fgDrawAll para más oficiales (Infinity/0 = sin hueco).
+var _fgLgFallo={}; // logo → cuándo falló su descarga desde el redibujado
 function _fgLgPintar(c,s,L,base,corte,extra){
   var listos=[];
   L.forEach(function(e){
@@ -12546,7 +12647,11 @@ function _fgLgPintar(c,s,L,base,corte,extra){
       // Un logo que todavía no está en memoria (p. ej. al reabrir del historial)
       // se pide y se redibuja al llegar; mientras tanto queda el original.
       if(!im){
-        if(!_fgLgEsSubido(e.img)&&String(e.img).indexOf('orig:')!==0)_fgLgTraer(e.img).then(function(){if(typeof redraw==='function')redraw();}).catch(function(){});
+        // Si falló (el logo ya no está en galicia.ar o no hay red) no se vuelve a
+        // pedir en cada redibujado (= cada tecla): como mucho una vez por minuto.
+        var fk=e.img,fa=_fgLgFallo[fk];
+        if(!_fgLgEsSubido(fk)&&String(fk).indexOf('orig:')!==0&&!(fa&&Date.now()-fa<60000))
+          _fgLgTraer(fk).then(function(){delete _fgLgFallo[fk];if(typeof redraw==='function')redraw();}).catch(function(){_fgLgFallo[fk]=Date.now();});
         return; // subido de la PC y ya no está en memoria: queda el original
       }
     }
@@ -13616,7 +13721,9 @@ function _fgLgAbrir(det,op){
   file.onchange=function(){
     var f=file.files&&file.files[0];if(!f)return;
     subir.disabled=true;
+    var src0=_fgLgSrc();
     _fgLgLeerArchivo(f).then(function(r){
+      if(!lgOv.isConnected||_fgLgSrc()!==src0)return; // se cerró la ventana o cambió el flyer mientras tanto
       cerrar();_fgLgPoner(det,r.clave,r.nombre,r.logo);
       showToast('Listo: tu logo quedó en este flyer. Tocalo para agrandarlo o moverlo.');
     }).catch(function(e){
@@ -13691,10 +13798,16 @@ function _fgLgAbrir(det,op){
     var it=e.target.closest&&e.target.closest('.fg-lg-it');if(!it||it.disabled)return;
     var p=_fgLgV.res[+it.getAttribute('data-i')];if(!p)return;
     it.disabled=true;it.classList.add('cargando');
+    var src0=_fgLgSrc();
     _fgLgTraer(p.imagen).then(function(logo){
+      // la descarga puede tardar: si mientras tanto se cerró la ventana o se
+      // cambió de flyer, no se aplica (antes caía en el flyer nuevo con las
+      // coordenadas del anterior)
+      if(!lgOv.isConnected||_fgLgSrc()!==src0)return;
       cerrar();_fgLgPoner(det,p.imagen,p.titulo,logo);
       showToast('Listo: '+p.titulo+' en este flyer.');
     }).catch(function(){
+      if(!lgOv.isConnected)return;
       it.disabled=false;it.classList.remove('cargando');
       showToast('No se pudo bajar el logo de '+p.titulo+'. Probá con otro o revisá la conexión.');
     });
@@ -14682,11 +14795,16 @@ function fgEstGuardar(){
       base_name:_estNombreImg(_fgLgSrc()),datos:{v:1,cambios:JSON.parse(JSON.stringify(L)),subidos:sub.mapa,
         recortes:_fgRecActivo()?JSON.parse(JSON.stringify(_fgRec.cortes)):[],legal:((document.getElementById('legal-text')||{}).value)||''},miniatura:_estMiniatura(L)};
     ok.disabled=true;ok.textContent='Guardando…';
+    var src0=_fgLgSrc(),proto0=_fgProtoAct;
     var q=(modo==='mismo')?_sb.from('flyer_disenos').update(fila).eq('id',proy.id).select(_EST_COLS).single()
                          :_sb.from('flyer_disenos').insert(Object.assign({estado:'privado'},fila)).select(_EST_COLS).single();
     q.then(function(r){
       if(r.error){ok.disabled=false;ok.textContent='Guardar';showToast('No se pudo guardar: '+_estErr(r.error));return;}
       cerrar();
+      // Guardado está: si mientras respondía se pasó a otro flyer o a otra pestaña
+      // (Escape cierra la ventana), el diseño queda en Estudio pero no se le
+      // pega a lo que está abierto ahora.
+      if(_fgLgSrc()!==src0||_fgProtoAct!==proto0){_estUpsert(r.data);showToast('Guardado en Estudio: «'+r.data.nombre+'».');return;}
       _fgLg.proy={id:r.data.id,nombre:r.data.nombre,empresa:r.data.empresa,mio:true,estado:r.data.estado};
       // si estaba en un prototipo: la pestaña pasa a ser la del diseño guardado
       var pa=_fgProtoAct&&_fgProtoBuscar(_fgProtoAct);
