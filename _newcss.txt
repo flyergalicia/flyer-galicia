@@ -1688,3 +1688,6 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 .fg-sin-imp-aviso{font-size:.8125rem;color:var(--gray);line-height:1.45;padding:4px 2px;}
 @media (max-width:900px){.fg-rec-conf{bottom:72px;}}
 .fg-rec-chip[hidden]{display:none !important;}
+/* Borradores: pestaña punteada al lado del flyer */
+#fg-optbar .fgp.fgp-bor{border-style:dashed;}
+#fg-optbar .fgp.fgp-bor .fgp-t{font-style:italic;}

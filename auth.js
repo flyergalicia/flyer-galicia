@@ -4130,9 +4130,11 @@ function _fgEnsureOptBar(){
   bar.innerHTML=_facOptsDe(_fgVista).map(function(o){
     // los diseños de Estudio abiertos con "Usar" van al lado de su flyer base
     var protos=_fgProtos.filter(function(p){return p.opcion===o;}).map(function(p){
-      return '<div class="fgp" data-p="'+_escAttr(p.id)+'" onclick="fgProtoAbrir(\''+_escAttr(p.id)+'\')" title="Prototipo de Estudio sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda ac&aacute; hasta que recargues la p&aacute;gina; el dise&ntilde;o sigue guardado en Estudio.">'+
+      var tit=p.temp?'Borrador sin guardar sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda hasta que recargues la p&aacute;gina o lo cierres; para conservarlo, toc&aacute; &laquo;Guardar en Estudio&raquo;.':
+        'Prototipo de Estudio sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda ac&aacute; hasta que recargues la p&aacute;gina; el dise&ntilde;o sigue guardado en Estudio.';
+      return '<div class="fgp'+(p.temp?' fgp-bor':'')+'" data-p="'+_escAttr(p.id)+'" onclick="fgProtoAbrir(\''+_escAttr(p.id)+'\')" title="'+tit+'">'+
         '<svg class="fgp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'+
-        '<span class="fgp-t">'+_escHtml(p.nombre)+'</span><button type="button" class="fgp-x" onclick="fgProtoCerrar(\''+_escAttr(p.id)+'\',event)" aria-label="Cerrar prototipo" title="Cerrar (sigue guardado en Estudio)">&times;</button></div>';
+        '<span class="fgp-t">'+_escHtml(p.nombre)+'</span><button type="button" class="fgp-x" onclick="fgProtoCerrar(\''+_escAttr(p.id)+'\',event)" aria-label="Cerrar" title="'+(p.temp?'Cerrar borrador':'Cerrar (sigue guardado en Estudio)')+'">&times;</button></div>';
     }).join('');
     return '<div class="fgo" data-o="'+o+'" onclick="fgOptElegir('+o+')">'+_escHtml(_optLabel(o))+'</div>'+protos;
   }).join('');
@@ -6413,6 +6415,7 @@ function _fgApplyHistItem(h){
 // "Restaurar": deja el formulario vacío (nada de datos de ejemplo) y devuelve el legal
 // GUARDADO de la opción actual, descartando mis ediciones de sesión.
 function fgResetVals(){
+  _fgProtoGuardarActual(); // si estaba en un borrador o diseño, conserva lo suyo en su pestaña
   _fgLgLimpiar(); // Restaurar también vuelve los logos al original
   if(_fgRec){_fgRecOlvidar();_fgMontosVisibles();if(typeof calcSC==='function')calcSC();} // y la parte recortada
   var s=function(id,val){var e=document.getElementById(id);if(e)e.value=val;};
@@ -9406,7 +9409,9 @@ function applyPadronRow(i){
 // Carga una fila del padrón en el formulario. La usan la lupa y el typeahead.
 function _padApply(r){
   if(!r)return;
-  _fgLgLimpiar(); // otra empresa: los logos vuelven a como vienen en el flyer
+  // otra empresa: los logos vuelven a como vienen en el flyer, salvo dentro de un
+  // borrador o un diseño de Estudio (ahí los cambios son el trabajo en curso)
+  if(!_fgProtoActivo())_fgLgLimpiar();
   var e=document.getElementById('empresa');if(e)e.value=r.empresa||'';
   // El padrón manda también acá: sin config válida, la empresa va sin montos.
   var _ci=_padCfgOf(r.config);
@@ -12090,9 +12095,9 @@ function fgRecAplicar(y,h){
     });
   }
   _fgRecPoner(_fgRec.cortes.concat([{y:y,h:h}]));
-  if(conLogos)_fgLg.src=_fgLgSrc();
+  if(conLogos||!_fgLg.list.length)_fgLg.src=_fgLgSrc(); // la lista (aunque vacía) es la del flyer recortado
   _fgLg.sel=-1;_fgLg.grupo=[];
-  _fgRecDespues();
+  _fgRecDespues();_fgBorradorAuto();
   showToast('Listo: se quitó esa parte'+(_fgSinImportes()?' y el flyer ya no lleva importes':'')+'.'+(perdidos?' '+perdidos+(perdidos===1?' cambio de logo quedaba':' cambios de logos quedaban')+' adentro y se sacaron.':''));
 }
 // Para abrir un diseño de Estudio: aplica sus cortes tal cual (sin ajustar).
@@ -12115,7 +12120,7 @@ function fgRecQuitar(){
     });
   }
   window.baseImg=r.orig;window.FLYER_CFG=r.cfg0;_fgRec=null;
-  if(conLogos)_fgLg.src=_fgLgSrc();
+  if(conLogos||!_fgLg.list.length)_fgLg.src=_fgLgSrc();
   _fgLg.sel=-1;_fgLg.grupo=[];
   _fgRecDespues();
   showToast('El flyer volvió a estar entero.');
@@ -12547,6 +12552,7 @@ function _fgLgInit(){
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg><span>Rehacer</span></button></span>'+
     '<button type="button" class="fg-lg-undo fg-lg-ver" id="fg-lg-ver" onclick="fgLgLimpio()" hidden aria-pressed="false" title="Ver el flyer tal como se va a descargar, sin marcas">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span id="fg-lg-ver-t">Ver limpio</span></button>'+
+    '<button type="button" class="fg-lg-undo fg-lg-nbor" id="fg-lg-nbor" onclick="fgBorradorNuevo()" hidden title="Abre otra pesta&ntilde;a con el flyer limpio para armar una versi&oacute;n en paralelo">+ Nuevo borrador</button>'+
     '<button type="button" class="fg-lg-undo fg-lg-rec" id="fg-lg-rec" onclick="fgRecModo()" hidden title="Quitar una parte del flyer (por ejemplo, la de los importes): lo de abajo sube y se une">Recortar</button>'+
     '<span class="fg-lg-proy fg-rec-chip" id="fg-rec-chip" hidden></span>'+
     '<button type="button" class="fg-lg-undo fg-lg-franja" id="fg-lg-franja" onclick="fgFranjaModo()" hidden title="Rehacer toda una franja de logos de una vez, eligiendo marcas de Promociones">Armar franja</button>'+
@@ -12913,6 +12919,7 @@ function _fgLgBarra(){
   }
   var fb=document.getElementById('fg-lg-franja');
   if(fb){fb.hidden=!_fgLg.on;fb.classList.toggle('on',_fgFr.modo);fb.textContent=_fgFr.modo?'Cancelar franja':'Armar franja';}
+  var nb=document.getElementById('fg-lg-nbor');if(nb)nb.hidden=!_fgLg.on;
   var rb=document.getElementById('fg-lg-rec'),rc=document.getElementById('fg-rec-chip');
   if(rb){rb.hidden=!_fgLg.on;rb.classList.toggle('on',_fgRecM.modo);rb.textContent=_fgRecM.modo?'Cancelar recorte':'Recortar';}
   if(rc){var nr=_fgRecActivo()?_fgRec.cortes.length:0;rc.hidden=!(_fgLg.on&&nr);
@@ -12926,7 +12933,7 @@ function _fgLgBarra(){
   if(g){g.hidden=!(_fgLg.on&&(n||_fgRecActivo())&&est);g.textContent=(_fgLg.proy&&_fgLg.proy.mio&&_fgLg.proy.estado!=='publicado')?'Guardar cambios':'Guardar en Estudio';}
   if(pr){
     var p=_fgLg.proy;pr.hidden=!(_fgLg.on&&p);
-    if(p)pr.innerHTML='Diseño: <b>'+_escHtml(p.nombre)+'</b> <button type="button" onclick="fgEstSoltar()" aria-label="Dejar de editar este diseño" title="Dejar de editar este diseño">&times;</button>';
+    if(p)pr.innerHTML=p.temp?('<b>'+_escHtml(p.nombre)+'</b> (sin guardar)'):('Diseño: <b>'+_escHtml(p.nombre)+'</b> <button type="button" onclick="fgEstSoltar()" aria-label="Dejar de editar este diseño" title="Dejar de editar este diseño">&times;</button>');
   }
 }
 function _fgLgMarcas(){
@@ -13022,7 +13029,7 @@ function _fgLgPonerTexto(det,d,previo){
 }
 function _fgLgListo(){
   if(typeof redrawNow==='function')redrawNow();else if(typeof redraw==='function')redraw();
-  _fgLgBarra();_fgLgMarcas();_fgLgHistPronto();
+  _fgLgBarra();_fgLgMarcas();_fgLgHistPronto();_fgBorradorAuto();
 }
 // ·· Deshacer / Rehacer de a un paso ··
 // Cada paso es una copia (JSON) de la lista de cambios. No hace falta marcar
@@ -13124,7 +13131,7 @@ function _fgLgHistAplicar(){
     var m=mk.children[i];if(m&&m.classList.contains('fg-lg-marca')){m.classList.add('flash');setTimeout(function(){m.classList.remove('flash');},1300);}
   });
 }
-function fgLogosDeshacer(){_fgLg.list=[];_fgLg.sel=-1;_fgLg.proy=null;_fgLgListo();showToast('Los logos volvieron a como vienen en el flyer.');}
+function fgLogosDeshacer(){_fgLg.list=[];_fgLg.sel=-1;if(!_fgProtoActivo())_fgLg.proy=null;_fgLgListo();showToast('Los logos volvieron a como vienen en el flyer.');}
 
 // ·· Ventana para elegir el reemplazo ··
 var _fgLgV={det:null,res:[],prov:'',rubro:'',q:'',loc:'',una:true,sinOnline:false};
@@ -14141,6 +14148,11 @@ function fgEstGuardar(){
       // si estaba en un prototipo: la pestaña pasa a ser la del diseño guardado
       var pa=_fgProtoAct&&_fgProtoBuscar(_fgProtoAct);
       if(pa&&modo==='mismo'){pa.nombre=r.data.nombre;pa.empresa=r.data.empresa;pa.cambios=JSON.parse(JSON.stringify(L));pa.subidos=sub.mapa;pa.recortes=fila.datos.recortes;pa.legal=fila.datos.legal;_facSyncOptBar();_fgRenderOptBar();}
+      else if(pa&&pa.temp){ // el borrador pasa a ser el diseño guardado (deja de ser borrador)
+        pa.id=r.data.id;pa.temp=false;pa.nombre=r.data.nombre;pa.empresa=r.data.empresa||'';pa.mio=true;pa.estado=r.data.estado;
+        pa.cambios=JSON.parse(JSON.stringify(L));pa.subidos=sub.mapa;pa.recortes=fila.datos.recortes;pa.legal=fila.datos.legal;
+        _fgProtoAct=pa.id;_facSyncOptBar();_fgRenderOptBar();
+      }
       _estUpsert(r.data);_fgLgBarra();
       showToast(modo==='mismo'?'Cambios guardados en «'+r.data.nombre+'».':'Guardado en Estudio: «'+r.data.nombre+'».');
     },function(e){ok.disabled=false;ok.textContent='Guardar';showToast('No se pudo guardar: '+_estErr(e));});
@@ -14192,6 +14204,40 @@ function _estPrepararSubidos(sub){
 // Sin esto, abrir un prototipo y tocar otra pestaña antes de que termine de
 // cargar dejaba aplicado el anterior (y la descarga salía con ese diseño).
 var _fgProtos=[],_fgProtoAct=null,_fgProtoTurno=0;
+// ·· Borradores ··
+// Un BORRADOR es una pestaña de prototipo SIN fila en Estudio (p.temp): el primer
+// cambio sobre el flyer original (recorte, logo o texto) se muda solo a
+// "Borrador N", al lado; el original queda limpio. "Nuevo borrador" arranca
+// otro desde el flyer limpio. Viven en memoria hasta recargar o cerrarlos; para
+// conservar uno, "Guardar en Estudio" lo convierte en diseño.
+var _fgBorr={seq:0};
+function _fgBorradorCrear(n){
+  var k=1;while(_fgProtos.some(function(x){return x.temp&&x.opcion===n&&x.nombre==='Borrador '+k;}))k++;
+  var p={id:'bor-'+n+'-'+(++_fgBorr.seq),opcion:n,nombre:'Borrador '+k,temp:true,mio:false,estado:'borrador',empresa:'',cambios:[],recortes:[],legal:null,subidos:{}};
+  _fgProtos.push(p);return p;
+}
+function _fgBorradorAuto(){
+  if(!_fgLg.on||_fgProtoActivo()||_fgBorr.ocupado)return;
+  if(!(_fgLgActivos().length||_fgRecActivo()))return;
+  var n=_optN(_fgOpt);if(_FG_OPTS.indexOf(n)<0)return;
+  _fgStashLegal(); // lo editado en el legal del original queda para el original
+  var p=_fgBorradorCrear(n);
+  _fgProtoAct=p.id;
+  _fgLg.proy={id:p.id,nombre:p.nombre,empresa:'',mio:false,estado:'borrador',temp:true};
+  _facSyncOptBar();_fgRenderOptBar();_fgLgBarra();
+  showToast('Tus cambios quedaron en «'+p.nombre+'», al lado del flyer original. El original no se tocó.');
+}
+function fgBorradorNuevo(){
+  var n=_optN(_fgOpt);if(_FG_OPTS.indexOf(n)<0)return;
+  var p=_fgBorradorCrear(n);
+  _facSyncOptBar();
+  fgProtoAbrir(p.id);
+  showToast('«'+p.nombre+'» listo: arranca del flyer original.');
+}
+function _fgBorradorConCambios(p){
+  if(_fgProtoActivo()===p&&(_fgLgActivos().length||_fgRecActivo()))return true;
+  return !!((p.cambios&&p.cambios.length)||(p.recortes&&p.recortes.length));
+}
 function _fgProtoBuscar(id){for(var i=0;i<_fgProtos.length;i++)if(_fgProtos[i].id===id)return _fgProtos[i];return null;}
 // El prototipo que se ve ahora (su diseño está aplicado sobre su flyer base).
 function _fgProtoActivo(){
@@ -14202,7 +14248,8 @@ function _fgProtoActivo(){
 function _fgProtoGuardarActual(){
   var p=_fgProtoActivo();
   if(p&&_fgLg.src===_fgLgSrc())p.cambios=JSON.parse(JSON.stringify(_fgLg.list));
-  if(p){p.recortes=_fgRecActivo()?JSON.parse(JSON.stringify(_fgRec.cortes)):[];var lt=document.getElementById('legal-text');if(lt&&typeof p.legal==='string')p.legal=lt.value;}
+  if(p){p.recortes=_fgRecActivo()?JSON.parse(JSON.stringify(_fgRec.cortes)):[];var lt=document.getElementById('legal-text');if(lt&&(typeof p.legal==='string'||p.temp))p.legal=lt.value;}
+  if(p&&p.temp&&_fgLg.src===_fgLgSrc()){try{p.subidos=_estSubidos(_fgLg.list).mapa;}catch(e){}}
 }
 // El legal de la opción (lo editado en la sesión o el guardado), para volver de un prototipo.
 function _fgLegalDeOpcion(o){
@@ -14213,21 +14260,27 @@ function fgProtoAbrir(id){
   var p=_fgProtoBuscar(id);if(!p)return;
   if(_fgProtoActivo()===p)return;
   if(_FG_OPTS.indexOf(p.opcion)<0||!_can('opcion_'+p.opcion)){showToast('El flyer base de este prototipo ya no está disponible.');return;}
+  if(!_fgProtoActivo())_fgStashLegal(); // desde el original: su legal editado queda para él
   _fgProtoGuardarActual();
   var turno=++_fgProtoTurno;
   _fgProtoAct=null;_fgLg.list=[];_fgLg.proy=null;_fgLg.sel=-1;
+  _fgBorr.ocupado=true;_fgRecOlvidar();
+  // si la apertura no termina (falla la carga, se elige otra cosa), no queda trabado
+  setTimeout(function(){if(turno===_fgProtoTurno&&_fgProtoAct!==p.id)_fgBorr.ocupado=false;},15000);
   switchApp(_optSolapa(p.opcion));
-  function vigente(){return turno===_fgProtoTurno&&_optN(_fgOpt)===p.opcion&&_fgProtoBuscar(p.id)===p;}
+  function vigente(){var v=turno===_fgProtoTurno&&_optN(_fgOpt)===p.opcion&&_fgProtoBuscar(p.id)===p;if(!v&&turno===_fgProtoTurno)_fgBorr.ocupado=false;return v;}
   switchFlyerOption(p.opcion,function(){
     if(!vigente())return;
     _estPrepararSubidos(p.subidos).then(function(){
       if(!vigente())return; // mientras se preparaba, se eligió otra cosa
       // primero el flyer entero, después los recortes del diseño y recién ahí sus logos
       _fgRecOlvidar();_fgRecAplicarLista(p.recortes);
+      // su legal; si no tiene uno propio, el de la opción (nunca el de la pestaña anterior)
       if(typeof p.legal==='string'&&p.legal.trim()){var lt=document.getElementById('legal-text');if(lt)lt.value=p.legal;}
+      else _fgLegalDeOpcion(p.opcion);
       _fgLg.list=JSON.parse(JSON.stringify(p.cambios||[]));_fgLg.src=_fgLgSrc();_fgLg.sel=-1;_fgLgHistReiniciar();
-      _fgLg.proy={id:p.id,nombre:p.nombre,empresa:p.empresa||'',mio:p.mio,estado:p.estado};
-      _fgProtoAct=p.id;
+      _fgLg.proy={id:p.id,nombre:p.nombre,empresa:p.empresa||'',mio:p.mio,estado:p.estado,temp:!!p.temp};
+      _fgProtoAct=p.id;_fgBorr.ocupado=false;_fgMontosVisibles();if(typeof calcSC==='function')calcSC();
       var e=document.getElementById('empresa');
       if(e&&p.empresa&&!e.value.trim()){e.value=p.empresa;if(typeof updateFnPreview==='function')updateFnPreview();}
       _fgLgListo();_fgRenderOptBar();
@@ -14238,7 +14291,7 @@ function fgProtoAbrir(id){
 // Elegir una opción "de verdad" en la barra. Si se estaba en un prototipo de
 // esa misma opción, se vuelve al flyer original (sin sus cambios).
 function fgOptElegir(o){
-  _fgProtoTurno++; // anula una apertura de prototipo que todavía esté cargando
+  _fgProtoTurno++;_fgBorr.ocupado=false; // anula una apertura de prototipo que todavía esté cargando
   var p=_fgProtoActivo();
   if(p){
     _fgProtoGuardarActual();
@@ -14248,12 +14301,16 @@ function fgOptElegir(o){
   }
   switchFlyerOption(o);
 }
-function fgProtoCerrar(id,ev){
+function fgProtoCerrar(id,ev,ya){
   if(ev){ev.stopPropagation();ev.preventDefault();}
   var p=_fgProtoBuscar(id);if(!p)return;
+  if(p.temp&&!ya&&_fgBorradorConCambios(p)){
+    fgConfirm('',{titulo:'¿Cerrar «'+p.nombre+'»?',texto:'Es un borrador sin guardar: se pierden sus cambios. Si lo querés conservar, primero tocá «Guardar en Estudio».',ok:'Cerrar borrador',cancelar:'Volver'},function(si){if(si)fgProtoCerrar(id,null,true);});
+    return;
+  }
   _fgProtoTurno++;
   if(_fgProtoActivo()===p){_fgProtoAct=null;_fgLg.list=[];_fgLg.proy=null;_fgLg.sel=-1;_fgRecOlvidar();_fgLgHistReiniciar();
-    if(typeof p.legal==='string')_fgLegalDeOpcion(_fgOpt);_fgMontosVisibles();if(typeof calcSC==='function')calcSC();_fgLgListo();}
+    if(typeof p.legal==='string'||p.temp)_fgLegalDeOpcion(_fgOpt);_fgMontosVisibles();if(typeof calcSC==='function')calcSC();_fgLgListo();}
   _fgProtos=_fgProtos.filter(function(x){return x!==p;});
   _facSyncOptBar();_fgRenderOptBar();
 }
