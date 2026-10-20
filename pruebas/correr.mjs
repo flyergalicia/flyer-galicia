@@ -81,7 +81,8 @@ function servir() {
 
 const PW = buscarPlaywright(), CH = buscarChromium();
 if (!PW) { console.log('No encontré Playwright. Instalalo una vez con:  npx -y playwright@latest install chromium\n(o indicá dónde está con la variable PLAYWRIGHT).'); process.exit(1); }
-const todas = readdirSync(AQUI).filter((f) => /^t\d+_.*\.cjs$/.test(f)).sort();
+// t…_*.cjs = con navegador; u…_*.mjs = sin navegador (lógica suelta, por ejemplo de las Edge Functions)
+const todas = readdirSync(AQUI).filter((f) => /^t\d+_.*\.cjs$/.test(f) || /^u\d+_.*\.mjs$/.test(f)).sort();
 const elegidas = filtros.length ? todas.filter((f) => filtros.some((x) => f.startsWith(x))) : todas;
 if (!elegidas.length) { console.log('No hay pruebas con ese nombre.'); process.exit(1); }
 const srv = await servir();
@@ -90,7 +91,7 @@ const resumen = [];
 for (const f of elegidas) {
   const t0 = Date.now();
   const salida = await new Promise((res) => {
-    const ch = spawn(process.execPath, [fileURLToPath(import.meta.url), '--una', f], { env: { ...process.env, FG_PLAYWRIGHT: PW, FG_CHROMIUM: CH || '' } });
+    const ch = spawn(process.execPath, f.endsWith('.mjs') ? ['--no-warnings', join(AQUI, f)] : [fileURLToPath(import.meta.url), '--una', f], { env: { ...process.env, FG_PLAYWRIGHT: PW, FG_CHROMIUM: CH || '' } });
     let out = '';
     ch.stdout.on('data', (d) => { out += d; });
     ch.stderr.on('data', (d) => { out += d; });

@@ -178,7 +178,96 @@ const MAILS = {
     ],
     datos: [["Error", error]],
   }),
+  vigiladas: (lineas: [string, string][]): Mail => ({
+    asunto: "Armador de flyers · Marcas para revisar en tus flyers",
+    titulo: "Marcas para revisar en tus flyers",
+    parrafos: [
+      "En la revisión de hoy hay marcas de tus flyers que ya no tienen promoción vigente o que vencen en los próximos 7 días. Conviene cambiarlas (Cambiar logos o Armar franja) o sacar el flyer de circulación.",
+      "La lista completa y el estado de cada marca están en Admin → Config → Marcas vigiladas. Este aviso no se repite mientras la lista no cambie.",
+    ],
+    datos: lineas,
+  }),
 };
+
+// ── Marcas vigiladas: revisión diaria ──────────────────────────────────────
+// El admin elige qué marcas tiene cada flyer (_vigilar.json del bucket, lo
+// escribe la app). Después del sync de las 9 se cruza con el catálogo y, si hay
+// algo vencido o por vencer (7 días o menos), se avisa por mail UNA vez: la
+// firma de lo avisado queda en _vigilar_aviso.json y no se repite mientras no
+// cambie. Es una función pura (evaluarVigiladas) para poder probarla aparte.
+type Vig = { m?: string; t?: string; img?: string };
+type Promo = { titulo: string; imagen: string; fecha_hasta: string | null; proximamente?: boolean };
+function normVig(s: unknown): string {
+  return String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "");
+}
+export function evaluarVigiladas(ops: Record<string, Vig[]>, cat: Promo[], hoy: Date): { opcion: string; marca: string; estado: "vencida" | "vence"; hasta: string | null }[] {
+  const dia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+  const porImg = new Map<string, Promo[]>(), porTit = new Map<string, Promo[]>();
+  for (const p of cat) {
+    if (p.proximamente) continue;
+    if (p.imagen) { const a = porImg.get(p.imagen) || []; a.push(p); porImg.set(p.imagen, a); }
+    const k = normVig(p.titulo); if (k) { const a = porTit.get(k) || []; a.push(p); porTit.set(k, a); }
+  }
+  const out: { opcion: string; marca: string; estado: "vencida" | "vence"; hasta: string | null }[] = [];
+  for (const [opcion, lista] of Object.entries(ops || {})) {
+    for (const v of (Array.isArray(lista) ? lista : [])) {
+      const cands = [...(v.img ? porImg.get(v.img) || [] : []), ...(porTit.get(normVig(v.t || v.m)) || [])];
+      let mejor = -1, sinFecha = false;
+      for (const p of cands) {
+        if (!p.fecha_hasta) { sinFecha = true; continue; }
+        const f = new Date(p.fecha_hasta + "T00:00:00").getTime();
+        if (f >= dia && f > mejor) mejor = f;
+      }
+      const marca = String(v.m || v.t || "");
+      if (sinFecha) continue; // vigente sin fecha informada
+      if (mejor < 0) out.push({ opcion, marca, estado: "vencida", hasta: null });
+      else if (mejor - dia <= 7 * 86400000) out.push({ opcion, marca, estado: "vence", hasta: new Date(mejor).toISOString().slice(0, 10) });
+    }
+  }
+  return out;
+}
+async function revisarVigiladas(): Promise<void> {
+  const PUB = SUPABASE_URL + "/storage/v1/object/public/flyers/";
+  const leer = (f: string) => fetch(PUB + f + "?t=" + Date.now(), { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const vig = await leer("_vigilar.json");
+  const ops = (vig && vig.opciones) || {};
+  if (!Object.keys(ops).length) return;
+  const cat: Promo[] = [];
+  for (let d = 0; ; d += 1000) {
+    const { data, error } = await admin.from("promos_galicia_cache").select("titulo,imagen,fecha_hasta,proximamente").order("id").range(d, d + 999);
+    if (error) throw new Error("vigiladas: " + error.message);
+    cat.push(...((data || []) as Promo[]));
+    if (!data || data.length < 1000) break;
+  }
+  const res = evaluarVigiladas(ops, cat, new Date());
+  const firma = JSON.stringify(res.map((r) => [r.opcion, r.marca, r.estado, r.hasta]).sort());
+  const prev = await leer("_vigilar_aviso.json");
+  if (prev && prev.firma === firma) return;
+  // Reserva atómica del aviso (misma tabla de topes que auth-admin): si la
+  // actualización de las 9 y una manual corren a la vez, sólo una manda el mail.
+  if (res.length) {
+    const h = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(firma))))
+      .map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+    const { data: libre, error: eRes } = await admin.rpc("rate_limit_hit", { p_clave: "vigiladas|" + h, p_max: 1, p_segundos: 30 * 24 * 3600 });
+    if (eRes) console.error("vigiladas: no se pudo reservar el aviso:", eRes.message);
+    else if (libre === false) return; // otra ejecución ya lo está mandando
+  }
+  if (res.length) {
+    const opc = await leer("_opciones.json");
+    const nombre = (n: string) => ((opc?.opts || []).find((o: { n: number; nombre: string }) => String(o.n) === n)?.nombre) || ("Opción " + n);
+    const porOpt = new Map<string, string[]>();
+    for (const r of res) {
+      const a = porOpt.get(r.opcion) || [];
+      a.push(r.marca + (r.estado === "vencida" ? " (sin promo vigente)" : " (vence el " + r.hasta!.slice(8, 10) + "/" + r.hasta!.slice(5, 7) + ")"));
+      porOpt.set(r.opcion, a);
+    }
+    await avisarAdmin(MAILS.vigiladas([...porOpt.entries()].map(([n, a]) => [nombre(n), a.join(", ")] as [string, string])));
+  }
+  // se guarda la firma (también cuando quedó vacía: si algo vuelve a vencer, se avisa de nuevo)
+  const blob = new Blob([JSON.stringify({ firma, fecha: new Date().toISOString() })], { type: "application/json" });
+  const { error: eUp } = await admin.storage.from("flyers").upload("_vigilar_aviso.json", blob, { upsert: true, contentType: "application/json" });
+  if (eUp) console.error("vigiladas: no se pudo guardar el aviso:", eUp.message);
+}
 
 // ── Cliente hacia la API de Galicia (imitando el navegador real) ───────────
 const GALICIA_BFF = "https://loyalty.bff.bancogalicia.com.ar/api/portal";
@@ -471,6 +560,8 @@ Deno.serve(async (req: Request) => {
     try {
       const data = await syncCatalogo();
       if (data.geoError) await avisarAdmin(MAILS.sinProvincias(data.geoError));
+      // marcas vigiladas: aparte, para que un error acá no tape la actualización
+      try { await revisarVigiladas(); } catch (e) { console.error("vigiladas:", String((e as Error)?.message || e)); }
       return json({ data });
     } catch (e) {
       const msg = (e as Error)?.message || "Error";
@@ -488,6 +579,8 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "sync") {
       const data = await syncCatalogo();
+      // la actualización a mano también revisa las marcas vigiladas (la firma evita repetir el mail)
+      try { await revisarVigiladas(); } catch (e) { console.error("vigiladas:", String((e as Error)?.message || e)); }
       return json({ data });
     }
     if (action === "detalle") {

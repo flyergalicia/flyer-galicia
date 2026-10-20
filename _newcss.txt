@@ -1708,3 +1708,54 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 .fg-cf.fg-ver{width:min(720px,96vw);max-height:94vh;display:flex;flex-direction:column;}
 .fg-ver-img{flex:1 1 auto;min-height:0;overflow:auto;margin-top:10px;border:1px solid var(--border);border-radius:10px;background:#fff;}
 .fg-ver-cv{display:block;width:100%;height:auto;}
+/* Borradores de la última vez */
+.fg-borr-rec{position:fixed;left:16px;bottom:16px;z-index:9000;max-width:min(420px,calc(100vw - 32px));padding:14px 16px;background:var(--card);color:var(--ink);border:1px solid var(--accent-line);border-radius:14px;box-shadow:var(--sh-3,0 8px 24px rgba(0,0,0,.18));}
+.fg-borr-rec-t{font-weight:800;font-size:.9375rem;}
+.fg-borr-rec-b{font-size:.8125rem;color:var(--gray);margin:4px 0 10px;line-height:1.4;}
+.fg-borr-rec-a{display:flex;gap:8px;justify-content:flex-end;}
+@media (max-width:900px){.fg-borr-rec{bottom:80px;}}
+/* Armar franja: sugerir marcas */
+.fg-fr-sug{border-color:#e5c07b;color:#8a5a00;}
+.fg-fr-sug:hover{background:#fff6dd;}
+html.dark .fg-fr-sug{color:#f0c674;}
+.fg-fr-it .fg-fr-sugmark{flex:0 0 auto !important;font-size:.875rem;}
+.fg-fr-qsug{margin-left:8px;border:0;background:none;padding:0;color:var(--accent-2);font-size:.75rem;font-weight:700;text-decoration:underline;cursor:pointer;}
+.fg-fr-qsug[hidden]{display:none;}
+/* Admin → Uso */
+.uso-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.uso-per{display:inline-flex;gap:4px;}
+.uso-per button{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--ink);font-size:.75rem;font-weight:700;cursor:pointer;}
+.uso-per button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.uso-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;}
+.uso-card{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
+.uso-card-n{font-size:1.5rem;font-weight:800;color:var(--ink);}
+.uso-card-t{font-size:.8125rem;color:var(--ink);font-weight:600;}
+.uso-card-s{font-size:.75rem;color:var(--gray);margin-top:2px;}
+.uso-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;}
+.uso-sec{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0;}
+.uso-sec h4{margin:0 0 8px;font-size:.8125rem;font-weight:800;color:var(--ink);}
+.uso-sec h4 small{font-weight:500;color:var(--gray);font-size:.75rem;}
+.uso-est{margin-top:12px;}
+.uso-fila{display:grid;grid-template-columns:minmax(0,38%) 1fr auto;align-items:center;gap:8px;margin:5px 0;font-size:.75rem;}
+.uso-et{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
+.uso-pista{height:10px;border-radius:6px;background:var(--border);overflow:hidden;}
+.uso-barra{display:block;height:100%;border-radius:6px;background:var(--accent);}
+.uso-n{min-width:28px;text-align:right;font-weight:700;color:var(--ink);}
+.uso-vacio{font-size:.8125rem;color:var(--gray);}
+/* Marcas vigiladas */
+.vig-bar{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto;font-size:.75rem;font-weight:600;color:var(--ink);}
+.vig-bar select{padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:.75rem;background:var(--field,#fff);color:var(--ink);}
+.vig-sec{margin-bottom:10px;}
+.vig-fila{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border);font-size:.8125rem;}
+.vig-m{flex:1;min-width:0;color:var(--ink);}
+.vig-m small{color:var(--gray);font-size:.75rem;}
+.vig-or{background:var(--accent-soft);color:var(--accent-2);border-radius:6px;padding:0 5px;}
+.vig-e{font-size:.75rem;font-weight:700;border-radius:10px;padding:2px 8px;white-space:nowrap;}
+.vig-ok{background:#e7f6ee;color:#0e7a4f;}
+.vig-vence{background:#fff4dd;color:#8a5a00;}
+.vig-mal{background:#fdeaea;color:#b42318;}
+.vig-mal-t{color:#b42318;}
+.vig-x{border:1px solid var(--border);background:var(--card);color:var(--gray);border-radius:7px;width:28px;height:26px;cursor:pointer;font-size:.875rem;}
+html.dark .vig-ok{background:rgba(14,122,79,.2);color:#7ee2b0;}
+html.dark .vig-vence{background:rgba(138,90,0,.25);color:#f0c674;}
+html.dark .vig-mal{background:rgba(180,35,24,.25);color:#ff9b91;}

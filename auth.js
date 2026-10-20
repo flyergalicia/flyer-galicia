@@ -1285,7 +1285,7 @@ function skelRows(n){var s='';for(var i=0;i<(n||3);i++)s+='<div class="skel skel
 
 // El menú del panel tiene 3 pilares (Admin/Data/Config) con sub-solapas dentro.
 // _AP_GROUPS es la única fuente de verdad de qué hoja vive en qué pilar.
-var _AP_GROUPS={admin:['dashboard','usuarios','registros','facultades','auditoria'],data:['varios','asesores','padronotros','padronlog'],config:['subir','cashback','legales','opciones']};
+var _AP_GROUPS={admin:['dashboard','usuarios','registros','uso','facultades','auditoria'],data:['varios','asesores','padronotros','padronlog'],config:['subir','cashback','legales','opciones','vigiladas']};
 var _apLast={admin:'dashboard',data:'varios',config:'subir'}; // última hoja vista por pilar
 function _apGroupOf(t){for(var g in _AP_GROUPS)if(_AP_GROUPS[g].indexOf(t)>=0)return g;return '';}
 function switchAdminTab(el,t){
@@ -1310,6 +1310,8 @@ function switchAdminTab(el,t){
   if(t==='dashboard')loadStats();
   if(t==='subir')loadUploadHistory();
   if(t==='registros')loadRegistros();
+  if(t==='uso')_usoCargar();
+  if(t==='vigiladas')_vigPintarAdmin();
   if(t==='cashback'){var _cbh=document.getElementById('cashback-list');if(_cbh&&!_cbh.children.length)_cbh.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando...</p>';loadCashback(true,renderCashbackAdmin);}
   if(t==='facultades')loadFacultades(true,renderFacultades);
   if(t==='varios')renderPadronAdmin(true);
@@ -3012,6 +3014,7 @@ function renderPromosResultados(){
     return;
   }
   if(actions)actions.style.display='flex';
+  _vigBarraBuscar(actions); // admin: "Vigilar estas marcas en…"
   if(searchBox)searchBox.style.display='';
   // Selector "Ordenar por": refleja siempre el orden vigente, se haya elegido
   // desde acá o clickeando el encabezado de una columna.
@@ -3539,6 +3542,196 @@ function loadStats(){
       }).join('');
     })();
   });
+}
+
+// ── USO DE LA APP (admin) ────────────────────────────────────────────────────
+// Cuántos flyers se bajan, de qué flyer, qué perfiles y por semana, más lo de
+// Estudio. Sale de flyer_logs (un registro por descarga; el Masivo y el padrón,
+// uno por tanda con bulk_count) y se calcula en el navegador. Barras en HTML
+// puro: nada pesado para las PC de sucursal.
+var _uso={per:'30'};
+var _USO_ROLES={admin:'Admin',vip:'VIP',pro:'Pro',asesor:'Asesor',hunter:'Hunter',lider:'Líder',prospect:'Prospect'};
+function _usoDesde(per){
+  var h=new Date();
+  if(per==='anio')return new Date(h.getFullYear(),0,1);
+  return new Date(h.getTime()-(+per||30)*86400000);
+}
+function _usoCargar(per){
+  if(per)_uso.per=per;
+  var box=document.getElementById('uso-body');if(!box)return;
+  var bt=document.getElementById('uso-per');
+  if(bt&&!bt._ok){bt._ok=true;bt.addEventListener('click',function(e){var x=e.target.closest&&e.target.closest('button[data-d]');if(x)_usoCargar(x.getAttribute('data-d'));});}
+  if(bt)Array.prototype.forEach.call(bt.querySelectorAll('button'),function(x){x.classList.toggle('on',x.getAttribute('data-d')===_uso.per);});
+  box.innerHTML=skelRows(4);
+  var desde=_usoDesde(_uso.per).toISOString(),turno=_uso.turno=(_uso.turno||0)+1;
+  var logs=null,perf=null,dis=null;
+  function listo(){if(logs&&perf&&dis&&turno===_uso.turno)_usoPintar(logs,perf,dis,desde);}
+  _sbTodo(function(d,h){return _sb.from('flyer_logs').select('user_id,is_bulk,bulk_count,flyer_type,created_at').not('user_id','is',null).gte('created_at',desde).order('created_at',{ascending:true}).range(d,h);},
+    function(err,filas){logs=err?[]:filas;if(err)showToast('No se pudieron leer los registros: '+(err.message||err));listo();});
+  _sb.from('profiles').select('id,full_name,email_asesor,role').then(function(r){perf=(r&&r.data)||[];listo();},function(){perf=[];listo();});
+  _sb.from('flyer_disenos').select('estado,created_at,pedido_at,revisado_at').gte('updated_at',desde).then(function(r){dis=(r&&!r.error&&r.data)||[];listo();},function(){dis=[];listo();});
+}
+function _usoBarras(items){
+  var max=Math.max.apply(null,items.map(function(i){return i.n;}).concat([1]));
+  return '<div class="uso-barras">'+items.map(function(i){
+    return '<div class="uso-fila"><span class="uso-et" title="'+_escAttr(i.l)+'">'+_escHtml(i.l)+'</span>'+
+      '<span class="uso-pista"><span class="uso-barra" style="width:'+Math.max(2,Math.round(i.n/max*100))+'%;'+(i.c?'background:'+_escAttr(i.c):'')+'"></span></span>'+
+      '<span class="uso-n">'+i.n+'</span></div>';
+  }).join('')+'</div>';
+}
+function _usoPintar(logs,perf,dis,desde){
+  var box=document.getElementById('uso-body');if(!box)return;
+  var porId={};perf.forEach(function(p){porId[p.id]=p;});
+  var total=0,ind=0,mas=0,porOpt={},porRol={},porUsr={},porSem={};
+  function lunes(d){var x=new Date(d);x.setHours(0,0,0,0);var w=(x.getDay()+6)%7;x.setDate(x.getDate()-w);return x;}
+  logs.forEach(function(l){
+    var n=l.is_bulk?(+l.bulk_count||0):1;if(!n)return;
+    total+=n;if(l.is_bulk)mas+=n;else ind+=n;
+    var o=0;try{o=+(JSON.parse(l.flyer_type||'{}').opcion)||0;}catch(e){}
+    porOpt[o]=(porOpt[o]||0)+n;
+    var p=porId[l.user_id],rol=(p&&p.role)||'?';porRol[rol]=(porRol[rol]||0)+n;
+    porUsr[l.user_id]=(porUsr[l.user_id]||0)+n;
+    var k=lunes(l.created_at).getTime();porSem[k]=(porSem[k]||0)+n;
+  });
+  var usuarios=Object.keys(porUsr).length;
+  var tarjeta=function(n,t,sub){return '<div class="uso-card"><div class="uso-card-n">'+n+'</div><div class="uso-card-t">'+t+'</div>'+(sub?'<div class="uso-card-s">'+sub+'</div>':'')+'</div>';};
+  var html='<div class="uso-cards">'+
+    tarjeta(total.toLocaleString('es-AR'),'flyers bajados',ind+' de a uno · '+mas+' en tandas (Masivo y padrón)')+
+    tarjeta(usuarios,'usuarios que bajaron flyers','')+
+    tarjeta(usuarios?(total/usuarios).toFixed(1).replace('.',','):'0','flyers por usuario','promedio del período')+'</div>';
+  if(!total){box.innerHTML=html+'<p class="uso-vacio">No se bajaron flyers en este período.</p>'+_usoEstudio(dis,desde);return;}
+  var opts=Object.keys(porOpt).map(function(o){o=+o;return {l:o?(_FG_OPTS.indexOf(o)>=0?_optLabel(o):'Opción '+o+' (ya no está)'):'Sin dato',n:porOpt[o],c:o&&_FG_OPTS.indexOf(o)>=0?_optColor(o):''};}).sort(function(a,b){return b.n-a.n;});
+  var roles=Object.keys(porRol).map(function(r){return {l:_USO_ROLES[r]||r,n:porRol[r]};}).sort(function(a,b){return b.n-a.n;});
+  var sem=[],ini=lunes(desde).getTime(),hoy=lunes(new Date()).getTime();
+  for(var t=Math.max(ini,hoy-11*7*86400000);t<=hoy;t+=7*86400000){var d=new Date(t);sem.push({l:'Sem. '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'),n:porSem[t]||0});}
+  var top=Object.keys(porUsr).map(function(u){var p=porId[u]||{};return {l:p.full_name||p.email_asesor||'Usuario',n:porUsr[u]};}).sort(function(a,b){return b.n-a.n;}).slice(0,10);
+  html+='<div class="uso-grid">'+
+    '<section class="uso-sec"><h4>Por flyer</h4>'+_usoBarras(opts)+'</section>'+
+    '<section class="uso-sec"><h4>Por perfil</h4>'+_usoBarras(roles)+'</section>'+
+    '<section class="uso-sec"><h4>Por semana</h4>'+_usoBarras(sem)+'</section>'+
+    '<section class="uso-sec"><h4>Los 10 que m&aacute;s bajaron</h4>'+_usoBarras(top)+'</section>'+
+  '</div>'+_usoEstudio(dis,desde);
+  box.innerHTML=html;
+}
+function _usoEstudio(dis,desde){
+  var d0=new Date(desde),en=function(x){return x&&new Date(x)>=d0;};
+  var guard=dis.filter(function(d){return en(d.created_at);}).length;
+  var ped=dis.filter(function(d){return en(d.pedido_at);}).length;
+  var pub=dis.filter(function(d){return d.estado==='publicado'&&en(d.revisado_at);}).length;
+  return '<section class="uso-sec uso-est"><h4>Estudio en el per&iacute;odo</h4><div class="uso-cards">'+
+    '<div class="uso-card"><div class="uso-card-n">'+guard+'</div><div class="uso-card-t">dise&ntilde;os guardados</div></div>'+
+    '<div class="uso-card"><div class="uso-card-n">'+ped+'</div><div class="uso-card-t">pedidos de publicaci&oacute;n</div></div>'+
+    '<div class="uso-card"><div class="uso-card-n">'+pub+'</div><div class="uso-card-t">publicados</div></div></div></section>';
+}
+
+// ── MARCAS VIGILADAS ─────────────────────────────────────────────────────────
+// Qué marcas tiene cada flyer, para avisar cuando se vencen. Las impresas en el
+// PDF original no se pueden "leer": el admin las carga una vez desde
+// Promociones → Buscar ("Vigilar estas marcas"). Las que se ponen con Cambiar
+// logos / Armar franja y se publican desde Estudio se suman solas. Vive en
+// _vigilar.json del bucket; la revisión diaria (y el mail) la hace la Edge
+// Function promos-galicia después de la actualización de las 9.
+var _VIG_ARCHIVO='_vigilar.json';
+function _vigLeer(){
+  return _bucketJson(_VIG_ARCHIVO).then(function(d){return (d&&d.opciones)?d:{opciones:{}};},function(){return {opciones:{}};});
+}
+// Los cambios a la lista van en fila (uno espera al otro) y cada uno relee el
+// archivo antes de modificarlo: quitar una marca mientras se publica un diseño
+// no pisa lo del otro.
+var _vigCola=Promise.resolve();
+function _vigCambiar(fn){
+  var p=_vigCola.then(function(){return _vigLeer().then(function(d){return fn(d)===false?d:_vigGuardar(d);});});
+  _vigCola=p.catch(function(){});
+  return p;
+}
+function _vigGuardar(d){
+  d.updated_at=new Date().toISOString();
+  return _sb.storage.from('flyers').upload(_VIG_ARCHIVO,new Blob([JSON.stringify(d)],{type:'application/json'}),{contentType:'application/json',upsert:true})
+    .then(function(r){if(r&&r.error)throw r.error;return d;});
+}
+// Estado de una marca contra el catálogo cargado: 'ok' | 'vence' (7 días o menos) | 'vencida'
+function _vigEstado(v,hoy){
+  var dia=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()).getTime(),k=_promoNormalizar(v.t||v.m||''),mejor=-1,sinFecha=false;
+  (_promosCat||[]).forEach(function(p){
+    if(p.proximamente)return;
+    if(!((v.img&&p.imagen===v.img)||(k&&_promoNormalizar(p.titulo||'')===k)))return;
+    if(!p.fecha_hasta){sinFecha=true;return;}
+    var f=new Date(p.fecha_hasta+'T00:00:00').getTime();if(f>=dia&&f>mejor)mejor=f;
+  });
+  if(sinFecha)return {e:'ok'};
+  if(mejor<0)return {e:'vencida'};
+  var dias=Math.round((mejor-dia)/86400000);
+  return dias<=7?{e:'vence',dias:dias,hasta:new Date(mejor)}:{e:'ok',hasta:new Date(mejor)};
+}
+// Promociones → Buscar: guardar las marcas validadas como las de un flyer (admin)
+function _vigBarraBuscar(actions){
+  var vb=document.getElementById('vig-bar');
+  if(!_admin||_promoModoActivas()||!actions){if(vb)vb.remove();return;}
+  if(!vb){
+    vb=document.createElement('span');vb.id='vig-bar';vb.className='vig-bar';
+    actions.appendChild(vb);
+  }
+  var sel=document.getElementById('vig-opt'),val=sel?sel.value:String(_optN(_fgOpt));
+  vb.innerHTML='<label for="vig-opt">Vigilar estas marcas en</label><select id="vig-opt">'+_FG_OPTS.map(function(o){
+    return '<option value="'+o+'"'+(String(o)===val?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
+    '<button type="button" class="btn bg" id="vig-btn" title="Todos los días se revisan y te llega un mail si alguna se vence">Guardar</button>';
+  document.getElementById('vig-btn').onclick=function(){_vigDesdeBuscar(+document.getElementById('vig-opt').value);};
+}
+function _vigDesdeBuscar(n){
+  var R=_promosResultados||[];
+  var ok=R.filter(function(r){return r.promo&&!r.excluir&&!r.necesitaRevision&&r.estado!=='NO_ENCONTRADA';});
+  var afuera=R.filter(function(r){return !r.excluir&&ok.indexOf(r)<0;}).map(function(r){return r.marca;});
+  if(!ok.length){showToast('No hay marcas encontradas para vigilar. Revisá las que dicen «Revisar» o «No encontrada».');return;}
+  fgConfirm('',{titulo:'¿Vigilar '+ok.length+' marcas en «'+_optLabel(n)+'»?',peligro:false,ok:'Vigilar',
+    texto:'Reemplaza la lista cargada a mano de ese flyer (las que se sumaron desde Estudio se conservan).'+(afuera.length?' Quedan afuera '+afuera.length+' que no se encontraron o hay que revisar: '+afuera.slice(0,5).join(', ')+(afuera.length>5?'…':'')+'.':'')},function(si){
+    if(!si)return;
+    _vigCambiar(function(d){
+      var est=(d.opciones[n]||[]).filter(function(x){return x.origen==='estudio';}),vistos={},lista=[];
+      ok.forEach(function(r){var it={m:r.marca,t:_promoDecodeEntities(r.promo.titulo||''),img:r.promo.imagen||'',origen:'manual'};if(it.img&&vistos[it.img])return;vistos[it.img]=1;lista.push(it);});
+      est.forEach(function(x){if(!x.img||!vistos[x.img]){vistos[x.img]=1;lista.push(x);}});
+      d.opciones[n]=lista;
+    }).then(function(){showToast('Listo: se vigilan '+ok.length+' marcas de «'+_optLabel(n)+'». Si alguna se vence te llega un mail.');},
+      function(e){showToast('No se pudo guardar: '+((e&&e.message)||e));});
+  });
+}
+// Al publicar desde Estudio: los logos de Promociones del diseño se suman a la opción nueva
+function _vigSumarEstudio(base,nueva,cambios){
+  return _vigCambiar(function(d){
+    var lista=(d.opciones[base]||[]).filter(function(x){return x.origen!=='estudio';}).map(function(x){return Object.assign({},x);}),vistos={};
+    lista.forEach(function(x){if(x.img)vistos[x.img]=1;});
+    (cambios||[]).forEach(function(e){
+      if(e.tipo==='txt'||!e.img||_fgLgEsSubido(e.img)||String(e.img).indexOf('orig:')===0||vistos[e.img])return;
+      vistos[e.img]=1;lista.push({m:e.t||'',t:e.t||'',img:e.img,origen:'estudio'});
+    });
+    if(!lista.length)return false;
+    d.opciones[nueva]=lista;
+  });
+}
+// Admin → Config → Marcas vigiladas
+function _vigPintarAdmin(){
+  var box=document.getElementById('vig-body');if(!box)return;
+  box.innerHTML=skelRows(3);
+  var pintar=function(d){
+    var hoy=new Date(),ops=Object.keys(d.opciones).filter(function(n){return (d.opciones[n]||[]).length;});
+    if(!ops.length){box.innerHTML='<p class="uso-vacio">Todav&iacute;a no hay marcas vigiladas.</p>';return;}
+    box.innerHTML=ops.map(function(n){
+      var L=d.opciones[n],filas=L.map(function(v,i){
+        var e=_vigEstado(v,hoy),et=e.e==='vencida'?'<span class="vig-e vig-mal">Sin promo vigente</span>':e.e==='vence'?'<span class="vig-e vig-vence">Vence en '+e.dias+(e.dias===1?' d&iacute;a':' d&iacute;as')+'</span>':'<span class="vig-e vig-ok">Vigente</span>';
+        return '<div class="vig-fila"><span class="vig-m">'+_escHtml(v.m||v.t)+(v.t&&v.t!==v.m?' <small>('+_escHtml(v.t)+')</small>':'')+(v.origen==='estudio'?' <small class="vig-or">Estudio</small>':'')+'</span>'+et+
+          '<button type="button" class="vig-x" data-n="'+_escAttr(n)+'" data-k="'+_escAttr(v.img||v.m||'')+'" aria-label="Dejar de vigilar">&times;</button></div>';
+      }).join('');
+      var mal=L.filter(function(v){return _vigEstado(v,hoy).e!=='ok';}).length;
+      return '<section class="uso-sec vig-sec"><h4>'+_escHtml(_FG_OPTS.indexOf(+n)>=0?_optLabel(+n):'Opción '+n+' (ya no está)')+' <small>'+L.length+' marcas'+(mal?' &middot; <b class="vig-mal-t">'+mal+' para revisar</b>':'')+'</small></h4>'+filas+'</section>';
+    }).join('');
+    box.onclick=function(ev){
+      var x=ev.target.closest&&ev.target.closest('.vig-x');if(!x)return;
+      var n=x.getAttribute('data-n'),k=x.getAttribute('data-k');
+      // por marca (no por posición): si la lista cambió mientras tanto, igual saca la correcta
+      _vigCambiar(function(d2){var L=d2.opciones[n]||[],j=L.findIndex(function(y){return (y.img||y.m||'')===k;});if(j<0)return false;L.splice(j,1);}).then(function(d3){pintar(d3);showToast('Listo: esa marca ya no se vigila.');},function(e){showToast('No se pudo: '+((e&&e.message)||e));});
+    };
+  };
+  var seguir=function(){_vigLeer().then(pintar);};
+  if(_promosCat&&_promosCat.length)seguir();else loadPromosCatalogo(seguir);
 }
 
 // ── USUARIOS ──────────────────────────────────────────────────────────────────
@@ -4155,6 +4348,7 @@ function _fgEnsureOptBar(){
   _fgRenderOptBar();
 }
 function _fgRenderOptBar(){
+  if(typeof _fgBorrGuardarPronto==='function')_fgBorrGuardarPronto(); // pestañas de borrador: se guardan en la PC
   var bar=document.getElementById('fg-optbar');if(!bar)return;
   var pAct=_fgProtoActivo();
   bar.querySelectorAll('.fgp').forEach(function(x){x.classList.toggle('on',!!pAct&&x.getAttribute('data-p')===pAct.id);});
@@ -4359,6 +4553,7 @@ function switchFlyerOption(opt,cb){
 }
 function _fgApplyOption(cache){
   _fgRecOlvidar();
+  if(!_fgBorr.revisado&&_me)setTimeout(_fgBorrOfrecer,900); // borradores de la última vez
   if(cache.img)window.baseImg=cache.img;
   window.FLYER_CFG=cache.cfg||{};
   var el=document.getElementById('legal-text');
@@ -12170,6 +12365,7 @@ function _fgRecPoner(cortes){
 }
 function _fgRecDespues(){
   if(typeof calcSC==='function')calcSC();
+  var pa=_fgProtoActivo();if(pa&&pa.temp)_fgBorrGuardarPronto();
   _fgLgHistMarcar();_fgMontosVisibles();_fgLgBarra(); // el recorte es un paso de Deshacer
   if(typeof redrawNow==='function')redrawNow();
   _fgLgMarcas();
@@ -13126,6 +13322,7 @@ function _fgLgPonerTexto(det,d,previo){
 function _fgLgListo(){
   if(typeof redrawNow==='function')redrawNow();else if(typeof redraw==='function')redraw();
   _fgLgBarra();_fgLgMarcas();_fgLgHistPronto();_fgBorradorAuto();
+  var pa=_fgProtoActivo();if(pa&&pa.temp)_fgBorrGuardarPronto();
 }
 // ·· Deshacer / Rehacer de a un paso ··
 // Cada paso es una copia (JSON) de la lista de cambios. No hace falta marcar
@@ -13778,13 +13975,15 @@ function _fgFrAbrir(rect,reuso){
       '<div class="fg-fr-izq">'+
         _fgPfHtml('fg-fr','Buscar marca')+
         '<div class="fg-fr-infofila"><div class="fg-lg-info" id="fg-fr-info"></div>'+
+          '<button type="button" class="fg-fr-act fg-fr-sug" id="fg-fr-sug" title="Completa los lugares que faltan con marcas vigentes de la zona elegida, de rubros variados">&#10024; Sugerir marcas</button>'+
           (_can('promos_buscar')?'<button type="button" class="fg-fr-act" id="fg-fr-act" title="Abre Promociones &rarr; Activas con estos filtros, a pantalla completa: eleg&iacute;s ah&iacute; y volv&eacute;s a esta ventana con todo">'+
             '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> Elegir en pantalla completa</button>':'')+
         '</div>'+
         '<div class="fg-lg-list fg-fr-list" id="fg-fr-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
       '</div>'+
       '<div class="fg-fr-der">'+
-        '<div class="fg-fr-l">Tu selecci&oacute;n <span>(en este orden; arrastr&aacute; o us&aacute; las flechas)</span></div>'+
+        '<div class="fg-fr-l">Tu selecci&oacute;n <span>(en este orden; arrastr&aacute; o us&aacute; las flechas)</span>'+
+          '<button type="button" class="fg-fr-qsug" id="fg-fr-qsug" hidden>Quitar sugeridas</button></div>'+
         '<div class="fg-fr-sel" id="fg-fr-sel"></div>'+
       '</div>'+
     '</div>'+
@@ -13820,6 +14019,11 @@ function _fgFrAbrir(rect,reuso){
   amp.onclick=function(){st.ampliar=!st.ampliar;st.prevW=0;ampPintar();_fgFrPreview();};
   if(!window._fgFrRsz){window._fgFrRsz=true;var _rszT=0;
     window.addEventListener('resize',function(){clearTimeout(_rszT);_rszT=setTimeout(function(){if(_fgFrSt&&document.getElementById('fg-fr-prev')){_fgFrSt.prevW=0;_fgFrPreview();}},150);});}
+  document.getElementById('fg-fr-sug').onclick=function(){_fgFrSugerir(st);};
+  document.getElementById('fg-fr-qsug').onclick=function(){
+    var n0=st.sel.length;st.sel=st.sel.filter(function(x){return !x.sug;});st.elegido=-1;st.grupo=[];
+    _fgFrLista();_fgFrSelPintar();_fgFrPreview();showToast('Se quitaron '+(n0-st.sel.length)+' sugeridas.');
+  };
   var ira=document.getElementById('fg-fr-act');
   // la ventana se va pero la selección (st) sigue viva hasta volver o cancelar
   if(ira)ira.onclick=function(){document.removeEventListener('keydown',tecla,true);ov.remove();_fgFrIrActivas(st);};
@@ -13900,6 +14104,55 @@ function _fgFrElegidos(st){
   if(g.length>1)return g;
   return (st.elegido!=null&&st.elegido>=0&&st.elegido<st.sel.length)?[st.elegido]:[];
 }
+// ·· Sugerir marcas ··
+// Completa los lugares que faltan (hasta los logos que tenía la franja) con
+// marcas vigentes de la zona elegida. Criterio (aprobado por el dueño):
+// locales antes que online, una por marca, variedad de rubros (por turnos), las
+// que vencen más tarde primero y un poco más de peso a las "Nuevas". Sólo entran
+// las que se pueden bajar (el logo se pide antes de sumarla).
+function _fgFrPuntaje(p,hoy){
+  var pts=_promoEsOnline(p)?0:100;
+  var dias=30;if(p.fecha_hasta){var f=new Date(p.fecha_hasta+'T23:59:59');if(!isNaN(f))dias=Math.round((f-hoy)/86400000);}
+  pts+=Math.max(0,Math.min(60,dias));
+  if(p.primera_vez){var pv=new Date(p.primera_vez);if(!isNaN(pv)&&(hoy-pv)<=7*86400000)pts+=15;}
+  // desempate (menos de 1 punto): al azar pero fijo en el día, así entre marcas
+  // que empatan no ganan siempre las que empiezan con A
+  var sem=String(p.titulo||'')+hoy.toDateString(),h=0;for(var i=0;i<sem.length;i++)h=(h*31+sem.charCodeAt(i))|0;
+  return pts+Math.abs(h%1000)/1000;
+}
+function _fgFrOrdenSugerido(lista,hoy){
+  var grupos={},orden=[];
+  lista.slice().sort(function(a,b){return _fgFrPuntaje(b,hoy)-_fgFrPuntaje(a,hoy);}).forEach(function(p){
+    var r=p.subtitulo||'otros';if(!grupos[r]){grupos[r]=[];orden.push(r);}grupos[r].push(p);
+  });
+  // por turnos: la mejor de cada rubro, después la segunda de cada uno…
+  var out=[],i=0,quedan=true;
+  while(quedan){quedan=false;orden.forEach(function(r){if(grupos[r][i]){out.push(grupos[r][i]);quedan=true;}});i++;}
+  return out;
+}
+function _fgFrSugerir(st){
+  if(_fgFrSt!==st)return;
+  var meta=(st.info&&st.info.n)||8,faltan=Math.max(0,Math.min(_FG_FR_MAX,meta)-st.sel.length);
+  if(!faltan){showToast('La franja ya tiene sus '+meta+' lugares ocupados. Quitá alguna para que te sugiera otras.');return;}
+  var filtro=Object.assign({},st,{q:'',rubro:'',una:true});
+  var r=_fgPfFiltrar(filtro,function(){if(_fgFrSt===st)_fgFrSugerir(st);});
+  if(r.cargando){showToast('Buscando las promos de la zona… en un momento sugiero.');return;}
+  var ya={};st.sel.forEach(function(x){ya[x.img]=1;});
+  var cands=_fgFrOrdenSugerido(r.lista.filter(function(p){return !ya[p.imagen];}),new Date()).slice(0,faltan*2+4);
+  if(!cands.length){showToast('No hay más marcas vigentes con esos filtros.');return;}
+  var b=document.getElementById('fg-fr-sug');if(b){b.disabled=true;b.textContent='Sugiriendo…';}
+  Promise.all(cands.map(function(p){return _fgLgTraer(p.imagen).then(function(){return p;},function(){return null;});})).then(function(res){
+    if(b){b.disabled=false;b.innerHTML='&#10024; Sugerir marcas';}
+    if(_fgFrSt!==st)return;
+    var puestas=0;
+    // el cupo se mira contra lo elegido AHORA (mientras bajaban se pudo tildar alguna a mano)
+    var tope=Math.min(_FG_FR_MAX,meta);
+    res.forEach(function(p){if(p&&st.sel.length<tope&&_fgFrIdx(p.imagen)<0){st.sel.push({img:p.imagen,t:p.titulo,sug:true});puestas++;}});
+    _fgFrLista();_fgFrSelPintar();_fgFrPreview();
+    var donde=st.loc?_promoTitulizar(st.loc):(st.prov?_promoTitulizar(st.prov):'');
+    showToast(puestas?('Sugerimos '+puestas+(puestas===1?' marca':' marcas')+(donde?' de '+donde:'')+'. Quitá o reordená las que no van.'):'No se pudieron bajar los logos sugeridos. Probá de nuevo.');
+  });
+}
 function _fgFrIdx(img){var S=_fgFrSt?_fgFrSt.sel:[];for(var i=0;i<S.length;i++)if(S[i].img===img)return i;return -1;}
 function _fgFrFiltros(){
   var st=_fgFrSt;if(!st)return;
@@ -13931,12 +14184,14 @@ function _fgFrSelPintar(){
   var st=_fgFrSt,box=document.getElementById('fg-fr-sel'),ok=document.getElementById('fg-fr-ok');if(!st||!box)return;
   var n=st.sel.length;
   if(ok)ok.textContent=n?('Poner '+n+(n===1?' logo':' logos')):'Poner logos';
+  var qs=document.getElementById('fg-fr-qsug');if(qs)qs.hidden=!st.sel.some(function(x){return x.sug;});
   var pn=document.getElementById('fg-fr-pn'),sg=document.getElementById('fg-fr-sig');
   if(pn)pn.textContent=n?'('+n+')':'';
   if(sg)sg.innerHTML='Siguiente: ordenar'+(n?' ('+n+')':'')+' &rarr;';
   box.innerHTML=n?st.sel.map(function(s,i){
     return '<div class="fg-fr-it'+(_fgFrElegidos(st).indexOf(i)>=0?' sel':'')+'" data-i="'+i+'" title="Tocala para marcar el logo en la vista previa (con Shift, varios)"><span class="fg-fr-mango" aria-hidden="true" title="Mantené apretado y arrastrá para cambiar el orden">&#10303;</span><b>'+(i+1)+'</b>'+
       '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+s.img)+'"></span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
+      (s.sug?'<span class="fg-fr-sugmark" title="Sugerida por la app">&#10024;</span>':'')+
       '<button type="button" data-a="arr" data-i="'+i+'" aria-label="Subir"'+(i===0?' disabled':'')+'>&uarr;</button>'+
       '<button type="button" data-a="aba" data-i="'+i+'" aria-label="Bajar"'+(i===n-1?' disabled':'')+'>&darr;</button>'+
       '<button type="button" data-a="x" data-i="'+i+'" aria-label="Quitar">&times;</button></div>';
@@ -14344,6 +14599,68 @@ var _fgProtos=[],_fgProtoAct=null,_fgProtoTurno=0;
 // otro desde el flyer limpio. Viven en memoria hasta recargar o cerrarlos; para
 // conservar uno, "Guardar en Estudio" lo convierte en diseño.
 var _fgBorr={seq:0};
+// ·· Borradores guardados en la PC ··
+// Para que un corte de luz o recargar la página no los pierda: se guardan en el
+// navegador (localStorage, por usuario) 1 s después del último cambio. Ocupan
+// poco (los logos subidos ya vienen achicados) y no frenan nada. Al volver a
+// entrar se ofrece "Recuperar" o "Descartar". Si el navegador no deja guardar,
+// todo sigue como antes (try/catch).
+var _FG_BORR_MAX=2000000;
+function _fgBorrClave(){return 'fg_borradores_'+((_me&&_me.id)||'anon');}
+function _fgBorrGuardarPronto(){
+  if(!_fgBorr.revisado){ // hasta ofrecer los de la última vez no se pisa nada
+    if(_me&&!_fgBorr.ofrecido){_fgBorr.ofrecido=true;setTimeout(_fgBorrOfrecer,900);} // respaldo si el ingreso no lo disparó
+    return;
+  }
+  clearTimeout(_fgBorr.t);_fgBorr.t=setTimeout(_fgBorrGuardar,1000);
+}
+function _fgBorrGuardar(){
+  try{
+    _fgProtoGuardarActual();
+    var L=_fgProtos.filter(function(p){return p.temp;}).map(function(p){
+      return {id:p.id,opcion:p.opcion,nombre:p.nombre,cambios:p.cambios||[],recortes:p.recortes||[],legal:(typeof p.legal==='string'?p.legal:null),subidos:p.subidos||{}};
+    }).concat(_fgBorr.pendientes||[]);
+    var k=_fgBorrClave();
+    if(!L.length){localStorage.removeItem(k);return;}
+    var t=JSON.stringify({v:1,fecha:Date.now(),lista:L});
+    if(t.length>_FG_BORR_MAX){
+      L.forEach(function(x){x.subidos={};});t=JSON.stringify({v:1,fecha:Date.now(),lista:L});
+      if(!_fgBorr.avisoGrande){_fgBorr.avisoGrande=true;showToast('Los borradores se guardan en la PC sin los logos subidos (son muy pesados). Para conservarlos, guardalos en Estudio.');}
+    }
+    localStorage.setItem(k,t);
+  }catch(e){}
+}
+// Al entrar: ¿quedaron borradores de la última vez?
+function _fgBorrOfrecer(){
+  if(_fgBorr.revisado)return;_fgBorr.revisado=true;
+  var L=[];
+  try{var d=JSON.parse(localStorage.getItem(_fgBorrClave())||'null');L=(d&&Array.isArray(d.lista))?d.lista:[];}catch(e){L=[];}
+  L=L.filter(function(x){return x&&_FG_OPTS.indexOf(+x.opcion)>=0&&_can('opcion_'+x.opcion);});
+  if(!L.length){try{localStorage.removeItem(_fgBorrClave());}catch(e){}return;}
+  _fgBorr.pendientes=L;
+  var v=document.getElementById('fg-borr-rec');if(v)v.remove();
+  var c=document.createElement('div');c.id='fg-borr-rec';c.className='fg-borr-rec';c.setAttribute('role','dialog');c.setAttribute('aria-label','Borradores de la última vez');
+  var nombres=L.map(function(x){return _escHtml(_optLabel(x.opcion))+' &middot; '+_escHtml(x.nombre||'Borrador');}).join(', ');
+  c.innerHTML='<div class="fg-borr-rec-t">Ten&eacute;s '+(L.length===1?'un borrador':L.length+' borradores')+' de la &uacute;ltima vez</div>'+
+    '<div class="fg-borr-rec-b">'+nombres+'</div>'+
+    '<div class="fg-borr-rec-a"><button type="button" class="btn bg" id="fg-borr-no">Descartar</button><button type="button" class="btn bp" id="fg-borr-si">Recuperar</button></div>';
+  document.body.appendChild(c);
+  document.getElementById('fg-borr-si').onclick=function(){c.remove();_fgBorrRecuperar();};
+  document.getElementById('fg-borr-no').onclick=function(){
+    c.remove();_fgBorr.pendientes=null;_fgBorrGuardar();showToast('Borradores descartados.');
+  };
+}
+function _fgBorrRecuperar(){
+  var L=_fgBorr.pendientes||[];_fgBorr.pendientes=null;
+  L.forEach(function(x){
+    var n=+x.opcion,p=_fgBorradorCrear(n); // nombre libre y id nuevo
+    if(x.nombre&&!_fgProtos.some(function(q){return q!==p&&q.temp&&q.opcion===n&&q.nombre===x.nombre;}))p.nombre=x.nombre;
+    p.cambios=Array.isArray(x.cambios)?x.cambios:[];p.recortes=Array.isArray(x.recortes)?x.recortes:[];
+    p.legal=(typeof x.legal==='string')?x.legal:null;p.subidos=x.subidos||{};
+  });
+  _facSyncOptBar();_fgRenderOptBar();_fgBorrGuardar();
+  showToast(L.length===1?'Borrador recuperado: está en su pestaña, al lado del flyer.':L.length+' borradores recuperados: están en sus pestañas, al lado de su flyer.');
+}
 function _fgBorradorCrear(n){
   var k=1;while(_fgProtos.some(function(x){return x.temp&&x.opcion===n&&x.nombre==='Borrador '+k;}))k++;
   var p={id:'bor-'+n+'-'+(++_fgBorr.seq),opcion:n,nombre:'Borrador '+k,temp:true,mio:false,estado:'borrador',empresa:'',cambios:[],recortes:[],legal:null,subidos:{}};
@@ -14795,7 +15112,10 @@ function _estPublicar(id,d0,n,nombre){
           .then(function(){if(!_OPC[n2]){if(intento<2)return guardarLista(intento+1);throw new Error('la opción nueva no quedó guardada');}});
       });
     }
-    return guardarLista(1).then(function(){enLista=true;});
+    return guardarLista(1).then(function(){enLista=true;
+      // marcas vigiladas: los logos de Promociones del diseño pasan a la opción nueva
+      return _vigSumarEstudio(n,n2,(d.datos&&d.datos.cambios)||[]).catch(function(e){console.warn('vigiladas:',e);});
+    });
   }).then(function(){
     // la ven los mismos perfiles que veían la original (sobre las facultades
     // recién leídas, no las que quedaron en memoria al entrar)

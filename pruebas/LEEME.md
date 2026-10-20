@@ -15,6 +15,7 @@ La primera vez hace falta Playwright con su Chromium: `npx -y playwright@latest 
 ## Qué hay acá
 
 - `t…_*.cjs`: una prueba por tema (el nombre dice qué prueba). Cada una imprime `OK` o `FALLA` por comprobación.
+- `u…_*.mjs`: pruebas sin navegador de lógica suelta (por ejemplo, la revisión diaria de marcas vigiladas de la Edge Function `promos-galicia`).
 - `nube.cjs`: la nube simulada (bucket, tabla de Estudio, perfiles asesor y admin, Edge Functions). `nube_simple.cjs` es la versión de las primeras pruebas.
 - `datos/`: lo que usa la nube simulada. Es todo público: el flyer de prueba, su calibración, el catálogo y la geografía de promociones de Galicia y un logo.
 - `capturas/`: las capturas que sacan las pruebas. **No se versiona** (está en `.gitignore`).

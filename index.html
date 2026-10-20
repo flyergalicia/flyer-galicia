@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=2ced6c6c96","integrity":"sha384-Srwn/dWQo1eBmF0E6Qs8wcAcT1UlnYdsg43tQo1VJ+xiCHaJ4ct6q83ehewaNy+T"}}'>
-<meta name="build-v" content="e5ea6adc5d">
+<meta name="build-v" content="e87559459e">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1819,8 +1819,59 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 .fg-cf.fg-ver{width:min(720px,96vw);max-height:94vh;display:flex;flex-direction:column;}
 .fg-ver-img{flex:1 1 auto;min-height:0;overflow:auto;margin-top:10px;border:1px solid var(--border);border-radius:10px;background:#fff;}
 .fg-ver-cv{display:block;width:100%;height:auto;}
+/* Borradores de la última vez */
+.fg-borr-rec{position:fixed;left:16px;bottom:16px;z-index:9000;max-width:min(420px,calc(100vw - 32px));padding:14px 16px;background:var(--card);color:var(--ink);border:1px solid var(--accent-line);border-radius:14px;box-shadow:var(--sh-3,0 8px 24px rgba(0,0,0,.18));}
+.fg-borr-rec-t{font-weight:800;font-size:.9375rem;}
+.fg-borr-rec-b{font-size:.8125rem;color:var(--gray);margin:4px 0 10px;line-height:1.4;}
+.fg-borr-rec-a{display:flex;gap:8px;justify-content:flex-end;}
+@media (max-width:900px){.fg-borr-rec{bottom:80px;}}
+/* Armar franja: sugerir marcas */
+.fg-fr-sug{border-color:#e5c07b;color:#8a5a00;}
+.fg-fr-sug:hover{background:#fff6dd;}
+html.dark .fg-fr-sug{color:#f0c674;}
+.fg-fr-it .fg-fr-sugmark{flex:0 0 auto !important;font-size:.875rem;}
+.fg-fr-qsug{margin-left:8px;border:0;background:none;padding:0;color:var(--accent-2);font-size:.75rem;font-weight:700;text-decoration:underline;cursor:pointer;}
+.fg-fr-qsug[hidden]{display:none;}
+/* Admin → Uso */
+.uso-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.uso-per{display:inline-flex;gap:4px;}
+.uso-per button{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--ink);font-size:.75rem;font-weight:700;cursor:pointer;}
+.uso-per button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.uso-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;}
+.uso-card{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
+.uso-card-n{font-size:1.5rem;font-weight:800;color:var(--ink);}
+.uso-card-t{font-size:.8125rem;color:var(--ink);font-weight:600;}
+.uso-card-s{font-size:.75rem;color:var(--gray);margin-top:2px;}
+.uso-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;}
+.uso-sec{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0;}
+.uso-sec h4{margin:0 0 8px;font-size:.8125rem;font-weight:800;color:var(--ink);}
+.uso-sec h4 small{font-weight:500;color:var(--gray);font-size:.75rem;}
+.uso-est{margin-top:12px;}
+.uso-fila{display:grid;grid-template-columns:minmax(0,38%) 1fr auto;align-items:center;gap:8px;margin:5px 0;font-size:.75rem;}
+.uso-et{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
+.uso-pista{height:10px;border-radius:6px;background:var(--border);overflow:hidden;}
+.uso-barra{display:block;height:100%;border-radius:6px;background:var(--accent);}
+.uso-n{min-width:28px;text-align:right;font-weight:700;color:var(--ink);}
+.uso-vacio{font-size:.8125rem;color:var(--gray);}
+/* Marcas vigiladas */
+.vig-bar{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto;font-size:.75rem;font-weight:600;color:var(--ink);}
+.vig-bar select{padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:.75rem;background:var(--field,#fff);color:var(--ink);}
+.vig-sec{margin-bottom:10px;}
+.vig-fila{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border);font-size:.8125rem;}
+.vig-m{flex:1;min-width:0;color:var(--ink);}
+.vig-m small{color:var(--gray);font-size:.75rem;}
+.vig-or{background:var(--accent-soft);color:var(--accent-2);border-radius:6px;padding:0 5px;}
+.vig-e{font-size:.75rem;font-weight:700;border-radius:10px;padding:2px 8px;white-space:nowrap;}
+.vig-ok{background:#e7f6ee;color:#0e7a4f;}
+.vig-vence{background:#fff4dd;color:#8a5a00;}
+.vig-mal{background:#fdeaea;color:#b42318;}
+.vig-mal-t{color:#b42318;}
+.vig-x{border:1px solid var(--border);background:var(--card);color:var(--gray);border-radius:7px;width:28px;height:26px;cursor:pointer;font-size:.875rem;}
+html.dark .vig-ok{background:rgba(14,122,79,.2);color:#7ee2b0;}
+html.dark .vig-vence{background:rgba(138,90,0,.25);color:#f0c674;}
+html.dark .vig-mal{background:rgba(180,35,24,.25);color:#ff9b91;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=f1cd7703ad"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=2bfbacd833"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
@@ -2263,6 +2314,7 @@ baseImg.dataset.fallback="flyer_default.jpg";
     <div class="stab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
     <div class="stab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
     <div class="stab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
+    <div class="stab" data-tab="uso" onclick="switchAdminTab(this,'uso')">Uso</div>
     <div class="stab" data-tab="facultades" onclick="switchAdminTab(this,'facultades')">Facultades</div>
     <div class="stab" data-tab="auditoria" onclick="switchAdminTab(this,'auditoria')">Auditor&iacute;a</div>
   </div>
@@ -2277,6 +2329,7 @@ baseImg.dataset.fallback="flyer_default.jpg";
     <div class="stab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
     <div class="stab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
     <div class="stab" data-tab="opciones" onclick="switchAdminTab(this,'opciones')">Opciones</div>
+    <div class="stab" data-tab="vigiladas" onclick="switchAdminTab(this,'vigiladas')">Marcas vigiladas</div>
   </div>
   <div class="ap-body">
 
@@ -2375,6 +2428,20 @@ baseImg.dataset.fallback="flyer_default.jpg";
       </div>
       <p style="font-size:.75rem;color:var(--gray);margin-bottom:8px" id="reg-count"></p>
       <div id="registros-list"></div>
+    </div>
+
+    <div id="at-uso" style="display:none">
+      <div class="uso-cab"><p class="ap-sec" style="margin:0">Uso de la app</p>
+        <div class="uso-per" id="uso-per" role="tablist" aria-label="Per&iacute;odo">
+          <button type="button" data-d="30" class="on">30 d&iacute;as</button><button type="button" data-d="90">90 d&iacute;as</button><button type="button" data-d="anio">Este a&ntilde;o</button>
+        </div></div>
+      <div id="uso-body"></div>
+    </div>
+
+    <div id="at-vigiladas" style="display:none">
+      <p class="ap-sec">Marcas vigiladas</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Todos los d&iacute;as a las 9, despu&eacute;s de actualizar las promociones, se revisan estas marcas y te llega un mail <strong>s&oacute;lo si alguna se venci&oacute; o vence en 7 d&iacute;as o menos</strong>. Para cargar las de un flyer: en <strong>Promociones &rarr; Buscar</strong> peg&aacute; sus marcas, toc&aacute; <strong>Validar vigencia</strong> y despu&eacute;s <strong>Vigilar estas marcas</strong>. Las que se ponen con Cambiar logos y se publican desde Estudio se suman solas.</p>
+      <div id="vig-body"></div>
     </div>
 
     <div id="at-legales" style="display:none">

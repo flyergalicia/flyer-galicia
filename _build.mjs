@@ -328,6 +328,7 @@ const adminPanel = `<div id="admin-panel">
     <div class="stab active" data-tab="dashboard" onclick="switchAdminTab(this,'dashboard')">Dashboard</div>
     <div class="stab" data-tab="usuarios" onclick="switchAdminTab(this,'usuarios')">Usuarios</div>
     <div class="stab" data-tab="registros" onclick="switchAdminTab(this,'registros')">Registros</div>
+    <div class="stab" data-tab="uso" onclick="switchAdminTab(this,'uso')">Uso</div>
     <div class="stab" data-tab="facultades" onclick="switchAdminTab(this,'facultades')">Facultades</div>
     <div class="stab" data-tab="auditoria" onclick="switchAdminTab(this,'auditoria')">Auditor&iacute;a</div>
   </div>
@@ -342,6 +343,7 @@ const adminPanel = `<div id="admin-panel">
     <div class="stab" data-tab="cashback" onclick="switchAdminTab(this,'cashback')">Cashback</div>
     <div class="stab" data-tab="legales" onclick="switchAdminTab(this,'legales')">Legales</div>
     <div class="stab" data-tab="opciones" onclick="switchAdminTab(this,'opciones')">Opciones</div>
+    <div class="stab" data-tab="vigiladas" onclick="switchAdminTab(this,'vigiladas')">Marcas vigiladas</div>
   </div>
   <div class="ap-body">
 
@@ -440,6 +442,20 @@ const adminPanel = `<div id="admin-panel">
       </div>
       <p style="font-size:.75rem;color:var(--gray);margin-bottom:8px" id="reg-count"></p>
       <div id="registros-list"></div>
+    </div>
+
+    <div id="at-uso" style="display:none">
+      <div class="uso-cab"><p class="ap-sec" style="margin:0">Uso de la app</p>
+        <div class="uso-per" id="uso-per" role="tablist" aria-label="Per&iacute;odo">
+          <button type="button" data-d="30" class="on">30 d&iacute;as</button><button type="button" data-d="90">90 d&iacute;as</button><button type="button" data-d="anio">Este a&ntilde;o</button>
+        </div></div>
+      <div id="uso-body"></div>
+    </div>
+
+    <div id="at-vigiladas" style="display:none">
+      <p class="ap-sec">Marcas vigiladas</p>
+      <p style="font-size:.82rem;color:var(--gray);margin-bottom:12px;line-height:1.5">Todos los d&iacute;as a las 9, despu&eacute;s de actualizar las promociones, se revisan estas marcas y te llega un mail <strong>s&oacute;lo si alguna se venci&oacute; o vence en 7 d&iacute;as o menos</strong>. Para cargar las de un flyer: en <strong>Promociones &rarr; Buscar</strong> peg&aacute; sus marcas, toc&aacute; <strong>Validar vigencia</strong> y despu&eacute;s <strong>Vigilar estas marcas</strong>. Las que se ponen con Cambiar logos y se publican desde Estudio se suman solas.</p>
+      <div id="vig-body"></div>
     </div>
 
     <div id="at-legales" style="display:none">
@@ -1170,7 +1186,8 @@ const checks = {
   // `solapa` ('flyer'|'rubros'); las de rubros dibujan el cartel "¡Beneficio
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
   // textos fijos editables) y muestran los dos campos en el formulario.
-  'deshacer recorte, historial con recorte, version sin cashback, franja en pasos y Estudio ver completo': _authSrc.includes('function _fgLgHistClave(') && _authSrc.includes('function _fgConRecortes(') && _authSrc.includes('function _fgHistDiseno(') && _authSrc.includes('function _fgVarianteSinCB(') && _authSrc.includes('destino=_fgVarianteSinCB(_fgOptBase(cur))') && _authSrc.includes('var v=_fgVarianteSinCB(o);if(v)return v;') && _authSrc.includes('class="fg-fr-pasos"') && (_authSrc.match(/_estArmarImagen\(/g)||[]).length>=3 && _authSrc.includes("_callFn('notify_estudio_pedido'"),
+  'marcas vigiladas, borradores guardados, sugerir marcas y tablero de uso': _authSrc.includes('function _vigBarraBuscar(') && _authSrc.includes('function _vigSumarEstudio(') && _authSrc.includes('function _vigPintarAdmin(') && _authSrc.includes('function _fgBorrOfrecer(') && _authSrc.includes('function _fgBorrGuardar(') && _authSrc.includes('function _fgFrSugerir(') && _authSrc.includes('function _usoCargar(') && html.includes('id="at-uso"') && html.includes('id="at-vigiladas"'),
+  'deshacer recorte, historial con recorte, version sin cashback, franja en pasos y Estudio ver completo':_authSrc.includes('function _fgLgHistClave(') && _authSrc.includes('function _fgConRecortes(') && _authSrc.includes('function _fgHistDiseno(') && _authSrc.includes('function _fgVarianteSinCB(') && _authSrc.includes('destino=_fgVarianteSinCB(_fgOptBase(cur))') && _authSrc.includes('var v=_fgVarianteSinCB(o);if(v)return v;') && _authSrc.includes('class="fg-fr-pasos"') && (_authSrc.match(/_estArmarImagen\(/g)||[]).length>=3 && _authSrc.includes("_callFn('notify_estudio_pedido'"),
   'borradores: el primer cambio se muda a una pestania y la lupa no los borra': _authSrc.includes('function _fgBorradorAuto(') && _authSrc.includes('function fgBorradorNuevo(') && _authSrc.includes('_fgLgHistPronto();_fgBorradorAuto();') && _authSrc.includes('if(!_fgProtoActivo())_fgLgLimpiar();'),
   'recortar: quita una parte, corre la calibracion y apaga los importes': _authSrc.includes('if(_fgRec){_fgRecOlvidar();_fgMontosVisibles();') &&_authSrc.includes('function _padAvisoSinImportes(') && _authSrc.includes('if(cortes.length)cfgN.recDe=n;') && _authSrc.includes('function _fgRecArte(') && _authSrc.includes('function _fgRecCfg(') && _authSrc.includes('function fgRecAplicar(') && _authSrc.includes('function fgRecQuitar(') && _authSrc.includes('if(M.off)return;') && _authSrc.includes('if(K.off)return;') && /function _fgApplyOption\(cache\)\{\s*_fgRecOlvidar\(\);/.test(_authSrc) &&_authSrc.includes('_fgRecCfg(meta.cfg||{},cortes,'),
   'logos: guias con iman, alinear/repartir, duplicar y quitar': _authSrc.includes('function _fgLgGuias(') && _authSrc.includes('function _fgLgAlinear(') && _authSrc.includes('function _fgLgRepartir(') && _authSrc.includes('function _fgLgPegar(') && _authSrc.includes('function _fgLgQuitarElegidos('),

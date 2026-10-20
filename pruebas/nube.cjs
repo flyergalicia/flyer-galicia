@@ -42,7 +42,8 @@ async function abrir(browser,o){
   p.on('pageerror',e=>{p.errores.push(e.message);console.log('PAGEERROR',e.message);});
   p.on('console',m=>{if(m.type()==='error')console.log('CONSOLE error',m.text().slice(0,220));});
   p.on('dialog',d=>{console.log('DIALOG nativo:',d.type(),d.message().slice(0,80));d.dismiss();});
-  await p.addInitScript(([k,v])=>{try{localStorage.clear();localStorage.setItem(k,v);}catch(e){}},['sb-cajyjnxjbobdpltflgnb-auth-token',JSON.stringify(session)]);
+  // o.ls: claves extra de localStorage para la página (por ejemplo, borradores guardados)
+  await p.addInitScript(([k,v,extra])=>{try{localStorage.clear();localStorage.setItem(k,v);Object.keys(extra||{}).forEach(function(x){localStorage.setItem(x,extra[x]);});}catch(e){}},['sb-cajyjnxjbobdpltflgnb-auth-token',JSON.stringify(session),o.ls||{}]);
   await p.route(REF+'/**',async route=>{
     const req=route.request(),u=new URL(req.url()),path=u.pathname,file=path.split('/').pop(),m=req.method();
     const H={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'*','Access-Control-Expose-Headers':'Content-Range','Content-Type':'application/json'};
@@ -80,6 +81,13 @@ async function abrir(browser,o){
     }
     if(path.startsWith('/storage/v1/')){return route.fulfill({status:200,body:'[]',headers:H});}
     // ── perfil
+    if(path==='/rest/v1/profiles'&&m==='GET'&&!obj&&nube.perfiles)return route.fulfill({status:200,body:JSON.stringify(nube.perfiles),headers:H});
+    // flyer_logs simulados (tablero de uso): GET con created_at=gte.<fecha>
+    if(path==='/rest/v1/flyer_logs'&&m==='GET'&&nube.logs){
+      const gte=(u.searchParams.get('created_at')||'').replace(/^gte\./,'');
+      const l=nube.logs.filter(x=>!gte||x.created_at>=gte);let a=0,lim=1000;const rg=req.headers()['range'];if(rg){const x=/(\d+)-(\d+)/.exec(rg);if(x){a=+x[1];lim=+x[2]-a+1;}}
+      const sl=l.slice(a,a+lim);return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':(sl.length?a+'-'+(a+sl.length-1):'*')+'/'+l.length}});
+    }
     if(path==='/rest/v1/profiles'&&m==='GET'){
       const fila={id:U.id,role:U.role,full_name:U.name,email:U.email,status:'active',email_asesor:U.email,facultades:null};
       return route.fulfill({status:200,body:JSON.stringify(obj?fila:[fila]),headers:H});
