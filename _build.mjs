@@ -1187,6 +1187,7 @@ const checks = {
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
   // textos fijos editables) y muestran los dos campos en el formulario.
   'logos subidos nítidos (PNG transparente respetado, bordes suaves)': _authSrc.includes('function _fgLgSinParche(') && _authSrc.includes('function _fgLgAchicar(') && _authSrc.includes("c.imageSmoothingQuality='high'; // logos achicados sin pixelar"),
+  'logo con fondo oscuro (Toledo) pintado del color del fondo': _authSrc.includes('else if(lr<150){') && _authSrc.includes('if(tinta&&claras>=tinta*0.8){'),
   'logo del flyer movido sin deformarse': _authSrc.includes('_fgLgLimpiarLogo(c,true)') && _authSrc.includes('if(sinRecorte)return k;'),
   'recuadros de Cambiar logos discretos (sólo al pasar el mouse)': _authSrc.includes('function _fgLgCerca(') && /\.fg-lg-marca\{[^}]*border:2px dashed transparent/.test(newCSS) && newCSS.includes('.cw:hover .fg-lg-marca{'),
   'franjas que no se pisan y sugerir que respeta los filtros': _authSrc.includes('if(e.franja)return true; // los de OTRA franja nunca se tocan') && _authSrc.includes('function _fgFrSelActual(') && _authSrc.includes('sel:previa?_fgFrSelActual(previa):[]') && _authSrc.includes('sinOnline:!!(st.sinOnline||st.prov||st.loc)'),

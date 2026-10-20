@@ -12855,7 +12855,25 @@ function _fgLgLimpiarLogo(i,sinRecorte){
   var borde=0,transp=0;
   for(x=0;x<w;x++){borde+=2;if(d[x*4+3]<=24)transp++;if(d[((h-1)*w+x)*4+3]<=24)transp++;}
   for(y=0;y<h;y++){borde+=2;if(d[y*w*4+3]<=24)transp++;if(d[(y*w+w-1)*4+3]<=24)transp++;}
+  var lum=function(r,g2,b){return 0.3*r+0.59*g2+0.11*b;},lr=lum(ref[0],ref[1],ref[2]);
   if(transp>=borde*0.3)_fgLgSinParche(d,w,h);
+  else if(lr<150){
+    // Fondo OSCURO (p. ej. Toledo: letras blancas en un cuadrado azul). Sacarle el
+    // fondo dejaba letras blancas sobre el flyer blanco (sólo se veían los bordes).
+    // Si lo de adentro es claro, se pinta del color del fondo y el fondo se va:
+    // "Toledo" en azul, con bordes suaves. Si tiene colores, queda el cuadrado.
+    var tinta=0,claras=0;
+    for(p=0;p<w*h*4;p+=4){
+      if(Math.max(Math.abs(d[p]-ref[0]),Math.abs(d[p+1]-ref[1]),Math.abs(d[p+2]-ref[2]))<=60)continue;
+      tinta++;if(d[p]>190&&d[p+1]>190&&d[p+2]>190)claras++;
+    }
+    if(tinta&&claras>=tinta*0.8){
+      for(p=0;p<w*h*4;p+=4){
+        var a2=Math.max(0,Math.min(1,(lum(d[p],d[p+1],d[p+2])-lr-12)/(255-lr-24)));
+        d[p]=ref[0];d[p+1]=ref[1];d[p+2]=ref[2];d[p+3]=Math.round(d[p+3]*a2);
+      }
+    }
+  }
   else{
     var visto=new Uint8Array(w*h),cola=[];
     var esFondo=function(q){var o=q*4;return d[o+3]<=24||(Math.abs(d[o]-ref[0])<=28&&Math.abs(d[o+1]-ref[1])<=28&&Math.abs(d[o+2]-ref[2])<=28);};
