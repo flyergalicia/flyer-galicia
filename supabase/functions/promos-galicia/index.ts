@@ -469,6 +469,8 @@ async function syncCatalogo(): Promise<{ total: number; proximas: number; conPro
       tipo_promocion: p.tipoPromocion || "",
       proximamente: p.proximamente === true,
       fecha_desde: desdeProximas[String(p.id)] ?? null,
+      // días de aplicación ("Viernes", "Martes y Jueves"): en los súper van debajo del logo
+      dias: String(p.leyendaDiasAplicacion || "").trim() || null,
       updated_at: syncStartedAt,
       // primera_vez NO se manda: al insertar toma now() (default de la columna)
       // y al actualizar el upsert no la toca. Es lo que marca a una promo

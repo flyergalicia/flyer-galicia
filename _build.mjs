@@ -1188,6 +1188,12 @@ const checks = {
   // textos fijos editables) y muestran los dos campos en el formulario.
   'logos subidos nítidos (PNG transparente respetado, bordes suaves)': _authSrc.includes('function _fgLgSinParche(') && _authSrc.includes('function _fgLgAchicar(') && _authSrc.includes("c.imageSmoothingQuality='high'; // logos achicados sin pixelar"),
   'logo con fondo oscuro (Toledo) pintado del color del fondo': _authSrc.includes('else if(lr<150){') && _authSrc.includes('if(tinta&&claras>=tinta*0.8){'),
+  'logos 21-oct: guías con teclado, filtros de Activas, días de súper, borrar de verdad, Shift en grupo, un logo a pantalla completa':
+    _authSrc.includes('function _fgLgGuiasTeclado(') && _authSrc.includes("_fgLgV.sinOnline=_promosFiltros.online==='ocultar'") &&
+    _authSrc.includes('function _fgLgPartirDias(') && _authSrc.includes('function _fgLgPonerMarca(') && _authSrc.includes('function _promoDiasHtml(') &&
+    _authSrc.includes('function _fgLgBorrarElegidos(') && _authSrc.includes('if(tapado)det.vacio=true;') &&
+    _authSrc.includes('function _fgLgLugarTocar(') && _authSrc.includes('function _fgLgVariosMarcar(') &&
+    _authSrc.includes('function _fgLgIrActivas(') && _authSrc.includes('<span id="fg-lg-ver-t">Vista previa</span>'),
   'logo del flyer movido sin deformarse': _authSrc.includes('_fgLgLimpiarLogo(c,true)') && _authSrc.includes('if(sinRecorte)return k;'),
   'recuadros de Cambiar logos discretos (sólo al pasar el mouse)': _authSrc.includes('function _fgLgCerca(') && /\.fg-lg-marca\{[^}]*border:2px dashed transparent/.test(newCSS) && newCSS.includes('.cw:hover .fg-lg-marca{'),
   'franjas que no se pisan y sugerir que respeta los filtros': _authSrc.includes('if(e.franja)return true; // los de OTRA franja nunca se tocan') && _authSrc.includes('function _fgFrSelActual(') && _authSrc.includes('sel:previa?_fgFrSelActual(previa):[]') && _authSrc.includes('sinOnline:!!(st.sinOnline||st.prov||st.loc)'),
@@ -1449,7 +1455,7 @@ const checks = {
   // poder decir "existe, pero no en tu provincia" en vez de "no existe".
   'promos: filtro por provincia':
     html.includes('id="promos-prov"') && html.includes('id="promos-sinubic"') &&
-    _authSrc.includes("'id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde'") &&
+    _authSrc.includes("'id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde,dias'") &&
     _authSrc.includes('function _promoEstadoFinal(') && _authSrc.includes('function _promoEnProvincia(') &&
     _authSrc.includes('function _promoGeoConocida(') &&
     _authSrc.includes("FUERA_PROV:'Fuera de la provincia'") && _authSrc.includes("FUERA_PROV:'fuera'") &&

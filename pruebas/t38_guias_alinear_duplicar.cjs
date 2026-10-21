@@ -62,11 +62,13 @@ module.exports=async(browser)=>{
   ok(await p.evaluate(()=>(getVals().logos||[]).length)===4,'la copia va en la descarga');
   await p.keyboard.press('Delete');await p.waitForTimeout(700);
   ok((await L()).length===3,'Supr quita la copia');
-  // Supr sobre un logo cambiado: vuelve al original
+  // Supr sobre un logo cambiado: desde el 21-oct lo BORRA (el lugar queda vacío,
+  // no vuelve el original; para eso está el botón "Original")
   await p.mouse.click(c0.x,c0.y);await p.keyboard.press('Delete');await p.waitForTimeout(700);
-  ok((await L()).length===2,'Supr sobre un logo cambiado lo vuelve al original');
+  const vacios=()=>p.evaluate(()=>_fgLgActivos().filter(e=>!e.img&&e.tipo!=='txt'&&e.w>0).length);
+  ok((await L()).length===3&&await vacios()===1,'Supr sobre un logo cambiado lo borra (queda el lugar vacío)');
   await p.keyboard.press('Control+z');await p.waitForTimeout(150);
-  ok((await L()).length===3,'Ctrl+Z lo recupera');
+  ok((await L()).length===3&&await vacios()===0,'Ctrl+Z lo recupera');
   // botón Duplicar
   X=await L();const c2=await pant(X[2].x+X[2].w/2,X[2].y+X[2].h/2);await p.mouse.click(c2.x,c2.y);
   await p.click('#fg-lg-herr [data-a=dup]');await p.waitForTimeout(150);

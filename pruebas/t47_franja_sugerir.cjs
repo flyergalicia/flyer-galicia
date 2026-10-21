@@ -18,7 +18,9 @@ module.exports=async(browser)=>{
     return {n:st.sel.length,meta:st.info.n,primero:st.sel[0].img,
       rubros:[...new Set(sug.map(p=>p&&p.subtitulo))].length,
       marcas:sug.map(p=>_promoClaveMarca(_promoBaseMarca(p.titulo),{})),
-      online:sug.map(p=>_promoEsOnline(p)),
+      // una misma imagen puede tener una promo local y otra online: cuenta como
+      // online sólo si NO hay ninguna local de Neuquén con ese logo
+      online:st.sel.filter(s=>s.sug).map(s=>!(_promosCat||[]).some(q=>q.imagen===s.img&&!_promoEsOnline(q)&&_promoEnProvincia(q,'NEUQUEN'))),
       enProv:sug.every(p=>_promoEnProvincia(p,'NEUQUEN')||_promoEsOnline(p))};
   });
   console.log('  sugeridas:',JSON.stringify({n:R.n,meta:R.meta,rubros:R.rubros,online:R.online}));

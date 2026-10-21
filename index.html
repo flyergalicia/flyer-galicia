@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=034de8242d","integrity":"sha384-wNq+HVXRLhgBGaNUZmkJgFE+n6SLTtze97+rLkIKxtiqbfSR6A4Mr2QBUf2xoMJq"}}'>
-<meta name="build-v" content="42de8087f2">
+<meta name="build-v" content="226af7e871">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1785,6 +1785,10 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 .fg-lg-guia{position:absolute;pointer-events:none;}
 .fg-lg-guia.v{top:0;bottom:0;width:0;border-left:2px dashed #F26122;}
 .fg-lg-guia.h{left:0;right:0;height:0;border-top:2px dashed #F26122;}
+.fg-lg-guia.v.cerca{border-left:1px dashed rgba(242,97,34,.55);}
+.fg-lg-guia.h.cerca{border-top:1px dashed rgba(242,97,34,.55);}
+/* con el teclado, justo alineado: línea llena */
+.fg-lg-guia.v.tecla{border-left-style:solid;}.fg-lg-guia.h.tecla{border-top-style:solid;}
 .fg-lg-alin{display:inline-flex;gap:4px;flex-wrap:wrap;padding:0 4px;border-left:1px solid var(--border);border-right:1px solid var(--border);}
 .fg-lg-alin[hidden]{display:none;}
 .fg-lg-herr button .ico{width:15px;height:15px;}
@@ -1876,8 +1880,26 @@ html.dark .fg-fr-sug{color:#f0c674;}
 html.dark .vig-ok{background:rgba(14,122,79,.2);color:#7ee2b0;}
 html.dark .vig-vence{background:rgba(138,90,0,.25);color:#f0c674;}
 html.dark .vig-mal{background:rgba(180,35,24,.25);color:#ff9b91;}
+/* Días de los súper (21-oct): debajo del nombre en Activas y en la lista de marcas */
+.promos-dias{margin-top:2px;font-size:12px;font-weight:600;color:var(--accent);}
+.fg-pf-dias{font-weight:600;color:var(--accent);}
+.fg-lg-dias-chk{display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:13px;font-weight:600;color:var(--ink);}
+.fg-lg-dias-chk span{font-weight:400;color:var(--gray);font-size:12px;}
+/* Shift + clic sobre logos del flyer: barra de grupo (21-oct) */
+.fg-lg-grp{position:sticky;bottom:16px;align-self:center;margin-top:12px;z-index:7;max-width:calc(100% - 16px);display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-3,0 8px 24px rgba(0,0,0,.18));}
+.fg-lg-grp[hidden]{display:none;}
+.fg-lg-grp-n span{font-weight:400;color:var(--gray);font-size:12px;}
+.fg-lg-grp .btn{padding:6px 12px;}
+@media (max-width:900px){.fg-lg-grp{bottom:72px;}}
+.fg-lg-marca.lugar{border-style:dashed;border-color:var(--accent);}
+/* Reemplazar varios: número de orden en la marca elegida */
+.fg-lg-it.elegida{position:relative;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-ring);}
+.fg-lg-it.elegida::after{content:attr(data-n);position:absolute;top:6px;right:6px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
+.fg-lg-info-fila{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.fg-lg-info-fila .fg-lg-info{flex:1;min-width:0;}
+.fg-lg-full[hidden]{display:none;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=b533c78492"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=af00aef962"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">

@@ -2201,7 +2201,7 @@ function _promosTraerTodo(desde,acc,cb){
   // .range() puede repetir o saltearse filas entre tandas (ver _sbTodo).
   _sbTodo(function(d,h){
     return _sb.from('promos_galicia_cache')
-      .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde')
+      .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde,dias')
       .order('id',{ascending:true})
       .range(d,h);
   },cb,_PROMOS_PAGINA,desde,acc);
@@ -2969,13 +2969,13 @@ function _promoFilaHtml(r,i){
   var primera=noVa?
     '<td><button type="button" class="promos-elegir" disabled title="'+(r.estado==='VENCIDA'?'Est&aacute; vencida: no se puede poner en la franja':'Es de otra provincia: no se puede poner en la franja')+'">+</button></td>':
     eleg>=0?
-    '<td><button type="button" class="promos-elegir'+(eleg?' on':'')+'" onclick="fgElegirToggle('+i+')" aria-pressed="'+(eleg?'true':'false')+'" title="'+(eleg?'Sacar de la franja':'Agregar a la franja')+'">'+(eleg?eleg:'+')+'</button></td>':
+    '<td><button type="button" class="promos-elegir'+(eleg?' on':'')+'" onclick="fgElegirToggle('+i+')" aria-pressed="'+(eleg?'true':'false')+'" title="'+(_fgElegir.st.uno?'Poner esta marca en el flyer':eleg?'Sacar de la franja':'Agregar a la franja')+'">'+(eleg?eleg:'+')+'</button></td>':
     '<td><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
       ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>';
   return '<tr class="'+(r.excluir?'excluida':'')+(eleg>0?' elegida':'')+'">'+primera+
     '<td>'+logo+'</td>'+
     (act?'':'<td>'+_escHtml(r.marca)+'</td>')+
-    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+_promoDiasHtml(r.promo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
     '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
     '<td>'+_promoDondeHtml(r)+'</td>'+
     '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
@@ -2987,6 +2987,11 @@ function _promoFilaHtml(r,i){
 // "+N promos": la marca tiene otras promociones vigentes que quedaron
 // tapadas por el tilde de "una sola fila por marca". Sin esto, la fila se ve
 // igual que una marca que de verdad tiene una sola.
+// Días de aplicación (los manda Galicia: "Viernes", "Martes y Jueves"). Se
+// muestran en los supermercados, que es donde van debajo del logo en el flyer.
+function _promoEsSuper(p){return !!(p&&/supermercado/i.test(_promoDecodeEntities(p.subtitulo||'')));}
+function _promoDias(p){return p&&p.dias?_promoDecodeEntities(String(p.dias)).replace(/\s+/g,' ').trim():'';}
+function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDias(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
 function _promoOtrasHtml(r){
   if(_promosFiltros.repetidas!=='ocultar'||!r._otras)return '';
   var det='Esta marca tiene '+(r._otras+1)+' promociones vigentes (distintas tarjetas, plazos o locales).';
@@ -3170,6 +3175,7 @@ function descargarExcelPromos(){
       {header:'Dónde',key:'donde',width:30},
       {header:'Desde',key:'desde',width:12},
       {header:'Hasta',key:'hasta',width:12},
+      {header:'Días',key:'dias',width:16},
       {header:'Estado',key:'estado',width:16},
       {header:'En Galicia',key:'link',width:14}
     ]);
@@ -3208,6 +3214,7 @@ function descargarExcelPromos(){
       donde:r.promo?(_promoDondeTexto(r.promo)||'-'):'-',
       desde:r.promo?_promosFmtFecha(r.fechaDesde):'-',
       hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
+      dias:r.promo?_promoDias(r.promo):'',
       estado:_promoEstadoTxt(r)
     });
     row.height=32;
@@ -12595,7 +12602,7 @@ function _fgRecConfirmar(y,h){
 //   previa, la descarga y el historial dibujan lo mismo. Sólo datos (el logo se
 //   busca por nombre de archivo en _fgLg.imgs): v se copia con JSON.
 // · El masivo, el padrón y el Hunter no lo usan (su v no trae logos).
-var _fgLg={on:false,src:'',list:[],imgs:Object.create(null),carga:Object.create(null),sel:-1,proy:null,grupo:[]};
+var _fgLg={on:false,src:'',list:[],imgs:Object.create(null),carga:Object.create(null),sel:-1,proy:null,grupo:[],lugares:[]};
 // Lo elegido: con Shift se eligen varios (_fgLg.grupo) y se mueven, agrandan o
 // centran juntos. _fgLg.sel sigue siendo "el principal" (el último tocado).
 function _fgLgElegidos(){
@@ -13032,7 +13039,7 @@ function _fgLgInit(){
     '<button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-reh" onclick="fgLgRehacer()" hidden disabled aria-label="Rehacer">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg><span>Rehacer</span></button></span>'+
     '<button type="button" class="fg-lg-undo fg-lg-ver" id="fg-lg-ver" onclick="fgLgLimpio()" hidden aria-pressed="false" title="Ver el flyer tal como se va a descargar, sin marcas">'+
-      '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span id="fg-lg-ver-t">Ver limpio</span></button>'+
+      '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span id="fg-lg-ver-t">Vista previa</span></button>'+
     '<button type="button" class="fg-lg-undo fg-lg-nbor" id="fg-lg-nbor" onclick="fgBorradorNuevo()" hidden title="Abre otra pesta&ntilde;a con el flyer limpio para armar una versi&oacute;n en paralelo">+ Nuevo borrador</button>'+
     '<button type="button" class="fg-lg-undo fg-lg-rec" id="fg-lg-rec" onclick="fgRecModo()" hidden title="Quitar una parte del flyer (por ejemplo, la de los importes): lo de abajo sube y se une">Recortar</button>'+
     '<span class="fg-lg-proy fg-rec-chip" id="fg-rec-chip" hidden></span>'+
@@ -13053,7 +13060,7 @@ function _fgLgInit(){
   // siempre); para mover en el celular están las flechas de la barrita.
   var ini=null;
   cvs.addEventListener('pointerdown',function(e){
-    if(!_fgLg.on||_fgLg.limpio||e.button!==0)return; // en "Ver limpio" el flyer no se toca
+    if(!_fgLg.on||_fgLg.limpio||e.button!==0)return; // en "Vista previa" (fgLgLimpio) el flyer no se toca
     var p=_fgLgAImagen(e.clientX,e.clientY),i=p?_fgLgLogoEn(p.x,p.y):-1;
     // en modo franja el dedo también marca el recuadro (si no, arrastrar recorre la página)
     var esp=_fgFr.modo||_fgRecM.modo; // modos de marcar una zona: el dedo también marca
@@ -13096,7 +13103,7 @@ function _fgLgInit(){
     if(a.logo>=0){
       if(a.mov){_fgLgListo();return;}
       if(a.shift)_fgLgGrupoTocar(a.logo);
-      else{var g0=_fgLgElegidos();if(g0.indexOf(a.logo)<0||g0.length<2)_fgLg.grupo=[];_fgLg.sel=a.logo;}
+      else{var g0=_fgLgElegidos();if(g0.indexOf(a.logo)<0||g0.length<2)_fgLg.grupo=[];_fgLg.sel=a.logo;_fgLg.lugares=[];}
       _fgLgListo();return;
     }
     if(a.rec){
@@ -13110,7 +13117,8 @@ function _fgLgInit(){
     }
     if(a.mov&&a.shift){_fgLgSel(null);_fgLgElegirVarios(a.x,a.y,e.clientX,e.clientY);return;}
     if(a.mov){_fgLgSel(null);_fgLgElegirRecuadro(a.x,a.y,e.clientX,e.clientY);}
-    else{_fgLg.sel=-1;_fgLgMarcas();_fgLgElegirPunto(a.x,a.y);}
+    else if(a.shift)_fgLgLugarTocar(a.x,a.y); // Shift + clic en un logo del flyer: se suma a lo elegido
+    else{_fgLg.sel=-1;_fgLg.lugares=[];_fgLgMarcas();_fgLgElegirPunto(a.x,a.y);}
   });
   // gesto interrumpido (el dedo pasó a recorrer la página, etc.): se suelta todo
   document.addEventListener('pointercancel',function(){
@@ -13130,11 +13138,19 @@ function _fgLgInit(){
     else if(k==='c'&&!_fgLg.limpio){var tx='';try{tx=String(window.getSelection&&window.getSelection()||'');}catch(x){}if(!tx&&_fgLgCopiar())e.preventDefault();} // con texto marcado en la página, copia ese texto (lo normal)
     else if(k==='v'&&!_fgLg.limpio&&_fgLg.copia){e.preventDefault();_fgLgPegar();}
   });
-  // Escape sale de "Ver limpio" y del modo recorte
+  // Escape sale de "Vista previa" (fgLgLimpio) y del modo recorte
   document.addEventListener('keydown',function(e){
     if(e.key==='Escape'&&_fgRecM.modo&&!document.getElementById('fg-rec-conf')){e.preventDefault();fgRecModo(false);return;}
     if(e.key==='Escape'&&_fgLg.limpio&&!document.getElementById('fg-lg-ov')&&!document.getElementById('fg-fr-ov')){e.preventDefault();fgLgLimpio(false);}
   });
+  // Con logos del flyer elegidos con Shift (sin cambios todavía): Escape los
+  // suelta y Supr los borra junto con lo demás elegido.
+  document.addEventListener('keydown',function(e){
+    if(!_fgLg.on||_fgLg.limpio||!(_fgLg.lugares||[]).length||document.getElementById('fg-lg-ov'))return;
+    var t=e.target&&e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT')return;
+    if(e.key==='Escape'){_fgLg.lugares=[];_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMarcas();}
+    else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();e.stopImmediatePropagation();_fgLgGrpAccion('borrar');}
+  },true);
   // Flechas = mover el logo elegido 1 px (con Shift, 10). Escape = soltarlo.
   document.addEventListener('keydown',function(e){
     if(_fgLg.limpio)return;
@@ -13142,7 +13158,7 @@ function _fgLgInit(){
     var t=e.target&&e.target.tagName;
     if((t==='INPUT'&&e.target.type!=='range')||t==='TEXTAREA'||t==='SELECT')return;
     if(e.key==='Escape'){_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMarcas();return;}
-    if((e.key==='Delete'||e.key==='Backspace')&&!(e.target&&e.target.type==='range')){e.preventDefault();_fgLgQuitarElegidos();return;}
+    if((e.key==='Delete'||e.key==='Backspace')&&!(e.target&&e.target.type==='range')){e.preventDefault();_fgLgBorrarElegidos();return;}
     var d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!d)return;
     e.preventDefault();_fgLgMover(d[0]*(e.shiftKey?10:1),d[1]*(e.shiftKey?10:1));
   });
@@ -13167,7 +13183,7 @@ function _fgLgGuias(pos,principal,dx,dy,k){
     return b;
   }
   var bx=mejor([x0,(x0+x1)/2,x1],cx),by=mejor([y0,(y0+y1)/2,y1],cy),lineas=[];
-  if(bx)lineas.push({v:bx.c});if(by)lineas.push({h:by.c});
+  if(bx)lineas.push({v:bx.c,d:bx.d});if(by)lineas.push({h:by.c,d:by.d});
   return {dx:bx?bx.d:0,dy:by?by.d:0,lineas:lineas};
 }
 function _fgLgGuiasPintar(lineas){
@@ -13176,8 +13192,9 @@ function _fgLgGuiasPintar(lineas){
   if(!lineas.length){if(g)g.innerHTML='';return;}
   if(!g){g=document.createElement('div');g.id='fg-lg-guias';capa.appendChild(g);}
   g.innerHTML=lineas.map(function(l){
-    if(l.v!=null){var p=_fgLgAPantalla(l.v,0,0,0);return '<div class="fg-lg-guia v" style="left:'+p.l.toFixed(1)+'px"></div>';}
-    var q=_fgLgAPantalla(0,l.h,0,0);return '<div class="fg-lg-guia h" style="top:'+q.t.toFixed(1)+'px"></div>';
+    var cl=(l.cerca?' cerca':'')+(l.tecla?' tecla':''); // con el teclado: "cerca" = todavía no está justo alineado
+    if(l.v!=null){var p=_fgLgAPantalla(l.v,0,0,0);return '<div class="fg-lg-guia v'+cl+'" style="left:'+p.l.toFixed(1)+'px"></div>';}
+    var q=_fgLgAPantalla(0,l.h,0,0);return '<div class="fg-lg-guia h'+cl+'" style="top:'+q.t.toFixed(1)+'px"></div>';
   }).join('');
 }
 // Lo que se puede mover y agrandar: un logo (de Promociones, de la PC o del
@@ -13200,6 +13217,19 @@ function _fgLgRedibujarPronto(){
 function _fgLgMover(dx,dy){
   var As=_fgLgActivos(),g=_fgLgElegidos();if(!g.length)return;
   g.forEach(function(i){As[i].tx+=dx;As[i].ty+=dy;});_fgLgRedibujarPronto();
+  _fgLgGuiasTeclado(g);
+}
+// Con las flechas también se ven las guías (sin imán: de a 1 px pelearía con
+// el teclado). Línea llena = justo alineado; punteada clarita = está cerca.
+// Se van 1 s después de la última tecla.
+var _fgLgGuiasT=0;
+function _fgLgGuiasTeclado(g){
+  clearTimeout(_fgLgGuiasT);
+  var As=_fgLgActivos(),pos=g.filter(function(i){return As[i]&&_fgLgAjustable(As[i]);}).map(function(i){return {i:i,tx:As[i].tx,ty:As[i].ty};});
+  if(!pos.length)return;
+  var G=_fgLgGuias(pos,_fgLg.sel>=0?_fgLg.sel:pos[0].i,0,0,_fgLgEscala());
+  _fgLgGuiasPintar(G.lineas.map(function(l){l.cerca=Math.abs(l.d)>=0.5;l.tecla=!l.cerca;return l;}));
+  _fgLgGuiasT=setTimeout(function(){_fgLgGuiasPintar([]);},1000);
 }
 // Tamaño en % del que puso la app al elegir la marca; crece y se achica desde
 // el centro, así no se corre.
@@ -13255,7 +13285,8 @@ function _fgLgHerr(capa){
         '<button type="button" data-a="mismo" title="Mismo alto que el &uacute;ltimo tocado"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="7" height="12"/><rect x="14" y="6" width="7" height="12"/></svg><span>Mismo tama&ntilde;o</span></button>'+
       '</span>'+
       '<button type="button" data-a="dup" title="Duplicar (Ctrl+C y Ctrl+V)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span>Duplicar</span></button>'+
-      '<button type="button" data-a="quitar" title="Volver al original (Supr)" aria-label="Volver al original"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>'+
+      '<button type="button" data-a="original" title="Volver a como ven&iacute;a en el flyer">Original</button>'+
+      '<button type="button" data-a="quitar" title="Borrar (Supr)" aria-label="Borrar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>'+
       '<button type="button" data-a="cambiar">Cambiar marca</button>'+
       '<button type="button" data-a="soltar" class="fg-lg-herr-x" title="Listo con este" aria-label="Listo con este">&times;</button>';
     h.addEventListener('mousedown',function(e){e.stopPropagation();});   // que no "agarre" la vista previa para recorrerla
@@ -13273,7 +13304,8 @@ function _fgLgHerr(capa){
       else if(a==='repartir')_fgLgRepartir();
       else if(a==='mismo')_fgLgMismoTam();
       else if(a==='dup'){if(_fgLgCopiar(true))_fgLgPegar();}
-      else if(a==='quitar')_fgLgQuitarElegidos();
+      else if(a==='quitar')_fgLgBorrarElegidos();
+      else if(a==='original')_fgLgQuitarElegidos();
       else{var m={izq:[-3,0],der:[3,0],arr:[0,-3],aba:[0,3]}[a];if(m)_fgLgMover(m[0],m[1]);}
     });
     h.querySelector('#fg-lg-tam').addEventListener('input',function(){_fgLgTam(+this.value);});
@@ -13337,6 +13369,88 @@ function _fgLgPegar(){
   _fgLg.grupo=nuevos.length>1?nuevos:[];_fgLg.sel=nuevos[nuevos.length-1];
   _fgLgListo();
 }
+// Borrar (tacho / Supr): lo elegido desaparece y su lugar queda vacío (tapado),
+// sin que vuelva el logo de abajo. Lo que no tapaba nada (una copia, un logo de
+// una franja —la tapa es la de la franja— o algo puesto en un lugar libre) se va.
+function _fgLgBorrarElegidos(callado){
+  var g=_fgLgElegidos();if(!g.length)return 0;
+  var As=_fgLgActivos(),fuera={};
+  g.forEach(function(i){
+    var e=As[i];if(!e||e.franjaBase)return;
+    if(e.dup||e.franja||!(e.w>0&&e.h>0)){fuera[i]=1;return;}
+    As[i]={x:e.x,y:e.y,w:e.w,h:e.h,bg:e.bg,img:'',t:'',ox:e.ox,oy:e.oy,ow:e.ow,oh:e.oh};
+  });
+  _fgLg.list=_fgLg.list.filter(function(e,i){return !fuera[i];});
+  _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();
+  if(!callado)showToast((g.length===1?'Borrado':'Borrados: '+g.length)+'. Con Ctrl+Z lo recuperás.');
+  return g.length;
+}
+// ·· Shift + clic sobre logos del flyer (21-oct-2026) ··
+// Un logo que todavía no se cambió también se puede sumar a lo elegido: queda
+// como "lugar" (_fgLg.lugares, la detección en la imagen base) sin crear ningún
+// cambio. Con lugares elegidos aparece la barra de grupo: Reemplazar (una marca
+// por lugar, en orden de lectura), Borrar y Original.
+function _fgLgLugarTocar(cx,cy){
+  var p=_fgLgAImagen(cx,cy);if(!p)return;
+  var det;try{det=_fgLgDetectar(p.x,p.y);}catch(e){return;}
+  if(!det||det.error){showToast('Ahí no encontré un logo para sumar.');return;}
+  if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
+  var i=_fgLgIndiceDe(det);
+  if(i>=0&&_fgLgAjustable(_fgLgActivos()[i])){_fgLgGrupoTocar(i);_fgLgListo();return;}
+  var L=_fgLg.lugares,cxd=det.x+det.w/2,cyd=det.y+det.h/2,k=-1;
+  for(var j=0;j<L.length;j++){var d=L[j];if(cxd>=d.x&&cxd<=d.x+d.w&&cyd>=d.y&&cyd<=d.y+d.h){k=j;break;}}
+  if(k>=0)L.splice(k,1);else L.push(det);
+  // lo que ya estaba elegido (un logo cambiado) queda en el grupo
+  if(_fgLg.sel>=0&&!_fgLg.grupo.length&&_fgLgAjustable(_fgLgActivos()[_fgLg.sel]))_fgLg.grupo=[_fgLg.sel];
+  _fgLgMarcas();
+}
+// Los lugares a reemplazar: los logos cambiados elegidos (en su lugar original)
+// y los del flyer sumados con Shift, en orden de lectura.
+function _fgLgGrpLugares(){
+  var As=_fgLgActivos(),T=[];
+  _fgLgElegidos().forEach(function(i){
+    var e=As[i];if(!e)return;
+    T.push(e.dup||!(e.ow>0)?{x:e.tx,y:e.ty,w:e.tw,h:e.th,bg:e.bg,manual:true}:{x:e.ox,y:e.oy,w:e.ow,h:e.oh,bg:e.bg,manual:true});
+  });
+  (_fgLg.lugares||[]).forEach(function(d){T.push(d);});
+  // misma fila si los centros están a menos de medio alto; si no, de arriba abajo
+  T.sort(function(a,b){var ca=a.y+a.h/2,cb=b.y+b.h/2;if(Math.abs(ca-cb)<Math.min(a.h,b.h)/2)return (a.x+a.w/2)-(b.x+b.w/2);return ca-cb;});
+  return T;
+}
+function _fgLgGrpBar(){
+  var b=document.getElementById('fg-lg-grp'),nL=(_fgLg.lugares||[]).length,nE=_fgLg.on?_fgLgElegidos().length:0,n=nL+nE;
+  if(!(_fgLg.on&&!_fgLg.limpio&&nL>0)){if(b)b.hidden=true;return;}
+  if(!b){
+    b=document.createElement('div');b.id='fg-lg-grp';b.className='fg-lg-grp';b.setAttribute('role','toolbar');b.setAttribute('aria-label','Varios elegidos');
+    b.addEventListener('mousedown',function(e){e.stopPropagation();});
+    b.addEventListener('pointerdown',function(e){e.stopPropagation();});
+    b.addEventListener('click',function(e){var x=e.target.closest&&e.target.closest('button[data-g]');if(x)_fgLgGrpAccion(x.getAttribute('data-g'));});
+  }
+  var prev=document.querySelector('.prev');if(prev&&b.parentNode!==prev)prev.appendChild(b);
+  b.hidden=false;
+  b.innerHTML='<span class="fg-lg-grp-n"><b>'+n+(n===1?' elegido':' elegidos')+'</b> <span>(Shift + clic suma o saca)</span></span>'+
+    '<button type="button" class="btn bp" data-g="reemplazar">Reemplazar</button>'+
+    '<button type="button" class="btn bg" data-g="borrar">Borrar</button>'+
+    (nE?'<button type="button" class="btn bg" data-g="original" title="Volver a como ven&iacute;an en el flyer">Original</button>':'')+
+    '<button type="button" class="fg-lg-herr-x" data-g="soltar" aria-label="Soltar lo elegido" title="Soltar lo elegido">&times;</button>';
+}
+function _fgLgGrpAccion(a){
+  if(a==='soltar'){_fgLg.lugares=[];_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMarcas();return;}
+  if(a==='reemplazar'){var T=_fgLgGrpLugares();if(T.length)_fgLgAbrir(T[0],{varios:T});return;}
+  if(a==='original'){_fgLg.lugares=[];_fgLgQuitarElegidos();return;}
+  if(a==='borrar'){
+    if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
+    var nL=_fgLg.lugares.length;
+    _fgLg.lugares.forEach(function(d){
+      var i=_fgLgIndiceDe(d),e={x:d.x-4,y:d.y-4,w:d.w+8,h:d.h+8,bg:d.bg,img:'',t:'',ox:d.x,oy:d.y,ow:d.w,oh:d.h};
+      if(i>=0)_fgLg.list[i]=e;else _fgLg.list.push(e);
+    });
+    _fgLg.lugares=[];
+    var nE=_fgLgBorrarElegidos(true);
+    if(!nE){_fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();}
+    var n=nL+nE;showToast((n===1?'Borrado':'Borrados: '+n)+'. Con Ctrl+Z lo recuperás.');
+  }
+}
 function _fgLgQuitarElegidos(){
   var g=_fgLgElegidos();if(!g.length)return;
   var fuera={};g.forEach(function(i){fuera[i]=1;});
@@ -13376,7 +13490,7 @@ function fgLogosModo(on){
   if(_fgLg.on&&!_promosCat)loadPromosCatalogo(); // así la ventana abre con la lista ya cargada
   _fgLgBarra();_fgLgMarcas();
 }
-// "Ver limpio": el flyer limpio, sin marcos ni barritas (es el mismo lienzo
+// "Vista previa" (antes "Ver limpio"): el flyer limpio, sin marcos ni barritas (es el mismo lienzo
 // que se descarga). Mientras tanto el flyer no responde a los toques.
 function fgLgLimpio(on){
   _fgLg.limpio=(on===undefined)?!_fgLg.limpio:!!on;
@@ -13388,7 +13502,7 @@ function _fgLgBarra(){
   var b=document.getElementById('fg-lg-btn');if(!b)return;
   var ver=document.getElementById('fg-lg-ver');
   if(ver){ver.hidden=!_fgLg.on;ver.setAttribute('aria-pressed',_fgLg.limpio?'true':'false');ver.classList.toggle('on',!!_fgLg.limpio);
-    var vt=document.getElementById('fg-lg-ver-t');if(vt)vt.textContent=_fgLg.limpio?'Seguir editando':'Ver limpio';}
+    var vt=document.getElementById('fg-lg-ver-t');if(vt)vt.textContent=_fgLg.limpio?'Seguir editando':'Vista previa';}
   b.setAttribute('aria-pressed',_fgLg.on?'true':'false');b.classList.toggle('on',_fgLg.on);
   var t=document.getElementById('fg-lg-btn-t');if(t)t.textContent=_fgLg.on?'Listo':'Cambiar logos';
   var tip=document.getElementById('fg-lg-tip');
@@ -13424,7 +13538,8 @@ function _fgLgMarcas(){
   // redibujar (si se la sacara del documento, la regla se soltaría al arrastrarla).
   var mk=document.getElementById('fg-lg-mk');
   if(!mk){mk=document.createElement('div');mk.id='fg-lg-mk';capa.appendChild(mk);}
-  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMkAntes=null;_fgLgHerr(capa);return;} // (_fgLgHerr la esconde)
+  if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgMkAntes=null;_fgLgHerr(capa);_fgLgGrpBar();return;} // (_fgLgHerr la esconde)
+  if(_fgLg.lugares.length&&_fgLg.src!==_fgLgSrc())_fgLg.lugares=[]; // otro flyer
   if(_fgLg.sel<0)_fgLg.grupo=[];
   var eleg=_fgLgElegidos();if(eleg.length<2)_fgLg.grupo=[];
   // los recuadros no se ven en reposo: el que se acaba de cambiar parpadea un
@@ -13442,7 +13557,11 @@ function _fgLgMarcas(){
     // logo nuevo: su recuadro (se mueve con él); lugar vacío: lo que se tapó
     var p=_fgLgAjustable(e)?_fgLgAPantalla(e.tx,e.ty,e.tw,e.th):_fgLgAPantalla(e.x,e.y,e.w,e.h);
     return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+'" style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
+  }).join('')+(_fgLg.lugares||[]).map(function(d){
+    var p=_fgLgAPantalla(d.x,d.y,d.w,d.h);
+    return '<div class="fg-lg-marca elegido grupo lugar" style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
   }).join('')+'<div class="fg-lg-sel" id="fg-lg-sel" hidden></div>';
+  _fgLgGrpBar();
   nuevos.forEach(function(i){var m=mk.children[i],k=JSON.stringify(A[i]);if(m){m.classList.add('flash');setTimeout(function(){m.classList.remove('flash');},Math.max(0,_fgLgMkFlash[k]-ya));}});
   _fgLgHerr(capa);
 }
@@ -13525,6 +13644,104 @@ function _fgLgMoverOriginal(det){
 }
 // Poner (o corregir) un texto. det = el lugar marcado; previo = el texto que se
 // está editando (conserva su posición y su tamaño relativo).
+// ·· Días de los súper (21-oct-2026) ··
+// En la franja de supermercados cada logo lleva debajo sus días ("Martes y
+// jueves"). Al poner un súper con el tilde "Poner también sus días", se busca ese
+// texto en la imagen base y se reemplaza por los días de la promo, con la misma
+// letra y color. El texto puede venir pegado al logo (la detección los junta si
+// están cerca) o un poco más abajo.
+// Bloques de filas con tinta dentro de un recuadro (px de imagen).
+function _fgLgBloquesFilas(x,y,w,h,bgTxt,tol){
+  if(tol==null)tol=2; // filas vacías que se toleran dentro de un mismo bloque
+  var d=_fgLgPixeles(Math.round(x),Math.round(y),Math.max(1,Math.round(w)),Math.max(1,Math.round(h)));
+  var W=Math.max(1,Math.round(w)),H=Math.max(1,Math.round(h)),bg=String(bgTxt).match(/\d+/g).map(Number),bl=[],cur=null,hueco=0;
+  for(var r=0;r<H;r++){
+    var x0=W,x1=-1;
+    for(var c=0;c<W;c++){var p=(r*W+c)*4;if(Math.max(Math.abs(d[p]-bg[0]),Math.abs(d[p+1]-bg[1]),Math.abs(d[p+2]-bg[2]))>_FG_LG_TOL){if(c<x0)x0=c;x1=c;}}
+    if(x1>=0){
+      if(cur&&hueco<=tol){cur.y1=r;cur.x0=Math.min(cur.x0,x0);cur.x1=Math.max(cur.x1,x1);}
+      else{cur={y0:r,y1:r,x0:x0,x1:x1};bl.push(cur);}
+      hueco=0;
+    }else if(cur)hueco++;
+  }
+  return bl.map(function(b){return {x:x+b.x0,y:y+b.y0,w:b.x1-b.x0+1,h:b.y1-b.y0+1};});
+}
+// Devuelve {logo, texto}: el recuadro del logo (sin los días si venían pegados)
+// y el del texto de días (o null si no hay).
+function _fgLgPartirDias(det){
+  try{
+    // sin tolerancia: entre el logo y los días a veces hay sólo 1 o 2 filas de aire
+    var bl=_fgLgBloquesFilas(det.x,det.y,det.w,det.h,det.bg,0);
+    if(bl.length>=2){
+      // el corte va en el hueco más grande entre los que dejan abajo algo más bajo
+      // que el 45% del recuadro (los renglones "Martes y" / "jueves" quedan juntos)
+      var ult=bl[bl.length-1],k=-1,mejor=-1;
+      for(var j=bl.length-1;j>=1;j--){
+        if(ult.y+ult.h-bl[j].y>=det.h*0.45)break;
+        var gap=bl[j].y-(bl[j-1].y+bl[j-1].h);
+        if(gap>mejor){mejor=gap;k=j;}
+      }
+      var txt=k>0?bl.slice(k):[],ty0=k>0?txt[0].y:0,ty1=ult.y+ult.h,tx0=k>0?Math.min.apply(null,txt.map(function(b){return b.x;})):0,tx1=k>0?Math.max.apply(null,txt.map(function(b){return b.x+b.w;})):0;
+      if(k>0&&ty1-ty0<det.h*0.45&&ty1-ty0>=6){
+        var lg=bl.slice(0,k),ly1=Math.max.apply(null,lg.map(function(b){return b.y+b.h;}));
+        return {logo:{x:det.x,y:det.y,w:det.w,h:Math.max(4,ly1-det.y),bg:det.bg,manual:det.manual},texto:{x:tx0,y:ty0,w:tx1-tx0,h:ty1-ty0,bg:det.bg}};
+      }
+    }
+    // si no, más abajo: una banda de 1,5 altos de logo
+    var bx=Math.max(0,det.x-det.w*0.3),bw=Math.min(baseImg.width-bx,det.w*1.6),by=det.y+det.h+2,bh=Math.min(baseImg.height-by,det.h*1.5);
+    if(bh>4&&bw>4){
+      var b2=_fgLgBloquesFilas(bx,by,bw,bh,det.bg);
+      if(b2.length){
+        var t0=b2[0],j=1,yfin=t0.y+t0.h,xa=t0.x,xb=t0.x+t0.w;
+        while(j<b2.length&&b2[j].y-yfin<=Math.max(4,t0.h*0.6)&&b2[j].h<det.h*0.6){yfin=b2[j].y+b2[j].h;xa=Math.min(xa,b2[j].x);xb=Math.max(xb,b2[j].x+b2[j].w);j++;}
+        var th=yfin-t0.y;
+        // un texto (no el logo de la fila de abajo): más bajo que el logo y cerca
+        if(th>=6&&th<det.h*0.9&&t0.y-(det.y+det.h)<det.h*0.8)return {logo:det,texto:{x:xa,y:t0.y,w:xb-xa,h:th,bg:det.bg}};
+      }
+    }
+  }catch(e){console.warn('días:',e);}
+  return {logo:det,texto:null};
+}
+// Pone los días debajo del logo: reemplaza el texto que había o, si no había,
+// lo agrega centrado abajo. "texto" es el recuadro que devolvió _fgLgPartirDias.
+function _fgLgPonerDias(logoDet,texto,dias){
+  var tdet,fs,color,peso=500;
+  if(texto){
+    var ren=_fgLgRenglones(texto);
+    tdet=texto;fs=Math.max(12,Math.min(90,Math.round(texto.h/ren)));
+    color=_fgLgColorDe(texto)||'#1A1A1A';
+    // negrita si el original es "pesado" (mucha tinta para su alto)
+    try{var bl=_fgLgBloquesFilas(texto.x,texto.y,texto.w,texto.h,texto.bg);peso=(bl.length&&texto.h/ren>=14&&_fgLgTintaRel(texto)>0.32)?700:500;}catch(e){}
+  }else{
+    fs=Math.max(12,Math.round(logoDet.h*0.28));color='#1A1A1A';
+    tdet={x:logoDet.x,y:logoDet.y+logoDet.h+Math.round(fs*0.4),w:logoDet.w,h:Math.round(fs*1.3),bg:logoDet.bg,vacio:true};
+  }
+  // que no quede mucho más ancho que el logo: se achica la letra
+  var e={texto:dias,fs:fs,peso:peso};
+  if(!_fgLgMedCv)_fgLgMedCv=document.createElement('canvas');
+  var g=_fgLgMedCv.getContext('2d');g.font=_fgLgTxtFont(e,fs);
+  var ancho=g.measureText(dias).width,tope=Math.max(tdet.w,logoDet.w)*1.15;
+  if(ancho>tope)fs=Math.max(10,Math.floor(fs*tope/ancho));
+  _fgLgPonerTexto(tdet,{texto:dias,color:color,peso:peso,fs:fs},null);
+}
+// Proporción de píxeles con tinta en un recuadro (para adivinar la negrita).
+function _fgLgTintaRel(det){
+  var d=_fgLgPixeles(Math.round(det.x),Math.round(det.y),Math.max(1,Math.round(det.w)),Math.max(1,Math.round(det.h))),bg=String(det.bg).match(/\d+/g).map(Number),n=0,t=0;
+  for(var p=0;p<d.length;p+=4){t++;if(Math.max(Math.abs(d[p]-bg[0]),Math.abs(d[p+1]-bg[1]),Math.abs(d[p+2]-bg[2]))>_FG_LG_TOL)n++;}
+  return t?n/t:0;
+}
+// Pone una marca de Promociones en un lugar; si es un súper con días y el tilde
+// está puesto, también sus días. Queda elegido el logo.
+function _fgLgPonerMarca(det,p,logo,conDias){
+  var dias=conDias&&!det.vacio&&_promoEsSuper(p)?_promoDias(p):'';
+  if(!dias){_fgLgPoner(det,p.imagen,p.titulo,logo);return false;}
+  var pt=_fgLgPartirDias(det);
+  _fgLgPoner(pt.logo,p.imagen,p.titulo,logo);
+  var iLogo=_fgLgIndiceDe(pt.logo);
+  _fgLgPonerDias(pt.logo,pt.texto,dias);
+  if(iLogo>=0){_fgLg.sel=iLogo;_fgLgListo();}
+  return true;
+}
 function _fgLgPonerTexto(det,d,previo){
   if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
   var e={tipo:'txt',texto:d.texto,color:d.color,peso:d.peso,fs:d.fs,bfs:d.fs,
@@ -13664,15 +13881,25 @@ var _FG_LG_COLORES=[['#1A1A1A','Negro'],['#6B6B6B','Gris'],['#FA6400','Naranja']
 function _fgLgAbrir(det,op){
   op=op||{};
   var viejo=document.getElementById('fg-lg-ov');if(viejo)viejo.remove();
-  _fgLgV.det=det;_fgLgV.q='';_fgLgV.rubro='';
+  // arranca con los filtros de Promociones → Activas (rubro y "ocultar online")
+  _fgLgV.det=det;_fgLgV.q='';_fgLgV.rubro=_promosRubro||'';_fgLgV.sinOnline=_promosFiltros.online==='ocultar';
   // provincia y localidad: las de la última vez (o la de Promociones)
   if(!_fgLgV.prov){_fgLgV.prov=_promosProv||'';_fgLgV.loc=_fgLgV.prov===_promosProv?(_promosLoc||''):'';}
   var idx=_fgLgIndiceDe(det),ya=idx>=0?_fgLgActivos()[idx]:null;
+  // Un lugar borrado (o tapado por una franja) ya no esconde nada: tocarlo es
+  // para agregar algo nuevo. Sin esto, "Mover lo que hay" revivía el logo tapado.
+  var cxd=det.x+det.w/2,cyd=det.y+det.h/2;
+  var tapado=(ya&&!_fgLgAjustable(ya))||_fgLgActivos().some(function(e){return e.franjaBase&&cxd>=e.x&&cxd<=e.x+e.w&&cyd>=e.y&&cyd<=e.y+e.h;});
+  if(tapado)det.vacio=true;
+  var paraAgregar=det.vacio&&(!ya||!_fgLgAjustable(ya));
+  // Reemplazar varios: una marca por lugar, en el orden en que se tocan
+  var V=op.varios&&op.varios.length?{T:op.varios,picks:[]}:null;_fgLgV.varios=V;
+  if(V){det.vacio=true;paraAgregar=false;ya=null;}
   var lgOv=document.createElement('div');lgOv.id='fg-lg-ov';lgOv.className='fg-cf-ov';
   lgOv.setAttribute('role','dialog');lgOv.setAttribute('aria-modal','true');lgOv.setAttribute('aria-labelledby','fg-lg-t');
   lgOv.innerHTML='<div class="fg-cf fg-lg">'+
     '<div class="fg-lg-h"><canvas id="fg-lg-ori" class="fg-lg-ori" aria-hidden="true"></canvas>'+
-      '<div style="flex:1;min-width:0"><div class="fg-cf-t" id="fg-lg-t">'+(det.vacio&&!ya?'Agregar ac&aacute;':'Cambiar esto')+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="fg-cf-t" id="fg-lg-t">'+(paraAgregar?'Agregar ac&aacute;':'Cambiar esto')+'</div>'+
       '<div class="fg-cf-b">'+(ya?(_fgLgAjustable(ya)?'Ahora dice <b>'+_escHtml(ya.t)+'</b>. ':'Ahora est&aacute; vac&iacute;o. '):'')+'Eleg&iacute; una marca de Promociones, sub&iacute; un logo, escrib&iacute; un texto o mov&eacute; lo que hay. El cambio vale s&oacute;lo para este flyer.</div></div>'+
       '<button type="button" class="fg-lg-x" id="fg-lg-x" aria-label="Cerrar">&times;</button></div>'+
     '<div class="fg-lg-modos">'+
@@ -13693,12 +13920,14 @@ function _fgLgAbrir(det,op){
     '</div>'+
     _fgPfHtml('fg-lg','Buscar marca (ej.: Farmacia del Pueblo)')+
     (det.corta?'<div class="fg-lg-aviso">Ojo: el recuadro que marcaste corta parte de otro dibujo del flyer y lo va a tapar a medias. Si no es lo que quer&eacute;s, cancel&aacute; y marcalo de nuevo.</div>':'')+
-    '<div class="fg-lg-info" id="fg-lg-info"></div>'+
+    (det.vacio?'':'<label class="fg-lg-dias-chk" id="fg-lg-dias-l"><input type="checkbox" id="fg-lg-dias"'+(_fgLgV.conDias!==false?' checked':'')+'> Si es un s&uacute;per, poner tambi&eacute;n sus d&iacute;as debajo <span>(reemplaza el texto de d&iacute;as que hay)</span></label>')+
+    '<div class="fg-lg-info-fila"><div class="fg-lg-info" id="fg-lg-info"></div>'+
+      '<button type="button" class="fg-lg-enlace fg-lg-full" id="fg-lg-full" title="Ver todas las promociones en la solapa Activas y elegir de ah&iacute;">Elegir en pantalla completa</button></div>'+
     '<div class="fg-lg-list" id="fg-lg-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
     '<div class="fg-cf-acts fg-lg-acts" id="fg-lg-acts">'+
       '<span class="fg-lg-acts-izq">'+
         (ya?'<button type="button" class="fg-lg-enlace" id="fg-lg-ori-btn">Volver al original</button>':'')+
-        (det.vacio&&!ya?'':'<button type="button" class="fg-lg-enlace" id="fg-lg-nada">Dejar el lugar vac&iacute;o</button>')+
+        (paraAgregar?'':'<button type="button" class="fg-lg-enlace" id="fg-lg-nada">Dejar el lugar vac&iacute;o</button>')+
       '</span>'+
       '<button type="button" class="btn bg" id="fg-lg-no">Cancelar</button>'+
       '<button type="button" class="btn bp" id="fg-lg-txt-ok" hidden>Poner el texto</button></div></div>';
@@ -13710,7 +13939,7 @@ function _fgLgAbrir(det,op){
     o.width=Math.max(1,Math.round(det.w*k));o.height=Math.max(1,Math.round(det.h*k));
     o.getContext('2d').drawImage(baseImg,det.x,det.y,det.w,det.h,0,0,o.width,o.height);
   }catch(e){}
-  function cerrar(){document.removeEventListener('keydown',tecla,true);lgOv.remove();}
+  function cerrar(){document.removeEventListener('keydown',tecla,true);lgOv.remove();_fgLgV.varios=null;}
   function tecla(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cerrar();}}
   document.addEventListener('keydown',tecla,true);
   lgOv.addEventListener('click',function(e){if(e.target===lgOv)cerrar();});
@@ -13770,7 +13999,7 @@ function _fgLgAbrir(det,op){
     document.getElementById('fg-lg-txt').hidden=!on;
     document.getElementById('fg-lg-txt-ok').hidden=!on;     // la acción principal sólo en el texto
     document.getElementById('fg-lg-txt-volver').hidden=!!previo; // editando un texto no hay "marcas" a las que volver
-    ['fg-lg-filtros','fg-lg-chk','fg-lg-info','fg-lg-list'].forEach(function(id){var x=document.getElementById(id);if(x)x.hidden=on;});
+    ['fg-lg-filtros','fg-lg-chk','fg-lg-dias-l','fg-lg-info','fg-lg-list'].forEach(function(id){var x=document.getElementById(id);if(x)x.hidden=on;});
     var md=lgOv.querySelector('.fg-lg-modos');if(md)md.hidden=on;
     var av=lgOv.querySelector('.fg-lg-aviso');if(av&&on)av.hidden=false;
     if(on)setTimeout(function(){try{tx.focus();}catch(e){}},20);
@@ -13792,11 +14021,50 @@ function _fgLgAbrir(det,op){
   if(nada)nada.onclick=function(){cerrar();_fgLgPoner(det,'','',null);showToast('Listo: ese lugar queda vacío en este flyer.');};
   var ob=document.getElementById('fg-lg-ori-btn');
   if(ob)ob.onclick=function(){cerrar();_fgLg.list.splice(_fgLgIndiceDe(det),1);_fgLg.sel=-1;_fgLgListo();showToast('Ese logo volvió al original.');};
+  var full=document.getElementById('fg-lg-full');
+  if(full){
+    if(V||previo)full.hidden=true;
+    else full.onclick=function(){cerrar();_fgLgIrActivas(det);};
+  }
+  var dch=document.getElementById('fg-lg-dias');
+  if(dch)dch.onchange=function(){_fgLgV.conDias=dch.checked;};
   var q=document.getElementById('fg-lg-q');
   _fgPfInit('fg-lg',_fgLgV,function(){if(document.getElementById('fg-lg-ov'))_fgLgLista();});
+  if(V){
+    lgOv.querySelector('.fg-lg').classList.add('varios');
+    document.getElementById('fg-lg-t').textContent='Reemplazar '+V.T.length+' lugares';
+    var bd=lgOv.querySelector('.fg-cf-b');if(bd)bd.innerHTML='Toc&aacute; las marcas en el orden en que van: la 1 va al primer lugar (de izquierda a derecha y de arriba abajo), la 2 al segundo, y as&iacute;. Tocala de nuevo para sacarla.';
+    var md=lgOv.querySelector('.fg-lg-modos');if(md)md.hidden=true;
+    var oc=document.getElementById('fg-lg-ori');if(oc)oc.hidden=true;
+    var izq=lgOv.querySelector('.fg-lg-acts-izq');if(izq)izq.innerHTML='';
+    var okv=document.createElement('button');okv.type='button';okv.className='btn bp';okv.id='fg-lg-varios-ok';okv.disabled=true;okv.textContent='Poner las marcas';
+    document.getElementById('fg-lg-acts').appendChild(okv);
+    okv.onclick=function(){
+      var P=V.picks.slice(),T=V.T,src0=_fgLgSrc(),conD=_fgLgV.conDias!==false;if(!P.length)return;
+      okv.disabled=true;okv.textContent='Poniendo…';
+      Promise.all(P.map(function(p){return _fgLgTraer(p.imagen);})).then(function(logos){
+        if(!lgOv.isConnected||_fgLgSrc()!==src0)return;
+        cerrar();
+        P.forEach(function(p,i){if(T[i])_fgLgPonerMarca(T[i],p,logos[i],conD);});
+        _fgLg.lugares=[];_fgLg.grupo=[];_fgLg.sel=-1;_fgLgListo();
+        showToast('Listo: '+P.length+(P.length===1?' marca puesta':' marcas puestas')+(P.length<T.length?' ('+(T.length-P.length)+' lugares quedaron como estaban)':'')+'. Con Ctrl+Z se deshace.');
+      }).catch(function(){
+        if(!lgOv.isConnected)return;
+        okv.disabled=false;_fgLgVariosMarcar();
+        showToast('No se pudo bajar algún logo. Probá de nuevo o elegí otra marca.');
+      });
+    };
+  }
   document.getElementById('fg-lg-list').addEventListener('click',function(e){
     var it=e.target.closest&&e.target.closest('.fg-lg-it');if(!it||it.disabled)return;
     var p=_fgLgV.res[+it.getAttribute('data-i')];if(!p)return;
+    if(V){
+      var k=-1;for(var j=0;j<V.picks.length;j++)if(V.picks[j].imagen===p.imagen){k=j;break;}
+      if(k>=0)V.picks.splice(k,1);
+      else if(V.picks.length>=V.T.length){showToast('Ya elegiste '+V.T.length+': sacá una para cambiarla.');return;}
+      else{V.picks.push(p);_fgLgTraer(p.imagen).catch(function(){});}
+      _fgLgVariosMarcar();return;
+    }
     it.disabled=true;it.classList.add('cargando');
     var src0=_fgLgSrc();
     _fgLgTraer(p.imagen).then(function(logo){
@@ -13804,8 +14072,9 @@ function _fgLgAbrir(det,op){
       // cambió de flyer, no se aplica (antes caía en el flyer nuevo con las
       // coordenadas del anterior)
       if(!lgOv.isConnected||_fgLgSrc()!==src0)return;
-      cerrar();_fgLgPoner(det,p.imagen,p.titulo,logo);
-      showToast('Listo: '+p.titulo+' en este flyer.');
+      cerrar();
+      var conD=_fgLgPonerMarca(det,p,logo,_fgLgV.conDias!==false);
+      showToast('Listo: '+p.titulo+(conD?' con sus días ('+_promoDias(p)+')':'')+' en este flyer.');
     }).catch(function(){
       if(!lgOv.isConnected)return;
       it.disabled=false;it.classList.remove('cargando');
@@ -13844,7 +14113,8 @@ function _fgPfInit(px,st,cambio){
   var una=document.getElementById(px+'-una'),onl=document.getElementById(px+'-onl');
   una.checked=st.una!==false;onl.checked=!!st.sinOnline;
   una.onchange=function(){st.una=una.checked;cambio();};
-  onl.onchange=function(){st.sinOnline=onl.checked;cambio();};
+  // "sin las online" es el mismo filtro que el tilde de Activas: se mantienen iguales
+  onl.onchange=function(){st.sinOnline=onl.checked;_promosFiltros.online=onl.checked?'ocultar':'';var so=document.getElementById('promos-sinubic');if(so)so.checked=onl.checked;cambio();};
 }
 function _fgPfPoblar(px,st){
   var rs={};(_promosCat||[]).forEach(function(p){if(p.subtitulo)rs[p.subtitulo]=1;});
@@ -13935,7 +14205,8 @@ function _fgPfFiltrar(st,cambio){
 }
 // Renglón chico de cada marca: rubro, si es de compra online (como en Activas) y hasta cuándo.
 function _fgPfSub(p){
-  return _escHtml(p.subtitulo||'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'');
+  var d=_promoEsSuper(p)?_promoDias(p):'';
+  return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'');
 }
 // Texto de "dónde": provincia y localidad elegidas.
 function _fgPfDonde(st){return st.prov?' en '+_promoTitulizar(st.loc||st.prov):'';}
@@ -13955,6 +14226,18 @@ function _fgLgLista(){
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
       '<span class="fg-lg-it-s">'+_fgPfSub(p)+'</span></button>';
   }).join('');
+  if(_fgLgV.varios)_fgLgVariosMarcar();
+}
+// Reemplazar varios: número de orden en cada marca elegida y el botón con la cuenta.
+function _fgLgVariosMarcar(){
+  var V=_fgLgV.varios;if(!V)return;
+  Array.prototype.forEach.call(document.querySelectorAll('#fg-lg-list .fg-lg-it'),function(it){
+    var p=_fgLgV.res[+it.getAttribute('data-i')],n=0;
+    if(p)for(var j=0;j<V.picks.length;j++)if(V.picks[j].imagen===p.imagen){n=j+1;break;}
+    it.classList.toggle('elegida',!!n);if(n)it.setAttribute('data-n',n);else it.removeAttribute('data-n');
+  });
+  var ok=document.getElementById('fg-lg-varios-ok');
+  if(ok&&ok.textContent!=='Poniendo…'){ok.disabled=!V.picks.length;ok.textContent=V.picks.length?'Poner '+V.picks.length+' de '+V.T.length:'Poner las marcas';}
 }
 
 // ══ ARMAR FRANJA (16-oct-2026) ════════════════════════════════════════════════
@@ -14088,6 +14371,11 @@ function _fgFrIrActivas(st){
   }
   if(_promosCat&&_promosCat.length)seguir();else loadPromosCatalogo(seguir);
 }
+// Lo mismo que la franja, pero para UN logo: el "+" elige esa marca y se vuelve
+// solo al flyer a ponerla en su lugar (con sus días, si es un súper y el tilde está).
+function _fgLgIrActivas(det){
+  _fgFrIrActivas({uno:true,det:det,sel:[],src:_fgLgSrc(),q:'',rubro:_fgLgV.rubro||'',prov:_fgLgV.prov||'',loc:_fgLgV.loc||'',una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline});
+}
 function _fgElegirBar(){
   var host=document.querySelector('.promos-results');if(!host)return;
   var b=document.getElementById('fg-elegir-bar');
@@ -14095,6 +14383,12 @@ function _fgElegirBar(){
   if(!_fgElegir){if(b)b.remove();return;}
   if(!b){b=document.createElement('div');b.id='fg-elegir-bar';b.className='fg-elegir-bar';b.setAttribute('role','region');b.setAttribute('aria-label','Marcas elegidas para la franja');host.insertBefore(b,host.firstChild);}
   var S=_fgElegir.st.sel,n=S.length;
+  if(_fgElegir.st.uno){
+    b.innerHTML='<div class="fg-elegir-txt"><b>Cambiar un logo</b> &middot; Toc&aacute; <b>+</b> en la marca que quer&eacute;s poner y vuelve sola al flyer.</div>'+
+      '<div class="fg-elegir-acts"><button type="button" class="btn bg" onclick="fgElegirCancelar()">Cancelar</button>'+
+      '<button type="button" class="btn bp" onclick="fgElegirVolver()">Volver al logo</button></div>';
+    return;
+  }
   b.innerHTML='<div class="fg-elegir-txt"><b>Armar franja</b> &middot; '+(n?n+(n===1?' marca elegida':' marcas elegidas')+': <span>'+S.slice(0,5).map(function(x,i){return (i+1)+'. '+_escHtml(x.t);}).join(', ')+(n>5?'&hellip;':'')+'</span>':'Toc&aacute; <b>+</b> en las marcas que quer&eacute;s, en el orden en que van. Tambi&eacute;n pod&eacute;s pegar marcas en <b>Buscar</b>, validarlas y elegir de ah&iacute;.')+'</div>'+
     '<div class="fg-elegir-acts"><button type="button" class="btn bg" onclick="fgElegirCancelar()">Cancelar</button>'+
     '<button type="button" class="btn bp" onclick="fgElegirVolver()">Volver a la franja'+(n?' ('+n+')':'')+'</button></div>';
@@ -14106,6 +14400,7 @@ function fgElegirToggle(i){
   if(!_fgElegirNum(r)&&(r.estado==='VENCIDA'||r.estado==='FUERA_PROV'))return;
   var S=_fgElegir.st.sel,img=r.promo.imagen,k=-1;
   for(var j=0;j<S.length;j++)if(S[j].img===img){k=j;break;}
+  if(_fgElegir.st.uno){S.length=0;S.push({img:img,t:_promoDecodeEntities(r.promo.titulo||''),p:r.promo});fgElegirVolver();return;}
   if(k>=0)S.splice(k,1);
   else{
     if(S.length>=_FG_FR_MAX){showToast('Hasta '+_FG_FR_MAX+' logos por franja.');return;}
@@ -14126,6 +14421,7 @@ function fgElegirVolver(){
   st.prov=_promosProv||'';st.loc=_promosLoc||'';st.rubro=_promosRubro||'';
   st.una=_promosFiltros.repetidas==='ocultar';st.sinOnline=_promosFiltros.online==='ocultar';
   switchApp(_optSolapa(_fgOpt));
+  if(st.uno){_fgLgVolverUno(st);return;}
   if(_fgLgSrc()!==st.src){
     // otro flyer: el recuadro de antes no sirve, pero lo elegido no se pierde.
     // Se marca la franja en este flyer y la ventana abre con esas marcas.
@@ -14139,11 +14435,24 @@ function fgElegirVolver(){
   if(!_fgLg.on)fgLogosModo(true);
   _fgFrAbrir(st.rect,st);
 }
+function _fgLgVolverUno(st){
+  _fgLgV.prov=st.prov;_fgLgV.loc=st.loc;_fgLgV.rubro=st.rubro;_fgLgV.una=st.una;_fgLgV.sinOnline=st.sinOnline;
+  if(_fgLgSrc()!==st.src){showToast('Cambió el flyer mientras elegías: tocá de nuevo el logo que querés cambiar.');return;}
+  if(!_fgLg.on)fgLogosModo(true);
+  var pick=st.sel[0];
+  if(!pick){_fgLgAbrir(st.det);return;}
+  _fgLgTraer(pick.img).then(function(logo){
+    if(_fgLgSrc()!==st.src)return;
+    var p=pick.p||{imagen:pick.img,titulo:pick.t};
+    var conD=_fgLgPonerMarca(st.det,p,logo,_fgLgV.conDias!==false);
+    showToast('Listo: '+pick.t+(conD?' con sus días ('+_promoDias(p)+')':'')+' en este flyer.');
+  }).catch(function(){showToast('No se pudo bajar el logo de '+pick.t+'. Probá con otro o revisá la conexión.');});
+}
 function fgElegirCancelar(callado){
   var st=_fgElegir&&_fgElegir.st;
   _fgElegir=null;_fgElegirBar();if(typeof _promosPintarFilas==='function')_promosPintarFilas();
   if(st&&_fgFrSt===st)_fgFrSt=null;
-  if(!callado)showToast('Listo: no se armó la franja.');
+  if(!callado)showToast(st&&st.uno?'Listo: no se cambió el logo.':'Listo: no se armó la franja.');
 }
 // Recuadro marcado en pantalla → abrir la ventana.
 function _fgFrDesdeRecuadro(ax,ay,bx,by){
@@ -14191,7 +14500,7 @@ function _fgFrAbrir(rect,reuso){
     try{info=_fgFrDetectar(rect.x,rect.y,rect.w,rect.h);}catch(e){showToast('No se pudo leer el flyer.');return;}
     st=_fgFrSt={rect:rect,info:previa?previa.franjaInfo:info,previa:previa,
       sel:previa?_fgFrSelActual(previa):[],cols:previa?(previa.franjaCols||0):0,kt:previa?(previa.franjaKt||1):1,elegido:-1,
-      q:'',rubro:'',prov:_fgLgV.prov||_promosProv||'',loc:_fgLgV.prov?(_fgLgV.loc||''):(_promosLoc||''),una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline,res:[],src:_fgLgSrc()};
+      q:'',rubro:_promosRubro||'',prov:_fgLgV.prov||_promosProv||'',loc:_fgLgV.prov?(_fgLgV.loc||''):(_promosLoc||''),una:_fgLgV.una!==false,sinOnline:_promosFiltros.online==='ocultar',res:[],src:_fgLgSrc()};
     if(!previa)st.info.bg=rect.bg||st.info.bg;
     // lo elegido en Activas para una franja de otro flyer (ver fgElegirVolver)
     var pend=_fgFr.pendiente;_fgFr.pendiente=null;
