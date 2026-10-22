@@ -13394,6 +13394,7 @@ function _fgLgCambiarMarca(){
   var det=null;
   try{det=_fgLgDetectar(L.ox+L.ow/2,L.oy+L.oh/2);}catch(e){}
   if(!det||det.error||_fgLgIndiceDe(det)!==_fgLg.sel)det={x:L.ox,y:L.oy,w:L.ow,h:L.oh,bg:L.bg,manual:true};
+  det.indice=_fgLg.sel;
   _fgLgAbrir(det);
 }
 // Barrita de ajuste del logo elegido. Se crea una vez y se reubica: si se
@@ -13814,6 +13815,9 @@ function _fgLgElegirRecuadro(ax,ay,bx,by){
 // ¿Ese lugar ya tiene un cambio? (se compara contra el recuadro original)
 function _fgLgIndiceDe(det){
   var L=_fgLgActivos();
+  // abierto desde "Cambiar" / doble clic sobre un cambio concreto (det.indice): es ese,
+  // no el primero que se solape (una copia con Ctrl+V se solapa con su original)
+  if(det&&det.indice!=null&&L[det.indice]&&!L[det.indice].franjaBase)return det.indice;
   for(var i=0;i<L.length;i++){
     var e=L[i];if(e.franjaBase)continue; // la franja se retoca con "Armar franja"
     var ix=Math.min(e.ox+e.ow,det.x+det.w)-Math.max(e.ox,det.x),iy=Math.min(e.oy+e.oh,det.y+det.h)-Math.max(e.oy,det.y);
@@ -14238,12 +14242,29 @@ function _fgLgAbrir(det,op){
       '<button type="button" class="btn bg" id="fg-lg-no">Cancelar</button>'+
       '<button type="button" class="btn bp" id="fg-lg-txt-ok" hidden>Poner el texto</button></div></div>';
   document.body.appendChild(lgOv);
-  // Muestra del logo original, tal cual está en el flyer.
+  // Muestra de lo que hay AHORA en ese lugar: el logo ya puesto (si se cambió antes,
+  // antes se veía el de la imagen base) o, si es un lugar sin tocar, el logo original.
   try{
     var o=document.getElementById('fg-lg-ori'),k=Math.min(1,96/det.w,56/det.h);
-    if(det.vacio)o.hidden=true; // lugar libre: no hay logo original que mostrar
-    o.width=Math.max(1,Math.round(det.w*k));o.height=Math.max(1,Math.round(det.h*k));
-    o.getContext('2d').drawImage(baseImg,det.x,det.y,det.w,det.h,0,0,o.width,o.height);
+    var actual=(ya&&ya.tipo!=='txt'&&ya.img)?_fgLgImg(ya.img,baseImg):null;
+    if(det.vacio||(ya&&ya.tipo==='txt'))o.hidden=true; // lugar libre o texto: no hay logo que mostrar
+    if(actual&&actual.width){
+      k=Math.min(1,96/actual.width,56/actual.height);
+      o.width=Math.max(1,Math.round(actual.width*k));o.height=Math.max(1,Math.round(actual.height*k));
+      var og=o.getContext('2d');og.imageSmoothingQuality='high';og.drawImage(actual,0,0,o.width,o.height);
+    }else if(ya&&ya.tipo!=='txt'&&ya.img){
+      // hay un cambio pero su logo todavía no está en memoria (p. ej. al reabrir un diseño):
+      // no se muestra el de la base; se pide y se dibuja cuando llega
+      o.hidden=true;
+      if(!_fgLgEsSubido(ya.img)&&String(ya.img).indexOf('orig:')!==0)_fgLgTraer(ya.img).then(function(im2){
+        if(!lgOv.isConnected||!im2||!im2.width)return;
+        var k2=Math.min(1,96/im2.width,56/im2.height);o.width=Math.max(1,Math.round(im2.width*k2));o.height=Math.max(1,Math.round(im2.height*k2));
+        var g2=o.getContext('2d');g2.imageSmoothingQuality='high';g2.drawImage(im2,0,0,o.width,o.height);o.hidden=false;
+      }).catch(function(){});
+    }else{
+      o.width=Math.max(1,Math.round(det.w*k));o.height=Math.max(1,Math.round(det.h*k));
+      o.getContext('2d').drawImage(baseImg,det.x,det.y,det.w,det.h,0,0,o.width,o.height);
+    }
   }catch(e){}
   function cerrar(){document.removeEventListener('keydown',tecla,true);lgOv.remove();_fgLgV.varios=null;}
   function tecla(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cerrar();}}
