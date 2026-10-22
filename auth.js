@@ -2201,7 +2201,7 @@ function _promosTraerTodo(desde,acc,cb){
   // .range() puede repetir o saltearse filas entre tandas (ver _sbTodo).
   _sbTodo(function(d,h){
     return _sb.from('promos_galicia_cache')
-      .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde,dias')
+      .select('id,titulo,subtitulo,imagen,fecha_hasta,tipo_promocion,provincias,primera_vez,proximamente,fecha_desde,dias,beneficio')
       .order('id',{ascending:true})
       .range(d,h);
   },cb,_PROMOS_PAGINA,desde,acc);
@@ -2990,7 +2990,66 @@ function _promoFilaHtml(r,i){
 // Días de aplicación (los manda Galicia: "Viernes", "Martes y Jueves"). Se
 // muestran en los supermercados, que es donde van debajo del logo en el flyer.
 function _promoEsSuper(p){return !!(p&&/supermercado/i.test(_promoDecodeEntities(p.subtitulo||'')));}
-function _promoDias(p){return p&&p.dias?_promoDecodeEntities(String(p.dias)).replace(/\s+/g,' ').trim():'';}
+function _promoDiasCrudo(p){return p&&p.dias?_promoDecodeEntities(String(p.dias)).replace(/\s+/g,' ').trim():'';}
+// En el flyer van SÓLO los días del % de descuento. Un súper suele tener varias
+// promos a la vez (Coto: "Hasta 12 cuotas · Todos los días" y "25% de ahorro ·
+// Martes"): se juntan las vigentes del mismo súper (mismo logo o misma marca)
+// cuyo beneficio tiene un "%" y se unen sus días. Sin ninguna con %, no hay días.
+// Si la base todavía no trae el beneficio, queda el día de la promo como antes.
+var _FG_DIAS=['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+var _FG_DIAS_TXT=['lunes','martes','miércoles','jueves','viernes','sábados','domingos'];
+function _promoDiasLeer(t){
+  var n=_promoNormalizar(_promoDecodeEntities(String(t||''))),set={};
+  if(/todos los dias/.test(n))return {todos:true,set:{}};
+  // "de lunes a viernes"
+  var m=n.match(/(lunes|martes|miercoles|jueves|viernes|sabado|domingo)s? a (lunes|martes|miercoles|jueves|viernes|sabado|domingo)/);
+  if(m){var a=_FG_DIAS.indexOf(m[1]),b=_FG_DIAS.indexOf(m[2]);for(var i=a,c=0;c<7;i=(i+1)%7,c++){set[i]=1;if(i===b)break;}}
+  _FG_DIAS.forEach(function(d,i){if(new RegExp('\\b'+d).test(n))set[i]=1;});
+  return {todos:false,set:set};
+}
+function _promoDiasFormato(set){
+  var ds=Object.keys(set).map(Number).sort(function(a,b){return a-b;});
+  if(!ds.length)return '';
+  if(ds.length===7)return 'Todos los días';
+  var t=ds.map(function(i){return _FG_DIAS_TXT[i];});
+  var s2=t.length===1?t[0]:t.slice(0,-1).join(', ')+' y '+t[t.length-1];
+  return s2.charAt(0).toUpperCase()+s2.slice(1);
+}
+var _promoDiasIdx={cat:null,porClave:null,cache:null};
+function _promoDias(p){
+  if(!p)return '';
+  if(!_promoEsSuper(p)||!_promosCat)return _promoDiasCrudo(p);
+  var I=_promoDiasIdx;
+  if(I.cat!==_promosCat){
+    I.cat=_promosCat;I.porClave=Object.create(null);I.cache=Object.create(null);
+    _promosCat.forEach(function(q){
+      if(!_promoEsSuper(q))return;
+      [q.imagen?'i:'+q.imagen:'','m:'+_promoBaseMarca(q.titulo)].forEach(function(k){if(k)(I.porClave[k]=I.porClave[k]||[]).push(q);});
+    });
+  }
+  var ck=(p.imagen||'')+'|'+(p.titulo||'');
+  if(I.cache[ck]!=null)return I.cache[ck];
+  var hoy=new Date(),vistos=Object.create(null),grupo=[];
+  ((I.porClave['i:'+p.imagen]||[]).concat(I.porClave['m:'+_promoBaseMarca(p.titulo)]||[])).forEach(function(q){
+    if(vistos[q.id])return;vistos[q.id]=1;
+    if(q.proximamente||_promoEstado(q.fecha_hasta,hoy)==='VENCIDA')return;
+    grupo.push(q);
+  });
+  var out;
+  if(!grupo.some(function(q){return q.beneficio;}))out=_promoDiasCrudo(p);
+  else{
+    var set={},todos=false,crudo='';
+    grupo.forEach(function(q){
+      if(!/%/.test(String(q.beneficio||'')))return;
+      var L=_promoDiasLeer(q.dias),k=Object.keys(L.set);
+      if(L.todos)todos=true;
+      k.forEach(function(i){set[i]=1;});
+      if(!L.todos&&!k.length&&q.dias)crudo=_promoDiasCrudo(q); // frase que no se entiende: tal cual
+    });
+    out=todos?'Todos los días':(_promoDiasFormato(set)||crudo);
+  }
+  return (I.cache[ck]=out);
+}
 function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDias(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
 function _promoOtrasHtml(r){
   if(_promosFiltros.repetidas!=='ocultar'||!r._otras)return '';
@@ -13064,7 +13123,15 @@ function _fgLgInit(){
     var p=_fgLgAImagen(e.clientX,e.clientY),i=p?_fgLgLogoEn(p.x,p.y):-1;
     // en modo franja el dedo también marca el recuadro (si no, arrastrar recorre la página)
     var esp=_fgFr.modo||_fgRecM.modo; // modos de marcar una zona: el dedo también marca
-    ini={x:e.clientX,y:e.clientY,touch:e.pointerType==='touch'&&!esp,mov:false,logo:esp?-1:i,shift:!!e.shiftKey&&!esp,rec:_fgRecM.modo};
+    // logos del flyer elegidos con Shift (sin cambiar): al agarrar uno de ellos o
+    // uno del grupo, pasan a ser movibles y se arrastran todos juntos
+    // (recién al empezar a arrastrar: un clic suelto no crea cambios)
+    var juntar=false;
+    if(!esp&&p&&(_fgLg.lugares||[]).length&&e.pointerType!=='touch'){
+      var enLugar=_fgLg.lugares.some(function(d){return p.x>=d.x&&p.x<=d.x+d.w&&p.y>=d.y&&p.y<=d.y+d.h;});
+      juntar=enLugar||(i>=0&&_fgLgElegidos().indexOf(i)>=0);
+    }
+    ini={x:e.clientX,y:e.clientY,touch:e.pointerType==='touch'&&!esp,mov:false,logo:esp?-1:i,shift:!!e.shiftKey&&!esp,rec:_fgRecM.modo,juntar:juntar?p:null};
     if(i>=0&&ini.logo>=0){
       // si toca uno que ya es parte de lo elegido, arrastra a todos; si no, sólo a ese
       var g=_fgLgElegidos(),As=_fgLgActivos();
@@ -13075,6 +13142,13 @@ function _fgLgInit(){
     if(!ini.touch){e.preventDefault();e.stopPropagation();}
   });
   cvs.addEventListener('mousedown',function(e){if(_fgLg.on&&!_fgLg.limpio){e.stopPropagation();e.preventDefault();}}); // sin esto, la vista previa se "agarra" para recorrer
+  // doble clic sobre un logo ya cambiado: abre la ventana para cambiarlo
+  cvs.addEventListener('dblclick',function(e){
+    if(!_fgLg.on||_fgLg.limpio||_fgFr.modo||_fgRecM.modo||document.getElementById('fg-lg-ov'))return;
+    var p=_fgLgAImagen(e.clientX,e.clientY),i=p?_fgLgLogoEn(p.x,p.y):-1;if(i<0)return;
+    e.preventDefault();e.stopPropagation();
+    _fgLg.sel=i;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgMarcas();_fgLgCambiarMarca();
+  });
   document.addEventListener('pointermove',function(e){
     if(!ini){
       // la cruz de "mover" sobre los logos ya cambiados
@@ -13084,6 +13158,16 @@ function _fgLgInit(){
     }
     if(Math.abs(e.clientX-ini.x)+Math.abs(e.clientY-ini.y)>8)ini.mov=true;
     if(!ini.mov||ini.touch)return;
+    if(ini.juntar){
+      // empezó a arrastrar sobre lo elegido con Shift: los del flyer pasan a ser movibles
+      var q0=ini.juntar;ini.juntar=null;
+      _fgLgLugaresAMovibles();
+      var j0=_fgLgLogoEn(q0.x,q0.y),As0=_fgLgActivos();
+      if(j0>=0){
+        ini.logo=j0;ini.pos=_fgLgElegidos().map(function(j){return {i:j,tx:As0[j].tx,ty:As0[j].ty};});
+        _fgLg.arrastre=true;
+      }
+    }
     if(ini.logo>=0){
       var As=_fgLgActivos();if(!As[ini.logo])return;
       if(!ini.grupoListo){ini.grupoListo=true;_fgLg.grupo=ini.pos.map(function(p){return p.i;});_fgLg.sel=ini.logo;}
@@ -13404,6 +13488,22 @@ function _fgLgLugarTocar(cx,cy){
   if(_fgLg.sel>=0&&!_fgLg.grupo.length&&_fgLgAjustable(_fgLgActivos()[_fgLg.sel]))_fgLg.grupo=[_fgLg.sel];
   _fgLgMarcas();
 }
+// Para moverlos: cada logo del flyer elegido con Shift pasa a ser un cambio
+// "orig:" (el mismo recorte, en el mismo lugar) y se suma al grupo. Sin redibujar
+// nada todavía: el arrastre es el que lo hace.
+function _fgLgLugaresAMovibles(){
+  if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
+  var g=_fgLgElegidos().slice();
+  (_fgLg.lugares||[]).forEach(function(det){
+    var k='orig:'+[det.x,det.y,det.w,det.h].join(',');if(!_fgLgImg(k))return;
+    var e={x:det.x-4,y:det.y-4,w:det.w+8,h:det.h+8,bg:det.bg,img:k,t:'Logo del flyer',ox:det.x,oy:det.y,ow:det.w,oh:det.h,
+           tx:det.x,ty:det.y,tw:det.w,th:det.h,bw:det.w,bh:det.h};
+    var i=_fgLgIndiceDe(det);
+    if(i>=0)_fgLg.list[i]=e;else{_fgLg.list.push(e);i=_fgLg.list.length-1;}
+    if(g.indexOf(i)<0)g.push(i);
+  });
+  _fgLg.lugares=[];_fgLg.grupo=g;if(g.length&&_fgLg.sel<0)_fgLg.sel=g[g.length-1];
+}
 // Los lugares a reemplazar: los logos cambiados elegidos (en su lugar original)
 // y los del flyer sumados con Shift, en orden de lectura.
 function _fgLgGrpLugares(){
@@ -13666,81 +13766,183 @@ function _fgLgBloquesFilas(x,y,w,h,bgTxt,tol){
   }
   return bl.map(function(b){return {x:x+b.x0,y:y+b.y0,w:b.x1-b.x0+1,h:b.y1-b.y0+1};});
 }
-// Devuelve {logo, texto}: el recuadro del logo (sin los días si venían pegados)
-// y el del texto de días (o null si no hay).
+// Devuelve {logo, texto, lineas}: el recuadro del logo y el del texto de días de
+// esa celda (o null). Revisado con Codex y Gemini (21-oct): el texto se busca
+// DEBAJO del logo, como un bloque centrado bajo él, con medidas en px del flyer
+// (escaladas a su ancho, base 1240) y no en proporción al alto del logo (un logo
+// bajo y ancho de 30 px dejaba el texto afuera). No se parte el logo por dentro
+// salvo que la caja sea muy alta (la detección pudo juntar logo y días): las
+// letras chicas de un logo ("cencosud" en Disco) no son días.
 function _fgLgPartirDias(det){
+  var u=Math.max(0.5,baseImg.width/1240),cx=det.x+det.w/2,abajo=det.y+det.h;
   try{
-    // sin tolerancia: entre el logo y los días a veces hay sólo 1 o 2 filas de aire
-    var bl=_fgLgBloquesFilas(det.x,det.y,det.w,det.h,det.bg,0);
-    if(bl.length>=2){
-      // el corte va en el hueco más grande entre los que dejan abajo algo más bajo
-      // que el 45% del recuadro (los renglones "Martes y" / "jueves" quedan juntos)
-      var ult=bl[bl.length-1],k=-1,mejor=-1;
-      for(var j=bl.length-1;j>=1;j--){
-        if(ult.y+ult.h-bl[j].y>=det.h*0.45)break;
-        var gap=bl[j].y-(bl[j-1].y+bl[j-1].h);
-        if(gap>mejor){mejor=gap;k=j;}
+    var bw=Math.max(det.w*1.25,150*u),bx=Math.max(0,cx-bw/2),by=abajo+2,bh=Math.min(baseImg.height-by,120*u);
+    bw=Math.min(baseImg.width-bx,bw);
+    if(bh>8&&bw>8){
+      var bl=_fgLgBloquesFilas(bx,by,bw,bh,det.bg,1),tol=Math.max(det.w*0.35,30*u),txt=[];
+      for(var i=0;i<bl.length;i++){
+        var b=bl[i],bcx=b.x+b.w/2;
+        if(b.h>44*u)break;                                   // un logo (la fila de abajo): se termina
+        if(Math.abs(bcx-cx)>tol)continue;                    // tinta de la celda de al lado
+        if(!txt.length){
+          if(b.y-abajo>42*u)break;                           // muy lejos del logo: no es su texto
+          if(b.h<7*u)continue;                               // una pelusa
+          txt.push(b);continue;
+        }
+        var ult=txt[txt.length-1];
+        if(b.y-(ult.y+ult.h)>Math.max(8*u,ult.h*0.7))break;   // otro bloque, más abajo
+        if(b.y+b.h-txt[0].y>72*u)break;                      // más de 2-3 renglones: no
+        txt.push(b);
       }
-      var txt=k>0?bl.slice(k):[],ty0=k>0?txt[0].y:0,ty1=ult.y+ult.h,tx0=k>0?Math.min.apply(null,txt.map(function(b){return b.x;})):0,tx1=k>0?Math.max.apply(null,txt.map(function(b){return b.x+b.w;})):0;
-      if(k>0&&ty1-ty0<det.h*0.45&&ty1-ty0>=6){
-        var lg=bl.slice(0,k),ly1=Math.max.apply(null,lg.map(function(b){return b.y+b.h;}));
-        return {logo:{x:det.x,y:det.y,w:det.w,h:Math.max(4,ly1-det.y),bg:det.bg,manual:det.manual},texto:{x:tx0,y:ty0,w:tx1-tx0,h:ty1-ty0,bg:det.bg}};
+      if(txt.length){
+        var x0=Math.min.apply(null,txt.map(function(b){return b.x;})),x1=Math.max.apply(null,txt.map(function(b){return b.x+b.w;}));
+        var y0=txt[0].y,y1=txt[txt.length-1].y+txt[txt.length-1].h;
+        return {logo:det,texto:{x:x0,y:y0,w:x1-x0,h:y1-y0,bg:det.bg},lineas:_fgLgLineasDe(txt)};
       }
     }
-    // si no, más abajo: una banda de 1,5 altos de logo
-    var bx=Math.max(0,det.x-det.w*0.3),bw=Math.min(baseImg.width-bx,det.w*1.6),by=det.y+det.h+2,bh=Math.min(baseImg.height-by,det.h*1.5);
-    if(bh>4&&bw>4){
-      var b2=_fgLgBloquesFilas(bx,by,bw,bh,det.bg);
-      if(b2.length){
-        var t0=b2[0],j=1,yfin=t0.y+t0.h,xa=t0.x,xb=t0.x+t0.w;
-        while(j<b2.length&&b2[j].y-yfin<=Math.max(4,t0.h*0.6)&&b2[j].h<det.h*0.6){yfin=b2[j].y+b2[j].h;xa=Math.min(xa,b2[j].x);xb=Math.max(xb,b2[j].x+b2[j].w);j++;}
-        var th=yfin-t0.y;
-        // un texto (no el logo de la fila de abajo): más bajo que el logo y cerca
-        if(th>=6&&th<det.h*0.9&&t0.y-(det.y+det.h)<det.h*0.8)return {logo:det,texto:{x:xa,y:t0.y,w:xb-xa,h:th,bg:det.bg}};
+    // caja muy alta: logo y días pueden venir juntos en la detección
+    if(det.h>110*u){
+      var bi=_fgLgBloquesFilas(det.x,det.y,det.w,det.h,det.bg,0),k=bi.length-1;
+      if(k>=1){
+        var ub=bi[k],j=k;
+        while(j>1&&bi[j-1].h<=36*u&&ub.y+ub.h-bi[j-1].y<=72*u&&bi[j].y-(bi[j-1].y+bi[j-1].h)<=Math.max(8*u,bi[j-1].h*0.7))j--;
+        var tb=bi.slice(j),ty0=tb[0].y,gap=ty0-(bi[j-1].y+bi[j-1].h);
+        if(gap>=3*u&&ub.y+ub.h-ty0<=72*u&&tb.every(function(b){return b.h<=36*u;})){
+          var lx0=Math.min.apply(null,tb.map(function(b){return b.x;})),lx1=Math.max.apply(null,tb.map(function(b){return b.x+b.w;}));
+          var ly1=bi[j-1].y+bi[j-1].h;
+          return {logo:{x:det.x,y:det.y,w:det.w,h:Math.max(4,ly1-det.y),bg:det.bg,manual:det.manual},
+                  texto:{x:lx0,y:ty0,w:lx1-lx0,h:ub.y+ub.h-ty0,bg:det.bg},lineas:_fgLgLineasDe(tb)};
+        }
       }
     }
   }catch(e){console.warn('días:',e);}
-  return {logo:det,texto:null};
+  return {logo:det,texto:null,lineas:[]};
 }
-// Pone los días debajo del logo: reemplaza el texto que había o, si no había,
-// lo agrega centrado abajo. "texto" es el recuadro que devolvió _fgLgPartirDias.
-function _fgLgPonerDias(logoDet,texto,dias){
-  var tdet,fs,color,peso=500;
+// Renglones de un bloque de texto: los pedazos que se separan con aire de verdad
+// (el punto de una "i" o un acento no cuentan como renglón).
+function _fgLgLineasDe(bl){
+  var L=[];
+  bl.forEach(function(b){
+    var u=L[L.length-1];
+    if(b.h<5&&u){u.x1=Math.max(u.x1,b.x+b.w);u.x0=Math.min(u.x0,b.x);u.y1=Math.max(u.y1,b.y+b.h);return;}
+    if(u&&b.y<=u.y1+1){u.y1=Math.max(u.y1,b.y+b.h);u.x0=Math.min(u.x0,b.x);u.x1=Math.max(u.x1,b.x+b.w);return;}
+    L.push({x0:b.x,x1:b.x+b.w,y0:b.y,y1:b.y+b.h});
+  });
+  return L.map(function(l){return {x:l.x0,y:l.y0,w:l.x1-l.x0,h:l.y1-l.y0};});
+}
+// Tamaño de letra de un texto ya impreso, por el alto de la tinta de cada renglón: si las letras que
+// bajan de la línea (g, j, p, q, y) están, la tinta mide ~0,93 del tamaño; si no
+// ("Viernes"), ~0,73.
+function _fgLgFsDe(lineas,bg){
+  if(!lineas||!lineas.length)return 0;
+  // (con varios renglones, el promedio de cada uno: el interlineado del flyer
+  // no es el de la app, así que no sirve medir la distancia entre renglones)
+  if(lineas.length>=2){var t=0;lineas.forEach(function(x){t+=_fgLgFsDe([x],bg);});return t/lineas.length;}
+  var l=lineas[0],H=Math.max(1,Math.round(l.h)),W=Math.max(1,Math.round(l.w));
+  try{
+    var d=_fgLgPixeles(Math.round(l.x),Math.round(l.y),W,H),c=String(bg).match(/\d+/g).map(Number),fil=[],mx=0;
+    for(var y=0;y<H;y++){var k=0;for(var x=0;x<W;x++){var p=(y*W+x)*4;if(Math.max(Math.abs(d[p]-c[0]),Math.abs(d[p+1]-c[1]),Math.abs(d[p+2]-c[2]))>_FG_LG_TOL)k++;}fil.push(k);if(k>mx)mx=k;}
+    var desde=Math.floor(H*0.78),suma=0,m=0;for(var y2=desde;y2<H;y2++){suma+=fil[y2];m++;}
+    var colas=m&&mx&&(suma/m)/mx<0.3;
+    return H/(colas?0.93:0.73);
+  }catch(e){return H/0.8;}
+}
+// Tamaño del logo nuevo: la misma superficie que el logo que reemplaza (peso
+// visual parejo con los vecinos), con su proporción, sin crecer por haber lugar
+// libre y sin pisar el texto de días de abajo.
+function _fgLgDestinoParejo(det,asp,limiteAbajo){
+  var u=Math.max(0.5,baseImg.width/1240),A=det.w*det.h;
+  var w=Math.sqrt(A*asp),h=w/asp;
+  var maxW=Math.max(det.w,det.h*2.4,150*u)*1.0,maxH=Math.max(det.h,Math.min(det.h*2.2,95*u));
+  if(limiteAbajo!=null)maxH=Math.min(maxH,Math.max(det.h,limiteAbajo-det.y+det.h*0.15));
+  var k=Math.min(1,maxW/w,maxH/h);w*=k;h*=k;
+  var cx=det.x+det.w/2,cy=det.y+det.h/2;
+  if(limiteAbajo!=null&&cy+h/2>limiteAbajo)cy=limiteAbajo-h/2;
+  return {tx:cx-w/2,ty:cy-h/2,tw:w,th:h};
+}
+// Pone los días debajo del logo: tapa el texto viejo entero y escribe los días
+// con la letra del original (alto de cada renglón), centrados bajo el logo. Si
+// no entra en un renglón, se parte en dos ("Martes y" / "jueves") antes de
+// achicar la letra.
+function _fgLgPonerDias(logoDet,texto,dias,lineas,cxLogo){
+  var u=Math.max(0.5,baseImg.width/1240),fs,color,peso=500;
+  var cx=cxLogo!=null?cxLogo:logoDet.x+logoDet.w/2;
   if(texto){
-    var ren=_fgLgRenglones(texto);
-    tdet=texto;fs=Math.max(12,Math.min(90,Math.round(texto.h/ren)));
-    color=_fgLgColorDe(texto)||'#1A1A1A';
-    // negrita si el original es "pesado" (mucha tinta para su alto)
-    try{var bl=_fgLgBloquesFilas(texto.x,texto.y,texto.w,texto.h,texto.bg);peso=(bl.length&&texto.h/ren>=14&&_fgLgTintaRel(texto)>0.32)?700:500;}catch(e){}
-  }else{
-    fs=Math.max(12,Math.round(logoDet.h*0.28));color='#1A1A1A';
-    tdet={x:logoDet.x,y:logoDet.y+logoDet.h+Math.round(fs*0.4),w:logoDet.w,h:Math.round(fs*1.3),bg:logoDet.bg,vacio:true};
-  }
-  // que no quede mucho más ancho que el logo: se achica la letra
-  var e={texto:dias,fs:fs,peso:peso};
+    var ren=Math.max(1,(lineas&&lineas.length)||_fgLgRenglones(texto));
+    fs=Math.max(12*u,Math.min(40*u,_fgLgFsDe(lineas,texto.bg)||(texto.h/ren)));
+    // color: el de la tinta "llena" (en letras finas casi todo es borde suavizado
+    // y el más repetido salía gris). Peso normal: los días del flyer no van en negrita.
+    color=_fgLgColorTexto(texto)||'#1A1A1A';
+  }else{fs=20*u;color='#1A1A1A';}
   if(!_fgLgMedCv)_fgLgMedCv=document.createElement('canvas');
-  var g=_fgLgMedCv.getContext('2d');g.font=_fgLgTxtFont(e,fs);
-  var ancho=g.measureText(dias).width,tope=Math.max(tdet.w,logoDet.w)*1.15;
-  if(ancho>tope)fs=Math.max(10,Math.floor(fs*tope/ancho));
-  _fgLgPonerTexto(tdet,{texto:dias,color:color,peso:peso,fs:fs},null);
+  var g=_fgLgMedCv.getContext('2d'),anchoMax=Math.max(texto?texto.w*1.15:0,logoDet.w*1.1,130*u);
+  function ancho(t,f){g.font=_fgLgTxtFont({peso:peso},f);return Math.max.apply(null,t.split('\n').map(function(l){return g.measureText(l).width;}));}
+  var t=dias;
+  if(ancho(t,fs)>anchoMax){
+    // en dos renglones: corta en el último " y " o en el espacio más al medio
+    var iy=t.lastIndexOf(' y ');
+    var corte=iy>0?iy+2:(function(){var m=t.length/2,b=-1;for(var i=0;i<t.length;i++)if(t[i]===' '&&(b<0||Math.abs(i-m)<Math.abs(b-m)))b=i;return b;})();
+    if(corte>0)t=t.slice(0,corte).trim()+'\n'+t.slice(corte).trim();
+  }
+  var a=ancho(t,fs);if(a>anchoMax)fs=Math.max(10*u,fs*anchoMax/a);
+  fs=Math.round(fs);
+  var n=t.split('\n').length,altoNuevo=Math.ceil(n*fs*_FG_LG_INTER);
+  var top=texto?texto.y:(logoDet.y+logoDet.h+8*u);
+  var anchoNuevo=Math.ceil(ancho(t,fs))+4;
+  // la tapa cubre el texto viejo Y el nuevo
+  var tx0=Math.min(texto?texto.x:cx,cx-anchoNuevo/2),tx1=Math.max(texto?texto.x+texto.w:cx,cx+anchoNuevo/2);
+  var ty1=Math.max(texto?texto.y+texto.h:top,top+altoNuevo);
+  var tdet={x:Math.round(tx0),y:Math.round(Math.min(top,texto?texto.y:top)),w:Math.round(tx1-tx0),h:Math.round(ty1-Math.min(top,texto?texto.y:top)),bg:texto?texto.bg:logoDet.bg,vacio:!texto};
+  _fgLgPonerTexto(tdet,{texto:t,color:color,peso:peso,fs:fs},null);
+  // centrado bajo el logo, arriba alineado con el texto viejo
+  var e=_fgLgActivos()[_fgLg.sel];
+  if(e&&e.tipo==='txt'){e.tx=cx-e.tw/2;e.ty=top+(texto&&n===1&&ren>1?(texto.h-e.th)/2:0);}
+}
+// Pone una marca de Promociones en un lugar; si es un súper y el tilde está
+// puesto, también sus días (sólo los del % de descuento). Si el súper no tiene
+// días con %, el texto de días viejo se borra (no quedan días que no van).
+// Devuelve 'dias', 'sinDias' o ''. Queda elegido el logo.
+function _fgLgAvisoMarca(nom,p,res){
+  if(res==='dias')return 'Listo: '+nom+' con sus días de descuento ('+_promoDias(p)+').';
+  if(res==='sinDias')return 'Listo: '+nom+'. No tiene días con % de descuento: saqué los días que había abajo.';
+  return 'Listo: '+nom+' en este flyer.';
+}
+function _fgLgPonerMarca(det,p,logo,conDias){
+  var esSuper=conDias&&_promoEsSuper(p),dias=esSuper?_promoDias(p):'';
+  if(!esSuper){_fgLgPoner(det,p.imagen,p.titulo,logo);return '';}
+  var pt=_fgLgPartirDias(det),L=pt.logo;
+  // el logo, con un tamaño parejo y sin pisar el texto de abajo
+  _fgLgPoner(L,p.imagen,p.titulo,logo);
+  var iLogo=_fgLgIndiceDe(L),eL=_fgLgActivos()[iLogo];
+  if(eL&&logo){
+    var d=_fgLgDestinoParejo(L,logo.width/logo.height,pt.texto?pt.texto.y-4:null);
+    eL.tx=d.tx;eL.ty=d.ty;eL.tw=d.tw;eL.th=d.th;eL.bw=d.tw;eL.bh=d.th;
+  }
+  var res='';
+  if(dias){_fgLgPonerDias(L,pt.texto,dias,pt.lineas,L.x+L.w/2);res='dias';}
+  else if(pt.texto){_fgLgPoner(pt.texto,'','',null);res='sinDias';}
+  if(iLogo>=0)_fgLg.sel=iLogo;
+  _fgLgListo();
+  return res;
+}
+// Color de un texto impreso: entre los píxeles con tinta, el del 15% más alejado
+// del fondo (el centro de los trazos, no los bordes suavizados).
+function _fgLgColorTexto(det){
+  try{
+    var d=_fgLgPixeles(Math.round(det.x),Math.round(det.y),Math.max(1,Math.round(det.w)),Math.max(1,Math.round(det.h))),bg=String(det.bg).match(/\d+/g).map(Number),px=[];
+    for(var p=0;p<d.length;p+=4){var df=Math.max(Math.abs(d[p]-bg[0]),Math.abs(d[p+1]-bg[1]),Math.abs(d[p+2]-bg[2]));if(df>_FG_LG_TOL)px.push([df,d[p],d[p+1],d[p+2]]);}
+    if(!px.length)return null;
+    px.sort(function(a,b){return b[0]-a[0];});
+    var n=Math.max(1,Math.round(px.length*0.15)),r=0,g=0,b=0;
+    for(var i=0;i<n;i++){r+=px[i][1];g+=px[i][2];b+=px[i][3];}
+    return '#'+[r,g,b].map(function(v){return ('0'+Math.round(v/n).toString(16)).slice(-2);}).join('');
+  }catch(e){return null;}
 }
 // Proporción de píxeles con tinta en un recuadro (para adivinar la negrita).
 function _fgLgTintaRel(det){
   var d=_fgLgPixeles(Math.round(det.x),Math.round(det.y),Math.max(1,Math.round(det.w)),Math.max(1,Math.round(det.h))),bg=String(det.bg).match(/\d+/g).map(Number),n=0,t=0;
   for(var p=0;p<d.length;p+=4){t++;if(Math.max(Math.abs(d[p]-bg[0]),Math.abs(d[p+1]-bg[1]),Math.abs(d[p+2]-bg[2]))>_FG_LG_TOL)n++;}
   return t?n/t:0;
-}
-// Pone una marca de Promociones en un lugar; si es un súper con días y el tilde
-// está puesto, también sus días. Queda elegido el logo.
-function _fgLgPonerMarca(det,p,logo,conDias){
-  var dias=conDias&&!det.vacio&&_promoEsSuper(p)?_promoDias(p):'';
-  if(!dias){_fgLgPoner(det,p.imagen,p.titulo,logo);return false;}
-  var pt=_fgLgPartirDias(det);
-  _fgLgPoner(pt.logo,p.imagen,p.titulo,logo);
-  var iLogo=_fgLgIndiceDe(pt.logo);
-  _fgLgPonerDias(pt.logo,pt.texto,dias);
-  if(iLogo>=0){_fgLg.sel=iLogo;_fgLgListo();}
-  return true;
 }
 function _fgLgPonerTexto(det,d,previo){
   if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
@@ -13889,8 +14091,13 @@ function _fgLgAbrir(det,op){
   // Un lugar borrado (o tapado por una franja) ya no esconde nada: tocarlo es
   // para agregar algo nuevo. Sin esto, "Mover lo que hay" revivía el logo tapado.
   var cxd=det.x+det.w/2,cyd=det.y+det.h/2;
-  var tapado=(ya&&!_fgLgAjustable(ya))||_fgLgActivos().some(function(e){return e.franjaBase&&cxd>=e.x&&cxd<=e.x+e.w&&cyd>=e.y&&cyd<=e.y+e.h;});
+  // (si en el lugar hay un logo cambiado —p. ej. uno de una franja— no está tapado:
+  // se reemplaza ese logo, con todas las opciones)
+  var tapado=!(ya&&_fgLgAjustable(ya))&&(ya&&!_fgLgAjustable(ya)||_fgLgActivos().some(function(e){return e.franjaBase&&cxd>=e.x&&cxd<=e.x+e.w&&cyd>=e.y&&cyd<=e.y+e.h;}));
   if(tapado)det.vacio=true;
+  // "Mover lo que hay" mueve el logo ORIGINAL del flyer: no va si encima ya hay
+  // dentro de una franja armada (el de abajo está tapado por la franja)
+  var sinMover=det.vacio||_fgLgActivos().some(function(e){return e.franjaBase&&cxd>=e.x&&cxd<=e.x+e.w&&cyd>=e.y&&cyd<=e.y+e.h;});
   var paraAgregar=det.vacio&&(!ya||!_fgLgAjustable(ya));
   // Reemplazar varios: una marca por lugar, en el orden en que se tocan
   var V=op.varios&&op.varios.length?{T:op.varios,picks:[]}:null;_fgLgV.varios=V;
@@ -13903,7 +14110,7 @@ function _fgLgAbrir(det,op){
       '<div class="fg-cf-b">'+(ya?(_fgLgAjustable(ya)?'Ahora dice <b>'+_escHtml(ya.t)+'</b>. ':'Ahora est&aacute; vac&iacute;o. '):'')+'Eleg&iacute; una marca de Promociones, sub&iacute; un logo, escrib&iacute; un texto o mov&eacute; lo que hay. El cambio vale s&oacute;lo para este flyer.</div></div>'+
       '<button type="button" class="fg-lg-x" id="fg-lg-x" aria-label="Cerrar">&times;</button></div>'+
     '<div class="fg-lg-modos">'+
-      (det.vacio?'':'<button type="button" class="btn bg" id="fg-lg-mover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg> Mover o agrandar lo que hay</button>')+
+      (sinMover?'':'<button type="button" class="btn bg" id="fg-lg-mover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg> Mover o agrandar lo que hay</button>')+
       '<button type="button" class="btn bg" id="fg-lg-escribir"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Escribir un texto</button>'+
       '<button type="button" class="btn bg" id="fg-lg-subir" title="Para marcas que no est&aacute;n en Promociones (PNG o JPG; mejor con fondo blanco o transparente)">'+
         '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Subir logo de la PC</button>'+
@@ -13920,7 +14127,7 @@ function _fgLgAbrir(det,op){
     '</div>'+
     _fgPfHtml('fg-lg','Buscar marca (ej.: Farmacia del Pueblo)')+
     (det.corta?'<div class="fg-lg-aviso">Ojo: el recuadro que marcaste corta parte de otro dibujo del flyer y lo va a tapar a medias. Si no es lo que quer&eacute;s, cancel&aacute; y marcalo de nuevo.</div>':'')+
-    (det.vacio?'':'<label class="fg-lg-dias-chk" id="fg-lg-dias-l"><input type="checkbox" id="fg-lg-dias"'+(_fgLgV.conDias!==false?' checked':'')+'> Si es un s&uacute;per, poner tambi&eacute;n sus d&iacute;as debajo <span>(reemplaza el texto de d&iacute;as que hay)</span></label>')+
+    (''+'<label class="fg-lg-dias-chk" id="fg-lg-dias-l"><input type="checkbox" id="fg-lg-dias"'+(_fgLgV.conDias!==false?' checked':'')+'> Si es un s&uacute;per, poner tambi&eacute;n sus d&iacute;as debajo <span>(reemplaza el texto de d&iacute;as que hay)</span></label>')+
     '<div class="fg-lg-info-fila"><div class="fg-lg-info" id="fg-lg-info"></div>'+
       '<button type="button" class="fg-lg-enlace fg-lg-full" id="fg-lg-full" title="Ver todas las promociones en la solapa Activas y elegir de ah&iacute;">Elegir en pantalla completa</button></div>'+
     '<div class="fg-lg-list" id="fg-lg-list"><div class="fg-lg-vacio">Cargando promociones&hellip;</div></div>'+
@@ -14074,7 +14281,7 @@ function _fgLgAbrir(det,op){
       if(!lgOv.isConnected||_fgLgSrc()!==src0)return;
       cerrar();
       var conD=_fgLgPonerMarca(det,p,logo,_fgLgV.conDias!==false);
-      showToast('Listo: '+p.titulo+(conD?' con sus días ('+_promoDias(p)+')':'')+' en este flyer.');
+      showToast(_fgLgAvisoMarca(p.titulo,p,conD));
     }).catch(function(){
       if(!lgOv.isConnected)return;
       it.disabled=false;it.classList.remove('cargando');
@@ -14288,10 +14495,29 @@ function _fgFrDetectar(x,y,w,h){
   logos.forEach(function(l){
     var cy=l.y+l.h/2,f=filas[filas.length-1];
     if(f&&Math.abs(cy-f.cy)<=Math.max(f.h,l.h)*0.6){f.n++;f.cy=(f.cy*(f.n-1)+cy)/f.n;f.h=Math.max(f.h,l.h);}
-    else filas.push({cy:cy,h:l.h,n:1});
+    else filas.push({cy:cy,h:l.h,n:1,ls:[]});
+    filas[filas.length-1].ls=(filas[filas.length-1].ls||[]).concat([l]);
   });
+  // Una fila mucho más baja pegada debajo de otra es el TEXTO de esa fila (los
+  // días de los súper: "Martes y jueves"), no logos: no cuenta como fila ni como
+  // lugar. Sin esto, la grilla de súper daba 6 filas bajitas y los logos (y los
+  // días) salían chiquitos.
+  var sinTxt=[];
+  filas.forEach(function(f){
+    var ant=sinTxt[sinTxt.length-1];
+    if(ant&&!ant.txt&&f.h<=ant.h*0.65&&f.cy-ant.cy<=ant.h*1.35+f.h){f.txt=true;ant.conTexto=true;}
+    sinTxt.push(f);
+  });
+  var txtH=[];sinTxt.forEach(function(f){if(f.txt)(f.ls||[]).forEach(function(l){txtH.push(l.h);});});
+  if(txtH.length){
+    filas=sinTxt.filter(function(f){return !f.txt;});
+    logos=[];filas.forEach(function(f){logos=logos.concat(f.ls);});
+  }
+  filas.forEach(function(f){delete f.ls;});
   var hs=logos.map(function(l){return l.h;}).sort(function(a,b){return a-b;});
-  return {bg:_fgLgRgb(bg),n:logos.length,filas:filas,porFila:filas.reduce(function(m,f){return Math.max(m,f.n);},0),medH:hs.length?hs[hs.length>>1]:0};
+  // conTexto: la franja original tenía días debajo; txtH: el alto del renglón más bajo (un renglón de días)
+  return {bg:_fgLgRgb(bg),n:logos.length,filas:filas,porFila:filas.reduce(function(m,f){return Math.max(m,f.n);},0),medH:hs.length?hs[hs.length>>1]:0,
+    conTexto:txtH.length>0,txtH:txtH.length?Math.min.apply(null,txtH):0,maxH:hs.length?hs[hs.length-1]:0};
 }
 // Lugares para n logos con "cols" por fila (0 = automático: se reparten parejo
 // en las mismas filas que el original; 8 logos en una franja de 2 filas → 4 y 4,
@@ -14327,6 +14553,9 @@ function _fgFrLugares(st,n){
     for(var k=0;k<filas;k++)cys.push(ya+paso*(k+0.5));
   }
   var celda=r.w/cols,alto=Math.min(paso*0.82,info.medH?info.medH*1.15:paso*0.7),ancho=celda*0.86,out=[];
+  // grilla con días debajo (súper): el lugar del logo es lo que queda entre fila y
+  // fila menos dos renglones de días, sin pasar al logo más alto del original
+  if(info.conTexto&&info.txtH&&paso>0){var fsT=info.txtH/0.75;alto=Math.max(alto,Math.min(paso*0.9-fsT*_FG_LG_INTER*2-fsT*0.35,(info.maxH||alto)*1.05));}
   for(var i=0;i<n;i++){
     var fi=Math.floor(i/cols),c=i%cols,enFila=Math.min(cols,n-fi*cols),x0=r.x+(r.w-enFila*celda)/2;
     out.push({cx:x0+celda*(c+0.5),cy:cys[fi],w:ancho,h:alto});
@@ -14445,7 +14674,7 @@ function _fgLgVolverUno(st){
     if(_fgLgSrc()!==st.src)return;
     var p=pick.p||{imagen:pick.img,titulo:pick.t};
     var conD=_fgLgPonerMarca(st.det,p,logo,_fgLgV.conDias!==false);
-    showToast('Listo: '+pick.t+(conD?' con sus días ('+_promoDias(p)+')':'')+' en este flyer.');
+    showToast(_fgLgAvisoMarca(pick.t,p,conD));
   }).catch(function(){showToast('No se pudo bajar el logo de '+pick.t+'. Probá con otro o revisá la conexión.');});
 }
 function fgElegirCancelar(callado){
@@ -14532,6 +14761,7 @@ function _fgFrAbrir(rect,reuso){
     '<div class="fg-fr-cols">'+
       '<div class="fg-fr-izq">'+
         _fgPfHtml('fg-fr','Buscar marca')+
+        '<label class="fg-lg-dias-chk" id="fg-fr-dias-l"><input type="checkbox" id="fg-fr-dias"'+(_fgLgV.conDias!==false?' checked':'')+'> S&uacute;per: poner sus d&iacute;as de descuento debajo</label>'+
         '<div class="fg-fr-infofila"><div class="fg-lg-info" id="fg-fr-info"></div>'+
           '<button type="button" class="fg-fr-act fg-fr-sug" id="fg-fr-sug" title="Completa los lugares que faltan con marcas vigentes de la zona elegida, de rubros variados">&#10024; Sugerir marcas</button>'+
           (_can('promos_buscar')?'<button type="button" class="fg-fr-act" id="fg-fr-act" title="Abre Promociones &rarr; Activas con estos filtros, a pantalla completa: eleg&iacute;s ah&iacute; y volv&eacute;s a esta ventana con todo">'+
@@ -14596,6 +14826,8 @@ function _fgFrAbrir(rect,reuso){
   for(var k=2;k<=10;k++)opts+='<option value="'+k+'">'+k+'</option>';
   por.innerHTML=opts;por.value=String(st.cols||0);
   por.onchange=function(){st.cols=+por.value;_fgFrPreview();};
+  var frd=document.getElementById('fg-fr-dias');
+  if(frd)frd.onchange=function(){_fgLgV.conDias=frd.checked;_fgFrPreview();};
   var q=document.getElementById('fg-fr-q');
   _fgPfInit('fg-fr',st,function(){
     if(_fgFrSt!==st)return;
@@ -14866,11 +15098,14 @@ function _fgFrPreview(){
   var lug=_fgFrLugares(st,st.sel.length);
   st._vista={x0:x0,y0:y0,ancho:x1-x0};st._cajas=[];
   var nums=[],eleg=_fgFrElegidos(st);
+  var DS=_fgFrDiasTodos(st,lug);
   st.sel.forEach(function(s,i){
-    var im=_fgLg.imgs[s.img],l=lug[i];
+    var im=_fgLg.imgs[s.img],l=lug[i],dz=DS.porI[i];
     if(im){
-      var d=_fgFrAjustar(st,s,_fgFrEncajar(l,im.width/im.height));
+      var d=_fgFrAjustar(st,s,_fgFrEncajar(dz?dz.logo:l,im.width/im.height));
       g.drawImage(im,d.tx,d.ty,d.tw,d.th);st._cajas[i]=d;nums.push({i:i,x:d.tx,y:d.ty});
+      if(dz){g.save();g.font=_fgLgTxtFont({peso:500},DS.fs);g.fillStyle=DS.color;g.textAlign='center';g.textBaseline='middle';
+        var ls=dz.texto.split('\n');ls.forEach(function(t,k){g.fillText(t,d.tx+d.tw/2,dz.ty+(k-(ls.length-1)/2)*DS.fs*_FG_LG_INTER);});g.restore();}
       if(eleg.indexOf(i)>=0){g.save();g.setLineDash([6*u,4*u]);g.lineWidth=2*u;g.strokeStyle='#F26122';g.strokeRect(d.tx-3*u,d.ty-3*u,d.tw+6*u,d.th+6*u);g.restore();}
     }
     else{g.fillStyle='rgba(128,128,128,.18)';g.fillRect(l.cx-l.h*0.6,l.cy-l.h*0.4,l.h*1.2,l.h*0.8);
@@ -14978,6 +15213,50 @@ function _fgFrAjustePintar(){
 }
 // Aplica: tapa la franja entera y pone los logos. Los cambios que había adentro
 // (de antes) se reemplazan.
+// Días de descuento de los súper en una franja (21-oct-2026): con el tilde, a
+// cada súper con días su lugar se reparte: el logo arriba (66%) y los días
+// abajo. La letra es la misma para toda la franja (la que entra en el lugar más
+// justo), así quedan parejos. Devuelve {porI:[{logo,texto,ty}|null], fs, color}.
+function _fgFrDiasTodos(st,lug){
+  var out={porI:[],fs:0,color:'#1A1A1A'};
+  if(_fgLgV.conDias===false)return out;
+  var hay=false,u=Math.max(0.5,baseImg.width/1240),I=st.info||{};
+  // franja que ya tenía días debajo (la grilla de súper): el logo queda en su
+  // lugar y los días van debajo, donde estaban; si no, el lugar se reparte
+  // (logo arriba 66%, días abajo)
+  var conTexto=!!I.conTexto;
+  st.sel.forEach(function(s,i){
+    var p=null;for(var j=0;j<(_promosCat||[]).length;j++){var q=_promosCat[j];if(q.imagen===s.img&&_promoEsSuper(q)){p=q;break;}}
+    var dias=p?_promoDias(p):'',l=lug[i];
+    if(!dias||!l){out.porI.push(null);return;}
+    hay=true;
+    if(conTexto)out.porI.push({texto:dias,logo:l,ty:0,l:l});
+    else out.porI.push({texto:dias,logo:{cx:l.cx,cy:l.cy-l.h*0.17,w:l.w,h:l.h*0.66},ty:l.cy+l.h*0.33,l:l});
+  });
+  if(!hay)return out;
+  // letra: la del texto original (un renglón de días) o ~20% del alto del lugar;
+  // si algún texto no entra a lo ancho, se parte en dos renglones y, si igual no
+  // entra, se achica (para todos igual)
+  var fs=conTexto&&I.txtH?I.txtH/0.75:lug[0].h*0.2;
+  fs=Math.max(12*u,Math.min(26*u,fs));
+  if(!_fgLgMedCv)_fgLgMedCv=document.createElement('canvas');
+  var g=_fgLgMedCv.getContext('2d');
+  function ancho(t,f){g.font=_fgLgTxtFont({peso:500},f);return Math.max.apply(null,t.split('\n').map(function(x){return g.measureText(x).width;}));}
+  out.porI.forEach(function(z){
+    if(!z)return;var lim=z.l.w*0.96;
+    if(ancho(z.texto,fs)>lim&&z.texto.indexOf(' y ')>0){var k=z.texto.lastIndexOf(' y ');z.texto=z.texto.slice(0,k+2)+'\n'+z.texto.slice(k+3);}
+    var a=ancho(z.texto,fs);if(a>lim)fs=Math.max(10*u,fs*lim/a);
+  });
+  out.fs=Math.round(fs);
+  out.porI.forEach(function(z){
+    if(!z)return;
+    var n=z.texto.split('\n').length,alto=n*out.fs*_FG_LG_INTER;
+    // debajo del logo, con el aire de una línea chica
+    if(conTexto)z.ty=z.l.cy+z.l.h/2+out.fs*0.35+alto/2;
+    else if(n>1)z.ty-=out.fs*_FG_LG_INTER*0.3; // dos renglones: sube un poco para no salirse del lugar
+  });
+  return out;
+}
 function _fgFrAplicar(st){
   return Promise.all(st.sel.map(function(s){return _fgLgTraer(s.img);})).then(function(ims){
     // mientras bajaban los logos se cerró la ventana o se cambió de flyer: no se aplica nada
@@ -14995,12 +15274,19 @@ function _fgFrAplicar(st){
     });
     _fgLg.list.push({x:r.x-2,y:r.y-2,w:r.w+4,h:r.h+4,bg:st.info.bg,img:'',t:'Franja',ox:r.x,oy:r.y,ow:r.w,oh:r.h,
       franja:fid,franjaBase:true,franjaSel:JSON.parse(JSON.stringify(st.sel)),franjaCols:st.cols||0,franjaKt:st.kt||1,franjaInfo:st.info});
-    var lug=_fgFrLugares(st,st.sel.length);
+    var lug=_fgFrLugares(st,st.sel.length),DS=_fgFrDiasTodos(st,lug);
     st.sel.forEach(function(s,i){
-      var im=ims[i],d=_fgFrAjustar(st,s,_fgFrEncajar(lug[i],im.width/im.height));
+      var im=ims[i],dz=DS.porI[i],d=_fgFrAjustar(st,s,_fgFrEncajar(dz?dz.logo:lug[i],im.width/im.height));
       // sin tapado propio (w/h 0): ya lo tapa la franja
       _fgLg.list.push({x:d.tx,y:d.ty,w:0,h:0,bg:st.info.bg,img:s.img,t:s.t,ox:d.tx,oy:d.ty,ow:d.tw,oh:d.th,
         tx:d.tx,ty:d.ty,tw:d.tw,th:d.th,bw:d.tw,bh:d.th,franja:fid});
+      if(dz){
+        // los días debajo, centrados en el logo (siguen al logo si se lo corrió en la vista previa)
+        var e={tipo:'txt',texto:dz.texto,color:DS.color,peso:500,fs:DS.fs,bfs:DS.fs,x:0,y:0,w:0,h:0,bg:st.info.bg,t:dz.texto.replace(/\n/g,' '),
+               tx:d.tx+d.tw/2,ty:dz.ty,franja:fid};
+        _fgLgTxtMedir(e);e.tx=d.tx+d.tw/2-e.tw/2;e.ty=dz.ty-e.th/2;e.ox=e.tx;e.oy=e.ty;e.ow=e.tw;e.oh=e.th;
+        _fgLg.list.push(e);
+      }
     });
     _fgLg.sel=-1;_fgLgListo();
     return st.sel.length;

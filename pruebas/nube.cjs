@@ -7,7 +7,7 @@ const img=fs.readFileSync(L+'op9.jpg');
 const act9=JSON.parse(fs.readFileSync(L+'active9.json','utf8'));
 act9.imageUrl=REF+'/storage/v1/object/public/flyers/flyer_t9.jpg?v=1';
 const cat=JSON.parse(fs.readFileSync(L+'cat.json','utf8')).data.list.map(p=>({id:p.id,titulo:p.titulo,subtitulo:p.subtitulo,imagen:p.imagen,
-  fecha_hasta:(p.fechaHasta||'').slice(0,10)||null,tipo_promocion:p.tipoPromocion,provincias:null,primera_vez:'2026-01-01',proximamente:!!p.proximamente,fecha_desde:null,dias:(p.leyendaDiasAplicacion||"").trim()||null})).sort((a,b)=>a.id-b.id);
+  fecha_hasta:(p.fechaHasta||'').slice(0,10)||null,tipo_promocion:p.tipoPromocion,provincias:null,primera_vez:'2026-01-01',proximamente:!!p.proximamente,fecha_desde:null,dias:(p.leyendaDiasAplicacion||"").trim()||null,beneficio:(p.promocion||"").trim()||null})).sort((a,b)=>a.id-b.id);
 // geografía real (provincias por promo y localidades por provincia), leída de la base
 const GEO=fs.existsSync(L+'geo.json')?JSON.parse(fs.readFileSync(L+'geo.json','utf8')):null;
 if(GEO)cat.forEach(p=>{const g=GEO.prov[String(p.id)];p.provincias=Array.isArray(g)?g:null;});

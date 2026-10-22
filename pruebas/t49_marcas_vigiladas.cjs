@@ -6,7 +6,7 @@ module.exports=async(browser)=>{
   await p.waitForFunction(()=>window._promosCat&&_promosCat.length,null,{timeout:20000}).catch(async()=>{await p.evaluate(()=>new Promise(r=>loadPromosCatalogo(r)));});
   // armo tres marcas de prueba: una vigente, una que vence en 3 días y una vencida (modifico el catálogo en memoria)
   const M=await p.evaluate(()=>{
-    const hoy=new Date(),f=d=>new Date(hoy.getTime()+d*86400000).toISOString().slice(0,10);
+    const hoy=new Date(),f=d=>{const x=new Date(hoy.getTime()+d*86400000);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
     const vivas=_promosCat.filter(x=>x.imagen&&x.fecha_hasta&&!x.proximamente).slice(0,3);
     vivas[0].fecha_hasta=f(40);vivas[1].fecha_hasta=f(3);vivas[2].fecha_hasta=f(-5);
     return vivas.map(x=>x.titulo);
@@ -21,11 +21,11 @@ module.exports=async(browser)=>{
   ok(v&&v.opciones&&v.opciones['9']&&v.opciones['9'].length>=2,'se guardan las marcas encontradas en el flyer elegido');
   // simulo vencimientos en el catálogo cargado: la 1ª vence en 3 días y la 2ª ya venció; sumo una 3ª vigente
   await p.evaluate((L)=>{
-    const hoy=new Date(),f=d=>new Date(hoy.getTime()+d*86400000).toISOString().slice(0,10);
+    const hoy=new Date(),f=d=>{const x=new Date(hoy.getTime()+d*86400000);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
     _promosCat.filter(x=>x.imagen===L[0].img).forEach(x=>{x.fecha_hasta=f(3);});
     _promosCat.filter(x=>x.imagen===L[1].img).forEach(x=>{x.fecha_hasta=f(-5);});
   },v.opciones['9']);
-  const viva=await p.evaluate(()=>{const hoy=new Date(),f=d=>new Date(hoy.getTime()+d*86400000).toISOString().slice(0,10);const x=_promosCat.find(p=>p.imagen&&!p.proximamente&&p.fecha_hasta&&p.fecha_hasta>f(30));return {m:x.titulo,t:x.titulo,img:x.imagen,origen:'manual'};});
+  const viva=await p.evaluate(()=>{const hoy=new Date(),f=d=>{const x=new Date(hoy.getTime()+d*86400000);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};const x=_promosCat.find(p=>p.imagen&&!p.proximamente&&p.fecha_hasta&&p.fecha_hasta>f(30));return {m:x.titulo,t:x.titulo,img:x.imagen,origen:'manual'};});
   nube.json['_vigilar.json'].opciones['9'].push(viva);
   // estado en Admin → Config → Marcas vigiladas
   await p.evaluate(()=>{openAdminPanel&&openAdminPanel();switchAdminTab(null,'vigiladas');});

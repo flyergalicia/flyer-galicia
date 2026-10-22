@@ -54,7 +54,7 @@ module.exports=async(browser)=>{
   console.log('  con el dedo (primero → último):',tras3.join(' | '));
   ok(tras3[3]===tras2[0],'con el dedo, desde el agarre, también se reordena');
   await p.click('#fg-fr-ok');await p.waitForSelector('#fg-fr-ov',{state:'detached',timeout:20000});
-  const puestos=await p.evaluate(()=>_fgLgActivos().filter(e=>e.franja&&!e.franjaBase).map(e=>e.t));
+  const puestos=await p.evaluate(()=>_fgLgActivos().filter(e=>e.franja&&!e.franjaBase&&e.tipo!=='txt').map(e=>e.t)); // (sin los textos de días de los súper)
   ok(puestos.join()===tras3.join(),'la franja sale en ese orden');
   // cancelar desde Activas
   await p.evaluate(()=>{_fgFrAbrir(_fgLgManual(140,2650,1000,230));});
