@@ -26,6 +26,8 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `padron_propuesta_rechazar` | definer | no | sí | activo, auth.uid() | El dueño (o su suplente) rechaza una propuesta. |
 | `padron_propuesta_responder` | definer | no | sí | activo, auth.uid() | Sólo quien creó la propuesta responde a una consulta. |
 | `prueba_cambiar_rol` | definer | no | sí | activo, auth.uid() | Sólo la cuenta de prueba (es_prueba) puede cambiar de perfil. |
+| `gestiones_empresas` | definer | no | sí | activo, interruptor, rol, auth.uid() | Empresas que quien llama puede asignar en la Agenda, con su oficial: admin y hunter todo el padrón; líder lo suyo y lo de su equipo; el resto lo suyo (migración 030). |
+| `gestiones_ocupado` | definer | no | sí | activo, interruptor, auth.uid() | Horarios de un hunter en un día (para avisar si se pisan). La empresa sale sólo si quien llama puede ver esa gestión (migración 030). |
 | `puede_ver_gestion` | definer | no | sí | rol, auth.uid() | Ayudante de RLS de Gestiones (visibilidad por rol). |
 | `rate_limit_hit` | definer | no | no | — | Cuenta intentos por IP para la Edge Function. SOLO service_role. |
 | `asesores_replace` | invoker | no | sí | auth.uid() | Reemplaza los asesores guardados del usuario. Corre con los permisos de quien llama (RLS). |
