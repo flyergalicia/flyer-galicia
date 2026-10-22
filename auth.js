@@ -13092,17 +13092,17 @@ function _fgLgInit(){
   var prev=document.querySelector('.prev'),cw=prev&&prev.querySelector('.cw');
   if(!prev||!cw||document.getElementById('fg-lg-bar'))return;
   var bar=document.createElement('div');bar.id='fg-lg-bar';bar.className='fg-lg-bar';
-  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar. Con <b>Shift</b> eleg&iacute;s varios y los mov&eacute;s juntos. Con <b>&minus;</b> y <b>+</b> cambi&aacute;s el tama&ntilde;o.</span>'+
+  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar. Con <b>Shift</b> eleg&iacute;s varios y los mov&eacute;s juntos. Con <b>&minus;</b> y <b>+</b> cambi&aacute;s el tama&ntilde;o. Atajos: <b>V</b> vista previa, <b>R</b> recortar, <b>F</b> armar franja.</span>'+
     '<span class="fg-lg-hist"><button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-desh" onclick="fgLgDeshacer()" hidden disabled aria-label="Deshacer">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg><span>Deshacer</span></button>'+
     '<button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-reh" onclick="fgLgRehacer()" hidden disabled aria-label="Rehacer">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg><span>Rehacer</span></button></span>'+
-    '<button type="button" class="fg-lg-undo fg-lg-ver" id="fg-lg-ver" onclick="fgLgLimpio()" hidden aria-pressed="false" title="Ver el flyer tal como se va a descargar, sin marcas">'+
+    '<button type="button" class="fg-lg-undo fg-lg-ver" id="fg-lg-ver" onclick="fgLgLimpio()" hidden aria-pressed="false" title="Ver el flyer tal como se va a descargar, sin marcas (tecla V)">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span id="fg-lg-ver-t">Vista previa</span></button>'+
     '<button type="button" class="fg-lg-undo fg-lg-nbor" id="fg-lg-nbor" onclick="fgBorradorNuevo()" hidden title="Abre otra pesta&ntilde;a con el flyer limpio para armar una versi&oacute;n en paralelo">+ Nuevo borrador</button>'+
-    '<button type="button" class="fg-lg-undo fg-lg-rec" id="fg-lg-rec" onclick="fgRecModo()" hidden title="Quitar una parte del flyer (por ejemplo, la de los importes): lo de abajo sube y se une">Recortar</button>'+
+    '<button type="button" class="fg-lg-undo fg-lg-rec" id="fg-lg-rec" onclick="fgRecModo()" hidden title="Quitar una parte del flyer (por ejemplo, la de los importes): lo de abajo sube y se une (tecla R)">Recortar</button>'+
     '<span class="fg-lg-proy fg-rec-chip" id="fg-rec-chip" hidden></span>'+
-    '<button type="button" class="fg-lg-undo fg-lg-franja" id="fg-lg-franja" onclick="fgFranjaModo()" hidden title="Rehacer toda una franja de logos de una vez, eligiendo marcas de Promociones">Armar franja</button>'+
+    '<button type="button" class="fg-lg-undo fg-lg-franja" id="fg-lg-franja" onclick="fgFranjaModo()" hidden title="Rehacer toda una franja de logos de una vez, eligiendo marcas de Promociones (tecla F)">Armar franja</button>'+
     '<button type="button" class="fg-lg-undo" id="fg-lg-undo" onclick="fgLogosDeshacer()" hidden>Volver todos al original</button>'+
     '<span class="fg-lg-proy" id="fg-lg-proy" hidden></span>'+
     '<button type="button" class="fg-lg-undo fg-lg-guardar" id="fg-lg-guardar" onclick="fgEstGuardar()" hidden>Guardar en Estudio</button>'+
@@ -13221,6 +13221,23 @@ function _fgLgInit(){
     else if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();fgLgRehacer();}
     else if(k==='c'&&!_fgLg.limpio){var tx='';try{tx=String(window.getSelection&&window.getSelection()||'');}catch(x){}if(!tx&&_fgLgCopiar())e.preventDefault();} // con texto marcado en la página, copia ese texto (lo normal)
     else if(k==='v'&&!_fgLg.limpio&&_fgLg.copia){e.preventDefault();_fgLgPegar();}
+  });
+  // Letras sueltas en el modo edición (como + y −, sin Ctrl: Ctrl+B ya es la
+  // negrita del legal): V = Vista previa, R = Recortar, F = Armar franja. La misma
+  // tecla vuelve atrás (V sale de la vista previa, R cancela el recorte, F la franja).
+  // No actúan escribiendo ni con una ventana abierta.
+  document.addEventListener('keydown',function(e){
+    var k=String(e.key||'').toLowerCase();
+    if((k!=='v'&&k!=='r'&&k!=='f')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||e.repeat)return;
+    if(!_fgLg.on)return;
+    if(document.getElementById('fg-lg-ov')||document.getElementById('fg-fr-ov')||document.getElementById('fg-rec-conf')||document.querySelector('.fg-cf-ov'))return;
+    var t=e.target&&e.target.tagName;
+    if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||(e.target&&e.target.isContentEditable))return;
+    if(k==='v'){if(_fgFr.modo||_fgRecM.modo)return;e.preventDefault();fgLgLimpio();return;}
+    if(_fgLg.limpio)return; // en la vista previa sólo vale V (o Escape) para volver
+    e.preventDefault();
+    if(k==='r')fgRecModo();
+    else{if(_fgRecM.modo)fgRecModo(false);fgFranjaModo();}
   });
   // Escape sale de "Vista previa" (fgLgLimpio) y del modo recorte
   document.addEventListener('keydown',function(e){
