@@ -13092,14 +13092,14 @@ function _fgLgInit(){
   var prev=document.querySelector('.prev'),cw=prev&&prev.querySelector('.cw');
   if(!prev||!cw||document.getElementById('fg-lg-bar'))return;
   var bar=document.createElement('div');bar.id='fg-lg-bar';bar.className='fg-lg-bar';
-  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar. Con <b>Shift</b> eleg&iacute;s varios y los mov&eacute;s juntos. Con <b>&minus;</b> y <b>+</b> cambi&aacute;s el tama&ntilde;o. Atajos: <b>V</b> vista previa, <b>R</b> recortar, <b>F</b> armar franja.</span>'+
+  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar. Con <b>Shift</b> eleg&iacute;s varios y los mov&eacute;s juntos. Con <b>&minus;</b> y <b>+</b> cambi&aacute;s el tama&ntilde;o. Atajos: <b>V</b> vista previa, <b>R</b> recortar, <b>F</b> armar franja, <b>N</b> nuevo borrador.</span>'+
     '<span class="fg-lg-hist"><button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-desh" onclick="fgLgDeshacer()" hidden disabled aria-label="Deshacer">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg><span>Deshacer</span></button>'+
     '<button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-reh" onclick="fgLgRehacer()" hidden disabled aria-label="Rehacer">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg><span>Rehacer</span></button></span>'+
     '<button type="button" class="fg-lg-undo fg-lg-ver" id="fg-lg-ver" onclick="fgLgLimpio()" hidden aria-pressed="false" title="Ver el flyer tal como se va a descargar, sin marcas (tecla V)">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span id="fg-lg-ver-t">Vista previa</span></button>'+
-    '<button type="button" class="fg-lg-undo fg-lg-nbor" id="fg-lg-nbor" onclick="fgBorradorNuevo()" hidden title="Abre otra pesta&ntilde;a con el flyer limpio para armar una versi&oacute;n en paralelo">+ Nuevo borrador</button>'+
+    '<button type="button" class="fg-lg-undo fg-lg-nbor" id="fg-lg-nbor" onclick="fgBorradorNuevo()" hidden title="Abre otra pesta&ntilde;a con el flyer limpio para armar una versi&oacute;n en paralelo (tecla N)">+ Nuevo borrador</button>'+
     '<button type="button" class="fg-lg-undo fg-lg-rec" id="fg-lg-rec" onclick="fgRecModo()" hidden title="Quitar una parte del flyer (por ejemplo, la de los importes): lo de abajo sube y se une (tecla R)">Recortar</button>'+
     '<span class="fg-lg-proy fg-rec-chip" id="fg-rec-chip" hidden></span>'+
     '<button type="button" class="fg-lg-undo fg-lg-franja" id="fg-lg-franja" onclick="fgFranjaModo()" hidden title="Rehacer toda una franja de logos de una vez, eligiendo marcas de Promociones (tecla F)">Armar franja</button>'+
@@ -13196,7 +13196,11 @@ function _fgLgInit(){
     }
     if(_fgFr.modo){
       _fgLgSel(null);
-      if(!a.mov){showToast('Arrastrá un recuadro alrededor de TODA la franja de logos.');return;}
+      if(!a.mov){
+        var pf=_fgLgAImagen(e.clientX,e.clientY),bf=pf&&_fgLgActivos().filter(function(x){return x.franjaBase&&pf.x>=x.ox&&pf.x<=x.ox+x.ow&&pf.y>=x.oy&&pf.y<=x.oy+x.oh;})[0];
+        if(bf){fgFranjaModo(false);_fgFrEditar(bf.franja);return;}
+        showToast('Arrastrá un recuadro alrededor de TODA la franja de logos (o tocá una franja que ya armaste para editarla).');return;
+      }
       fgFranjaModo(false);_fgFrDesdeRecuadro(a.x,a.y,e.clientX,e.clientY);return;
     }
     if(a.mov&&a.shift){_fgLgSel(null);_fgLgElegirVarios(a.x,a.y,e.clientX,e.clientY);return;}
@@ -13223,12 +13227,13 @@ function _fgLgInit(){
     else if(k==='v'&&!_fgLg.limpio&&_fgLg.copia){e.preventDefault();_fgLgPegar();}
   });
   // Letras sueltas en el modo edición (como + y −, sin Ctrl: Ctrl+B ya es la
-  // negrita del legal): V = Vista previa, R = Recortar, F = Armar franja. La misma
-  // tecla vuelve atrás (V sale de la vista previa, R cancela el recorte, F la franja).
+  // negrita del legal): V = Vista previa, R = Recortar, F = Armar franja, N = Nuevo
+  // borrador. La misma tecla vuelve atrás (V sale de la vista previa, R cancela el
+  // recorte, F la franja); N abre otro borrador (no hay "atrás": se cierra con su ×).
   // No actúan escribiendo ni con una ventana abierta.
   document.addEventListener('keydown',function(e){
     var k=String(e.key||'').toLowerCase();
-    if((k!=='v'&&k!=='r'&&k!=='f')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||e.repeat)return;
+    if((k!=='v'&&k!=='r'&&k!=='f'&&k!=='n')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||e.repeat)return;
     if(!_fgLg.on)return;
     if(document.getElementById('fg-lg-ov')||document.getElementById('fg-fr-ov')||document.getElementById('fg-rec-conf')||document.querySelector('.fg-cf-ov'))return;
     var t=e.target&&e.target.tagName;
@@ -13237,6 +13242,7 @@ function _fgLgInit(){
     if(_fgLg.limpio)return; // en la vista previa sólo vale V (o Escape) para volver
     e.preventDefault();
     if(k==='r')fgRecModo();
+    else if(k==='n'){if(_fgFr.modo||_fgRecM.modo)return;fgBorradorNuevo();}
     else{if(_fgRecM.modo)fgRecModo(false);fgFranjaModo();}
   });
   // Escape sale de "Vista previa" (fgLgLimpio) y del modo recorte
@@ -13417,6 +13423,7 @@ function _fgLgHerr(capa){
       '<button type="button" data-a="original" title="Volver a como ven&iacute;a en el flyer">Original</button>'+
       '<button type="button" data-a="quitar" title="Borrar (Supr)" aria-label="Borrar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>'+
       '<button type="button" data-a="cambiar">Cambiar marca</button>'+
+      '<button type="button" data-a="franja" hidden title="Volver al editor de la franja de este logo">Editar franja</button>'+
       '<button type="button" data-a="soltar" class="fg-lg-herr-x" title="Listo con este" aria-label="Listo con este">&times;</button>';
     h.addEventListener('mousedown',function(e){e.stopPropagation();});   // que no "agarre" la vista previa para recorrerla
     h.addEventListener('pointerdown',function(e){e.stopPropagation();});
@@ -13429,6 +13436,7 @@ function _fgLgHerr(capa){
       else if(a==='mas')_fgLgTam(_fgLgPct(L2)+10);
       else if(a==='centrar')_fgLgCentrar();
       else if(a==='cambiar')_fgLgCambiarMarca();
+      else if(a==='franja'){if(L2.franja)_fgFrEditar(L2.franja);}
       else if(a==='al-arr'||a==='al-med'||a==='al-aba')_fgLgAlinear(a.slice(3));
       else if(a==='repartir')_fgLgRepartir();
       else if(a==='mismo')_fgLgMismoTam();
@@ -13448,6 +13456,7 @@ function _fgLgHerr(capa){
   var nm=document.getElementById('fg-lg-herr-nom');if(nm)nm.title=nG>1?'Shift + clic suma o saca un logo':'';if(nm)nm.textContent=nG>1?(nG+' elegidos'):((L.tipo==='txt'?'Texto: ':'')+(L.t||'Logo'));
   var r=document.getElementById('fg-lg-tam');if(r&&document.activeElement!==r)r.value=_fgLgPct(L);
   var cb=h.querySelector('button[data-a=cambiar]');if(cb){cb.textContent=(L.tipo==='txt')?'Editar texto':'Cambiar';cb.hidden=nG>1;}
+  var fb=h.querySelector('button[data-a=franja]');if(fb)fb.hidden=!(L.franja&&nG===1);
   var pc=document.getElementById('fg-lg-pct');if(pc)pc.textContent=_fgLgPct(L)+'%';
   var al=document.getElementById('fg-lg-alin');if(al){al.hidden=nG<2;var rp=al.querySelector('[data-a=repartir]');if(rp)rp.hidden=nG<3;}
 }
@@ -13682,7 +13691,15 @@ function _fgLgMarcas(){
   // Las marcas van en su propia cajita: la barrita de ajuste NO se toca al
   // redibujar (si se la sacara del documento, la regla se soltaría al arrastrarla).
   var mk=document.getElementById('fg-lg-mk');
-  if(!mk){mk=document.createElement('div');mk.id='fg-lg-mk';capa.appendChild(mk);}
+  if(!mk){
+    mk=document.createElement('div');mk.id='fg-lg-mk';capa.appendChild(mk);
+    // "Editar franja": vuelve al editor de esa franja sin marcarla de nuevo
+    mk.addEventListener('click',function(e){
+      var b=e.target.closest&&e.target.closest('button[data-fr]');if(!b)return;
+      e.preventDefault();e.stopPropagation();_fgFrEditar(b.getAttribute('data-fr'));
+    });
+    mk.addEventListener('pointerdown',function(e){if(e.target.closest&&e.target.closest('button[data-fr]'))e.stopPropagation();});
+  }
   if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgMkAntes=null;_fgLgHerr(capa);_fgLgGrpBar();return;} // (_fgLgHerr la esconde)
   if(_fgLg.lugares.length&&_fgLg.src!==_fgLgSrc())_fgLg.lugares=[]; // otro flyer
   if(!_promosCat&&!_promosCatLoading&&_fgLgActivos().some(function(e){return e.img&&e.tipo!=='txt'&&!_fgLgEsSubido(e.img)&&String(e.img).indexOf('orig:')!==0;}))loadPromosCatalogo(function(){_fgLgMarcas();});
@@ -13703,7 +13720,8 @@ function _fgLgMarcas(){
     // logo nuevo: su recuadro (se mueve con él); lugar vacío: lo que se tapó
     var p=_fgLgAjustable(e)?_fgLgAPantalla(e.tx,e.ty,e.tw,e.th):_fgLgAPantalla(e.x,e.y,e.w,e.h);
     var vc=_fgLgVencida(e);
-    return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+(vc?' vencida':'')+'"'+(vc?' data-v="Vencida · doble clic para cambiar"':'')+' style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
+    return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+(vc?' vencida':'')+'"'+(vc?' data-v="Vencida · doble clic para cambiar"':'')+' style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px">'+
+      (e.franjaBase?'<button type="button" class="fg-lg-fr-edit" data-fr="'+_escAttr(e.franja)+'" title="Volver al editor de esta franja (sin marcarla de nuevo)">&#9998; Editar franja</button>':'')+'</div>';
   }).join('')+(_fgLg.lugares||[]).map(function(d){
     var p=_fgLgAPantalla(d.x,d.y,d.w,d.h);
     return '<div class="fg-lg-marca elegido grupo lugar" style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
@@ -14764,6 +14782,17 @@ function fgElegirCancelar(callado){
   if(st&&_fgFrSt===st)_fgFrSt=null;
   if(!callado)showToast(st&&st.uno?'Listo: no se cambió el logo.':'Listo: no se armó la franja.');
 }
+// Volver al editor de una franja YA armada, sin volver a marcarla (21-oct-2026).
+// La franja guarda todo lo que hace falta (marcas, orden, tamaños, columnas):
+// alcanza con abrir la ventana con el recuadro de la franja misma.
+function _fgFrEditar(fid){
+  var b=_fgLgActivos().filter(function(e){return e.franjaBase&&e.franja===fid;})[0];
+  if(!b){showToast('No encontré esa franja en este flyer.');return;}
+  if(!_fgLg.on)fgLogosModo(true);
+  if(_fgFr.modo)fgFranjaModo(false);
+  if(_fgRecM.modo)fgRecModo(false);
+  _fgFrAbrir({x:b.ox,y:b.oy,w:b.ow,h:b.oh,bg:b.bg,corta:false});
+}
 // Recuadro marcado en pantalla → abrir la ventana.
 function _fgFrDesdeRecuadro(ax,ay,bx,by){
   var a=_fgLgAImagen(Math.min(ax,bx),Math.min(ay,by)),b=_fgLgAImagen(Math.max(ax,bx),Math.max(ay,by));
@@ -14964,7 +14993,7 @@ function _fgFrAbrir(rect,reuso){
         if(_fgFrSt===st){cerrar();showToast('Cambiaste de flyer mientras se armaba la franja, así que no se aplicó. Volvé a marcarla en este flyer.');}
         return;
       }
-      cerrar();showToast('Listo: '+n+(n===1?' logo':' logos')+' en la franja. Tocá uno para ajustarlo.');},
+      cerrar();showToast('Listo: '+n+(n===1?' logo':' logos')+' en la franja. Para volver a editarla tocá «Editar franja» sobre el flyer.');},
       function(){ok.disabled=false;_fgFrSelPintar();showToast('No se pudieron bajar algunos logos. Revisá la conexión y probá de nuevo.');});
   };
   // los logos que ya estaban elegidos se bajan para la vista previa
