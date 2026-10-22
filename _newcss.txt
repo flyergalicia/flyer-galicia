@@ -1787,3 +1787,9 @@ html.dark .vig-mal{background:rgba(180,35,24,.25);color:#ff9b91;}
 .fg-lg-info-fila{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 .fg-lg-info-fila .fg-lg-info{flex:1;min-width:0;}
 .fg-lg-full[hidden]{display:none;}
+/* Marcas vencidas (21-oct): borde rojo y cartelito en el modo edición */
+.cw .fg-lg-marca.vencida{border-style:solid;border-color:#D92D20;background:rgba(217,45,32,.07);}
+.cw .fg-lg-marca.vencida::after{content:attr(data-v);position:absolute;left:-2px;top:-24px;background:#D92D20;color:#fff;font-size:12px;font-weight:700;line-height:1.3;padding:1px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;}
+/* Deshacer / Rehacer dentro de Armar franja */
+.fg-fr-hist{display:inline-flex;gap:6px;margin-left:auto;margin-right:8px;}
+.fg-fr-hist .fg-fr-amp[disabled]{opacity:.45;cursor:default;}

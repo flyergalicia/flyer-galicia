@@ -9,7 +9,7 @@ async function preparar(p){
   await p.click('#fg-lg-btn');
   await p.waitForFunction(()=>window._promosCat&&_promosCat.length,null,{timeout:15000});
   await p.evaluate(async()=>{
-    let m,im;for(const x of _promosCat){if(!x.imagen)continue;try{im=await _fgLgTraer(x.imagen);m=x;break;}catch(e){}}
+    let m,im;for(const x of _promosCat){if(!x.imagen||_fgLgVencida({img:x.imagen}))continue;try{im=await _fgLgTraer(x.imagen);m=x;break;}catch(e){}} // (una vencida se vería en rojo: no es lo que se prueba acá)
     _fgLgPoner(_fgLgManual(140,2650,300,110),m.imagen,m.titulo,im); // un logo puesto
     _fgLgPoner(_fgLgManual(600,2650,200,110),'','');                 // un lugar vacío
     _fgLg.sel=-1;_fgLgListo();
