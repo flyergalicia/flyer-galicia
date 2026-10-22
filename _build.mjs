@@ -1198,6 +1198,7 @@ const checks = {
     _authSrc.includes('function _promoDiasLeer(') && _authSrc.includes('/%/.test(String(q.beneficio') && _authSrc.includes('function _fgLgDestinoParejo(') &&
     _authSrc.includes('function _fgLgColorTexto(') && _authSrc.includes('function _fgFrDiasTodos(') && _authSrc.includes("cvs.addEventListener('dblclick'") &&
     _authSrc.includes('function _fgLgLugaresAMovibles(') && _authSrc.includes('conTexto:txtH.length>0'),
+  'teclas + y − cambian el tamaño (Cambiar logos y Armar franja)': _authSrc.includes('function _fgFrTam(') && _authSrc.includes("(e.key==='+'||e.key==='='||e.key==='-'||e.key==='_')") && _authSrc.includes('_fgFrTam(st,(mas?1:-1)*(e.shiftKey?0.25:0.1))'),
   'logo del flyer movido sin deformarse': _authSrc.includes('_fgLgLimpiarLogo(c,true)') && _authSrc.includes('if(sinRecorte)return k;'),
   'recuadros de Cambiar logos discretos (sólo al pasar el mouse)': _authSrc.includes('function _fgLgCerca(') && /\.fg-lg-marca\{[^}]*border:2px dashed transparent/.test(newCSS) && newCSS.includes('.cw:hover .fg-lg-marca{'),
   'franjas que no se pisan y sugerir que respeta los filtros': _authSrc.includes('if(e.franja)return true; // los de OTRA franja nunca se tocan') && _authSrc.includes('function _fgFrSelActual(') && _authSrc.includes('sel:previa?_fgFrSelActual(previa):[]') && _authSrc.includes('sinOnline:!!(st.sinOnline||st.prov||st.loc)'),

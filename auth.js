@@ -13092,7 +13092,7 @@ function _fgLgInit(){
   var prev=document.querySelector('.prev'),cw=prev&&prev.querySelector('.cw');
   if(!prev||!cw||document.getElementById('fg-lg-bar'))return;
   var bar=document.createElement('div');bar.id='fg-lg-bar';bar.className='fg-lg-bar';
-  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar. Con <b>Shift</b> eleg&iacute;s varios y los mov&eacute;s juntos.</span>'+
+  bar.innerHTML='<span class="fg-lg-tip" id="fg-lg-tip" hidden>Toc&aacute; un logo o un texto para cambiarlo o moverlo. Arrastr&aacute; un recuadro en un lugar libre para agregar. Con <b>Shift</b> eleg&iacute;s varios y los mov&eacute;s juntos. Con <b>&minus;</b> y <b>+</b> cambi&aacute;s el tama&ntilde;o.</span>'+
     '<span class="fg-lg-hist"><button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-desh" onclick="fgLgDeshacer()" hidden disabled aria-label="Deshacer">'+
       '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg><span>Deshacer</span></button>'+
     '<button type="button" class="fg-lg-undo fg-lg-hb" id="fg-lg-reh" onclick="fgLgRehacer()" hidden disabled aria-label="Rehacer">'+
@@ -13238,13 +13238,31 @@ function _fgLgInit(){
   // Flechas = mover el logo elegido 1 px (con Shift, 10). Escape = soltarlo.
   document.addEventListener('keydown',function(e){
     if(_fgLg.limpio)return;
-    if(!_fgLg.on||_fgLg.sel<0||document.getElementById('fg-lg-ov'))return;
+    if(!_fgLg.on||_fgLg.sel<0||document.getElementById('fg-lg-ov')||document.getElementById('fg-fr-ov'))return; // (con la ventana de la franja abierta, las teclas son de la franja)
     var t=e.target&&e.target.tagName;
     if((t==='INPUT'&&e.target.type!=='range')||t==='TEXTAREA'||t==='SELECT')return;
     if(e.key==='Escape'){_fgLg.sel=-1;_fgLg.grupo=[];_fgLgMarcas();return;}
     if((e.key==='Delete'||e.key==='Backspace')&&!(e.target&&e.target.type==='range')){e.preventDefault();_fgLgBorrarElegidos();return;}
+    // + y − (también el teclado numérico) = agrandar y achicar lo elegido: de a 10 %, con Shift de a 25 %
+    if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&(e.key==='+'||e.key==='='||e.key==='-'||e.key==='_')){
+      var Pm=_fgLgActivos()[_fgLg.sel];if(!Pm||!_fgLgAjustable(Pm))return;
+      e.preventDefault();
+      _fgLgTam(_fgLgPct(Pm)+((e.key==='+'||e.key==='=')?1:-1)*(e.shiftKey?25:10));
+      return;
+    }
     var d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!d)return;
     e.preventDefault();_fgLgMover(d[0]*(e.shiftKey?10:1),d[1]*(e.shiftKey?10:1));
+  });
+  // Armar franja: + y − cambian el tamaño de lo elegido en la vista previa (o el de todos)
+  document.addEventListener('keydown',function(e){
+    var st=_fgFrSt;
+    if(!st||!document.getElementById('fg-fr-ov')||e.ctrlKey||e.metaKey||e.altKey)return;
+    var t=e.target&&e.target.tagName;
+    if((t==='INPUT'&&e.target.type!=='range')||t==='TEXTAREA'||t==='SELECT')return;
+    var mas=e.key==='+'||e.key==='=',menos=e.key==='-'||e.key==='_';
+    if(!mas&&!menos)return;
+    e.preventDefault();
+    _fgFrTam(st,(mas?1:-1)*(e.shiftKey?0.25:0.1));
   });
 }
 // ·· Guías al mover ··
@@ -13355,9 +13373,9 @@ function _fgLgHerr(capa){
     var tactil=!!(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
     h.setAttribute('role','toolbar');h.setAttribute('aria-label','Ajustar el elemento elegido');
     h.innerHTML='<span class="fg-lg-herr-nom" id="fg-lg-herr-nom"></span>'+
-      '<button type="button" data-a="menos" title="M&aacute;s chico" aria-label="M&aacute;s chico">&minus;</button>'+
+      '<button type="button" data-a="menos" title="M&aacute;s chico (tecla &minus;)" aria-label="M&aacute;s chico">&minus;</button>'+
       '<input type="range" id="fg-lg-tam" min="30" max="250" step="5" aria-label="Tama&ntilde;o del logo">'+
-      '<button type="button" data-a="mas" title="M&aacute;s grande" aria-label="M&aacute;s grande">+</button>'+
+      '<button type="button" data-a="mas" title="M&aacute;s grande (tecla +)" aria-label="M&aacute;s grande">+</button>'+
       '<span class="fg-lg-pct" id="fg-lg-pct"></span>'+
       (tactil?'<span class="fg-lg-fl"><button type="button" data-a="izq" aria-label="Mover a la izquierda">&larr;</button><button type="button" data-a="arr" aria-label="Mover arriba">&uarr;</button><button type="button" data-a="aba" aria-label="Mover abajo">&darr;</button><button type="button" data-a="der" aria-label="Mover a la derecha">&rarr;</button></span>':'')+
       '<button type="button" data-a="centrar" title="Volver a ponerlo en el medio de su lugar">Centrar</button>'+
@@ -15168,13 +15186,18 @@ function _fgFrPrevInit(st){
   aj.addEventListener('click',function(e){
     var b=e.target.closest&&e.target.closest('button[data-aj]');if(!b||_fgFrSt!==st)return;
     var a=b.getAttribute('data-aj'),G=_fgFrElegidos(st);if(!G.length)return;
-    G.forEach(function(j){var s=st.sel[j];
-      if(a==='menos')s.k=Math.max(0.4,Math.round(((s.k||1)-0.1)*100)/100);
-      else if(a==='mas')s.k=Math.min(2.5,Math.round(((s.k||1)+0.1)*100)/100);
-      else if(a==='lugar'){s.dx=0;s.dy=0;s.k=1;}
-    });
+    if(a==='menos'||a==='mas'){_fgFrTam(st,a==='mas'?0.1:-0.1);return;}
+    G.forEach(function(j){var s=st.sel[j];if(a==='lugar'){s.dx=0;s.dy=0;s.k=1;}});
     _fgFrPreview();
   });
+}
+// Tamaño de lo elegido en la vista previa (paso en fracción: 0,1 = 10 %). Sin
+// nada elegido cambia "Tamaño de todos". Lo usan los botones − / + y las teclas.
+function _fgFrTam(st,paso){
+  var G=_fgFrElegidos(st);
+  if(G.length)G.forEach(function(j){var s=st.sel[j];s.k=Math.max(0.4,Math.min(2.5,Math.round(((s.k||1)+paso)*100)/100));});
+  else st.kt=Math.max(0.6,Math.min(1.5,Math.round(((st.kt||1)+paso/2)*100)/100));
+  _fgFrPreview();
 }
 function _fgFrGrupoTocar(st,i){
   var g=_fgFrElegidos(st).slice(),j=g.indexOf(i);
@@ -15197,9 +15220,9 @@ function _fgFrAjustePintar(){
     '<input type="range" id="fg-fr-kt" min="60" max="150" step="5" value="'+kt+'" aria-label="Tama&ntilde;o de todos los logos"><span class="fg-fr-aj-v">'+kt+'%</span></div>';
   var nG=_fgFrElegidos(st).length;
   var uno=s?('<div class="fg-fr-aj-fila fg-fr-aj-uno"><span class="fg-fr-aj-l">'+(nG>1?'<b>'+nG+' elegidos</b>':'<b>'+(i+1)+'.</b> '+_escHtml(s.t))+'</span>'+
-      '<button type="button" data-aj="menos" aria-label="M&aacute;s chico">&minus;</button>'+
+      '<button type="button" data-aj="menos" title="M&aacute;s chico (tecla &minus;)" aria-label="M&aacute;s chico">&minus;</button>'+
       '<input type="range" id="fg-fr-k1" min="40" max="250" step="5" value="'+Math.round((s.k||1)*100)+'" aria-label="Tama&ntilde;o de este logo">'+
-      '<button type="button" data-aj="mas" aria-label="M&aacute;s grande">+</button><span class="fg-fr-aj-v">'+Math.round((s.k||1)*100)+'%</span>'+
+      '<button type="button" data-aj="mas" title="M&aacute;s grande (tecla +)" aria-label="M&aacute;s grande">+</button><span class="fg-fr-aj-v">'+Math.round((s.k||1)*100)+'%</span>'+
       '<button type="button" data-aj="lugar" class="fg-fr-aj-lugar" title="Vuelve a su lugar y a su tama&ntilde;o">'+(nG>1?'Volver a su lugar':'Volver a su lugar')+'</button></div>'):
     '<div class="fg-fr-aj-tip">Toc&aacute; un logo de la vista previa y arrastralo para acomodarlo (con <b>Shift</b> eleg&iacute;s varios); ac&aacute; abajo le cambi&aacute;s el tama&ntilde;o.</div>';
   // no se rearma mientras se arrastra una regla (se soltaría)
