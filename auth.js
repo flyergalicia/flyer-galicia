@@ -3685,7 +3685,7 @@ function _usoCargar(per){
   _sbTodo(function(d,h){return _sb.from('flyer_logs').select('user_id,is_bulk,bulk_count,flyer_type,created_at').not('user_id','is',null).gte('created_at',desde).order('created_at',{ascending:true}).range(d,h);},
     function(err,filas){logs=err?[]:filas;if(err)showToast('No se pudieron leer los registros: '+(err.message||err));listo();});
   _sb.from('profiles').select('id,full_name,email_asesor,role').then(function(r){perf=(r&&r.data)||[];listo();},function(){perf=[];listo();});
-  _sb.from('flyer_disenos').select('estado,created_at,pedido_at,revisado_at').gte('updated_at',desde).then(function(r){dis=(r&&!r.error&&r.data)||[];listo();},function(){dis=[];listo();});
+  _sb.from('flyer_disenos').select('estado,created_at,pedido_at,revisado_at').eq('tipo','diseno').gte('updated_at',desde).then(function(r){dis=(r&&!r.error&&r.data)||[];listo();},function(){dis=[];listo();});
 }
 function _usoBarras(items){
   var max=Math.max.apply(null,items.map(function(i){return i.n;}).concat([1]));
@@ -13102,6 +13102,7 @@ function _fgLgInit(){
     '<button type="button" class="fg-lg-undo fg-lg-nbor" id="fg-lg-nbor" onclick="fgBorradorNuevo()" hidden title="Abre otra pesta&ntilde;a con el flyer limpio para armar una versi&oacute;n en paralelo (tecla N)">+ Nuevo borrador</button>'+
     '<button type="button" class="fg-lg-undo fg-lg-rec" id="fg-lg-rec" onclick="fgRecModo()" hidden title="Quitar una parte del flyer (por ejemplo, la de los importes): lo de abajo sube y se une (tecla R)">Recortar</button>'+
     '<span class="fg-lg-proy fg-rec-chip" id="fg-rec-chip" hidden></span>'+
+    '<button type="button" class="fg-lg-undo fg-lg-mg" id="fg-lg-mg" onclick="fgMarcasGuardadas()" hidden title="Guardar las franjas y los logos de este flyer, o aplicar unas que guardaste">Marcas guardadas</button>'+
     '<button type="button" class="fg-lg-undo fg-lg-franja" id="fg-lg-franja" onclick="fgFranjaModo()" hidden title="Rehacer toda una franja de logos de una vez, eligiendo marcas de Promociones (tecla F)">Armar franja</button>'+
     '<button type="button" class="fg-lg-undo" id="fg-lg-undo" onclick="fgLogosDeshacer()" hidden>Volver todos al original</button>'+
     '<span class="fg-lg-proy" id="fg-lg-proy" hidden></span>'+
@@ -13668,6 +13669,7 @@ function _fgLgBarra(){
     tip.innerHTML=_fgRecM.modo?'Arrastr&aacute; de arriba hacia abajo sobre la parte que quer&eacute;s <b>quitar</b> (toma todo el ancho).':
       _fgFr.modo?'Arrastr&aacute; un recuadro alrededor de <b>toda la franja</b> de logos.':tip.dataset.base;
   }
+  var mgb=document.getElementById('fg-lg-mg');if(mgb)mgb.hidden=!(_fgLg.on&&_mgPuede());
   var fb=document.getElementById('fg-lg-franja');
   if(fb){fb.hidden=!_fgLg.on;fb.classList.toggle('on',_fgFr.modo);fb.textContent=_fgFr.modo?'Cancelar franja':'Armar franja';}
   var nb=document.getElementById('fg-lg-nbor');if(nb)nb.hidden=!_fgLg.on;
@@ -13818,6 +13820,7 @@ function _fgLgIndiceDe(det){
   // abierto desde "Cambiar" / doble clic sobre un cambio concreto (det.indice): es ese,
   // no el primero que se solape (una copia con Ctrl+V se solapa con su original)
   if(det&&det.indice!=null&&L[det.indice]&&!L[det.indice].franjaBase)return det.indice;
+  if(det&&det.indice===-1)return -1; // (Marcas guardadas: va uno nuevo, no pisar lo que haya)
   for(var i=0;i<L.length;i++){
     var e=L[i];if(e.franjaBase)continue; // la franja se retoca con "Armar franja"
     var ix=Math.min(e.ox+e.ow,det.x+det.w)-Math.max(e.ox,det.x),iy=Math.min(e.oy+e.oh,det.y+det.h)-Math.max(e.oy,det.y);
@@ -14579,7 +14582,7 @@ var _FG_FR_MAX=30;
 var _fgFr={modo:false};
 function fgFranjaModo(on){
   _fgFr.modo=(on===undefined)?!_fgFr.modo:!!on;
-  if(!_fgFr.modo&&on===undefined)_fgFr.pendiente=null; // tocó "Cancelar franja": se descarta lo pendiente
+  if(!_fgFr.modo&&on===undefined){_fgFr.pendiente=null;_mgPend=[];} // tocó "Cancelar franja": se descarta lo pendiente (y las franjas de Marcas guardadas que faltaban ubicar)
   if(_fgFr.modo&&!_fgLg.on)fgLogosModo(true);
   var prev=document.querySelector('.prev');if(prev)prev.classList.toggle('fg-fr-on',_fgFr.modo);
   _fgLgBarra();
@@ -14637,7 +14640,8 @@ function _fgFrDetectar(x,y,w,h){
   var hs=logos.map(function(l){return l.h;}).sort(function(a,b){return a-b;});
   // conTexto: la franja original tenía días debajo; txtH: el alto del renglón más bajo (un renglón de días)
   return {bg:_fgLgRgb(bg),n:logos.length,filas:filas,porFila:filas.reduce(function(m,f){return Math.max(m,f.n);},0),medH:hs.length?hs[hs.length>>1]:0,
-    conTexto:txtH.length>0,txtH:txtH.length?Math.min.apply(null,txtH):0,maxH:hs.length?hs[hs.length-1]:0};
+    conTexto:txtH.length>0,txtH:txtH.length?Math.min.apply(null,txtH):0,maxH:hs.length?hs[hs.length-1]:0,
+    cajas:logos.map(function(l){return {x:l.x,y:l.y,w:l.w,h:l.h};})}; // (Marcas guardadas: para ubicar la franja en el modelo nuevo)
 }
 // Lugares para n logos con "cols" por fila (0 = automático: se reparten parejo
 // en las mismas filas que el original; 8 logos en una franja de 2 filas → 4 y 4,
@@ -15014,7 +15018,8 @@ function _fgFrAbrir(rect,reuso){
         if(_fgFrSt===st){cerrar();showToast('Cambiaste de flyer mientras se armaba la franja, así que no se aplicó. Volvé a marcarla en este flyer.');}
         return;
       }
-      cerrar();showToast('Listo: '+n+(n===1?' logo':' logos')+' en la franja. Para volver a editarla tocá «Editar franja» sobre el flyer.');},
+      cerrar();showToast('Listo: '+n+(n===1?' logo':' logos')+' en la franja. Para volver a editarla tocá «Editar franja» sobre el flyer.');
+      if(_mgPend.length)setTimeout(function(){_mgSiguientePendiente();},400);},
       function(){ok.disabled=false;_fgFrSelPintar();showToast('No se pudieron bajar algunos logos. Revisá la conexión y probá de nuevo.');});
   };
   // los logos que ya estaban elegidos se bajan para la vista previa
@@ -15833,6 +15838,385 @@ function estUsar(id){
   }).catch(function(e){showToast('No se pudo abrir el diseño: '+_estErr(e));});
 }
 
+// ══ MARCAS GUARDADAS (22-oct-2026) ═══════════════════════════════════════════
+// Una COMBINACIÓN es lo que se cambió en un flyer (franjas, logos de súper con sus
+// días, logos puestos o sacados, textos), guardada con un nombre ("Neuquén
+// capital") para aplicarla sola en el modelo nuevo del flyer. Vive en
+// flyer_disenos con tipo='combinacion' (migración 031): cada uno ve las suyas y
+// el admin todas. A diferencia de un diseño de Estudio no queda atada a una
+// imagen: se guarda en px de la imagen de ese momento (ancho/alto) y al aplicar
+// todo se escala al ancho nuevo y se BUSCA su lugar en el flyer nuevo (la franja
+// por sus logos, cada logo por el logo que haya ahí), porque el modelo nuevo
+// suele tener el mismo formato pero corrido. Lo que no encuentra queda
+// "aproximado" y se puede ubicar a mano. Los días de los súper y la vigencia se
+// recalculan con las promos de hoy (las vencidas quedan en rojo).
+var _MG={lista:null,cargando:false};
+var _MG_COLS='id,nombre,user_id,autor,updated_at,opcion';
+function _mgPuede(){return !_esHunter()&&!_esLider()&&_can('estudio');}
+function _mgPromoDe(img){
+  var L=_promosCat||[],m=null;
+  for(var i=0;i<L.length;i++){var q=L[i];if(q.imagen!==img)continue;if(!m||_promoMejorQue(q,m))m=q;}
+  return m;
+}
+// ¿Este texto suelto son los días de un súper que está justo arriba?
+function _mgTextoDeDias(t,logos){
+  var cx=t.tx+t.tw/2,cy=t.ty+t.th/2;
+  return logos.some(function(l){
+    var lx0=Math.min(l.ox,l.tx),lx1=Math.max(l.ox+l.ow,l.tx+l.tw),ly1=Math.max(l.oy+l.oh,l.ty+l.th);
+    return cx>=lx0-8&&cx<=lx1+8&&cy>=ly1-4&&cy<=ly1+Math.max(l.oh,l.th)*2.2;
+  });
+}
+function _mgCaja(L){
+  if(!L.length)return null;
+  var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  L.forEach(function(b){x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+b.w);y1=Math.max(y1,b.y+b.h);});
+  return {x:x0,y:y0,w:x1-x0,h:y1-y0};
+}
+// Arma la combinación con lo que tiene el flyer ahora.
+function _mgArmar(){
+  var A=_fgLgActivos(),items=[],usados={};
+  // franjas
+  A.forEach(function(b){
+    if(!b.franjaBase)return;
+    var sel=_fgFrSelActual(b);if(!sel.length)return;
+    var info=b.franjaInfo||{},det=null;
+    try{det=_fgFrDetectar(Math.round(b.ox),Math.round(b.oy),Math.round(b.ow),Math.round(b.oh));}catch(e){}
+    var conDias=A.some(function(e){return e.franja===b.franja&&e.tipo==='txt';});
+    var nSuper=sel.filter(function(s){var p=_mgPromoDe(s.img);return p&&_promoEsSuper(p);}).length;
+    items.push({tipo:'franja',nombre:(nSuper>=sel.length/2?'Franja súper':'Franja')+' ('+sel.length+(sel.length===1?' marca)':' marcas)'),
+      rect:{x:b.ox,y:b.oy,w:b.ow,h:b.oh},sel:JSON.parse(JSON.stringify(sel)),cols:b.franjaCols||0,kt:b.franjaKt||1,conDias:conDias,
+      n:(det&&det.n)||info.n||0,caja:(det&&_mgCaja(det.cajas||[]))||null,cajas:(det&&det.cajas)||[]});
+    A.forEach(function(e,i){if(e.franja===b.franja)usados[i]=1;});
+  });
+  // logos sueltos (los súper con días debajo se recuerdan con conDias: el texto se recalcula al aplicar)
+  var logos=[];
+  A.forEach(function(e,i){
+    if(usados[i]||e.tipo==='txt'||!e.img||e.franjaBase)return;
+    var p=_fgLgEsSubido(e.img)||String(e.img).indexOf('orig:')===0?null:_mgPromoDe(e.img);
+    logos.push(e);
+    var it={tipo:'logo',nombre:e.t||'Logo',img:e.img,t:e.t||'',lugar:{x:e.ox,y:e.oy,w:e.ow,h:e.oh},dup:!!e.dup,
+      rel:{x:(e.tx-e.ox)/Math.max(1,e.ow),y:(e.ty-e.oy)/Math.max(1,e.oh),w:e.tw/Math.max(1,e.ow),h:e.th/Math.max(1,e.oh)},
+      esSuper:!!(p&&_promoEsSuper(p))};
+    if(String(e.img).indexOf('orig:')===0){it.nombre='Logo del flyer movido';it.mover=true;}
+    items.push(it);usados[i]=1;
+  });
+  // los textos de días de esos súper no se guardan: se marcan los logos con conDias
+  A.forEach(function(e,i){
+    if(usados[i]||e.tipo!=='txt'||e.franja)return;
+    var sup=logos.filter(function(l){var it=items.filter(function(x){return x.tipo==='logo'&&x.img===l.img&&x.lugar.x===l.ox&&x.lugar.y===l.oy;})[0];return it&&it.esSuper;});
+    if(_mgTextoDeDias(e,sup)){
+      items.forEach(function(x){if(x.tipo==='logo'&&x.esSuper&&!x.conDias){var l=sup.filter(function(l){return l.img===x.img&&l.ox===x.lugar.x&&l.oy===x.lugar.y;})[0];if(l&&_mgTextoDeDias(e,[l]))x.conDias=true;}});
+      usados[i]=1;return;
+    }
+    items.push({tipo:'texto',nombre:'Texto «'+String(e.texto||'').replace(/\n/g,' ').slice(0,30)+'»',texto:e.texto,color:e.color,peso:e.peso,fs:e.fs,
+      lugar:{x:e.ox,y:e.oy,w:e.ow,h:e.oh},vacio:!!e.vacio,pos:{x:e.tx,y:e.ty}});
+    usados[i]=1;
+  });
+  // lugares que se dejaron vacíos
+  A.forEach(function(e,i){
+    if(usados[i]||e.tipo==='txt'||e.img||e.franjaBase||e.franja||!(e.w>0&&e.h>0))return;
+    items.push({tipo:'vacio',nombre:'Lugar vacío',lugar:{x:e.ox,y:e.oy,w:e.ow,h:e.oh}});
+  });
+  return {v:1,ancho:baseImg.width,alto:baseImg.height,items:items,subidos:_estSubidos(A).mapa};
+}
+function _mgResumen(items){
+  var c={franja:0,logo:0,vacio:0,texto:0};items.forEach(function(x){c[x.tipo]=(c[x.tipo]||0)+1;});
+  var p=[];
+  if(c.franja)p.push(c.franja+(c.franja===1?' franja':' franjas'));
+  if(c.logo)p.push(c.logo+(c.logo===1?' logo':' logos'));
+  if(c.vacio)p.push(c.vacio+(c.vacio===1?' lugar vacío':' lugares vacíos'));
+  if(c.texto)p.push(c.texto+(c.texto===1?' texto':' textos'));
+  return p.length?p.join(', '):'nada';
+}
+function _mgCargar(cb){
+  if(_MG.cargando)return;_MG.cargando=true;
+  _sbTodo(function(d,h){return _sb.from('flyer_disenos').select(_MG_COLS).eq('tipo','combinacion').order('updated_at',{ascending:false}).range(d,h);},function(err,filas){
+    _MG.cargando=false;
+    if(err){if(cb)cb(err);return;}
+    _MG.lista=filas||[];if(cb)cb(null);
+  },1000,0,[]);
+}
+function _mgGuardar(){
+  var datos=_mgArmar();
+  if(!datos.items.length){showToast('Este flyer no tiene cambios para guardar. Armá las franjas y los logos con «Cambiar logos» y después guardalos.');return;}
+  var tam=JSON.stringify(datos).length;
+  if(tam>2800000){showToast('Los logos subidos desde la PC pesan demasiado para guardarlos. Probá con imágenes más chicas.');return;}
+  fgPedirTexto('Guardar las marcas de este flyer','Se guardan: '+_mgResumen(datos.items)+'. Después las aplicás en el modelo nuevo desde «Marcas guardadas».','',{ok:'Guardar',largo:80},function(n){
+    if(n===null)return;
+    n=String(n||'').trim();if(!n){showToast('Ponele un nombre (por ejemplo, la localidad).');return;}
+    var fila={nombre:n,empresa:'',opcion:_optN(_fgOpt),base_name:_estNombreImg(_fgLgSrc()),datos:datos,miniatura:_estMiniatura(_fgLgActivos()),estado:'privado',tipo:'combinacion'};
+    _sb.from('flyer_disenos').insert(fila).select(_MG_COLS).single().then(function(r){
+      if(r.error){showToast('No se pudo guardar: '+_estErr(r.error));return;}
+      if(_MG.lista)_MG.lista.unshift(r.data);
+      _mgPintarListas();
+      showToast('Guardadas como «'+r.data.nombre+'»: '+_mgResumen(datos.items)+'.');
+    },function(e){showToast('No se pudo guardar: '+_estErr(e));});
+  });
+}
+function _mgBorrar(id){
+  var d=(_MG.lista||[]).filter(function(x){return x.id===id;})[0];if(!d)return;
+  fgConfirm('¿Borrar «'+d.nombre+'»?',{texto:'Se borran las marcas guardadas, no el flyer. No se puede deshacer.',ok:'Borrar'},function(si){
+    if(!si)return;
+    _sb.from('flyer_disenos').delete().eq('id',id).then(function(r){
+      if(r.error){showToast('No se pudo borrar: '+_estErr(r.error));return;}
+      _MG.lista=(_MG.lista||[]).filter(function(x){return x.id!==id;});_mgPintarListas();showToast('Listo: «'+d.nombre+'» borrada.');
+    },function(e){showToast('No se pudo borrar: '+_estErr(e));});
+  });
+}
+function _mgRenombrar(id){
+  var d=(_MG.lista||[]).filter(function(x){return x.id===id;})[0];if(!d)return;
+  fgPedirTexto('Cambiar el nombre','',d.nombre,{ok:'Guardar',largo:80},function(n){
+    if(n===null)return;n=String(n||'').trim();if(!n||n===d.nombre)return;
+    _sb.from('flyer_disenos').update({nombre:n}).eq('id',id).select(_MG_COLS).single().then(function(r){
+      if(r.error){showToast('No se pudo: '+_estErr(r.error));return;}
+      d.nombre=r.data.nombre;_mgPintarListas();
+    },function(e){showToast('No se pudo: '+_estErr(e));});
+  });
+}
+// ·· Dónde va cada cosa en el flyer de ahora (prueba en seco) ··
+// s = ancho de ahora / ancho al guardar. Devuelve {ok, rect|det, ...}.
+function _mgUbicar(it,s){
+  var W=baseImg.width,H=baseImg.height,sc=function(b){return {x:b.x*s,y:b.y*s,w:b.w*s,h:b.h*s};};
+  if(it.tipo==='franja'){
+    var R=sc(it.rect),m=0.08,ax=Math.max(0,R.x-R.w*m),ay=Math.max(0,R.y-R.h*m),aw=Math.min(W-ax,R.w*(1+2*m)),ah=Math.min(H-ay,R.h*(1+2*m));
+    var info=null;try{info=_fgFrDetectar(Math.round(ax),Math.round(ay),Math.round(aw),Math.round(ah));}catch(e){}
+    var C0=(it.cajas||[]).map(sc),C1=(info&&info.cajas)||[],need=Math.max(2,Math.ceil(C0.length*0.5));
+    // cada par (logo guardado, logo de ahora) propone un corrimiento; gana el que
+    // hace coincidir más logos (el área agarra también el título de arriba o el
+    // texto de abajo: por eso no sirve comparar el contorno de todo)
+    var mejor=null;
+    C0.forEach(function(a){C1.forEach(function(b){
+      var dx=(b.x+b.w/2)-(a.x+a.w/2),dy=(b.y+b.h/2)-(a.y+a.h/2),n=0,err=0;
+      if(Math.abs(dx)>R.w*0.35||Math.abs(dy)>Math.max(R.h*0.35,40*s))return;
+      C0.forEach(function(c){
+        var tol=Math.max(8,Math.min(c.w,c.h)*0.25),cx=c.x+c.w/2+dx,cy=c.y+c.h/2+dy,hit=null,hd=1e9;
+        C1.forEach(function(d){var e=Math.abs(d.x+d.w/2-cx)+Math.abs(d.y+d.h/2-cy);if(e<hd){hd=e;hit=d;}});
+        if(hit&&Math.abs(hit.x+hit.w/2-cx)<=tol&&Math.abs(hit.y+hit.h/2-cy)<=tol){n++;err+=hd;}
+      });
+      if(!mejor||n>mejor.n||(n===mejor.n&&err<mejor.err))mejor={n:n,err:err,dx:dx,dy:dy};
+    });});
+    // con los logos coincidiendo, el corrimiento fino es el promedio de los pares
+    if(mejor&&mejor.n>=need){
+      var sx=0,sy=0,k=0;
+      C0.forEach(function(c){
+        var cx=c.x+c.w/2+mejor.dx,cy=c.y+c.h/2+mejor.dy,tol=Math.max(8,Math.min(c.w,c.h)*0.25),hit=null,hd=1e9;
+        C1.forEach(function(d){var e=Math.abs(d.x+d.w/2-cx)+Math.abs(d.y+d.h/2-cy);if(e<hd){hd=e;hit=d;}});
+        if(hit&&Math.abs(hit.x+hit.w/2-cx)<=tol&&Math.abs(hit.y+hit.h/2-cy)<=tol){sx+=hit.x+hit.w/2-(c.x+c.w/2);sy+=hit.y+hit.h/2-(c.y+c.h/2);k++;}
+      });
+      var dx=k?sx/k:mejor.dx,dy=k?sy/k:mejor.dy;
+      var r2={x:Math.max(0,R.x+dx),y:Math.max(0,R.y+dy),w:R.w,h:R.h};r2.w=Math.min(W-r2.x,r2.w);r2.h=Math.min(H-r2.y,r2.h);
+      return {ok:true,rect:r2};
+    }
+    return {ok:false,rect:{x:Math.max(0,R.x),y:Math.max(0,R.y),w:Math.min(W-Math.max(0,R.x),R.w),h:Math.min(H-Math.max(0,R.y),R.h)}};
+  }
+  var P=sc(it.lugar),cx=P.x+P.w/2,cy=P.y+P.h/2;
+  if(it.tipo==='texto'&&it.vacio)return {ok:true,det:Object.assign(_fgLgManual(P.x,P.y,P.w,P.h)||{x:P.x,y:P.y,w:P.w,h:P.h,bg:'rgb(255,255,255)'},{vacio:true})};
+  if(it.dup){var dd=_fgLgManual(P.x,P.y,P.w,P.h);return {ok:true,det:dd||{x:P.x,y:P.y,w:P.w,h:P.h,bg:'rgb(255,255,255)'}};}
+  var det=null;try{det=_fgLgDetectar(Math.round(cx),Math.round(cy));}catch(e){}
+  if(det&&!det.error){
+    var dcx=det.x+det.w/2,dcy=det.y+det.h/2,rw=det.w/Math.max(1,P.w),rh=det.h/Math.max(1,P.h);
+    // por lado y no por superficie: un logo pegado a un texto daba una caja más alta (y tapaba el texto)
+    if(Math.abs(dcx-cx)<=Math.max(P.w,P.h)*0.6&&Math.abs(dcy-cy)<=Math.max(P.w,P.h)*0.6&&rw>0.6&&rw<1.6&&rh>0.6&&rh<1.6)return {ok:true,det:det};
+  }
+  var man=_fgLgManual(P.x,P.y,P.w,P.h);
+  return {ok:false,det:man||{x:P.x,y:P.y,w:P.w,h:P.h,bg:'rgb(255,255,255)'}};
+}
+// La franja sin abrir la ventana: misma cuenta que Armar franja (reemplaza la
+// que hubiera en ese lugar y lo de antes adentro).
+function _fgFrAplicarSin(rect,it){
+  var det=_fgLgManual(rect.x,rect.y,rect.w,rect.h);if(!det)return Promise.resolve(0);
+  var cxr=det.x+det.w/2,cyr=det.y+det.h/2;
+  var previa=_fgLgActivos().filter(function(e){return e.franjaBase&&_fgFrSolapa(e,det)>0.5&&cxr>=e.ox&&cxr<=e.ox+e.ow&&cyr>=e.oy&&cyr<=e.oy+e.oh;})[0]||null;
+  var info;try{info=_fgFrDetectar(det.x,det.y,det.w,det.h);}catch(e){return Promise.resolve(0);}
+  info.bg=det.bg||info.bg;
+  var st={rect:det,info:info,previa:previa,sel:JSON.parse(JSON.stringify(it.sel)),cols:it.cols||0,kt:it.kt||1,elegido:-1,grupo:[],
+    q:'',rubro:'',prov:'',loc:'',una:true,sinOnline:false,res:[],src:_fgLgSrc()};
+  var antes=_fgFrSt,cd=_fgLgV.conDias;
+  function volver(){_fgFrSt=antes;_fgLgV.conDias=cd;}
+  _fgFrSt=st;_fgLgV.conDias=!!it.conDias; // los días van si la franja guardada los tenía
+  var pr;try{pr=_fgFrAplicar(st);}catch(e){volver();return Promise.reject(e);}
+  return Promise.resolve(pr).then(function(n){volver();return n||0;},function(e){volver();throw e;});
+}
+// Franjas para ubicar a mano (de a una): se carga la próxima en el modo Armar
+// franja; cuando se pone, sigue la que queda (cancelar el modo las descarta).
+var _mgPend=[];
+function _mgSiguientePendiente(callado){
+  var f=_mgPend.shift();if(!f)return '';
+  _fgFr.pendiente={sel:JSON.parse(JSON.stringify(f.sel)),cols:f.cols||0,q:'',rubro:'',prov:'',loc:'',una:true,sinOnline:false};
+  if(f.conDias!=null)_fgLgV.conDias=!!f.conDias;
+  if(!_fgLg.on)fgLogosModo(true);
+  fgFranjaModo(true);
+  var m='Marcá con un recuadro dónde va «'+f.nombre+'»'+(_mgPend.length?' (después sigue '+(_mgPend.length===1?'1 franja más':_mgPend.length+' franjas más')+')':'')+'.';
+  if(!callado)showToast(m);
+  return m;
+}
+// El cambio de ANTES de aplicar que está en ese lugar (para reemplazarlo); -1 =
+// ninguno, va uno nuevo (así no se pisa lo que la misma aplicación acaba de poner).
+function _mgIndiceViejo(det,previos){
+  var L=_fgLgActivos();
+  for(var i=0;i<L.length;i++){
+    var e=L[i];if(e.franjaBase||previos.indexOf(e)<0)continue;
+    var ix=Math.min(e.ox+e.ow,det.x+det.w)-Math.max(e.ox,det.x),iy=Math.min(e.oy+e.oh,det.y+det.h)-Math.max(e.oy,det.y);
+    if(ix>0&&iy>0&&ix*iy>0.5*Math.min(e.ow*e.oh,det.w*det.h))return i;
+  }
+  return -1;
+}
+// Aplica los ítems elegidos de una combinación en el flyer de ahora.
+function _mgAplicar(datos,elegidos,nombre){
+  var s=baseImg.width/Math.max(1,datos.ancho||baseImg.width),items=datos.items.filter(function(x,i){return elegidos[i];});
+  var src0=_fgLgSrc(),manual=[],aprox=[];
+  if(!_fgLg.on)fgLogosModo(true);
+  if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
+  // primero se bajan todos los logos (así todo queda en UN paso de Deshacer)
+  var imgs={};items.forEach(function(it){
+    if(it.tipo==='franja')it.sel.forEach(function(x){imgs[x.img]=1;});
+    else if(it.tipo==='logo'&&!it.mover&&!_fgLgEsSubido(it.img))imgs[it.img]=1;
+  });
+  return _estPrepararSubidos(datos.subidos||{}).then(function(){
+    return Promise.all(Object.keys(imgs).map(function(k){return _fgLgTraer(k).then(function(){return null;},function(){return k;});}));
+  }).then(function(fallas){
+    if(_fgLgSrc()!==src0)return null;
+    var malos={};fallas.forEach(function(k){if(k)malos[k]=1;});
+    var previos=_fgLgActivos().slice();
+    var cola=Promise.resolve(),n={franja:0,logo:0,vacio:0,texto:0};
+    items.forEach(function(it){
+      cola=cola.then(function(){
+        if(_fgLgSrc()!==src0)return;
+        if(it.manual){manual.push(it);return;}
+        var u=_mgUbicar(it,s);if(!u.ok)aprox.push(it.nombre);
+        if(u.det)u.det.indice=_mgIndiceViejo(u.det,previos); // reemplaza lo de antes, nunca lo recién puesto
+        if(it.tipo==='franja'){
+          var sel=it.sel.filter(function(x){return !malos[x.img];});
+          if(!sel.length)return;
+          return _fgFrAplicarSin(u.rect,Object.assign({},it,{sel:sel})).then(function(k){if(k)n.franja++;});
+        }
+        if(it.tipo==='vacio'){_fgLgPoner(u.det,'','',null);n.vacio++;return;}
+        if(it.tipo==='texto'){
+          _fgLgPonerTexto(u.det,{texto:it.texto,color:it.color,peso:it.peso,fs:Math.max(10,it.fs*s)},null);
+          var et=_fgLgActivos()[_fgLg.sel];if(et&&et.tipo==='txt'&&it.pos){var px=it.pos.x*s,py=it.pos.y*s;if(Math.abs(px-et.tx)<et.tw*3&&Math.abs(py-et.ty)<et.th*3){et.tx=px;et.ty=py;}}
+          n.texto++;return;
+        }
+        // logo
+        if(it.mover){_fgLgMoverOriginal(u.det);var em=_fgLgActivos()[_fgLg.sel];if(em){em.tx=u.det.x+it.rel.x*u.det.w;em.ty=u.det.y+it.rel.y*u.det.h;em.tw=it.rel.w*u.det.w;em.th=it.rel.h*u.det.h;em.bw=em.tw;em.bh=em.th;}n.logo++;return;}
+        if(malos[it.img]){aprox.push(it.nombre+' (no se pudo bajar)');return;}
+        var im=_fgLg.imgs[it.img];if(!im){aprox.push(it.nombre+' (no se pudo cargar el logo)');return;}
+        var p=_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t,subtitulo:''};
+        if(it.esSuper&&it.conDias)_fgLgPonerMarca(u.det,p,im,true);
+        else{
+          if(it.esSuper)_fgLgPonerMarca(u.det,p,im,false);else _fgLgPoner(u.det,it.img,it.t,im);
+          var e=_fgLgActivos()[_fgLgIndiceDe(u.det)];
+          // el tamaño y el corrimiento que se le habían dado a mano, en proporción a su lugar
+          if(e&&e.img===it.img&&it.rel&&isFinite(it.rel.w)&&it.rel.w>0){e.tx=u.det.x+it.rel.x*u.det.w;e.ty=u.det.y+it.rel.y*u.det.h;e.tw=it.rel.w*u.det.w;e.th=it.rel.h*u.det.h;e.bw=e.tw;e.bh=e.th;}
+          if(it.dup&&e)e.dup=true;
+        }
+        n.logo++;
+      });
+    });
+    return cola.then(function(){
+      if(_fgLgSrc()!==src0)return null;
+      _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();
+      var venc=_fgLgActivos().filter(_fgLgVencida).length;
+      var hecho=[];if(n.franja)hecho.push(n.franja+(n.franja===1?' franja':' franjas'));if(n.logo)hecho.push(n.logo+(n.logo===1?' logo':' logos'));
+      if(n.vacio)hecho.push(n.vacio+(n.vacio===1?' lugar vacío':' lugares vacíos'));if(n.texto)hecho.push(n.texto+(n.texto===1?' texto':' textos'));
+      var msg='Apliqué «'+nombre+'»'+(hecho.length?': '+hecho.join(', '):'')+'.';
+      if(venc)msg+=' '+venc+(venc===1?' marca vencida (en rojo).':' marcas vencidas (en rojo).');
+      if(aprox.length)msg+=' Revisá '+(aprox.length===1?'«'+aprox[0]+'»: no encontré bien su lugar.':aprox.length+' que no encontré bien su lugar.');
+      // franjas para ubicar a mano: se marca la primera con sus marcas cargadas
+      if(manual.length){
+        _mgPend=manual.slice();
+        msg+=' '+_mgSiguientePendiente(true);
+      }
+      showToast(msg);
+      return {n:n,aprox:aprox,venc:venc,manual:manual.length};
+    });
+  });
+}
+// ·· Ventanas ··
+function _mgOv(id,html){
+  var v=document.getElementById(id);if(v)v.remove();
+  var ov=document.createElement('div');ov.id=id;ov.className='fg-cf-ov';
+  ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');
+  ov.innerHTML=html;document.body.appendChild(ov);
+  function cerrar(){document.removeEventListener('keydown',tecla,true);ov.remove();}
+  function tecla(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cerrar();}}
+  document.addEventListener('keydown',tecla,true);
+  return {ov:ov,cerrar:cerrar}; // (sin cerrar al tocar afuera: regla del armado)
+}
+function _mgFilaHtml(d,acts){
+  var mio=_estMio(d);
+  return '<div class="mg-fila"><div class="mg-fila-t"><b>'+_escHtml(d.nombre)+'</b><span>'+_escHtml(_estFecha(d.updated_at))+
+    (!mio&&d.autor?' · de '+_escHtml(d.autor):'')+'</span></div><div class="mg-fila-a">'+acts(_escAttr(d.id))+'</div></div>';
+}
+// Ventana "Marcas guardadas" (desde Cambiar logos).
+function fgMarcasGuardadas(){
+  if(!_mgPuede()){showToast('Las marcas guardadas son parte de Estudio, que no está habilitado para tu perfil.');return;}
+  var hay=_fgLgActivos().length>0;
+  var w=_mgOv('fg-mg-ov','<div class="fg-cf fg-mg"><div class="fg-lg-h"><div style="flex:1;min-width:0"><div class="fg-cf-t">Marcas guardadas</div>'+
+    '<div class="fg-cf-b">Guard&aacute; las franjas y los logos que pusiste en este flyer con un nombre (por ejemplo, la localidad) y aplicalos solos en el modelo nuevo: se ubican donde est&aacute;n ahora, con los d&iacute;as y la vigencia de hoy.</div></div>'+
+    '<button type="button" class="fg-lg-x" id="fg-mg-x" aria-label="Cerrar">&times;</button></div>'+
+    '<button type="button" class="btn bp mg-guardar" id="fg-mg-g"'+(hay?'':' disabled')+'>Guardar las de este flyer</button>'+
+    (hay?'':'<div class="mg-tip">Para guardar, primero cambi&aacute; algo del flyer (una franja o un logo).</div>')+
+    '<div class="mg-l">Mis marcas guardadas</div><div class="mg-lista" id="fg-mg-lista"><div class="mg-vacio">Cargando&hellip;</div></div></div>');
+  document.getElementById('fg-mg-x').onclick=w.cerrar;
+  document.getElementById('fg-mg-g').onclick=function(){w.cerrar();_mgGuardar();};
+  document.getElementById('fg-mg-lista').addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('button[data-mg]');if(!b)return;
+    var id=b.getAttribute('data-id'),a=b.getAttribute('data-mg');
+    if(a==='aplicar'){w.cerrar();fgMgAplicar(id);}else if(a==='borrar')_mgBorrar(id);
+  });
+  _mgPintarListas();
+  _mgCargar(function(err){if(err){var l=document.getElementById('fg-mg-lista');if(l)l.innerHTML='<div class="mg-vacio">No se pudieron leer: '+_escHtml(_estErr(err))+'</div>';return;}_mgPintarListas();});
+}
+function _mgPintarListas(){
+  var L=_MG.lista;
+  var vacio='<div class="mg-vacio">Todav&iacute;a no guardaste marcas. Arm&aacute; el flyer con <b>Cambiar logos</b> y toc&aacute; <b>Guardar las de este flyer</b>.</div>';
+  var a=document.getElementById('fg-mg-lista');
+  if(a&&L)a.innerHTML=L.length?L.map(function(d){return _mgFilaHtml(d,function(id){
+    return '<button type="button" class="btn bp" data-mg="aplicar" data-id="'+id+'">Aplicar</button><button type="button" class="btn bg est-borrar" data-mg="borrar" data-id="'+id+'">Borrar</button>';});}).join(''):vacio;
+  var e=document.getElementById('est-mg-lista');
+  if(e&&L)e.innerHTML=L.length?L.map(function(d){return _mgFilaHtml(d,function(id){
+    return '<button type="button" class="btn bp" data-mg="aplicar" data-id="'+id+'">Aplicar en el flyer</button><button type="button" class="btn bg" data-mg="renombrar" data-id="'+id+'">Cambiar nombre</button><button type="button" class="btn bg est-borrar" data-mg="borrar" data-id="'+id+'">Borrar</button>';});}).join(''):vacio;
+}
+// Ventana para aplicar: todo tildado, con dónde va cada cosa (✓ / ⚠).
+function fgMgAplicar(id){
+  var d0=(_MG.lista||[]).filter(function(x){return x.id===id;})[0];
+  if(!window.baseImg||!baseImg.width){showToast('Abrí primero el flyer donde querés aplicarlas.');return;}
+  showToast('Buscando dónde va cada cosa…');
+  var src0=_fgLgSrc();
+  _estDatos(id).then(function(d){
+    if(_fgLgSrc()!==src0)return;
+    var datos=d.datos||{};if(!Array.isArray(datos.items)||!datos.items.length){showToast('Esa combinación está vacía.');return;}
+    if(!_fgLg.on)fgLogosModo(true);
+    var s=baseImg.width/Math.max(1,datos.ancho||baseImg.width),el=datos.items.map(function(){return true;});
+    var ub=datos.items.map(function(it){try{return _mgUbicar(it,s);}catch(e){return {ok:false};}});
+    var nombre=d.nombre||(d0&&d0.nombre)||'';
+    var w=_mgOv('fg-mga-ov','<div class="fg-cf fg-mg"><div class="fg-lg-h"><div style="flex:1;min-width:0"><div class="fg-cf-t">Aplicar &laquo;'+_escHtml(nombre)+'&raquo;</div>'+
+      '<div class="fg-cf-b">Destild&aacute; lo que no quieras. Lo que ya cambiaste en esos lugares se reemplaza; lo dem&aacute;s queda. Se deshace con Ctrl+Z.</div></div>'+
+      '<button type="button" class="fg-lg-x" id="fg-mga-x" aria-label="Cerrar">&times;</button></div>'+
+      '<div class="mg-items" id="fg-mga-items"></div>'+
+      '<div class="fg-cf-acts"><button type="button" class="btn bg" id="fg-mga-no">Cancelar</button><button type="button" class="btn bp" id="fg-mga-ok">Aplicar</button></div></div>');
+    function pintar(){
+      var box=document.getElementById('fg-mga-items');if(!box)return;
+      box.innerHTML=datos.items.map(function(it,i){
+        var u=ub[i],est=it.manual?'<span class="mg-est mg-man">La vas a ubicar vos</span>':u.ok?'<span class="mg-est mg-ok">&#10003; En su lugar</span>':'<span class="mg-est mg-aprox">&#9888; Aproximado: revisalo</span>';
+        var btn=(it.tipo==='franja'&&!u.ok&&!it.manual)?'<button type="button" class="btn bg mg-ubicar" data-i="'+i+'">Ubicar a mano</button>':'';
+        return '<label class="mg-item"><input type="checkbox" data-i="'+i+'"'+(el[i]?' checked':'')+'><span class="mg-item-t">'+_escHtml(it.nombre)+'</span>'+est+btn+'</label>';
+      }).join('');
+      var n=el.filter(Boolean).length,ok=document.getElementById('fg-mga-ok');if(ok){ok.disabled=!n;ok.textContent='Aplicar'+(n?' ('+n+')':'');}
+    }
+    var box=document.getElementById('fg-mga-items');
+    box.addEventListener('change',function(e){var c=e.target;if(c&&c.dataset&&c.dataset.i!=null){el[+c.dataset.i]=c.checked;pintar();}});
+    box.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.mg-ubicar');if(!b)return;e.preventDefault();datos.items[+b.dataset.i].manual=true;pintar();});
+    document.getElementById('fg-mga-x').onclick=w.cerrar;document.getElementById('fg-mga-no').onclick=w.cerrar;
+    document.getElementById('fg-mga-ok').onclick=function(){
+      var b=this;b.disabled=true;b.textContent='Aplicando…';
+      w.cerrar();_mgAplicar(datos,el,nombre);
+    };
+    pintar();
+    fgHideToast('Buscando dónde va cada cosa…');
+  }).catch(function(e){showToast('No se pudo leer la combinación: '+_estErr(e));});
+}
+
 // ·· Solapa Estudio ··
 function _estInit(){
   var v=document.getElementById('view-estudio');if(!v)return;
@@ -15842,7 +16226,10 @@ function _estInit(){
       '<p class="est-sub">Tus dise&ntilde;os de flyer. Se arman en el armador con <b>Cambiar logos</b> y se guardan con <b>Guardar en Estudio</b>. Desde ac&aacute; los volv&eacute;s a usar o ped&iacute;s que se publiquen para todos.</p></div></div>'+
       '<div class="est-bar"><div class="est-fil" id="est-fil" role="tablist"></div>'+
       '<input type="search" id="est-q" placeholder="Buscar por nombre o empresa" autocomplete="off"></div>'+
-      '<div class="est-grid" id="est-grid"></div></div>';
+      '<div class="est-grid" id="est-grid"></div>'+
+      '<section class="est-mg"><h3 class="est-mg-t">Marcas guardadas</h3>'+
+        '<p class="est-sub">Las franjas y los logos que guardaste de un flyer (por ejemplo, por localidad) para aplicarlos solos en el modelo nuevo. Se guardan desde <b>Cambiar logos &rarr; Marcas guardadas</b>.</p>'+
+        '<div class="mg-lista" id="est-mg-lista"><div class="mg-vacio">Cargando&hellip;</div></div></section></div>';
     var t=0,q=document.getElementById('est-q');
     q.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){_EST.q=q.value;_estRender();},120);});
     document.getElementById('est-fil').addEventListener('click',function(e){
@@ -15853,13 +16240,20 @@ function _estInit(){
       var id=b.getAttribute('data-id'),a=b.getAttribute('data-acc');
       ({usar:estUsar,ver:estVerCompleto,pedir:estPedir,cancelar:estCancelarPedido,borrar:estBorrar,aprobar:estAprobar,rechazar:estRechazar,ir:estIrVariante})[a](id);
     });
+    document.getElementById('est-mg-lista').addEventListener('click',function(e){
+      var b=e.target.closest&&e.target.closest('button[data-mg]');if(!b)return;
+      var id=b.getAttribute('data-id'),a=b.getAttribute('data-mg');
+      if(a==='aplicar'){switchApp(_optSolapa(_fgOpt));fgMgAplicar(id);}
+      else if(a==='renombrar')_mgRenombrar(id);else if(a==='borrar')_mgBorrar(id);
+    });
   }
   _estCargar();
+  _mgCargar(function(err){var l=document.getElementById('est-mg-lista');if(err&&l){l.innerHTML='<div class="mg-vacio">No se pudieron leer: '+_escHtml(_estErr(err))+'</div>';return;}_mgPintarListas();});
 }
 function _estCargar(){
   if(_EST.cargando)return;_EST.cargando=true;
   var g=document.getElementById('est-grid');if(g&&!_EST.lista)g.innerHTML='<div class="est-vacio">Cargando dise&ntilde;os&hellip;</div>';
-  _sbTodo(function(d,h){return _sb.from('flyer_disenos').select(_EST_COLS).order('updated_at',{ascending:false}).range(d,h);},function(err,filas){
+  _sbTodo(function(d,h){return _sb.from('flyer_disenos').select(_EST_COLS).eq('tipo','diseno').order('updated_at',{ascending:false}).range(d,h);},function(err,filas){
     _EST.cargando=false;
     if(err){if(g)g.innerHTML='<div class="est-vacio">No se pudieron leer los dise&ntilde;os: '+_escHtml(_estErr(err))+'</div>';return;}
     _EST.lista=filas||[];

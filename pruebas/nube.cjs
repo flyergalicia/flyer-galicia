@@ -110,14 +110,14 @@ async function abrir(browser,o){
     }
     // ── flyer_disenos (con las reglas de la migración 026)
     if(path==='/rest/v1/flyer_disenos'){
-      const q=u.searchParams,idEq=(q.get('id')||'').replace(/^eq\./,''),estRaw=q.get('estado')||'',estEq=/^eq\./.test(estRaw)?estRaw.slice(3):'',estIn=/^in\./.test(estRaw)?estRaw.slice(4,-1).split(',').map(x=>x.replace(/"/g,'')):null;
+      const q=u.searchParams,idEq=(q.get('id')||'').replace(/^eq\./,''),tipoEq=(q.get('tipo')||'').replace(/^eq\./,''),estRaw=q.get('estado')||'',estEq=/^eq\./.test(estRaw)?estRaw.slice(3):'',estIn=/^in\./.test(estRaw)?estRaw.slice(4,-1).split(',').map(x=>x.replace(/"/g,'')):null;
       const esAdmin=U.role==='admin';
       const visibles=nube.disenos.filter(d=>esAdmin||d.user_id===U.id);
       const cols=(q.get('select')||'*');
       const proy=d=>{if(cols==='*')return d;const ks=cols.split(',');const o={};ks.forEach(k=>{if(k in d)o[k]=d[k];});return o;};
       if(m==='HEAD'){const n=visibles.filter(d=>!estEq||d.estado===estEq).length;return route.fulfill({status:200,headers:{...H,'Content-Range':'*/'+n}});}
       if(m==='GET'){
-        let l=visibles.filter(d=>(!idEq||d.id===idEq)&&(!estEq||d.estado===estEq));
+        let l=visibles.filter(d=>(!idEq||d.id===idEq)&&(!estEq||d.estado===estEq)&&(!tipoEq||(d.tipo||'diseno')===tipoEq));
         l.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));
         let a=0,lim=1000;const rg=req.headers()['range'];if(rg){const x=/(\d+)-(\d+)/.exec(rg);if(x){a=+x[1];lim=+x[2]-a+1;}}
         const sl=l.slice(a,a+lim).map(proy);
@@ -129,7 +129,7 @@ async function abrir(browser,o){
         if(!['privado','pedido'].includes(b.estado||'privado'))return route.fulfill({status:403,body:JSON.stringify({message:'new row violates row-level security policy'}),headers:H});
         const t=new Date().toISOString();
         const d={id:'d'+(++nube.seq)+'-0000-4000-8000-000000000000',user_id:U.id,autor:U.name,nombre:b.nombre,empresa:b.empresa||'',opcion:b.opcion,base_name:b.base_name||'',datos:b.datos,miniatura:b.miniatura||'',
-          estado:b.estado||'privado',nota_admin:'',opcion_publicada:null,pedido_at:(b.estado==='pedido')?t:null,revisado_at:null,created_at:t,updated_at:t};
+          estado:b.estado||'privado',tipo:b.tipo||'diseno',nota_admin:'',opcion_publicada:null,pedido_at:(b.estado==='pedido')?t:null,revisado_at:null,created_at:t,updated_at:t};
         nube.disenos.push(d);
         return route.fulfill({status:201,body:JSON.stringify(obj?proy(d):[proy(d)]),headers:H});
       }
