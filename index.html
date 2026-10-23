@@ -5,34 +5,34 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="3a5d780d8a">
+<meta name="build-v" content="495dde39cb">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
 <style>
 :root{--red:#e30613;--dark:#111;--light:#f5f5f0;--gray:#666;--border:#e0e0e0;--green:#1a9c50;--card:#fff;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:"DM Sans",sans-serif;background:var(--light);color:var(--dark);height:100vh;overflow:hidden;}
+body{font-family:"Figtree",sans-serif;background:var(--light);color:var(--dark);height:100vh;overflow:hidden;}
 header{background:var(--dark);color:white;padding:0 16px;display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--red);height:62px;flex-shrink:0;}
 .header-logo{width:48px;height:48px;border-radius:8px;object-fit:cover;}
 .header-text{display:flex;flex-direction:column;gap:2px;}
-header h1{font-family:"Syne",sans-serif;font-size:1.1rem;font-weight:800;margin:0;}
+header h1{font-family:"Figtree",sans-serif;font-size:1.1rem;font-weight:800;margin:0;}
 header span{background:var(--red);color:white;padding:2px 7px;border-radius:4px;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;display:inline-block;width:fit-content;}
 .layout{display:grid;grid-template-columns:420px 1fr;height:calc(100vh - 62px);overflow:hidden;}
 .panel{background:var(--card);border-right:1px solid var(--border);padding:20px;overflow-y:auto;height:100%;}
-.ptitle{font-family:"Syne",sans-serif;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--border);}
-.sec{font-family:"Syne",sans-serif;font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--red);margin:14px 0 7px;}
+.ptitle{font-family:"Figtree",sans-serif;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--border);}
+.sec{font-family:"Figtree",sans-serif;font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--red);margin:14px 0 7px;}
 .field{margin-bottom:9px;}
 label{display:block;font-size:0.74rem;font-weight:600;margin-bottom:3px;color:#444;}
-input[type=text]{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"DM Sans",sans-serif;font-size:0.83rem;background:var(--light);outline:none;transition:border-color 0.2s;}
+input[type=text]{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"Figtree",sans-serif;font-size:0.83rem;background:var(--light);outline:none;transition:border-color 0.2s;}
 input[type=text]:focus{border-color:var(--red);background:white;}
-textarea{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"DM Sans",sans-serif;font-size:0.72rem;background:var(--light);outline:none;resize:vertical;min-height:120px;line-height:1.5;transition:border-color 0.2s;}
+textarea{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"Figtree",sans-serif;font-size:0.72rem;background:var(--light);outline:none;resize:vertical;min-height:120px;line-height:1.5;transition:border-color 0.2s;}
 textarea:focus{border-color:var(--red);background:white;}
 .tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);}
-.tab{flex:1;padding:9px;text-align:center;font-family:"Syne",sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;color:var(--gray);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;}
+.tab{flex:1;padding:9px;text-align:center;font-family:"Figtree",sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;color:var(--gray);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;}
 .tab.active{color:var(--red);border-bottom-color:var(--red);}
 .tab-content{display:none;}.tab-content.active{display:block;}
 .toggle-row{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--light);border-radius:7px;cursor:pointer;margin-bottom:8px;border:1.5px solid var(--border);transition:border-color 0.2s;}
@@ -45,7 +45,7 @@ textarea:focus{border-color:var(--red);background:white;}
 .collapsible{display:none;padding:11px;background:#fff8f8;border-radius:7px;border:1.5px solid #ffd0d0;margin-bottom:8px;}
 .collapsible.show{display:block;}
 .cfg-btns{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;}
-.cfg-btn{flex:1;min-width:52px;padding:7px 3px;border:2px solid var(--border);border-radius:7px;background:white;font-family:"Syne",sans-serif;font-size:0.68rem;font-weight:700;cursor:pointer;transition:all 0.15s;text-align:center;color:var(--dark);}
+.cfg-btn{flex:1;min-width:52px;padding:7px 3px;border:2px solid var(--border);border-radius:7px;background:white;font-family:"Figtree",sans-serif;font-size:0.68rem;font-weight:700;cursor:pointer;transition:all 0.15s;text-align:center;color:var(--dark);}
 .cfg-btn:hover{border-color:var(--red);color:var(--red);}
 .cfg-btn.active{background:var(--red);color:white;border-color:var(--red);}
 .cfg-box{background:var(--light);border-radius:7px;padding:8px 10px;font-size:0.73rem;}
@@ -59,7 +59,7 @@ textarea:focus{border-color:var(--red);background:white;}
 .ftag{padding:3px 8px;background:var(--light);border:1px solid var(--border);border-radius:5px;font-size:0.67rem;cursor:pointer;transition:all 0.15s;font-family:monospace;}
 .ftag:hover{background:var(--red);color:white;border-color:var(--red);}
 .btns{display:flex;flex-direction:column;gap:6px;margin-top:14px;}
-.btn{padding:11px 14px;border:none;border-radius:9px;font-family:"Syne",sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;}
+.btn{padding:11px 14px;border:none;border-radius:9px;font-family:"Figtree",sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;}
 .bp{background:var(--red);color:white;}.bp:hover{background:#c0000f;}
 .bs{background:var(--dark);color:white;}
 .bg{background:transparent;border:1.5px solid var(--border);color:var(--dark);}
@@ -69,7 +69,7 @@ textarea:focus{border-color:var(--red);background:white;}
 .excel-drop:hover,.excel-drop.drag{border-color:var(--green);background:#f0fff5;}
 .excel-drop .icon{font-size:1.6rem;margin-bottom:5px;}
 .excel-drop p{font-size:0.76rem;color:var(--gray);}
-.template-btn{width:100%;padding:9px;border:1.5px solid var(--green);border-radius:7px;background:transparent;color:var(--green);font-family:"Syne",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;margin-bottom:10px;transition:all 0.15s;}
+.template-btn{width:100%;padding:9px;border:1.5px solid var(--green);border-radius:7px;background:transparent;color:var(--green);font-family:"Figtree",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;margin-bottom:10px;transition:all 0.15s;}
 .template-btn:hover{background:var(--green);color:white;}
 .excel-preview{background:var(--light);border-radius:7px;padding:8px 10px;max-height:140px;overflow-y:auto;margin-bottom:8px;font-size:0.7rem;}
 .excel-preview table{width:100%;border-collapse:collapse;}
@@ -97,13 +97,13 @@ textarea:focus{border-color:var(--red);background:white;}
 .modal-overlay.show{display:flex;}
 .modal{background:white;border-radius:12px;padding:20px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;gap:12px;}
 .modal-header{display:flex;align-items:center;justify-content:space-between;}
-.modal-header h3{font-family:"Syne",sans-serif;font-size:1rem;font-weight:800;}
+.modal-header h3{font-family:"Figtree",sans-serif;font-size:1rem;font-weight:800;}
 .modal-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--gray);}
 .modal-body{overflow:auto;flex:1;}
 .modal-body img{max-width:100%;max-height:70vh;display:block;margin:0 auto;}
 .modal-footer{display:flex;gap:8px;}
 .prev{padding:20px;display:flex;flex-direction:column;align-items:center;overflow:auto;background:#e4e4df;}
-.plabel{font-family:"Syne",sans-serif;font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--gray);margin-bottom:11px;align-self:flex-start;}
+.plabel{font-family:"Figtree",sans-serif;font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--gray);margin-bottom:11px;align-self:flex-start;}
 .cw{background:white;box-shadow:0 6px 32px rgba(0,0,0,0.14);border-radius:3px;overflow:hidden;}
 canvas{display:block;max-width:100%;}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--dark);color:white;padding:10px 16px;border-radius:9px;font-size:0.78rem;opacity:0;transform:translateY(8px);transition:all 0.3s;pointer-events:none;z-index:300;border-left:3px solid var(--red);}
@@ -137,60 +137,60 @@ textarea{font-size:.75rem;}
 html{height:100%;overflow:hidden;}
 .header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
 #hdr-user{font-size:0.78rem;color:rgba(255,255,255,0.7);font-weight:500;background:none !important;padding:0 !important;border-radius:0 !important;letter-spacing:0 !important;text-transform:none !important;width:auto !important;}
-.btn-hdr{padding:6px 12px;border:none;border-radius:7px;font-family:"Syne",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;}
+.btn-hdr{padding:6px 12px;border:none;border-radius:7px;font-family:"Figtree",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;}
 .btn-hdr-admin{background:rgba(255,255,255,0.15);color:white;}
 .btn-hdr-admin:hover{background:rgba(255,255,255,0.25);}
 .btn-hdr-out{background:var(--red);color:white;}
 .btn-hdr-out:hover{background:#c0000f;}
 #login-ov{position:fixed;inset:0;background:var(--dark);z-index:9999;display:flex;align-items:center;justify-content:center;}
 .login-card{background:white;border-radius:16px;padding:36px 32px;width:360px;max-width:94vw;box-shadow:0 24px 64px rgba(0,0,0,0.4);}
-.login-card-title{font-family:"Syne",sans-serif;font-size:1.4rem;font-weight:800;margin-bottom:4px;color:var(--dark);}
+.login-card-title{font-family:"Figtree",sans-serif;font-size:1.4rem;font-weight:800;margin-bottom:4px;color:var(--dark);}
 .login-card-sub{font-size:0.8rem;color:var(--gray);margin-bottom:24px;}
 .login-lbl{display:block;font-size:0.75rem;font-weight:600;margin-bottom:4px;color:#444;}
-.login-inp{width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-family:"DM Sans",sans-serif;font-size:0.88rem;outline:none;transition:border-color .2s;margin-bottom:12px;box-sizing:border-box;}
+.login-inp{width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-family:"Figtree",sans-serif;font-size:0.88rem;outline:none;transition:border-color .2s;margin-bottom:12px;box-sizing:border-box;}
 .login-inp:focus{border-color:var(--red);}
 .login-inp:disabled{background:#f5f5f5;color:var(--gray);}
 .login-err{font-size:0.76rem;color:var(--red);min-height:18px;margin-bottom:8px;}
-.login-submit{width:100%;padding:12px;background:var(--red);color:white;border:none;border-radius:9px;font-family:"Syne",sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;transition:background .2s;}
+.login-submit{width:100%;padding:12px;background:var(--red);color:white;border:none;border-radius:9px;font-family:"Figtree",sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;transition:background .2s;}
 .login-submit:hover{background:#c0000f;}
 .login-submit:disabled{opacity:0.6;cursor:not-allowed;}
 #admin-panel{position:fixed;top:0;right:0;width:700px;max-width:100vw;height:100vh;height:100dvh;background:#f8f8f6;box-shadow:-8px 0 32px rgba(0,0,0,0.18);z-index:800;display:none;flex-direction:column;}
 .ap-header{padding:0 20px;height:62px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:12px;background:white;}
-.ap-title{font-family:"Syne",sans-serif;font-size:1rem;font-weight:800;flex:1;margin:0;}
+.ap-title{font-family:"Figtree",sans-serif;font-size:1rem;font-weight:800;flex:1;margin:0;}
 .ap-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--gray);padding:4px;line-height:1;}
 .ap-close:hover{color:var(--dark);}
 .atabs{display:flex;border-bottom:2px solid var(--border);background:white;}
-.atab{flex:1;padding:12px 8px;text-align:center;font-family:"Syne",sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;color:var(--gray);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;text-transform:uppercase;letter-spacing:0.8px;}
+.atab{flex:1;padding:12px 8px;text-align:center;font-family:"Figtree",sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;color:var(--gray);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;text-transform:uppercase;letter-spacing:0.8px;}
 .atab.active{color:var(--red);border-bottom-color:var(--red);}
 .ap-body{flex:1;overflow-y:auto;padding:20px;}
-.ap-sec{font-family:"Syne",sans-serif;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gray);margin-bottom:10px;}
+.ap-sec{font-family:"Figtree",sans-serif;font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gray);margin-bottom:10px;}
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
 .stat-card{background:white;border-radius:12px;padding:14px 16px;border:1.5px solid var(--border);}
-.stat-card span{display:block;font-size:0.6875rem;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-family:"Syne",sans-serif;}
-.stat-card strong{font-family:"Syne",sans-serif;font-size:1.9rem;font-weight:800;color:var(--dark);}
+.stat-card span{display:block;font-size:0.6875rem;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-family:"Figtree",sans-serif;}
+.stat-card strong{font-family:"Figtree",sans-serif;font-size:1.9rem;font-weight:800;color:var(--dark);}
 .stat-card.sc-red strong{color:var(--red);}
 .stat-card.sc-green strong{color:var(--green);}
 .stat-card.sc-blue strong{color:#1565c0;}
 .recent-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:white;border-radius:9px;margin-bottom:5px;border:1.5px solid var(--border);}
-.usr-avatar{width:34px;height:34px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;flex-shrink:0;font-family:"Syne",sans-serif;}
+.usr-avatar{width:34px;height:34px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;flex-shrink:0;font-family:"Figtree",sans-serif;}
 .usr-avatar.sm{width:28px;height:28px;font-size:0.75rem;}
 .recent-info{flex:1;min-width:0;}
 .recent-info strong{display:block;font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .recent-info small{font-size:0.75rem;color:var(--gray);}
 .recent-time{font-size:0.75rem;color:var(--gray);flex-shrink:0;}
-.badge{font-family:"Syne",sans-serif;font-size:0.75rem;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;letter-spacing:0.3px;}
+.badge{font-family:"Figtree",sans-serif;font-size:0.75rem;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;letter-spacing:0.3px;}
 .badge-active{background:#e8f5e9;color:#2e7d32;}
 .badge-inactive{background:#ffebee;color:#c62828;}
 .badge-admin{background:#e3f2fd;color:#1565c0;}
 .badge-asesor{background:#f3e5f5;color:#6a1b9a;}
 .badge-vip{background:#fdf0d5;color:#9a6b00;}
 .usr-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.btn-new-usr{background:var(--red);color:white;border:none;border-radius:8px;padding:8px 16px;font-family:"Syne",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;transition:background .15s;}
+.btn-new-usr{background:var(--red);color:white;border:none;border-radius:8px;padding:8px 16px;font-family:"Figtree",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;transition:background .15s;}
 .btn-new-usr:hover{background:#c0000f;}
 .usr-search-bar{display:flex;gap:8px;margin-bottom:12px;}
-.usr-search-inp{flex:1;padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-family:"DM Sans",sans-serif;font-size:0.82rem;outline:none;transition:border-color .2s;}
+.usr-search-inp{flex:1;padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-family:"Figtree",sans-serif;font-size:0.82rem;outline:none;transition:border-color .2s;}
 .usr-search-inp:focus{border-color:var(--red);}
-.usr-filter-sel{padding:8px 10px;border:2px solid var(--border);border-radius:8px;font-family:"DM Sans",sans-serif;font-size:0.78rem;outline:none;background:white;cursor:pointer;}
+.usr-filter-sel{padding:8px 10px;border:2px solid var(--border);border-radius:8px;font-family:"Figtree",sans-serif;font-size:0.78rem;outline:none;background:white;cursor:pointer;}
 .usr-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:white;border:1.5px solid var(--border);border-radius:10px;margin-bottom:6px;transition:border-color .15s;}
 .usr-row:hover{border-color:#bbb;}
 .usr-row-active{border-color:var(--green);background:#f0fff4;}
@@ -199,7 +199,7 @@ html{height:100%;overflow:hidden;}
 .usr-info small{font-size:0.75rem;color:var(--gray);}
 .usr-badges{display:flex;gap:5px;align-items:center;flex-shrink:0;}
 .usr-btns{display:flex;gap:6px;flex-shrink:0;}
-.usr-btn{padding:5px 10px;border:none;border-radius:6px;font-family:"Syne",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.usr-btn{padding:5px 10px;border:none;border-radius:6px;font-family:"Figtree",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;transition:all .15s;}
 .usr-btn.warn{background:#fff0f0;color:#c00;}
 .usr-btn.warn:hover{background:#c00;color:white;}
 .usr-btn.ok{background:#f0fff5;color:var(--green);}
@@ -211,20 +211,20 @@ html{height:100%;overflow:hidden;}
 .mp-ok{color:var(--green);font-size:.8rem;font-weight:600;padding:0 22px 4px;text-align:center;}
 .um-card{background:white;border-radius:16px;width:520px;max-width:96vw;box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;}
 .um-header{padding:18px 22px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;}
-.um-header h3{font-family:"Syne",sans-serif;font-size:0.95rem;font-weight:800;flex:1;margin:0;}
+.um-header h3{font-family:"Figtree",sans-serif;font-size:0.95rem;font-weight:800;flex:1;margin:0;}
 .um-body{padding:20px 22px;}
 .um-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .um-full{grid-column:1/-1;}
 .um-footer{padding:14px 22px;border-top:1.5px solid var(--border);display:flex;justify-content:flex-end;gap:10px;background:#fafaf8;}
-.btn-cancel{padding:9px 18px;background:var(--light);color:var(--dark);border:1.5px solid var(--border);border-radius:8px;font-family:"Syne",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;}
+.btn-cancel{padding:9px 18px;background:var(--light);color:var(--dark);border:1.5px solid var(--border);border-radius:8px;font-family:"Figtree",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;}
 .btn-cancel:hover{background:var(--border);}
-.btn-submit{padding:9px 22px;background:var(--red);color:white;border:none;border-radius:8px;font-family:"Syne",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;transition:background .15s;}
+.btn-submit{padding:9px 22px;background:var(--red);color:white;border:none;border-radius:8px;font-family:"Figtree",sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;transition:background .15s;}
 .btn-submit:hover{background:#c0000f;}
 .btn-submit:disabled{opacity:0.6;cursor:not-allowed;}
 .um-err{font-size:0.75rem;color:var(--red);min-height:16px;padding:0 22px 8px;}
 #toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:white;padding:10px 18px;border-radius:10px;font-size:0.8rem;font-weight:600;z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none;}
 .login-links{display:flex;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:4px;}
-.login-link{font-size:0.75rem;color:var(--red);cursor:pointer;background:none;border:none;padding:0;font-family:"DM Sans",sans-serif;text-decoration:none;}
+.login-link{font-size:0.75rem;color:var(--red);cursor:pointer;background:none;border:none;padding:0;font-family:"Figtree",sans-serif;text-decoration:none;}
 .login-link:hover{text-decoration:underline;}
 .login-ok{font-size:0.76rem;color:var(--green);min-height:18px;margin-bottom:8px;font-weight:600;}
 .badge-pending{background:#fff8e0;color:#c07000;}
@@ -249,17 +249,17 @@ html{height:100%;overflow:hidden;}
 .reg-mid{font-size:.75rem;color:#333;line-height:1.8;flex-wrap:wrap;}
 .reg-lbl{font-weight:700;color:var(--gray);font-size:.6875rem;text-transform:uppercase;letter-spacing:.8px;margin-right:3px;}
 .reg-montos{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;}
-.reg-monto{background:#e8f0ff;color:#1565c0;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px;font-family:"Syne",sans-serif;}
+.reg-monto{background:#e8f0ff;color:#1565c0;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px;font-family:"Figtree",sans-serif;}
 .reg-fecha{font-size:.75rem;color:var(--gray);flex-shrink:0;margin-top:2px;}
 .reg-filter{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;padding:12px 14px;background:white;border-radius:10px;border:1.5px solid var(--border);}
 .reg-filter-group{display:flex;flex-direction:column;gap:3px;}
-.reg-filter-group label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray);font-family:"Syne",sans-serif;}
-.reg-filter-group input,.reg-filter-group select{padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"DM Sans",sans-serif;font-size:.78rem;outline:none;transition:border-color .2s;background:white;}
+.reg-filter-group label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray);font-family:"Figtree",sans-serif;}
+.reg-filter-group input,.reg-filter-group select{padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:"Figtree",sans-serif;font-size:.78rem;outline:none;transition:border-color .2s;background:white;}
 .reg-filter-group input:focus,.reg-filter-group select:focus{border-color:var(--red);}
 .zoom-bar{display:flex;align-items:center;gap:6px;margin-bottom:14px;background:rgba(255,255,255,0.85);border-radius:10px;padding:5px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);backdrop-filter:blur(4px);position:sticky;top:0;z-index:10;}
-.zoom-btn{background:white;border:1.5px solid var(--border);border-radius:6px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--dark);line-height:1;font-family:"DM Sans",sans-serif;}
+.zoom-btn{background:white;border:1.5px solid var(--border);border-radius:6px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--dark);line-height:1;font-family:"Figtree",sans-serif;}
 .zoom-btn:hover{background:var(--light);border-color:#bbb;}
-.zoom-pct{font-size:.75rem;color:var(--gray);min-width:40px;text-align:center;font-family:"Syne",sans-serif;font-weight:700;}
+.zoom-pct{font-size:.75rem;color:var(--gray);min-width:40px;text-align:center;font-family:"Figtree",sans-serif;font-weight:700;}
 .af-banner{padding:11px 14px;border-radius:10px;border:1.5px solid #81c784;background:#f0fff4;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;}
 .af-banner-empty{background:#f8f8f6;border-color:var(--border);color:var(--gray);font-size:.78rem;}
 .af-banner-info{display:flex;align-items:center;gap:8px;min-width:0;}
@@ -313,7 +313,7 @@ html{height:100%;overflow:hidden;}
 .stat-card.sc-yellow::before{background:#f5c542;}
 .stat-card.sc-yellow span,.stat-card.sc-yellow strong{color:#c07000;}
 .stat-card span{font-size:0.6875rem;letter-spacing:0.8px;}
-.stat-card strong{font-family:"DM Sans",sans-serif;font-weight:700;font-size:1.55rem;font-variant-numeric:tabular-nums;letter-spacing:0;line-height:1.15;margin-top:2px;display:block;}
+.stat-card strong{font-family:"Figtree",sans-serif;font-weight:700;font-size:1.55rem;font-variant-numeric:tabular-nums;letter-spacing:0;line-height:1.15;margin-top:2px;display:block;}
 /* Filas: hover + profundidad */
 .recent-row,.usr-row,.reg-row{box-shadow:0 1px 2px rgba(0,0,0,0.03);transition:border-color 0.15s,box-shadow 0.15s,transform 0.15s;}
 .recent-row:hover,.usr-row:hover,.reg-row:hover{border-color:#d0d0c8;box-shadow:0 5px 14px rgba(0,0,0,0.07);}
@@ -394,13 +394,13 @@ html.dark .atab:hover{background:#262b31;}
 html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1e23;}
 /* ===== MENU DE USUARIO (header) ===== */
 .hdr-user-menu{position:relative;}
-.hdr-user-btn{background:none;border:none;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:"DM Sans",sans-serif;font-size:.78rem;font-weight:500;padding:5px 8px;border-radius:7px;transition:background .15s;}
+.hdr-user-btn{background:none;border:none;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:"Figtree",sans-serif;font-size:.78rem;font-weight:500;padding:5px 8px;border-radius:7px;transition:background .15s;}
 .hdr-user-btn:hover{background:rgba(255,255,255,0.14);}
 .hdr-caret{font-size:.58rem;opacity:.7;}
 .hdr-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.28);min-width:212px;padding:6px;z-index:1500;display:none;border:1px solid var(--border);}
 .hdr-dropdown.open{display:block;animation:ddIn .14s ease;}
 @keyframes ddIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
-.hdr-dd-item{width:100%;display:flex;align-items:center;gap:9px;background:none;border:none;text-align:left;padding:9px 11px;border-radius:8px;font-family:"DM Sans",sans-serif;font-size:.8rem;font-weight:600;color:var(--dark);cursor:pointer;transition:background .12s;}
+.hdr-dd-item{width:100%;display:flex;align-items:center;gap:9px;background:none;border:none;text-align:left;padding:9px 11px;border-radius:8px;font-family:"Figtree",sans-serif;font-size:.8rem;font-weight:600;color:var(--dark);cursor:pointer;transition:background .12s;}
 .hdr-dd-item:hover{background:var(--light);color:var(--red);}
 .hdr-dd-item.danger{color:var(--dark);}
 .hdr-dd-item.danger:hover{background:#fff0f0;color:var(--red);}
@@ -409,7 +409,7 @@ html.dark .ap-body::-webkit-scrollbar-thumb{background:#3a4049;border-color:#1b1
 .hdr-dd-item .dd-svg{width:16px;height:16px;flex-shrink:0;opacity:.7;}
 .hdr-dd-item.danger .dd-svg{opacity:.9;}
 .hdr-dd-head{padding:9px 11px 6px;}
-.hdr-dd-name{font-family:"Syne",sans-serif;font-size:.82rem;font-weight:800;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
+.hdr-dd-name{font-family:"Figtree",sans-serif;font-size:.82rem;font-weight:800;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
 html.dark .hdr-dropdown{background:#22262c;border-color:#333840;}
 html.dark .hdr-dd-item:hover{background:#2a2f36;color:#ff6b6b;}
 html.dark .hdr-dd-item.danger:hover{background:#3a2326;}
@@ -417,9 +417,9 @@ html.dark .hdr-dd-item.danger:hover{background:#3a2326;}
 .notes-card{width:680px;max-width:96vw;}
 .notes-body{display:flex;height:430px;max-height:72vh;}
 .notes-side{width:200px;border-right:1.5px solid var(--border);padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;flex-shrink:0;}
-.notes-new{width:100%;padding:8px;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:"Syne",sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;}
+.notes-new{width:100%;padding:8px;background:var(--red);color:#fff;border:none;border-radius:8px;font-family:"Figtree",sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;}
 .notes-new:hover{background:#c0000f;}
-.note-item{width:100%;text-align:left;background:none;border:1.5px solid transparent;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:"DM Sans",sans-serif;font-size:.78rem;color:var(--dark);transition:all .12s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.note-item{width:100%;text-align:left;background:none;border:1.5px solid transparent;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:"Figtree",sans-serif;font-size:.78rem;color:var(--dark);transition:all .12s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .note-item:hover{background:var(--light);}
 .note-item.active{background:var(--light);border-color:var(--red);font-weight:700;}
 .notes-main{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0;}
@@ -438,7 +438,7 @@ html.dark .note-move{background:#2a2f36;color:#e9eaec;border-color:#3a4049;}
 .sec-clickable:hover{opacity:.78;}
 .sec-caret{font-size:.55rem;opacity:.7;}
 .as-pop{position:fixed;z-index:1600;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.26);width:248px;max-width:92vw;padding:6px;animation:ddIn .14s ease;}
-.as-pop-head{font-family:"Syne",sans-serif;font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray);padding:7px 9px 5px;}
+.as-pop-head{font-family:"Figtree",sans-serif;font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray);padding:7px 9px 5px;}
 .as-list{max-height:220px;overflow-y:auto;}
 .as-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:.8rem;color:var(--dark);transition:background .12s;}
 .as-item:hover{background:var(--light);}
@@ -447,7 +447,7 @@ html.dark .note-move{background:#2a2f36;color:#e9eaec;border-color:#3a4049;}
 .as-del:hover{background:var(--red);color:#fff;}
 .as-empty{font-size:.76rem;color:var(--gray);padding:10px;text-align:center;}
 .as-pop-foot{display:flex;gap:6px;border-top:1px solid var(--border);margin-top:4px;padding:6px 4px 2px;}
-.as-act{flex:1;background:var(--light);border:1.5px solid var(--border);border-radius:7px;padding:6px 8px;font-family:"Syne",sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;color:var(--dark);transition:all .15s;white-space:nowrap;}
+.as-act{flex:1;background:var(--light);border:1.5px solid var(--border);border-radius:7px;padding:6px 8px;font-family:"Figtree",sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;color:var(--dark);transition:all .15s;white-space:nowrap;}
 .as-act:hover{border-color:var(--red);color:var(--red);}
 html.dark .as-pop{background:#22262c;border-color:#333840;}
 html.dark .as-item:hover,html.dark .as-act{background:#2a2f36;color:#e9eaec;}
@@ -455,7 +455,7 @@ html.dark .as-act{border-color:#3a4049;}
 html.dark .as-pop-foot{border-color:#333840;}
 /* ===== PANEL ADMIN: 3 PILARES (Admin/Data/Config) + SUB-SOLAPAS ===== */
 .stabs{display:flex;gap:6px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--border);overflow-x:auto;}
-.stab{border-radius:999px;padding:6px 14px;font-family:"Syne",sans-serif;font-size:.75rem;font-weight:700;color:var(--gray);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
+.stab{border-radius:999px;padding:6px 14px;font-family:"Figtree",sans-serif;font-size:.75rem;font-weight:700;color:var(--gray);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
 .stab:hover{background:#faf6f6;color:var(--dark);}
 .stab.active{background:var(--red);color:#fff;}
 .stab.active:hover{background:var(--red);color:#fff;}
@@ -473,7 +473,7 @@ html.dark .stab:hover{background:#2a2f36;color:#e9eaec;}
 .fac-row:last-child{border-bottom:none;}
 .fac-row>div{text-align:center;}
 .fac-row>div:first-child{text-align:left;}
-.fac-head{background:var(--light);font-family:"Syne",sans-serif;font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray);}
+.fac-head{background:var(--light);font-family:"Figtree",sans-serif;font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray);}
 .fac-name{font-size:.82rem;font-weight:600;}
 .fac-desc{font-size:.75rem;color:var(--gray);margin-top:2px;line-height:1.4;}
 .fac-row input[type=checkbox]{width:17px;height:17px;cursor:pointer;accent-color:var(--red);}
@@ -484,7 +484,7 @@ html.dark .fac-head{background:#1b1e23;}
    y arrancan plegadas: la cabecera se toca para desplegar y la flecha gira. */
 .fac-grp{background:var(--light);cursor:pointer;user-select:none;}
 .fac-grp:hover{background:rgba(245,146,30,.12);}
-.fac-grp .fac-name{display:flex;align-items:center;gap:8px;font-family:"Syne",sans-serif;}
+.fac-grp .fac-name{display:flex;align-items:center;gap:8px;font-family:"Figtree",sans-serif;}
 .fac-car{font-size:.58rem;color:var(--gray);transition:transform .15s;}
 .fac-grp.abierto .fac-car{transform:rotate(90deg);}
 .fac-grp-n{font-size:.75rem;font-weight:400;color:var(--gray);}
@@ -499,10 +499,10 @@ html.dark .fac-grp{background:#1b1e23;}
 /* Barra de vista previa: el admin viendo la app como otro perfil */
 #fac-simbar{position:fixed;left:0;right:0;bottom:0;z-index:2000;display:flex;align-items:center;
   justify-content:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:#111;color:#fff;
-  font-family:"DM Sans",sans-serif;font-size:.8rem;box-shadow:0 -4px 18px rgba(0,0,0,.3);}
+  font-family:"Figtree",sans-serif;font-size:.8rem;box-shadow:0 -4px 18px rgba(0,0,0,.3);}
 #fac-simbar strong{color:#ffb3ba;}
 #fac-simbar button{background:#fff;color:#111;border:none;border-radius:7px;padding:6px 14px;
-  font-family:"Syne",sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;}
+  font-family:"Figtree",sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;}
 #fac-simbar button:hover{background:var(--red);color:#fff;}
 
 /* ===== BUSCADOR PROMOCIONES ===== */
@@ -535,7 +535,7 @@ header.reorder{cursor:grabbing;}
    <span> dentro de <header>: sin este reset heredarían la "píldora roja" que la regla
    base "header span" usa para el ARMADOR/BUSCADOR (mismo problema ya visto en .hdr-user). */
 .hdr-avatar,.hdr-caret{padding:0;letter-spacing:normal;text-transform:none;width:auto;}
-.hdr-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--red),#ff7a45);display:inline-flex;align-items:center;justify-content:center;font:800 .75rem "Syne",sans-serif;color:#fff;flex-shrink:0;}
+.hdr-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--red),#ff7a45);display:inline-flex;align-items:center;justify-content:center;font:800 .75rem "Figtree",sans-serif;color:#fff;flex-shrink:0;}
 .hdr-caret{background:none;}
 .hdr-user-btn{gap:8px;padding:3px 10px 3px 3px;}
 /* Admin, contorno en vez de relleno: menos peso visual junto al resto de la barra. */
@@ -560,7 +560,7 @@ html.dark .promos-results{background:#1b1e23;}
 .promos-sync-box{margin-top:14px;padding:10px 12px;background:var(--light);border-radius:9px;border:1px solid var(--border);}
 #promos-sync-info{font-size:0.75rem;color:var(--gray);line-height:1.4;}
 .promos-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
-.promos-chip{padding:5px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;font-family:"Syne",sans-serif;}
+.promos-chip{padding:5px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;font-family:"Figtree",sans-serif;}
 .promos-chip.c-vigente{background:#e2f5e8;color:#1a7a3f;}
 .promos-chip.c-vence{background:#fff2cc;color:#8a6300;}
 .promos-chip.c-vencida{background:#fde3e2;color:#a3241a;}
@@ -568,7 +568,7 @@ html.dark .promos-results{background:#1b1e23;}
 .promos-chip.c-no{background:#ececec;color:#666;}
 .promos-table-wrap{overflow-x:auto;}
 .promos-table{width:100%;border-collapse:collapse;font-size:0.75rem;}
-.promos-table th{text-align:left;padding:7px 8px;background:var(--light);border-bottom:2px solid var(--border);font-family:"Syne",sans-serif;font-size:0.6875rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--gray);}
+.promos-table th{text-align:left;padding:7px 8px;background:var(--light);border-bottom:2px solid var(--border);font-family:"Figtree",sans-serif;font-size:0.6875rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--gray);}
 .promos-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
 .promos-table tr.excluida{opacity:0.4;}
 .promos-logo{width:30px;height:30px;object-fit:contain;border-radius:5px;background:#fafafa;border:1px solid var(--border);}
@@ -593,13 +593,13 @@ html.dark .promos-logo{background:#22262c;border-color:#333840;}
    buscador y el selector, el ultimo (No encontradas) se salia de la vista. */
 .promos-results-head .promos-summary{margin-bottom:0;flex:1 0 100%;}
 
-.promos-search{width:230px;padding:7px 11px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.75rem;background:var(--card);outline:none;transition:border-color .15s;}
+.promos-search{width:230px;padding:7px 11px;border:1.5px solid var(--border);border-radius:20px;font-family:"Figtree",sans-serif;font-size:0.75rem;background:var(--card);outline:none;transition:border-color .15s;}
 .promos-search:focus{border-color:var(--red);}
 .promos-chip{cursor:pointer;transition:box-shadow .15s,transform .1s;}
 .promos-chip:hover{box-shadow:0 2px 8px rgba(0,0,0,.14);}
 .promos-chip.activo{box-shadow:0 0 0 2px var(--dark) inset;}
 .promos-filrow th{padding:4px 6px;background:var(--card);border-bottom:2px solid var(--border);}
-.promos-fil{width:100%;min-width:70px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:"DM Sans",sans-serif;font-size:0.75rem;background:var(--light);outline:none;}
+.promos-fil{width:100%;min-width:70px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:"Figtree",sans-serif;font-size:0.75rem;background:var(--light);outline:none;}
 .promos-fil:focus{border-color:var(--red);background:var(--card);}
 .promos-sinfiltro{text-align:center;color:var(--gray);font-size:0.76rem;padding:22px 8px;}
 .promos-count{font-size:0.75rem;color:var(--gray);align-self:center;}
@@ -646,7 +646,7 @@ html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
 /* Selector "Ordenar por" de la tabla de promociones */
 .promos-search-box{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
 .promos-sort-lbl{font-size:0.75rem;color:var(--gray);font-weight:600;white-space:nowrap;}
-.promos-sort-sel{padding:7px 10px;border:1.5px solid var(--border);border-radius:20px;font-family:"DM Sans",sans-serif;font-size:0.75rem;background:var(--card);outline:none;cursor:pointer;max-width:250px;}
+.promos-sort-sel{padding:7px 10px;border:1.5px solid var(--border);border-radius:20px;font-family:"Figtree",sans-serif;font-size:0.75rem;background:var(--card);outline:none;cursor:pointer;max-width:250px;}
 .promos-sort-sel:focus{border-color:var(--red);}
 html.dark .promos-sort-sel{background:#22262c;border-color:#333840;color:#e9eaec;}
 /* El buscador y el selector de orden quedan a la derecha, en su propia fila */
@@ -1170,10 +1170,10 @@ html.dark .stat-card.sc-yellow span,html.dark .stat-card.sc-yellow strong{color:
 /* Empresa cuyo flyer este perfil no puede bajar: se lista igual (para que el
    hunter sepa que está cargada) pero se ve apagada y el aviso dice por qué. */
 .hun-row.hun-no{opacity:.72;}
-.hun-emp{font-family:"Syne",sans-serif;font-weight:700;font-size:.82rem;color:var(--dark);line-height:1.25;}
+.hun-emp{font-family:"Figtree",sans-serif;font-weight:700;font-size:.82rem;color:var(--dark);line-height:1.25;}
 .hun-sub{font-size:.75rem;color:var(--gray);margin-top:2px;}
 .hun-of{font-size:.75rem;color:var(--ink-2,var(--dark));margin-top:3px;}
-.hun-tag{display:inline-block;margin-top:6px;font-family:"Syne",sans-serif;font-size:.75rem;font-weight:700;
+.hun-tag{display:inline-block;margin-top:6px;font-family:"Figtree",sans-serif;font-size:.75rem;font-weight:700;
   letter-spacing:.3px;padding:3px 8px;border-radius:20px;background:var(--navy-soft);color:var(--navy);}
 .hun-row.hun-no .hun-tag{background:#ffebee;color:#c62828;}
 .hun-av{font-size:.75rem;color:#b06000;margin-top:5px;}
@@ -1996,8 +1996,56 @@ html.dark .mg-av-a,html.dark .mg-pb-pista.aprox,html.dark .mg-fila-t .mg-vieja{c
 @media (max-width:520px){.mg-fila-img{width:84px;}}
 .fg-cf.fg-mgg{width:min(460px,100%);}
 .fg-mgg select{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font:500 .8125rem "Figtree",sans-serif;background:var(--field,#fff);color:var(--ink);}
+/* ── Pulido 23-oct-2026 ──
+   Menú del usuario: los rótulos son <span> dentro de <header> y heredaban la píldora
+   naranja de la regla vieja "header span" (se veían como etiquetas en mayúscula). */
+.hdr-dd-item span:not(#bd-badge):not(#hunprop-badge){background:none;color:inherit;padding:0;border-radius:0;font-size:inherit;font-weight:inherit;letter-spacing:normal;text-transform:none;width:auto;display:inline;}
+/* Oscuro: la opción elegida se pintaba con su color (marino) sobre gris oscuro; la letra va clara y el color queda en la raya de abajo. */
+html.dark #fg-optbar .fgo.on{color:#f3f4f6 !important;}
+/* Oscuro: los logos de Promociones van sobre blanco (los negros desaparecían). */
+html.dark .promos-logo{background:#fff;border-color:#3a3f47;}
+/* Un botón apagado tiene que verse apagado (antes quedaba igual que uno prendido). */
+.btn:disabled,.btn[disabled]{opacity:.5;cursor:not-allowed;box-shadow:none;}
+/* Celular: "Descargar" en la pastilla Editar / Vista previa (mismo botón que "Descargar PDF"). */
+#mv-toggle .mv-dl{display:inline-flex;align-items:center;gap:5px;color:var(--accent-2,var(--accent));}
+#mv-toggle .mv-dl .ico{width:15px;height:15px;}
+/* Promociones en el celular: una tarjeta por promo en vez de la tabla de 9 columnas
+   (medía 886 px en una pantalla de 375 y el estado y el vencimiento quedaban afuera).
+   Los filtros por columna se esconden: quedan los contadores, el buscador y los del panel. */
+@media (max-width:700px){
+  .promos-table-wrap{overflow-x:visible;}
+  .promos-table thead{display:none;}
+  .promos-table,.promos-table tbody{display:block;width:100%;}
+  .promos-table tr{display:grid;grid-template-columns:auto 40px minmax(0,1fr) auto;grid-template-areas:"sel logo promo est" "sel logo cat hasta" "sel logo donde link" "sel logo marca marca";column-gap:10px;row-gap:3px;padding:11px 4px;border-bottom:1px solid var(--border);align-items:start;}
+  .promos-table td{display:block;padding:0;border:0;background:none !important;}
+  .promos-table tr.elegida{background:var(--accent-soft);}
+  .promos-table .pc-sel{grid-area:sel;align-self:center;}
+  .promos-table .pc-logo{grid-area:logo;align-self:center;}
+  .promos-table .pc-promo{grid-area:promo;font-weight:700;font-size:.8125rem;min-width:0;}
+  .promos-table .pc-est{grid-area:est;justify-self:end;}
+  .promos-table .pc-cat{grid-area:cat;color:var(--gray);font-size:12px;}
+  .promos-table .pc-hasta{grid-area:hasta;justify-self:end;font-size:12px;white-space:nowrap;}
+  .promos-table .pc-hasta::before{content:"Hasta ";color:var(--gray);}
+  .promos-table .pc-donde{grid-area:donde;color:var(--gray);font-size:12px;}
+  .promos-table .pc-link{grid-area:link;justify-self:end;}
+  .promos-table .pc-marca{grid-area:marca;color:var(--gray);font-size:12px;}
+  .promos-table .pc-marca::before{content:"Pegaste: ";}
+  .promos-table .pc-desde{display:none;}
+}
+/* Base de datos: una línea corta y la explicación larga plegada ("¿Cómo funciona?"),
+   así los botones y la lista quedan arriba (antes había seis párrafos antes de los botones). */
+.bd-corto{font-size:.82rem;color:var(--gray);margin:0 0 6px;line-height:1.5;}
+.bd-ayuda{margin:0 0 14px;font-size:.82rem;color:var(--gray);line-height:1.5;}
+.bd-ayuda summary{cursor:pointer;font-weight:700;color:var(--accent-2,var(--accent));width:fit-content;list-style-position:inside;}
+.bd-ayuda[open] summary{margin-bottom:6px;}
+.bd-ayuda p{margin:0;padding:10px 12px;background:var(--light);border:1px solid var(--border);border-radius:10px;}
+/* Promociones: qué da cada promo, debajo de la marca */
+.promos-benef{margin-top:2px;font-size:12px;font-weight:600;color:var(--ink-2,var(--ink));}
+@media (max-width:900px){
+  body.en-armador #mv-toggle button{white-space:nowrap;padding:8px 13px;}
+}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=a5e63c250f"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=457dc4e89c"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
@@ -2611,7 +2659,8 @@ baseImg.dataset.fallback="flyer_default.jpg";
 
     <div id="at-varios" class="bd-pane" style="display:none">
       <p class="ap-sec">Mis empresas</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5"><strong>Esta lista es tuya.</strong> Nadie m&aacute;s puede editarla: lo impide el servidor, no el navegador. Cada usuario con la facultad tiene la suya, separada de la tuya. Un administrador puede consultar (nunca modificar) las empresas de los asesores; las de un administrador no las ve ni siquiera el otro administrador.<br><br>Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>Tu lista <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo o edit&aacute;s a mano, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.<br><br><strong>Cashback:</strong> la columna se llama <code>config</code> y acepta el nombre de cualquier configuraci&oacute;n que exista en Config &rarr; Cashback (<code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>&hellip;; tambi&eacute;n vale escribir s&oacute;lo el n&uacute;mero). Si la celda queda <strong>vac&iacute;a</strong> (o dice algo que no reconozco), esa empresa sale <strong>sin cashback</strong>: el flyer se genera con los importes en blanco. As&iacute; se marcan las pocas empresas a las que no les corresponde. Al subir el Excel te muestro un informe con todo lo que detect&eacute;, antes de guardar nada.<br><br><strong>Beneficio por rubro (Flyer Rubros):</strong> columnas <code>rubro</code> (el nombre de una opci&oacute;n de Flyer Rubros: <code>Combustible</code>, <code>Supermercado</code>, <code>Ambos</code>&hellip; vac&iacute;a = sin rubro), <code>tope_combustible</code> y <code>tope_supermercado</code> (el tope de reintegro de cada uno, ej. <code>24.000</code>: una empresa de combustible completa s&oacute;lo el de combustible, una de supermercado s&oacute;lo el de supermercado, y una de &laquo;Ambos&raquo; los dos). Los Excel viejos con <code>tope</code> / <code>tope2</code> se siguen leyendo. Al elegir la empresa con la lupa se completan los topes, y si est&aacute;s armando el flyer en la solapa equivocada te aviso y te ofrezco cambiar. Al generar un flyer de Rubros para una empresa de tu lista, te propongo guardarle el rubro.<br><br><strong>Generar flyers:</strong> desde el bot&oacute;n &laquo;Generar flyers&raquo; eleg&iacute;s empresas de tu lista (o todas) y baj&aacute;s un ZIP con el flyer de cada una en <strong>su formato</strong>: el armador com&uacute;n, o Flyer Rubros seg&uacute;n el rubro cargado, con sus oficiales, cashback y topes. El ZIP viene ordenado en una carpeta por formato, con un <code>Resumen.txt</code>, y al terminar te muestro cu&aacute;ntos salieron de cada uno y qu&eacute; observaciones hubo.</p>
+      <p class="bd-corto">Tus empresas, privadas: la <strong>lupa</strong> del armador las busca por raz&oacute;n social o CUIT y completa oficiales, cashback y topes.</p>
+      <details class="bd-ayuda"><summary>&iquest;C&oacute;mo funciona?</summary><p><strong>Esta lista es tuya.</strong> Nadie m&aacute;s puede editarla: lo impide el servidor, no el navegador. Cada usuario con la facultad tiene la suya, separada de la tuya. Un administrador puede consultar (nunca modificar) las empresas de los asesores; las de un administrador no las ve ni siquiera el otro administrador.<br><br>Sub&iacute; un Excel con las empresas precargadas (raz&oacute;n social, CUIT, cashback y hasta 4 asesores). Despu&eacute;s, en el armador, la <strong>lupa al lado de "Nombre de la empresa"</strong> busca por <strong>raz&oacute;n social o CUIT</strong> y completa todo de una. Si la empresa es un <strong>grupo con varios CUIT</strong>, pon&eacute;los en la misma celda separados por coma: buscando cualquiera de ellos aparece la empresa.<br><br>Tu lista <strong>no se retroalimenta</strong> con los flyers que se van generando: s&oacute;lo cambia cuando sub&iacute;s un Excel nuevo o edit&aacute;s a mano, as&iacute; el archivo de tu computadora sigue siendo el original. Es <strong>el mismo formato que la plantilla del masivo</strong> m&aacute;s la columna <code>cuit</code>, con lo cual el mismo archivo te sirve para las dos cosas.<br><br><strong>Cashback:</strong> la columna se llama <code>config</code> y acepta el nombre de cualquier configuraci&oacute;n que exista en Config &rarr; Cashback (<code>BAU</code>, <code>Config 1</code>, <code>Config 2</code>&hellip;; tambi&eacute;n vale escribir s&oacute;lo el n&uacute;mero). Si la celda queda <strong>vac&iacute;a</strong> (o dice algo que no reconozco), esa empresa sale <strong>sin cashback</strong>: el flyer se genera con los importes en blanco. As&iacute; se marcan las pocas empresas a las que no les corresponde. Al subir el Excel te muestro un informe con todo lo que detect&eacute;, antes de guardar nada.<br><br><strong>Beneficio por rubro (Flyer Rubros):</strong> columnas <code>rubro</code> (el nombre de una opci&oacute;n de Flyer Rubros: <code>Combustible</code>, <code>Supermercado</code>, <code>Ambos</code>&hellip; vac&iacute;a = sin rubro), <code>tope_combustible</code> y <code>tope_supermercado</code> (el tope de reintegro de cada uno, ej. <code>24.000</code>: una empresa de combustible completa s&oacute;lo el de combustible, una de supermercado s&oacute;lo el de supermercado, y una de &laquo;Ambos&raquo; los dos). Los Excel viejos con <code>tope</code> / <code>tope2</code> se siguen leyendo. Al elegir la empresa con la lupa se completan los topes, y si est&aacute;s armando el flyer en la solapa equivocada te aviso y te ofrezco cambiar. Al generar un flyer de Rubros para una empresa de tu lista, te propongo guardarle el rubro.<br><br><strong>Generar flyers:</strong> desde el bot&oacute;n &laquo;Generar flyers&raquo; eleg&iacute;s empresas de tu lista (o todas) y baj&aacute;s un ZIP con el flyer de cada una en <strong>su formato</strong>: el armador com&uacute;n, o Flyer Rubros seg&uacute;n el rubro cargado, con sus oficiales, cashback y topes. El ZIP viene ordenado en una carpeta por formato, con un <code>Resumen.txt</code>, y al terminar te muestro cu&aacute;ntos salieron de cada uno y qu&eacute; observaciones hubo.</p></details>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn-submit" onclick="document.getElementById('padron-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
         <button class="usr-btn edit" id="padron-edit-btn" onclick="togglePadronEditor()">&#9998; Editar en l&iacute;nea</button>
@@ -2632,7 +2681,8 @@ baseImg.dataset.fallback="flyer_default.jpg";
 
     <div id="at-asesores" class="bd-pane" style="display:none">
       <p class="ap-sec">Mis asesores</p>
-      <p style="font-size:.82rem;color:var(--gray);margin-bottom:14px;line-height:1.5">Ac&aacute; est&aacute;n los asesores que guard&aacute;s para cargarlos de un click desde los t&iacute;tulos <strong>"Asesor 1"</strong> a <strong>"Asesor 4"</strong> del armador. Pod&eacute;s <strong>corregirlos</strong> (antes hab&iacute;a que borrarlos y volver a cargarlos), agregar, eliminar, subirlos desde un Excel o bajarte la lista.<br><br>El <strong>nombre visible</strong> es el r&oacute;tulo con el que los ves en la lista (por ejemplo <em>"Juan &mdash; Sucursal Centro"</em>); el <strong>nombre real</strong> es el que sale impreso en el flyer. Si dej&aacute;s el visible vac&iacute;o, se usa el real.<br><br>Esta lista <strong>viaja con tu cuenta</strong>: la ves igual desde cualquier computadora, y nadie m&aacute;s puede verla ni editarla.</p>
+      <p class="bd-corto">Los asesores que carg&aacute;s de un click desde los t&iacute;tulos <strong>"Asesor 1"</strong> a <strong>"Asesor 4"</strong> del armador.</p>
+      <details class="bd-ayuda"><summary>&iquest;C&oacute;mo funciona?</summary><p>Ac&aacute; est&aacute;n los asesores que guard&aacute;s para cargarlos de un click desde los t&iacute;tulos <strong>"Asesor 1"</strong> a <strong>"Asesor 4"</strong> del armador. Pod&eacute;s <strong>corregirlos</strong> (antes hab&iacute;a que borrarlos y volver a cargarlos), agregar, eliminar, subirlos desde un Excel o bajarte la lista.<br><br>El <strong>nombre visible</strong> es el r&oacute;tulo con el que los ves en la lista (por ejemplo <em>"Juan &mdash; Sucursal Centro"</em>); el <strong>nombre real</strong> es el que sale impreso en el flyer. Si dej&aacute;s el visible vac&iacute;o, se usa el real.<br><br>Esta lista <strong>viaja con tu cuenta</strong>: la ves igual desde cualquier computadora, y nadie m&aacute;s puede verla ni editarla.</p></details>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <button class="btn-submit" onclick="document.getElementById('asesores-xls').click()" style="padding:8px 16px">&#8593; Subir Excel</button>
         <button class="usr-btn edit" onclick="_asEditAddRow()">&#43; Agregar asesor</button>

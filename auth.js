@@ -1774,11 +1774,15 @@ function switchApp(view){
 function _mvInit(){
   if(document.getElementById('mv-toggle'))return;
   var d=document.createElement('div');d.id='mv-toggle';d.setAttribute('role','group');d.setAttribute('aria-label','Ir a');
-  d.innerHTML='<button type="button" class="on" data-mv="edit">Editar</button><button type="button" data-mv="prev">Vista previa</button>';
+  // "Descargar" está también acá: mirando el flyer terminado, el botón del formulario
+  // quedaba arriba, fuera de la vista. Toca el mismo botón (mismos avisos y candados).
+  d.innerHTML='<button type="button" class="on" data-mv="edit">Editar</button><button type="button" data-mv="prev">Vista previa</button>'+
+    '<button type="button" class="mv-dl" data-mv="dl" aria-label="Descargar PDF"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Descargar</button>';
   document.body.appendChild(d);
-  function marcar(w){Array.prototype.forEach.call(d.querySelectorAll('button'),function(b){b.classList.toggle('on',b.dataset.mv===w);});}
+  function marcar(w){Array.prototype.forEach.call(d.querySelectorAll('button[data-mv="edit"],button[data-mv="prev"]'),function(b){b.classList.toggle('on',b.dataset.mv===w);});}
   d.addEventListener('click',function(e){
     var b=e.target.closest&&e.target.closest('button');if(!b)return;
+    if(b.dataset.mv==='dl'){var pdf=document.getElementById('btn-dl-pdf');if(pdf)pdf.click();return;}
     var pv=document.querySelector('#layout .prev');
     if(b.dataset.mv==='prev'&&pv){var y=pv.getBoundingClientRect().top+window.pageYOffset-70;window.scrollTo({top:y,behavior:'smooth'});}
     else window.scrollTo({top:0,behavior:'smooth'});
@@ -3070,21 +3074,21 @@ function _promoFilaHtml(r,i){
   var eleg=(_fgElegir&&r.promo&&r.promo.imagen)?_fgElegirNum(r):-1;
   var noVa=eleg===0&&(r.estado==='VENCIDA'||r.estado==='FUERA_PROV');
   var primera=noVa?
-    '<td><button type="button" class="promos-elegir" disabled title="'+(r.estado==='VENCIDA'?'Est&aacute; vencida: no se puede poner en la franja':'Es de otra provincia: no se puede poner en la franja')+'">+</button></td>':
+    '<td class="pc-sel"><button type="button" class="promos-elegir" disabled title="'+(r.estado==='VENCIDA'?'Est&aacute; vencida: no se puede poner en la franja':'Es de otra provincia: no se puede poner en la franja')+'">+</button></td>':
     eleg>=0?
-    '<td><button type="button" class="promos-elegir'+(eleg?' on':'')+'" onclick="fgElegirToggle('+i+')" aria-pressed="'+(eleg?'true':'false')+'" title="'+(_fgElegir.st.uno?'Poner esta marca en el flyer':eleg?'Sacar de la franja':'Agregar a la franja')+'">'+(eleg?eleg:'+')+'</button></td>':
-    '<td><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
+    '<td class="pc-sel"><button type="button" class="promos-elegir'+(eleg?' on':'')+'" onclick="fgElegirToggle('+i+')" aria-pressed="'+(eleg?'true':'false')+'" title="'+(_fgElegir.st.uno?'Poner esta marca en el flyer':eleg?'Sacar de la franja':'Agregar a la franja')+'">'+(eleg?eleg:'+')+'</button></td>':
+    '<td class="pc-sel"><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
       ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>';
   return '<tr class="'+(r.excluir?'excluida':'')+(eleg>0?' elegida':'')+'">'+primera+
-    '<td>'+logo+'</td>'+
-    (act?'':'<td>'+_escHtml(r.marca)+'</td>')+
-    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+_promoDiasHtml(r.promo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
-    '<td>'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
-    '<td>'+_promoDondeHtml(r)+'</td>'+
-    '<td>'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
-    '<td>'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
-    '<td><span class="promos-badge b-'+css+'">'+_escHtml(_promoEstadoTxt(r))+'</span></td>'+
-    '<td>'+_promoLinkHtml(r)+'</td>'+
+    '<td class="pc-logo">'+logo+'</td>'+
+    (act?'':'<td class="pc-marca">'+_escHtml(r.marca)+'</td>')+
+    '<td class="pc-promo">'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+_promoBenefHtml(r.promo)+_promoDiasHtml(r.promo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+    '<td class="pc-cat">'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
+    '<td class="pc-donde">'+_promoDondeHtml(r)+'</td>'+
+    '<td class="pc-desde">'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
+    '<td class="pc-hasta">'+(r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-')+'</td>'+
+    '<td class="pc-est"><span class="promos-badge b-'+css+'">'+_escHtml(_promoEstadoTxt(r))+'</span></td>'+
+    '<td class="pc-link">'+_promoLinkHtml(r)+'</td>'+
   '</tr>';
 }
 // "+N promos": la marca tiene otras promociones vigentes que quedaron
@@ -3154,6 +3158,10 @@ function _promoDias(p){
   return (I.cache[ck]=out);
 }
 function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDias(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
+// Qué da la promo ("25% de ahorro", "6 cuotas sin interés"): sin esto dos filas de
+// la misma marca parecían repetidas. Viene de la columna beneficio (migración 029).
+function _promoBenef(p){return p&&p.beneficio?_promoDecodeEntities(String(p.beneficio)).replace(/\s+/g,' ').replace(/[.\s]+$/,'').trim():'';}
+function _promoBenefHtml(p){var b=_promoBenef(p);return b?'<div class="promos-benef">'+_escHtml(b)+'</div>':'';}
 function _promoOtrasHtml(r){
   if(_promosFiltros.repetidas!=='ocultar'||!r._otras)return '';
   var det='Esta marca tiene '+(r._otras+1)+' promociones vigentes (distintas tarjetas, plazos o locales).';
@@ -3234,7 +3242,9 @@ function renderPromosResultados(){
   if(ordSel){
     var clave=_promoOrdenClave();
     ordSel.innerHTML=_PROMO_ORDEN_OPTS.map(function(o){
-      return '<option value="'+o[0]+'"'+(o[0]===clave?' selected':'')+'>'+_escHtml(o[1])+'</option>';
+      // en Activas no se pegó nada: el orden de llegada es el del catálogo
+      var t=(!o[0]&&_promoModoActivas())?'Como vienen':o[1];
+      return '<option value="'+o[0]+'"'+(o[0]===clave?' selected':'')+'>'+_escHtml(t)+'</option>';
     }).join('');
   }
 
@@ -3249,6 +3259,9 @@ function renderPromosResultados(){
   if(conteo.PROXIMA)chipDefs.splice(chipDefs.length-1,0,['PROXIMA','c-proxima']);
   // Sin provincia elegida ese chip diría siempre 0: es ruido, no se muestra.
   if(_promosProv)chipDefs.splice(1,0,['FUERA_PROV','c-fuera']);
+  // En Activas no hay marcas pegadas: "No encontrada", "Revisar" y "Fuera de la
+  // provincia" darían siempre 0 (se muestran sólo si alguna aparece de verdad).
+  if(_promoModoActivas())chipDefs=chipDefs.filter(function(c){return conteo[c[0]]||['NO_ENCONTRADA','REVISAR','FUERA_PROV'].indexOf(c[0])<0;});
   sumHost.innerHTML=chipDefs.map(function(c){
     var act=_promosFiltros.estado===c[0]?' activo':'';
     return '<span class="promos-chip '+c[1]+act+'" title="Filtrar por '+_escAttr(_PROMO_ESTADO_LBL[c[0]])+'" '+
@@ -3333,6 +3346,7 @@ function descargarExcelPromos(){
     .concat(actExcel?[]:[{header:'Marca (flyer)',key:'marca',width:24}])
     .concat([
       {header:actExcel?'Promoción':'Coincidencia en Galicia',key:'match',width:28},
+      {header:'Beneficio',key:'benef',width:26},
       {header:'Categoría',key:'cat',width:18},
       {header:'Dónde',key:'donde',width:30},
       {header:'Desde',key:'desde',width:12},
@@ -3377,6 +3391,7 @@ function descargarExcelPromos(){
       desde:r.promo?_promosFmtFecha(r.fechaDesde):'-',
       hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
       dias:r.promo?_promoDias(r.promo):'',
+      benef:r.promo?_promoBenef(r.promo):'',
       estado:_promoEstadoTxt(r)
     });
     row.height=32;
@@ -8139,11 +8154,16 @@ function fgBuildFn(pattern,v){
   var d=new Date();
   var fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   var cfg=(v&&v.config)||((typeof CNAMES!=='undefined'&&typeof ac!=='undefined'&&CNAMES[ac])?CNAMES[ac]:'BAU');
-  return _fgSafeName((pattern||'Flyer {empresa}')
-    .replace(/{empresa}/g,(v&&v.empresa)||'flyer')
-    .replace(/{asesor}/g,(v&&v.nombre)||'asesor')
-    .replace(/{config}/g,cfg)
-    .replace(/{fecha}/g,fecha));
+  // Sin empresa o sin asesor el marcador se va (antes salía "Flyer flyer.pdf") y
+  // se limpian los separadores que quedan sueltos ("Flyer -  - 2026-10-23").
+  var t=(pattern||'Flyer {empresa}')
+    .replace(/{empresa}/g,function(){return (v&&v.empresa)||'';})
+    .replace(/{asesor}/g,function(){return (v&&v.nombre)||'';})
+    .replace(/{config}/g,function(){return cfg;})
+    .replace(/{fecha}/g,fecha)
+    .replace(/(\s*[-_–]\s*){2,}/g,' - ')
+    .replace(/^[\s\-_–]+|[\s\-_–]+$/g,'');
+  return _fgSafeName(t||'Flyer');
 }
 // Baja un archivo armado en memoria (los ZIP del masivo y del padrón) y después
 // lo suelta. Sin el revoke, un ZIP de 100 flyers (~120 MB) quedaba ocupando
@@ -10055,7 +10075,7 @@ function _padMineStyle(){
       'display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden}'+
     'html.dark #pad-mine{background:#23262c;color:#e8e8e8}'+
     '#pad-mine .pm-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;'+
-      'border-bottom:1px solid var(--border,#e5e5e5);font-family:"Syne",sans-serif;font-weight:800;font-size:1rem}'+
+      'border-bottom:1px solid var(--border,#e5e5e5);font-family:"Figtree",sans-serif;font-weight:800;font-size:1rem}'+
     'html.dark #pad-mine .pm-head{border-color:#3a3e46}'+
     '#pad-mine .pm-x{cursor:pointer;font-size:1rem;color:var(--gray,#888);padding:2px 6px}'+
     '#pad-mine .pm-x:hover{color:var(--red,#c62828)}'+
@@ -11534,7 +11554,7 @@ function _fgPasteStyle(){
       'border-radius:8px;background:rgba(128,128,128,.05)}'+
     '.fg-paste-hint{font-size:.75rem;color:var(--gray,#888);line-height:1.4;margin-bottom:6px}'+
     '.fg-paste-ta{width:100%;box-sizing:border-box;min-height:52px;padding:7px 9px;'+
-      'border:1.5px solid var(--border,#ddd);border-radius:7px;font-family:"DM Sans",sans-serif;'+
+      'border:1.5px solid var(--border,#ddd);border-radius:7px;font-family:"Figtree",sans-serif;'+
       'font-size:.78rem;background:var(--light,#fafafa);outline:none;resize:vertical;'+
       'color:inherit;transition:border-color .2s}'+
     '.fg-paste-ta:focus{border-color:var(--red,#c62828);background:#fff}'+
@@ -11729,7 +11749,7 @@ function _tourStyle(){
       'box-shadow:0 0 0 3px rgba(227,6,19,.85),0 0 22px rgba(227,6,19,.45);'+
       'transition:top .18s ease,left .18s ease,width .18s ease,height .18s ease}'+
     '#fg-tour-tip{position:fixed;z-index:20002;width:min(360px,calc(100vw - 24px));background:#fff;color:#111;'+
-      'border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.35);padding:14px 16px 12px;font-family:"DM Sans",sans-serif;'+
+      'border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.35);padding:14px 16px 12px;font-family:"Figtree",sans-serif;'+
       'animation:fgTourIn .18s ease}'+
     'html.dark #fg-tour-tip{background:#23262c;color:#e8e8e8}'+
     '@keyframes fgTourIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}'+
@@ -11740,12 +11760,12 @@ function _tourStyle(){
       'border-radius:20px;background:rgba(128,128,128,.14);color:var(--gray,#777);cursor:pointer;user-select:none}'+
     '#fg-tour-tip .ft-cap.on{background:var(--red,#e30613);color:#fff}'+
     '#fg-tour-tip .ft-cap:hover:not(.on){background:rgba(128,128,128,.26)}'+
-    '#fg-tour-tip h4{margin:0 0 6px;font-family:"Syne",sans-serif;font-size:.98rem;font-weight:800;line-height:1.25}'+
+    '#fg-tour-tip h4{margin:0 0 6px;font-family:"Figtree",sans-serif;font-size:.98rem;font-weight:800;line-height:1.25}'+
     '#fg-tour-tip p{margin:0;font-size:.8rem;line-height:1.55;color:#333}'+
     'html.dark #fg-tour-tip p{color:#cfd2d8}'+
     '#fg-tour-tip .ft-foot{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}'+
     '#fg-tour-tip .ft-n{font-size:.75rem;color:var(--gray,#888);margin-right:auto}'+
-    '#fg-tour-tip .ft-btn{border:none;border-radius:8px;padding:7px 11px;font-family:"Syne",sans-serif;font-size:.75rem;'+
+    '#fg-tour-tip .ft-btn{border:none;border-radius:8px;padding:7px 11px;font-family:"Figtree",sans-serif;font-size:.75rem;'+
       'font-weight:700;cursor:pointer;background:rgba(128,128,128,.14);color:inherit;transition:.15s}'+
     '#fg-tour-tip .ft-btn:hover{background:rgba(128,128,128,.28)}'+
     '#fg-tour-tip .ft-btn.main{background:var(--red,#e30613);color:#fff}'+
@@ -12096,7 +12116,7 @@ function _opcStyle(){
   st.textContent=
     '.opc-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border,#e5e5e5);border-radius:10px;margin-bottom:8px;flex-wrap:wrap}'+
     'html.dark .opc-row{border-color:#3a3e46}'+
-    '.opc-num{width:34px;height:34px;border-radius:9px;color:#fff;font-family:"Syne",sans-serif;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}'+
+    '.opc-num{width:34px;height:34px;border-radius:9px;color:#fff;font-family:"Figtree",sans-serif;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}'+
     '.opc-row input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--border,#ddd);border-radius:8px;padding:8px 10px;font-size:.84rem;font-family:inherit;background:none;color:inherit;outline:none}'+
     '.opc-row input[type=text]:focus{border-color:var(--red,#c62828)}'+
     'html.dark .opc-row input[type=text]{border-color:#3a3e46}'+
@@ -14230,7 +14250,11 @@ function _fgLgAPantalla(x,y,w,h){
 }
 var _fgLgTipT=0;
 function fgLogosModo(on){
-  _fgLg.on=(on===undefined)?!_fgLg.on:!!on;
+  var quiere=(on===undefined)?!_fgLg.on:!!on;
+  // Un flyer que no cargó (cartel rojo) no se edita: los cambios quedarían sobre
+  // la imagen de otro flyer, igual que la descarga (invariante 23).
+  if(quiere&&!_fgLg.on){var bq=_fgDescargaBloqueo();if(bq){showToast(bq);return;}}
+  _fgLg.on=quiere;
   // la ayuda se muestra unos segundos al prender el modo y después se va (no tapa el flyer)
   clearTimeout(_fgLgTipT);_fgLg.tipOff=false;
   if(_fgLg.on)_fgLgTipT=setTimeout(function(){_fgLg.tipOff=true;_fgLgBarra();},7000);

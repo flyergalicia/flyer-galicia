@@ -1885,3 +1885,51 @@ html.dark .mg-av-a,html.dark .mg-pb-pista.aprox,html.dark .mg-fila-t .mg-vieja{c
 @media (max-width:520px){.mg-fila-img{width:84px;}}
 .fg-cf.fg-mgg{width:min(460px,100%);}
 .fg-mgg select{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font:500 .8125rem "Figtree",sans-serif;background:var(--field,#fff);color:var(--ink);}
+/* ── Pulido 23-oct-2026 ──
+   Menú del usuario: los rótulos son <span> dentro de <header> y heredaban la píldora
+   naranja de la regla vieja "header span" (se veían como etiquetas en mayúscula). */
+.hdr-dd-item span:not(#bd-badge):not(#hunprop-badge){background:none;color:inherit;padding:0;border-radius:0;font-size:inherit;font-weight:inherit;letter-spacing:normal;text-transform:none;width:auto;display:inline;}
+/* Oscuro: la opción elegida se pintaba con su color (marino) sobre gris oscuro; la letra va clara y el color queda en la raya de abajo. */
+html.dark #fg-optbar .fgo.on{color:#f3f4f6 !important;}
+/* Oscuro: los logos de Promociones van sobre blanco (los negros desaparecían). */
+html.dark .promos-logo{background:#fff;border-color:#3a3f47;}
+/* Un botón apagado tiene que verse apagado (antes quedaba igual que uno prendido). */
+.btn:disabled,.btn[disabled]{opacity:.5;cursor:not-allowed;box-shadow:none;}
+/* Celular: "Descargar" en la pastilla Editar / Vista previa (mismo botón que "Descargar PDF"). */
+#mv-toggle .mv-dl{display:inline-flex;align-items:center;gap:5px;color:var(--accent-2,var(--accent));}
+#mv-toggle .mv-dl .ico{width:15px;height:15px;}
+/* Promociones en el celular: una tarjeta por promo en vez de la tabla de 9 columnas
+   (medía 886 px en una pantalla de 375 y el estado y el vencimiento quedaban afuera).
+   Los filtros por columna se esconden: quedan los contadores, el buscador y los del panel. */
+@media (max-width:700px){
+  .promos-table-wrap{overflow-x:visible;}
+  .promos-table thead{display:none;}
+  .promos-table,.promos-table tbody{display:block;width:100%;}
+  .promos-table tr{display:grid;grid-template-columns:auto 40px minmax(0,1fr) auto;grid-template-areas:"sel logo promo est" "sel logo cat hasta" "sel logo donde link" "sel logo marca marca";column-gap:10px;row-gap:3px;padding:11px 4px;border-bottom:1px solid var(--border);align-items:start;}
+  .promos-table td{display:block;padding:0;border:0;background:none !important;}
+  .promos-table tr.elegida{background:var(--accent-soft);}
+  .promos-table .pc-sel{grid-area:sel;align-self:center;}
+  .promos-table .pc-logo{grid-area:logo;align-self:center;}
+  .promos-table .pc-promo{grid-area:promo;font-weight:700;font-size:.8125rem;min-width:0;}
+  .promos-table .pc-est{grid-area:est;justify-self:end;}
+  .promos-table .pc-cat{grid-area:cat;color:var(--gray);font-size:12px;}
+  .promos-table .pc-hasta{grid-area:hasta;justify-self:end;font-size:12px;white-space:nowrap;}
+  .promos-table .pc-hasta::before{content:"Hasta ";color:var(--gray);}
+  .promos-table .pc-donde{grid-area:donde;color:var(--gray);font-size:12px;}
+  .promos-table .pc-link{grid-area:link;justify-self:end;}
+  .promos-table .pc-marca{grid-area:marca;color:var(--gray);font-size:12px;}
+  .promos-table .pc-marca::before{content:"Pegaste: ";}
+  .promos-table .pc-desde{display:none;}
+}
+/* Base de datos: una línea corta y la explicación larga plegada ("¿Cómo funciona?"),
+   así los botones y la lista quedan arriba (antes había seis párrafos antes de los botones). */
+.bd-corto{font-size:.82rem;color:var(--gray);margin:0 0 6px;line-height:1.5;}
+.bd-ayuda{margin:0 0 14px;font-size:.82rem;color:var(--gray);line-height:1.5;}
+.bd-ayuda summary{cursor:pointer;font-weight:700;color:var(--accent-2,var(--accent));width:fit-content;list-style-position:inside;}
+.bd-ayuda[open] summary{margin-bottom:6px;}
+.bd-ayuda p{margin:0;padding:10px 12px;background:var(--light);border:1px solid var(--border);border-radius:10px;}
+/* Promociones: qué da cada promo, debajo de la marca */
+.promos-benef{margin-top:2px;font-size:12px;font-weight:600;color:var(--ink-2,var(--ink));}
+@media (max-width:900px){
+  body.en-armador #mv-toggle button{white-space:nowrap;padding:8px 13px;}
+}
