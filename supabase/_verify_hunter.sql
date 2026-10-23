@@ -29,8 +29,9 @@ with chk as (
               and policyname = 'hunter lee todas las empresas'
               and cmd = 'SELECT'
               and qual like '%hunter%' and qual like '%is_active()%'
-              -- sin condición de dueño: tiene que ver las de los demás
-              and qual not like '%user_id%'
+              -- sin condición de dueño: tiene que ver las de los demás (desde
+              -- la 032 user_id sólo aparece para separar las de prueba)
+              and qual not like '%auth.uid()%'
          )
 
   -- 3) el hunter NO escribe ninguna empresa, ni las propias

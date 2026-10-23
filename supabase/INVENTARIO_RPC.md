@@ -20,13 +20,17 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `guard_profile_update` | definer | no | no | rol, auth.uid() | Trigger: impide que alguien cambie su propio rol o estado. |
 | `handle_new_user` | definer | no | no | — | Trigger de alta de usuario. |
 | `is_active` | definer | no | sí | auth.uid() | ¿Quien llama está activo? (active o reset_pending). Lo usan casi todas las políticas RLS. |
-| `padron_propuesta_aprobar` | definer | no | sí | activo, auth.uid() | El dueño (o su suplente) aprueba una propuesta de oficiales. |
-| `padron_propuesta_consultar` | definer | no | sí | activo, auth.uid() | El dueño (o su suplente) hace una consulta sobre una propuesta. |
+| `padron_propuesta_aprobar` | definer | no | sí | activo, auth.uid() | El dueño (o su suplente) aprueba una propuesta: oficiales y, si es un pedido del suplente, cashback y rubro. Nadie aprueba lo que pidió, salvo el dueño (migración 032). |
+| `padron_propuesta_consultar` | definer | no | sí | activo, auth.uid() | El dueño (o su suplente) hace una consulta sobre una propuesta. No a un pedido del suplente (032). |
 | `padron_propuesta_crear` | definer | no | sí | activo, rol, auth.uid() | Un Hunter (o admin) propone cambiar los oficiales de una empresa. Exige rol hunter/admin (migración 022). |
-| `padron_propuesta_rechazar` | definer | no | sí | activo, auth.uid() | El dueño (o su suplente) rechaza una propuesta. |
+| `padron_propuesta_rechazar` | definer | no | sí | activo, auth.uid() | El dueño (o su suplente) rechaza una propuesta. El suplente no rechaza su propio pedido (032). |
+| `padron_suplencia_proponer` | definer | no | sí | activo, auth.uid() | El suplente pide guardar cambios (oficiales, cashback, rubro) en una empresa del oficial que lo eligió. Exige `es_suplente_de`; la foto "antes" la toma el servidor (migración 032). |
+| `padron_suplencias` | definer | no | sí | activo, rol, auth.uid() | Empresas (sólo lectura) de los oficiales activos que eligieron a quien llama como suplente. No hunters (migración 032). |
 | `padron_propuesta_responder` | definer | no | sí | activo, auth.uid() | Sólo quien creó la propuesta responde a una consulta. |
+| `ids_prueba` | definer | no | sí | — | Ids de las cuentas de prueba (ayudante de RLS: separa las empresas de ejemplo de las reales, migración 032). |
+| `soy_prueba` | definer | no | sí | auth.uid() | ¿Quien llama es una cuenta de prueba? (ayudante de RLS, migración 032). |
 | `prueba_cambiar_rol` | definer | no | sí | activo, auth.uid() | Sólo la cuenta de prueba (es_prueba) puede cambiar de perfil. |
-| `gestiones_empresas` | definer | no | sí | activo, interruptor, rol, auth.uid() | Empresas que quien llama puede asignar en la Agenda, con su oficial: admin y hunter todo el padrón; líder lo suyo y lo de su equipo; el resto lo suyo (migración 030). |
+| `gestiones_empresas` | definer | no | sí | activo, interruptor, rol, auth.uid() | Empresas que quien llama puede asignar en la Agenda, con su oficial: admin todo el padrón; hunter todo el de su mundo (real o de prueba, migración 032); líder lo suyo y lo de su equipo; el resto lo suyo (migración 030). |
 | `gestiones_ocupado` | definer | no | sí | activo, interruptor, auth.uid() | Horarios de un hunter en un día (para avisar si se pisan). La empresa sale sólo si quien llama puede ver esa gestión (migración 030). |
 | `puede_ver_gestion` | definer | no | sí | rol, auth.uid() | Ayudante de RLS de Gestiones (visibilidad por rol). |
 | `rate_limit_hit` | definer | no | no | — | Cuenta intentos por IP para la Edge Function. SOLO service_role. |

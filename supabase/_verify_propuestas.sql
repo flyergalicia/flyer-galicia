@@ -23,7 +23,8 @@ with chk as (
   select 'una sola propuesta pendiente por empresa (índice único parcial)',
          exists (select 1 from pg_indexes
                   where schemaname='public' and tablename='padron_propuestas'
-                    and indexdef ilike '%estado = ''pendiente''%')
+                    -- desde la 013 la condición es "pendiente o consulta" (ANY(ARRAY[...]))
+                    and indexdef ilike '%unique%' and indexdef ilike '%''pendiente''%')
   union all
   select 'profiles.suplente_id existe',
          exists (select 1 from information_schema.columns

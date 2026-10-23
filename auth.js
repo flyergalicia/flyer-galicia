@@ -9073,6 +9073,7 @@ function loadPadron(force,cb){
       _padron=_padSane(r.data);
       _padronAt=_padUltimo(r.data);
       _pgSel={}; // los índices del generador ya no valen
+      _padSupCargar(false); // y las de quien me eligió como suplente (cada 60 s como mucho)
       fin();
     },falla);
 }
@@ -9114,6 +9115,43 @@ function savePadron(rows,cb){
       _pgSel={};if(_pgOpen)_pgRender();
       if(cb)cb(true);
     });
+}
+// ── SUPLENCIA: las empresas de quien me eligió como suplente ────────────────
+// Si Pepito me pone de suplente ("Mi suplente", en Cambios pendientes), la lupa y
+// el autocompletado también buscan en SU base, marcadas "Empresa de Pepito". La
+// base lo revisa en cada llamada (padron_suplencias): cuando me saca, la próxima
+// carga ya no trae nada. Se vuelve a pedir al abrir la lupa (cada 60 s como mucho).
+// NUNCA se mezclan con _padron: savePadron las guardaría como propias. Cada fila
+// lleva _de={id,nombre} y sólo la usan la lupa, el autocompletado y el aviso
+// después de descargar (que, en vez de actualizar, le PIDE el cambio al dueño).
+var _padSuplencia=[],_padSupAt=0,_padSupCargando=false;
+function _padSupCargar(force,cb){
+  if(!_me||_esHunter()){_padSuplencia=[];if(cb)cb();return;}
+  if(_padSupCargando||(!force&&_padSupAt&&Date.now()-_padSupAt<60000)){if(cb)cb();return;}
+  _padSupCargando=true;
+  var fin=function(){_padSupCargando=false;if(cb)cb();};
+  _sb.rpc('padron_suplencias').then(function(r){
+    // un corte de red no borra lo que ya había (no es "dejaste de ser suplente")
+    if(!r||r.error){fin();return;}
+    _padSupAt=Date.now();
+    var out=[];
+    (r.data||[]).forEach(function(d){
+      var s=_padSane([d])[0];if(!s)return;
+      s._de={id:d.user_id,nombre:(d.dueno_nombre||'').trim()||'otro oficial'};
+      out.push(s);
+    });
+    // se terminó la suplencia y la empresa cargada era de esa base: deja de vigilarse
+    if(_padRef&&_padRef._de&&out.every(function(x){return x._de.id!==_padRef._de.id;}))_padRef=null;
+    _padSuplencia=out;
+    fin();
+  },fin);
+}
+// Lo que recorren la lupa y el autocompletado: lo mío primero, después lo prestado.
+function _padBuscable(){
+  return _padSuplencia.length?(_padron||[]).concat(_padSuplencia):(_padron||[]);
+}
+function _padDeHtml(r){
+  return (r&&r._de)?'<span class="pad-de">Empresa de '+_escHtml(r._de.nombre)+'</span>':'';
 }
 // Padrón de OTRO usuario, para la solapa "Padrón Asesores" (sólo lectura: si el
 // servidor no lo permite, devuelve vacío y no hay nada que mostrar).
@@ -9902,6 +9940,10 @@ function _fgEnsurePadronBtn(){
       '.pad-item:hover,.pad-item.on{background:rgba(198,40,40,.07)}'+
       '.pad-emp{display:block;font-size:.82rem;font-weight:600}'+
       '.pad-sub{display:block;font-size:.75rem;color:var(--gray,#888);margin-top:2px}'+
+      // empresa de otro oficial que me eligió como suplente (_padSuplencia)
+      '.pad-de{display:inline-block;font-size:.75rem;font-weight:600;color:#8a5a00;background:rgba(245,197,66,.18);'+
+        'border:1px solid rgba(245,197,66,.55);border-radius:6px;padding:1px 6px;margin-top:3px}'+
+      'html.dark .pad-de{color:#f3c96b}'+
       '.pad-empty{padding:16px 12px;font-size:.76rem;color:var(--gray,#888);text-align:center;line-height:1.5}'+
       '.pad-more{padding:7px 12px;font-size:.75rem;color:var(--gray,#888);text-align:center;'+
         'border-top:1px solid rgba(128,128,128,.16)}'+
@@ -9921,6 +9963,7 @@ function _fgEnsurePadronBtn(){
   window.addEventListener('resize',_padSugPos);
   window.addEventListener('scroll',_padSugPos,true);
   loadPadron(false); // precarga para que la primera búsqueda salga instantánea
+  _padSupCargar(false);
 }
 // ── "BASE DE DATOS": lo guardado por el usuario, sin ser admin ───────────────
 // Los bloques de empresas (#at-varios) y asesores (#at-asesores) viven dentro del
@@ -10127,6 +10170,7 @@ function openPadronPop(){
   var q=document.getElementById('pad-q');if(q)q.focus();
   _padSel=0;
   loadPadron(false,function(){renderPadronPop();});
+  _padSupCargar(false,function(){if(_padron)renderPadronPop();});
   setTimeout(function(){document.addEventListener('click',_padCloseOutside);},0);
 }
 function closePadronPop(){
@@ -10156,21 +10200,21 @@ function renderPadronPop(){
   var list=document.getElementById('pad-list');if(!list)return;
   if(!_padron){list.innerHTML='<div class="pad-empty">Cargando tus empresas...</div>';return;}
   if(_padLoadErr&&!_padron.length){list.innerHTML=_padSinConexionHtml();_padHits=[];return;}
-  if(!_padron.length){
+  if(!_padron.length&&!_padSuplencia.length){
     list.innerHTML='<div class="pad-empty">Todav&iacute;a no cargaste empresas.<br>'+
       'Sub&iacute; un Excel o carg&aacute;las a mano desde <strong>tu nombre &rarr; Base de datos</strong>.<br>'+
       '<button type="button" class="usr-btn edit" onclick="openMiPadron()">&#8593; Cargar mis empresas</button></div>';
     _padHits=[];return;
   }
   var q=(document.getElementById('pad-q')||{}).value||'';
-  _padHits=padronSearch(q,60);_padSel=0;
+  _padHits=padronSearch(q,60,_padBuscable());_padSel=0;
   if(!_padHits.length){
     list.innerHTML='<div class="pad-empty">Sin resultados para "'+_escHtml(q)+'".</div>';return;
   }
   list.innerHTML=_padHits.map(function(r,i){
     return '<div class="pad-item'+(i===0?' on':'')+'" onclick="applyPadronRow('+i+')">'+
       '<span class="pad-emp">'+_escHtml(r.empresa||'(sin razón social)')+'</span>'+
-      '<span class="pad-sub">'+_escHtml(_padSubtitulo(r))+'</span></div>';
+      '<span class="pad-sub">'+_escHtml(_padSubtitulo(r))+'</span>'+_padDeHtml(r)+'</div>';
   }).join('');
 }
 // Completa TODO: razón social, montos (config) y los oficiales del padrón.
@@ -10224,7 +10268,7 @@ function _padApply(r){
   if(typeof _fgClosePasteAll==='function')_fgClosePasteAll();
   if(typeof updateFnPreview==='function')updateFnPreview();
   if(typeof redraw==='function')redraw();
-  showToast('"'+(r.empresa||'Empresa')+'" cargada de tus empresas — '+_padAsesoresLbl(r));
+  showToast('"'+(r.empresa||'Empresa')+'" cargada de '+(r._de?('las empresas de '+r._de.nombre):'tus empresas')+' — '+_padAsesoresLbl(r));
   // Con una versión "sin cashback" publicada, el flyer se elige solo: empresa sin
   // cashback → esa versión; con cashback → la original. No dentro de un borrador
   // ni con un recorte puesto (ahí manda lo que se está armando).
@@ -10414,8 +10458,11 @@ function _padClean(a){
   return {nombre:(a&&a.nombre||'').trim(),celular:(a&&a.celular||'').trim(),email:(a&&a.email||'').trim()};
 }
 // Devuelve null si no hay nada que actualizar, o {row,empresa,config,asesores,cambios[]}.
+// La fila puede ser mía (_padron) o de quien me eligió como suplente (_padSuplencia):
+// en ese caso no se guarda, se le PIDE al dueño (_padAskSuplencia).
 function _padDiff(){
-  if(!_can('padron_buscar')||!_padRef||!_padron||_padron.indexOf(_padRef)<0)return null;
+  if(!_can('padron_buscar')||!_padRef||!_padron)return null;
+  if(_padron.indexOf(_padRef)<0&&!(_padRef._de&&_padSuplencia.indexOf(_padRef)>=0))return null;
   var emp=(_gv('empresa')||'').trim();
   if(!emp)return null; // sin razón social no tiene sentido pisar la fila
   // La razón social IDENTIFICA a la fila y nunca se renombra desde acá: si la
@@ -10447,7 +10494,8 @@ function _padDiff(){
   if(rubro&&!_padRubroIgual(rubro,_padRef.rubro))
     chg.push('Rubro: '+(_padRubroLabel(_padRef)?_escHtml(_padRubroLabel(_padRef)):'&mdash;')+' &rarr; <strong>'+_escHtml(_padRubroLabel({rubro:rubro}))+'</strong>');
   if(!chg.length)return null;
-  return {row:_padRef,empresa:_padRef.empresa,config:_padCfgCell(ci),asesores:cur,rubro:rubro||_padRubroSane(_padRef.rubro),cambios:chg};
+  return {row:_padRef,empresa:_padRef.empresa,config:_padCfgCell(ci),asesores:cur,rubro:rubro||_padRubroSane(_padRef.rubro),cambios:chg,
+    cfgCambio:ci!==oi,rubroCambio:!!(rubro&&!_padRubroIgual(rubro,_padRef.rubro))};
 }
 // Firma del cambio: si decís "no" y después no tocás nada más, no vuelve a preguntar.
 function _padSig(d){return d.empresa+'|'+d.config+'|'+JSON.stringify(d.asesores)+'|'+JSON.stringify(d.rubro||null);}
@@ -10670,6 +10718,57 @@ function _padCloseUpdate(dismiss){
   _padPending=null;
 }
 
+// ── Empresa de OTRO oficial (soy su suplente): pedirle el cambio ───────────
+// El suplente puede bajar el flyer con otros datos, pero la base del dueño no se
+// toca: queda un pedido (padron_suplencia_proponer) que el dueño aprueba o
+// rechaza en Cambios pendientes cuando vuelve.
+function _padAskSuplencia(){
+  var d=_padDiff();if(!d||!d.row._de)return;
+  if(_padSig(d)===_padDismissed)return;
+  if(document.getElementById('pad-upd'))return;
+  _padPending=d;
+  var quien=_escHtml(d.row._de.nombre);
+  _padModal('<h3>&#128228; Cambios en una empresa de '+quien+'</h3>'+
+    '<p class="pu-sub">Generaste el flyer de <strong>'+_escHtml(d.empresa)+'</strong> con datos distintos '+
+      'a los que tiene guardados '+quien+':</p>'+
+    '<ul><li>'+d.cambios.join('</li><li>')+'</li></ul>'+
+    '<p class="pu-sub" style="margin-top:12px">&iquest;Le pedimos que guarde estos cambios? Su base no cambia hasta que '+
+      'lo apruebe: le llega el pedido a <strong>Cambios pendientes</strong> y lo decide cuando vuelva.</p>'+
+    '<div class="pu-foot">'+
+      '<button class="pu-no" onclick="_padCloseUpdate(1)">No, dejarlo como est&aacute;</button>'+
+      '<button class="pu-si" onclick="_padDoSuplencia()">Ped&iacute;rselo a '+quien+'</button>'+
+    '</div>');
+}
+function _padDoSuplencia(){
+  var d=_padPending||_padDiff();
+  if(!d||!d.row._de){_padCloseUpdate(0);return;}
+  var btn=document.querySelector('#pad-upd .pu-si'),lbl=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+  _sb.rpc('padron_suplencia_proponer',{
+    p_empresa:d.row.empresa,p_dueno:d.row._de.id,
+    p_asesores:d.asesores.map(function(a){return {nombre:a.nombre,celular:a.celular,email:a.email};}),
+    p_config:d.cfgCambio?d.config:null,
+    p_rubro:d.rubroCambio?_padRubroSane(d.rubro):null,
+    p_nota:null
+  }).then(function(r){
+    if(r&&r.error){
+      var m=String(r.error.message||'');
+      if(btn){btn.disabled=false;btn.textContent=lbl;}
+      if(/pedido abierto|propuesta abierta/i.test(m))showToast('Esa empresa ya tiene un pedido de cambio esperando a '+d.row._de.nombre+'.');
+      else if(/suplente/i.test(m)){_padCloseUpdate(0);_padSupCargar(true);showToast('Ya no sos suplente de '+d.row._de.nombre+': no se envió el pedido.');}
+      else showToast('No se pudo enviar el pedido: '+m);
+      return;
+    }
+    // como un "no": no vuelve a preguntar por lo mismo
+    _padDismissed=_padSig(d);
+    _padCloseUpdate(0);
+    showToast('Listo: '+d.row._de.nombre+' va a ver el pedido en Cambios pendientes y decide si lo guarda.');
+  },function(e){
+    if(btn){btn.disabled=false;btn.textContent=lbl;}
+    showToast('No se pudo enviar el pedido ('+_padErrTxt(e)+').');
+  });
+}
+
 // Se llama después de descargar el PDF/PNG individual (nunca en el masivo).
 // Si la empresa está en el padrón → ofrece actualizarla; si no → darla de alta.
 function _padAfterFlyer(){
@@ -10677,6 +10776,10 @@ function _padAfterFlyer(){
     if(!_can('padron_buscar')||!_padron)return;
     var emp=(_gv('empresa')||'').trim();
     if(!emp){_padRef=null;return;}
+    // Empresa de quien me eligió como suplente: no se guarda nada, se le pide.
+    if(_padRef&&_padRef._de&&_padSuplencia.indexOf(_padRef)>=0&&_padNorm(_padRef.empresa)===_padNorm(emp)){
+      setTimeout(_padAskSuplencia,350);return;
+    }
     // Se re-engancha por NOMBRE cuando: no había fila, el padrón se recargó
     // (referencia vieja) o cambiaste la razón social — en ese último caso es
     // otra empresa, porque los grupos no se renombran desde el armador.
@@ -10720,7 +10823,7 @@ function _padSugPos(){
 function _padSugQuery(q){
   var t=(q||'').trim();
   if(_padLoadErr&&t)_padReintentoSilencioso();
-  if(!_padron||!_padron.length||!t)return null;
+  if(!_padron||!_padBuscable().length||!t)return null;
   if(t.length<2&&_padDigits(t).length<3)return null;
   return t;
 }
@@ -10728,7 +10831,7 @@ function _padSugRender(){
   var inp=document.getElementById('empresa');if(!inp)return;
   var t=_padSugQuery(inp.value);
   if(!t){_padCloseSug();return;}
-  var res=padronSearch(t,_PAD_SUG_MAX+1);
+  var res=padronSearch(t,_PAD_SUG_MAX+1,_padBuscable());
   // si ya cargaste esa empresa y el texto es exactamente su razón social, no molesto
   if(_padRef&&_padNorm(inp.value)===_padNorm(_padRef.empresa)){_padCloseSug();return;}
   if(!res.length){_padCloseSug();return;}
@@ -10744,7 +10847,7 @@ function _padSugRender(){
   b.innerHTML='<div class="pad-list">'+_padSug.map(function(r,i){
       return '<div class="pad-item'+(i===0?' on':'')+'" onclick="_padPickSug('+i+')">'+
         '<span class="pad-emp">'+_escHtml(r.empresa||'(sin razón social)')+'</span>'+
-        '<span class="pad-sub">'+_escHtml(_padSubtitulo(r))+'</span></div>';
+        '<span class="pad-sub">'+_escHtml(_padSubtitulo(r))+'</span>'+_padDeHtml(r)+'</div>';
     }).join('')+'</div>'+
     (_padSugMas?'<div class="pad-more">Hay m&aacute;s coincidencias &mdash; abr&iacute; la lupa para verlas todas</div>':'');
   _padSugPos();
@@ -18043,6 +18146,20 @@ function _propDiffHtml(antes,despues){
   if(!diff.length)return '<div class="pu-hint">Sin cambios en los oficiales.</div>';
   return '<ul class="prop-diff">'+diff.map(function(d){return '<li><b>'+_escHtml(d[0])+':</b> '+_escHtml(d[1])+'</li>';}).join('')+'</ul>';
 }
+// Pedido de un suplente (032): además de oficiales puede traer cashback y rubro.
+// config/rubro en null = ese dato no se toca.
+function _propCambiosHtml(p){
+  var extra=[];
+  if(p.config!=null&&p.config!==p.config_antes)
+    extra.push(['Cashback',_padCfgName(_padCfgOf(p.config_antes))+' → '+_padCfgName(_padCfgOf(p.config))]);
+  if(p.rubro&&!_padRubroIgual(p.rubro,p.rubro_antes)){
+    var rl=function(x){return _padRubroLabel({rubro:x})||_padRubroSane(x).txt||'sin rubro';};
+    extra.push(['Rubro',rl(p.rubro_antes)+' → '+rl(p.rubro)]);
+  }
+  if(!extra.length)return _propDiffHtml(p.asesores_antes,p.asesores);
+  var all=extra.concat(_plogAsesorDiff(p.asesores_antes||[],p.asesores||[]));
+  return '<ul class="prop-diff">'+all.map(function(d){return '<li><b>'+_escHtml(d[0])+':</b> '+_escHtml(d[1])+'</li>';}).join('')+'</ul>';
+}
 function _propChip(estado){return '<span class="prop-chip prop-chip-'+_escAttr(estado)+'">'+_escHtml(_PROP_ESTADO[estado]||estado)+'</span>';}
 // Los toasts son texto plano (fgShowToast usa textContent): nada de entidades.
 function _propToast(msg){_fgToastLargo(msg,6000);}
@@ -18408,7 +18525,7 @@ function _propCargarPendientes(cb){
 }
 function _propCartel(){
   if(!_propPendCount)return;
-  _propToast('Tenés '+_propPendCount+(_propPendCount===1?' cambio de oficiales':' cambios de oficiales')+
+  _propToast('Tenés '+_propPendCount+(_propPendCount===1?' cambio pendiente':' cambios pendientes')+
     ' para revisar. Tu nombre → Base de datos → Cambios pendientes.');
 }
 function _propBadgeSync(){
@@ -18474,16 +18591,18 @@ function _propPintarLista(){
   // En los onclick va SÓLO el id de la propuesta (lo genera la base): todo lo
   // demás es texto de otro usuario y va siempre a través de _escHtml.
   list.innerHTML=_propPendientes.map(function(p){
-    var esperando=p.estado==='consulta';
+    var esperando=p.estado==='consulta',supl=p.origen==='suplente';
     return '<div class="prop-card prop-card-'+_escAttr(p.estado)+'">'+
       '<div class="prop-card-h"><div><div class="prop-emp">'+_escHtml(p.empresa||'')+'</div>'+
-        '<div class="prop-meta">Propuesto por '+_escHtml(p.creada_por_nombre||'alguien')+' &middot; '+_escHtml(_fmtDate(p.created_at))+'</div></div>'+
+        '<div class="prop-meta">'+(supl?'Pedido por ':'Propuesto por ')+_escHtml(p.creada_por_nombre||'alguien')+
+          (supl?', como suplente':'')+' &middot; '+_escHtml(_fmtDate(p.created_at))+'</div></div>'+
         (esperando?'<span class="prop-chip prop-chip-consulta">Esperando respuesta del hunter</span>':_propChip('pendiente'))+'</div>'+
-      _propDiffHtml(p.asesores_antes,p.asesores)+
+      _propCambiosHtml(p)+
       _propHiloHtml(p.id)+
       '<div class="prop-acts">'+
         '<button type="button" class="prop-btn prop-btn-ok" onclick="_propAccion(\''+p.id+'\',\'aprobar\')">Aprobar</button>'+
-        (esperando?'':'<button type="button" class="prop-btn" onclick="_propAccion(\''+p.id+'\',\'consultar\')">Repreguntar</button>')+
+        // al suplente no se le repregunta: no tiene pantalla para contestar (032)
+        ((esperando||supl)?'':'<button type="button" class="prop-btn" onclick="_propAccion(\''+p.id+'\',\'consultar\')">Repreguntar</button>')+
         '<button type="button" class="prop-btn prop-btn-no" onclick="_propAccion(\''+p.id+'\',\'rechazar\')">Rechazar</button>'+
       '</div>'+
       '<div class="prop-acc" id="prop-acc-'+p.id+'" style="display:none"></div>'+
@@ -18493,7 +18612,7 @@ function _propPintarLista(){
 // Abre (o cierra) el campo de la acción EN EL LUGAR, sin repintar la lista:
 // así no se pierde lo que se esté escribiendo en otra tarjeta.
 var _PROP_ACC={
-  aprobar:{lbl:'Comentario para el hunter (opcional)',ph:'Ej: gracias, ya quedó actualizado',btn:'Confirmar aprobación',cls:'prop-btn-ok'},
+  aprobar:{lbl:'Comentario para quien lo pidió (opcional)',ph:'Ej: gracias, ya quedó actualizado',btn:'Confirmar aprobación',cls:'prop-btn-ok'},
   consultar:{lbl:'Tu consulta',ph:'Ej: ¿confirmaste el celular con el cliente?',btn:'Enviar consulta',cls:'prop-btn-pri'},
   rechazar:{lbl:'Motivo (opcional)',ph:'Ej: ese oficial ya no atiende la empresa',btn:'Confirmar rechazo',cls:'prop-btn-no'}
 };
