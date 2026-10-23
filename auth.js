@@ -8843,7 +8843,9 @@ var _padLoadErr=false;
 var _PAD_HEAD=(function(){
   var h=['empresa','cuit','config'];
   [1,2,3,4].forEach(function(i){h.push('asesor'+i+'_nombre','asesor'+i+'_celular','asesor'+i+'_email');});
-  h.push('rubro','tope','tope2'); // Flyer Rubros: opción del rubro y topes (ver _padRubroOf)
+  // Flyer Rubros: opción del rubro y topes con nombre (ver _padRubroOf y _padTopesDe).
+  // Antes eran "tope"/"tope2": un Excel viejo se sigue leyendo igual (_padRow).
+  h.push('rubro','tope_combustible','tope_supermercado');
   return h;
 })();
 // ── Rubro por empresa (Flyer Rubros) ──────────────────────────────────────────
@@ -8924,10 +8926,33 @@ function _padRubroLabel(r){
   // se muestra el flyer VIGENTE de su rubro, que es al que va a ir: el nombre de
   // la campaña vieja sólo confundiría.
   var lbl=_optLabel(vig),imp=_fgFmtImporte(ru.importe),imp2=_fgFmtImporte(ru.importe2);
+  // Ambos con dos topes distintos: con nombre, para no confundir cuál es cuál
+  if(imp&&imp2&&imp2!==imp&&_padRubroTipoDe(ru)==='ambos')return lbl+' · súper '+imp+' · combustible '+imp2;
   if(imp)lbl+=' · '+imp+((imp2&&imp2!==imp)?' / '+imp2:'');
   return lbl;
 }
 function _padRubroIgual(a,b){a=_padRubroSane(a);b=_padRubroSane(b);return a.opcion===b.opcion&&(!a.opcion||(a.importe===b.importe&&(a.importe2||a.importe)===(b.importe2||b.importe)));}
+// ── TOPES CON NOMBRE (Excel de empresas y editor en línea) ──────────────────
+// Por dentro hay un tope principal (importe) y uno segundo (importe2), y qué es
+// cada uno depende del rubro: combustible → importe = combustible; supermercado →
+// importe = súper; Ambos → importe = súper e importe2 = combustible (vacío si es
+// igual). Afuera se muestran SIEMPRE como "combustible" y "supermercado": estas dos
+// funciones traducen en los dos sentidos. Lo guardado en la base no cambia.
+function _padTopesDe(ru){
+  ru=_padRubroSane(ru);
+  var t=_padRubroTipoDe(ru),i1=ru.importe||'',i2=ru.importe2||'';
+  if(t==='combustible')return {comb:i1,sup:''};
+  if(t==='supermercado')return {comb:'',sup:i1};
+  if(t==='ambos')return {comb:i2||i1,sup:i1};
+  return {comb:i2,sup:i1}; // rubro que no se reconoce: como se leía antes
+}
+function _padTopesA(tipo,comb,sup){
+  comb=_padDigits(comb);sup=_padDigits(sup);
+  if(tipo==='combustible')return {importe:comb||sup,importe2:''};
+  if(tipo==='supermercado')return {importe:sup||comb,importe2:''};
+  var i1=sup||comb;
+  return {importe:i1,importe2:(comb&&comb!==i1)?comb:''};
+}
 
 // Se recuerda por texto (depende sólo de él): el buscador de empresas y el del
 // Hunter normalizaban la razón social de CADA fila en cada tecla, y el orden de
@@ -8976,7 +9001,17 @@ function _padRow(r){
   }
   if(!emp&&!cuits.length)return null;
   var rtxt=g('rubro','rubros','beneficio','opcionrubro');
-  var rubro={opcion:_padRubroOf(rtxt),importe:_padDigits(g('tope','importe','tope1','importe1')),importe2:_padDigits(g('tope2','importe2')),txt:rtxt};
+  var rubro={opcion:_padRubroOf(rtxt),importe:'',importe2:'',txt:rtxt};
+  var tc=g.apply(null,_PAD_COLS_TOPE_COMB),ts=g.apply(null,_PAD_COLS_TOPE_SUP);
+  if(tc||ts){
+    // columnas con nombre: se traducen según el rubro de ESTA fila (_padTopesA)
+    var tp=_padTopesA(_padRubroTipoDe(rubro),tc,ts);
+    rubro.importe=tp.importe;rubro.importe2=tp.importe2;
+  }else{
+    // Excel viejo: "tope" / "tope2" como siempre
+    rubro.importe=_padDigits(g('tope','importe','tope1','importe1'));
+    rubro.importe2=_padDigits(g('tope2','importe2'));
+  }
   return {empresa:emp,cuits:cuits,config:g('config','cashback','tipocashback','tipodecashback','tipo','configuracion'),asesores:as,rubro:rubro};
 }
 // Busca por CUIT (si hay 3+ dígitos) o por coincidencia parcial de la razón social:
@@ -9168,9 +9203,11 @@ function _padToAoa(rows){
   (rows||[]).forEach(function(r){
     var line=[r.empresa||'',(r.cuits||[]).map(_padFmtCuit).join(', '),r.config||''];
     for(var n=1;n<=4;n++){var a=(r.asesores&&r.asesores[n-1])||{};line.push(a.nombre||'',a.celular||'',a.email||'');}
-    var ru=_padRubroSane(r.rubro),f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
+    var ru=_padRubroSane(r.rubro),tp=_padTopesDe(ru);
+    var fc=_fgFmtImporte(tp.comb),fs=_fgFmtImporte(tp.sup);
     var vg=_padOptDeRubro(ru);
-    line.push(vg?_optLabel(vg):'',f1?f1.slice(1):'',(f2&&f2!==f1)?f2.slice(1):'');
+    // si la opción ya no existe, el texto con el que se cargó (si no, se perdía el rubro)
+    line.push(vg?_optLabel(vg):(ru.txt||''),fc?fc.slice(1):'',fs?fs.slice(1):'');
     out.push(line);
   });
   return out;
@@ -9238,13 +9275,15 @@ function dlPadron(){
 }
 function dlPadronTemplate(){
   _padXlsx([
+    // rubro = el flyer de Rubros (o "Combustible" / "Supermercado" / "Ambos"); cada
+    // tope va en la columna de SU rubro: tope_combustible y/o tope_supermercado
     {empresa:'Pharma Sur S.A.',cuits:['30712345678','30709876543'],config:'Config 2',
      asesores:[{nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar'},{},{},{}],
-     // rubro = nombre de una opción de Flyer Rubros; tope2 sólo si difiere (cuadro "Ambos")
-     rubro:{opcion:_padRubroOpts()[0]||0,importe:'24000',importe2:''}},
+     rubro:{opcion:_padRubroActivo('combustible')||0,txt:'Combustible',importe:'24000',importe2:''}},
     {empresa:'Empresa XYZ S.R.L.',cuits:['30711111111'],config:'BAU',
      asesores:[{nombre:'Carlos Lopez',celular:'11 4444 5555',email:'carlos.lopez@bancogalicia.com.ar'},
-               {nombre:'Ana Perez',celular:'11 5555 6666',email:'ana.perez@bancogalicia.com.ar'},{},{}]},
+               {nombre:'Ana Perez',celular:'11 5555 6666',email:'ana.perez@bancogalicia.com.ar'},{},{}],
+     rubro:{opcion:_padRubroActivo('ambos')||0,txt:'Ambos',importe:'20000',importe2:'30000'}},
     // así se marca una empresa a la que NO le corresponde cashback
     {empresa:'Empresa Sin Beneficio SA',cuits:['30700000001'],config:'SIN',
      asesores:[{nombre:'Nombre Apellido',celular:'11 1234 5678',email:'nombre.apellido@bancogalicia.com.ar'},{},{},{}]}
@@ -9410,11 +9449,12 @@ function _padEditRowHtml(r,i,op){
   // Flyer Rubros: rubro (opción) + topes; los topes sólo se habilitan con rubro
   // sólo los flyers vigentes: elegir uno ya reemplazado no tendría sentido
   var ru=_padRubroSane(r.rubro),rOpts=op.rub;
-  var f1=_fgFmtImporte(ru.importe),f2=_fgFmtImporte(ru.importe2);
+  // topes con nombre (_padTopesDe): se habilita el del rubro elegido (los dos en Ambos)
+  var tp=_padTopesDe(ru),fc=_fgFmtImporte(tp.comb),fs=_fgFmtImporte(tp.sup),hab=_padEditTopesHab(ru);
   var rubSel=!rOpts.length?'':'<select title="Rubro (Flyer Rubros)" onchange="_padEditRubro('+i+',\'opcion\',this.value)">'+
     '<option value="0">Sin rubro</option>'+rOpts.map(function(o){return '<option value="'+o+'"'+(_padOptDeRubro(ru)===o?' selected':'')+'>'+_escHtml(_optLabel(o))+'</option>';}).join('')+'</select>'+
-    '<input class="login-inp pad-tope" placeholder="Tope" inputmode="numeric" value="'+_escAttr(f1?f1.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe\',this.value)">'+
-    '<input class="login-inp pad-tope" placeholder="Tope 2" title="Segundo tope, s&oacute;lo si difiere (cuadro Ambos)" inputmode="numeric" value="'+_escAttr((f2&&f2!==f1)?f2.slice(1):'')+'"'+(ru.opcion?'':' disabled')+' oninput="_padEditRubro('+i+',\'importe2\',this.value)">';
+    '<input class="login-inp pad-tope" data-k="comb" placeholder="Tope combustible" title="Tope de reintegro de combustible" inputmode="numeric" value="'+_escAttr(fc?fc.slice(1):'')+'"'+(hab.comb?'':' disabled')+' oninput="_padEditRubro('+i+',\'topes\')">'+
+    '<input class="login-inp pad-tope" data-k="sup" placeholder="Tope s&uacute;per" title="Tope de reintegro de supermercado" inputmode="numeric" value="'+_escAttr(fs?fs.slice(1):'')+'"'+(hab.sup?'':' disabled')+' oninput="_padEditRubro('+i+',\'topes\')">';
   // Los oficiales se arman sólo desplegados (abrir/cerrar ya repinta la lista):
   // plegados eran 12 campos escondidos por empresa, 36.000 con 3.000 empresas.
   var asHtml=!open?'':r.asesores.map(function(a,n){
@@ -9436,16 +9476,38 @@ function _padEditRowHtml(r,i,op){
   '</div>';
 }
 function _padEditField(i,k,v){if(_padEdit&&_padEdit[i])_padEdit[i][k]=v;}
+// Qué tope se puede escribir según el rubro: combustible → sólo combustible;
+// supermercado → sólo súper; Ambos (o un rubro que no se reconoce) → los dos.
+function _padEditTopesHab(ru){
+  if(!ru.opcion)return {comb:false,sup:false};
+  var t=_padRubroTipoDe(ru);
+  return {comb:t!=='supermercado',sup:t!=='combustible'};
+}
 function _padEditRubro(i,k,v){
   var r=_padEdit&&_padEdit[i];if(!r)return;
   r.rubro=_padRubroSane(r.rubro);
+  // la fila por su número: con el buscador puesto, la fila i no es la i-ésima de la pantalla
+  var row=document.querySelector('#padron-edit-list .pad-erow[data-i="'+i+'"]');
+  var inp=function(x){return row&&row.querySelector('.pad-tope[data-k="'+x+'"]');};
   if(k==='opcion'){
+    // el tope que ya estaba se pasa al rubro nuevo (combustible → súper lo mueve de columna)
+    var antes=_padTopesDe(r.rubro);
     r.rubro.opcion=parseInt(v,10)||0;
     r.rubro.txt=r.rubro.opcion?String(_optLabel(r.rubro.opcion)).slice(0,40):'';
-    // habilita/deshabilita los topes de esa fila sin repintar todo (por su
-    // número: con el buscador puesto, la fila i no es la i-ésima de la pantalla)
-    var row=document.querySelector('#padron-edit-list .pad-erow[data-i="'+i+'"]');
-    if(row)row.querySelectorAll('.pad-tope').forEach(function(el){el.disabled=!r.rubro.opcion;});
+    var tp=_padTopesA(_padRubroTipoDe(r.rubro),antes.comb,antes.sup);
+    r.rubro.importe=tp.importe;r.rubro.importe2=tp.importe2;
+    // habilita/deshabilita y muestra los topes de esa fila sin repintar todo
+    var hab=_padEditTopesHab(r.rubro),ahora=_padTopesDe(r.rubro);
+    ['comb','sup'].forEach(function(x){
+      var el=inp(x);if(!el)return;
+      var f=_fgFmtImporte(ahora[x]);
+      el.disabled=!hab[x];el.value=f?f.slice(1):'';
+    });
+  }
+  else if(k==='topes'){
+    var c=inp('comb'),s=inp('sup');
+    var tq=_padTopesA(_padRubroTipoDe(r.rubro),c&&!c.disabled?c.value:'',s&&!s.disabled?s.value:'');
+    r.rubro.importe=tq.importe;r.rubro.importe2=tq.importe2;
   }
   else r.rubro[k]=_padDigits(v);
 }
@@ -10912,6 +10974,22 @@ function _padCfgParse(raw){
 var _PAD_COLS_EMPRESA=['empresa','razonsocial','razsocial','nombreempresa','company','cliente'];
 var _PAD_COLS_CONFIG=['config','cashback','tipocashback','tipodecashback','tipo','configuracion'];
 var _PAD_COLS_RUBRO=['rubro','rubros','beneficio','opcionrubro','tope','importe','tope1','importe1','tope2','importe2'];
+// Topes con nombre (ya sin acentos, signos ni espacios: _padKey). Ver _padTopesA.
+var _PAD_COLS_TOPE_COMB=['topecombustible','combustible','topecomb'];
+var _PAD_COLS_TOPE_SUP=['topesupermercado','supermercado','topesuper','super','topesuperm'];
+_PAD_COLS_RUBRO=_PAD_COLS_RUBRO.concat(_PAD_COLS_TOPE_COMB,_PAD_COLS_TOPE_SUP);
+// ¿La fila es de un solo rubro y el tope vino SÓLO en la columna del otro? Devuelve
+// el rubro ('combustible' / 'supermercado') para avisarlo, o '' si está bien.
+function _padTopeCruzado(r,o){
+  var m={},k;
+  for(k in r){if(r.hasOwnProperty(k))m[_padKey(k)]=(r[k]==null?'':String(r[k])).trim();}
+  var hay=function(cols){return cols.some(function(c){return !!_padDigits(m[c]);});};
+  var tc=hay(_PAD_COLS_TOPE_COMB),ts=hay(_PAD_COLS_TOPE_SUP);
+  var t=_padRubroTipoDe(o&&o.rubro);
+  if(t==='combustible'&&ts&&!tc)return t;
+  if(t==='supermercado'&&tc&&!ts)return t;
+  return '';
+}
 var _PAD_COLS_CUIT=['cuit','cuits','cuitgrupo','cuitsociedad'];
 var _PAD_COLS_A1=['nombre','asesornombre','celular','asesorcelular','cel','email','mail','asesoremail'];
 function _padColKnown(k){
@@ -10932,13 +11010,14 @@ function _padValidate(raw){
     if(_PAD_COLS_CONFIG.indexOf(k)>=0)hasCfg=true;
     if(!_padColKnown(k))unknown.push(cols[k]);
   }
-  var badCfg=[],badCuit=[],sinNombre=[],sinCB=0,badRub=[];
+  var badCfg=[],badCuit=[],sinNombre=[],sinCB=0,badRub=[],cruzados=[];
   raw.forEach(function(r,i){
     var o=_padRow(r);
     if(!o){desc++;return;}
     var fila=(typeof r.__rowNum__==='number')?r.__rowNum__+1:i+2; // el número que ve el usuario en su Excel
     var rubTxt=_padRubroTxt(r);
     if(rubTxt&&!o.rubro.opcion)badRub.push({fila:fila,val:rubTxt,emp:o.empresa});
+    var cz=_padTopeCruzado(r,o);if(cz)cruzados.push({fila:fila,tipo:cz,emp:o.empresa});
     if(!o.empresa)sinNombre.push(fila);
     if(_padCfgOf(o.config)<0){
       if(_padCfgSin(o.config))sinCB++;                                    // marcada a propósito
@@ -10975,6 +11054,12 @@ function _padValidate(raw){
   if(badRub.length)
     prob.push({grave:false,txt:'<strong>'+badRub.length+' rubro'+(badRub.length>1?'s que no reconozco':' que no reconozco')+'</strong> (queda'+(badRub.length>1?'n':'')+' <strong>sin rubro</strong>): '+
       lista(badRub,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+'. Valores v&aacute;lidos: el nombre de una opci&oacute;n de Flyer Rubros ('+_escHtml(_padRubroOpts().map(_optLabel).join(', ')||'ninguna configurada')+').'});
+  if(cruzados.length)
+    prob.push({grave:false,txt:'<strong>'+cruzados.length+' tope'+(cruzados.length>1?'s':'')+' en la columna del otro rubro</strong>: '+
+      lista(cruzados,function(x){
+        var es=x.tipo==='combustible'?'Combustible':'Supermercado',col=x.tipo==='combustible'?'tope_supermercado':'tope_combustible';
+        return 'fila '+x.fila+' (rubro '+es+', pero el tope est&aacute; en <code>'+col+'</code>)';
+      })+'. Los tom&eacute; como tope de su rubro; si no era as&iacute;, corregilos.'});
   if(badCuit.length)
     prob.push({grave:false,txt:'<strong>'+badCuit.length+' CUIT sin 11 d&iacute;gitos</strong>: '+
       lista(badCuit,function(x){return 'fila '+x.fila+' ("'+_escHtml(x.val)+'")';})+'. Se guardan igual, pero puede que no los encuentres al buscar.'});

@@ -23,7 +23,8 @@ module.exports=async(browser)=>{
     return {t25:tope(25),t2:tope(2),hay:document.querySelectorAll('#padron-edit-list .pad-erow').length};
   },filas());
   if(r1.sinRubros)console.log('  (sin opciones de rubro en la nube simulada: se saltea el punto 1)');
-  else ok(r1.t25&&r1.t25.every(d=>!d)&&r1.t2&&r1.t2.every(d=>d),'editor filtrado: se habilitan los topes de la fila elegida ('+JSON.stringify(r1)+')');
+  // desde el 23-oct se habilita el tope del rubro de esa opción (los dos si no se sabe): al menos uno
+  else ok(r1.t25&&r1.t25.some(d=>!d)&&r1.t2&&r1.t2.every(d=>d),'editor filtrado: se habilitan los topes de la fila elegida ('+JSON.stringify(r1)+')');
 
   // 2) Eliminar una empresa: los desplegables abiertos siguen a su empresa
   const r2=await p.evaluate(async()=>{
