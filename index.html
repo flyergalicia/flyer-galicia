@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="31068b607a">
+<meta name="build-v" content="382c4a24ad">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1958,8 +1958,46 @@ html.dark .vig-mal{background:rgba(180,35,24,.25);color:#ff9b91;}
 .mg-pb-grid img{width:23px;height:23px;object-fit:contain;}
 .mg-pb-x{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--card);color:var(--ink);font-size:20px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
 .mg-pb-x:hover{border-color:var(--accent);color:var(--accent-2);}
+/* Marcas guardadas, 23-oct (2): Atrás, puntitos que llevan a un paso, "Así queda", provincia y miniaturas */
+.mg-pb-pts button{width:22px;height:16px;padding:0;border:0;background:none;cursor:pointer;display:flex;align-items:center;border-radius:4px;}
+.mg-pb-pts button::before{content:'';display:block;width:100%;height:5px;border-radius:3px;background:var(--border);transition:transform .12s;}
+.mg-pb-pts button.ok::before{background:#16A34A;}
+.mg-pb-pts button.salt::before{background:repeating-linear-gradient(90deg,var(--gray) 0 3px,transparent 3px 5px);opacity:.7;}
+.mg-pb-pts button.ya::before{background:var(--accent);height:7px;}
+.mg-pb-pts button.no::before{background:#EAB308;}
+.mg-pb-pts button:hover::before{transform:scaleY(1.5);}
+.mg-pb-pts button:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+.mg-pb-link{align-self:flex-start;margin-top:6px;padding:0;border:0;background:none;color:var(--accent-2);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-align:left;}
+.mg-pb-link:hover{color:var(--accent);}
+.mg-pb-acts{flex-wrap:wrap;justify-content:flex-end;}
+.mg-pb-acts .btn[disabled]{opacity:.45;cursor:default;}
+.mg-pb-listo{background:rgba(22,163,74,.1);border-color:rgba(22,163,74,.35);}
+.mg-pb-listo .mg-pb-ico{color:#15803D;}
+.mg-av-r{color:#B42318;font-weight:700;}
+.mg-av-a{color:#A16207;font-weight:700;}
+html.dark .mg-av-r{color:#FF8A80;}
+html.dark .mg-av-a,html.dark .mg-pb-pista.aprox,html.dark .mg-fila-t .mg-vieja{color:#FACC15;}
+.mg-pb-esp{width:24px;height:24px;box-sizing:border-box;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:mgEsp .8s linear infinite;}
+@keyframes mgEsp{to{transform:rotate(360deg);}}
+#mg-sugs{position:absolute;inset:0;pointer-events:none;z-index:4;}
+.mg-sug.vista{animation:none;border-width:2px;background:rgba(242,97,34,.05);box-shadow:none;}
+.mg-sug.vista::after{content:'\2713';left:auto;right:-10px;top:-10px;width:20px;height:20px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+@media (prefers-reduced-motion:reduce){.mg-pb-esp{animation-duration:2.4s;}}
+/* sin promo en la provincia con que se guardaron (amarillo; las vencidas siguen en rojo) */
+.cw .fg-lg-marca.fueraprov{border-style:solid;border-color:#CA8A04;background:rgba(234,179,8,.08);}
+.cw .fg-lg-marca.fueraprov::after{content:attr(data-v);position:absolute;left:-2px;top:-24px;background:#A16207;color:#fff;font-size:12px;font-weight:700;line-height:1.3;padding:1px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;}
+/* lista con miniatura, qué tiene y de qué flyer */
+.mg-fila-img{width:116px;aspect-ratio:520/200;flex-shrink:0;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#fff;}
+.mg-fila-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.mg-fila-img.vacia{background:repeating-linear-gradient(135deg,var(--border) 0 1px,transparent 1px 9px);opacity:.7;}
+.mg-fila-t{flex:1;}
+.mg-fila-t .mg-fila-c{color:var(--ink-2,var(--ink));}
+.mg-fila-t .mg-vieja{color:#A16207;font-weight:600;line-height:1.35;}
+@media (max-width:520px){.mg-fila-img{width:84px;}}
+.fg-cf.fg-mgg{width:min(460px,100%);}
+.fg-mgg select{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font:500 .8125rem "Figtree",sans-serif;background:var(--field,#fff);color:var(--ink);}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=4577cccd01"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=0e73f74a8b"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">

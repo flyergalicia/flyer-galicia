@@ -13224,17 +13224,19 @@ function _fgLgInit(){
     var t=e.target&&e.target.tagName;
     if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||(e.target&&e.target.isContentEditable))return;
     var k=String(e.key||'').toLowerCase();
+    if(_mgPaso){if(k==='z'&&!e.shiftKey){e.preventDefault();_mgPasoAtras();}return;} // colocando marcas guardadas: Ctrl+Z = Atrás
     if(k==='z'&&!e.shiftKey){e.preventDefault();fgLgDeshacer();}
     else if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();fgLgRehacer();}
     else if(k==='c'&&!_fgLg.limpio){var tx='';try{tx=String(window.getSelection&&window.getSelection()||'');}catch(x){}if(!tx&&_fgLgCopiar())e.preventDefault();} // con texto marcado en la página, copia ese texto (lo normal)
     else if(k==='v'&&!_fgLg.limpio&&_fgLg.copia){e.preventDefault();_fgLgPegar();}
   });
-  // Colocando marcas guardadas: Enter = Poner acá, Escape = terminar
+  // Colocando marcas guardadas: Enter = el botón principal (Poner acá / Dejar así /
+  // Listo), Escape = terminar. Con un botón enfocado, Enter es ese botón.
   document.addEventListener('keydown',function(e){
     if(!_mgPaso||e.ctrlKey||e.metaKey||e.altKey)return;
     if(document.querySelector('.fg-cf-ov'))return;
     var t=e.target&&e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT')return;
-    if(e.key==='Enter'){e.preventDefault();_mgPasoPoner();}
+    if(e.key==='Enter'){if(t==='BUTTON')return;e.preventDefault();_mgPasoEnter();}
     else if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();_mgPasoFin();}
   },true);
   // Letras sueltas en el modo edición (como + y −, sin Ctrl: Ctrl+B ya es la
@@ -13734,8 +13736,8 @@ function _fgLgMarcas(){
   mk.innerHTML=A.map(function(e,i){
     // logo nuevo: su recuadro (se mueve con él); lugar vacío: lo que se tapó
     var p=_fgLgAjustable(e)?_fgLgAPantalla(e.tx,e.ty,e.tw,e.th):_fgLgAPantalla(e.x,e.y,e.w,e.h);
-    var vc=_fgLgVencida(e);
-    return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+(vc?' vencida':'')+'"'+(vc?' data-v="Vencida · doble clic para cambiar"':'')+' style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px">'+
+    var vc=_fgLgVencida(e),fp=!vc&&_fgLgFueraProv(e);
+    return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+(vc?' vencida':'')+(fp?' fueraprov':'')+'"'+(vc?' data-v="Vencida · doble clic para cambiar"':fp?' data-v="'+_escAttr('Sin promo en '+_promoTitulizar(e.prov)+' · doble clic para cambiar')+'"':'')+' style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px">'+
       (e.franjaBase?'<button type="button" class="fg-lg-fr-edit" data-fr="'+_escAttr(e.franja)+'" title="Volver al editor de esta franja (sin marcarla de nuevo)">&#9998; Editar franja</button>':'')+'</div>';
   }).join('')+(_fgLg.lugares||[]).map(function(d){
     var p=_fgLgAPantalla(d.x,d.y,d.w,d.h);
@@ -13745,6 +13747,7 @@ function _fgLgMarcas(){
   _fgLgVencAviso(A);
   nuevos.forEach(function(i){var m=mk.children[i],k=JSON.stringify(A[i]);if(m){m.classList.add('flash');setTimeout(function(){m.classList.remove('flash');},Math.max(0,_fgLgMkFlash[k]-ya));}});
   _fgLgHerr(capa);
+  if(_mgPaso)_mgPasoCajas(false); // los recuadros de Marcas guardadas siguen al flyer (zoom, tamaño)
 }
 var _fgLgMkAntes=null,_fgLgMkFlash={};
 // Marcas vencidas (21-oct-2026): un logo de Promociones cuya promo ya venció (o
@@ -13768,6 +13771,24 @@ function _fgLgVencida(e){
   if(!e||e.tipo==='txt'||!e.img||_fgLgEsSubido(e.img)||String(e.img).indexOf('orig:')===0)return false;
   var m=_fgLgVencMapa();if(!m)return false;
   return !m[e.img]; // 0 = sólo vencidas; undefined = ya no está en Promociones
+}
+// Sin promo en la provincia (23-oct-2026): lo que puso una combinación de Marcas
+// guardadas lleva la provincia con la que se guardó (e.prov). Si esa marca no tiene
+// ninguna promo vigente (o por empezar) ahí, se marca en amarillo; las online valen
+// en todas. Lo vencido ya va en rojo y no se marca dos veces. Índice por catálogo,
+// día y provincia.
+var _fgLgProvIdx={cat:null,dia:'',m:{}};
+function _fgLgFueraProv(e){
+  if(!e||!e.prov||e.tipo==='txt'||!e.img||_fgLgEsSubido(e.img)||String(e.img).indexOf('orig:')===0)return false;
+  if(!_promosCat||!_promosCat.length||!_promosHayGeo()||_fgLgVencida(e))return false;
+  var hoy=new Date(),dia=hoy.toDateString(),I=_fgLgProvIdx;
+  if(I.cat!==_promosCat||I.dia!==dia){I.cat=_promosCat;I.dia=dia;I.m={};}
+  var m=I.m[e.prov];
+  if(!m){
+    m=I.m[e.prov]=Object.create(null);
+    _promosCat.forEach(function(q){if(q.imagen&&(q.proximamente||_promoEstado(q.fecha_hasta,hoy)!=='VENCIDA')&&_promoEnProvincia(q,e.prov))m[q.imagen]=1;});
+  }
+  return !m[e.img];
 }
 // Un aviso cuando aparecen marcas vencidas (al abrir un borrador o un diseño); no se repite igual.
 var _fgLgVencVisto='';
@@ -15727,6 +15748,7 @@ function _fgBorradorCrear(n){
 }
 function _fgBorradorAuto(forzar){
   if((!_fgLg.on&&!forzar)||_fgProtoActivo()||_fgBorr.ocupado)return;
+  if(_mgPaso&&_mgPaso.modo==='vista')return; // "Así queda" de Marcas guardadas: se muda al "Dejar así"
   if(!(_fgLgActivos().length||_fgRecActivo()))return;
   var n=_optN(_fgOpt);if(_FG_OPTS.indexOf(n)<0)return;
   _fgStashLegal(); // lo editado en el legal del original queda para el original
@@ -15863,8 +15885,16 @@ function estUsar(id){
 // PASO A PASO: una cosa por vez, con su lugar marcado en el flyer para confirmar
 // o tocar otro. Los días de los súper y la vigencia se recalculan con las promos
 // de hoy (las vencidas quedan en rojo).
-var _MG={lista:null,cargando:false};
-var _MG_COLS='id,nombre,user_id,autor,updated_at,opcion';
+// 23-oct (2): si encontró todo, primero se VE puesto en el flyer ("Así queda",
+// con Dejar así / Revisar uno por uno / Volver a como estaba); en el paso a paso
+// hay Atrás (Ctrl+Z), los puntitos llevan a cualquier paso y "Poner de una" pone
+// los seguros. Al guardar se puede reemplazar una que ya existe y elegir la
+// provincia de esas marcas: lo que se pone lleva esa provincia (e.prov) y una
+// marca sin promo ahí queda en amarillo (_fgLgFueraProv). La lista muestra la
+// miniatura, qué tiene y de qué flyer es, y avisa las guardadas con la versión
+// anterior (sin las cajas de alrededor: se ubican peor).
+var _MG={lista:null,cargando:false,ultima:null};
+var _MG_COLS='id,nombre,user_id,autor,updated_at,opcion,miniatura,v:datos->>v,resumen:datos->>resumen,flyer:datos->>flyer,prov:datos->>prov';
 function _mgPuede(){return !_esHunter()&&!_esLider()&&_can('estudio');}
 function _mgPromoDe(img){
   var L=_promosCat||[],m=null;
@@ -15960,29 +15990,63 @@ function _mgResumen(items){
   return p.length?p.join(', '):'nada';
 }
 function _mgCargar(cb){
-  if(_MG.cargando)return;_MG.cargando=true;
+  if(_MG.cargando){if(cb)setTimeout(function(){_mgCargar(cb);},150);return;}
+  _MG.cargando=true;
   _sbTodo(function(d,h){return _sb.from('flyer_disenos').select(_MG_COLS).eq('tipo','combinacion').order('updated_at',{ascending:false}).range(d,h);},function(err,filas){
     _MG.cargando=false;
     if(err){if(cb)cb(err);return;}
     _MG.lista=filas||[];if(cb)cb(null);
   },1000,0,[]);
 }
+// Guardar: con nombre, "como una nueva" o "reemplazando" una que ya tenés (así
+// no se llena la lista de repetidas; por defecto, la última que se aplicó), y la
+// provincia de esas marcas (para avisar al aplicar si alguna no tiene promo ahí).
 function _mgGuardar(){
   var datos=_mgArmar();
   if(!datos.items.length){showToast('Este flyer no tiene cambios para guardar. Armá las franjas y los logos con «Cambiar logos» y después guardalos.');return;}
-  var tam=JSON.stringify(datos).length;
-  if(tam>2800000){showToast('Los logos subidos desde la PC pesan demasiado para guardarlos. Probá con imágenes más chicas.');return;}
-  fgPedirTexto('Guardar las marcas de este flyer','Se guardan: '+_mgResumen(datos.items)+'. Después las aplicás en el modelo nuevo desde «Marcas guardadas».','',{ok:'Guardar',largo:80},function(n){
-    if(n===null)return;
-    n=String(n||'').trim();if(!n){showToast('Ponele un nombre (por ejemplo, la localidad).');return;}
-    var fila={nombre:n,empresa:'',opcion:_optN(_fgOpt),base_name:_estNombreImg(_fgLgSrc()),datos:datos,miniatura:_estMiniatura(_fgLgActivos()),estado:'privado',tipo:'combinacion'};
-    _sb.from('flyer_disenos').insert(fila).select(_MG_COLS).single().then(function(r){
-      if(r.error){showToast('No se pudo guardar: '+_estErr(r.error));return;}
-      if(_MG.lista)_MG.lista.unshift(r.data);
-      _mgPintarListas();
-      showToast('Guardadas como «'+r.data.nombre+'»: '+_mgResumen(datos.items)+'.');
-    },function(e){showToast('No se pudo guardar: '+_estErr(e));});
-  });
+  if(JSON.stringify(datos).length>2800000){showToast('Los logos subidos desde la PC pesan demasiado para guardarlos. Probá con imágenes más chicas.');return;}
+  // antes de abrir: la lista (para "reemplazar") y el catálogo (para las provincias)
+  var faltan=1,listo=function(){if(--faltan===0)abrir();};
+  if(!_MG.lista){faltan++;_mgCargar(listo);}
+  if(!_promosCat){faltan++;loadPromosCatalogo(listo);}
+  var abrir=function(){
+    var mias=(_MG.lista||[]).filter(_estMio),ult=_MG.ultima&&mias.filter(function(d){return d.id===_MG.ultima.id;})[0];
+    var provs=(typeof _promosHayGeo==='function'&&_promosHayGeo())?_promosProvincias():[];
+    var provDef=(ult&&ult.prov)||_fgLgV.prov||_promosProv||'';
+    var w=_mgOv('fg-mgg-ov','<div class="fg-cf fg-est-g fg-mgg"><div class="fg-lg-h"><div style="flex:1;min-width:0"><div class="fg-cf-t">Guardar las marcas de este flyer</div>'+
+      '<div class="fg-cf-b">Se guardan: <b>'+_escHtml(_mgResumen(datos.items))+'</b>. Despu&eacute;s las aplic&aacute;s en el modelo nuevo desde &laquo;Marcas guardadas&raquo;.</div></div>'+
+      '<button type="button" class="fg-lg-x" id="fg-mgg-x" aria-label="Cerrar">&times;</button></div>'+
+      (mias.length?'<label class="fg-est-l" for="fg-mgg-dest">Guardar como</label><select id="fg-mgg-dest"><option value="">Una nueva</option>'+
+        mias.map(function(d){return '<option value="'+_escAttr(d.id)+'"'+(ult&&ult.id===d.id?' selected':'')+'>Reemplazar &laquo;'+_escHtml(d.nombre)+'&raquo;</option>';}).join('')+'</select>':'')+
+      '<label class="fg-est-l" for="fg-mgg-nom">Nombre</label><input type="text" id="fg-mgg-nom" maxlength="80" autocomplete="off" placeholder="Neuquén capital">'+
+      (provs.length?'<label class="fg-est-l" for="fg-mgg-prov">Provincia de estas marcas <span>(te aviso si alguna no tiene promo ah&iacute;)</span></label><select id="fg-mgg-prov"><option value="">Ninguna en particular</option>'+
+        provs.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===provDef?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('')+'</select>':'')+
+      '<div class="fg-cf-acts"><button type="button" class="btn bg" id="fg-mgg-no">Cancelar</button><button type="button" class="btn bp" id="fg-mgg-ok">Guardar</button></div></div>');
+    var nom=document.getElementById('fg-mgg-nom'),dest=document.getElementById('fg-mgg-dest'),prov=document.getElementById('fg-mgg-prov'),ok=document.getElementById('fg-mgg-ok');
+    var ponerNombre=function(){var d=dest&&dest.value?mias.filter(function(x){return x.id===dest.value;})[0]:null;nom.value=d?d.nombre:'';ok.textContent=d?'Reemplazar':'Guardar';};
+    if(dest)dest.onchange=ponerNombre;ponerNombre();
+    document.getElementById('fg-mgg-x').onclick=w.cerrar;document.getElementById('fg-mgg-no').onclick=w.cerrar;
+    nom.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ok.click();}});
+    ok.onclick=function(){
+      var n=String(nom.value||'').replace(/[<>]/g,'').trim();if(!n){showToast('Ponele un nombre (por ejemplo, la localidad).');nom.focus();return;}
+      var idR=dest&&dest.value||'';
+      datos.prov=prov?prov.value:'';datos.resumen=_mgResumen(datos.items);datos.flyer=_optLabel(_fgOpt);
+      var fila={nombre:n,opcion:_optN(_fgOpt),base_name:_estNombreImg(_fgLgSrc()),datos:datos,miniatura:_estMiniatura(_fgLgActivos())};
+      ok.disabled=true;ok.textContent='Guardando…';
+      var q=idR?_sb.from('flyer_disenos').update(fila).eq('id',idR).select(_MG_COLS).single()
+               :_sb.from('flyer_disenos').insert(Object.assign({empresa:'',estado:'privado',tipo:'combinacion'},fila)).select(_MG_COLS).single();
+      q.then(function(r){
+        if(r.error){ok.disabled=false;ok.textContent=idR?'Reemplazar':'Guardar';showToast('No se pudo guardar: '+_estErr(r.error));return;}
+        w.cerrar();
+        if(_MG.lista){_MG.lista=_MG.lista.filter(function(x){return x.id!==r.data.id;});_MG.lista.unshift(r.data);}
+        _MG.ultima={id:r.data.id,nombre:r.data.nombre};
+        _mgPintarListas();
+        showToast((idR?'Actualicé «':'Guardadas como «')+r.data.nombre+'»: '+datos.resumen+'.');
+      },function(e){ok.disabled=false;ok.textContent=idR?'Reemplazar':'Guardar';showToast('No se pudo guardar: '+_estErr(e));});
+    };
+    setTimeout(function(){try{nom.focus();nom.select();}catch(e){}},30);
+  };
+  listo();
 }
 function _mgBorrar(id){
   var d=(_MG.lista||[]).filter(function(x){return x.id===id;})[0];if(!d)return;
@@ -16172,12 +16236,15 @@ function _fgFrAplicarSin(rect,it){
   var pr;try{pr=_fgFrAplicar(st);}catch(e){volver();return Promise.reject(e);}
   return Promise.resolve(pr).then(function(n){volver();return n||0;},function(e){volver();throw e;});
 }
+// Un cambio se reconoce por su lugar y lo que es, no por el objeto: "Atrás" vuelve
+// a armar la lista desde una copia (y dibujar no cambia estos datos).
+function _mgClave(e){return [Math.round(e.ox),Math.round(e.oy),Math.round(e.ow),Math.round(e.oh),e.img||'',e.tipo||'',e.franja||'',e.franjaBase?1:0,e.texto||''].join('|');}
 // El cambio de ANTES de aplicar que está en ese lugar (para reemplazarlo); -1 =
 // ninguno, va uno nuevo (así no se pisa lo que la misma aplicación acaba de poner).
 function _mgIndiceViejo(det,previos){
   var L=_fgLgActivos();
   for(var i=0;i<L.length;i++){
-    var e=L[i];if(e.franjaBase||previos.indexOf(e)<0)continue;
+    var e=L[i];if(e.franjaBase||!previos[_mgClave(e)])continue;
     var ix=Math.min(e.ox+e.ow,det.x+det.w)-Math.max(e.ox,det.x),iy=Math.min(e.oy+e.oh,det.y+det.h)-Math.max(e.oy,det.y);
     if(ix>0&&iy>0&&ix*iy>0.5*Math.min(e.ow*e.oh,det.w*det.h))return i;
   }
@@ -16214,6 +16281,17 @@ function _mgPonerItem(it,u,P){
   }
   P.n.logo++;return Promise.resolve();
 }
+// Lo que puso esta aplicación lleva la provincia con la que se guardó (para marcar
+// en amarillo las marcas sin promo ahí). Lo que ya estaba antes no se toca.
+function _mgMarcarProv(P){
+  var pv=P.datos.prov;if(!pv)return;
+  _fgLgActivos().forEach(function(e){if(e.img&&e.tipo!=='txt'&&!e.prov&&!P.previos[_mgClave(e)])e.prov=pv;});
+}
+// ¿Esa marca no tiene ninguna promo vigente en la provincia? (las online valen en todas)
+function _mgSinPromoEn(img,prov){
+  if(!prov||!img||_fgLgEsSubido(img)||String(img).indexOf('orig:')===0)return false;
+  return _fgLgFueraProv({img:img,prov:prov});
+}
 // Prepara una aplicación: baja los logos, ubica todo. Devuelve el estado P.
 function _mgPreparar(datos,nombre){
   var src0=_fgLgSrc(),imgs={};
@@ -16232,23 +16310,35 @@ function _mgPreparar(datos,nombre){
     var orden=datos.items.map(function(it,i){return i;});
     var peso=function(it){return it.tipo==='franja'?0:it.tipo==='texto'?2:1;},yy=function(it){var b=it.rect||it.lugar||{y:0};return b.y;};
     orden.sort(function(a,b){var A=datos.items[a],B=datos.items[b];return (peso(A)-peso(B))||(yy(A)-yy(B));});
-    var ub=_mgUbicarTodo(datos);
+    var ub=_mgUbicarTodo(datos),previos={};
+    _fgLgActivos().forEach(function(e){previos[_mgClave(e)]=1;});
     return {datos:datos,nombre:nombre,orden:orden,ub:ub,i:0,src0:src0,s:baseImg.width/Math.max(1,datos.ancho||baseImg.width),
-      malos:malos,previos:_fgLgActivos().slice(),n:{franja:0,logo:0,vacio:0,texto:0},aprox:[],saltados:0};
+      malos:malos,previos:previos,n:{franja:0,logo:0,vacio:0,texto:0},aprox:[],saltados:0,
+      modo:'paso',fotos:[],hecho:[],usado:[],okN:orden.filter(function(i){return ub[i].ok;}).length};
   });
 }
+function _mgHechoTxt(n){
+  var h=[];
+  if(n.franja)h.push(n.franja+(n.franja===1?' franja':' franjas'));if(n.logo)h.push(n.logo+(n.logo===1?' logo':' logos'));
+  if(n.vacio)h.push(n.vacio+(n.vacio===1?' lugar vacío':' lugares vacíos'));if(n.texto)h.push(n.texto+(n.texto===1?' texto':' textos'));
+  return h.join(', ');
+}
+// Lo que hay para avisar al terminar: vencidas (rojo) y sin promo en la provincia (amarillo).
+function _mgCuentas(P){
+  var A=_fgLgActivos(),pv=P.datos.prov||'';
+  return {hecho:_mgHechoTxt(P.n),venc:A.filter(_fgLgVencida).length,
+    fuera:pv?A.filter(function(e){return e.prov===pv&&_fgLgFueraProv(e);}).length:0,provN:pv?_promoTitulizar(pv):''};
+}
 function _mgResumenFinal(P){
-  var n=P.n,hecho=[];
-  if(n.franja)hecho.push(n.franja+(n.franja===1?' franja':' franjas'));if(n.logo)hecho.push(n.logo+(n.logo===1?' logo':' logos'));
-  if(n.vacio)hecho.push(n.vacio+(n.vacio===1?' lugar vacío':' lugares vacíos'));if(n.texto)hecho.push(n.texto+(n.texto===1?' texto':' textos'));
-  var venc=_fgLgActivos().filter(_fgLgVencida).length;
-  var msg='Listo «'+P.nombre+'»'+(hecho.length?': '+hecho.join(', '):': no se puso nada')+'.';
+  var c=_mgCuentas(P);
+  var msg='Listo «'+P.nombre+'»'+(c.hecho?': '+c.hecho:': no se puso nada')+'.';
   if(P.saltados)msg+=' '+P.saltados+(P.saltados===1?' salteado.':' salteados.');
-  if(venc)msg+=' '+venc+(venc===1?' marca vencida (en rojo).':' marcas vencidas (en rojo).');
+  if(c.venc)msg+=' '+c.venc+(c.venc===1?' marca vencida (en rojo).':' marcas vencidas (en rojo).');
+  if(c.fuera)msg+=' '+c.fuera+(c.fuera===1?' marca sin promo en ':' marcas sin promo en ')+c.provN+' (en amarillo).';
   if(P.aprox.length)msg+=' Revisá: '+P.aprox.slice(0,2).join(', ')+(P.aprox.length>2?'…':'')+'.';
   return msg;
 }
-// Todo de una (cuando encontró todo con seguridad): un solo paso de Deshacer.
+// Todo de una, sin preguntar (lo usan las pruebas): un solo paso de Deshacer.
 function _mgAplicar(datos,elegidos,nombre){
   return _mgPreparar(datos,nombre).then(function(P){
     if(!P)return null;
@@ -16259,6 +16349,7 @@ function _mgAplicar(datos,elegidos,nombre){
     });
     return cola.then(function(){
       if(_fgLgSrc()!==P.src0)return null;
+      _mgMarcarProv(P);
       _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();
       showToast(_mgResumenFinal(P));
       return {n:P.n,aprox:P.aprox,venc:_fgLgActivos().filter(_fgLgVencida).length};
@@ -16269,11 +16360,22 @@ function _mgAplicar(datos,elegidos,nombre){
 // Una cosa por vez: la barra de abajo dice qué se está colocando ("2 de 5: Vea,
 // con sus días") y en el flyer queda marcado dónde iría. "Poner acá" (o Enter) la
 // pone; tocar un logo del flyer la pone sobre ese logo; para una franja, tocarla o
-// arrastrar un recuadro. "Saltar" la deja; × termina (lo puesto queda). Mientras
-// tanto no se abren otras ventanas ni andan los atajos de una letra.
+// arrastrar un recuadro. "Saltar" la deja; "Atrás" (o Ctrl+Z) vuelve al paso
+// anterior tal como estaba; cada puntito lleva a ese paso (uno hecho: se vuelve
+// ahí; uno que falta: se hace ahora). Al final, "Listo" con el resumen (todavía se
+// puede ir atrás). Mientras tanto no se abren otras ventanas ni andan los atajos
+// de una letra.
+// modo 'vista' = encontró todo: se pone todo y se muestra "Así queda" para decidir.
 var _mgPaso=null;
 function _mgPasoItem(){var P=_mgPaso;return P?P.datos.items[P.orden[P.i]]:null;}
 function _mgPasoUb(){var P=_mgPaso;return P?P.ub[P.orden[P.i]]:null;}
+// Copia de cómo estaba todo antes de un paso (para "Atrás").
+function _mgFoto(P){return {L:JSON.stringify(_fgLgActivos()),n:JSON.stringify(P.n),aprox:P.aprox.slice(),saltados:P.saltados};}
+function _mgVolverA(P,f){
+  _fgLg.list=JSON.parse(f.L);_fgLg.src=_fgLgSrc();
+  P.n=JSON.parse(f.n);P.aprox=f.aprox.slice();P.saltados=f.saltados;
+  _fgLg.sel=-1;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgListo();
+}
 function _mgPasoMiniHtml(it){
   if(it.tipo==='franja'){ // sus primeros logos, en grilla
     return '<span class="mg-pb-grid">'+it.sel.slice(0,4).map(function(x){var c=_fgLg.imgs[x.img];var src='';try{src=c&&c.toDataURL?c.toDataURL('image/png'):PROMO_LOGO_BASE+x.img;}catch(e){src=PROMO_LOGO_BASE+x.img;}return '<img alt="" src="'+_escAttr(src)+'">';}).join('')+'</span>';
@@ -16288,70 +16390,188 @@ function _mgPasoMiniHtml(it){
 function _mgPasoMostrar(){
   var P=_mgPaso,prev=document.querySelector('.prev');
   var bar=document.getElementById('mg-paso');
-  if(!P){if(bar)bar.remove();var s0=document.getElementById('mg-sug');if(s0)s0.remove();if(prev)prev.classList.remove('mg-paso-on');return;}
-  if(P.i>=P.orden.length){_mgPasoFin();return;}
-  var it=_mgPasoItem(),u=_mgPasoUb(),tot=P.orden.length;
+  if(!P){
+    if(bar)bar.remove();
+    ['mg-sug','mg-sugs'].forEach(function(id){var x=document.getElementById(id);if(x)x.remove();});
+    if(prev)prev.classList.remove('mg-paso-on');return;
+  }
+  if(!_fgLg.on&&!P.ocupado){_mgPasoFin();return;} // se salió del modo edición mientras se ponía algo
   if(prev)prev.classList.add('mg-paso-on');
   if(!bar){
     bar=document.createElement('div');bar.id='mg-paso';bar.className='mg-paso';bar.setAttribute('role','region');bar.setAttribute('aria-label','Colocar marcas guardadas');
     bar.addEventListener('pointerdown',function(e){e.stopPropagation();});bar.addEventListener('mousedown',function(e){e.stopPropagation();});
-    bar.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('button[data-mp]');if(!b)return;var a=b.getAttribute('data-mp');
-      if(a==='poner')_mgPasoPoner();else if(a==='saltar')_mgPasoSaltar();else if(a==='fin')_mgPasoFin();});
+    bar.addEventListener('click',function(e){
+      var b=e.target.closest&&e.target.closest('button[data-mp]');if(!b||b.disabled)return;
+      var a=b.getAttribute('data-mp');
+      if(a==='poner')_mgPasoPoner();else if(a==='saltar')_mgPasoSaltar();else if(a==='fin'||a==='dejar')_mgPasoFin();
+      else if(a==='atras')_mgPasoAtras();else if(a==='ir')_mgPasoIr(+b.getAttribute('data-k'));else if(a==='seguros')_mgPasoSeguros();
+      else if(a==='revisar')_mgVistaRevisar();else if(a==='volver')_mgVistaVolver();
+    });
     if(prev)prev.appendChild(bar);
   }
+  var tot=P.orden.length,N=_escHtml(P.nombre);
+  if(P.modo==='vista'&&P.ocupado){
+    bar.innerHTML='<div class="mg-pb-mini"><span class="mg-pb-esp" aria-hidden="true"></span></div><div class="mg-pb-txt"><div class="mg-pb-que">Encontr&eacute; d&oacute;nde va todo</div><div class="mg-pb-tit">Poniendo &laquo;'+N+'&raquo;&hellip;</div></div>';
+    _mgPasoCajas(false);return;
+  }
+  // "Así queda" (encontró todo) o "Listo" (terminó el paso a paso)
+  if(P.modo==='vista'||P.i>=tot){
+    var c=_mgCuentas(P),av=[],vista=P.modo==='vista';
+    if(P.saltados)av.push(P.saltados+(P.saltados===1?' salteado':' salteados'));
+    if(c.venc)av.push('<span class="mg-av-r">'+c.venc+(c.venc===1?' vencida (en rojo)':' vencidas (en rojo)')+'</span>');
+    if(c.fuera)av.push('<span class="mg-av-a">'+c.fuera+' sin promo en '+_escHtml(c.provN)+' (en amarillo)</span>');
+    bar.innerHTML='<div class="mg-pb-mini mg-pb-listo"><span class="mg-pb-ico">&#10003;</span></div>'+
+      '<div class="mg-pb-txt"><div class="mg-pb-que">'+(vista?'Encontr&eacute; d&oacute;nde va todo':'Terminaste de colocar')+'</div>'+
+        '<div class="mg-pb-tit">'+(vista?'As&iacute; queda &laquo;'+N+'&raquo;':'Listo &laquo;'+N+'&raquo;')+'</div>'+
+        '<div class="mg-pb-pista">'+(c.hecho?'Puse '+_escHtml(c.hecho)+'. Lo nuevo est&aacute; marcado en el flyer.':'No se puso nada.')+(av.length?' '+av.join(' &middot; ')+'.':'')+'</div></div>'+
+      '<div class="mg-pb-acts">'+(vista
+        ?'<button type="button" class="btn bg" data-mp="volver">Volver a como estaba</button><button type="button" class="btn bg" data-mp="revisar">Revisar uno por uno</button><button type="button" class="btn bp" data-mp="dejar" title="Enter">Dejar as&iacute; &#10003;</button>'
+        :'<button type="button" class="btn bg" data-mp="atras" title="Volver al &uacute;ltimo paso (Ctrl+Z)">&lsaquo; Atr&aacute;s</button><button type="button" class="btn bp" data-mp="fin" title="Enter">Listo &#10003;</button>')+'</div>';
+    _mgPasoCajas(false);return;
+  }
+  var it=_mgPasoItem(),u=_mgPasoUb(),pv=P.datos.prov||'';
   var dias=it.tipo==='logo'&&it.esSuper&&it.conDias?_promoDias(_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t}):'';
   var titulo=_escHtml(it.nombre)+(dias?', con sus d&iacute;as ('+_escHtml(dias)+')':(it.tipo==='logo'&&it.esSuper&&it.conDias?' (sin d&iacute;as con % hoy)':''));
+  var fp=it.tipo==='logo'&&pv&&_mgSinPromoEn(it.img,pv);
   var pista=it.tipo==='franja'?(u.ok?'Te marqu&eacute; d&oacute;nde ir&iacute;a. Si no es ah&iacute;, toc&aacute; la franja correcta o arrastr&aacute; un recuadro alrededor.':'No la encontr&eacute; segura: toc&aacute; la franja donde va o arrastr&aacute; un recuadro alrededor.')
     :it.tipo==='vacio'?(u.ok?'Te marqu&eacute; cu&aacute;l se saca. Si no es ese, toc&aacute; el logo que quer&eacute;s sacar.':'No lo encontr&eacute; seguro: toc&aacute; el logo que quer&eacute;s sacar.')
     :it.tipo==='texto'?'Te marqu&eacute; d&oacute;nde ir&iacute;a. Si no es ah&iacute;, arrastr&aacute; un recuadro donde va.'
     :(u.ok?'Te marqu&eacute; d&oacute;nde ir&iacute;a. Si no es ah&iacute;, toc&aacute; el logo que quer&eacute;s reemplazar.':'No lo encontr&eacute; seguro: toc&aacute; el logo que quer&eacute;s reemplazar.');
-  var puntos='';for(var k=0;k<tot;k++)puntos+='<span class="'+(k<P.i?'ok':k===P.i?'ya':'')+'"></span>';
+  // los puntitos: hechos (verde), salteados (gris), el de ahora, y los que faltan (amarillo = lo ubicamos juntos)
+  var puntos='',seg=0,k;
+  for(k=0;k<tot;k++){
+    var it2=P.datos.items[P.orden[k]],ok2=P.ub[P.orden[k]].ok;
+    var est=k<P.i?(P.hecho[k]==='saltado'?'salt':'ok'):k===P.i?'ya':(ok2?'':'no');
+    var eti=(k+1)+'. '+it2.nombre+(k<P.i?(P.hecho[k]==='saltado'?' (salteado)':' (puesto)'):k===P.i?' (ahora)':(ok2?'':' (lo ubicamos juntos)'));
+    var acc=k<P.i?' · tocá para volver a este paso':k>P.i?' · tocá para hacerlo ahora':'';
+    puntos+='<button type="button" class="'+est+'" data-mp="ir" data-k="'+k+'"'+(k===P.i?' aria-current="step"':'')+' title="'+_escAttr(eti+acc)+'" aria-label="'+_escAttr(eti+acc)+'"></button>';
+    if(k>=P.i&&ok2)seg++;
+  }
+  var resto=tot-P.i;
   bar.innerHTML='<div class="mg-pb-mini">'+_mgPasoMiniHtml(it)+'</div>'+
-    '<div class="mg-pb-txt"><div class="mg-pb-que">Colocando &laquo;'+_escHtml(P.nombre)+'&raquo; &middot; '+(P.i+1)+' de '+tot+'</div>'+
-      '<div class="mg-pb-tit">'+titulo+'</div><div class="mg-pb-pista'+(u.ok?'':' aprox')+'">'+pista+'</div><div class="mg-pb-pts" aria-hidden="true">'+puntos+'</div></div>'+
-    '<div class="mg-pb-acts"><button type="button" class="btn bp" data-mp="poner">Poner ac&aacute; &#10003;</button>'+
+    '<div class="mg-pb-txt"><div class="mg-pb-que">Colocando &laquo;'+N+'&raquo; &middot; '+(P.i+1)+' de '+tot+'</div>'+
+      '<div class="mg-pb-tit">'+titulo+'</div>'+
+      (fp?'<div class="mg-pb-pista mg-av-a">Ojo: hoy no tiene promo en '+_escHtml(_promoTitulizar(pv))+'.</div>':'')+
+      '<div class="mg-pb-pista'+(u.ok?'':' aprox')+'">'+pista+'</div>'+
+      '<div class="mg-pb-pts" role="group" aria-label="Pasos">'+puntos+'</div>'+
+      (seg>=2?'<button type="button" class="mg-pb-link" data-mp="seguros">'+(seg===resto?'Poner de una los '+seg+' que faltan':'Poner de una los '+seg+' que encontr&eacute; seguro (y seguir con los otros '+(resto-seg)+')')+'</button>':'')+'</div>'+
+    '<div class="mg-pb-acts"><button type="button" class="btn bg" data-mp="atras"'+(P.i>0?'':' disabled')+' title="Volver al paso anterior (Ctrl+Z)">&lsaquo; Atr&aacute;s</button>'+
       '<button type="button" class="btn bg" data-mp="saltar">Saltar</button>'+
+      '<button type="button" class="btn bp" data-mp="poner" title="Enter">Poner ac&aacute; &#10003;</button>'+
       '<button type="button" class="mg-pb-x" data-mp="fin" aria-label="Terminar" title="Terminar (lo que ya pusiste queda)">&times;</button></div>';
-  _mgPasoSug();
+  _mgPasoCajas(true);
 }
-// El recuadro naranja "va acá" sobre el flyer, y que se vea.
-function _mgPasoSug(){
-  var capa=document.getElementById('fg-lg-capa'),u=_mgPasoUb();if(!capa||!u)return;
-  var s=document.getElementById('mg-sug');
-  if(!s){s=document.createElement('div');s.id='mg-sug';s.className='mg-sug';capa.appendChild(s);}
-  var b=u.rect||u.det,p=_fgLgAPantalla(b.x,b.y,b.w,b.h);
-  s.className='mg-sug'+(u.ok?'':' aprox');
-  s.style.left=p.l.toFixed(1)+'px';s.style.top=p.t.toFixed(1)+'px';s.style.width=p.w.toFixed(1)+'px';s.style.height=p.h.toFixed(1)+'px';
-  s.setAttribute('data-t',u.ok?'Va acá':'¿Va acá?');
-  try{s.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){try{s.scrollIntoView();}catch(e2){}}
+// Los recuadros sobre el flyer: el naranja "Va acá" del paso de ahora, o (en "Así
+// queda" y en "Listo") uno por cada cosa puesta. Se reubican cada vez que se
+// dibujan las marcas (zoom, ventana más chica); "mover" lleva la vista al de ahora.
+function _mgPasoCajas(mover){
+  var P=_mgPaso,capa=document.getElementById('fg-lg-capa');if(!P||!capa)return;
+  var uno=document.getElementById('mg-sug'),varios=document.getElementById('mg-sugs'),b,p;
+  var css=function(el,p){el.style.left=p.l.toFixed(1)+'px';el.style.top=p.t.toFixed(1)+'px';el.style.width=p.w.toFixed(1)+'px';el.style.height=p.h.toFixed(1)+'px';};
+  if(P.modo==='paso'&&P.i<P.orden.length){
+    if(varios)varios.remove();
+    var u=_mgPasoUb();if(!u)return;
+    if(!uno||uno.parentNode!==capa){if(uno)uno.remove();uno=document.createElement('div');uno.id='mg-sug';capa.appendChild(uno);}
+    b=u.rect||u.det;p=_fgLgAPantalla(b.x,b.y,b.w,b.h);
+    uno.className='mg-sug'+(u.ok?'':' aprox');css(uno,p);
+    uno.setAttribute('data-t',u.ok?'Va acá':'¿Va acá?');
+    if(mover){try{uno.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){try{uno.scrollIntoView();}catch(e2){}}}
+    return;
+  }
+  if(uno)uno.remove();
+  if(!varios||varios.parentNode!==capa){if(varios)varios.remove();varios=document.createElement('div');varios.id='mg-sugs';capa.appendChild(varios);}
+  var h='',arriba=null;
+  if(!P.ocupado)for(var k=0;k<P.orden.length;k++){
+    var u2=P.hecho[k]==='puesto'?P.usado[k]:null;b=u2&&(u2.rect||u2.det);if(!b)continue;
+    p=_fgLgAPantalla(b.x,b.y,b.w,b.h);if(!arriba||p.t<arriba.t)arriba=p;
+    h+='<div class="mg-sug vista" style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px"></div>';
+  }
+  varios.innerHTML=h;
+  // "Así queda": la vista va a lo primero que se puso (si no, podía quedar fuera de la pantalla)
+  if(mover&&arriba){
+    var ref=document.createElement('div');ref.style.cssText='position:absolute;left:'+arriba.l.toFixed(1)+'px;top:'+arriba.t.toFixed(1)+'px;width:1px;height:'+Math.max(1,arriba.h).toFixed(1)+'px';varios.appendChild(ref);
+    try{ref.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){try{ref.scrollIntoView();}catch(e2){}}
+  }
 }
-function _mgPasoSig(){
-  var P=_mgPaso;if(!P)return;
-  P.i++;
-  if(P.i>=P.orden.length){_mgPasoFin();return;}
-  _mgPasoMostrar();
+function _mgPasoCortado(P){
+  if(_fgLgSrc()===P.src0)return false;
+  showToast('Cambió el flyer: se cortó la colocación.');_mgPasoFin(true);return true;
 }
 function _mgPasoPoner(u2){
-  var P=_mgPaso;if(!P||P.ocupado)return;
-  if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: se cortó la colocación.');_mgPasoFin(true);return;}
-  var it=_mgPasoItem(),u=u2||_mgPasoUb();
+  var P=_mgPaso;if(!P||P.ocupado||P.modo!=='paso'||P.i>=P.orden.length)return;
+  if(_mgPasoCortado(P))return;
+  var it=_mgPasoItem(),u=u2||_mgPasoUb(),k=P.i;
+  P.fotos[k]=_mgFoto(P);
   if(!u2&&!u.ok)P.aprox.push(it.nombre);
   P.ocupado=true;
   Promise.resolve().then(function(){return _mgPonerItem(it,u,P);}).then(function(){
-    P.ocupado=false;if(_mgPaso!==P)return;
-    if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: se cortó la colocación.');_mgPasoFin(true);return;}
+    P.ocupado=false;if(_mgPaso!==P||_mgPasoCortado(P))return;
+    _mgMarcarProv(P);
+    P.hecho[k]='puesto';P.usado[k]=u;P.i=k+1;
     _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();
-    _mgPasoSig();
-  },function(){P.ocupado=false;showToast('No se pudo poner «'+it.nombre+'». Probá de nuevo o saltalo.');});
+    _mgPasoMostrar();
+  },function(){P.ocupado=false;P.aprox=P.fotos[k].aprox.slice();showToast('No se pudo poner «'+it.nombre+'». Probá de nuevo o saltalo.');});
 }
-function _mgPasoSaltar(){var P=_mgPaso;if(!P||P.ocupado)return;P.saltados++;_mgPasoSig();}
+function _mgPasoSaltar(){
+  var P=_mgPaso;if(!P||P.ocupado||P.modo!=='paso'||P.i>=P.orden.length)return;
+  P.fotos[P.i]=_mgFoto(P);P.saltados++;P.hecho[P.i]='saltado';P.i++;
+  _mgPasoMostrar();
+}
+// Ir a un paso: a uno hecho se vuelve tal como estaba (se deshace lo de después);
+// uno que falta pasa a ser el de ahora (los demás siguen en su orden).
+function _mgPasoIr(k){
+  var P=_mgPaso;if(!P||P.ocupado||P.modo!=='paso'||k===P.i||!(k>=0&&k<P.orden.length))return;
+  if(k<P.i){
+    var f=P.fotos[k];if(!f||_mgPasoCortado(P))return;
+    _mgVolverA(P,f);P.i=k;P.fotos.length=k;P.hecho.length=k;P.usado.length=k;
+    _mgPasoMostrar();return;
+  }
+  var x=P.orden.splice(k,1)[0];P.orden.splice(P.i,0,x);
+  _mgPasoMostrar();
+}
+function _mgPasoAtras(){
+  var P=_mgPaso;if(!P||P.ocupado)return;
+  if(P.modo==='vista'){_mgVistaVolver();return;}
+  if(P.i>0)_mgPasoIr(P.i-1);
+}
+// "Poner de una": los que encontró seguro, cada uno como un paso (Atrás los saca de a uno).
+function _mgPasoSeguros(){
+  var P=_mgPaso;if(!P||P.ocupado||P.modo!=='paso'||_mgPasoCortado(P))return;
+  var resto=P.orden.slice(P.i),seg=resto.filter(function(i){return P.ub[i].ok;});
+  if(!seg.length)return;
+  P.orden=P.orden.slice(0,P.i).concat(seg,resto.filter(function(i){return !P.ub[i].ok;}));
+  P.ocupado=true;
+  var cola=Promise.resolve();
+  seg.forEach(function(){cola=cola.then(function(){
+    if(_mgPaso!==P||_fgLgSrc()!==P.src0)return;
+    var k=P.i,i=P.orden[k];P.fotos[k]=_mgFoto(P);
+    return _mgPonerItem(P.datos.items[i],P.ub[i],P).then(function(){P.hecho[k]='puesto';P.usado[k]=P.ub[i];P.i=k+1;});
+  });});
+  cola.then(function(){
+    P.ocupado=false;if(_mgPaso!==P||_mgPasoCortado(P))return;
+    _mgMarcarProv(P);_fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();_mgPasoMostrar();
+    var q=P.orden.length-P.i;if(q)showToast('Puse '+seg.length+'. '+(q===1?'Queda 1':'Quedan '+q)+' para ubicar juntos.');
+  },function(){
+    P.ocupado=false;if(_mgPaso!==P)return;
+    _mgMarcarProv(P);_fgLgListo();_mgPasoMostrar();showToast('No se pudo poner todo de una: seguí de a uno.');
+  });
+}
 function _mgPasoFin(callado){
-  var P=_mgPaso;_mgPaso=null;_mgPasoMostrar();
+  var P=_mgPaso;if(P&&P.ocupado&&!callado)return;
+  _mgPaso=null;_mgPasoMostrar();
+  // "Así queda": lo puesto queda ("Dejar así", o se cortó sin decidir) y recién ahora pasa a
+  // un borrador (ver _fgBorradorAuto; forzado: el modo edición puede estar apagándose)
+  if(P&&P.modo==='vista'&&!P.ocupado&&_fgLgSrc()===P.src0){_fgBorradorAuto(true);_fgLgListo();_fgLgHistMarcar();}
   if(P&&!callado)showToast(_mgResumenFinal(P));
+}
+// Teclas de la barra: Enter = el botón principal; Escape = terminar (lo puesto queda).
+function _mgPasoEnter(){
+  var P=_mgPaso;if(!P||P.ocupado)return;
+  if(P.modo==='vista'||P.i>=P.orden.length)_mgPasoFin();else _mgPasoPoner();
 }
 // Toque o recuadro sobre el flyer mientras se coloca (coordenadas de pantalla).
 function _mgPasoTocar(x0,y0,x1,y1,mov){
-  var P=_mgPaso;if(!P||P.ocupado)return;
+  var P=_mgPaso;if(!P||P.ocupado||P.modo!=='paso'||P.i>=P.orden.length)return;
   var it=_mgPasoItem(),a=_fgLgAImagen(Math.min(x0,x1),Math.min(y0,y1)),b=_fgLgAImagen(Math.max(x0,x1),Math.max(y0,y1));
   if(!a||!b)return;
   if(mov){ // un recuadro: va justo ahí
@@ -16378,13 +16598,52 @@ function _mgPasoTocar(x0,y0,x1,y1,mov){
   if(!det||det.error){showToast('Ahí no encontré un logo. Tocá justo encima del logo, o arrastrá un recuadro.');return;}
   _mgPasoPoner({ok:true,det:det});
 }
-function _mgPasoEmpezar(P){
+// Antes de colocar: se cierran los otros modos (recortar, franja, vista previa).
+function _mgPasoAbrir(P){
   _mgPaso=P;
   if(_fgFr.modo)fgFranjaModo(false);if(_fgRecM.modo)fgRecModo(false);if(_fgLg.limpio)fgLgLimpio(false);
   _fgLg.sel=-1;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgMarcas();
-  _mgPasoMostrar();
 }
-// Ventana para aplicar: cuenta qué encontró y ofrece todo de una o paso a paso.
+function _mgPasoEmpezar(P){
+  _fgLgHistMarcar(); // lo de antes queda como su propio paso de Deshacer
+  P.modo='paso';P.i=0;P.fotos=[];P.hecho=[];P.usado=[];
+  _mgPasoAbrir(P);_mgPasoMostrar();
+}
+// ·· "Así queda" (encontró todo) ··
+// Se pone todo y se ve en el flyer, con cada cosa marcada. "Dejar así" lo deja (un
+// solo paso de Deshacer); "Revisar uno por uno" vuelve a como estaba y arranca el
+// paso a paso; "Volver a como estaba" lo saca. Mientras se decide, lo puesto sobre
+// el flyer original no se muda a un borrador (si se vuelve atrás, no queda un
+// borrador vacío): se muda al "Dejar así".
+function _mgVistaEmpezar(P){
+  _fgLgHistMarcar(); // lo de antes queda como su propio paso de Deshacer
+  P.modo='vista';_mgPasoAbrir(P);
+  P.foto0=_mgFoto(P);P.ocupado=true;_mgPasoMostrar();
+  var cola=Promise.resolve();
+  P.orden.forEach(function(i,k){cola=cola.then(function(){
+    if(_mgPaso!==P||_fgLgSrc()!==P.src0)return;
+    return _mgPonerItem(P.datos.items[i],P.ub[i],P).then(function(){P.hecho[k]='puesto';P.usado[k]=P.ub[i];});
+  });});
+  cola.then(function(){
+    P.ocupado=false;
+    if(_mgPaso!==P){if(_fgLgSrc()===P.src0){_mgMarcarProv(P);_fgBorradorAuto(true);_fgLgListo();}return;} // se cortó mientras se ponía: lo puesto queda
+    if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer mientras se ponían: se cortó a la mitad.');_mgPasoFin(true);return;}
+    _mgMarcarProv(P);_fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();_mgPasoMostrar();_mgPasoCajas(true);
+  },function(){
+    P.ocupado=false;if(_mgPaso!==P)return;
+    showToast('No se pudo poner todo de una: vamos uno por uno.');_mgVistaRevisar();
+  });
+}
+function _mgVistaVolver(){
+  var P=_mgPaso;if(!P||P.ocupado||P.modo!=='vista')return;
+  _mgPaso=null;_mgVolverA(P,P.foto0);_fgLgHistMarcar();_mgPasoMostrar();
+  showToast('Listo: el flyer quedó como estaba.');
+}
+function _mgVistaRevisar(){
+  var P=_mgPaso;if(!P||P.ocupado||P.modo!=='vista')return;
+  _mgVolverA(P,P.foto0);_mgPasoEmpezar(P);
+}
+// Aplicar: busca dónde va cada cosa; si encontró todo, "Así queda"; si no, paso a paso.
 function fgMgAplicar(id){
   var d0=(_MG.lista||[]).filter(function(x){return x.id===id;})[0];
   if(!window.baseImg||!baseImg.width){showToast('Abrí primero el flyer donde querés aplicarlas.');return;}
@@ -16394,34 +16653,15 @@ function fgMgAplicar(id){
   _estDatos(id).then(function(d){
     if(_fgLgSrc()!==src0)return null;
     var datos=d.datos||{};if(!Array.isArray(datos.items)||!datos.items.length){showToast('Esa combinación está vacía.');return null;}
+    _MG.ultima={id:id,nombre:d.nombre||(d0&&d0.nombre)||''}; // al guardar después, se ofrece reemplazar esta
     return _mgPreparar(datos,d.nombre||(d0&&d0.nombre)||'');
   }).then(function(P){
-    if(!P)return;
     fgHideToast('Buscando dónde va cada cosa…');
-    if(_fgLgSrc()!==P.src0)return; // mientras buscaba se cambió de flyer
-    var tot=P.orden.length,okN=P.orden.filter(function(i){return P.ub[i].ok;}).length;
-    var todo=okN===tot;
-    var w=_mgOv('fg-mga-ov','<div class="fg-cf fg-mg"><div class="fg-lg-h"><div style="flex:1;min-width:0"><div class="fg-cf-t">Aplicar &laquo;'+_escHtml(P.nombre)+'&raquo;</div>'+
-      '<div class="fg-cf-b">'+(todo?'Encontr&eacute; d&oacute;nde va todo ('+tot+(tot===1?' cosa':' cosas')+'). Pod&eacute;s ponerlo de una o revisarlo uno por uno.'
-        :'Encontr&eacute; '+okN+' de '+tot+'. Vamos de a una: te marco en el flyer d&oacute;nde ir&iacute;a cada cosa y vos la confirm&aacute;s o toc&aacute;s otro lugar.')+'</div></div>'+
-      '<button type="button" class="fg-lg-x" id="fg-mga-x" aria-label="Cerrar">&times;</button></div>'+
-      '<div class="mg-items">'+P.orden.map(function(i){var it=P.datos.items[i],u=P.ub[i];
-        return '<div class="mg-item"><span class="mg-item-t">'+_escHtml(it.nombre)+'</span>'+(u.ok?'<span class="mg-est mg-ok">&#10003; Encontrado</span>':'<span class="mg-est mg-aprox">Lo ubicamos juntos</span>')+'</div>';}).join('')+'</div>'+
-      '<div class="fg-cf-acts">'+(todo?'<button type="button" class="btn bg" id="fg-mga-paso">Revisar uno por uno</button><button type="button" class="btn bp" id="fg-mga-ok">Poner todo</button>'
-        :'<button type="button" class="btn bg" id="fg-mga-no">Cancelar</button><button type="button" class="btn bp" id="fg-mga-paso">Empezar</button>')+'</div></div>');
-    document.getElementById('fg-mga-x').onclick=w.cerrar;
-    var no=document.getElementById('fg-mga-no');if(no)no.onclick=w.cerrar;
-    var ok=document.getElementById('fg-mga-ok');
-    if(ok)ok.onclick=function(){
-      w.cerrar();if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: volvé a tocar Aplicar.');return;}
-      var cola=Promise.resolve();
-      P.orden.forEach(function(i){cola=cola.then(function(){if(_fgLgSrc()!==P.src0)return;return _mgPonerItem(P.datos.items[i],P.ub[i],P);});});
-      cola.then(function(){
-        if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer mientras se ponían: se cortó a la mitad. Volvé a aplicarlas en el flyer que quieras.');return;}
-        _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();showToast(_mgResumenFinal(P));
-      },function(){showToast('No se pudo terminar de poner todo. Probá con «Revisar uno por uno».');});
-    };
-    document.getElementById('fg-mga-paso').onclick=function(){w.cerrar();if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: volvé a tocar Aplicar.');return;}_mgPasoEmpezar(P);};
+    if(!P||_fgLgSrc()!==P.src0)return; // mientras buscaba se cambió de flyer
+    var tot=P.orden.length;
+    if(P.okN===tot){_mgVistaEmpezar(P);return;}
+    _mgPasoEmpezar(P);
+    showToast(P.okN?'Encontré seguro '+P.okN+' de '+tot+'. Vamos de a una: confirmá cada lugar o tocá otro.':'Vamos de a una: te marco dónde iría cada cosa y vos la confirmás o tocás otro lugar.');
   }).catch(function(e){fgHideToast('Buscando dónde va cada cosa…');showToast('No se pudo leer la combinación: '+_estErr(e));});
 }
 
@@ -16436,10 +16676,18 @@ function _mgOv(id,html){
   document.addEventListener('keydown',tecla,true);
   return {ov:ov,cerrar:cerrar}; // (sin cerrar al tocar afuera: regla del armado)
 }
+// Una fila de la lista: miniatura, nombre, qué tiene y de qué flyer, y si es de
+// la versión anterior (se ubica peor: conviene aplicarla y volver a guardarla).
 function _mgFilaHtml(d,acts){
-  var mio=_estMio(d);
-  return '<div class="mg-fila"><div class="mg-fila-t"><b>'+_escHtml(d.nombre)+'</b><span>'+_escHtml(_estFecha(d.updated_at))+
-    (!mio&&d.autor?' · de '+_escHtml(d.autor):'')+'</span></div><div class="mg-fila-a">'+acts(_escAttr(d.id))+'</div></div>';
+  var mio=_estMio(d),vieja=!(+d.v>=2);
+  var flyer=d.flyer||((_FG_OPTS.indexOf(+d.opcion)>=0)?_optLabel(+d.opcion):'');
+  var info=[d.resumen||'',flyer?'del flyer '+flyer:'',d.prov?_promoTitulizar(d.prov):''].filter(Boolean).join(' · ');
+  var mini=d.miniatura&&/^data:image\/jpeg;base64,/.test(d.miniatura)?'<img alt="" src="'+_escAttr(d.miniatura)+'">':'';
+  return '<div class="mg-fila"><div class="mg-fila-img'+(mini?'':' vacia')+'">'+mini+'</div>'+
+    '<div class="mg-fila-t"><b>'+_escHtml(d.nombre)+'</b>'+(info?'<span class="mg-fila-c">'+_escHtml(info)+'</span>':'')+
+    '<span>'+_escHtml(_estFecha(d.updated_at))+(!mio&&d.autor?' · de '+_escHtml(d.autor):'')+'</span>'+
+    (vieja?'<span class="mg-vieja">Guardada con la versi&oacute;n anterior: aplicala en su flyer y volv&eacute; a guardarla (reemplaz&aacute;ndola) para que se ubique mejor.</span>':'')+
+    '</div><div class="mg-fila-a">'+acts(_escAttr(d.id))+'</div></div>';
 }
 // Ventana "Marcas guardadas" (desde Cambiar logos).
 function fgMarcasGuardadas(){

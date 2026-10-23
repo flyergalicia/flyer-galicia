@@ -114,7 +114,8 @@ async function abrir(browser,o){
       const esAdmin=U.role==='admin';
       const visibles=nube.disenos.filter(d=>esAdmin||d.user_id===U.id);
       const cols=(q.get('select')||'*');
-      const proy=d=>{if(cols==='*')return d;const ks=cols.split(',');const o={};ks.forEach(k=>{if(k in d)o[k]=d[k];});return o;};
+      // columnas comunes y caminos de JSON con alias (v:datos->>v = texto, v:datos->v = JSON), como PostgREST
+      const proy=d=>{if(cols==='*')return d;const ks=cols.split(',');const o={};ks.forEach(k=>{const j=/^(\w+):(\w+)->(>?)(\w+)$/.exec(k);if(j){const x=d[j[2]]&&d[j[2]][j[4]];o[j[1]]=x==null?null:(j[3]&&typeof x!=='string'?String(x):x);return;}if(k in d)o[k]=d[k];});return o;};
       if(m==='HEAD'){const n=visibles.filter(d=>!estEq||d.estado===estEq).length;return route.fulfill({status:200,headers:{...H,'Content-Range':'*/'+n}});}
       if(m==='GET'){
         let l=visibles.filter(d=>(!idEq||d.id===idEq)&&(!estEq||d.estado===estEq)&&(!tipoEq||(d.tipo||'diseno')===tipoEq));
