@@ -153,7 +153,10 @@ async function abrir(browser,o){
     if(m==='PATCH'||m==='POST')return route.fulfill({status:201,body:'[]',headers:H});
     return route.fulfill({status:200,body:'[]',headers:{...H,'Content-Range':'0-0/0'}});
   });
+  // o.antes(p): rutas propias antes de abrir (ganan a la nube simulada); o.sinEsperar: no espera a que el ingreso termine
+  if(o.antes)await o.antes(p);
   await p.goto('http://127.0.0.1:8765/index.html');
+  if(o.sinEsperar)return p;
   await p.waitForFunction(()=>window._fgPrevGate===false&&window.baseImg&&window.cv&&window._facLoaded&&window._opcLoaded,null,{timeout:25000});
   if(U.role==='admin'||o.opt9){await p.evaluate(()=>{if(_optN(_fgOpt)!==9)switchFlyerOption(9);});}
   await p.waitForFunction(()=>window._fgOpt===9&&window.baseImg&&baseImg.naturalWidth>0&&cv.height>1000&&_fgOptCache[9]&&_fgOptCache[9].img===baseImg,null,{timeout:25000});

@@ -6,7 +6,7 @@ var FN_URL=SUPA_URL+'/functions/v1/auth-admin';
 var _sb=window.supabase.createClient(SUPA_URL,SUPA_ANON);
 var _me=null,_admin=false,_allUsers=[],_editUid=null,_myName='';
 var FLYERS_PUBLIC='https://cajyjnxjbobdpltflgnb.supabase.co/storage/v1/object/public/flyers/';
-var _activeFlyerUrl=null,_activeFlyerName='';
+var _activeFlyerUrl=null,_activeFlyerName='',_activeFlyerFallo=false;
 // Edge Function para el Buscador de Promociones (ver _callPromosFn más abajo).
 var FN_URL_PROMOS=SUPA_URL+'/functions/v1/promos-galicia';
 
@@ -52,11 +52,16 @@ function _callEdgeFn(url,action,payload,cb){
 // archivo cuando le toca, sin otra vuelta a la red. La primera lectura la
 // consume; la siguiente (un "Recargar" del admin, por ejemplo) vuelve a pedir.
 // Devuelve una promesa con el JSON, o null si el archivo no existe (404).
-var _BJ_FRESCO=30000,_bjPre={};
+var _BJ_FRESCO=30000,_bjPre={},_bjEstado={};
+// _bjEstado[archivo] = último código HTTP (0 = ni respondió). Sirve para distinguir un
+// archivo que NO EXISTE (404/400: "esa opción no tiene flyer") de uno que NO PUDO
+// TRAERSE (sin red, 5xx): lo primero es un dato, lo segundo se reintenta.
 function _bucketJsonPedir(file){
   return fetch(FLYERS_PUBLIC+file+'?t='+Date.now(),{cache:'no-cache'})
-    .then(function(r){return r.ok?r.json():null;});
+    .then(function(r){_bjEstado[file]=r.status;return r.ok?r.json():null;},
+          function(e){_bjEstado[file]=0;throw e;});
 }
+function _bjFallo(file){var s=_bjEstado[file];return s===0||s===408||s===429||s>=500;}
 function _bucketJsonPre(file){
   var e=_bjPre[file];
   if(e&&Date.now()-e.t<_BJ_FRESCO)return e.p;
@@ -669,6 +674,7 @@ function _roleBadge(role){
 // crashean aunque se regeneren con el bug. Vive en auth.js para no perderse.
 function _robustLoadExcel(input){
   var file=input&&input.files&&input.files[0];if(!file)return;
+  if(_fgEnTanda()){try{input.value='';}catch(e){}showToast('Esperá a que termine de generar el ZIP.');return;}
   // se vacía el selector: si no, volver a elegir el MISMO Excel (ya corregido) no
   // dispara nada (como en la carga de flyers y de asesores)
   try{input.value='';}catch(e){}
@@ -683,11 +689,15 @@ function _robustLoadExcel(input){
       rows.forEach(function(r){
         var o={},hasVal=false;
         for(var k in r){
-          if(!r.hasOwnProperty(k))continue;
+          if(!r.hasOwnProperty(k)||k==='__rowNum__')continue;
           var val=(r[k]==null?'':String(r[k])).trim();
           o[k]=val;if(val)hasVal=true;
         }
-        if(hasVal)clean.push(o); // descarta filas totalmente vacías
+        if(hasVal){ // descarta filas totalmente vacías
+          // __fila = el número de fila que ve el usuario en su Excel (no entra en las columnas)
+          try{Object.defineProperty(o,'__fila',{value:(typeof r.__rowNum__==='number'?r.__rowNum__+1:null),enumerable:false});}catch(e){}
+          clean.push(o);
+        }
       });
       window.excelData=clean;
       if(typeof validateExcel==='function')validateExcel(clean);
@@ -720,21 +730,76 @@ function _fgRowBenef(row){
   }
   return out;
 }
+// Fila del Masivo ya leída: los encabezados se reconocen aunque vengan en mayúsculas, con espacios,
+// guiones o acentos ("EMPRESA", "Asesor 1 Nombre", "Cashback"), igual que en el Excel de empresas.
+// 'tipo' NO cuenta como cashback acá: en un Excel de clientes suele ser otra cosa.
+var _MAS_COLS_CFG=['config','configuracion','cashback','tipocashback','tipodecashback'];
+var _MAS_COLS_OF1=['nombre','asesornombre','celular','asesorcelular','cel','email','mail','asesoremail'];
+function _masFila(row){
+  if(row.__m)return row.__m;
+  var m={},k;
+  for(k in row){if(row.hasOwnProperty(k))m[_padKey(k)]=(row[k]==null?'':String(row[k])).trim();}
+  function g(l){for(var i=0;i<l.length;i++){var v=m[l[i]];if(v)return v;}return '';}
+  var as=[];
+  for(var n=1;n<=4;n++){
+    as.push({
+      nombre :m['asesor'+n+'nombre'] ||(n===1?g(['nombre','asesornombre']):'')||'',
+      celular:m['asesor'+n+'celular']||(n===1?g(['celular','asesorcelular','cel']):'')||'',
+      email  :m['asesor'+n+'email']  ||(n===1?g(['email','mail','asesoremail']):'')||''
+    });
+  }
+  var out={empresa:g(_PAD_COLS_EMPRESA),config:g(_MAS_COLS_CFG),as:as};
+  try{Object.defineProperty(row,'__m',{value:out,enumerable:false,configurable:true});}catch(e){}
+  return out;
+}
+function _masNum(row,i){return (row&&row.__fila)||(i+2);}
+function _masColConocida(k){
+  return /^asesor[1-4](nombre|celular|email)$/.test(k)||_MAS_COLS_OF1.indexOf(k)>=0||_PAD_COLS_EMPRESA.indexOf(k)>=0||
+    _MAS_COLS_CFG.indexOf(k)>=0||/^(importe|tope|beneficio|segundo)/.test(k)||_PAD_COLS_CUIT.indexOf(k)>=0||/^cuit([1-9]|10)$/.test(k);
+}
+// "Fila 5, 9 y 3 más"
+function _masListaFilas(a,max){
+  max=max||5;var out=a.slice(0,max).join(', ');
+  if(a.length>max)out+=' y '+(a.length-max)+' más';
+  return out;
+}
 function fgValidateExcel(rows){
   rows=rows||[];
   if(!rows.length){showToast('Archivo vacío');return;}
   var errors=[],warnings=[];
+  // encabezados: qué se entiende y qué se ignora
+  var cols={},hasEmp=false,hasCfg=false,hasOf=false,unknown=[],k;
+  rows.forEach(function(r){for(var c in r){if(r.hasOwnProperty(c))cols[_padKey(c)]=c;}});
+  for(k in cols){
+    if(!cols.hasOwnProperty(k))continue;
+    if(_PAD_COLS_EMPRESA.indexOf(k)>=0)hasEmp=true;
+    if(_MAS_COLS_CFG.indexOf(k)>=0)hasCfg=true;
+    if(/^asesor[1-4](nombre|celular|email)$/.test(k)||_MAS_COLS_OF1.indexOf(k)>=0)hasOf=true;
+    if(!_masColConocida(k))unknown.push(cols[k]);
+  }
+  if(!hasEmp)errors.push('No encontré la columna <b>empresa</b>. Renombrá esa columna a «empresa» (como en la plantilla).');
+  if(!hasCfg)warnings.push('No encontré la columna del cashback (<b>config</b>): <b>todos</b> los flyers van a salir <b>sin montos</b>. Si tienen cashback, llamá a esa columna «config» (como en la plantilla).');
+  if(!hasOf)warnings.push('No encontré columnas de oficiales (<b>asesor1_nombre</b>, asesor1_celular…): los flyers salen <b>sin datos de contacto</b>.');
+  var sinEmp=[],sinCB=[],badCfg=[],badMail=[],sinImp=[];
   rows.forEach(function(r,i){
-    var n=i+2;
-    if(!String(r.empresa||r.Empresa||'').trim())errors.push('Fila '+n+': empresa vacía');
-    var mail=String(r.asesor1_email||r.email||'');
-    if(mail&&mail.indexOf('@')<0)warnings.push('Fila '+n+': email sin @');
-    var cfg=String(r.config||'').toLowerCase().trim();
+    var n=_masNum(r,i),m=_masFila(r);
+    if(hasEmp&&!m.empresa)sinEmp.push(n);
     // misma lectura tolerante que el padrón y que genAll: vale cualquier config que exista hoy (Config → Cashback)
-    if(cfg&&_padCfgParse(cfg)<0&&!_padCfgSin(cfg))warnings.push('Fila '+n+': config "'+_escHtml(cfg)+'" inválida (sale sin cashback)');
+    if(hasCfg){
+      var cfg=m.config.toLowerCase().trim();
+      if(!cfg||_padCfgSin(cfg))sinCB.push(n);
+      else if(_padCfgParse(cfg)<0)badCfg.push('fila '+n+' ("'+_escHtml(cfg)+'")');
+    }
+    if(m.as.some(function(a){return a.email&&a.email.indexOf('@')<0;}))badMail.push(n);
     // Flyer Rubros: sin importe en la fila se usa el del formulario (no es error)
-    if(_fgVista==='rubros'&&!_fgFmtImporte(_fgRowBenef(r).importe))warnings.push('Fila '+n+': sin importe (se usa el tope del formulario)');
+    if(_fgVista==='rubros'&&!_fgFmtImporte(_fgRowBenef(r).importe))sinImp.push(n);
   });
+  if(sinEmp.length)errors.push('Fila '+_masListaFilas(sinEmp)+': empresa vacía');
+  if(badCfg.length)warnings.push('Cashback que no reconozco ('+badCfg.length+'): '+badCfg.slice(0,4).join(', ')+(badCfg.length>4?' y '+(badCfg.length-4)+' más':'')+' &rarr; esos flyers salen sin cashback.');
+  if(sinCB.length)warnings.push(sinCB.length+' fila'+(sinCB.length>1?'s':'')+' sin cashback (celda vacía o SIN): '+(sinCB.length===rows.length?'todos los flyers':'esos flyers')+' salen sin montos'+(sinCB.length<=4?' (fila '+sinCB.join(', ')+')':'')+'.');
+  if(badMail.length)warnings.push('Fila '+_masListaFilas(badMail)+': email sin @');
+  if(sinImp.length)warnings.push('Fila '+_masListaFilas(sinImp)+': sin importe (se usa el tope del formulario)');
+  if(unknown.length)warnings.push('Columnas que ignoré: '+_escHtml(unknown.slice(0,6).join(', '))+(unknown.length>6?' y '+(unknown.length-6)+' más':'')+'. Si alguna debería usarse, revisá el nombre contra la plantilla.');
   var vs=document.getElementById('val-sum'),gen=document.getElementById('btn-gen');
   if(vs){
     vs.style.display='block';
@@ -786,14 +851,29 @@ function _lib(names){
     return _libP[n];
   }));
 }
+// "el PDF" / "el Excel" / "el ZIP": cómo se le dice al usuario lo que se está preparando.
+function _libQue(libs){
+  if(libs.indexOf('jszip')>=0)return 'el ZIP';
+  if(libs.indexOf('jspdf')>=0)return 'el PDF';
+  return 'el Excel';
+}
 function _libWrap(fnName,libs){
   var orig=window[fnName];if(typeof orig!=='function'||orig._libWrapped)return;
   var w=function(){
     var self=this,args=arguments;
     if(libs.every(_libReady))return orig.apply(self,args);
-    showToast('Preparando la descarga…');
-    _lib(libs).then(function(){orig.apply(self,args);})
-      .catch(function(){showToast('No se pudo cargar la librería de '+libs.join('/')+'. Revisá la conexión e intentá de nuevo.');});
+    if(w._pend)return; // ya se está trayendo: un segundo clic no encola otra tanda (salían dos ZIP)
+    w._pend=true;
+    showToast('Preparando '+_libQue(libs)+'…');
+    _lib(libs).then(function(){
+      w._pend=false;
+      try{orig.apply(self,args);}catch(e){console.error(fnName+':',e);showToast('Algo salió mal. Probá de nuevo.');}
+    },function(){
+      w._pend=false;
+      // si venía de elegir un archivo, se vacía el campo: volver a elegir el mismo tiene que andar
+      try{var a0=args[0],el=a0&&(a0.target||a0);if(el&&el.type==='file')el.value='';}catch(e){}
+      showToast('No se pudo preparar '+_libQue(libs)+'. Revisá la conexión y probá de nuevo.');
+    });
   };
   w._libWrapped=true;window[fnName]=w;
 }
@@ -811,6 +891,9 @@ function _libInit(){
   _libWrap('exportFlyerLogsExcel',['xlsx']);
   _libWrap('_padXlsx',['xlsx']);
   _libWrap('_asXlsx',['xlsx']);                  // descarga de "Mis asesores"
+  // los avisos de "Excel descargado" van DESPUÉS de bajar el archivo, no antes de que cargue la librería
+  _libWrap('dlAsesores',['xlsx']);_libWrap('dlAsesoresTemplate',['xlsx']);
+  _libWrap('dlPadron',['xlsx']);_libWrap('dlPadronTemplate',['xlsx']);
   _libWrap('_hunBajar',['jspdf']);               // perfil Hunter
   _libWrap('descargarExcelPromos',['exceljs']);
 }
@@ -1064,14 +1147,21 @@ function checkProfile(user){
       // perfil SE QUEDA en la Opción 1 y ésta no tiene flyer. Se decide después
       // de aplicar facultades: _facSyncOptBar ya lo pasó a su primera opción, que
       // trae su propia imagen. Antes se bajaba siempre, aunque nadie la viera.
-      var _fb1=function(){if(!imageUrl&&_optN(_fgOpt)===1&&_can('opcion_1'))_fgBaseFallback();};
+      var _fb1=function(){
+        if(imageUrl||_optN(_fgOpt)!==1||!_can('opcion_1'))return;
+        _fgBaseFallback(); // sólo para que el armador tenga con qué dibujarse
+        _fgSinFlyerPoner({opt:1,motivo:_activeFlyerFallo?'red':'sinflyer'}); // y no se deja descargar la imagen de ejemplo
+      };
       if(_facLoaded){_applyFacultades();_tourAutoStart();_fb1();}
       else loadFacultades(false,function(){_applyFacultades();_tourAutoStart();_fb1();});
       // Cacheo la Opción 1 para que volver a ella sea instantáneo. El mapa es el
       // de SU _active.json (cfg1), no window.FLYER_CFG: si el perfil ya pasó a la
       // opción que le toca, el global es el de esa otra.
-      _fgOptCache[1]={loaded:true,cfg:cfg1||_readDocCfg()||null,imageUrl:imageUrl,
+      // loaded sólo si NO hay imagen que esperar (opción 1 sin flyer, firme); con imagen
+      // pendiente se marca en _listo1 cuando llega.
+      _fgOptCache[1]={loaded:!imageUrl&&!_activeFlyerFallo,cfg:cfg1||_readDocCfg()||null,imageUrl:imageUrl,
         name:_activeFlyerName,legal:null,img:null};
+      if(!imageUrl&&!_activeFlyerFallo)_fgOptMeta[1]=false;
       // el legal viene de la misma descarga de arriba; si ya llegó, esto lo copia al caché
       _legal1P.then(function(t){_fgLegalArrived(1,t);});
       if(imageUrl&&window.baseImg){
@@ -1082,8 +1172,10 @@ function checkProfile(user){
         // imagen lenta en la prueba de arranque).
         var _ni=_fgPreImgDe(1,imageUrl);
         var _listo1=function(){
-          if(_fgOptCache[1])_fgOptCache[1].img=_ni;
+          if(_fgOptCache[1]){_fgOptCache[1].img=_ni;_fgOptCache[1].loaded=true;}
+          _fgOptMeta[1]=true;
           if(_optN(_fgOpt)!==1)return;
+          if(_fgSinFlyer&&_fgSinFlyer.opt===1)_fgSinFlyerPoner(null);
           _fgRecOlvidar();
           window.baseImg=_ni;
           if(typeof calcSC==='function')calcSC();
@@ -1096,7 +1188,7 @@ function checkProfile(user){
           _ni.onload=_listo1;
           _ni.onerror=function(){
             console.warn('Active flyer image failed:',imageUrl);
-            if(_optN(_fgOpt)===1)_fgBaseFallback();
+            if(_optN(_fgOpt)===1){_fgBaseFallback();_fgSinFlyerPoner({opt:1,motivo:'red'});}
           };
           // Sin anti-caché: imageUrl ya trae ?v=<hora de activación> (cada activación
           // y recalibración escribe uno nuevo), así que un flyer nuevo es otra
@@ -1118,7 +1210,18 @@ function _fgBaseFallback(){
   b.onload=function(){if(typeof calcSC==='function')calcSC();if(typeof redraw==='function')redraw();};
   b.src=b.dataset.fallback;
 }
+// Averigua, sin apuro, qué opciones del perfil tienen imagen cargada: así la elección automática
+// (lupa, Generar flyers, Masivo) no manda una empresa a una opción vacía. Sólo respuestas firmes.
+function _optMetasPrecarga(){
+  if(typeof _esHunter==='function'&&_esHunter())return; // el Hunter las pide en _hunInit
+  var opts=(typeof _facOpts==='function')?_facOpts():[];
+  opts.forEach(function(n){
+    if(n in _fgOptMeta||(typeof _hunMeta!=='undefined'&&n in _hunMeta)||(_fgOptCache[n]&&_fgOptCache[n].loaded))return;
+    _fetchActiveMeta(n,function(d,fallo){if(!fallo&&!(n in _fgOptMeta))_fgOptMeta[n]=!!(d&&d.imageUrl);});
+  });
+}
 function _showApp(){
+  setTimeout(function(){if(_facLoaded)_optMetasPrecarga();},6000);
   _libPrefetch();
   // Si las facultades o los títulos no llegan (red caída), la vista previa se
   // destraba igual: mejor ver el flyer de la Opción 1 que una pantalla en blanco.
@@ -4365,7 +4468,7 @@ function _legalFile(opt){var n=_optN(opt);return n===1?'_legal.json':'_legal'+n+
 // Versión "sin cashback" de una opción (la que el perfil puede ver), o 0.
 function _fgVarianteSinCB(o){
   o=+o;if(!o)return 0;
-  for(var i=0;i<_FG_OPTS.length;i++){var n=_FG_OPTS[i];if(_OPC[n]&&_OPC[n].sinCB===o&&_can('opcion_'+n))return n;}
+  for(var i=0;i<_FG_OPTS.length;i++){var n=_FG_OPTS[i];if(_OPC[n]&&_OPC[n].sinCB===o&&_can('opcion_'+n)&&_optTieneImg(n)!==false)return n;}
   return 0;
 }
 // La opción "de verdad" de una versión sin cashback (si no es una, ella misma).
@@ -4417,9 +4520,15 @@ function _optBadge(opt,extraCss){
   return '<span class="badge" style="font-size:.75rem;padding:3px 7px;background:'+c+
     ';color:#fff;letter-spacing:.3px;'+(extraCss||'')+'" title="'+_escHtml(_optLabel(n))+'">OP.'+n+'</span>';
 }
+// cb(datos, fallo): fallo=true cuando el archivo no se pudo traer (sin red, 5xx); no es
+// lo mismo que "no existe" (datos=null y fallo=false = esa opción no tiene flyer).
 function _fetchActiveMeta(opt,cb){
-  _bucketJson(_activeFile(opt))
-    .then(function(d){cb(d||null);}).catch(function(){cb(null);});
+  var file=_activeFile(opt);
+  _bucketJson(file).then(function(d){
+    try{cb(d||null,_bjFallo(file));}catch(e){console.error('_fetchActiveMeta cb:',e);}
+  },function(){
+    try{cb(null,true);}catch(e){console.error('_fetchActiveMeta cb:',e);}
+  });
 }
 // Barra de opciones: se inyecta arriba de los tabs Individual/Masivo/Historial.
 // Se muestra si el perfil tiene más de una opción habilitada (ver _facSyncOptBar).
@@ -4611,6 +4720,74 @@ var _fgOptLoading={};
 // ¿Hay alguna opción en vuelo? Lo usa el arranque para saber si la vista previa
 // ya puede pintar o si todavía está viniendo la imagen de otra opción.
 function _fgOptCargando(){for(var k in _fgOptLoading)if(Object.prototype.hasOwnProperty.call(_fgOptLoading,k))return true;return false;}
+// ── ¿EL FLYER QUE SE VE ES EL QUE CORRESPONDE? ──────────────────────────────────
+// Si la imagen de una opción no llega (sin red, opción sin flyer cargado), NUNCA se
+// deja la imagen de otra opción con la calibración de ésta: el cartel #fg-flyer-falla
+// lo dice, la vista previa se apaga y la descarga queda frenada hasta que cargue.
+//   _fgSinFlyer = {opt, motivo:'red'|'sinflyer'}  (null = todo bien)
+//   _fgOptMeta[n] = true/false: ¿la opción n tiene imagen? (sólo respuestas firmes)
+var _fgSinFlyer=null,_fgOptMeta={};
+// true / false / undefined (todavía no se sabe)
+function _optTieneImg(n){
+  n=_optN(n);
+  var c=_fgOptCache[n];if(c&&c.loaded)return !!c.img;
+  if(n in _fgOptMeta)return _fgOptMeta[n];
+  if(typeof _hunMeta!=='undefined'&&n in _hunMeta)return _hunMeta[n];
+  return undefined;
+}
+// La opción n es la que está en pantalla, terminó de cargar y su imagen es la que se dibuja.
+function _fgOptLista(n){
+  n=_optN(n);
+  if(_optN(_fgOpt)!==n||_fgOptLoading[n])return false;
+  if(_fgSinFlyer&&_fgSinFlyer.opt===n)return false;
+  var c=_fgOptCache[n];
+  return !!(c&&c.loaded&&c.img&&c.img.naturalWidth&&window.baseImg);
+}
+// '' = se puede descargar; si no, el motivo en castellano.
+function _fgDescargaBloqueo(){
+  var n=_optN(_fgOpt),lbl=_optLabel(n);
+  if(_fgOptLoading[n])return 'Esperá un momento: todavía se está cargando «'+lbl+'».';
+  var s=_fgSinFlyer;
+  if(s&&s.opt===n){
+    if(s.motivo==='red')return 'No se pudo cargar el flyer «'+lbl+'». Tocá «Reintentar» arriba del flyer.';
+    return typeof _admin!=='undefined'&&_admin?'«'+lbl+'» todavía no tiene flyer: subilo desde Config → Flyers.':'«'+lbl+'» todavía no tiene flyer cargado. Avisale al administrador.';
+  }
+  if(!window.baseImg||!window.baseImg.naturalWidth)return 'Todavía no se cargó el flyer. Esperá un momento.';
+  return '';
+}
+function _fgFallaEstilo(){
+  if(document.getElementById('fg-falla-style'))return;
+  var st=document.createElement('style');st.id='fg-falla-style';
+  st.textContent='#fg-flyer-falla{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:0 0 12px;padding:12px 14px;border-radius:12px;'+
+    'background:var(--danger-soft,#FDE3E3);color:var(--danger,#B3261E);border:1px solid var(--danger,#B3261E);font:600 .8125rem/1.4 "Figtree",sans-serif;max-width:560px;}'+
+    '#fg-flyer-falla .fg-falla-t{flex:1 1 260px;}#fg-flyer-falla .fg-falla-t span{display:block;font-weight:500;margin-top:2px;}'+
+    '#fg-flyer-falla button{padding:8px 16px;border-radius:9px;border:0;background:var(--danger,#B3261E);color:#fff;font:700 .8125rem "Figtree",sans-serif;cursor:pointer;}'+
+    'html.dark #fg-flyer-falla{background:#3a1f1f;color:#ffb4ab;border-color:#ffb4ab;}html.dark #fg-flyer-falla button{background:#ffb4ab;color:#3a1f1f;}'+
+    '.cw.fg-cw-falla{opacity:.28;filter:grayscale(1);pointer-events:none;}';
+  document.head.appendChild(st);
+}
+function _fgSinFlyerPoner(est){
+  _fgSinFlyer=est||null;
+  var prev=document.querySelector('.prev'),cw=prev&&prev.querySelector('.cw'),box=document.getElementById('fg-flyer-falla');
+  if(!est){if(box&&box.parentNode)box.parentNode.removeChild(box);if(cw)cw.classList.remove('fg-cw-falla');return;}
+  if(!prev||!cw)return;
+  _fgFallaEstilo();
+  var lbl=_escHtml(_optLabel(est.opt)),red=est.motivo==='red';
+  var tit=red?'No se pudo cargar el flyer «'+lbl+'»':'«'+lbl+'» todavía no tiene flyer cargado';
+  var det=(red?'Revisá tu conexión y tocá Reintentar. ':(typeof _admin!=='undefined'&&_admin?'Subilo desde Config → Flyers. ':'Avisale al administrador. '))+
+    'Mientras tanto no se puede descargar: saldría con el flyer equivocado.';
+  if(!box){box=document.createElement('div');box.id='fg-flyer-falla';box.setAttribute('role','alert');prev.insertBefore(box,cw);}
+  box.innerHTML='<div class="fg-falla-t">'+tit+'<span>'+det+'</span></div><button type="button" onclick="_fgFlyerReintentar()">&#8635; Reintentar</button>';
+  cw.classList.add('fg-cw-falla');
+}
+function _fgFlyerReintentar(){
+  var s=_fgSinFlyer;if(!s)return;
+  var n=_optN(s.opt),c=_fgOptCache[n];
+  if(c)c.loaded=false; // se vuelve a pedir todo; la edición del legal (legalEdited) se conserva
+  if(_optN(_fgOpt)===n)switchFlyerOption(n);
+  else _fgSinFlyerPoner(null); // el cartel era de una opción que ya no está en pantalla
+}
+window.addEventListener('online',function(){if(_fgSinFlyer&&_fgSinFlyer.motivo==='red')_fgFlyerReintentar();});
 function _fgStashLegal(){
   var el=document.getElementById('legal-text');if(el==null||_fgLegalShownFor==null)return;
   var c=_fgOptCache[_fgLegalShownFor];
@@ -4640,38 +4817,56 @@ function switchFlyerOption(opt,cb){
   if(typeof redraw==='function')redraw();
   var waiters=_fgOptLoading[opt]=[];if(cb)waiters.push(cb);
   var keepEdited=(c&&typeof c.legalEdited==='string')?c.legalEdited:undefined; // edición real previa de ESTA opción
-  var done=function(cache,aviso){
-    cache.loaded=true;delete _fgOptLoading[opt];
+  var avisar=function(){waiters.forEach(function(f){try{f();}catch(e){console.error('switchFlyerOption cb:',e);}});};
+  var done=function(cache){
+    cache.loaded=true;_fgOptMeta[opt]=true;delete _fgOptLoading[opt];
     fgHideToast(cargando);
-    if(_optN(_fgOpt)===opt){_fgApplyOption(cache);if(aviso)showToast(aviso);}
-    waiters.forEach(function(f){try{f();}catch(e){console.error('switchFlyerOption cb:',e);}});
+    if(_optN(_fgOpt)===opt)_fgApplyOption(cache);
+    avisar();
+  };
+  // La imagen no está. 'sinflyer' = la opción no tiene flyer cargado (dato firme, se
+  // anota); 'red' = no se pudo traer (no se anota como cargada: se vuelve a pedir).
+  // Nunca se aplica la calibración de esta opción sobre la imagen de otra. Los que
+  // esperaban (tandas, historial) igual reciben el aviso: ellos miran _fgOptLista.
+  var falla=function(cache,motivo){
+    delete _fgOptLoading[opt];
+    fgHideToast(cargando);
+    cache.loaded=(motivo==='sinflyer');
+    if(motivo==='sinflyer')_fgOptMeta[opt]=false;
+    if(_optN(_fgOpt)===opt)_fgApplyOption(cache,motivo);
+    avisar();
   };
   // El legal se pide JUNTO con los datos de la opción (antes recién cuando éstos
   // llegaban: una vuelta más a la red en cada cambio de opción). Se aplica en el
   // mismo orden que siempre: primero los datos, después el legal, después la imagen.
   var legalP=loadGlobalLegal(false,opt);
-  _fetchActiveMeta(opt,function(d){
+  _fetchActiveMeta(opt,function(d,metaFallo){
     var cache=_fgOptCache[opt]={loaded:false,cfg:(d&&d.cfg)||null,
       imageUrl:(d&&d.imageUrl)||null,name:(d&&d.name)||'',legal:null,img:null,legalEdited:keepEdited};
     legalP.then(function(txt){
-      cache.legal=(typeof txt==='string')?txt:(opt===1?(window.LEGAL_DEFAULT||''):'');
-      if(!cache.imageUrl){done(cache,_optLabel(opt)+' todavía no tiene flyer: subilo desde el panel.');return;}
+      var legalFallo=_bjFallo(_legalFile(opt));
+      if(!legalFallo)cache.legal=(typeof txt==='string')?txt:(opt===1?(window.LEGAL_DEFAULT||''):'');
+      if(metaFallo||legalFallo){falla(cache,'red');return;}
+      if(!cache.imageUrl){falla(cache,'sinflyer');return;}
       // Si el ingreso ya la venía bajando (_fgPrecargaInicio), se usa esa.
       var im=_fgPreImgDe(opt,cache.imageUrl);
       if(im&&im.complete){cache.img=im;done(cache);return;}
       var pre=!!im;
       if(!im){im=new Image();im.crossOrigin='anonymous';}
       im.onload=function(){cache.img=im;done(cache);};
-      im.onerror=function(){done(cache,'No se pudo cargar la imagen de '+_optLabel(opt));};
+      im.onerror=function(){falla(cache,'red');};
       if(!pre)im.src=cache.imageUrl; // versionada por ?v= al activar: ver la carga inicial
     });
   });
 }
-function _fgApplyOption(cache){
+function _fgApplyOption(cache,motivo){
   _fgRecOlvidar();
   if(!_fgBorr.revisado&&_me)setTimeout(_fgBorrOfrecer,900); // borradores de la última vez
-  if(cache.img)window.baseImg=cache.img;
-  window.FLYER_CFG=cache.cfg||{};
+  // Sin imagen propia NO se toca ni la imagen ni la calibración (quedaba el flyer de la
+  // opción anterior con el mapa de ésta): se pone el cartel y se frena la descarga.
+  var sinImg=!cache.img;
+  if(!sinImg){window.baseImg=cache.img;window.FLYER_CFG=cache.cfg||{};}
+  _fgSinFlyerPoner(sinImg?{opt:_optN(_fgOpt),motivo:motivo||'sinflyer'}:null);
   var el=document.getElementById('legal-text');
   // prioridad: lo que dejé editado en esta sesión; si no, el legal guardado de la opción
   var txt=(typeof cache.legalEdited==='string')?cache.legalEdited:cache.legal;
@@ -4935,6 +5130,7 @@ function _fetchActiveFlyer(cb){
     .then(function(d){
       _activeFlyerUrl=(d&&d.imageUrl)||null;
       _activeFlyerName=(d&&d.name)||'';
+      _activeFlyerFallo=_bjFallo('_active.json'); // no se pudo traer (≠ "no hay flyer activo")
       var cfg=(d&&d.cfg&&typeof d.cfg==='object')?d.cfg:null;
       // El flyer activo trae su propio "mapa" de coordenadas → se dibuja alineado.
       // Sólo si la que está en pantalla sigue siendo la Opción 1: si el perfil ya
@@ -4942,7 +5138,7 @@ function _fetchActiveFlyer(cb){
       if(cfg&&_optN(_fgOpt)===1){_fgRecOlvidar();window.FLYER_CFG=cfg;}
       if(cb)cb(_activeFlyerUrl,_activeFlyerName,cfg);
     })
-    .catch(function(){_activeFlyerUrl=null;_activeFlyerName='';if(cb)cb(null,'',null);});
+    .catch(function(){_activeFlyerUrl=null;_activeFlyerName='';_activeFlyerFallo=true;if(cb)cb(null,'',null);});
 }
 
 // Al activar: descarga el HTML, extrae la imagen en base64, la sube como _active_img.jpg
@@ -6697,14 +6893,35 @@ function _fgWithOpt(o,fn2,_vuelta){
   else if(_fgOptLoading[o])_fgOptLoading[o].push(listo); // ya es la activa pero todavía carga: espero a que aplique
   else fn2();
 }
+// ¿Esa opción se puede usar hoy? '' = sí; si no, el motivo en castellano. Sin esto, un flyer
+// armado con una opción que ya no existe o que ya no está habilitada para el perfil se
+// "volvía a descargar" con OTRA opción en silencio (_fgWithOpt corre en la actual).
+function _fgOptAjena(raw){
+  var n=+raw||1;
+  if(_FG_OPTS.indexOf(n)<0)return 'Ese flyer se armó con un formato que ya no existe.';
+  if(!_can('opcion_'+n))return 'Ese flyer se armó con «'+_optLabel(n)+'», que hoy no está habilitado para tu perfil.';
+  return '';
+}
 function fgRedlPDF(i){
   var h=flyerHistory[i];if(!h)return;
+  var aj=_fgOptAjena(h.opt||1);
+  if(aj){_fgToastLargo(aj+' No se puede volver a descargar con otro flyer.',6000);return;}
   // sin aviso de rubro: es un flyer ya hecho; con su recorte, si tenía
-  _fgWithOpt(h.opt||1,function(){var fc=_fgConRecortes(h.v,function(){return fullRes(h.v);});savePDF(fc,h.v,true);});
+  var hacer=function(){_fgWithOpt(h.opt||1,function(){var fc=_fgConRecortes(h.v,function(){return fullRes(h.v);});savePDF(fc,h.v,true);});};
+  var falt=_fgLgFaltanSubidos(h.v&&h.v.logos);
+  if(falt.length){ // el logo subido de la PC no sobrevivió a la recarga: saldría el original en su lugar
+    fgConfirm('',{titulo:falt.length===1?'Falta un logo subido de la PC':'Faltan '+falt.length+' logos subidos de la PC',
+      texto:'Ese flyer llevaba '+(falt.length===1?'el logo «'+_fgLgNombreSubido(falt[0])+'»':falt.length+' logos')+' subido'+(falt.length>1?'s':'')+' de la PC, que se perdió al recargar la página. Si lo bajás ahora, en su lugar sale el logo original del flyer.',
+      ok:'Descargar igual',cancelar:'Cancelar',peligro:false},function(si){if(si)hacer();});
+    return;
+  }
+  hacer();
 }
 function fgLoadHistory(i){
   var h=flyerHistory[i];if(!h)return;
+  var aj=_fgOptAjena(h.opt||1);
   _fgApplyHistItem(h);
+  if(aj){_fgToastLargo(aj+' Se cargaron los datos en «'+_optLabel(_fgOpt)+'».',6000);return;} // sin sus recortes ni logos: son de otra imagen
   _fgWithOpt(h.opt||1,function(){_fgHistDiseno(h.v);}); // recortes y logos: en un borrador
 }
 // Vuelca un ítem {v,ac,opt} al formulario. Lo usan el Historial y el borrador
@@ -6789,6 +7006,7 @@ function fgResetVals(){
 }
 function _installFlyerEngine(){
   window.savePDF=fgSavePDF;window.savePNG=fgSavePNG;      // engancha el registro
+  window.dlPDF=fgDlPDF;window.dlPNG=fgDlPNG;              // botones y Ctrl+Enter: sin doble clic, sin falsos "descargado"
   window.addHistory=fgAddHistory;window.renderHistory=fgRenderHistory;
   window.redlPDF=fgRedlPDF;window.loadHistory=fgLoadHistory;
   window.resetVals=fgResetVals;
@@ -6797,6 +7015,7 @@ function _installFlyerEngine(){
   window.setCfg=fgSetCfg;                                  // + estado "sin cashback"
   window.toggleA3=toggleA3;window.toggleA4=toggleA4;
   window.genAll=fgGenAll;window.dlTemplate=fgDlTemplate;   // masivo + plantilla con 3 y 4
+  window.clearExcel=fgClearExcel;                          // no se limpia a mitad de una tanda
   window.drawAll=fgDrawAll;window.drawEmpresa=fgDrawEmpresa;window.drawMontos=fgDrawMontos;
   window.drawContacto=fgDrawContacto;window.drawC1=fgDrawC1;window.drawLegal=fgDrawLegal;
   window.drawBenef=fgDrawBenef;                    // Flyer Rubros
@@ -7844,24 +8063,63 @@ function _fgCeder(fn){
 }
 // OJO: logFlyerToSupabase existía pero NADIE lo llamaba => no se registraba ninguna
 // descarga. Lo engancho acá pisando savePDF/savePNG de _source.html (que regenera).
+// Devuelven true si el archivo salió, 'espera' si se abrió el aviso de rubro (sigue cuando
+// se confirma) y false si no se pudo (flyer sin cargar: ver _fgDescargaBloqueo).
 function fgSavePDF(fc,v,force){
-  if(!force&&_padCheckRubro(_padFilaActual(),'descarga',function(){fgSavePDF(fc,v,true);}))return;
+  var bl=_fgDescargaBloqueo();if(bl){_fgToastLargo(bl,6000);return false;}
+  if(!force&&_padCheckRubro(_padFilaActual(),'descarga',function(){if(fgSavePDF(fc,v,true)===true){showToast('PDF descargado!');setTimeout(_fgValAvisar,1300);}}))return 'espera';
   var pdf=_fgPdfDe(fc);
   var fn=buildFn(document.getElementById('filename').value,v);
   pdf.save(fn+'.pdf');
   addHistory(v,fn,fc);
   logFlyerToSupabase(v,fn,'pdf');
   _padAfterFlyer();
+  return true;
 }
 function fgSavePNG(fc,v,force){
-  if(!force&&_padCheckRubro(_padFilaActual(),'descarga',function(){fgSavePNG(fc,v,true);}))return;
+  var bl=_fgDescargaBloqueo();if(bl){_fgToastLargo(bl,6000);return false;}
+  if(!force&&_padCheckRubro(_padFilaActual(),'descarga',function(){if(fgSavePNG(fc,v,true)===true){showToast('PNG descargado!');setTimeout(_fgValAvisar,1300);}}))return 'espera';
   var a=document.createElement('a');
   var fn=buildFn(document.getElementById('filename').value,v);
   a.download=fn+'.png';a.href=fc.toDataURL('image/png');a.click();
   addHistory(v,fn,fc);
   logFlyerToSupabase(v,fn,'png');
   _padAfterFlyer();
+  return true;
 }
+// "Descargar PDF" / "Descargar imagen" del armador (los botones y Ctrl+Enter). Antes:
+// el aviso "descargado" salía siempre —también si faltaba la librería, si se abrió el
+// aviso de rubro o si algo fallaba—, un error dejaba "Generando…" para siempre y un
+// doble clic bajaba dos archivos (y contaba dos en Admin → Uso).
+var _fgDlOcupado=false;
+function _fgDescargar(tipo){
+  if(_fgDlOcupado)return;
+  var bl=_fgDescargaBloqueo();if(bl){_fgToastLargo(bl,6000);return;}
+  var pdf=tipo==='pdf',que=pdf?'el PDF':'la imagen';
+  var btn=pdf?document.getElementById('btn-dl-pdf'):null;
+  _fgDlOcupado=true;_fgBusy(btn,true);
+  var liberar=function(){_fgDlOcupado=false;_fgBusy(btn,false);};
+  showToast('Generando…');
+  _lib(pdf?['jspdf']:[]).then(function(){
+    setTimeout(function(){ // un respiro para que se pinte el aviso
+      try{
+        var bl2=_fgDescargaBloqueo();if(bl2){_fgToastLargo(bl2,6000);return;} // cambió algo mientras cargaba
+        var v=getVals(),fc=fullRes(v);
+        var r=(pdf?fgSavePDF:fgSavePNG)(fc,v);
+        if(r==='espera')fgHideToast('Generando…');
+        else if(r===true){showToast(pdf?'PDF descargado!':'PNG descargado!');setTimeout(_fgValAvisar,1300);}
+      }catch(e){
+        console.error('descargar:',e);
+        _fgToastLargo('No se pudo generar '+que+'. Probá de nuevo; si sigue, recargá la página.',6000);
+      }finally{liberar();}
+    },30);
+  },function(){
+    liberar();
+    _fgToastLargo('No se pudo preparar '+que+'. Revisá la conexión y probá de nuevo.',6000);
+  });
+}
+function fgDlPDF(){_fgDescargar('pdf');}
+function fgDlPNG(){_fgDescargar('png');}
 // ── NOMBRES DE ARCHIVO ───────────────────────────────────────────────────────
 // Windows no acepta \ / : * ? " < > | en un nombre de archivo, y en el ZIP del
 // masivo una "/" en la razón social creaba una CARPETA (el flyer quedaba adentro
@@ -7899,9 +8157,41 @@ function _fgBajarBlob(blob,nombre){
 }
 // MASIVO con hasta 4 asesores. Pisa genAll de _source.html (que sólo mapea 1 y 2).
 // Los Excel viejos (sin columnas 3/4) siguen funcionando igual.
+var _masBusy=false;
+// ¿Hay una tanda en marcha (Masivo o Generar flyers)? Mientras corre no se cambia de Excel,
+// no se limpia ni se cambia de opción: la tanda las va cambiando sola.
+function _fgEnTanda(){return _masBusy||(typeof _pgBusy!=='undefined'&&_pgBusy);}
+function fgClearExcel(){
+  if(_fgEnTanda()){showToast('Esperá a que termine de generar el ZIP.');return;}
+  window.excelData=[];
+  var a=document.getElementById('excel-info'),b=document.getElementById('excel-input'),c=document.getElementById('val-sum');
+  if(a)a.style.display='none';if(b)b.value='';if(c)c.style.display='none';
+}
+function _masResumenTxt(info){
+  var L=['FLYERS GENERADOS DESDE EL EXCEL (MASIVO)','Fecha: '+_fmtDate(info.fecha.toISOString()),
+    'Filas del Excel: '+info.total,'Flyers generados: '+info.ok,'No se generaron: '+info.errores.length,'','POR FORMATO'];
+  Object.keys(info.porOpt).forEach(function(o){L.push('  '+_pgFormatoLbl(+o)+': '+info.porOpt[o]);});
+  L.push('','OBSERVACIONES');
+  var obs=0;
+  function ob(t,arr){if(arr.length){obs++;L.push('  '+arr.length+' '+t+': '+_pgLista(arr,12));}}
+  ob('sin cashback (importes en blanco)',info.sinCB);
+  ob('sin oficiales (salen sin datos de contacto)',info.sinOf);
+  if(!obs)L.push('  Ninguna.');
+  L.push('','FILAS QUE NO SE GENERARON');
+  if(!info.errores.length)L.push('  Ninguna.');
+  info.errores.forEach(function(e){L.push('  Fila '+e.fila+' — '+e.empresa+': '+e.motivo);});
+  return L.join('\n');
+}
 function fgGenAll(){
   if(!window.excelData||!excelData.length)return;
-  var total=excelData.length,cur=0,zip=new JSZip(),usados={},errores=[];
+  if(_masBusy)return;
+  // con el flyer sin cargar saldría TODO el Excel con la imagen equivocada
+  var bl=_fgDescargaBloqueo();if(bl){_fgToastLargo(bl,6000);return;}
+  // La tanda trabaja sobre una COPIA: si mientras corre se toca Limpiar o se carga otro Excel,
+  // no se mezclan datos de uno con flyers del otro.
+  var datos=excelData.slice(),F=datos.map(_masFila);
+  var total=datos.length,cur=0,zip=new JSZip(),usados={},errores=[],ok=0,porOpt={},sinCBl=[],sinOfl=[],fecha=new Date();
+  function fallo(idx,motivo){errores.push({fila:_masNum(datos[idx],idx),empresa:F[idx].empresa||('(fila '+_masNum(datos[idx],idx)+')'),motivo:motivo});}
   // Con versión "sin cashback" de la opción en pantalla: primero las filas con
   // cashback y después, en esa versión, las que no tienen (con su legal).
   // Funciona igual arrancando desde la original o desde la versión sin cashback:
@@ -7909,67 +8199,83 @@ function fgGenAll(){
   var origen=_optN(_fgOpt),libre=!_fgProtoActivo()&&!_fgRecActivo(),orden=[],corte=-1,cambiado=false,V=0;
   var bOpt=_fgOptBase(origen),optSin=libre?(_fgVarianteSinCB(bOpt)||origen):origen;
   var optCon=(libre&&origen!==bOpt&&_can('opcion_'+bOpt))?bOpt:origen;
-  function _sinCB(row){return _padCfgOf(row.config||row.Config||'')<0;}
-  function destinoDe(row){return _sinCB(row)?optSin:optCon;}
-  excelData.forEach(function(row,i){if(destinoDe(row)===origen)orden.push(i);});
+  function _sinCB(i){return _padCfgOf(F[i].config)<0;}
+  function destinoDe(i){return _sinCB(i)?optSin:optCon;}
+  datos.forEach(function(row,i){if(destinoDe(i)===origen)orden.push(i);});
   corte=orden.length;
-  excelData.forEach(function(row,i){var dd=destinoDe(row);if(dd!==origen){orden.push(i);V=dd;}});
+  datos.forEach(function(row,i){var dd=destinoDe(i);if(dd!==origen){orden.push(i);V=dd;}});
   if(corte>=orden.length)V=0;
   var legalText=document.getElementById('legal-text').value;
   // Flyer Rubros: si la fila no trae importe, se usa el del formulario (uno para todos)
   var enRubros=!!_solCfg(_fgVista).benef,cashUnico=!!_solCfg(_fgVista).cashUnico,impForm=_fgFmtImporte((document.getElementById('benef-importe')||{}).value||''),imp2Form=_fgFmtImporte((document.getElementById('benef-importe2')||{}).value||'');
-  logFlyerBulkToSupabase(total);
   var pb=document.getElementById('prog-bar'),pf=document.getElementById('prog-fill'),
       pt=document.getElementById('prog-text'),bg=document.getElementById('btn-gen');
   if(pb)pb.style.display='block';if(pf)pf.style.width='0%';
   if(pt)pt.textContent='Generando 1 de '+total+'...';
   if(bg)bg.disabled=true;
-  function pick(row,i,f){
-    var k1='asesor'+i+'_'+f;
-    if(row[k1]!=null&&String(row[k1]).trim()!=='')return String(row[k1]).trim();
-    if(i===1&&row[f]!=null)return String(row[f]).trim(); // compat: columnas sueltas
-    return '';
-  }
+  _masBusy=true;
+  function liberar(){_masBusy=false;if(bg)bg.disabled=false;}
   function volver(){if(cambiado&&_optN(_fgOpt)!==origen&&_can('opcion_'+origen))switchFlyerOption(origen);}
+  function fmtErr(e){return 'fila '+e.fila+' ('+e.empresa+'): '+e.motivo;}
   function next(){
+    try{paso();}catch(e){
+      console.error('masivo:',e);
+      if(pt)pt.textContent='Algo salió mal al generar. Probá de nuevo.';
+      showToast('Algo salió mal al generar el ZIP');
+      liberar();volver();
+    }
+  }
+  function paso(){
     if(V&&!cambiado&&cur===corte&&cur<total){
       cambiado=true;if(pt)pt.textContent='Cambiando a '+_optLabel(V)+' para las empresas sin cashback...';
-      _fgWithOpt(V,function(){legalText=(document.getElementById('legal-text')||{}).value||'';cashUnico=!!_solCfg(_fgVista).cashUnico;_fgCeder(next);});
+      _fgWithOpt(V,function(){
+        if(!_fgOptLista(V)){ // la versión sin cashback no cargó: esas filas no salen (con la imagen de la otra saldrían mal)
+          for(var j=cur;j<total;j++)fallo(orden[j],'no se pudo cargar el flyer «'+_optLabel(V)+'»');
+          cur=total;if(pf)pf.style.width='100%';
+        }else{legalText=(document.getElementById('legal-text')||{}).value||'';cashUnico=!!_solCfg(_fgVista).cashUnico;}
+        _fgCeder(next);
+      });
       return;
     }
     if(cur>=total){
+      if(!ok){ // nada que empaquetar: no se baja un ZIP vacío
+        if(pt)pt.textContent='No se generó ningún flyer — '+errores.slice(0,3).map(fmtErr).join(' · ')+(errores.length>3?' …':'');
+        showToast('No se generó ningún flyer');
+        liberar();volver();return;
+      }
       if(pt)pt.textContent='Empaquetando ZIP...';
+      zip.file('Resumen.txt',_masResumenTxt({total:total,ok:ok,fecha:fecha,porOpt:porOpt,sinCB:sinCBl,sinOf:sinOfl,errores:errores}));
       // Sin el catch, si el ZIP fallaba (memoria, por ejemplo) el botón quedaba
       // deshabilitado y la barra en "Empaquetando ZIP..." hasta recargar.
       zip.generateAsync({type:'blob'}).then(function(content){
         var d=new Date();
-        var fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        _fgBajarBlob(content,'Flyers_Galicia_'+fecha+'.zip');volver();
-        var ok=total-errores.length;
-        if(pt)pt.textContent='✓ ZIP con '+ok+' flyer'+(ok!==1?'s':'')+(errores.length?' — '+errores.length+' con error: '+errores.slice(0,3).join(' · ')+(errores.length>3?' …':''):'!');
-        if(bg)bg.disabled=false;
+        var fechaZ=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        _fgBajarBlob(content,'Flyers_Galicia_'+fechaZ+'.zip');volver();
+        logFlyerBulkToSupabase(ok); // lo que SALIÓ, no lo que decía el Excel
+        if(pt)pt.textContent='✓ ZIP con '+ok+' flyer'+(ok!==1?'s':'')+(errores.length?' — '+(errores.length===1?'1 no salió: ':errores.length+' no salieron: ')+errores.slice(0,3).map(fmtErr).join(' · ')+(errores.length>3?' …':'')+' (el detalle está en Resumen.txt, dentro del ZIP)':'!');
+        liberar();
         showToast(errores.length?'ZIP descargado: '+errores.length+' fila(s) no se pudieron generar':'ZIP descargado!');
       }).catch(function(e){
         if(pt)pt.textContent='No se pudo armar el ZIP: '+((e&&e.message)||e);volver();
-        if(bg)bg.disabled=false;
+        liberar();
         showToast('No se pudo armar el ZIP. Probá con menos filas.');
       });return;
     }
     // Una fila que falla (un dato raro) ya no corta la tanda con el botón
     // trabado: se anota y se sigue con la próxima, como en "Generar flyers".
     var fi=orden[cur];
-    try{genFila();}catch(e){errores.push((excelData[fi]&&(excelData[fi].empresa||excelData[fi].Empresa))||('fila '+(fi+2)));console.error('masivo:',e);}
+    try{genFila(fi);ok++;}catch(e){fallo(fi,'no se pudo dibujar ('+((e&&e.message)||e)+')');console.error('masivo:',e);}
     cur++;
     if(pf)pf.style.width=Math.round((cur/total)*100)+'%';
     if(pt)pt.textContent=cur<total?('Generando '+(cur+1)+' de '+total+'...'):'Finalizando...';
     _fgCeder(next);
   }
-  function genFila(){
-    var row=excelData[orden[cur]];
+  function genFila(idx){
+    var m=F[idx],row=datos[idx];
     // misma regla que el padrón: sin config válida, ese flyer sale sin montos
-    var ci=_padCfgOf(row.config||row.Config||'');
+    var ci=_padCfgOf(m.config);
     var cfg=CONFIGS[ci<0?0:ci];
-    var v={empresa:(row.empresa||row.Empresa||'flyer'+(cur+1)),
+    var v={empresa:(m.empresa||('flyer'+(cur+1))),
       nocb:ci<0,m1:cfg.m1,m2:cfg.m2,m3:cfg.m3,m4:cfg.m4,legal:legalText,cashUnico:cashUnico};
     if(enRubros){
       v.benef=true;
@@ -7978,19 +8284,24 @@ function fgGenAll(){
       v.importe=_fgFmtImporte(rb.importe)||impForm;
       v.importe2=_fgFmtImporte(rb.importe2)||imp2Form||v.importe;
     }
+    var conOf=false;
     [1,2,3,4].forEach(function(i){
-      var sfx=(i===1)?'':String(i);
-      var nom=pick(row,i,'nombre'),ce=pick(row,i,'celular'),ma=pick(row,i,'email');
+      var sfx=(i===1)?'':String(i),a=m.as[i-1];
+      var nom=a.nombre,ce=a.celular,ma=a.email;
+      if(nom!=='')conOf=true;
       v['has'+i]=nom!=='';
       v['nombre'+sfx]=nom;v['celular'+sfx]=ce?'Cel: '+ce:'';v['email'+sfx]=ma;
     });
     var fc=fullRes(v),pdf=_fgPdfDe(fc);
     // Dos filas con la misma razón social generaban el MISMO nombre y la segunda
     // pisaba a la primera: el ZIP salía con menos flyers de los que decía.
-    var base='Flyer '+_fgSafeName(v.empresa),nom=base;
+    var base='Flyer '+_fgSafeName(v.empresa),nom2=base;
     usados[base]=(usados[base]||0)+1;
-    if(usados[base]>1)nom=base+' ('+usados[base]+')';
-    zip.file(nom+'.pdf',pdf.output('arraybuffer'));
+    if(usados[base]>1)nom2=base+' ('+usados[base]+')';
+    zip.file(nom2+'.pdf',pdf.output('arraybuffer'));
+    var o=_optN(_fgOpt);porOpt[o]=(porOpt[o]||0)+1;
+    if(ci<0)sinCBl.push(v.empresa);
+    if(!conOf)sinOfl.push(v.empresa);
   }
   next();
 }
@@ -8736,21 +9047,61 @@ function _padUltimo(rows){
   var t='';(rows||[]).forEach(function(r){if(r&&r.created_at&&r.created_at>t)t=r.created_at;});
   return t;
 }
+// Un corte de red NO se guarda como "no tenés empresas": _padLoadErr deja la puerta
+// abierta para reintentar (la lupa, el autocompletado y Generar flyers ofrecen
+// "Reintentar") y una carga ya en curso se comparte en vez de pedirse dos veces.
+var _padCargando=null,_padReintentoAt=0;
+function _padErrTxt(e){
+  var m=String((e&&e.message)||e||'');
+  if(!m||/failed to fetch|networkerror|load failed|network request|timeout|abort/i.test(m))return 'sin conexión';
+  return 'error del servidor';
+}
 function loadPadron(force,cb){
-  if(_padron&&!force){if(cb)cb(_padron);return;}
+  if(_padron&&!force&&!_padLoadErr){if(cb)cb(_padron);return;}
   if(!_me){_padron=_padron||[];if(cb)cb(_padron);return;}
+  if(_padCargando){if(cb)_padCargando.push(cb);return;}
+  var espera=_padCargando=cb?[cb]:[];
+  var fin=function(){var l=espera;_padCargando=null;l.forEach(function(f){try{f(_padron);}catch(e){console.error('loadPadron cb:',e);}});};
+  var falla=function(e){
+    showToast('No se pudieron traer tus empresas ('+_padErrTxt(e)+'). Tocá Reintentar en la lupa.');
+    _padLoadErr=true;_padron=_padron||[];fin();
+  };
   _sb.from(_PADRON_TABLE).select(_PADRON_COLS).eq('user_id',_me.id).order('empresa',{ascending:true})
     .then(function(r){
-      if(r.error){
-        showToast('No se pudieron cargar tus empresas: '+r.error.message);
-        _padLoadErr=true;_padron=_padron||[];if(cb)cb(_padron);return;
-      }
+      if(!r||r.error){falla(r&&r.error);return;}
       _padLoadErr=false;
       _padron=_padSane(r.data);
       _padronAt=_padUltimo(r.data);
       _pgSel={}; // los índices del generador ya no valen
-      if(cb)cb(_padron);
-    });
+      fin();
+    },falla);
+}
+// "Reintentar" de la lupa, del generador y del autocompletado. Repinta lo que esté abierto.
+function _padReintentar(){
+  var l=document.getElementById('pad-list');
+  if(l)l.innerHTML='<div class="pad-empty">Cargando tus empresas...</div>';
+  var pg=document.getElementById('padron-gen');
+  if(_pgOpen&&pg)pg.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Cargando tus empresas...</p>';
+  _padReintentoAt=Date.now();
+  loadPadron(true,function(){
+    if(document.getElementById('pad-list'))renderPadronPop();
+    if(_pgOpen)_pgRender();
+    if(typeof _padSugRender==='function'&&document.getElementById('empresa')&&document.activeElement===document.getElementById('empresa'))_padSugRender();
+    if(_padLoadErr)return;
+    if(document.getElementById('padron-stat'))renderPadronAdmin(false);
+    if(typeof _mpRefresh==='function')_mpRefresh();
+  });
+}
+// El autocompletado reintenta solo, sin molestar, como mucho una vez cada 10 s.
+function _padReintentoSilencioso(){
+  if(_padCargando||Date.now()-_padReintentoAt<10000)return;
+  _padReintentoAt=Date.now();
+  var t=_padLoadErr;
+  loadPadron(true,function(){if(t&&!_padLoadErr&&_padron&&_padron.length&&typeof _padSugRender==='function')_padSugRender();});
+}
+function _padSinConexionHtml(){
+  return '<div class="pad-empty">No se pudo conectar para traer tus empresas.<br>'+
+    '<button type="button" class="usr-btn edit" onclick="event.stopPropagation();_padReintentar()">&#8635; Reintentar</button></div>';
 }
 // Reemplaza el padrón propio de una sola vez. Va por la función padron_replace,
 // que hace el borrado y la carga dentro de una transacción: si algo falla, el
@@ -8872,7 +9223,7 @@ function renderPadronAdmin(force){
       st2.innerHTML=rows.length
         ?('<strong>'+rows.length+'</strong> empresas &nbsp;&middot;&nbsp; <strong>'+_padCuitCount(rows)+'</strong> CUIT'+
           ' &nbsp;&middot;&nbsp; actualizado '+_fmtDate(_padronAt))
-        :'Todav&iacute;a no cargaste empresas. Sub&iacute; un Excel o agregalas a mano con "Editar en l&iacute;nea".';
+        :(_padLoadErr?'No se pudo conectar para traer tus empresas. <a href="#" onclick="_padReintentar();return false">Reintentar</a>':'Todav&iacute;a no cargaste empresas. Sub&iacute; un Excel o agregalas a mano con "Editar en l&iacute;nea".');
     }
     if(_pgOpen)_pgRender();
     var prev=document.getElementById('padron-prev');if(!prev)return;
@@ -9278,7 +9629,10 @@ function _pgOptDeBase(r){
   var ru=_padRubroSane(r&&r.rubro);
   var q=_padOptDeRubro(ru);
   if(q)return (_FG_OPTS.indexOf(q)>=0&&_can('opcion_'+q))?q:-q;
-  return _optVigenteEntre(_facOptsDe('flyer').filter(function(n){return !(_OPC[n]&&_OPC[n].sinCB);}));
+  // sin las opciones que se sabe que no tienen imagen ("VIEJO…", "Sin cashback" vacías)
+  var pool=_facOptsDe('flyer').filter(function(n){return !(_OPC[n]&&_OPC[n].sinCB);});
+  var conImg=pool.filter(function(n){return _optTieneImg(n)!==false;});
+  return _optVigenteEntre(conImg.length?conImg:pool);
 }
 function _pgFormatoLbl(opt){return opt>0?(_solapaLabel(_optSolapa(opt))+' · '+_optLabel(opt)):'sin formato disponible';}
 function _pgAvisos(r,opt){
@@ -9305,6 +9659,7 @@ function _pgFiltrados(){
 function _pgCount(){var n=0;for(var k in _pgSel)if(_pgSel[k]&&_padron&&_padron[k])n++;return n;}
 function _pgRender(){
   var pg=document.getElementById('padron-gen');if(!pg||!_pgOpen)return;
+  if(_padLoadErr&&(!_padron||!_padron.length)){pg.innerHTML='<p style="font-size:.78rem;color:var(--gray)">No se pudo conectar para traer tus empresas.</p><button type="button" class="usr-btn edit" onclick="_padReintentar()">&#8635; Reintentar</button>';return;}
   if(!_padron||!_padron.length){pg.innerHTML='<p style="font-size:.78rem;color:var(--gray)">Todav&iacute;a no cargaste empresas.</p>';return;}
   if(!document.getElementById('pg-list')){
     pg.innerHTML=
@@ -9422,8 +9777,16 @@ function _pgGenerarRows(rows,fmt,ui,zipBase,resolver){
     if(gi>=orden.length){fin();return;}
     var opt=orden[gi++];
     _fgWithOpt(opt,function(){
+      var lista=grupos[opt];
+      // Si el flyer de este formato no cargó, esas empresas NO salen (antes salían con la
+      // imagen de otro formato y el ZIP decía "✓"): quedan en el resumen con el motivo.
+      if(!_fgOptLista(opt)){
+        lista.forEach(function(r){res.omitidas.push((r.empresa||'?')+' (no se pudo cargar el flyer «'+_optLabel(opt)+'»)');});
+        hecho+=lista.length;if(fill)fill.style.width=Math.round(hecho/n*100)+'%';
+        _fgCeder(grupo);return;
+      }
       var legal=(document.getElementById('legal-text')||{}).value||'';
-      var lista=grupos[opt],k=0,carpeta=_fgSafeName(_pgFormatoLbl(opt).replace(' · ',' - ')),usados={};
+      var k=0,carpeta=_fgSafeName(_pgFormatoLbl(opt).replace(' · ',' - ')),usados={};
       res.carpetas[opt]=carpeta;
       function uno(){
         if(k>=lista.length){_fgCeder(grupo);return;}
@@ -9444,6 +9807,13 @@ function _pgGenerarRows(rows,fmt,ui,zipBase,resolver){
     });
   }
   function fin(){
+    if(!res.total){ // nada que empaquetar: no se baja un ZIP vacío
+      if(txt)txt.textContent='No se generó ningún flyer. Mirá el detalle.';
+      if(btn)btn.disabled=false;_pgBusy=false;
+      if(origen!==_optN(_fgOpt)&&_can('opcion_'+origen))switchFlyerOption(origen);
+      showToast('No se generó ningún flyer');
+      _pgResumenModal(res);return;
+    }
     if(txt)txt.textContent='Empaquetando ZIP...';
     var d=res.fecha,fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     res.zip=(zipBase||'Flyers_Empresas')+'_'+fecha+'.zip';
@@ -9494,11 +9864,11 @@ function _pgResumenModal(res){
   ob('no generadas',res.omitidas);
   ob('con error',res.errores);
   _padPending=null;
-  _padModal('<h3>&#10003; Flyers generados</h3>'+
+  _padModal('<h3>'+(res.total?'&#10003; Flyers generados':'No se generó ningún flyer')+'</h3>'+
     '<p class="pu-sub"><strong>'+res.total+' flyer'+(res.total!==1?'s':'')+'</strong> en '+res.fmt.toUpperCase()+' &middot; <code>'+_escHtml(res.zip)+'</code> &middot; '+_escHtml(_fmtDate(res.fecha.toISOString()))+'</p>'+
     '<table style="width:100%;border-collapse:collapse;font-size:.8rem;margin:8px 0"><thead><tr style="color:var(--gray);font-size:.6875rem;text-transform:uppercase"><th style="text-align:left;padding:4px 0">Formato</th><th style="text-align:right;padding:4px 0">Cantidad</th><th style="text-align:left;padding:4px 8px">Carpeta</th></tr></thead><tbody>'+filas+'</tbody></table>'+
     (obs.length?'<p class="pu-sub" style="margin-top:8px"><strong>Observaciones</strong></p><ul>'+obs.join('')+'</ul>':'<p class="pu-sub">Sin observaciones: todas las empresas ten&iacute;an oficiales, cashback y topes.</p>')+
-    '<p class="pu-hint">El mismo resumen va dentro del ZIP como <code>Resumen.txt</code>.</p>'+
+    (res.total?'<p class="pu-hint">El mismo resumen va dentro del ZIP como <code>Resumen.txt</code>.</p>':'')+
     '<div class="pu-foot"><button class="pu-si" onclick="_padCloseUpdate(0)">Cerrar</button></div>');
 }
 // ── PADRÓN: lupita + popover de búsqueda en el armador (SOLO ADMIN) ───────────
@@ -9785,6 +10155,7 @@ function _padMark(){
 function renderPadronPop(){
   var list=document.getElementById('pad-list');if(!list)return;
   if(!_padron){list.innerHTML='<div class="pad-empty">Cargando tus empresas...</div>';return;}
+  if(_padLoadErr&&!_padron.length){list.innerHTML=_padSinConexionHtml();_padHits=[];return;}
   if(!_padron.length){
     list.innerHTML='<div class="pad-empty">Todav&iacute;a no cargaste empresas.<br>'+
       'Sub&iacute; un Excel o carg&aacute;las a mano desde <strong>tu nombre &rarr; Base de datos</strong>.<br>'+
@@ -9859,11 +10230,12 @@ function _padApply(r){
   // ni con un recorte puesto (ahí manda lo que se está armando).
   var cur=_optN(_fgOpt),libre=!_fgProtoActivo()&&!_fgRecActivo(),destino=0;
   if(libre&&_ci<0)destino=_fgVarianteSinCB(_fgOptBase(cur));
-  else if(libre&&_ci>=0&&_OPC[cur]&&_OPC[cur].sinCB){var ob=_fgOptBase(cur);if(ob!==cur&&_can('opcion_'+ob))destino=ob;}
+  else if(libre&&_ci>=0&&_OPC[cur]&&_OPC[cur].sinCB){var ob=_fgOptBase(cur);if(ob!==cur&&_can('opcion_'+ob)&&_optTieneImg(ob)!==false)destino=ob;}
   if(destino&&destino!==cur){
     var nomE=r.empresa||'La empresa';
     setTimeout(function(){
       switchFlyerOption(destino,function(){
+        if(!_fgOptLista(destino))return; // no cargó: el cartel del flyer ya lo explica
         showToast(_ci<0?(nomE+' no tiene cashback: se usa «'+_optLabel(destino)+'».'):(nomE+' tiene cashback: se usa «'+_optLabel(destino)+'».'));
         setTimeout(function(){_padCheckRubro(r,'padron');},150);
       });
@@ -9936,6 +10308,7 @@ function _padIrRubro(opt){
   _padRubroCont=null;_padCloseUpdate(0);
   _padRubroDismissed='';
   if(opt)switchFlyerOption(opt,function(){
+    if(!_fgOptLista(opt))return; // no cargó: el cartel del flyer ya lo explica
     if(typeof _fgBenefSyncNombre==='function')_fgBenefSyncNombre();
     if(typeof redraw==='function')redraw();
     showToast('Cambiado a Flyer Rubros · '+_optLabel(opt)+'. Revis\u00e1 el cartel y descarg\u00e1 de nuevo.');
@@ -10346,6 +10719,7 @@ function _padSugPos(){
 // Arranca a sugerir con 2 letras, o con 3 dígitos si estás pegando un CUIT.
 function _padSugQuery(q){
   var t=(q||'').trim();
+  if(_padLoadErr&&t)_padReintentoSilencioso();
   if(!_padron||!_padron.length||!t)return null;
   if(t.length<2&&_padDigits(t).length<3)return null;
   return t;
@@ -10459,7 +10833,7 @@ function _padValidate(raw){
   raw.forEach(function(r,i){
     var o=_padRow(r);
     if(!o){desc++;return;}
-    var fila=i+2; // +1 por el encabezado, +1 porque Excel empieza en 1
+    var fila=(typeof r.__rowNum__==='number')?r.__rowNum__+1:i+2; // el número que ve el usuario en su Excel
     var rubTxt=_padRubroTxt(r);
     if(rubTxt&&!o.rubro.opcion)badRub.push({fila:fila,val:rubTxt,emp:o.empresa});
     if(!o.empresa)sinNombre.push(fila);
@@ -11861,10 +12235,7 @@ function _fgValWire(inp){
 function _fgValInit(){
   _fgValInputs().forEach(_fgValWire);
   // Al generar: marca los campos y avisa, pero deja generar (decisión de producto).
-  var oPDF=window.dlPDF;
-  window.dlPDF=function(){var r=oPDF.apply(this,arguments);setTimeout(_fgValAvisar,1300);return r;};
-  var oPNG=window.dlPNG;
-  window.dlPNG=function(){var r=oPNG.apply(this,arguments);setTimeout(_fgValAvisar,1300);return r;};
+  // El aviso lo dispara _fgDescargar cuando el archivo salió de verdad.
 }
 
 // ── COMPARTIR ────────────────────────────────────────────────────────────────
@@ -12216,7 +12587,7 @@ function _fgKbdInit(){
     // pegás las marcas y validás sin soltar el teclado).
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
       if(_fgHayDialogo())return;
-      if(_fgArmadorVisible()&&typeof dlPDF==='function'){e.preventDefault();dlPDF();return;}
+      if(_fgArmadorVisible()&&typeof dlPDF==='function'){e.preventDefault();if(!e.repeat)dlPDF();return;}
       if(_fgPromosVisible()&&typeof validarPromos==='function'){
         var enActivas=_promoModoActivas();
         var vb=enActivas?_promosActivasBtn():_promosValidarBtn();
@@ -12518,6 +12889,7 @@ function _fgHistDiseno(v){
   if(typeof calcSC==='function')calcSC();
   _fgLgListo();
   if(hayL&&!okL)showToast('Los logos de ese flyer eran de otra versión del flyer y no se cargaron.');
+  else if(okL)setTimeout(function(){_fgLgAvisarFaltan(_fgLg.list);},1500); // después del aviso "Tus cambios quedaron en Borrador"
 }
 // Arma el estado (imagen + calibración) para una lista de cortes. No toca logos.
 function _fgRecPoner(cortes){
@@ -12661,7 +13033,7 @@ function _fgRecConfirmar(y,h){
 //   previa, la descarga y el historial dibujan lo mismo. Sólo datos (el logo se
 //   busca por nombre de archivo en _fgLg.imgs): v se copia con JSON.
 // · El masivo, el padrón y el Hunter no lo usan (su v no trae logos).
-var _fgLg={on:false,src:'',list:[],imgs:Object.create(null),carga:Object.create(null),sel:-1,proy:null,grupo:[],lugares:[]};
+var _fgLg={on:false,src:'',list:[],imgs:Object.create(null),imgsDe:Object.create(null),carga:Object.create(null),sel:-1,proy:null,grupo:[],lugares:[]};
 // Lo elegido: con Shift se eligen varios (_fgLg.grupo) y se mueven, agrandan o
 // centran juntos. _fgLg.sel sigue siendo "el principal" (el último tocado).
 function _fgLgElegidos(){
@@ -12971,6 +13343,33 @@ function _fgLgEsBlanco(cv){
 // la memoria de esta pestaña, con una clave propia que nunca va a Galicia.
 var _fgLgSubidos=0;
 function _fgLgEsSubido(k){return String(k).indexOf('pc:')===0;}
+// Los logos subidos de la PC viven SOLO en la memoria de la página (más los diseños,
+// borradores y Marcas guardadas que los llevan adentro). Después de recargar, uno que
+// no viajó con lo guardado ya no está y en su lugar quedaba el logo original sin decir nada.
+//   _fgLgFaltanSubidos(lista, sub, soloSub) → claves 'pc:' de la lista que NO se pueden dibujar:
+//   no están en sub (los logos guardados con el diseño) ni —salvo soloSub— en memoria.
+function _fgLgFaltanSubidos(L,sub,soloSub){
+  var out=[],visto={};
+  (L||[]).forEach(function(e){
+    if(!e||e.tipo==='txt'||!e.img||!_fgLgEsSubido(e.img)||visto[e.img])return;
+    visto[e.img]=1;
+    if(!((sub&&sub[e.img])||(!soloSub&&_fgLg.imgs[e.img])))out.push(e.img);
+  });
+  return out;
+}
+function _fgLgNombreSubido(k){return String(k).split(':').slice(2).join(':')||'logo';}
+function _fgLgTxtFaltan(claves){
+  if(!claves.length)return '';
+  return claves.length===1
+    ?'Falta el logo subido de la PC «'+_fgLgNombreSubido(claves[0])+'»: se perdió al recargar la página y en su lugar se ve el logo original. Volvé a subirlo con «Cambiar logos».'
+    :'Faltan '+claves.length+' logos subidos de la PC (se perdieron al recargar la página): en esos lugares se ve el logo original. Volvé a subirlos con «Cambiar logos».';
+}
+// Avisa (un toast largo) y devuelve cuántos faltan.
+function _fgLgAvisarFaltan(L,sub,soloSub){
+  var fa=_fgLgFaltanSubidos(L,sub,soloSub);
+  if(fa.length)_fgToastLargo(_fgLgTxtFaltan(fa),7500);
+  return fa.length;
+}
 function _fgLgLeerArchivo(f){
   return new Promise(function(res,rej){
     if(!f)return rej(new Error('sin archivo'));
@@ -12982,7 +13381,7 @@ function _fgLgLeerArchivo(f){
       // Una foto enorme no hace falta: el logo en el flyer mide unos cientos de px.
       var w=i.naturalWidth,h=i.naturalHeight,k=Math.min(1,1200/Math.max(w,h));
       var c=_fgLgAchicar(i,Math.max(1,Math.round(w*k)),Math.max(1,Math.round(h*k)));
-      var limpio=_fgLgLimpiarLogo(c),clave='pc:'+(++_fgLgSubidos)+':'+f.name;
+      var limpio=_fgLgLimpiarLogo(c),clave='pc:'+Date.now().toString(36)+(++_fgLgSubidos).toString(36)+':'+f.name; // única aun después de recargar
       if(_fgLgEsBlanco(limpio))showToast('Ese logo es blanco (para fondos oscuros): sobre el flyer casi no se va a ver. Si podés, subí la versión a color.');
       _fgLg.imgs[clave]=limpio;
       res({clave:clave,nombre:f.name.replace(/\.[a-z0-9]+$/i,''),logo:limpio});
@@ -15528,11 +15927,14 @@ function _estNombreImg(src){return String(src||'').split(/[?#]/)[0].split('/').p
 // ·· Guardar desde el armador ··
 // Logos subidos de la PC: viajan DENTRO del diseño (achicados), si no al
 // reabrirlo en otra computadora no estarían.
-function _estSubidos(L){
+// previos: lo que ese diseño ya traía guardado. Si un logo no está en memoria (falló la carga)
+// pero sí venía guardado, se conserva en vez de perderse para siempre.
+function _estSubidos(L,previos){
   var out={},tot=0;
   L.forEach(function(e){
     if(e.tipo==='txt'||!e.img||!_fgLgEsSubido(e.img)||out[e.img])return;
-    var c=_fgLg.imgs[e.img];if(!c)return;
+    var c=_fgLg.imgs[e.img];
+    if(!c){if(previos&&previos[e.img]){out[e.img]=previos[e.img];tot+=out[e.img].length;}return;}
     var k=Math.min(1,600/Math.max(c.width,c.height)),t=document.createElement('canvas');
     t.width=Math.max(1,Math.round(c.width*k));t.height=Math.max(1,Math.round(c.height*k));
     t.getContext('2d').drawImage(c,0,0,t.width,t.height);
@@ -15571,12 +15973,15 @@ function fgEstGuardar(){
   if(!L.length&&!_fgRecActivo()){showToast('Primero cambiá algo del flyer (un logo, un texto o un recorte) con «Cambiar logos».');return;}
   var proy=_fgLg.proy&&_fgLg.proy.mio&&_fgLg.proy.estado!=='publicado'?_fgLg.proy:null;
   var emp=((document.getElementById('empresa')||{}).value||'').trim();
+  var pa0=_fgProtoAct&&_fgProtoBuscar(_fgProtoAct),previos=(pa0&&pa0.subidos)||null;
+  var faltan=_fgLgFaltanSubidos(L,previos);
   var viejo=document.getElementById('fg-est-ov');if(viejo)viejo.remove();
   var ov=document.createElement('div');ov.id='fg-est-ov';ov.className='fg-cf-ov';
   ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-labelledby','fg-est-t');
   ov.innerHTML='<div class="fg-cf fg-est-g">'+
     '<div class="fg-cf-t" id="fg-est-t">Guardar en Estudio</div>'+
     '<div class="fg-cf-b">Se guarda el dise&ntilde;o (logos y textos) sobre el flyer &laquo;'+_escHtml(_optLabel(_fgOpt))+'&raquo;. Lo ves en la solapa <b>Estudio</b>: desde ah&iacute; lo volv&eacute;s a usar o ped&iacute;s que se publique para todos.</div>'+
+    (faltan.length?'<div class="fg-cf-b" style="color:var(--danger,#B3261E);font-weight:600">&#9888; '+_escHtml(faltan.length===1?'Falta el logo subido de la PC «'+_fgLgNombreSubido(faltan[0])+'»':'Faltan '+faltan.length+' logos subidos de la PC')+': en ese lugar va a quedar el logo original. Si lo necesit&aacute;s, volv&eacute; a subirlo antes de guardar.</div>':'')+
     '<label class="fg-est-l" for="fg-est-nom">Nombre del dise&ntilde;o</label>'+
     '<input type="text" id="fg-est-nom" maxlength="80" autocomplete="off" placeholder="Ej.: Combustible con farmacias">'+
     '<label class="fg-est-l" for="fg-est-emp">Empresa <span>(opcional, para encontrarlo)</span></label>'+
@@ -15596,7 +16001,7 @@ function fgEstGuardar(){
     var n=nom.value.replace(/[<>]/g,'').trim();
     if(!n){showToast('Ponele un nombre al diseño.');nom.focus();return;}
     var modo=proy&&(ov.querySelector('input[name=fg-est-modo]:checked')||{}).value==='mismo'?'mismo':'nuevo';
-    var sub=_estSubidos(L);
+    var sub=_estSubidos(L,previos);
     if(sub.tam>2200000){showToast('Los logos subidos desde la PC pesan demasiado para guardarlos. Probá con imágenes más chicas.');return;}
     var fila={nombre:n,empresa:em.value.replace(/[<>]/g,'').trim().slice(0,160),opcion:_optN(_fgOpt),
       base_name:_estNombreImg(_fgLgSrc()),datos:{v:1,cambios:JSON.parse(JSON.stringify(L)),subidos:sub.mapa,
@@ -15654,12 +16059,15 @@ function _estDatos(id){
 function _estCargarImg(src){
   return new Promise(function(res,rej){var i=new Image();i.onload=function(){res(i);};i.onerror=rej;i.src=src;});
 }
+// imgsDe[k] = de qué diseño vino la imagen: dos diseños viejos podían traer la MISMA clave
+// ('pc:1:logo.png') con imágenes distintas y el segundo mostraba la del primero.
 function _estPrepararSubidos(sub){
   var ks=Object.keys(sub||{});
   return Promise.all(ks.map(function(k){
-    if(_fgLg.imgs[k])return null;
+    var de=_fgLg.imgsDe[k];
+    if(_fgLg.imgs[k]&&(de===undefined||de===sub[k]))return null; // ya está (subida en esta sesión o la misma)
     return _estCargarImg(sub[k]).then(function(i){
-      var c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);_fgLg.imgs[k]=c;
+      var c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);_fgLg.imgs[k]=c;_fgLg.imgsDe[k]=sub[k];
     }).catch(function(){});
   }));
 }
@@ -15703,11 +16111,24 @@ function _fgBorrGuardar(){
     var k=_fgBorrClave();
     if(!L.length){localStorage.removeItem(k);return;}
     var t=JSON.stringify({v:1,fecha:Date.now(),lista:L});
-    if(t.length>_FG_BORR_MAX){
-      L.forEach(function(x){x.subidos={};});t=JSON.stringify({v:1,fecha:Date.now(),lista:L});
-      if(!_fgBorr.avisoGrande){_fgBorr.avisoGrande=true;showToast('Los borradores se guardan en la PC sin los logos subidos (son muy pesados). Para conservarlos, guardalos en Estudio.');}
+    var hayLogos=L.some(function(x){return x.subidos&&Object.keys(x.subidos).length;});
+    // Sin los logos subidos (copias: los borradores en memoria conservan los suyos)
+    var sinLogos=function(){L=L.map(function(x){return Object.assign({},x,{subidos:{}});});t=JSON.stringify({v:1,fecha:Date.now(),lista:L});};
+    var sinLogosAviso=false;
+    if(t.length>_FG_BORR_MAX&&hayLogos){sinLogos();sinLogosAviso=true;}
+    try{localStorage.setItem(k,t);}
+    catch(e1){ // sin lugar en el navegador: se prueba sin los logos, que son lo más pesado
+      var ok2=false;
+      if(hayLogos&&!sinLogosAviso){
+        sinLogos();
+        try{localStorage.setItem(k,t);ok2=true;sinLogosAviso=true;}catch(e2){}
+      }
+      if(!ok2){
+        if(!_fgBorr.avisoSinLugar){_fgBorr.avisoSinLugar=true;_fgToastLargo('No se pudieron guardar los borradores en esta PC (el navegador no tiene lugar). Siguen abiertos mientras no recargues la página; para conservarlos, guardalos en Estudio.',7500);}
+        return;
+      }
     }
-    localStorage.setItem(k,t);
+    if(sinLogosAviso&&!_fgBorr.avisoGrande){_fgBorr.avisoGrande=true;_fgToastLargo('Los borradores se guardaron en la PC sin los logos subidos (son muy pesados o no hay lugar). Para conservarlos, guardalos en Estudio.',7500);}
   }catch(e){}
 }
 // Al entrar: ¿quedaron borradores de la última vez?
@@ -15731,15 +16152,17 @@ function _fgBorrOfrecer(){
   };
 }
 function _fgBorrRecuperar(){
-  var L=_fgBorr.pendientes||[];_fgBorr.pendientes=null;
+  var L=_fgBorr.pendientes||[],perdidos=0;_fgBorr.pendientes=null;
   L.forEach(function(x){
     var n=+x.opcion,p=_fgBorradorCrear(n); // nombre libre y id nuevo
     if(x.nombre&&!_fgProtos.some(function(q){return q!==p&&q.temp&&q.opcion===n&&q.nombre===x.nombre;}))p.nombre=x.nombre;
     p.cambios=Array.isArray(x.cambios)?x.cambios:[];p.recortes=Array.isArray(x.recortes)?x.recortes:[];
     p.legal=(typeof x.legal==='string')?x.legal:null;p.subidos=x.subidos||{};
+    perdidos+=_fgLgFaltanSubidos(x.cambios,x.subidos,true).length;
   });
   _facSyncOptBar();_fgRenderOptBar();_fgBorrGuardar();
-  showToast(L.length===1?'Borrador recuperado: está en su pestaña, al lado del flyer.':L.length+' borradores recuperados: están en sus pestañas, al lado de su flyer.');
+  showToast((L.length===1?'Borrador recuperado: está en su pestaña, al lado del flyer.':L.length+' borradores recuperados: están en sus pestañas, al lado de su flyer.')+
+    (perdidos?' Ojo: '+(perdidos===1?'1 logo subido de la PC no se pudo guardar':perdidos+' logos subidos de la PC no se pudieron guardar')+'; volvé a subir'+(perdidos===1?'lo':'los')+'.':''));
 }
 function _fgBorradorCrear(n){
   var k=1;while(_fgProtos.some(function(x){return x.temp&&x.opcion===n&&x.nombre==='Borrador '+k;}))k++;
@@ -15780,7 +16203,7 @@ function _fgProtoGuardarActual(){
   var p=_fgProtoActivo();
   if(p&&_fgLg.src===_fgLgSrc())p.cambios=JSON.parse(JSON.stringify(_fgLg.list));
   if(p){p.recortes=_fgRecActivo()?JSON.parse(JSON.stringify(_fgRec.cortes)):[];var lt=document.getElementById('legal-text');if(lt&&(typeof p.legal==='string'||p.temp))p.legal=lt.value;}
-  if(p&&p.temp&&_fgLg.src===_fgLgSrc()){try{p.subidos=_estSubidos(_fgLg.list).mapa;}catch(e){}}
+  if(p&&p.temp&&_fgLg.src===_fgLgSrc()){try{p.subidos=_estSubidos(_fgLg.list,p.subidos).mapa;}catch(e){}}
 }
 // El legal de la opción (lo editado en la sesión o el guardado), para volver de un prototipo.
 function _fgLegalDeOpcion(o){
@@ -15802,6 +16225,7 @@ function fgProtoAbrir(id){
   function vigente(){var v=turno===_fgProtoTurno&&_optN(_fgOpt)===p.opcion&&_fgProtoBuscar(p.id)===p;if(!v&&turno===_fgProtoTurno)_fgBorr.ocupado=false;return v;}
   switchFlyerOption(p.opcion,function(){
     if(!vigente())return;
+    if(!_fgOptLista(p.opcion)){_fgBorr.ocupado=false;return;} // su flyer base no cargó: no se aplican los cambios sobre otra imagen
     _estPrepararSubidos(p.subidos).then(function(){
       if(!vigente())return; // mientras se preparaba, se eligió otra cosa
       // primero el flyer entero, después los recortes del diseño y recién ahí sus logos
@@ -15815,6 +16239,7 @@ function fgProtoAbrir(id){
       var e=document.getElementById('empresa');
       if(e&&p.empresa&&!e.value.trim()){e.value=p.empresa;if(typeof updateFnPreview==='function')updateFnPreview();}
       _fgLgListo();_fgRenderOptBar();
+      _fgLgAvisarFaltan(_fgLg.list);
       if(p.avisarCambio){p.avisarCambio=false;showToast('Ojo: el flyer «'+_optLabel(p.opcion)+'» cambió desde que se guardó este diseño. Revisá que todo haya quedado en su lugar.');}
     });
   });
@@ -15822,6 +16247,7 @@ function fgProtoAbrir(id){
 // Elegir una opción "de verdad" en la barra. Si se estaba en un prototipo de
 // esa misma opción, se vuelve al flyer original (sin sus cambios).
 function fgOptElegir(o){
+  if(_fgEnTanda()){showToast('Esperá a que termine de generar el ZIP.');return;}
   _fgProtoTurno++;_fgBorr.ocupado=false; // anula una apertura de prototipo que todavía esté cargando
   var p=_fgProtoActivo();
   if(p){
@@ -16914,13 +17340,18 @@ function estAprobar(id){
 }
 // La imagen de un diseño tal como se publicaría: flyer base + recortes + logos.
 // La usan la publicación y "Ver completo" (así lo que se ve es lo que se publica).
-function _estArmarImagen(d,base){
+function _estArmarImagen(d,base,estricto){
   var L=(d.datos&&Array.isArray(d.datos.cambios))?d.datos.cambios:[];
   var cortes=(d.datos&&Array.isArray(d.datos.recortes))?d.datos.recortes:[];
   if(!L.length&&!cortes.length)return Promise.reject(new Error('el diseño no tiene cambios'));
   // los logos de Promociones se bajan antes de dibujar
   var faltan=L.filter(function(e){return e.tipo!=='txt'&&e.img&&!_fgLgEsSubido(e.img)&&String(e.img).indexOf('orig:')!==0;}).map(function(e){return _fgLgTraer(e.img);});
   return Promise.all(faltan.concat([_estPrepararSubidos(d.datos.subidos)])).then(function(){
+    var fa=_fgLgFaltanSubidos(L);
+    if(fa.length){
+      if(estricto)throw new Error('no se pudo cargar '+(fa.length===1?'el logo subido de la PC «'+_fgLgNombreSubido(fa[0])+'»':fa.length+' logos subidos de la PC')+'; así se publicaría con el logo original.');
+      _fgToastLargo(_fgLgTxtFaltan(fa),7500);
+    }
     if(document.fonts&&document.fonts.load)return Promise.all(['500','700'].map(function(p){return document.fonts.load(p+' 40px Figtree');})).catch(function(){});
   }).then(function(){
     var arte=cortes.length?_fgRecArte(base,cortes):base;
@@ -16971,6 +17402,9 @@ function _estPublicar(id,d0,n,nombre){
   var d,meta,legal,base,n2,img,blob,ts=Date.now(),reservado=false,enLista=false,cortes=[],cfgN=null;
   _estDatos(id).then(function(x){d=x;
     if(d.estado!=='pedido')throw new Error('ese diseño ya no está pedido (lo cancelaron o ya se resolvió)');
+    // antes de reservar ningún número: si el diseño perdió un logo subido de la PC, se publicaría con el original
+    var fa=_fgLgFaltanSubidos(d.datos&&d.datos.cambios,d.datos&&d.datos.subidos,true);
+    if(fa.length)throw new Error('le falta '+(fa.length===1?'el logo subido de la PC «'+_fgLgNombreSubido(fa[0])+'»':fa.length+' logos subidos de la PC')+' (no quedó guardado con el diseño). Abrilo con «Usar», volvé a subir el logo, guardalo y pedí de nuevo la publicación.');
     return Promise.all([_bucketJson(_activeFile(n)),_bucketJson(_legalFile(n)).catch(function(){return null;})]);
   }).then(function(r){
     meta=r[0];legal=r[1];
@@ -16979,7 +17413,7 @@ function _estPublicar(id,d0,n,nombre){
   }).then(function(i){
     base=i;
     cortes=(d.datos&&Array.isArray(d.datos.recortes))?d.datos.recortes:[];
-    return _estArmarImagen(d,base);
+    return _estArmarImagen(d,base,true);
   }).then(function(c){
     // con recortes: la calibración corrida (los logos del diseño están en las
     // coordenadas del flyer recortado)
@@ -17131,6 +17565,7 @@ var _hunZoom=1,_HUN_ZOOM_MAX=3,_hunMultiOn=false,_hunMultiSel={};
 // Códigos negativos = no se puede armar, y cada uno tiene su motivo en _hunAvisos.
 var _HUN_SIN_GENERICO=0, _HUN_RUBRO_NO_HABIL=-1, _HUN_RUBRO_RARO=-2;
 var _hunMeta={},_hunMetaOk=false; // nº de opción -> ¿tiene flyer cargado?
+var _hunErr=false,_hunMetaFalla=false; // un corte de red NO se guarda como "no hay empresas / flyers"
 
 // ¿Tiene flyer cargado esa opción? (lo dice el _active{N}.json del bucket)
 function _hunMetasCargar(cb){
@@ -17138,12 +17573,20 @@ function _hunMetasCargar(cb){
   var falta=opts.filter(function(n){return !(n in _hunMeta);});
   if(!falta.length){_hunMetaOk=true;if(cb)cb();return;}
   var pend=falta.length;
+  _hunMetaFalla=false;
   falta.forEach(function(n){
-    _fetchActiveMeta(n,function(d){
-      _hunMeta[n]=!!(d&&d.imageUrl);
+    _fetchActiveMeta(n,function(d,fallo){
+      if(fallo)_hunMetaFalla=true; // no se anota nada: se vuelve a pedir al reintentar
+      else _hunMeta[n]=!!(d&&d.imageUrl);
       if(!--pend){_hunMetaOk=true;if(cb)cb();}
     });
   });
+}
+function _hunReintentar(){
+  _hunErr=false;_hunMetaFalla=false;_hunMetaOk=false;
+  _hunRender();
+  _hunMetasCargar(_hunRender);
+  _hunCargar(true);
 }
 function _hunUsable(n){
   n=_optN(n);
@@ -17215,11 +17658,11 @@ function _hunCargar(force,cb){
   _hunTraerTodo(0,[],function(err,filas){
     _hunCargando=false;
     if(err){
-      _hunRows=_hunRows||[];
-      var est=document.getElementById('hun-estado');
-      if(est)est.textContent='No se pudieron cargar las empresas: '+((err&&err.message)||err);
+      // _hunRows queda como estaba (null si nunca cargó): así la próxima vez se vuelve a pedir
+      _hunErr=true;_hunRender();
       if(cb)cb(_hunRows);return;
     }
+    _hunErr=false;
     _hunRows=_padSane(filas);
     // El orden lo pone el cliente: el de la base es por id (hace falta una clave
     // única para paginar sin repetir ni saltear filas) y dos oficiales pueden
@@ -17259,6 +17702,12 @@ function _hunRender(){
   var list=document.getElementById('hun-list'),est=document.getElementById('hun-estado');
   if(!list)return;
   if(_hunCargando||!_hunMetaOk){if(est)est.textContent='Buscando las empresas cargadas…';list.innerHTML='';return;}
+  if(_hunErr||_hunMetaFalla){
+    if(est)est.textContent='';
+    list.innerHTML='<div class="hun-nada">No se pudo conectar para traer '+(_hunErr?'las empresas':'los flyers')+'.<br>'+
+      '<button type="button" class="usr-btn edit" onclick="_hunReintentar()">&#8635; Reintentar</button></div>';
+    _hunHits=[];return;
+  }
   var q=(document.getElementById('hun-q')||{}).value||'';
   var total=(_hunRows||[]).length;
   if(!total){
@@ -17500,6 +17949,10 @@ function _hunElegir(i){
     // Si la opción no trajo imagen propia, NO se dibuja: el motor se habría
     // quedado con la imagen anterior y las coordenadas de ésta (flyer viejo,
     // todo descentrado). Es la red de seguridad del criterio de _hunOptDe.
+    if(c&&c.imageUrl&&!c.img){ // el flyer existe pero la imagen no llegó (red): no se anota como "sin flyer"
+      frenar('No se pudo cargar el flyer.','Revisá la conexión y volvé a elegir la empresa.');
+      return;
+    }
     if(!c||!c.img||!c.imageUrl){
       _hunMeta[opt]=false; // no volver a ofrecerla en esta sesión
       _hunRender();
