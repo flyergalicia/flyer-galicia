@@ -13122,6 +13122,7 @@ function _fgLgInit(){
   cvs.addEventListener('pointerdown',function(e){
     if(!_fgLg.on||_fgLg.limpio||e.button!==0)return; // en "Vista previa" (fgLgLimpio) el flyer no se toca
     var p=_fgLgAImagen(e.clientX,e.clientY),i=p?_fgLgLogoEn(p.x,p.y):-1;
+    if(_mgPaso)i=-1; // colocando marcas guardadas: tocar o arrastrar elige el lugar, no mueve logos
     // en modo franja el dedo también marca el recuadro (si no, arrastrar recorre la página)
     var esp=_fgFr.modo||_fgRecM.modo; // modos de marcar una zona: el dedo también marca
     // logos del flyer elegidos con Shift (sin cambiar): al agarrar uno de ellos o
@@ -13145,7 +13146,7 @@ function _fgLgInit(){
   cvs.addEventListener('mousedown',function(e){if(_fgLg.on&&!_fgLg.limpio){e.stopPropagation();e.preventDefault();}}); // sin esto, la vista previa se "agarra" para recorrer
   // doble clic sobre un logo ya cambiado: abre la ventana para cambiarlo
   cvs.addEventListener('dblclick',function(e){
-    if(!_fgLg.on||_fgLg.limpio||_fgFr.modo||_fgRecM.modo||document.getElementById('fg-lg-ov'))return;
+    if(!_fgLg.on||_fgLg.limpio||_fgFr.modo||_fgRecM.modo||_mgPaso||document.getElementById('fg-lg-ov'))return;
     var p=_fgLgAImagen(e.clientX,e.clientY),i=p?_fgLgLogoEn(p.x,p.y):-1;if(i<0)return;
     e.preventDefault();e.stopPropagation();
     _fgLg.sel=i;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgMarcas();_fgLgCambiarMarca();
@@ -13191,6 +13192,7 @@ function _fgLgInit(){
       else{var g0=_fgLgElegidos();if(g0.indexOf(a.logo)<0||g0.length<2)_fgLg.grupo=[];_fgLg.sel=a.logo;_fgLg.lugares=[];}
       _fgLgListo();return;
     }
+    if(_mgPaso){_fgLgSel(null);_mgPasoTocar(a.x,a.y,e.clientX,e.clientY,a.mov);return;}
     if(a.rec){
       if(!a.mov){_fgRecBanda(null);showToast('Arrastrá de arriba hacia abajo sobre la parte que querés quitar.');return;}
       fgRecModo(false);_fgRecDesdeArrastre(a.y,e.clientY);return;
@@ -13227,6 +13229,14 @@ function _fgLgInit(){
     else if(k==='c'&&!_fgLg.limpio){var tx='';try{tx=String(window.getSelection&&window.getSelection()||'');}catch(x){}if(!tx&&_fgLgCopiar())e.preventDefault();} // con texto marcado en la página, copia ese texto (lo normal)
     else if(k==='v'&&!_fgLg.limpio&&_fgLg.copia){e.preventDefault();_fgLgPegar();}
   });
+  // Colocando marcas guardadas: Enter = Poner acá, Escape = terminar
+  document.addEventListener('keydown',function(e){
+    if(!_mgPaso||e.ctrlKey||e.metaKey||e.altKey)return;
+    if(document.querySelector('.fg-cf-ov'))return;
+    var t=e.target&&e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT')return;
+    if(e.key==='Enter'){e.preventDefault();_mgPasoPoner();}
+    else if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();_mgPasoFin();}
+  },true);
   // Letras sueltas en el modo edición (como + y −, sin Ctrl: Ctrl+B ya es la
   // negrita del legal): V = Vista previa, R = Recortar, F = Armar franja, N = Nuevo
   // borrador. La misma tecla vuelve atrás (V sale de la vista previa, R cancela el
@@ -13235,7 +13245,7 @@ function _fgLgInit(){
   document.addEventListener('keydown',function(e){
     var k=String(e.key||'').toLowerCase();
     if((k!=='v'&&k!=='r'&&k!=='f'&&k!=='n')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||e.repeat)return;
-    if(!_fgLg.on)return;
+    if(!_fgLg.on||_mgPaso)return;
     if(document.getElementById('fg-lg-ov')||document.getElementById('fg-fr-ov')||document.getElementById('fg-rec-conf')||document.querySelector('.fg-cf-ov'))return;
     var t=e.target&&e.target.tagName;
     if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||(e.target&&e.target.isContentEditable))return;
@@ -13636,6 +13646,7 @@ function fgLogosModo(on){
   clearTimeout(_fgLgTipT);_fgLg.tipOff=false;
   if(_fgLg.on)_fgLgTipT=setTimeout(function(){_fgLg.tipOff=true;_fgLgBarra();},7000);
   if(!_fgLg.on&&_fgLg.limpio)fgLgLimpio(false);
+  if(!_fgLg.on&&_mgPaso)_mgPasoFin();
   if(!_fgLg.on&&_fgRecM.modo){_fgRecM.modo=false;var pr0=document.querySelector('.prev');if(pr0)pr0.classList.remove('fg-rec-on');}
   if(!_fgLg.on&&_fgLg.arrastre){_fgLg.arrastre=false;_fgLgHistPronto();}
   if(!_fgLg.on){
@@ -13705,6 +13716,7 @@ function _fgLgMarcas(){
   }
   if(!_fgLg.on){mk.innerHTML='';_fgLg.sel=-1;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgMkAntes=null;_fgLgHerr(capa);_fgLgGrpBar();return;} // (_fgLgHerr la esconde)
   if(_fgLg.lugares.length&&_fgLg.src!==_fgLgSrc())_fgLg.lugares=[]; // otro flyer
+  if(_mgPaso&&_fgLgSrc()!==_mgPaso.src0){_mgPasoFin(true);showToast('Cambió el flyer: se cortó la colocación de las marcas guardadas.');}
   if(!_promosCat&&!_promosCatLoading&&_fgLgActivos().some(function(e){return e.img&&e.tipo!=='txt'&&!_fgLgEsSubido(e.img)&&String(e.img).indexOf('orig:')!==0;}))loadPromosCatalogo(function(){_fgLgMarcas();});
   if(_fgLg.sel<0)_fgLg.grupo=[];
   var eleg=_fgLgElegidos();if(eleg.length<2)_fgLg.grupo=[];
@@ -14582,7 +14594,7 @@ var _FG_FR_MAX=30;
 var _fgFr={modo:false};
 function fgFranjaModo(on){
   _fgFr.modo=(on===undefined)?!_fgFr.modo:!!on;
-  if(!_fgFr.modo&&on===undefined){_fgFr.pendiente=null;_mgPend=[];} // tocó "Cancelar franja": se descarta lo pendiente (y las franjas de Marcas guardadas que faltaban ubicar)
+  if(!_fgFr.modo&&on===undefined)_fgFr.pendiente=null; // tocó "Cancelar franja": se descarta lo pendiente
   if(_fgFr.modo&&!_fgLg.on)fgLogosModo(true);
   var prev=document.querySelector('.prev');if(prev)prev.classList.toggle('fg-fr-on',_fgFr.modo);
   _fgLgBarra();
@@ -15018,8 +15030,7 @@ function _fgFrAbrir(rect,reuso){
         if(_fgFrSt===st){cerrar();showToast('Cambiaste de flyer mientras se armaba la franja, así que no se aplicó. Volvé a marcarla en este flyer.');}
         return;
       }
-      cerrar();showToast('Listo: '+n+(n===1?' logo':' logos')+' en la franja. Para volver a editarla tocá «Editar franja» sobre el flyer.');
-      if(_mgPend.length)setTimeout(function(){_mgSiguientePendiente();},400);},
+      cerrar();showToast('Listo: '+n+(n===1?' logo':' logos')+' en la franja. Para volver a editarla tocá «Editar franja» sobre el flyer.');},
       function(){ok.disabled=false;_fgFrSelPintar();showToast('No se pudieron bajar algunos logos. Revisá la conexión y probá de nuevo.');});
   };
   // los logos que ya estaban elegidos se bajan para la vista previa
@@ -15844,12 +15855,14 @@ function estUsar(id){
 // capital") para aplicarla sola en el modelo nuevo del flyer. Vive en
 // flyer_disenos con tipo='combinacion' (migración 031): cada uno ve las suyas y
 // el admin todas. A diferencia de un diseño de Estudio no queda atada a una
-// imagen: se guarda en px de la imagen de ese momento (ancho/alto) y al aplicar
-// todo se escala al ancho nuevo y se BUSCA su lugar en el flyer nuevo (la franja
-// por sus logos, cada logo por el logo que haya ahí), porque el modelo nuevo
-// suele tener el mismo formato pero corrido. Lo que no encuentra queda
-// "aproximado" y se puede ubicar a mano. Los días de los súper y la vigencia se
-// recalculan con las promos de hoy (las vencidas quedan en rojo).
+// imagen: se guarda en px de la imagen de ese momento (ancho/alto) junto con las
+// cajas de lo que rodeaba a cada cosa (la franja con todos sus logos, la grilla de
+// súper con sus vecinos), y al aplicar se BUSCA ese mismo grupo en todo el flyer
+// nuevo, aunque esté en otro lugar (23-oct: antes se buscaba sólo cerca y en el
+// flyer de Rubros no andaba). Si encontró todo, se pone de una; si no, se coloca
+// PASO A PASO: una cosa por vez, con su lugar marcado en el flyer para confirmar
+// o tocar otro. Los días de los súper y la vigencia se recalculan con las promos
+// de hoy (las vencidas quedan en rojo).
 var _MG={lista:null,cargando:false};
 var _MG_COLS='id,nombre,user_id,autor,updated_at,opcion';
 function _mgPuede(){return !_esHunter()&&!_esLider()&&_can('estudio');}
@@ -15885,7 +15898,8 @@ function _mgArmar(){
     var nSuper=sel.filter(function(s){var p=_mgPromoDe(s.img);return p&&_promoEsSuper(p);}).length;
     items.push({tipo:'franja',nombre:(nSuper>=sel.length/2?'Franja súper':'Franja')+' ('+sel.length+(sel.length===1?' marca)':' marcas)'),
       rect:{x:b.ox,y:b.oy,w:b.ow,h:b.oh},sel:JSON.parse(JSON.stringify(sel)),cols:b.franjaCols||0,kt:b.franjaKt||1,conDias:conDias,
-      n:(det&&det.n)||info.n||0,caja:(det&&_mgCaja(det.cajas||[]))||null,cajas:(det&&det.cajas)||[]});
+      n:(det&&det.n)||info.n||0,caja:(det&&_mgCaja(det.cajas||[]))||null,cajas:(det&&det.cajas)||[],
+      ctx:_mgCtx({x:b.ox,y:b.oy,w:b.ow,h:b.oh},Math.max(b.ow,b.oh)*0.03)});
     A.forEach(function(e,i){if(e.franja===b.franja)usados[i]=1;});
   });
   // logos sueltos (los súper con días debajo se recuerdan con conDias: el texto se recalcula al aplicar)
@@ -15917,7 +15931,24 @@ function _mgArmar(){
     if(usados[i]||e.tipo==='txt'||e.img||e.franjaBase||e.franja||!(e.w>0&&e.h>0))return;
     items.push({tipo:'vacio',nombre:'Lugar vacío',lugar:{x:e.ox,y:e.oy,w:e.ow,h:e.oh}});
   });
-  return {v:1,ancho:baseImg.width,alto:baseImg.height,items:items,subidos:_estSubidos(A).mapa};
+  // los logos sueltos y lugares vacíos que están juntos (la grilla de súper) se
+  // guardan como un grupo, con las cajas de todo lo que los rodea
+  var grupos=_mgGrupos(items).map(function(ids,k){
+    var bx=_mgCaja(ids.map(function(i){return items[i].lugar;}));
+    var m=Math.max.apply(null,ids.map(function(i){var l=items[i].lugar;return Math.max(l.w,l.h);}))*1.3;
+    ids.forEach(function(i){items[i].g=k;});
+    return {items:ids,ctx:_mgCtx(bx,m)};
+  });
+  return {v:2,ancho:baseImg.width,alto:baseImg.height,items:items,grupos:grupos,subidos:_estSubidos(A).mapa};
+}
+// Las cajas de los dibujos alrededor de una zona (hasta 60, las más cercanas).
+// (se toman de la detección del flyer ENTERO, la misma que se usa al aplicar: medir
+// sólo la zona cambiaba las cajas de los bordes y después no coincidían)
+function _mgCtx(b,m){
+  var x0=b.x-m,y0=b.y-m,x1=b.x+b.w+m,y1=b.y+b.h+m,cx=b.x+b.w/2,cy=b.y+b.h/2;
+  var L=_mgCompTodo().filter(function(c){return c.x>=x0&&c.y>=y0&&c.x+c.w<=x1&&c.y+c.h<=y1;});
+  L.sort(function(p,q){return (Math.abs(p.x+p.w/2-cx)+Math.abs(p.y+p.h/2-cy))-(Math.abs(q.x+q.w/2-cx)+Math.abs(q.y+q.h/2-cy));});
+  return L.slice(0,60).map(function(c){return {x:Math.round(c.x),y:Math.round(c.y),w:Math.round(c.w),h:Math.round(c.h)};});
 }
 function _mgResumen(items){
   var c={franja:0,logo:0,vacio:0,texto:0};items.forEach(function(x){c[x.tipo]=(c[x.tipo]||0)+1;});
@@ -15973,54 +16004,158 @@ function _mgRenombrar(id){
     },function(e){showToast('No se pudo: '+_estErr(e));});
   });
 }
-// ·· Dónde va cada cosa en el flyer de ahora (prueba en seco) ··
-// s = ancho de ahora / ancho al guardar. Devuelve {ok, rect|det, ...}.
-function _mgUbicar(it,s){
-  var W=baseImg.width,H=baseImg.height,sc=function(b){return {x:b.x*s,y:b.y*s,w:b.w*s,h:b.h*s};};
-  if(it.tipo==='franja'){
-    var R=sc(it.rect),m=0.08,ax=Math.max(0,R.x-R.w*m),ay=Math.max(0,R.y-R.h*m),aw=Math.min(W-ax,R.w*(1+2*m)),ah=Math.min(H-ay,R.h*(1+2*m));
-    var info=null;try{info=_fgFrDetectar(Math.round(ax),Math.round(ay),Math.round(aw),Math.round(ah));}catch(e){}
-    var C0=(it.cajas||[]).map(sc),C1=(info&&info.cajas)||[],need=Math.max(2,Math.ceil(C0.length*0.5));
-    // cada par (logo guardado, logo de ahora) propone un corrimiento; gana el que
-    // hace coincidir más logos (el área agarra también el título de arriba o el
-    // texto de abajo: por eso no sirve comparar el contorno de todo)
-    var mejor=null;
-    C0.forEach(function(a){C1.forEach(function(b){
-      var dx=(b.x+b.w/2)-(a.x+a.w/2),dy=(b.y+b.h/2)-(a.y+a.h/2),n=0,err=0;
-      if(Math.abs(dx)>R.w*0.35||Math.abs(dy)>Math.max(R.h*0.35,40*s))return;
-      C0.forEach(function(c){
-        var tol=Math.max(8,Math.min(c.w,c.h)*0.25),cx=c.x+c.w/2+dx,cy=c.y+c.h/2+dy,hit=null,hd=1e9;
-        C1.forEach(function(d){var e=Math.abs(d.x+d.w/2-cx)+Math.abs(d.y+d.h/2-cy);if(e<hd){hd=e;hit=d;}});
-        if(hit&&Math.abs(hit.x+hit.w/2-cx)<=tol&&Math.abs(hit.y+hit.h/2-cy)<=tol){n++;err+=hd;}
-      });
-      if(!mejor||n>mejor.n||(n===mejor.n&&err<mejor.err))mejor={n:n,err:err,dx:dx,dy:dy};
-    });});
-    // con los logos coincidiendo, el corrimiento fino es el promedio de los pares
-    if(mejor&&mejor.n>=need){
-      var sx=0,sy=0,k=0;
-      C0.forEach(function(c){
-        var cx=c.x+c.w/2+mejor.dx,cy=c.y+c.h/2+mejor.dy,tol=Math.max(8,Math.min(c.w,c.h)*0.25),hit=null,hd=1e9;
-        C1.forEach(function(d){var e=Math.abs(d.x+d.w/2-cx)+Math.abs(d.y+d.h/2-cy);if(e<hd){hd=e;hit=d;}});
-        if(hit&&Math.abs(hit.x+hit.w/2-cx)<=tol&&Math.abs(hit.y+hit.h/2-cy)<=tol){sx+=hit.x+hit.w/2-(c.x+c.w/2);sy+=hit.y+hit.h/2-(c.y+c.h/2);k++;}
-      });
-      var dx=k?sx/k:mejor.dx,dy=k?sy/k:mejor.dy;
-      var r2={x:Math.max(0,R.x+dx),y:Math.max(0,R.y+dy),w:R.w,h:R.h};r2.w=Math.min(W-r2.x,r2.w);r2.h=Math.min(H-r2.y,r2.h);
-      return {ok:true,rect:r2};
+// ·· Buscar en TODO el flyer (23-oct-2026) ··
+// Antes se buscaba cerca de donde estaba cada cosa y, en un flyer con otra
+// distribución (el de Rubros), no la encontraba. Ahora se detectan los "dibujos"
+// de todo el flyer (logos, textos) y se busca dónde aparece el mismo GRUPO de
+// cajas que se guardó: la franja con todos sus logos, la grilla de súper con sus
+// vecinos. Un grupo es mucho más fácil de reconocer que un logo solo.
+// Cajas de los dibujos de una zona (px de imagen). Se analiza a la mitad (rápido:
+// los logos miden 30 px o más) y con el fondo de cada pedazo (tarjeta blanca,
+// banda naranja…): con un solo fondo para todo, una tarjeta entera era "un dibujo".
+function _mgComponentes(x0,y0,w0,h0){
+  if(!window.baseImg||!baseImg.width)return [];
+  var K=2,x=Math.max(0,Math.floor(x0)),y=Math.max(0,Math.floor(y0)),w=Math.min(baseImg.width-x,Math.ceil(w0)),h=Math.min(baseImg.height-y,Math.ceil(h0));
+  if(w<8||h<8)return [];
+  var W=Math.max(1,Math.round(w/K)),H=Math.max(1,Math.round(h/K));
+  var cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  var g=cv.getContext('2d',{willReadFrequently:true});g.drawImage(baseImg,x,y,w,h,0,0,W,H);
+  var d=g.getImageData(0,0,W,H).data;
+  var T=40,tw=Math.ceil(W/T),th=Math.ceil(H/T),fondo=new Array(tw*th),tx,ty,i,j;
+  for(ty=0;ty<th;ty++)for(tx=0;tx<tw;tx++){
+    var x1=Math.min(W,(tx+1)*T),y1=Math.min(H,(ty+1)*T),buf=new Uint8ClampedArray((x1-tx*T)*(y1-ty*T)*4),o=0;
+    for(j=ty*T;j<y1;j++)for(i=tx*T;i<x1;i++){var p=(j*W+i)*4;buf[o++]=d[p];buf[o++]=d[p+1];buf[o++]=d[p+2];buf[o++]=255;}
+    fondo[ty*tw+tx]=_fgLgFondo(buf);
+  }
+  var CS=2,cw=Math.ceil(W/CS),ch=Math.ceil(H/CS),on=new Uint8Array(cw*ch);
+  for(j=0;j<H;j++){
+    var fr=((j/CS)|0)*cw,tr=((j/T)|0)*tw;
+    for(i=0;i<W;i++){
+      var p2=(j*W+i)*4,b=fondo[tr+((i/T)|0)];
+      if(Math.max(Math.abs(d[p2]-b[0]),Math.abs(d[p2+1]-b[1]),Math.abs(d[p2+2]-b[2]))>_FG_LG_TOL)on[fr+((i/CS)|0)]=1;
     }
-    return {ok:false,rect:{x:Math.max(0,R.x),y:Math.max(0,R.y),w:Math.min(W-Math.max(0,R.x),R.w),h:Math.min(H-Math.max(0,R.y),R.h)}};
   }
-  var P=sc(it.lugar),cx=P.x+P.w/2,cy=P.y+P.h/2;
-  if(it.tipo==='texto'&&it.vacio)return {ok:true,det:Object.assign(_fgLgManual(P.x,P.y,P.w,P.h)||{x:P.x,y:P.y,w:P.w,h:P.h,bg:'rgb(255,255,255)'},{vacio:true})};
-  if(it.dup){var dd=_fgLgManual(P.x,P.y,P.w,P.h);return {ok:true,det:dd||{x:P.x,y:P.y,w:P.w,h:P.h,bg:'rgb(255,255,255)'}};}
-  var det=null;try{det=_fgLgDetectar(Math.round(cx),Math.round(cy));}catch(e){}
-  if(det&&!det.error){
-    var dcx=det.x+det.w/2,dcy=det.y+det.h/2,rw=det.w/Math.max(1,P.w),rh=det.h/Math.max(1,P.h);
-    // por lado y no por superficie: un logo pegado a un texto daba una caja más alta (y tapaba el texto)
-    if(Math.abs(dcx-cx)<=Math.max(P.w,P.h)*0.6&&Math.abs(dcy-cy)<=Math.max(P.w,P.h)*0.6&&rw>0.6&&rw<1.6&&rh>0.6&&rh<1.6)return {ok:true,det:det};
+  var R=Math.max(1,Math.ceil(_FG_LG_GAP/K/CS)),visto=new Uint8Array(cw*ch),out=[],Wimg=baseImg.width,Himg=baseImg.height;
+  for(var s=0;s<cw*ch;s++){
+    if(!on[s]||visto[s])continue;
+    var cola=[s],bx0=cw,by0=ch,bx1=-1,by1=-1;visto[s]=1;
+    while(cola.length){
+      var c=cola.pop(),cx=c%cw,cy=(c/cw)|0;
+      if(cx<bx0)bx0=cx;if(cx>bx1)bx1=cx;if(cy<by0)by0=cy;if(cy>by1)by1=cy;
+      for(var ny=Math.max(0,cy-R);ny<=Math.min(ch-1,cy+R);ny++)for(var nx=Math.max(0,cx-R);nx<=Math.min(cw-1,cx+R);nx++){
+        var q=ny*cw+nx;if(on[q]&&!visto[q]){visto[q]=1;cola.push(q);}
+      }
+    }
+    var bw=(bx1-bx0+1)*CS*K,bh=(by1-by0+1)*CS*K;
+    if(bw<10&&bh<10)continue;                       // motitas
+    if(bw>Wimg*0.8||bh>Himg*0.25)continue;           // bandas, fotos, bordes de tarjetas
+    out.push({x:x+bx0*CS*K,y:y+by0*CS*K,w:bw,h:bh});
   }
-  var man=_fgLgManual(P.x,P.y,P.w,P.h);
-  return {ok:false,det:man||{x:P.x,y:P.y,w:P.w,h:P.h,bg:'rgb(255,255,255)'}};
+  return out;
 }
+var _mgCompCache={src:'',L:null};
+function _mgCompTodo(){
+  var src=_fgLgSrc()+'|'+baseImg.width+'x'+baseImg.height;
+  if(_mgCompCache.src!==src||!_mgCompCache.L){_mgCompCache.src=src;_mgCompCache.L=_mgComponentes(0,0,baseImg.width,baseImg.height);}
+  return _mgCompCache.L;
+}
+// ¿Dónde aparece en el flyer de ahora el grupo de cajas B (ya escaladas)? Cada par
+// (caja guardada, caja de ahora) de tamaño parecido propone un corrimiento; gana el
+// que hace coincidir más cajas y, a igualdad, el más cercano a "pref" (o el que
+// deja el grupo sobre el punto "toca", si se tocó el flyer).
+function _mgCoincidir(B,C,pref,toca){
+  if(!B.length||!C.length)return null;
+  var G=80,idx={};
+  C.forEach(function(c){var k=Math.floor((c.x+c.w/2)/G)+','+Math.floor((c.y+c.h/2)/G);(idx[k]=idx[k]||[]).push(c);});
+  function cerca(cx,cy,b){
+    var tol=Math.max(6,Math.min(b.w,b.h)*0.3),gx=Math.floor(cx/G),gy=Math.floor(cy/G),best=null,bd=1e9;
+    for(var a=gx-1;a<=gx+1;a++)for(var e=gy-1;e<=gy+1;e++){(idx[a+','+e]||[]).forEach(function(c){
+      var ddx=Math.abs(c.x+c.w/2-cx),ddy=Math.abs(c.y+c.h/2-cy);if(ddx>tol||ddy>tol)return;
+      var rw=c.w/Math.max(1,b.w),rh=c.h/Math.max(1,b.h);if(rw<0.5||rw>2||rh<0.5||rh>2)return;
+      if(ddx+ddy<bd){bd=ddx+ddy;best=c;}
+    });}
+    return best?{c:best,d:bd}:null;
+  }
+  var caja=_mgCaja(B),vistos={},mejor=null;pref=pref||{x:0,y:0};
+  B.forEach(function(b){C.forEach(function(c){
+    var rw=c.w/Math.max(1,b.w),rh=c.h/Math.max(1,b.h);if(rw<0.6||rw>1.7||rh<0.6||rh>1.7)return;
+    var dx=(c.x+c.w/2)-(b.x+b.w/2),dy=(c.y+c.h/2)-(b.y+b.h/2),k=Math.round(dx/4)+','+Math.round(dy/4);
+    if(vistos[k])return;vistos[k]=1;
+    if(toca&&!(toca.x>=caja.x+dx&&toca.x<=caja.x+caja.w+dx&&toca.y>=caja.y+dy&&toca.y<=caja.y+caja.h+dy))return;
+    var n=0,err=0,sx=0,sy=0;
+    B.forEach(function(bb){var h=cerca(bb.x+bb.w/2+dx,bb.y+bb.h/2+dy,bb);if(h){n++;err+=h.d;sx+=h.c.x+h.c.w/2-(bb.x+bb.w/2);sy+=h.c.y+h.c.h/2-(bb.y+bb.h/2);}});
+    var lejos=Math.abs(dx-pref.x)+Math.abs(dy-pref.y);
+    if(!mejor||n>mejor.n||(n===mejor.n&&lejos<mejor.lejos-2)||(n===mejor.n&&Math.abs(lejos-mejor.lejos)<=2&&err<mejor.err))
+      mejor={n:n,err:err,lejos:lejos,dx:n?sx/n:dx,dy:n?sy/n:dy};
+  });});
+  if(mejor)mejor.total=B.length;
+  return mejor;
+}
+// ¿Alcanza la coincidencia para confiar? Con grupos chicos se pide además que no se
+// haya ido lejos de donde estaba.
+function _mgConfiable(m,u){
+  if(!m||!m.total)return false;
+  if(m.total>=3)return m.n>=Math.max(3,Math.ceil(m.total*0.6));
+  return m.n===m.total&&Math.abs(m.dx)+Math.abs(m.dy)<160*u;
+}
+// Grupos de logos sueltos (y lugares vacíos) que están cerca entre sí: la grilla de súper.
+function _mgGrupos(items){
+  var L=[];items.forEach(function(it,i){if((it.tipo==='logo'&&!it.dup)||it.tipo==='vacio')L.push(i);});
+  var padre={};L.forEach(function(i){padre[i]=i;});
+  function raiz(i){while(padre[i]!==i)i=padre[i]=padre[padre[i]];return i;}
+  L.forEach(function(a){L.forEach(function(b){
+    if(a>=b)return;var A=items[a].lugar,B=items[b].lugar,m=Math.max(A.w,A.h,B.w,B.h)*1.6;
+    var dx=Math.max(0,Math.max(A.x,B.x)-Math.min(A.x+A.w,B.x+B.w)),dy=Math.max(0,Math.max(A.y,B.y)-Math.min(A.y+A.h,B.y+B.h));
+    if(dx<=m&&dy<=m)padre[raiz(a)]=raiz(b);
+  });});
+  var gr={};L.forEach(function(i){var r=raiz(i);(gr[r]=gr[r]||[]).push(i);});
+  return Object.keys(gr).map(function(k){return gr[k];});
+}
+
+// ·· Dónde va cada cosa en el flyer de ahora ··
+// Devuelve, por ítem, {ok, rect} (franja) o {ok, det} (logo, vacío, texto).
+function _mgClip(r){
+  var W=baseImg.width,H=baseImg.height,x=Math.max(0,Math.min(W-10,r.x)),y=Math.max(0,Math.min(H-10,r.y));
+  return {x:x,y:y,w:Math.max(10,Math.min(W-x,r.w)),h:Math.max(10,Math.min(H-y,r.h))};
+}
+function _mgUbicarTodo(datos){
+  var s=baseImg.width/Math.max(1,datos.ancho||baseImg.width),u=Math.max(0.5,baseImg.width/1240),C=_mgCompTodo();
+  var sc=function(b){return {x:b.x*s,y:b.y*s,w:b.w*s,h:b.h*s};},ub=[];
+  datos.items.forEach(function(it,i){
+    if(it.tipo!=='franja')return;
+    var R=sc(it.rect),B=((it.ctx&&it.ctx.length)?it.ctx:(it.cajas||[])).map(sc);
+    var m=B.length?_mgCoincidir(B,C,{x:0,y:0}):null,ok=_mgConfiable(m,u),mov=m&&m.n>=2;
+    ub[i]={ok:ok,rect:_mgClip({x:R.x+(mov?m.dx:0),y:R.y+(mov?m.dy:0),w:R.w,h:R.h})};
+  });
+  var grupos=(datos.grupos&&datos.grupos.length)?datos.grupos:_mgGrupos(datos.items).map(function(ids){return {items:ids,ctx:null};});
+  grupos.forEach(function(gp){
+    var B=((gp.ctx&&gp.ctx.length)?gp.ctx:gp.items.map(function(i){return datos.items[i].lugar;})).map(sc);
+    var m=_mgCoincidir(B,C,{x:0,y:0}),ok=_mgConfiable(m,u),mov=m&&(ok||m.n>=2);
+    gp.items.forEach(function(i){if(datos.items[i])ub[i]=_mgUbicarLogo(datos.items[i],s,mov?m.dx:0,mov?m.dy:0,ok,C);});
+  });
+  datos.items.forEach(function(it,i){if(!ub[i])ub[i]=_mgUbicarLogo(it,s,0,0,false,C);});
+  return ub;
+}
+// Un logo, lugar vacío o texto: su lugar escalado y corrido con su grupo, "pegado"
+// al dibujo que haya ahí si tiene un tamaño parecido.
+function _mgUbicarLogo(it,s,dx,dy,grupoOk,C){
+  var L=it.lugar||it.rect,P={x:L.x*s+dx,y:L.y*s+dy,w:L.w*s,h:L.h*s},cx=P.x+P.w/2,cy=P.y+P.h/2;
+  var man=function(){var b=_mgClip(P);return _fgLgManual(b.x,b.y,b.w,b.h)||{x:b.x,y:b.y,w:b.w,h:b.h,bg:'rgb(255,255,255)'};};
+  if(it.tipo==='texto'){var dt=man();if(it.vacio)dt.vacio=true;return {ok:grupoOk,det:dt};}
+  if(it.dup)return {ok:true,det:man()};
+  var parecido=function(b){var rw=b.w/Math.max(1,P.w),rh=b.h/Math.max(1,P.h);return rw>0.6&&rw<1.6&&rh>0.6&&rh<1.6&&Math.abs(b.x+b.w/2-cx)<=Math.max(P.w,P.h)*0.4&&Math.abs(b.y+b.h/2-cy)<=Math.max(P.w,P.h)*0.4;};
+  // el dibujo de ahora más cercano con un tamaño parecido
+  var mejor=null,md=1e9;
+  (C||[]).forEach(function(c){if(!parecido(c))return;var d=Math.abs(c.x+c.w/2-cx)+Math.abs(c.y+c.h/2-cy);if(d<md){md=d;mejor=c;}});
+  var pts=mejor?[[mejor.x+mejor.w/2,mejor.y+mejor.h/2],[cx,cy]]:[[cx,cy]];
+  for(var k=0;k<pts.length;k++){
+    var det=null;try{det=_fgLgDetectar(Math.round(pts[k][0]),Math.round(pts[k][1]));}catch(e){}
+    if(det&&!det.error&&parecido(det))return {ok:grupoOk||(Math.abs(dx)+Math.abs(dy)<1),det:det};
+  }
+  return {ok:false,det:man()};
+}
+// Compatibilidad: un ítem solo.
+function _mgUbicar(it,s){var d={ancho:baseImg.width/s,items:[it]};return _mgUbicarTodo(d)[0];}
 // La franja sin abrir la ventana: misma cuenta que Armar franja (reemplaza la
 // que hubiera en ese lugar y lo de antes adentro).
 function _fgFrAplicarSin(rect,it){
@@ -16037,19 +16172,6 @@ function _fgFrAplicarSin(rect,it){
   var pr;try{pr=_fgFrAplicar(st);}catch(e){volver();return Promise.reject(e);}
   return Promise.resolve(pr).then(function(n){volver();return n||0;},function(e){volver();throw e;});
 }
-// Franjas para ubicar a mano (de a una): se carga la próxima en el modo Armar
-// franja; cuando se pone, sigue la que queda (cancelar el modo las descarta).
-var _mgPend=[];
-function _mgSiguientePendiente(callado){
-  var f=_mgPend.shift();if(!f)return '';
-  _fgFr.pendiente={sel:JSON.parse(JSON.stringify(f.sel)),cols:f.cols||0,q:'',rubro:'',prov:'',loc:'',una:true,sinOnline:false};
-  if(f.conDias!=null)_fgLgV.conDias=!!f.conDias;
-  if(!_fgLg.on)fgLogosModo(true);
-  fgFranjaModo(true);
-  var m='Marcá con un recuadro dónde va «'+f.nombre+'»'+(_mgPend.length?' (después sigue '+(_mgPend.length===1?'1 franja más':_mgPend.length+' franjas más')+')':'')+'.';
-  if(!callado)showToast(m);
-  return m;
-}
 // El cambio de ANTES de aplicar que está en ese lugar (para reemplazarlo); -1 =
 // ninguno, va uno nuevo (así no se pisa lo que la misma aplicación acaba de poner).
 function _mgIndiceViejo(det,previos){
@@ -16061,14 +16183,41 @@ function _mgIndiceViejo(det,previos){
   }
   return -1;
 }
-// Aplica los ítems elegidos de una combinación en el flyer de ahora.
-function _mgAplicar(datos,elegidos,nombre){
-  var s=baseImg.width/Math.max(1,datos.ancho||baseImg.width),items=datos.items.filter(function(x,i){return elegidos[i];});
-  var src0=_fgLgSrc(),manual=[],aprox=[];
-  if(!_fgLg.on)fgLogosModo(true);
-  if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
-  // primero se bajan todos los logos (así todo queda en UN paso de Deshacer)
-  var imgs={};items.forEach(function(it){
+// Pone UN ítem en el lugar u. P = la aplicación en curso {s, previos, malos, n, aprox}.
+function _mgPonerItem(it,u,P){
+  if(u.det)u.det.indice=_mgIndiceViejo(u.det,P.previos); // reemplaza lo de antes, nunca lo recién puesto
+  if(it.tipo==='franja'){
+    var sel=it.sel.filter(function(x){return !P.malos[x.img];});
+    if(!sel.length){P.aprox.push(it.nombre+' (no se pudieron bajar sus logos)');return Promise.resolve();}
+    return _fgFrAplicarSin(u.rect,Object.assign({},it,{sel:sel})).then(function(k){if(k)P.n.franja++;});
+  }
+  if(it.tipo==='vacio'){_fgLgPoner(u.det,'','',null);P.n.vacio++;return Promise.resolve();}
+  if(it.tipo==='texto'){
+    _fgLgPonerTexto(u.det,{texto:it.texto,color:it.color,peso:it.peso,fs:Math.max(10,it.fs*P.s)},null);
+    P.n.texto++;return Promise.resolve();
+  }
+  if(it.mover){
+    _fgLgMoverOriginal(u.det);var em=_fgLgActivos()[_fgLg.sel];
+    if(em){em.tx=u.det.x+it.rel.x*u.det.w;em.ty=u.det.y+it.rel.y*u.det.h;em.tw=it.rel.w*u.det.w;em.th=it.rel.h*u.det.h;em.bw=em.tw;em.bh=em.th;}
+    P.n.logo++;return Promise.resolve();
+  }
+  if(P.malos[it.img]){P.aprox.push(it.nombre+' (no se pudo bajar)');return Promise.resolve();}
+  var im=_fgLg.imgs[it.img];if(!im){P.aprox.push(it.nombre+' (no se pudo cargar el logo)');return Promise.resolve();}
+  var p=_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t,subtitulo:''};
+  if(it.esSuper&&it.conDias)_fgLgPonerMarca(u.det,p,im,true);
+  else{
+    if(it.esSuper)_fgLgPonerMarca(u.det,p,im,false);else _fgLgPoner(u.det,it.img,it.t,im);
+    var e=_fgLgActivos()[_fgLgIndiceDe(u.det)];
+    // el tamaño y el corrimiento que se le habían dado a mano, en proporción a su lugar
+    if(e&&e.img===it.img&&it.rel&&isFinite(it.rel.w)&&it.rel.w>0){e.tx=u.det.x+it.rel.x*u.det.w;e.ty=u.det.y+it.rel.y*u.det.h;e.tw=it.rel.w*u.det.w;e.th=it.rel.h*u.det.h;e.bw=e.tw;e.bh=e.th;}
+    if(it.dup&&e)e.dup=true;
+  }
+  P.n.logo++;return Promise.resolve();
+}
+// Prepara una aplicación: baja los logos, ubica todo. Devuelve el estado P.
+function _mgPreparar(datos,nombre){
+  var src0=_fgLgSrc(),imgs={};
+  datos.items.forEach(function(it){
     if(it.tipo==='franja')it.sel.forEach(function(x){imgs[x.img]=1;});
     else if(it.tipo==='logo'&&!it.mover&&!_fgLgEsSubido(it.img))imgs[it.img]=1;
   });
@@ -16076,61 +16225,206 @@ function _mgAplicar(datos,elegidos,nombre){
     return Promise.all(Object.keys(imgs).map(function(k){return _fgLgTraer(k).then(function(){return null;},function(){return k;});}));
   }).then(function(fallas){
     if(_fgLgSrc()!==src0)return null;
+    if(!_fgLg.on)fgLogosModo(true);
+    if(_fgLg.src!==_fgLgSrc()){_fgLg.list=[];_fgLg.src=_fgLgSrc();}
     var malos={};fallas.forEach(function(k){if(k)malos[k]=1;});
-    var previos=_fgLgActivos().slice();
-    var cola=Promise.resolve(),n={franja:0,logo:0,vacio:0,texto:0};
-    items.forEach(function(it){
-      cola=cola.then(function(){
-        if(_fgLgSrc()!==src0)return;
-        if(it.manual){manual.push(it);return;}
-        var u=_mgUbicar(it,s);if(!u.ok)aprox.push(it.nombre);
-        if(u.det)u.det.indice=_mgIndiceViejo(u.det,previos); // reemplaza lo de antes, nunca lo recién puesto
-        if(it.tipo==='franja'){
-          var sel=it.sel.filter(function(x){return !malos[x.img];});
-          if(!sel.length)return;
-          return _fgFrAplicarSin(u.rect,Object.assign({},it,{sel:sel})).then(function(k){if(k)n.franja++;});
-        }
-        if(it.tipo==='vacio'){_fgLgPoner(u.det,'','',null);n.vacio++;return;}
-        if(it.tipo==='texto'){
-          _fgLgPonerTexto(u.det,{texto:it.texto,color:it.color,peso:it.peso,fs:Math.max(10,it.fs*s)},null);
-          var et=_fgLgActivos()[_fgLg.sel];if(et&&et.tipo==='txt'&&it.pos){var px=it.pos.x*s,py=it.pos.y*s;if(Math.abs(px-et.tx)<et.tw*3&&Math.abs(py-et.ty)<et.th*3){et.tx=px;et.ty=py;}}
-          n.texto++;return;
-        }
-        // logo
-        if(it.mover){_fgLgMoverOriginal(u.det);var em=_fgLgActivos()[_fgLg.sel];if(em){em.tx=u.det.x+it.rel.x*u.det.w;em.ty=u.det.y+it.rel.y*u.det.h;em.tw=it.rel.w*u.det.w;em.th=it.rel.h*u.det.h;em.bw=em.tw;em.bh=em.th;}n.logo++;return;}
-        if(malos[it.img]){aprox.push(it.nombre+' (no se pudo bajar)');return;}
-        var im=_fgLg.imgs[it.img];if(!im){aprox.push(it.nombre+' (no se pudo cargar el logo)');return;}
-        var p=_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t,subtitulo:''};
-        if(it.esSuper&&it.conDias)_fgLgPonerMarca(u.det,p,im,true);
-        else{
-          if(it.esSuper)_fgLgPonerMarca(u.det,p,im,false);else _fgLgPoner(u.det,it.img,it.t,im);
-          var e=_fgLgActivos()[_fgLgIndiceDe(u.det)];
-          // el tamaño y el corrimiento que se le habían dado a mano, en proporción a su lugar
-          if(e&&e.img===it.img&&it.rel&&isFinite(it.rel.w)&&it.rel.w>0){e.tx=u.det.x+it.rel.x*u.det.w;e.ty=u.det.y+it.rel.y*u.det.h;e.tw=it.rel.w*u.det.w;e.th=it.rel.h*u.det.h;e.bw=e.tw;e.bh=e.th;}
-          if(it.dup&&e)e.dup=true;
-        }
-        n.logo++;
-      });
+    // orden: las franjas, después los logos de arriba hacia abajo, los textos al final
+    var orden=datos.items.map(function(it,i){return i;});
+    var peso=function(it){return it.tipo==='franja'?0:it.tipo==='texto'?2:1;},yy=function(it){var b=it.rect||it.lugar||{y:0};return b.y;};
+    orden.sort(function(a,b){var A=datos.items[a],B=datos.items[b];return (peso(A)-peso(B))||(yy(A)-yy(B));});
+    var ub=_mgUbicarTodo(datos);
+    return {datos:datos,nombre:nombre,orden:orden,ub:ub,i:0,src0:src0,s:baseImg.width/Math.max(1,datos.ancho||baseImg.width),
+      malos:malos,previos:_fgLgActivos().slice(),n:{franja:0,logo:0,vacio:0,texto:0},aprox:[],saltados:0};
+  });
+}
+function _mgResumenFinal(P){
+  var n=P.n,hecho=[];
+  if(n.franja)hecho.push(n.franja+(n.franja===1?' franja':' franjas'));if(n.logo)hecho.push(n.logo+(n.logo===1?' logo':' logos'));
+  if(n.vacio)hecho.push(n.vacio+(n.vacio===1?' lugar vacío':' lugares vacíos'));if(n.texto)hecho.push(n.texto+(n.texto===1?' texto':' textos'));
+  var venc=_fgLgActivos().filter(_fgLgVencida).length;
+  var msg='Listo «'+P.nombre+'»'+(hecho.length?': '+hecho.join(', '):': no se puso nada')+'.';
+  if(P.saltados)msg+=' '+P.saltados+(P.saltados===1?' salteado.':' salteados.');
+  if(venc)msg+=' '+venc+(venc===1?' marca vencida (en rojo).':' marcas vencidas (en rojo).');
+  if(P.aprox.length)msg+=' Revisá: '+P.aprox.slice(0,2).join(', ')+(P.aprox.length>2?'…':'')+'.';
+  return msg;
+}
+// Todo de una (cuando encontró todo con seguridad): un solo paso de Deshacer.
+function _mgAplicar(datos,elegidos,nombre){
+  return _mgPreparar(datos,nombre).then(function(P){
+    if(!P)return null;
+    var cola=Promise.resolve();
+    P.orden.forEach(function(i){
+      if(elegidos&&!elegidos[i])return;
+      cola=cola.then(function(){if(_fgLgSrc()!==P.src0)return;if(!P.ub[i].ok)P.aprox.push(P.datos.items[i].nombre);return _mgPonerItem(P.datos.items[i],P.ub[i],P);});
     });
     return cola.then(function(){
-      if(_fgLgSrc()!==src0)return null;
+      if(_fgLgSrc()!==P.src0)return null;
       _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();
-      var venc=_fgLgActivos().filter(_fgLgVencida).length;
-      var hecho=[];if(n.franja)hecho.push(n.franja+(n.franja===1?' franja':' franjas'));if(n.logo)hecho.push(n.logo+(n.logo===1?' logo':' logos'));
-      if(n.vacio)hecho.push(n.vacio+(n.vacio===1?' lugar vacío':' lugares vacíos'));if(n.texto)hecho.push(n.texto+(n.texto===1?' texto':' textos'));
-      var msg='Apliqué «'+nombre+'»'+(hecho.length?': '+hecho.join(', '):'')+'.';
-      if(venc)msg+=' '+venc+(venc===1?' marca vencida (en rojo).':' marcas vencidas (en rojo).');
-      if(aprox.length)msg+=' Revisá '+(aprox.length===1?'«'+aprox[0]+'»: no encontré bien su lugar.':aprox.length+' que no encontré bien su lugar.');
-      // franjas para ubicar a mano: se marca la primera con sus marcas cargadas
-      if(manual.length){
-        _mgPend=manual.slice();
-        msg+=' '+_mgSiguientePendiente(true);
-      }
-      showToast(msg);
-      return {n:n,aprox:aprox,venc:venc,manual:manual.length};
+      showToast(_mgResumenFinal(P));
+      return {n:P.n,aprox:P.aprox,venc:_fgLgActivos().filter(_fgLgVencida).length};
     });
   });
 }
+// ·· Paso a paso (23-oct-2026) ··
+// Una cosa por vez: la barra de abajo dice qué se está colocando ("2 de 5: Vea,
+// con sus días") y en el flyer queda marcado dónde iría. "Poner acá" (o Enter) la
+// pone; tocar un logo del flyer la pone sobre ese logo; para una franja, tocarla o
+// arrastrar un recuadro. "Saltar" la deja; × termina (lo puesto queda). Mientras
+// tanto no se abren otras ventanas ni andan los atajos de una letra.
+var _mgPaso=null;
+function _mgPasoItem(){var P=_mgPaso;return P?P.datos.items[P.orden[P.i]]:null;}
+function _mgPasoUb(){var P=_mgPaso;return P?P.ub[P.orden[P.i]]:null;}
+function _mgPasoMiniHtml(it){
+  if(it.tipo==='franja'){ // sus primeros logos, en grilla
+    return '<span class="mg-pb-grid">'+it.sel.slice(0,4).map(function(x){var c=_fgLg.imgs[x.img];var src='';try{src=c&&c.toDataURL?c.toDataURL('image/png'):PROMO_LOGO_BASE+x.img;}catch(e){src=PROMO_LOGO_BASE+x.img;}return '<img alt="" src="'+_escAttr(src)+'">';}).join('')+'</span>';
+  }
+  if(it.tipo==='vacio')return '<span class="mg-pb-ico">&#8709;</span>';
+  if(it.tipo==='texto')return '<span class="mg-pb-ico">T</span>';
+  var c=_fgLg.imgs[it.img];
+  if(c&&c.toDataURL){try{return '<img alt="" src="'+_escAttr(c.toDataURL('image/png'))+'">';}catch(e){}}
+  if(!_fgLgEsSubido(it.img)&&String(it.img).indexOf('orig:')!==0)return '<img alt="" src="'+_escAttr(PROMO_LOGO_BASE+it.img)+'">';
+  return '<span class="mg-pb-ico">&#9733;</span>';
+}
+function _mgPasoMostrar(){
+  var P=_mgPaso,prev=document.querySelector('.prev');
+  var bar=document.getElementById('mg-paso');
+  if(!P){if(bar)bar.remove();var s0=document.getElementById('mg-sug');if(s0)s0.remove();if(prev)prev.classList.remove('mg-paso-on');return;}
+  if(P.i>=P.orden.length){_mgPasoFin();return;}
+  var it=_mgPasoItem(),u=_mgPasoUb(),tot=P.orden.length;
+  if(prev)prev.classList.add('mg-paso-on');
+  if(!bar){
+    bar=document.createElement('div');bar.id='mg-paso';bar.className='mg-paso';bar.setAttribute('role','region');bar.setAttribute('aria-label','Colocar marcas guardadas');
+    bar.addEventListener('pointerdown',function(e){e.stopPropagation();});bar.addEventListener('mousedown',function(e){e.stopPropagation();});
+    bar.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('button[data-mp]');if(!b)return;var a=b.getAttribute('data-mp');
+      if(a==='poner')_mgPasoPoner();else if(a==='saltar')_mgPasoSaltar();else if(a==='fin')_mgPasoFin();});
+    if(prev)prev.appendChild(bar);
+  }
+  var dias=it.tipo==='logo'&&it.esSuper&&it.conDias?_promoDias(_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t}):'';
+  var titulo=_escHtml(it.nombre)+(dias?', con sus d&iacute;as ('+_escHtml(dias)+')':(it.tipo==='logo'&&it.esSuper&&it.conDias?' (sin d&iacute;as con % hoy)':''));
+  var pista=it.tipo==='franja'?(u.ok?'Te marqu&eacute; d&oacute;nde ir&iacute;a. Si no es ah&iacute;, toc&aacute; la franja correcta o arrastr&aacute; un recuadro alrededor.':'No la encontr&eacute; segura: toc&aacute; la franja donde va o arrastr&aacute; un recuadro alrededor.')
+    :it.tipo==='vacio'?(u.ok?'Te marqu&eacute; cu&aacute;l se saca. Si no es ese, toc&aacute; el logo que quer&eacute;s sacar.':'No lo encontr&eacute; seguro: toc&aacute; el logo que quer&eacute;s sacar.')
+    :it.tipo==='texto'?'Te marqu&eacute; d&oacute;nde ir&iacute;a. Si no es ah&iacute;, arrastr&aacute; un recuadro donde va.'
+    :(u.ok?'Te marqu&eacute; d&oacute;nde ir&iacute;a. Si no es ah&iacute;, toc&aacute; el logo que quer&eacute;s reemplazar.':'No lo encontr&eacute; seguro: toc&aacute; el logo que quer&eacute;s reemplazar.');
+  var puntos='';for(var k=0;k<tot;k++)puntos+='<span class="'+(k<P.i?'ok':k===P.i?'ya':'')+'"></span>';
+  bar.innerHTML='<div class="mg-pb-mini">'+_mgPasoMiniHtml(it)+'</div>'+
+    '<div class="mg-pb-txt"><div class="mg-pb-que">Colocando &laquo;'+_escHtml(P.nombre)+'&raquo; &middot; '+(P.i+1)+' de '+tot+'</div>'+
+      '<div class="mg-pb-tit">'+titulo+'</div><div class="mg-pb-pista'+(u.ok?'':' aprox')+'">'+pista+'</div><div class="mg-pb-pts" aria-hidden="true">'+puntos+'</div></div>'+
+    '<div class="mg-pb-acts"><button type="button" class="btn bp" data-mp="poner">Poner ac&aacute; &#10003;</button>'+
+      '<button type="button" class="btn bg" data-mp="saltar">Saltar</button>'+
+      '<button type="button" class="mg-pb-x" data-mp="fin" aria-label="Terminar" title="Terminar (lo que ya pusiste queda)">&times;</button></div>';
+  _mgPasoSug();
+}
+// El recuadro naranja "va acá" sobre el flyer, y que se vea.
+function _mgPasoSug(){
+  var capa=document.getElementById('fg-lg-capa'),u=_mgPasoUb();if(!capa||!u)return;
+  var s=document.getElementById('mg-sug');
+  if(!s){s=document.createElement('div');s.id='mg-sug';s.className='mg-sug';capa.appendChild(s);}
+  var b=u.rect||u.det,p=_fgLgAPantalla(b.x,b.y,b.w,b.h);
+  s.className='mg-sug'+(u.ok?'':' aprox');
+  s.style.left=p.l.toFixed(1)+'px';s.style.top=p.t.toFixed(1)+'px';s.style.width=p.w.toFixed(1)+'px';s.style.height=p.h.toFixed(1)+'px';
+  s.setAttribute('data-t',u.ok?'Va acá':'¿Va acá?');
+  try{s.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){try{s.scrollIntoView();}catch(e2){}}
+}
+function _mgPasoSig(){
+  var P=_mgPaso;if(!P)return;
+  P.i++;
+  if(P.i>=P.orden.length){_mgPasoFin();return;}
+  _mgPasoMostrar();
+}
+function _mgPasoPoner(u2){
+  var P=_mgPaso;if(!P||P.ocupado)return;
+  if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: se cortó la colocación.');_mgPasoFin(true);return;}
+  var it=_mgPasoItem(),u=u2||_mgPasoUb();
+  if(!u2&&!u.ok)P.aprox.push(it.nombre);
+  P.ocupado=true;
+  Promise.resolve().then(function(){return _mgPonerItem(it,u,P);}).then(function(){
+    P.ocupado=false;if(_mgPaso!==P)return;
+    if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: se cortó la colocación.');_mgPasoFin(true);return;}
+    _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();
+    _mgPasoSig();
+  },function(){P.ocupado=false;showToast('No se pudo poner «'+it.nombre+'». Probá de nuevo o saltalo.');});
+}
+function _mgPasoSaltar(){var P=_mgPaso;if(!P||P.ocupado)return;P.saltados++;_mgPasoSig();}
+function _mgPasoFin(callado){
+  var P=_mgPaso;_mgPaso=null;_mgPasoMostrar();
+  if(P&&!callado)showToast(_mgResumenFinal(P));
+}
+// Toque o recuadro sobre el flyer mientras se coloca (coordenadas de pantalla).
+function _mgPasoTocar(x0,y0,x1,y1,mov){
+  var P=_mgPaso;if(!P||P.ocupado)return;
+  var it=_mgPasoItem(),a=_fgLgAImagen(Math.min(x0,x1),Math.min(y0,y1)),b=_fgLgAImagen(Math.max(x0,x1),Math.max(y0,y1));
+  if(!a||!b)return;
+  if(mov){ // un recuadro: va justo ahí
+    var r=_mgClip({x:a.x,y:a.y,w:b.x-a.x,h:b.y-a.y});
+    if(r.w<12||r.h<12){showToast('Ese recuadro es muy chico.');return;}
+    if(it.tipo==='franja'){_mgPasoPoner({ok:true,rect:r});return;}
+    var dm=_fgLgManual(r.x,r.y,r.w,r.h);if(!dm)return;
+    if(it.tipo==='texto')dm.vacio=true;
+    _mgPasoPoner({ok:true,det:dm});return;
+  }
+  var pt=_fgLgAImagen(x1,y1);if(!pt)return;
+  if(it.tipo==='franja'){
+    // la misma forma de franja, sobre lo que se tocó
+    var sc=function(q){return {x:q.x*P.s,y:q.y*P.s,w:q.w*P.s,h:q.h*P.s};},B=((it.ctx&&it.ctx.length)?it.ctx:(it.cajas||[])).map(sc);
+    var m=B.length?_mgCoincidir(B,_mgCompTodo(),{x:0,y:0},pt):null;
+    if(m&&m.n>=Math.max(2,Math.ceil(B.length*0.4))){var R=sc(it.rect);_mgPasoPoner({ok:true,rect:_mgClip({x:R.x+m.dx,y:R.y+m.dy,w:R.w,h:R.h})});return;}
+    // franja ya armada en ese lugar: va sobre ella
+    var fb=_fgLgActivos().filter(function(e){return e.franjaBase&&pt.x>=e.ox&&pt.x<=e.ox+e.ow&&pt.y>=e.oy&&pt.y<=e.oy+e.oh;})[0];
+    if(fb){_mgPasoPoner({ok:true,rect:{x:fb.ox,y:fb.oy,w:fb.ow,h:fb.oh}});return;}
+    showToast('No reconocí una franja ahí. Arrastrá un recuadro alrededor de la franja donde va.');return;
+  }
+  if(it.tipo==='texto'){showToast('Para el texto, arrastrá un recuadro donde va.');return;}
+  var det=null;try{det=_fgLgDetectar(Math.round(pt.x),Math.round(pt.y));}catch(e){}
+  if(!det||det.error){showToast('Ahí no encontré un logo. Tocá justo encima del logo, o arrastrá un recuadro.');return;}
+  _mgPasoPoner({ok:true,det:det});
+}
+function _mgPasoEmpezar(P){
+  _mgPaso=P;
+  if(_fgFr.modo)fgFranjaModo(false);if(_fgRecM.modo)fgRecModo(false);if(_fgLg.limpio)fgLgLimpio(false);
+  _fgLg.sel=-1;_fgLg.grupo=[];_fgLg.lugares=[];_fgLgMarcas();
+  _mgPasoMostrar();
+}
+// Ventana para aplicar: cuenta qué encontró y ofrece todo de una o paso a paso.
+function fgMgAplicar(id){
+  var d0=(_MG.lista||[]).filter(function(x){return x.id===id;})[0];
+  if(!window.baseImg||!baseImg.width){showToast('Abrí primero el flyer donde querés aplicarlas.');return;}
+  if(_mgPaso)_mgPasoFin(true);
+  showToast('Buscando dónde va cada cosa…');
+  var src0=_fgLgSrc();
+  _estDatos(id).then(function(d){
+    if(_fgLgSrc()!==src0)return null;
+    var datos=d.datos||{};if(!Array.isArray(datos.items)||!datos.items.length){showToast('Esa combinación está vacía.');return null;}
+    return _mgPreparar(datos,d.nombre||(d0&&d0.nombre)||'');
+  }).then(function(P){
+    if(!P)return;
+    fgHideToast('Buscando dónde va cada cosa…');
+    if(_fgLgSrc()!==P.src0)return; // mientras buscaba se cambió de flyer
+    var tot=P.orden.length,okN=P.orden.filter(function(i){return P.ub[i].ok;}).length;
+    var todo=okN===tot;
+    var w=_mgOv('fg-mga-ov','<div class="fg-cf fg-mg"><div class="fg-lg-h"><div style="flex:1;min-width:0"><div class="fg-cf-t">Aplicar &laquo;'+_escHtml(P.nombre)+'&raquo;</div>'+
+      '<div class="fg-cf-b">'+(todo?'Encontr&eacute; d&oacute;nde va todo ('+tot+(tot===1?' cosa':' cosas')+'). Pod&eacute;s ponerlo de una o revisarlo uno por uno.'
+        :'Encontr&eacute; '+okN+' de '+tot+'. Vamos de a una: te marco en el flyer d&oacute;nde ir&iacute;a cada cosa y vos la confirm&aacute;s o toc&aacute;s otro lugar.')+'</div></div>'+
+      '<button type="button" class="fg-lg-x" id="fg-mga-x" aria-label="Cerrar">&times;</button></div>'+
+      '<div class="mg-items">'+P.orden.map(function(i){var it=P.datos.items[i],u=P.ub[i];
+        return '<div class="mg-item"><span class="mg-item-t">'+_escHtml(it.nombre)+'</span>'+(u.ok?'<span class="mg-est mg-ok">&#10003; Encontrado</span>':'<span class="mg-est mg-aprox">Lo ubicamos juntos</span>')+'</div>';}).join('')+'</div>'+
+      '<div class="fg-cf-acts">'+(todo?'<button type="button" class="btn bg" id="fg-mga-paso">Revisar uno por uno</button><button type="button" class="btn bp" id="fg-mga-ok">Poner todo</button>'
+        :'<button type="button" class="btn bg" id="fg-mga-no">Cancelar</button><button type="button" class="btn bp" id="fg-mga-paso">Empezar</button>')+'</div></div>');
+    document.getElementById('fg-mga-x').onclick=w.cerrar;
+    var no=document.getElementById('fg-mga-no');if(no)no.onclick=w.cerrar;
+    var ok=document.getElementById('fg-mga-ok');
+    if(ok)ok.onclick=function(){
+      w.cerrar();if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: volvé a tocar Aplicar.');return;}
+      var cola=Promise.resolve();
+      P.orden.forEach(function(i){cola=cola.then(function(){if(_fgLgSrc()!==P.src0)return;return _mgPonerItem(P.datos.items[i],P.ub[i],P);});});
+      cola.then(function(){
+        if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer mientras se ponían: se cortó a la mitad. Volvé a aplicarlas en el flyer que quieras.');return;}
+        _fgLg.sel=-1;_fgLg.grupo=[];_fgLgListo();showToast(_mgResumenFinal(P));
+      },function(){showToast('No se pudo terminar de poner todo. Probá con «Revisar uno por uno».');});
+    };
+    document.getElementById('fg-mga-paso').onclick=function(){w.cerrar();if(_fgLgSrc()!==P.src0){showToast('Cambió el flyer: volvé a tocar Aplicar.');return;}_mgPasoEmpezar(P);};
+  }).catch(function(e){fgHideToast('Buscando dónde va cada cosa…');showToast('No se pudo leer la combinación: '+_estErr(e));});
+}
+
 // ·· Ventanas ··
 function _mgOv(id,html){
   var v=document.getElementById(id);if(v)v.remove();
@@ -16177,46 +16471,6 @@ function _mgPintarListas(){
   if(e&&L)e.innerHTML=L.length?L.map(function(d){return _mgFilaHtml(d,function(id){
     return '<button type="button" class="btn bp" data-mg="aplicar" data-id="'+id+'">Aplicar en el flyer</button><button type="button" class="btn bg" data-mg="renombrar" data-id="'+id+'">Cambiar nombre</button><button type="button" class="btn bg est-borrar" data-mg="borrar" data-id="'+id+'">Borrar</button>';});}).join(''):vacio;
 }
-// Ventana para aplicar: todo tildado, con dónde va cada cosa (✓ / ⚠).
-function fgMgAplicar(id){
-  var d0=(_MG.lista||[]).filter(function(x){return x.id===id;})[0];
-  if(!window.baseImg||!baseImg.width){showToast('Abrí primero el flyer donde querés aplicarlas.');return;}
-  showToast('Buscando dónde va cada cosa…');
-  var src0=_fgLgSrc();
-  _estDatos(id).then(function(d){
-    if(_fgLgSrc()!==src0)return;
-    var datos=d.datos||{};if(!Array.isArray(datos.items)||!datos.items.length){showToast('Esa combinación está vacía.');return;}
-    if(!_fgLg.on)fgLogosModo(true);
-    var s=baseImg.width/Math.max(1,datos.ancho||baseImg.width),el=datos.items.map(function(){return true;});
-    var ub=datos.items.map(function(it){try{return _mgUbicar(it,s);}catch(e){return {ok:false};}});
-    var nombre=d.nombre||(d0&&d0.nombre)||'';
-    var w=_mgOv('fg-mga-ov','<div class="fg-cf fg-mg"><div class="fg-lg-h"><div style="flex:1;min-width:0"><div class="fg-cf-t">Aplicar &laquo;'+_escHtml(nombre)+'&raquo;</div>'+
-      '<div class="fg-cf-b">Destild&aacute; lo que no quieras. Lo que ya cambiaste en esos lugares se reemplaza; lo dem&aacute;s queda. Se deshace con Ctrl+Z.</div></div>'+
-      '<button type="button" class="fg-lg-x" id="fg-mga-x" aria-label="Cerrar">&times;</button></div>'+
-      '<div class="mg-items" id="fg-mga-items"></div>'+
-      '<div class="fg-cf-acts"><button type="button" class="btn bg" id="fg-mga-no">Cancelar</button><button type="button" class="btn bp" id="fg-mga-ok">Aplicar</button></div></div>');
-    function pintar(){
-      var box=document.getElementById('fg-mga-items');if(!box)return;
-      box.innerHTML=datos.items.map(function(it,i){
-        var u=ub[i],est=it.manual?'<span class="mg-est mg-man">La vas a ubicar vos</span>':u.ok?'<span class="mg-est mg-ok">&#10003; En su lugar</span>':'<span class="mg-est mg-aprox">&#9888; Aproximado: revisalo</span>';
-        var btn=(it.tipo==='franja'&&!u.ok&&!it.manual)?'<button type="button" class="btn bg mg-ubicar" data-i="'+i+'">Ubicar a mano</button>':'';
-        return '<label class="mg-item"><input type="checkbox" data-i="'+i+'"'+(el[i]?' checked':'')+'><span class="mg-item-t">'+_escHtml(it.nombre)+'</span>'+est+btn+'</label>';
-      }).join('');
-      var n=el.filter(Boolean).length,ok=document.getElementById('fg-mga-ok');if(ok){ok.disabled=!n;ok.textContent='Aplicar'+(n?' ('+n+')':'');}
-    }
-    var box=document.getElementById('fg-mga-items');
-    box.addEventListener('change',function(e){var c=e.target;if(c&&c.dataset&&c.dataset.i!=null){el[+c.dataset.i]=c.checked;pintar();}});
-    box.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.mg-ubicar');if(!b)return;e.preventDefault();datos.items[+b.dataset.i].manual=true;pintar();});
-    document.getElementById('fg-mga-x').onclick=w.cerrar;document.getElementById('fg-mga-no').onclick=w.cerrar;
-    document.getElementById('fg-mga-ok').onclick=function(){
-      var b=this;b.disabled=true;b.textContent='Aplicando…';
-      w.cerrar();_mgAplicar(datos,el,nombre);
-    };
-    pintar();
-    fgHideToast('Buscando dónde va cada cosa…');
-  }).catch(function(e){showToast('No se pudo leer la combinación: '+_estErr(e));});
-}
-
 // ·· Solapa Estudio ··
 function _estInit(){
   var v=document.getElementById('view-estudio');if(!v)return;

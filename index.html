@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="d1a043b082">
+<meta name="build-v" content="31068b607a">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1931,8 +1931,35 @@ html.dark .vig-mal{background:rgba(180,35,24,.25);color:#ff9b91;}
 .mg-ubicar{padding:4px 10px;font-size:12px;}
 .est-mg{margin-top:28px;}
 .est-mg-t{font-size:18px;margin:0 0 4px;color:var(--ink);}
+/* Marcas guardadas paso a paso (23-oct): barra de abajo y recuadro "va acá" */
+.mg-paso{position:sticky;bottom:16px;align-self:center;margin-top:12px;z-index:8;width:min(760px,calc(100% - 16px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sh-3,0 8px 24px rgba(0,0,0,.18));}
+@media (max-width:900px){.mg-paso{bottom:72px;}}
+.mg-pb-mini{width:56px;height:56px;flex-shrink:0;border-radius:10px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.mg-pb-mini img{max-width:48px;max-height:48px;object-fit:contain;}
+.mg-pb-ico{font-size:22px;color:var(--accent-2);font-weight:700;}
+.mg-pb-txt{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px;}
+.mg-pb-que{font-size:12px;color:var(--gray);}
+.mg-pb-tit{font-size:15px;font-weight:700;}
+.mg-pb-pista{font-size:12px;color:var(--gray);}
+.mg-pb-pista.aprox{color:#A16207;}
+.mg-pb-pts{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;}
+.mg-pb-pts span{width:18px;height:5px;border-radius:3px;background:var(--border);}
+.mg-pb-pts span.ok{background:#16A34A;}
+.mg-pb-pts span.ya{background:var(--accent);}
+.mg-pb-acts{display:flex;align-items:center;gap:8px;}
+.mg-pb-acts .btn{padding:8px 14px;}
+.prev.mg-paso-on #fg-lg-herr,.prev.mg-paso-on #fg-lg-grp,.prev.mg-paso-on .fg-lg-tip{display:none !important;}
+.mg-sug{position:absolute;pointer-events:none;border:3px solid var(--accent);border-radius:8px;background:rgba(242,97,34,.1);box-shadow:0 0 0 4px rgba(242,97,34,.18);z-index:4;animation:mgSug 1.4s ease-in-out infinite;}
+.mg-sug.aprox{border-style:dashed;}
+.mg-sug::after{content:attr(data-t);position:absolute;left:-3px;top:-26px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;line-height:1.3;padding:2px 10px;border-radius:6px;white-space:nowrap;}
+@keyframes mgSug{0%,100%{box-shadow:0 0 0 4px rgba(242,97,34,.18);}50%{box-shadow:0 0 0 8px rgba(242,97,34,.08);}}
+@media (prefers-reduced-motion:reduce){.mg-sug{animation:none;}}
+.mg-pb-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:48px;height:48px;}
+.mg-pb-grid img{width:23px;height:23px;object-fit:contain;}
+.mg-pb-x{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--card);color:var(--ink);font-size:20px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+.mg-pb-x:hover{border-color:var(--accent);color:var(--accent-2);}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=fdafa51770"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=4577cccd01"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
