@@ -3157,7 +3157,13 @@ function _promoDias(p){
   }
   return (I.cache[ck]=out);
 }
-function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDias(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
+// Los días de ESA promo, con el texto tal cual lo publica Galicia ("Hasta 12 cuotas"
+// de Coto = "Todos los días"). La tabla, el Excel y la lista de marcas describen
+// cada promo por separado: no usan _promoDias, que junta las del súper y deja sólo
+// las del % (eso es para el flyer; antes todas las filas de Coto decían "Martes").
+// Sin reinterpretar: "Todos los días excepto feriados" tiene que llegar entero.
+function _promoDiasPropios(p){return _promoDiasCrudo(p);}
+function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDiasPropios(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
 // Qué da la promo ("25% de ahorro", "6 cuotas sin interés"): sin esto dos filas de
 // la misma marca parecían repetidas. Viene de la columna beneficio (migración 029).
 function _promoBenef(p){return p&&p.beneficio?_promoDecodeEntities(String(p.beneficio)).replace(/\s+/g,' ').replace(/[.\s]+$/,'').trim():'';}
@@ -3390,7 +3396,7 @@ function descargarExcelPromos(){
       donde:r.promo?(_promoDondeTexto(r.promo)||'-'):'-',
       desde:r.promo?_promosFmtFecha(r.fechaDesde):'-',
       hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
-      dias:r.promo?_promoDias(r.promo):'',
+      dias:r.promo?_promoDiasPropios(r.promo):'',
       benef:r.promo?_promoBenef(r.promo):'',
       estado:_promoEstadoTxt(r)
     });
@@ -15178,8 +15184,14 @@ function _fgPfFiltrar(st,cambio){
   return {lista:L};
 }
 // Renglón chico de cada marca: rubro, si es de compra online (como en Activas) y hasta cuándo.
+// Súper: los días de esa promo y, si en el flyer van otros (sólo los del % de
+// descuento), se aclara cuáles: "Todos los días (en el flyer: Martes)".
 function _fgPfSub(p){
-  var d=_promoEsSuper(p)?_promoDias(p):'';
+  var d='';
+  if(_promoEsSuper(p)){
+    var pr=_promoDiasPropios(p),fl=_promoDias(p);
+    d=pr&&fl&&_promoNormalizar(pr)!==_promoNormalizar(fl)?pr+' (en el flyer: '+fl+')':(pr||(fl?'en el flyer: '+fl:''));
+  }
   return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'');
 }
 // Texto de "dónde": provincia y localidad elegidas.
