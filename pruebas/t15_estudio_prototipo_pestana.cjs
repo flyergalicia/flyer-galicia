@@ -6,7 +6,7 @@ module.exports=async(browser)=>{
     datos:{v:1,cambios:[{tipo:'txt',texto:'Lunes',color:'#040404',peso:500,fs:23,bfs:23,x:687,y:1374,w:89,h:53,bg:'rgb(255,254,254)',t:'Lunes',ox:691,oy:1378,ow:81,oh:45,tx:696,ty:1386,tw:71,th:30}],subidos:{}},
     miniatura:'',estado:'privado',nota_admin:'',opcion_publicada:null,pedido_at:null,revisado_at:null,created_at:t,updated_at:t});
   const a=await abrir(browser,{rol:'asesor'});
-  const barra=()=>a.$$eval('#fg-optbar > *',x=>x.map(b=>(b.classList.contains('on')?'[':'')+b.textContent.replace('×','').trim()+(b.classList.contains('on')?']':'')));
+  const barra=()=>a.$$eval('#fg-optbar .fgo, #fg-optbar .fgp',x=>x.map(b=>(b.classList.contains('on')?'[':'')+b.textContent.replace('×','').trim()+(b.classList.contains('on')?']':'')));
   console.log('  barra al entrar:',await a.$('#fg-optbar').then(x=>x?'visible':'(no hay barra: una sola opción)'));
   await a.click('#apptab-estudio');await a.waitForSelector('.est-card');
   await a.click('.est-card button[data-acc=usar]');

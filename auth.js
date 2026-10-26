@@ -4669,7 +4669,9 @@ function _fgEnsureOptBar(){
   if(!tabs||!tabs.parentNode)return;
   var st=document.createElement('style');st.id='fg-optbar-style';
   st.textContent=
-    '#fg-optbar{display:flex;gap:6px;margin:0 0 10px;padding:4px;background:rgba(128,128,128,.14);border-radius:9px}'+
+    // los flyers van en .fgo-fila y, debajo, los borradores abiertos (.fgp-fila)
+    '#fg-optbar{display:block;margin:0 0 10px;padding:4px;background:rgba(128,128,128,.14);border-radius:9px}'+
+    '#fg-optbar .fgo-fila{display:flex;gap:6px;min-width:0}'+
     '#fg-optbar .fgo{flex:1;text-align:center;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:.76rem;font-weight:600;color:var(--gray,#777);user-select:none;-webkit-user-select:none;transition:.15s;background:none;border-bottom:2px solid transparent;touch-action:none;position:relative}'+
     '#fg-optbar .fgo:hover{color:#444}'+
     'html.dark #fg-optbar .fgo:hover{color:#ddd}'+
@@ -4687,16 +4689,15 @@ function _fgEnsureOptBar(){
   var bar=document.createElement('div');bar.id='fg-optbar';
   var opts=_facOptsDe(_fgVista),pt=_fgOptPartes(opts);
   function pastilla(o,fav){
-    return '<div class="fgo'+(fav?' fgo-fav':'')+'" data-o="'+o+'" onclick="fgOptElegir('+o+')"'+(fav?' title="'+_escAttr(_optLabel(o))+' &middot; tu favorito. Para cambiarlo, toc&aacute; la estrellita de otro en &laquo;Otros&raquo;."':(pt?' title="'+_escAttr(_optLabel(o))+'"':''))+'>'+_escHtml(_optLabel(o))+'</div>'+protosDe(o);
+    return '<div class="fgo'+(fav?' fgo-fav':'')+'" data-o="'+o+'" onclick="fgOptElegir('+o+')"'+(fav?' title="'+_escAttr(_optLabel(o))+' &middot; tu favorito. Para cambiarlo, toc&aacute; la estrellita de otro en &laquo;Otros&raquo;."':(pt?' title="'+_escAttr(_optLabel(o))+'"':''))+'>'+_escHtml(_optLabel(o))+'</div>';
   }
   function protosDe(o){
-    // los diseños de Estudio abiertos con "Usar" van al lado de su flyer base
     return _fgProtos.filter(function(p){return p.opcion===o;}).map(function(p){
       var tit=p.temp?'Borrador sin guardar sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda hasta que recargues la p&aacute;gina o lo cierres; para conservarlo, toc&aacute; &laquo;Guardar en Estudio&raquo;.':
         'Prototipo de Estudio sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda ac&aacute; hasta que recargues la p&aacute;gina; el dise&ntilde;o sigue guardado en Estudio.';
       return '<div class="fgp'+(p.temp?' fgp-bor':'')+'" data-p="'+_escAttr(p.id)+'" onclick="fgProtoAbrir(\''+_escAttr(p.id)+'\')" title="'+tit+'">'+
         '<svg class="fgp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'+
-        '<span class="fgp-t">'+_escHtml(p.nombre)+'</span><button type="button" class="fgp-x" onclick="fgProtoCerrar(\''+_escAttr(p.id)+'\',event)" aria-label="Cerrar" title="'+(p.temp?'Cerrar borrador':'Cerrar (sigue guardado en Estudio)')+'">&times;</button></div>';
+        '<span class="fgp-t">'+_escHtml(p.nombre)+'</span><span class="fgp-de" data-de="'+_escAttr(_optLabel(o))+'"></span><button type="button" class="fgp-x" onclick="fgProtoCerrar(\''+_escAttr(p.id)+'\',event)" aria-label="Cerrar" title="'+(p.temp?'Cerrar borrador':'Cerrar (sigue guardado en Estudio)')+'">&times;</button></div>';
     }).join('');
   }
   if(!pt)bar.innerHTML=opts.map(function(o){return pastilla(o);}).join('');
@@ -4704,9 +4705,15 @@ function _fgEnsureOptBar(){
     // muchos flyers: 2 fijos + "Tu favorito" + "Otros" (ver _fgOptPartes)
     bar.innerHTML=pt.fijas.map(function(o){return pastilla(o);}).join('')+
       (pt.fav?pastilla(pt.fav,true):'<button type="button" class="fgo-vacio" onclick="fgOptMas(event)" title="Eleg&iacute; tu flyer favorito: abr&iacute; &laquo;Otros&raquo; y toc&aacute; la estrellita">'+_FG_ESTRELLA+'<span>Tu favorito</span></button>')+
-      '<button type="button" class="fgo-mas" data-otras="'+pt.otras.join(',')+'" onclick="fgOptMas(event)" aria-haspopup="true" title="Los dem&aacute;s flyers"><span class="fgo-mas-t">Otros</span><svg class="fgo-mas-ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>'+
-      pt.otras.map(protosDe).join(''); // de los de "Otros", sólo sus prototipos abiertos
+      '<button type="button" class="fgo-mas" data-otras="'+pt.otras.join(',')+'" onclick="fgOptMas(event)" aria-haspopup="true" title="Los dem&aacute;s flyers"><span class="fgo-mas-t">Otros</span><svg class="fgo-mas-ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
   }
+  // Borradores y diseños de Estudio abiertos: en una fila propia debajo (26-oct,
+  // idea del dueño). Entre los flyers apretaban la barra, la corrían cada vez que se
+  // abría uno y se mezclaban lo fijo con lo temporal. Cada uno dice sobre qué flyer está.
+  // los flyers van en su propia fila (.fgo-fila): así no se parten en dos renglones
+  bar.innerHTML='<div class="fgo-fila">'+bar.innerHTML+'</div>';
+  var abiertos=opts.map(protosDe).join('');
+  if(abiertos)bar.innerHTML+='<div class="fgp-fila" role="group" aria-label="Borradores y dise&ntilde;os abiertos"><span class="fgp-rot">Abiertos</span>'+abiertos+'</div>';
   if(pt)bar.className='fg-optbar-c';
   tabs.parentNode.insertBefore(bar,tabs);
   if(_admin)_fgOptBarGestos(bar);
@@ -4935,7 +4942,7 @@ function _holdReorder(cont,sel,onDrop,onLift){
 }
 function _fgOptBarGestos(bar){
   var taps=0,tapsEl=null,tapsT=0;
-  _holdReorder(bar,'.fgo',_fgOptAplicarOrden,function(){taps=0;});
+  _holdReorder(bar.querySelector('.fgo-fila')||bar,'.fgo',_fgOptAplicarOrden,function(){taps=0;});
   // 4 toques seguidos sobre el MISMO título → renombrar
   bar.addEventListener('click',function(e){
     var el=e.target.closest?e.target.closest('.fgo'):null;
