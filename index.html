@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="fb0bee32a5">
+<meta name="build-v" content="9300718ece">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -262,6 +262,7 @@ html{height:100%;overflow:hidden;}
 .zoom-pct{font-size:.75rem;color:var(--gray);min-width:40px;text-align:center;font-family:"Figtree",sans-serif;font-weight:700;}
 .af-banner{padding:11px 14px;border-radius:10px;border:1.5px solid #81c784;background:#f0fff4;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;}
 .af-banner-empty{background:#f8f8f6;border-color:var(--border);color:var(--gray);font-size:.78rem;}
+.af-sin-t{margin:14px 0 6px;font-size:.75rem;line-height:1.45;color:var(--gray);}
 .af-banner-info{display:flex;align-items:center;gap:8px;min-width:0;}
 .af-banner-name{font-size:.78rem;font-weight:700;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;}
 /* ===== PREVIEW REDESIGN ===== */
@@ -1601,6 +1602,25 @@ html.dark .est-estado.est-rechazado{background:#3A1C1C;color:#FF8A80;}
 .est-meta{font-size:.75rem;color:var(--gray);}
 .est-nota{font-size:.75rem;line-height:1.4;padding:7px 9px;border-radius:8px;background:#FDE3E3;color:#7A1F18;}
 html.dark .est-nota{background:#3A1C1C;color:#FFB4AB;}
+/* pregunta del admin antes de aprobar (034) y copia compartida */
+.est-estado.est-consulta{background:#E3EDFB;color:#1D4070;}
+html.dark .est-estado.est-consulta{background:#1B2A40;color:#9CC3FF;}
+.est-comp{color:var(--ink-2);}
+.est-hilo{display:flex;flex-direction:column;gap:6px;}
+.est-msg{font-size:.75rem;line-height:1.4;padding:7px 9px;border-radius:8px;background:var(--light);color:var(--ink);border-left:3px solid var(--border);}
+.est-msg-adm{background:#EEF3FB;border-left-color:#1D4070;}
+html.dark .est-msg-adm{background:#1B2A40;border-left-color:#9CC3FF;}
+.est-msg-q{font-weight:700;color:var(--gray);margin-bottom:2px;}
+.est-msg-t{white-space:pre-wrap;word-break:break-word;}
+.fg-comp input[type=search]{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font:500 .8125rem "Figtree",sans-serif;background:var(--field,#fff);color:var(--ink);margin-top:6px;}
+.fg-comp-l{max-height:min(320px,45vh);overflow:auto;border:1px solid var(--border);border-radius:8px;}
+.fg-comp-it{display:flex;align-items:center;gap:9px;padding:8px 10px;font-size:.8125rem;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--border);}
+.fg-comp-it:last-child{border-bottom:none;}
+.fg-comp-it:hover{background:var(--light);}
+.fg-comp-n{flex:1;min-width:0;word-break:break-word;}
+.fg-comp-n i{font-style:normal;font-size:.75rem;color:var(--gray);}
+.fg-comp-r{font-size:.75rem;color:var(--gray);flex-shrink:0;}
+.fg-comp-vacio{padding:16px;text-align:center;font-size:.75rem;color:var(--gray);}
 .est-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
 .est-acts .btn{padding:7px 11px;font-size:.75rem;}
 .est-acts .est-borrar{margin-left:auto;}
@@ -2100,7 +2120,7 @@ html.dark #fg-optmas input{background:#2c2f36;}
 #fg-optbar .fgp-de::before{content:"· " attr(data-de);}
 @media (max-width:480px){#fg-optbar .fgp-de{display:none;}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=e10a4d9702"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=3b92463d92"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">

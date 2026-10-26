@@ -113,9 +113,48 @@ async function abrir(browser,o){
       if(!lim)lim=1000;const sl=cat.slice(a,a+lim);
       return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':a+'-'+(a+sl.length-1)+'/'+cat.length}});
     }
+    // ── Estudio: preguntar / responder / compartir (migración 034)
+    if(path==='/rest/v1/flyer_diseno_mensajes'){
+      const ids=((u.searchParams.get('diseno_id')||'').match(/^in\.\((.*)\)$/)||[0,''])[1].split(',').map(x=>x.replace(/"/g,''));
+      const ver=nube.disenos.filter(d=>U.role==='admin'||d.user_id===U.id).map(d=>d.id);
+      const l=(nube.mensajes||[]).filter(m=>ids.includes(m.diseno_id)&&ver.includes(m.diseno_id));
+      return route.fulfill({status:200,body:JSON.stringify(l),headers:H});
+    }
+    if(path.startsWith('/rest/v1/rpc/flyer_diseno_')){
+      const b=JSON.parse(req.postData()||'{}'),fn=path.split('/').pop(),err=msg=>route.fulfill({status:400,body:JSON.stringify({message:msg,code:'P0001'}),headers:H});
+      nube.mensajes=nube.mensajes||[];
+      const d=nube.disenos.find(x=>x.id===b.p_id);if(!d)return err('Ese diseño no existe');
+      const t=new Date().toISOString();
+      if(fn==='flyer_diseno_consultar'){
+        if(U.role!=='admin')return err('Sólo el administrador puede preguntar');
+        if(!['pedido','consulta'].includes(d.estado))return err('Ese diseño ya no está pedido');
+        nube.mensajes.push({diseno_id:d.id,rol:'admin',tipo:'consulta',texto:b.p_texto,autor_nombre:U.name,created_at:t});
+        Object.assign(d,{estado:'consulta',updated_at:t});return route.fulfill({status:204,body:'',headers:H});
+      }
+      if(fn==='flyer_diseno_responder'){
+        if(d.user_id!==U.id)return err('Sólo quien pidió la publicación puede responder');
+        if(d.estado!=='consulta')return err('Ese diseño no tiene una pregunta abierta');
+        nube.mensajes.push({diseno_id:d.id,rol:'autor',tipo:'respuesta',texto:b.p_texto,autor_nombre:U.name,created_at:t});
+        Object.assign(d,{estado:'pedido',updated_at:t});return route.fulfill({status:204,body:'',headers:H});
+      }
+      if(fn==='flyer_diseno_compartir'){
+        if(U.role!=='admin')return err('Sólo el administrador puede compartir diseños');
+        const out={nuevos:[],actualizados:[],salteados:[]};
+        [...new Set(b.p_para||[])].forEach(uid=>{
+          const P=Object.values(USERS).find(x=>x.id===uid);if(!P){out.salteados.push({nombre:'(usuario borrado)',motivo:'ya no existe'});return;}
+          if(uid===U.id||uid===d.user_id){out.salteados.push({nombre:P.name,motivo:'ya es suyo'});return;}
+          const ya=nube.disenos.find(x=>x.user_id===uid&&x.compartido_de===d.id);
+          const copia={nombre:d.nombre,empresa:d.empresa,opcion:d.opcion,base_name:d.base_name,datos:JSON.parse(JSON.stringify(d.datos)),miniatura:d.miniatura,estado:'privado',nota_admin:'',compartido_por:U.name,compartido_at:t,updated_at:t};
+          if(ya){if(!['privado','rechazado'].includes(ya.estado)){out.salteados.push({nombre:P.name,motivo:'ya lo tiene y pidió publicarlo'});return;}Object.assign(ya,copia);out.actualizados.push(P.name);return;}
+          nube.disenos.push(Object.assign({id:'d'+(++nube.seq)+'-0000-4000-8000-000000000000',user_id:uid,autor:P.name,tipo:'diseno',compartido_de:d.id,opcion_publicada:null,pedido_at:null,revisado_at:null,created_at:t},copia));
+          out.nuevos.push(P.name);
+        });
+        return route.fulfill({status:200,body:JSON.stringify(out),headers:H});
+      }
+    }
     // ── flyer_disenos (con las reglas de la migración 026)
     if(path==='/rest/v1/flyer_disenos'){
-      const q=u.searchParams,idEq=(q.get('id')||'').replace(/^eq\./,''),tipoEq=(q.get('tipo')||'').replace(/^eq\./,''),estRaw=q.get('estado')||'',estEq=/^eq\./.test(estRaw)?estRaw.slice(3):'',estIn=/^in\./.test(estRaw)?estRaw.slice(4,-1).split(',').map(x=>x.replace(/"/g,'')):null;
+      const q=u.searchParams,uidEq=(q.get('user_id')||'').replace(/^eq\./,''),idEq=(q.get('id')||'').replace(/^eq\./,''),tipoEq=(q.get('tipo')||'').replace(/^eq\./,''),estRaw=q.get('estado')||'',estEq=/^eq\./.test(estRaw)?estRaw.slice(3):'',estIn=/^in\./.test(estRaw)?estRaw.slice(4,-1).split(',').map(x=>x.replace(/"/g,'')):null;
       const esAdmin=U.role==='admin';
       const visibles=nube.disenos.filter(d=>esAdmin||d.user_id===U.id);
       const cols=(q.get('select')||'*');
@@ -123,7 +162,7 @@ async function abrir(browser,o){
       const proy=d=>{if(cols==='*')return d;const ks=cols.split(',');const o={};ks.forEach(k=>{const j=/^(\w+):(\w+)->(>?)(\w+)$/.exec(k);if(j){const x=d[j[2]]&&d[j[2]][j[4]];o[j[1]]=x==null?null:(j[3]&&typeof x!=='string'?String(x):x);return;}if(k in d)o[k]=d[k];});return o;};
       if(m==='HEAD'){const n=visibles.filter(d=>!estEq||d.estado===estEq).length;return route.fulfill({status:200,headers:{...H,'Content-Range':'*/'+n}});}
       if(m==='GET'){
-        let l=visibles.filter(d=>(!idEq||d.id===idEq)&&(!estEq||d.estado===estEq)&&(!tipoEq||(d.tipo||'diseno')===tipoEq));
+        let l=visibles.filter(d=>(!uidEq||d.user_id===uidEq)&&(!idEq||d.id===idEq)&&(!estEq||d.estado===estEq)&&(!tipoEq||(d.tipo||'diseno')===tipoEq));
         l.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));
         let a=0,lim=1000;const rg=req.headers()['range'];if(rg){const x=/(\d+)-(\d+)/.exec(rg);if(x){a=+x[1];lim=+x[2]-a+1;}}
         const sl=l.slice(a,a+lim).map(proy);
@@ -135,7 +174,7 @@ async function abrir(browser,o){
         if(!['privado','pedido'].includes(b.estado||'privado'))return route.fulfill({status:403,body:JSON.stringify({message:'new row violates row-level security policy'}),headers:H});
         const t=new Date().toISOString();
         const d={id:'d'+(++nube.seq)+'-0000-4000-8000-000000000000',user_id:U.id,autor:U.name,nombre:b.nombre,empresa:b.empresa||'',opcion:b.opcion,base_name:b.base_name||'',datos:b.datos,miniatura:b.miniatura||'',
-          estado:b.estado||'privado',tipo:b.tipo||'diseno',nota_admin:'',opcion_publicada:null,pedido_at:(b.estado==='pedido')?t:null,revisado_at:null,created_at:t,updated_at:t};
+          estado:b.estado||'privado',tipo:b.tipo||'diseno',compartido_por:'',compartido_de:null,compartido_at:null,nota_admin:'',opcion_publicada:null,pedido_at:(b.estado==='pedido')?t:null,revisado_at:null,created_at:t,updated_at:t};
         nube.disenos.push(d);
         return route.fulfill({status:201,body:JSON.stringify(obj?proy(d):[proy(d)]),headers:H});
       }
@@ -146,8 +185,8 @@ async function abrir(browser,o){
         const b=JSON.parse(req.postData()||'{}');
         if(!esAdmin){
           if(d.estado==='publicado')return route.fulfill({status:200,body:'[]',headers:H});
-          if(b.estado&&!['privado','pedido'].includes(b.estado))return route.fulfill({status:403,body:JSON.stringify({message:'new row violates row-level security policy'}),headers:H});
-          delete b.nota_admin;delete b.opcion_publicada;delete b.revisado_at;delete b.user_id;delete b.autor;
+          if(b.estado&&!['privado','pedido'].includes(b.estado)&&!(b.estado==='consulta'&&d.estado==='consulta'))return route.fulfill({status:403,body:JSON.stringify({message:'new row violates row-level security policy'}),headers:H});
+          delete b.nota_admin;delete b.opcion_publicada;delete b.revisado_at;delete b.user_id;delete b.autor;delete b.compartido_por;delete b.compartido_de;delete b.compartido_at;
         }
         if(b.estado==='pedido'&&d.estado!=='pedido')b.pedido_at=new Date().toISOString();
         if(esAdmin&&['publicado','rechazado'].includes(b.estado)&&b.estado!==d.estado)b.revisado_at=new Date().toISOString();

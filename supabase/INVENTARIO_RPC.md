@@ -10,7 +10,7 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `colegas_para_suplente` | definer | no | sí | activo, auth.uid() | Lista de colegas elegibles como suplente. Exige cuenta activa. |
 | `es_lider_de` | definer | no | no | auth.uid() | Ayudante de RLS de Gestiones (jerarquía de Líder). |
 | `es_suplente_de` | definer | no | sí | auth.uid() | ¿Quien llama es suplente de ese oficial? Sólo responde sobre sí mismo. |
-| `flyer_disenos_guardia` | definer | no | no | rol, auth.uid() | Trigger de Estudio (migración 026): el dueño y el autor salen de la sesión, y la revisión (nota, opción publicada, fecha) sólo la escribe el admin. No se llama a mano. |
+| `flyer_disenos_guardia` | definer | no | no | rol, auth.uid() | Trigger de Estudio (migración 026): el dueño y el autor salen de la sesión, y la revisión (nota, opción publicada, fecha) sólo la escribe el admin. Desde la 034 también fija las columnas de "compartido" (sólo las escribe `flyer_diseno_compartir`) y no deja que el autor pase un diseño a 'consulta'. No se llama a mano. |
 | `gestion_marcar_vista` | definer | no | sí | activo, auth.uid() | Marca como vista una serie de gestiones. Exige cuenta activa y que quien llama sea parte (hunter o dueño). |
 | `gestion_prospectos_antes` | definer | no | no | auth.uid() | Trigger de Gestiones (no se llama a mano). |
 | `gestiones_antes` | definer | no | no | rol, auth.uid() | Trigger de Gestiones (no se llama a mano). |
@@ -27,6 +27,9 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `padron_suplencia_proponer` | definer | no | sí | activo, auth.uid() | El suplente pide guardar cambios (oficiales, cashback, rubro) en una empresa del oficial que lo eligió. Exige `es_suplente_de`; la foto "antes" la toma el servidor (migración 032). |
 | `padron_suplencias` | definer | no | sí | activo, rol, auth.uid() | Empresas (sólo lectura) de los oficiales activos que eligieron a quien llama como suplente. No hunters (migración 032). |
 | `padron_propuesta_responder` | definer | no | sí | activo, auth.uid() | Sólo quien creó la propuesta responde a una consulta. |
+| `flyer_diseno_consultar` | definer | no | sí | activo, rol admin | El admin hace una pregunta sobre un diseño de Estudio pedido (pedido/consulta → consulta). Deja el mensaje en `flyer_diseno_mensajes` (migración 034). |
+| `flyer_diseno_responder` | definer | no | sí | activo, auth.uid() | Sólo el autor del diseño responde la pregunta del admin (consulta → pedido) (migración 034). |
+| `flyer_diseno_compartir` | definer | no | sí | activo, rol admin | El admin manda una copia de un diseño de Estudio a una o más personas activas (no hunters ni líderes). Usa `set_config('fg.estudio_compartir')` local para que la guardia deje nacer la fila a nombre de otro; si ya tenían copia privada, se reemplaza (migración 034). |
 | `ids_prueba` | definer | no | sí | — | Ids de las cuentas de prueba (ayudante de RLS: separa las empresas de ejemplo de las reales, migración 032). |
 | `soy_prueba` | definer | no | sí | auth.uid() | ¿Quien llama es una cuenta de prueba? (ayudante de RLS, migración 032). |
 | `prueba_cambiar_rol` | definer | no | sí | activo, auth.uid() | Sólo la cuenta de prueba (es_prueba) puede cambiar de perfil. |

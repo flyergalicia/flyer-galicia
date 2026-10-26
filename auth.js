@@ -1137,6 +1137,8 @@ function checkProfile(user){
     // usuario (dueño o su suplente) los apruebe. El cartel sale una vez, al
     // entrar; el número en "Base de datos" queda mientras no se resuelvan.
     _propCargarPendientes(_propCartel);
+    // Estudio: preguntas del admin sin responder y diseños que me compartió
+    _estAvisoCargar(_estCartel);
     _msgPollInit();
     // Al Hunter: consultas sin responder y cambios resueltos que todavía no vio.
     if(p.role==='hunter')_hunPropCargarMias(_hunPropCartel);
@@ -3916,7 +3918,7 @@ function _usoCargar(per){
   _sbTodo(function(d,h){return _sb.from('flyer_logs').select('user_id,is_bulk,bulk_count,flyer_type,created_at').not('user_id','is',null).gte('created_at',desde).order('created_at',{ascending:true}).range(d,h);},
     function(err,filas){logs=err?[]:filas;if(err)showToast('No se pudieron leer los registros: '+(err.message||err));listo();});
   _sb.from('profiles').select('id,full_name,email_asesor,role').then(function(r){perf=(r&&r.data)||[];listo();},function(){perf=[];listo();});
-  _sb.from('flyer_disenos').select('estado,created_at,pedido_at,revisado_at').eq('tipo','diseno').gte('updated_at',desde).then(function(r){dis=(r&&!r.error&&r.data)||[];listo();},function(){dis=[];listo();});
+  _sb.from('flyer_disenos').select('estado,created_at,pedido_at,revisado_at').eq('tipo','diseno').eq('compartido_por','').gte('updated_at',desde).then(function(r){dis=(r&&!r.error&&r.data)||[];listo();},function(){dis=[];listo();});
 }
 function _usoBarras(items){
   var max=Math.max.apply(null,items.map(function(i){return i.n;}).concat([1]));
@@ -4423,9 +4425,11 @@ function _renderUploadHistory(histEl){
   _sb.storage.from('flyers').list('',{limit:50,sortBy:{column:'created_at',order:'desc'}}).then(function(r){
     var files=(r.data||[]).filter(function(f){return !f.name.startsWith('_');});
     _uploadFiles=files.map(function(f){return{name:f.name,url:FLYERS_PUBLIC+f.name,isImg:/\.(png|jpe?g)$/i.test(f.name)};});
-    var banner=_FG_OPTS.map(function(o){
-      var d=_fgHistMeta[o],has=!!(d&&d.imageUrl);
-      if(!has)return '<div class="af-banner af-banner-empty">'+_optLabel(o)+': sin flyer activo.</div>';
+    // Las opciones sin flyer van al final, con la aclaración de cómo sacarlas:
+    // "Desactivar" saca la imagen, no la opción (se pensaba que era un error).
+    var sinImg=_FG_OPTS.filter(function(o){var d=_fgHistMeta[o];return !(d&&d.imageUrl);});
+    var banner=_FG_OPTS.filter(function(o){return sinImg.indexOf(o)<0;}).map(function(o){
+      var d=_fgHistMeta[o];
       var hUrl=_upSafeUrl(d&&d.htmlUrl);
       return '<div class="af-banner"><div class="af-banner-info">'+
         _optBadge(o,'font-size:.75rem;padding:4px 8px')+
@@ -4435,7 +4439,9 @@ function _renderUploadHistory(histEl){
         (hUrl?'<a href="'+_escHtml(hUrl)+'" target="_blank" rel="noopener noreferrer" class="usr-btn edit" style="font-size:.75rem;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center">Ver</a>':'')+
         '<button class="usr-btn warn" onclick="deactivateFlyer(this,'+o+')" style="font-size:.75rem;padding:5px 10px">Desactivar</button>'+
         '</div></div>';
-    }).join('');
+    }).join('')+(sinImg.length?
+      '<p class="af-sin-t">Sin flyer activo ('+sinImg.length+'). Siguen en la barra de quienes las tienen habilitadas, con el cartel &laquo;todav&iacute;a no tiene flyer&raquo;. Para que no aparezcan m&aacute;s: Config &rarr; Opciones &rarr; Quitar.</p>'+
+      sinImg.map(function(o){return '<div class="af-banner af-banner-empty">'+_escHtml(_optLabel(o))+': sin flyer activo.</div>';}).join(''):'');
     if(!files.length){
       histEl.innerHTML=banner+'<p style="color:var(--gray);font-size:.8rem;margin-top:12px">Sin versiones subidas aún.</p>';
       return;
@@ -5451,7 +5457,7 @@ function deactivateFlyer(btn,opt,ok){
   // Sin flyer activo, esa opción muestra el flyer de ejemplo con las posiciones
   // por defecto ("se ve con formato mal"): no puede pasar por un clic de más.
   if(!ok){
-    fgConfirm('¿Desactivar el flyer de «'+_optLabel(opt)+'»?',{texto:'Mientras no tenga un flyer activo, quien use esa opción va a ver el flyer de ejemplo. Lo podés volver a activar desde la lista de versiones de abajo.',ok:'Desactivar'},function(si){if(si)deactivateFlyer(btn,opt,true);});
+    fgConfirm('¿Desactivar el flyer de «'+_optLabel(opt)+'»?',{texto:'Se saca la imagen, no la opción: sigue en la barra y quien la elija ve el cartel «todavía no tiene flyer» y no puede descargar. Para sacarla de la barra: Config → Opciones → Quitar. La imagen la podés volver a activar desde la lista de versiones de abajo.',ok:'Desactivar'},function(si){if(si)deactivateFlyer(btn,opt,true);});
     return;
   }
   if(btn){btn.disabled=true;btn.textContent='Desactivando...';}
@@ -14543,7 +14549,7 @@ function _fgLgBarra(){
   if(u){u.hidden=!(_fgLg.on&&n);u.textContent=n===1?'Volver el cambio al original':'Volver los '+n+' cambios al original';}
   if(_fgLg.proy&&_fgLg.src!==_fgLgSrc())_fgLg.proy=null; // cambió de flyer: salió del diseño abierto
   var g=document.getElementById('fg-lg-guardar'),pr=document.getElementById('fg-lg-proy');
-  var est=false;try{est=_estVer();}catch(e){}
+  var est=false;try{est=_estCompleto();}catch(e){}
   if(g){g.hidden=!(_fgLg.on&&(n||_fgRecActivo())&&est);g.textContent=(_fgLg.proy&&_fgLg.proy.mio&&_fgLg.proy.estado!=='publicado')?'Guardar cambios':'Guardar en Estudio';}
   if(pr){
     var p=_fgLg.proy;pr.hidden=!(_fgLg.on&&p);
@@ -16390,10 +16396,19 @@ function _fgFrAplicar(st){
 // guardia pone dueño/autor y la revisión, así no se falsean desde el navegador.
 // Lo que se guarda es SÓLO el diseño (no oficiales ni montos): sirve para
 // cualquier empresa. La empresa es un rótulo para encontrarlo.
-var _EST={lista:null,cargando:false,filtro:'mios',q:'',elegido:false};
-var _EST_COLS='id,user_id,autor,nombre,empresa,opcion,base_name,miniatura,estado,nota_admin,opcion_publicada,pedido_at,revisado_at,created_at,updated_at';
-var _EST_ESTADO={privado:'Guardado',pedido:'Pedido enviado',publicado:'Publicado',rechazado:'No aprobado'};
-function _estVer(){return !_esHunter()&&!_esLider()&&_can('estudio');}
+var _EST={lista:null,cargando:false,filtro:'mios',q:'',elegido:false,hilos:{}};
+var _EST_COLS='id,user_id,autor,nombre,empresa,opcion,base_name,miniatura,estado,nota_admin,opcion_publicada,pedido_at,revisado_at,created_at,updated_at,compartido_por,compartido_de,compartido_at';
+var _EST_ESTADO={privado:'Guardado',pedido:'Pedido enviado',consulta:'Con una pregunta',publicado:'Publicado',rechazado:'No aprobado'};
+// Abierto = espera una decisión del admin ('pedido') o la respuesta del autor a
+// una pregunta del admin ('consulta', migración 034).
+function _estAbierto(d){return !!d&&(d.estado==='pedido'||d.estado==='consulta');}
+// _estCompleto: la facultad Estudio (guardar diseños, pedir que se publiquen).
+// _estVer: además, quien no la tiene pero recibió un diseño compartido por el
+// admin ve la solapa con eso solo (lo puede usar, no guardar ni pedir).
+// _estAv = lo que se sabe de MIS diseños sin abrir Estudio (_estAvisoCargar).
+var _estAv={consulta:[],comp:0};
+function _estCompleto(){return !_esHunter()&&!_esLider()&&_can('estudio');}
+function _estVer(){return _estCompleto()||(!_esHunter()&&!_esLider()&&!_simRole&&_estAv.comp>0);}
 function _estMio(d){return !!(d&&_me&&d.user_id===_me.id);}
 function _estNombreImg(src){return String(src||'').split(/[?#]/)[0].split('/').pop();}
 
@@ -17623,15 +17638,17 @@ function _mgPintarListas(){
 function _estInit(){
   var v=document.getElementById('view-estudio');if(!v)return;
   if(!document.getElementById('est-grid')){
+    var completo=_estCompleto();
     v.innerHTML='<div class="est-wrap">'+
       '<div class="est-head"><div><h2 class="est-tit">Estudio</h2>'+
-      '<p class="est-sub">Tus dise&ntilde;os de flyer. Se arman en el armador con <b>Cambiar logos</b> y se guardan con <b>Guardar en Estudio</b>. Desde ac&aacute; los volv&eacute;s a usar o ped&iacute;s que se publiquen para todos.</p></div></div>'+
+      (completo?'<p class="est-sub">Tus dise&ntilde;os de flyer. Se arman en el armador con <b>Cambiar logos</b> y se guardan con <b>Guardar en Estudio</b>. Desde ac&aacute; los volv&eacute;s a usar o ped&iacute;s que se publiquen para todos.</p>':
+        '<p class="est-sub">Los dise&ntilde;os de flyer que te comparti&oacute; el administrador. Toc&aacute; <b>Usar</b> para abrirlo en el armador.</p>')+'</div></div>'+
       '<div class="est-bar"><div class="est-fil" id="est-fil" role="tablist"></div>'+
       '<input type="search" id="est-q" placeholder="Buscar por nombre o empresa" autocomplete="off"></div>'+
       '<div class="est-grid" id="est-grid"></div>'+
-      '<section class="est-mg"><h3 class="est-mg-t">Marcas guardadas</h3>'+
+      (_mgPuede()?'<section class="est-mg"><h3 class="est-mg-t">Marcas guardadas</h3>'+
         '<p class="est-sub">Las franjas y los logos que guardaste de un flyer (por ejemplo, por localidad) para aplicarlos solos en el modelo nuevo. Se guardan desde <b>Cambiar logos &rarr; Marcas guardadas</b>.</p>'+
-        '<div class="mg-lista" id="est-mg-lista"><div class="mg-vacio">Cargando&hellip;</div></div></section></div>';
+        '<div class="mg-lista" id="est-mg-lista"><div class="mg-vacio">Cargando&hellip;</div></div></section>':'')+'</div>';
     var t=0,q=document.getElementById('est-q');
     q.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){_EST.q=q.value;_estRender();},120);});
     document.getElementById('est-fil').addEventListener('click',function(e){
@@ -17640,9 +17657,11 @@ function _estInit(){
     document.getElementById('est-grid').addEventListener('click',function(e){
       var b=e.target.closest&&e.target.closest('button[data-acc]');if(!b)return;
       var id=b.getAttribute('data-id'),a=b.getAttribute('data-acc');
-      ({usar:estUsar,ver:estVerCompleto,pedir:estPedir,cancelar:estCancelarPedido,borrar:estBorrar,aprobar:estAprobar,rechazar:estRechazar,ir:estIrVariante})[a](id);
+      ({usar:estUsar,ver:estVerCompleto,pedir:estPedir,cancelar:estCancelarPedido,borrar:estBorrar,aprobar:estAprobar,rechazar:estRechazar,ir:estIrVariante,
+        preguntar:estPreguntar,responder:estResponder,compartir:estCompartir})[a](id);
     });
-    document.getElementById('est-mg-lista').addEventListener('click',function(e){
+    var mgl=document.getElementById('est-mg-lista');
+    if(mgl)mgl.addEventListener('click',function(e){
       var b=e.target.closest&&e.target.closest('button[data-mg]');if(!b)return;
       var id=b.getAttribute('data-id'),a=b.getAttribute('data-mg');
       if(a==='aplicar'){switchApp(_optSolapa(_fgOpt));fgMgAplicar(id);}
@@ -17650,7 +17669,7 @@ function _estInit(){
     });
   }
   _estCargar();
-  _mgCargar(function(err){var l=document.getElementById('est-mg-lista');if(err&&l){l.innerHTML='<div class="mg-vacio">No se pudieron leer: '+_escHtml(_estErr(err))+'</div>';return;}_mgPintarListas();});
+  if(_mgPuede())_mgCargar(function(err){var l=document.getElementById('est-mg-lista');if(err&&l){l.innerHTML='<div class="mg-vacio">No se pudieron leer: '+_escHtml(_estErr(err))+'</div>';return;}_mgPintarListas();});
 }
 function _estCargar(){
   if(_EST.cargando)return;_EST.cargando=true;
@@ -17661,13 +17680,73 @@ function _estCargar(){
     _EST.lista=filas||[];
     // el admin abre directo en los pedidos si hay alguno esperando (hasta que elija otra cosa)
     if(_admin&&!_EST.elegido)_EST.filtro=_EST.lista.some(function(d){return d.estado==='pedido';})?'pedidos':'mios';
+    if(!_admin)_estAvDeLista();
     _estBadge();_estRender();
+    _estHilosCargar(_EST.lista.filter(_estAbierto).map(function(d){return d.id;}));
   },1000,0,[]);
+}
+// ·· Preguntas sobre un pedido (migración 034) ··
+// _EST.hilos[id] = mensajes del diseño, en orden. Se leen sólo los de los
+// pedidos abiertos: una vez resuelto, lo que queda es la nota del admin.
+function _estHilosCargar(ids,cb){
+  ids=(ids||[]).filter(Boolean);
+  if(!ids.length){if(cb)cb();return;}
+  _sb.from('flyer_diseno_mensajes').select('diseno_id,rol,tipo,texto,autor_nombre,created_at').in('diseno_id',ids).order('created_at',{ascending:true})
+    .then(function(r){
+      if(r&&r.error){if(cb)cb();return;} // sin la tabla (migración sin aplicar) Estudio sigue andando
+      ids.forEach(function(id){_EST.hilos[id]=[];});
+      ((r&&r.data)||[]).forEach(function(m){(_EST.hilos[m.diseno_id]=_EST.hilos[m.diseno_id]||[]).push(m);});
+      if(document.getElementById('est-grid'))_estRender();
+      if(cb)cb();
+    },function(){if(cb)cb();});
+}
+function _estHiloHtml(d){
+  var H=_EST.hilos[d.id];
+  if(!_estAbierto(d)||!H||!H.length)return '';
+  return '<div class="est-hilo">'+H.map(function(m){
+    var adm=m.rol==='admin';
+    return '<div class="est-msg'+(adm?' est-msg-adm':'')+'"><div class="est-msg-q">'+
+      (adm?'Pregunta del administrador':'Respuesta de '+_escHtml(m.autor_nombre||'el autor'))+' &middot; '+_escHtml(_estFecha(m.created_at))+'</div>'+
+      '<div class="est-msg-t">'+_escHtml(m.texto||'')+'</div></div>';
+  }).join('')+'</div>';
+}
+// Vuelve a leer UN diseño (y su hilo) después de preguntar o responder.
+function _estRefrescar(id){
+  return _sb.from('flyer_disenos').select(_EST_COLS).eq('id',id).single().then(function(r){
+    if(r&&!r.error&&r.data){_estUpsert(r.data);if(!_admin)_estAvDeLista();_estBadge();}
+    _estHilosCargar([id]);
+  },function(){});
+}
+function estPreguntar(id){
+  var d=_estBuscar(id);if(!d||!_admin)return;
+  fgPedirTexto('Preguntar sobre «'+d.nombre+'»','Le llega a '+(d.autor||'quien lo pidió')+' en su Estudio. El pedido queda esperando su respuesta; igual lo podés aprobar o no aprobar cuando quieras.','',
+    {ok:'Enviar pregunta',largo:1000,area:true},function(txt){
+      if(txt===null)return;
+      if(!txt){showToast('Escribí la pregunta.');return;}
+      _sb.rpc('flyer_diseno_consultar',{p_id:id,p_texto:txt}).then(function(r){
+        if(r&&r.error){showToast('No se pudo: '+_estErr(r.error));_estRefrescar(id);return;}
+        showToast('Pregunta enviada. Te aviso acá cuando responda.');
+        _estRefrescar(id);
+      },function(e){showToast('No se pudo: '+_estErr(e));});
+    });
+}
+function estResponder(id){
+  var d=_estBuscar(id);if(!d||!_estMio(d))return;
+  fgPedirTexto('Responder sobre «'+d.nombre+'»','Si tenés que corregir el diseño, primero abrilo con Usar, cambialo y tocá Guardar cambios; después respondé. Al responder, el pedido vuelve al administrador.','',
+    {ok:'Enviar respuesta',largo:1000,area:true},function(txt){
+      if(txt===null)return;
+      if(!txt){showToast('Escribí la respuesta.');return;}
+      _sb.rpc('flyer_diseno_responder',{p_id:id,p_texto:txt}).then(function(r){
+        if(r&&r.error){showToast('No se pudo: '+_estErr(r.error));_estRefrescar(id);return;}
+        showToast('Respuesta enviada al administrador.');
+        _estRefrescar(id);
+      },function(e){showToast('No se pudo: '+_estErr(e));});
+    });
 }
 function _estBuscar(id){return (_EST.lista||[]).filter(function(x){return x.id===id;})[0]||null;}
 function _estRender(){
   var g=document.getElementById('est-grid'),fb=document.getElementById('est-fil');if(!g)return;
-  var L=_EST.lista||[],adm=!!_admin,mios=L.filter(_estMio),pend=L.filter(function(d){return d.estado==='pedido';});
+  var L=_EST.lista||[],adm=!!_admin,mios=L.filter(_estMio),pend=L.filter(_estAbierto);
   if(!adm)_EST.filtro='mios';
   if(fb)fb.innerHTML=adm?[['mios','Mis diseños',mios.length],['todos','Todos',L.length],['pedidos','Pedidos',pend.length]].map(function(f){
     return '<button type="button" role="tab" data-f="'+f[0]+'" class="'+(_EST.filtro===f[0]?'on':'')+'" aria-selected="'+(_EST.filtro===f[0])+'">'+f[1]+' <span>'+f[2]+'</span></button>';
@@ -17688,13 +17767,19 @@ function _estCard(d){
   var mio=_estMio(d),adm=!!_admin,id=_escAttr(d.id),est=d.estado||'privado';
   var b=function(acc,txt,cls){return '<button type="button" class="btn '+(cls||'bg')+'" data-acc="'+acc+'" data-id="'+id+'">'+txt+'</button>';};
   var acts=[b('usar','Usar','bp'),b('ver','Ver completo')];
-  if(mio&&(est==='privado'||est==='rechazado'))acts.push(b('pedir',est==='rechazado'?'Volver a pedir':'Pedir que se publique'));
-  if(mio&&est==='pedido')acts.push(b('cancelar','Cancelar pedido'));
+  if(mio&&est==='consulta')acts.push(b('responder','Responder','bp'));
+  if(mio&&(est==='privado'||est==='rechazado')&&_estCompleto())acts.push(b('pedir',est==='rechazado'?'Volver a pedir':'Pedir que se publique'));
+  if(mio&&_estAbierto(d))acts.push(b('cancelar','Cancelar pedido'));
   if(est==='publicado'&&d.opcion_publicada&&_FG_OPTS.indexOf(+d.opcion_publicada)>=0)acts.push(b('ir','Ir al flyer publicado'));
-  if(adm&&est==='pedido'){acts.push(b('aprobar','Aprobar y publicar','bgreen'));acts.push(b('rechazar','No aprobar'));}
+  if(adm&&_estAbierto(d)){acts.push(b('aprobar','Aprobar y publicar','bgreen'));acts.push(b('preguntar',est==='consulta'?'Otra pregunta':'Preguntar'));acts.push(b('rechazar','No aprobar'));}
+  if(adm)acts.push(b('compartir','Compartir'));
   if((mio&&est!=='publicado')||adm)acts.push(b('borrar','Borrar','bg est-borrar'));
   var estTxt=_EST_ESTADO[est]||est;
   if(est==='publicado'&&d.opcion_publicada)estTxt='Publicado como «'+_optLabel(d.opcion_publicada)+'»';
+  if(est==='consulta')estTxt=mio?'Te hicieron una pregunta':'Esperando respuesta';
+  // copia que mandó el admin (flyer_diseno_compartir): a quien la recibe se le dice de quién vino
+  var comp=d.compartido_por?(mio?'Te lo comparti&oacute; <b>'+_escHtml(d.compartido_por)+'</b>':'Copia compartida por '+_escHtml(d.compartido_por))+
+    (d.compartido_at?' el '+_escHtml(_estFecha(d.compartido_at)):''):'';
   return '<article class="est-card">'+
     '<div class="est-mini">'+(d.miniatura&&/^data:image\/jpeg;base64,/.test(d.miniatura)?'<img alt="" src="'+_escAttr(d.miniatura)+'">':'')+'</div>'+
     '<div class="est-info">'+
@@ -17702,7 +17787,9 @@ function _estCard(d){
       (d.empresa?'<div class="est-emp">'+_escHtml(d.empresa)+'</div>':'')+
       '<div class="est-meta">Sobre &laquo;'+_escHtml(_FG_OPTS.indexOf(+d.opcion)>=0?_optLabel(d.opcion):'opción '+d.opcion)+'&raquo; &middot; '+_escHtml(_estFecha(d.updated_at))+
         (adm&&!mio?' &middot; de <b>'+_escHtml(d.autor||'¿?')+'</b>':'')+'</div>'+
+      (comp?'<div class="est-meta est-comp">'+comp+'</div>':'')+
       (est==='rechazado'&&d.nota_admin?'<div class="est-nota">'+_escHtml(d.nota_admin)+'</div>':'')+
+      _estHiloHtml(d)+
       '<div class="est-acts">'+acts.join('')+'</div>'+
     '</div></article>';
 }
@@ -17730,7 +17817,7 @@ function estPedir(id){
     });
   });
 }
-function estCancelarPedido(id){_estCambiar(id,{estado:'privado'},'Pedido cancelado.',['pedido']);}
+function estCancelarPedido(id){_estCambiar(id,{estado:'privado'},'Pedido cancelado.',['pedido','consulta']);}
 function estBorrar(id){
   var d=_estBuscar(id);if(!d)return;
   fgConfirm('¿Borrar «'+d.nombre+'»?',{texto:(d.estado==='publicado'?'El flyer ya publicado NO se borra: sigue en la barra de opciones (eso se maneja desde Config → Opciones).':'No se puede deshacer.'),ok:'Borrar'},function(si){
@@ -17750,13 +17837,115 @@ function estIrVariante(id){
   if(!_can('opcion_'+n)){showToast('Ese flyer no está habilitado para tu perfil.');return;}
   switchApp(_optSolapa(n));switchFlyerOption(n);
 }
-// Numerito de pedidos pendientes en la solapa (sólo admin).
+// Numerito en la solapa: al admin, los pedidos que esperan su decisión; a los
+// demás, las preguntas del admin que tienen sin responder.
 function _estBadge(){
+  _hdrMsgSync();
   var t=document.getElementById('apptab-estudio');if(!t)return;
-  var n=_admin?(_EST.lista||[]).filter(function(d){return d.estado==='pedido';}).length:0;
+  var n=_admin?(_EST.lista||[]).filter(function(d){return d.estado==='pedido';}).length:_estAv.consulta.length;
   var b=document.getElementById('est-tab-badge');
   if(!b){b=document.createElement('i');b.id='est-tab-badge';b.className='tab-badge';t.appendChild(b);}
   b.textContent=n>9?'9+':String(n||'');b.style.display=n>0?'':'none';
+}
+// ·· Compartir (sólo admin): una COPIA del diseño a cada persona elegida ··
+// La arma la base (flyer_diseno_compartir, migración 034): le aparece en su
+// Estudio como propia, con "Te lo compartió X". Si ya la tenía, se le reemplaza
+// por esta versión (salvo que la haya pedido publicar).
+var _ROL_LBL={admin:'Admin',vip:'VIP',asesor:'Asesor',prospect:'Prueba'};
+function estCompartir(id){
+  var d=_estBuscar(id);if(!d||!_admin)return;
+  var v=document.getElementById('fg-comp-ov');if(v)v.remove();
+  var ov=document.createElement('div');ov.id='fg-comp-ov';ov.className='fg-cf-ov';
+  ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-labelledby','fg-comp-t');
+  ov.innerHTML='<div class="fg-cf fg-est-g fg-comp"><div class="fg-cf-t" id="fg-comp-t"></div>'+
+    '<div class="fg-cf-b">A cada persona que elijas le llega una copia a su Estudio: la puede usar y cambiar sin tocar la tuya. Para usarla tiene que tener habilitado el flyer &laquo;'+_escHtml(_optLabel(d.opcion))+'&raquo;.</div>'+
+    '<input type="search" id="fg-comp-q" placeholder="Buscar por nombre o mail" autocomplete="off">'+
+    '<div class="fg-comp-l" id="fg-comp-l"><div class="fg-comp-vacio">Cargando&hellip;</div></div>'+
+    '<div class="fg-cf-acts"><button type="button" class="btn bg" id="fg-comp-no">Cancelar</button><button type="button" class="btn bp" id="fg-comp-ok" disabled>Compartir</button></div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('fg-comp-t').textContent='Compartir «'+d.nombre+'»';
+  var gente=[],elegidos={},q=document.getElementById('fg-comp-q'),lista=document.getElementById('fg-comp-l'),ok=document.getElementById('fg-comp-ok');
+  // quienes ya tienen una copia (de las que el admin ve en la lista de Estudio)
+  var tienen={};(_EST.lista||[]).forEach(function(x){if(x.compartido_de===d.id&&x.user_id)tienen[x.user_id]=1;});
+  function cerrar(){document.removeEventListener('keydown',tecla,true);ov.remove();}
+  function tecla(e){if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cerrar();}}
+  document.addEventListener('keydown',tecla,true);
+  document.getElementById('fg-comp-no').onclick=cerrar;
+  function contar(){var n=Object.keys(elegidos).length;ok.disabled=!n;ok.textContent=n?'Compartir con '+n+(n===1?' persona':' personas'):'Compartir';}
+  function pintar(){
+    var t=_promoNormalizar(q.value||'');
+    var vis=gente.filter(function(p){return !t||_promoNormalizar(p.nombre+' '+p.mail).indexOf(t)>=0;});
+    lista.innerHTML=vis.length?vis.map(function(p){
+      return '<label class="fg-comp-it"><input type="checkbox" data-u="'+_escAttr(p.id)+'"'+(elegidos[p.id]?' checked':'')+'>'+
+        '<span class="fg-comp-n">'+_escHtml(p.nombre)+(tienen[p.id]?' <i>ya tiene una copia</i>':'')+'</span>'+
+        '<span class="fg-comp-r">'+_escHtml(_ROL_LBL[p.rol]||p.rol||'')+'</span></label>';
+    }).join(''):'<div class="fg-comp-vacio">'+(gente.length?'Nadie con ese nombre.':'No hay otras personas activas.')+'</div>';
+  }
+  lista.addEventListener('change',function(e){
+    var u=e.target.getAttribute&&e.target.getAttribute('data-u');if(!u)return;
+    if(e.target.checked)elegidos[u]=1;else delete elegidos[u];contar();
+  });
+  q.addEventListener('input',pintar);
+  _sb.from('profiles').select('id,full_name,email,email_asesor,role,status').then(function(r){
+    if(r&&r.error){lista.innerHTML='<div class="fg-comp-vacio">No se pudo leer la lista de personas: '+_escHtml(_estErr(r.error))+'</div>';return;}
+    gente=((r&&r.data)||[]).filter(function(p){
+      return p.id!==(_me&&_me.id)&&p.id!==d.user_id&&p.status==='active'&&p.role!=='hunter'&&p.role!=='lider';
+    }).map(function(p){return {id:p.id,nombre:(p.full_name||'').trim()||p.email||p.email_asesor||'(sin nombre)',mail:p.email||p.email_asesor||'',rol:p.role};})
+      .sort(function(a,b){return a.nombre.localeCompare(b.nombre,'es');});
+    pintar();
+    try{q.focus();}catch(e){}
+  },function(e){lista.innerHTML='<div class="fg-comp-vacio">No se pudo leer la lista de personas: '+_escHtml(_estErr(e))+'</div>';});
+  ok.onclick=function(){
+    var ids=Object.keys(elegidos);if(!ids.length)return;
+    ok.disabled=true;ok.textContent='Compartiendo…';
+    _sb.rpc('flyer_diseno_compartir',{p_id:id,p_para:ids}).then(function(r){
+      if(r&&r.error){contar();showToast('No se pudo compartir: '+_estErr(r.error));return;}
+      cerrar();
+      var x=(r&&r.data)||{},nu=x.nuevos||[],ac=x.actualizados||[],sa=x.salteados||[],msg=[];
+      var lista2=function(a){return a.length<=3?a.join(', '):a.slice(0,3).join(', ')+' y '+(a.length-3)+' más';};
+      if(nu.length)msg.push('Compartido con '+lista2(nu)+'.');
+      if(ac.length)msg.push((ac.length===1?ac[0]+' ya lo tenía: le llegó':lista2(ac)+' ya lo tenían: les llegó')+' esta versión.');
+      if(sa.length)msg.push('No se compartió con '+sa.map(function(s){return s.nombre+' ('+s.motivo+')';}).join(', ')+'.');
+      _fgToastLargo(msg.join(' ')||'Listo.',6000);
+      _EST.lista=null;_estCargar(); // las copias aparecen en "Todos"
+    },function(e){contar();showToast('No se pudo compartir: '+_estErr(e));});
+  };
+}
+// ·· Avisos de MIS diseños sin abrir Estudio (no admin) ··
+// Preguntas del admin sin responder y diseños que me compartió. Lo llaman el
+// ingreso (con el cartel) y el refresco de cada 90 s (_msgPollInit).
+var _EST_AV_COLS='id,nombre,estado,compartido_por,compartido_at';
+function _estAvisoCargar(cb){
+  if(!_me||_admin||_esHunter()||_esLider()){if(cb)cb();return;}
+  _sb.from('flyer_disenos').select(_EST_AV_COLS).eq('user_id',_me.id).eq('tipo','diseno').then(function(r){
+    if(r&&!r.error)_estAvDe((r&&r.data)||[]);
+    if(cb)cb();
+  },function(){if(cb)cb();});
+}
+function _estAvDe(filas){
+  var antes=_estVer();
+  _estAv={consulta:filas.filter(function(d){return d.estado==='consulta';}),comp:filas.filter(function(d){return !!d.compartido_por;}).length,filas:filas};
+  // la solapa aparece (o se va) según tenga algo compartido, sin rearmar todas las facultades
+  if(_estVer()!==antes){var t=_apptab('estudio');if(t)t.style.display=_estVer()?'':'none';if(!_estVer()&&t&&t.classList.contains('active'))switchApp('flyer');}
+  _estBadge();
+}
+// Con Estudio abierto la lista ya está entera: se recalcula de ahí.
+function _estAvDeLista(){if(_EST.lista)_estAvDe(_EST.lista.filter(_estMio));}
+// Cartel al entrar: preguntas sin responder y diseños compartidos que todavía
+// no se avisaron en esta computadora (fg_est_avisados_<uid>).
+function _estCartel(){
+  var f=_estAv.filas||[],partes=[];
+  if(_estAv.consulta.length)partes.push(_estAv.consulta.length===1?'El administrador te hizo una pregunta sobre «'+_estAv.consulta[0].nombre+'». Respondela en Estudio.':
+    'El administrador te hizo preguntas sobre '+_estAv.consulta.length+' diseños. Respondelas en Estudio.');
+  var k='fg_est_avisados_'+(_me&&_me.id),vistos=[];
+  try{vistos=JSON.parse(localStorage.getItem(k)||'[]')||[];}catch(e){}
+  var nuevos=f.filter(function(d){return d.compartido_por&&vistos.indexOf(d.id+'@'+(d.compartido_at||''))<0;});
+  if(nuevos.length){
+    partes.push(nuevos.length===1?nuevos[0].compartido_por+' te compartió «'+nuevos[0].nombre+'». Lo tenés en la solapa Estudio.':
+      'Te compartieron '+nuevos.length+' diseños. Los tenés en la solapa Estudio.');
+    try{localStorage.setItem(k,JSON.stringify(vistos.concat(nuevos.map(function(d){return d.id+'@'+(d.compartido_at||'');})).slice(-200)));}catch(e){}
+  }
+  if(partes.length)_propToast(partes.join(' '));
 }
 // Al entrar el admin: cuántos pedidos hay, sin bajar las miniaturas.
 var _estBadgeHecho=false;
@@ -17776,7 +17965,7 @@ function estRechazar(id){
   var d=_estBuscar(id);if(!d)return;
   fgPedirTexto('No aprobar «'+d.nombre+'»','Contale por qué (lo ve quien lo pidió). Es opcional.','',{ok:'No aprobar',largo:500,area:true},function(nota){
     if(nota===null)return;
-    _estCambiar(id,{estado:'rechazado',nota_admin:nota.slice(0,500)},'Listo: no aprobado.',['pedido']);
+    _estCambiar(id,{estado:'rechazado',nota_admin:nota.slice(0,500)},'Listo: no aprobado.',['pedido','consulta']);
   });
 }
 // Ventanita para pedir un texto (mismo estilo que fgConfirm). cb(null) = canceló.
@@ -17853,7 +18042,7 @@ function estVerCompleto(id){
       '<div class="fg-cf-b">As&iacute; queda el flyer de este dise&ntilde;o (sin los datos de la empresa ni los oficiales, que se cargan al armarlo).</div></div>'+
       '<button type="button" class="fg-lg-x" id="fg-ver-x" aria-label="Cerrar">&times;</button></div>'+
       '<div class="fg-ver-img" id="fg-ver-img"></div>'+
-      '<div class="fg-cf-acts">'+(_admin&&d0.estado==='pedido'?'<button type="button" class="btn bgreen" id="fg-ver-apr">Aprobar y publicar</button>':'')+
+      '<div class="fg-cf-acts">'+(_admin&&_estAbierto(d0)?'<button type="button" class="btn bgreen" id="fg-ver-apr">Aprobar y publicar</button>':'')+
       '<button type="button" class="btn bp" id="fg-ver-ok">Cerrar</button></div></div>';
     document.body.appendChild(ov);
     document.getElementById('fg-ver-t').textContent=d0.nombre;
@@ -17875,7 +18064,7 @@ function _estPublicar(id,d0,n,nombre){
   // subir (si no, ese número queda ocupado para siempre sin opción).
   var d,meta,legal,base,n2,img,blob,ts=Date.now(),reservado=false,enLista=false,cortes=[],cfgN=null;
   _estDatos(id).then(function(x){d=x;
-    if(d.estado!=='pedido')throw new Error('ese diseño ya no está pedido (lo cancelaron o ya se resolvió)');
+    if(!_estAbierto(d))throw new Error('ese diseño ya no está pedido (lo cancelaron o ya se resolvió)');
     // antes de reservar ningún número: si el diseño perdió un logo subido de la PC, se publicaría con el original
     var fa=_fgLgFaltanSubidos(d.datos&&d.datos.cambios,d.datos&&d.datos.subidos,true);
     if(fa.length)throw new Error('le falta '+(fa.length===1?'el logo subido de la PC «'+_fgLgNombreSubido(fa[0])+'»':fa.length+' logos subidos de la PC')+' (no quedó guardado con el diseño). Abrilo con «Usar», volvé a subir el logo, guardalo y pedí de nuevo la publicación.');
@@ -17932,7 +18121,7 @@ function _estPublicar(id,d0,n,nombre){
     // otro admin lo resolvió) mientras se armaba la imagen, no se crea nada.
     return _sb.from('flyer_disenos').select('estado').eq('id',id).single().then(function(r){
       if(r.error)throw r.error;
-      if(r.data.estado!=='pedido'){var e=new Error('el pedido se canceló o ya se resolvió mientras se publicaba; no se creó el flyer');e.nada=true;throw e;}
+      if(!_estAbierto(r.data)){var e=new Error('el pedido se canceló o ya se resolvió mientras se publicaba; no se creó el flyer');e.nada=true;throw e;}
     });
   }).then(function(){
     // La lista de opciones vive en un archivo: se vuelve a leer justo antes de
@@ -17972,7 +18161,7 @@ function _estPublicar(id,d0,n,nombre){
       return new Promise(function(res){saveFacultades(roles,function(ok){res(ok);});});
     });
   }).then(function(okFac){
-    return _estCambiar(id,{estado:'publicado',opcion_publicada:n2,nota_admin:''},null,['pedido']).then(function(fila){
+    return _estCambiar(id,{estado:'publicado',opcion_publicada:n2,nota_admin:''},null,['pedido','consulta']).then(function(fila){
       _facSyncOptBar();_fgRenderOptBar();if(typeof _applyFacultades==='function')_applyFacultades();
       if(!fila){showToast('Se creó el flyer «'+nombre+'» (opción '+n2+'), pero el diseño no quedó marcado como publicado. No lo vuelvas a aprobar: si sobra, borralo desde Config → Opciones.');return;}
       showToast('Publicado: «'+nombre+'» ya está al lado de «'+_optLabel(n)+'».'+(okFac?'':' Revisá en Facultades quién lo ve.'));
@@ -18721,7 +18910,7 @@ function _hunPropBadgeSync(){
 // o resolvieron como Hunter. Si es 0 no se ve nada.
 function _hdrMsgSync(){
   var m=document.getElementById('hdr-msg');if(!m)return;
-  var ofi=_propPendCount||0,hun=_esHunter()?(_hunPropAviso||0):0,ges=_gesAviso||0,n=ofi+hun+ges;
+  var ofi=_propPendCount||0,hun=_esHunter()?(_hunPropAviso||0):0,ges=_gesAviso||0,est=_admin?0:_estAv.consulta.length,n=ofi+hun+ges+est;
   m.style.display=n>0?'inline-flex':'none';
   m.textContent=n>9?'9+':String(n);
   var btn=m.parentNode,tip='';
@@ -18730,6 +18919,7 @@ function _hdrMsgSync(){
     if(ofi)p.push(ofi===1?'1 cambio de oficiales para revisar':ofi+' cambios de oficiales para revisar');
     if(hun)p.push(hun===1?'1 novedad en tus modificaciones':hun+' novedades en tus modificaciones');
     if(ges)p.push(ges===1?'1 novedad en Gestiones':ges+' novedades en Gestiones');
+    if(est)p.push(est===1?'1 pregunta sobre un diseño de Estudio':est+' preguntas sobre diseños de Estudio');
     tip='Tenés '+p.join(' y ');
   }
   if(btn&&btn.setAttribute)btn.setAttribute('title',tip);
@@ -18743,6 +18933,7 @@ function _msgPollInit(){
     if(!_me||document.hidden)return;
     _propCargarPendientes();
     _gesAvisoCargar();
+    _estAvisoCargar();
     if(_esHunter()&&_can('proponer_oficiales'))_hunPropCargarMias(function(){
       if(document.getElementById('mis-cambios-list'))return;
       if(document.getElementById('hun-list'))_hunRender();
