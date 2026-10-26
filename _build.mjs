@@ -1594,6 +1594,8 @@ const checks = {
   'pulido: beneficio en Promociones (tabla y Excel)': _authSrc.includes('function _promoBenefHtml(') && _authSrc.includes("{header:'Beneficio',key:'benef'") && newCSS.includes('.promos-benef'),
   'pulido: Promociones en tarjetas en el celular': _authSrc.includes('<td class="pc-promo">') && newCSS.includes('grid-template-areas:"sel logo promo est"'),
   'promos: Buscar trae todas las promos de cada marca (+ una sola fila por marca)': _authSrc.includes('function _promoHermanas(') && _authSrc.includes('function _promoTildeUnaBuscar(') && _authSrc.includes("if(_promosFiltros.repetidas==='ocultar')out=_promoUnaPorMarca(out);") && _authSrc.includes("v.r.grupo!=null?('g'+v.r.grupo)"),
+  'recorte: el flyer recortado sigue listo (editar, guardar y descargar)': _authSrc.includes("bi.naturalWidth||(_fgRecActivo()&&bi.width)"),
+  'ventanas de marcas: puntito rojo y filtro de super con %': _authSrc.includes('function _promoTienePct(') && _authSrc.includes("id=\"'+px+'-pct\"") && _authSrc.includes('if(st.soloPct)base=base.filter(_promoTienePct);') && newCSS.includes('.fg-pf-pct{'),
   'pulido: Base de datos con explicacion plegable': (html.match(/<details class="bd-ayuda">/g) || []).length === 2,
   'lupa: los puntos no cuentan al buscar (S.A. = SA)': /function padronSearch\([\s\S]*?_padSinPuntos\(_padNorm\(q\)\)[\s\S]*?_padSinPuntos\(_padNorm\(r\.empresa\)\)/.test(_authSrc),
   // Barra fija "Vista previa · Descargar PDF · Otros" en la PC; el tutorial apunta a los botones movidos.

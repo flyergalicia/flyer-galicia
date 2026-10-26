@@ -3207,6 +3207,18 @@ function _promoDias(p){
 // las del % (eso es para el flyer; antes todas las filas de Coto decían "Martes").
 // Sin reinterpretar: "Todos los días excepto feriados" tiene que llegar entero.
 function _promoDiasPropios(p){return _promoDiasCrudo(p);}
+// ¿Es un súper con alguna promo vigente de % de descuento? (mismo grupo que usa
+// _promoDias: mismo logo o misma marca). Son los que llevan días al ponerlos.
+function _promoTienePct(p){
+  if(!p||!_promoEsSuper(p)||!_promosCat)return false;
+  _promoDias(p); // arma el índice por súper
+  var I=_promoDiasIdx,hoy=new Date();
+  var g=(I.porClave['i:'+p.imagen]||[]).concat(I.porClave['m:'+_promoBaseMarca(p.titulo)]||[]);
+  return g.some(function(q){return !q.proximamente&&_promoEstado(q.fecha_hasta,hoy)!=='VENCIDA'&&/%/.test(String(q.beneficio||''));});
+}
+// Puntito rojo sobre la miniatura (sólo en las listas: nunca va al flyer).
+function _promoPctDot(p){return _promoTienePct(p)?'<span class="fg-pf-pct" title="S&uacute;per con % de descuento: al ponerlo van sus d&iacute;as debajo"></span>':'';}
+function _promoDeImg(img){if(!_promosCat)return null;for(var i=0;i<_promosCat.length;i++)if(_promosCat[i].imagen===img)return _promosCat[i];return null;}
 function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDiasPropios(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
 // Qué da la promo ("25% de ahorro", "6 cuotas sin interés"): sin esto dos filas de
 // la misma marca parecían repetidas. Viene de la columna beneficio (migración 029).
@@ -4817,7 +4829,10 @@ function _fgDescargaBloqueo(){
     if(s.motivo==='red')return 'No se pudo cargar el flyer «'+lbl+'». Tocá «Reintentar» arriba del flyer.';
     return typeof _admin!=='undefined'&&_admin?'«'+lbl+'» todavía no tiene flyer: subilo desde Config → Flyers.':'«'+lbl+'» todavía no tiene flyer cargado. Avisale al administrador.';
   }
-  if(!window.baseImg||!window.baseImg.naturalWidth)return 'Todavía no se cargó el flyer. Esperá un momento.';
+  // Con un recorte, baseImg es el lienzo recortado (no tiene naturalWidth) y está
+  // listo: se acepta sólo ESE lienzo (el del recorte activo), nunca uno cualquiera.
+  var bi=window.baseImg;
+  if(!bi||!(bi.naturalWidth||(_fgRecActivo()&&bi.width)))return 'Todavía no se cargó el flyer. Esperá un momento.';
   return '';
 }
 function _fgFallaEstilo(){
@@ -15118,14 +15133,16 @@ function _fgLgFiltros(){
 // pregunta a Galicia en el momento, como allá: las de compra online valen en
 // todas), rubro, UNA POR MARCA (junta "Adidas." con "Adidas MDQ", con la misma
 // regla que Activas: _promoBaseMarca/_promoClaveMarca) y SIN LAS ONLINE.
-// st = {q, rubro, prov, loc, una, sinOnline}; px = prefijo de los ids.
+// st = {q, rubro, prov, loc, una, sinOnline, soloPct}; px = prefijo de los ids.
+// soloPct: sólo los súper con alguna promo de % (los del puntito rojo, _promoTienePct).
 var _fgLocIds={}; // 'PROVINCIA|LOCALIDAD' → ids de Galicia | 'cargando' (si falla, se borra y se reintenta)
 function _fgPfHtml(px,ph){
   return '<div class="fg-lg-fil" id="'+px+'-filtros"><input type="search" id="'+px+'-q" placeholder="'+ph+'" autocomplete="off">'+
       '<select id="'+px+'-rub" aria-label="Rubro"></select><select id="'+px+'-prov" aria-label="Provincia"></select>'+
       '<select id="'+px+'-loc" aria-label="Localidad" hidden></select></div>'+
     '<div class="fg-lg-chk" id="'+px+'-chk"><label><input type="checkbox" id="'+px+'-una"> Una por marca</label>'+
-      '<label><input type="checkbox" id="'+px+'-onl"> Sin las de compra online</label></div>';
+      '<label><input type="checkbox" id="'+px+'-onl"> Sin las de compra online</label>'+
+      '<label title="S&oacute;lo los supermercados con alguna promo de % de descuento (los del puntito rojo)"><input type="checkbox" id="'+px+'-pct"> S&oacute;lo s&uacute;per con % de descuento</label></div>';
 }
 function _fgPfInit(px,st,cambio){
   var q=document.getElementById(px+'-q'),t=0;
@@ -15137,6 +15154,7 @@ function _fgPfInit(px,st,cambio){
   var una=document.getElementById(px+'-una'),onl=document.getElementById(px+'-onl');
   una.checked=st.una!==false;onl.checked=!!st.sinOnline;
   una.onchange=function(){st.una=una.checked;cambio();};
+  var pct=document.getElementById(px+'-pct');if(pct){pct.checked=!!st.soloPct;pct.onchange=function(){st.soloPct=pct.checked;cambio();};}
   // "sin las online" es el mismo filtro que el tilde de Activas: se mantienen iguales
   onl.onchange=function(){st.sinOnline=onl.checked;_promosFiltros.online=onl.checked?'ocultar':'';var so=document.getElementById('promos-sinubic');if(so)so.checked=onl.checked;cambio();};
 }
@@ -15215,6 +15233,7 @@ function _fgPfFiltrar(st,cambio){
     });
     base=orden.map(function(k){return grupos[k];});
   }
+  if(st.soloPct)base=base.filter(_promoTienePct);
   var L=toks.length?base.filter(function(p){var n=_promoNormalizar(p.titulo||'');for(var i=0;i<toks.length;i++)if(n.indexOf(toks[i])<0)return false;return true;}):base;
   var q0=toks.join(' ');
   L.sort(function(a,b){
@@ -15252,7 +15271,7 @@ function _fgLgLista(){
   if(!L.length){box.innerHTML='<div class="fg-lg-vacio">No hay promos vigentes con esos filtros'+_escHtml(_fgPfDonde(_fgLgV))+'. Si la marca no est&aacute; en Promociones, us&aacute; <b>Subir logo de la PC</b>.</div>';return;}
   box.innerHTML=_fgLgV.res.map(function(p,i){
     return '<button type="button" class="fg-lg-it" data-i="'+i+'" title="'+_escAttr(p.titulo)+'">'+
-      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'"></span>'+
+      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p)+'</span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
       '<span class="fg-lg-it-s">'+_fgPfSub(p)+'</span></button>';
   }).join('');
@@ -15820,7 +15839,7 @@ function _fgFrLista(){
     var n=_fgFrIdx(p.imagen);
     return '<button type="button" class="fg-lg-it'+(n>=0?' fg-fr-on':'')+'" data-i="'+i+'" title="'+_escAttr(p.titulo)+'" aria-pressed="'+(n>=0)+'">'+
       (n>=0?'<span class="fg-fr-num">'+(n+1)+'</span>':'')+
-      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'"></span>'+
+      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p)+'</span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
       '<span class="fg-lg-it-s">'+_fgPfSub(p)+'</span></button>';
   }).join('');
@@ -15835,7 +15854,7 @@ function _fgFrSelPintar(){
   if(sg)sg.innerHTML='Siguiente: ordenar'+(n?' ('+n+')':'')+' &rarr;';
   box.innerHTML=n?st.sel.map(function(s,i){
     return '<div class="fg-fr-it'+(_fgFrElegidos(st).indexOf(i)>=0?' sel':'')+'" data-i="'+i+'" title="Tocala para marcar el logo en la vista previa (con Shift, varios)"><span class="fg-fr-mango" aria-hidden="true" title="Mantené apretado y arrastrá para cambiar el orden">&#10303;</span><b>'+(i+1)+'</b>'+
-      '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+s.img)+'"></span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
+      '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+s.img)+'">'+_promoPctDot(_promoDeImg(s.img))+'</span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
       (s.sug?'<span class="fg-fr-sugmark" title="Sugerida por la app">&#10024;</span>':'')+
       '<button type="button" data-a="arr" data-i="'+i+'" aria-label="Subir"'+(i===0?' disabled':'')+'>&uarr;</button>'+
       '<button type="button" data-a="aba" data-i="'+i+'" aria-label="Bajar"'+(i===n-1?' disabled':'')+'>&darr;</button>'+

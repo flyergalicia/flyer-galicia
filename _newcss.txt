@@ -1933,3 +1933,7 @@ html.dark .promos-logo{background:#fff;border-color:#3a3f47;}
 @media (max-width:900px){
   body.en-armador #mv-toggle button{white-space:nowrap;padding:8px 13px;}
 }
+/* Ventanas de marcas: puntito rojo en los súper con % de descuento (los que llevan días al ponerlos). Sólo en la lista: no va al flyer. */
+.fg-lg-it-img,.fg-fr-mini{position:relative;}
+.fg-pf-pct{position:absolute;top:3px;right:3px;width:10px;height:10px;border-radius:50%;background:#E11D2E;box-shadow:0 0 0 2px #fff;pointer-events:none;}
+.fg-fr-mini .fg-pf-pct{top:1px;right:1px;width:8px;height:8px;}
