@@ -15306,7 +15306,7 @@ function _fgPfHtml(px,ph){
   return '<div class="fg-lg-fil" id="'+px+'-filtros"><input type="search" id="'+px+'-q" placeholder="'+ph+'" autocomplete="off">'+
       '<select id="'+px+'-rub" aria-label="Rubro"></select><select id="'+px+'-prov" aria-label="Provincia"></select>'+
       '<select id="'+px+'-loc" aria-label="Localidad" hidden></select></div>'+
-    '<div class="fg-lg-chk" id="'+px+'-chk"><label><input type="checkbox" id="'+px+'-una"> Una por marca</label>'+
+    '<div class="fg-lg-chk" id="'+px+'-chk"><label title="Junta en una sola tarjeta las sucursales o variantes de una marca: por ejemplo, Adidas, Adidas MDQ y Adidas Nordelta. Las promos de un mismo logo (Coto: 25%, 12 y 18 cuotas) van siempre en una sola tarjeta."><input type="checkbox" id="'+px+'-una"> Juntar sucursales de la misma marca</label>'+
       '<label><input type="checkbox" id="'+px+'-onl"> Sin las de compra online</label>'+
       '<label title="S&oacute;lo los supermercados con alguna promo de % de descuento (los del puntito rojo)"><input type="checkbox" id="'+px+'-pct"> S&oacute;lo s&uacute;per con % de descuento</label></div>';
 }

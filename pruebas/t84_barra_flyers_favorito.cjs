@@ -57,6 +57,14 @@ module.exports=async(browser)=>{
     await p.waitForFunction(()=>_optN(_fgOpt)===5&&!_fgOptCargando(),null,{timeout:10000});
     const f=await p.evaluate(()=>({fav:document.querySelector('#fg-optbar .fgo-fav').classList.contains('on'),mas:document.querySelector('#fg-optbar .fgo-mas-t').textContent}));
     ok(f.fav&&f.mas==='Otros','tocar el favorito lo elige y "Otros" vuelve a decir Otros');
+    // un borrador abierto sobre el favorito: su pestaña se lee (antes quedaba aplastada, sólo el lápiz)
+    const bo=await p.evaluate(()=>{_fgProtos.push({id:'t84b',opcion:5,nombre:'Borrador 1',temp:true,logos:[]});_facSyncOptBar();_fgRenderOptBar();
+      const b=document.getElementById('fg-optbar'),x=b.querySelector('.fgp[data-p="t84b"]'),t=x.querySelector('.fgp-t');
+      const r={ancho:Math.round(x.getBoundingClientRect().width),entra:t.scrollWidth<=t.clientWidth+1,barra:b.scrollWidth<=b.clientWidth+1};
+      return r;});
+    await p.screenshot({path:__dirname+'/capturas/t84_borrador.png',clip:await p.evaluate(()=>{const r=document.getElementById('fg-optbar').getBoundingClientRect();return {x:r.x-10,y:r.y-10,width:r.width+20,height:r.height+20};})});
+    ok(bo.ancho>=96&&bo.barra,'con un borrador abierto su pestaña se ve entera o con "…" ('+bo.ancho+' px) y la barra entra');
+    await p.evaluate(()=>{_fgProtos=_fgProtos.filter(x=>x.id!=='t84b');_facSyncOptBar();_fgRenderOptBar();});
     // tocar afuera cierra la lista
     await p.click('#fg-optbar .fgo-mas');
     await p.mouse.click(5,700);

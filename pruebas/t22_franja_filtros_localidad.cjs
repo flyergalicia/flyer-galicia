@@ -16,7 +16,7 @@ module.exports=async(browser)=>{
   await p.uncheck('#fg-fr-una');await p.waitForTimeout(200);
   const sinUna=await p.evaluate(()=>_fgPfFiltrar(_fgFrSt,function(){}).lista.length);
   console.log('  Neuquén sin "una por marca":',await info());
-  ok(sinUna>conUna,'"Una por marca" junta variantes de la misma marca ('+sinUna+' → '+conUna+')');
+  ok(sinUna>conUna,'"Juntar sucursales de la misma marca" junta variantes de la misma marca ('+sinUna+' → '+conUna+')');
   // ejemplo de marca agrupada
   console.log('  agrupadas (ej.):',JSON.stringify(await p.evaluate(()=>{const st=Object.assign({},_fgFrSt,{una:false,q:''});const t=_fgPfFiltrar(st,function(){}).lista.map(x=>x.titulo);const g={};const b={};t.forEach(x=>b[_promoBaseMarca(x)]=1);t.forEach(x=>{const k=_promoClaveMarca(_promoBaseMarca(x),b);(g[k]=g[k]||[]).push(x);});return Object.values(g).filter(v=>v.length>1).slice(0,3);})));
   await p.check('#fg-fr-una');await p.waitForTimeout(200);

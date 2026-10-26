@@ -1980,3 +1980,5 @@ html.dark #fg-optmas input{background:#2c2f36;}
 }
 /* Ventanas de marcas: "3 promos" (un mismo logo con varias promos; el detalle va en el title) */
 .fg-pf-mas{font-weight:600;color:var(--gray);text-decoration:underline dotted;text-underline-offset:2px;cursor:help;}
+/* Barra de flyers: la pestaña de un borrador o diseño abierto no se aplasta al lado de los fijos */
+#fg-optbar.fg-optbar-c .fgp{flex:1 1 auto;min-width:96px;}
