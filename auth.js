@@ -2120,7 +2120,7 @@ function initPromosTab(){
     var d=new Date();
     mesInp.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
   }
-  _promoTildeNuevas();_promoTildeUnaBuscar();
+  _promoTildeNuevas();_promoTildeUnaBuscar();_promoTildesPct();
   if(!_promosCat&&!_promosCatLoading)loadPromosCatalogo();
 }
 // Tilde "Sólo las nuevas" de la solapa Activas, al lado de "Una sola fila por
@@ -2152,6 +2152,22 @@ function _promoUnaSync(){
   var on=_promosFiltros.repetidas==='ocultar';
   ['promos-unamarca','promos-unamarca-b'].forEach(function(id){var c=document.getElementById(id);if(c)c.checked=on;});
 }
+// "Sólo súper con % de descuento" (los del puntito rojo) en Activas y en Buscar:
+// el mismo filtro que el de las ventanas de marcas; los dos tildes van juntos.
+function _promoTildesPct(){
+  [['promos-pct-a','promos-nuevas'],['promos-pct-b','promos-unamarca-b']].forEach(function(x){
+    if(document.getElementById(x[0]))return;
+    var ref=document.getElementById(x[1]),lbl=ref&&ref.closest('label');if(!lbl)return;
+    var l=document.createElement('label');
+    l.className='promos-chk';l.htmlFor=x[0];
+    l.title='Sólo los supermercados con alguna promo de % de descuento (los del puntito rojo): son los que llevan sus días en el flyer.';
+    l.innerHTML='<input type="checkbox" id="'+x[0]+'" onchange="_promoSetSoloPct(this.checked)"> Sólo súper con % de descuento';
+    lbl.parentNode.insertBefore(l,lbl.nextSibling);
+  });
+  _promoPctSync();
+}
+function _promoSetSoloPct(on){_promosFiltros.pct=on?'solo':'';_promoPctSync();_promosPintarFilas();}
+function _promoPctSync(){var on=_promosFiltros.pct==='solo';['promos-pct-a','promos-pct-b'].forEach(function(id){var c=document.getElementById(id);if(c)c.checked=on;});}
 function _promoSetSoloNuevas(on){
   _promosFiltros.nuevas=on?'solo':'';
   _promosPintarFilas();
@@ -2869,7 +2885,7 @@ function _promoToggleExcluir(i,on){
 // ── Filtros de la tabla de resultados ───────────────────────────────────────
 // Estado de los filtros: uno por columna + el buscador general de arriba a la
 // derecha (busca en marca, coincidencia y categoría a la vez).
-var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:'',hasta:'',estado:'',online:'',repetidas:'',nuevas:''};
+var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:'',hasta:'',estado:'',online:'',repetidas:'',nuevas:'',pct:''};
 // Filtros en cero para una corrida nueva: si quedaran los de la anterior,
 // esconderían parte de los resultados y parecería que "faltan" marcas. El
 // orden también vuelve al natural. La provincia y el tilde de "ocultar las
@@ -2877,11 +2893,12 @@ var _promosFiltros={global:'',logo:'',marca:'',match:'',cat:'',donde:'',desde:''
 // no un filtro de estos resultados, y perderlos en cada validación obligaría
 // a volver a elegirlos todo el tiempo.
 function _promoResetFiltros(){
-  var online=_promosFiltros.online,repetidas=_promosFiltros.repetidas,nuevas=_promosFiltros.nuevas;
+  var online=_promosFiltros.online,repetidas=_promosFiltros.repetidas,nuevas=_promosFiltros.nuevas,pct=_promosFiltros.pct;
   for(var k in _promosFiltros)_promosFiltros[k]='';
   _promosFiltros.online=online;
   _promosFiltros.repetidas=repetidas;
   _promosFiltros.nuevas=nuevas;
+  _promosFiltros.pct=pct;
   _promosOrden={campo:'',dir:1};
   var b=document.getElementById('promos-buscar');if(b)b.value='';
 }
@@ -2899,7 +2916,7 @@ function _promoLimpiarFiltros(){
   // El tilde de "ocultar las online" vive en _promosFiltros para que lo
   // respeten el contador y el Excel, así que limpiar los filtros lo destilda.
   var o=document.getElementById('promos-sinubic');if(o)o.checked=false;
-  _promoUnaSync();
+  _promoUnaSync();_promoPctSync();
   var nu=document.getElementById('promos-nuevas');if(nu)nu.checked=false;
   renderPromosResultados();
 }
@@ -2940,6 +2957,7 @@ function _promoCoincideFiltro(r){
   // de la vista (y por lo tanto también del contador y del Excel).
   if(f.online==='ocultar'&&c.online)return false;
   if(f.nuevas==='solo'&&!(r.promo&&_promoEsNueva(r.promo)))return false;
+  if(f.pct==='solo'&&!_promoFilaPct(r.promo))return false; // los del puntito rojo
   if(!contiene(c.donde,f.donde))return false;
   if(!contiene(c.desde,f.desde))return false;
   if(!contiene(c.hasta,f.hasta))return false;
@@ -3124,7 +3142,7 @@ function _promoFilaHtml(r,i){
     '<td class="pc-sel"><input type="checkbox" class="promos-excl" title="Excluir del reporte"'+(r.excluir?' checked':'')+
       ' onchange="_promoToggleExcluir('+i+',this.checked)"></td>';
   return '<tr class="'+(r.excluir?'excluida':'')+(eleg>0?' elegida':'')+'">'+primera+
-    '<td class="pc-logo">'+logo+'</td>'+
+    '<td class="pc-logo"><span class="promos-logo-w">'+logo+_promoFilaPctDot(r.promo)+'</span></td>'+
     (act?'':'<td class="pc-marca">'+_escHtml(r.marca)+'</td>')+
     '<td class="pc-promo">'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+_promoBenefHtml(r.promo)+_promoDiasHtml(r.promo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
     '<td class="pc-cat">'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
@@ -3218,6 +3236,10 @@ function _promoTienePct(p){
 }
 // Puntito rojo sobre la miniatura (sólo en las listas: nunca va al flyer).
 function _promoPctDot(p){return _promoTienePct(p)?'<span class="fg-pf-pct" title="S&uacute;per con % de descuento: al ponerlo van sus d&iacute;as debajo"></span>':'';}
+// En la tabla de Promociones cada fila es UNA promo: el puntito y el tilde van en
+// la que tiene el % (Coto 25% sí; Coto en cuotas no).
+function _promoFilaPct(p){return !!(p&&_promoEsSuper(p)&&/%/.test(String(p.beneficio||'')));}
+function _promoFilaPctDot(p){return _promoFilaPct(p)?'<span class="fg-pf-pct" title="S&uacute;per con % de descuento: al ponerlo van estos d&iacute;as debajo"></span>':'';}
 function _promoDeImg(img){if(!_promosCat)return null;for(var i=0;i<_promosCat.length;i++)if(_promosCat[i].imagen===img)return _promosCat[i];return null;}
 function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDiasPropios(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
 // Qué da la promo ("25% de ahorro", "6 cuotas sin interés"): sin esto dos filas de
@@ -15427,7 +15449,7 @@ function _fgFrIrActivas(st){
   switchApp('promos');
   if(typeof switchPromoTab==='function')switchPromoTab('activas');
   // los mismos filtros que en la ventana
-  _promosFiltros.repetidas=st.una!==false?'ocultar':'';
+  _promosFiltros.repetidas=st.una!==false?'ocultar':'';_promosFiltros.pct=st.soloPct?'solo':'';_promoPctSync();
   _promoUnaSync();
   _promosFiltros.online=st.sinOnline?'ocultar':'';
   var so=document.getElementById('promos-sinubic');if(so)so.checked=!!st.sinOnline;
@@ -15446,7 +15468,7 @@ function _fgFrIrActivas(st){
 // Lo mismo que la franja, pero para UN logo: el "+" elige esa marca y se vuelve
 // solo al flyer a ponerla en su lugar (con sus días, si es un súper y el tilde está).
 function _fgLgIrActivas(det){
-  _fgFrIrActivas({uno:true,det:det,sel:[],src:_fgLgSrc(),q:'',rubro:_fgLgV.rubro||'',prov:_fgLgV.prov||'',loc:_fgLgV.loc||'',una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline});
+  _fgFrIrActivas({uno:true,det:det,sel:[],src:_fgLgSrc(),q:'',rubro:_fgLgV.rubro||'',prov:_fgLgV.prov||'',loc:_fgLgV.loc||'',una:_fgLgV.una!==false,sinOnline:!!_fgLgV.sinOnline,soloPct:!!_fgLgV.soloPct});
 }
 function _fgElegirBar(){
   var host=document.querySelector('.promos-results');if(!host)return;
@@ -15491,14 +15513,14 @@ function fgElegirVolver(){
   if(!st)return;
   // los filtros que se dejaron en Activas vuelven a la ventana
   st.prov=_promosProv||'';st.loc=_promosLoc||'';st.rubro=_promosRubro||'';
-  st.una=_promosFiltros.repetidas==='ocultar';st.sinOnline=_promosFiltros.online==='ocultar';
+  st.una=_promosFiltros.repetidas==='ocultar';st.sinOnline=_promosFiltros.online==='ocultar';st.soloPct=_promosFiltros.pct==='solo';
   switchApp(_optSolapa(_fgOpt));
   if(st.uno){_fgLgVolverUno(st);return;}
   if(_fgLgSrc()!==st.src){
     // otro flyer: el recuadro de antes no sirve, pero lo elegido no se pierde.
     // Se marca la franja en este flyer y la ventana abre con esas marcas.
     _fgFrSt=null;
-    _fgFr.pendiente={sel:st.sel,cols:st.cols,q:st.q,rubro:st.rubro,prov:st.prov,loc:st.loc,una:st.una,sinOnline:st.sinOnline};
+    _fgFr.pendiente={sel:st.sel,cols:st.cols,q:st.q,rubro:st.rubro,prov:st.prov,loc:st.loc,una:st.una,sinOnline:st.sinOnline,soloPct:!!st.soloPct};
     if(!_fgLg.on)fgLogosModo(true);
     fgFranjaModo(true);
     showToast('Cambió el flyer mientras elegías. Marcá la franja en este flyer: tus '+st.sel.length+' marcas siguen elegidas.');
@@ -15508,7 +15530,7 @@ function fgElegirVolver(){
   _fgFrAbrir(st.rect,st);
 }
 function _fgLgVolverUno(st){
-  _fgLgV.prov=st.prov;_fgLgV.loc=st.loc;_fgLgV.rubro=st.rubro;_fgLgV.una=st.una;_fgLgV.sinOnline=st.sinOnline;
+  _fgLgV.prov=st.prov;_fgLgV.loc=st.loc;_fgLgV.rubro=st.rubro;_fgLgV.una=st.una;_fgLgV.sinOnline=st.sinOnline;_fgLgV.soloPct=!!st.soloPct;
   if(_fgLgSrc()!==st.src){showToast('Cambió el flyer mientras elegías: tocá de nuevo el logo que querés cambiar.');return;}
   if(!_fgLg.on)fgLogosModo(true);
   var pick=st.sel[0];
@@ -15587,7 +15609,7 @@ function _fgFrAbrir(rect,reuso){
     if(!previa)st.info.bg=rect.bg||st.info.bg;
     // lo elegido en Activas para una franja de otro flyer (ver fgElegirVolver)
     var pend=_fgFr.pendiente;_fgFr.pendiente=null;
-    if(pend){st.sel=pend.sel;st.cols=pend.cols||0;st.rubro=pend.rubro||'';st.prov=pend.prov||'';st.loc=pend.loc||'';st.una=pend.una!==false;st.sinOnline=!!pend.sinOnline;}
+    if(pend){st.sel=pend.sel;st.cols=pend.cols||0;st.rubro=pend.rubro||'';st.prov=pend.prov||'';st.loc=pend.loc||'';st.una=pend.una!==false;st.sinOnline=!!pend.sinOnline;st.soloPct=!!pend.soloPct;}
   }
   var v=document.getElementById('fg-fr-ov');if(v)v.remove();
   var ov=document.createElement('div');ov.id='fg-fr-ov';ov.className='fg-cf-ov';
@@ -15691,7 +15713,7 @@ function _fgFrAbrir(rect,reuso){
   _fgPfInit('fg-fr',st,function(){
     if(_fgFrSt!==st)return;
     // la ventana de un logo recuerda lo elegido acá (provincia, localidad, tildes)
-    _fgLgV.prov=st.prov;_fgLgV.loc=st.loc;_fgLgV.una=st.una;_fgLgV.sinOnline=st.sinOnline;
+    _fgLgV.prov=st.prov;_fgLgV.loc=st.loc;_fgLgV.una=st.una;_fgLgV.sinOnline=st.sinOnline;_fgLgV.soloPct=!!st.soloPct;
     _fgFrLista();
   });
   document.getElementById('fg-fr-list').addEventListener('click',function(e){
