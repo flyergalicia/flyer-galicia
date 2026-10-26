@@ -27,7 +27,8 @@ module.exports=async(browser)=>{
   ok(n[2]==='Flyer','nombre de archivo: si no queda nada, "Flyer" ('+n[2]+')');
 
   // 2) Oscuro: la opción elegida se lee
-  const o=await p.evaluate(CONTRASTE+';'+`(function(){toggleTheme();var e=document.querySelector('#fg-optbar .fgo.on');var c=getComputedStyle(e).color;var b=getComputedStyle(e).backgroundColor;var k=(${CONTRASTE})(c,b);var lg=document.createElement('img');lg.className='promos-logo';document.body.appendChild(lg);var lb=getComputedStyle(lg).backgroundColor;lg.remove();toggleTheme();return {k:k,lb:lb};})()`);
+  await p.evaluate(()=>{toggleTheme();});await p.waitForTimeout(400);
+  const o=await p.evaluate(CONTRASTE+';'+`(function(){var e=document.querySelector('#fg-optbar .fgo.on');var c=getComputedStyle(e).color;var b=getComputedStyle(e).backgroundColor;var k=(${CONTRASTE})(c,b);var lg=document.createElement('img');lg.className='promos-logo';document.body.appendChild(lg);var lb=getComputedStyle(lg).backgroundColor;lg.remove();toggleTheme();return {k:k,lb:lb};})()`);
   ok(o.k>=4.5,'modo oscuro: la opción elegida se lee (contraste '+o.k.toFixed(2)+')');
   ok(o.lb==='rgb(255, 255, 255)','modo oscuro: los logos de Promociones van sobre blanco ('+o.lb+')');
 

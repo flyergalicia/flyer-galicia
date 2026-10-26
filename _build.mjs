@@ -1506,7 +1506,7 @@ const checks = {
     _authSrc.includes('function _promoBaseMarca(') && _authSrc.includes('function _promoClaveMarca(') &&
     _authSrc.includes('if(bases[acc])return acc;') &&
     _authSrc.includes('function _promoSetUnaPorMarca(') && _authSrc.includes('function _promoOtrasHtml(') &&
-    _authSrc.includes("_promoModoActivas()&&_promosFiltros.repetidas==='ocultar'") &&
+    _authSrc.includes("if(_promosFiltros.repetidas==='ocultar')out=_promoUnaPorMarca(out);") &&
     html.includes('.promos-otras'),
   'ux: globito con el atajo del PDF':
     _authSrc.includes('function _fgTipInit(') && _authSrc.includes("matchMedia('(hover:hover) and (pointer:fine)')") &&
@@ -1593,6 +1593,7 @@ const checks = {
   'pulido: Descargar en la pastilla del celular': _authSrc.includes('data-mv="dl"') && _authSrc.includes("getElementById('btn-dl-pdf');if(pdf)pdf.click()"),
   'pulido: beneficio en Promociones (tabla y Excel)': _authSrc.includes('function _promoBenefHtml(') && _authSrc.includes("{header:'Beneficio',key:'benef'") && newCSS.includes('.promos-benef'),
   'pulido: Promociones en tarjetas en el celular': _authSrc.includes('<td class="pc-promo">') && newCSS.includes('grid-template-areas:"sel logo promo est"'),
+  'promos: Buscar trae todas las promos de cada marca (+ una sola fila por marca)': _authSrc.includes('function _promoHermanas(') && _authSrc.includes('function _promoTildeUnaBuscar(') && _authSrc.includes("if(_promosFiltros.repetidas==='ocultar')out=_promoUnaPorMarca(out);") && _authSrc.includes("v.r.grupo!=null?('g'+v.r.grupo)"),
   'pulido: Base de datos con explicacion plegable': (html.match(/<details class="bd-ayuda">/g) || []).length === 2,
   'lupa: los puntos no cuentan al buscar (S.A. = SA)': /function padronSearch\([\s\S]*?_padSinPuntos\(_padNorm\(q\)\)[\s\S]*?_padSinPuntos\(_padNorm\(r\.empresa\)\)/.test(_authSrc),
   // Barra fija "Vista previa · Descargar PDF · Otros" en la PC; el tutorial apunta a los botones movidos.

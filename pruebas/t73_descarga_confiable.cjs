@@ -109,7 +109,8 @@ module.exports=async(browser)=>{
   const t9=await p2.evaluate(()=>(document.getElementById('toast-el')||document.getElementById('toast')).textContent);
   ok(d2===0&&/No se pudo cargar el flyer/.test(t9),'flyer sin cargar: no baja nada y explica por qué ('+t9+')');
   await p2.evaluate(()=>{_fgSinFlyerPoner(null);savePDF(fullRes(getVals()),getVals(),true);});
-  await p2.waitForTimeout(800);
+  // la librería del PDF puede estar bajando todavía: se espera la descarga hasta 8 s
+  for(let i=0;i<40&&d2<1;i++)await p2.waitForTimeout(200);
   ok(d2===1,'sin el cartel, vuelve a bajar');
   await p2.context().close();
 };

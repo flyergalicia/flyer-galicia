@@ -2120,7 +2120,7 @@ function initPromosTab(){
     var d=new Date();
     mesInp.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
   }
-  _promoTildeNuevas();
+  _promoTildeNuevas();_promoTildeUnaBuscar();
   if(!_promosCat&&!_promosCatLoading)loadPromosCatalogo();
 }
 // Tilde "Sólo las nuevas" de la solapa Activas, al lado de "Una sola fila por
@@ -2135,6 +2135,22 @@ function _promoTildeNuevas(){
   l.title='Promociones que aparecieron en el catálogo de Galicia en los últimos '+_PROMO_NUEVA_DIAS+' días.';
   l.innerHTML='<input type="checkbox" id="promos-nuevas" onchange="_promoSetSoloNuevas(this.checked)"> Sólo las nuevas (últimos '+_PROMO_NUEVA_DIAS+' días)';
   lbl.parentNode.insertBefore(l,lbl.nextSibling);
+}
+// "Una sola fila por marca" también en Buscar (cada marca pegada trae todas sus
+// promos). Es el mismo filtro que el de Activas: los dos tildes van juntos.
+function _promoTildeUnaBuscar(){
+  if(document.getElementById('promos-unamarca-b'))return;
+  var btn=document.getElementById('promos-validar-btn');if(!btn||!btn.parentNode)return;
+  var l=document.createElement('label');
+  l.className='promos-chk';l.htmlFor='promos-unamarca-b';
+  l.title='Cada marca trae todas sus promociones (una por tarjeta o por plazo). Con el tilde queda una sola por marca: la vigente que vence más tarde.';
+  l.innerHTML='<input type="checkbox" id="promos-unamarca-b" onchange="_promoSetUnaPorMarca(this.checked)"> Una sola fila por marca';
+  btn.parentNode.insertBefore(l,btn);
+  _promoUnaSync();
+}
+function _promoUnaSync(){
+  var on=_promosFiltros.repetidas==='ocultar';
+  ['promos-unamarca','promos-unamarca-b'].forEach(function(id){var c=document.getElementById(id);if(c)c.checked=on;});
 }
 function _promoSetSoloNuevas(on){
   _promosFiltros.nuevas=on?'solo':'';
@@ -2261,6 +2277,7 @@ function _promoSetOcultarOnline(on){
 // puesto queda una fila por marca.
 function _promoSetUnaPorMarca(on){
   _promosFiltros.repetidas=on?'ocultar':'';
+  _promoUnaSync();
   _promosPintarFilas();
 }
 
@@ -2606,15 +2623,15 @@ function validarPromos(){
   var mesRef=mesVal?new Date(parseInt(mesVal.slice(0,4),10),parseInt(mesVal.slice(5,7),10)-1,1):new Date();
   _promosMesRef=mesRef;
 
-  var resultados=raw.map(function(marca){
+  var resultados=raw.map(function(marca,g){
     var candidatos=_promoBuscarCandidatos(marca,_promosCat);
-    if(!candidatos.length)return{marca:marca,estado:'NO_ENCONTRADA',promo:null,candidatos:[],excluir:false};
+    if(!candidatos.length)return{marca:marca,grupo:g,estado:'NO_ENCONTRADA',promo:null,candidatos:[],excluir:false};
     var mejor=candidatos[0];
     var ambiguo=candidatos.length>1&&candidatos[1].score>=75&&candidatos[1].score>=mejor.score-10;
     var debil=mejor.score<75;
     var necesitaRevision=ambiguo||debil;
     return _promoDesdeInicial({
-      marca:marca,
+      marca:marca,grupo:g,
       estado:necesitaRevision?'REVISAR':_promoEstadoFinal(mejor.promo,mesRef),
       promo:mejor.promo,
       candidatos:candidatos.slice(0,5),
@@ -2623,7 +2640,13 @@ function validarPromos(){
     });
   });
 
-  _promosResultados=resultados;
+  // Todas las promos de cada marca (Coto: 12 cuotas, 18 cuotas y 25%), no sólo la
+  // mejor: van juntas debajo de la que eligió el buscador. Sólo con el MISMO nombre
+  // en Galicia ("Farmacity" no trae "Farmacity.com", que es otra marca). El tilde
+  // "Una sola fila por marca" vuelve a dejar una (_promosFilasVisibles).
+  var porTit=_promoPorTitulo(),filas=[];
+  resultados.forEach(function(r){filas.push(r);if(r.promo&&!r.necesitaRevision)filas.push.apply(filas,_promoHermanas(r,mesRef,porTit));});
+  _promosResultados=filas;
   _promoResetFiltros();
   renderPromosResultados();
 
@@ -2653,8 +2676,25 @@ function validarPromos(){
 
   // Pide fechaDesde (no viene en el listado) sólo de los matches confirmados,
   // que son los que se van a mostrar como certeros.
-  var ids=resultados.filter(function(r){return r.promo&&!r.necesitaRevision;}).map(function(r){return r.promo.id;});
-  if(ids.length)_promosPedirDetalle(ids,resultados);
+  var ids=filas.filter(function(r){return r.promo&&!r.necesitaRevision;}).map(function(r){return r.promo.id;});
+  if(ids.length)_promosPedirDetalle(ids,filas);
+}
+// Promos del catálogo agrupadas por nombre (normalizado), para sumar las hermanas.
+function _promoPorTitulo(){
+  var m=Object.create(null);
+  (_promosCat||[]).forEach(function(p){var k=_promoIdx(p).n;(m[k]=m[k]||[]).push(p);});
+  return m;
+}
+// Las otras promos de la misma marca que la fila r, como filas propias (la mejor
+// primero): mismo texto pegado y mismo grupo, cada una con su estado. hermanaDe
+// las ata a su fila para reemplazarlas si se cambia la coincidencia.
+function _promoHermanas(r,mesRef,porTit){
+  if(!r||!r.promo)return [];
+  var otras=((porTit||_promoPorTitulo())[_promoIdx(r.promo).n]||[]).filter(function(p){return p.id!==r.promo.id;});
+  otras.sort(function(a,b){return _promoMejorQue(a,b)?-1:_promoMejorQue(b,a)?1:0;});
+  return otras.map(function(p){
+    return _promoDesdeInicial({marca:r.marca,grupo:r.grupo,estado:_promoEstadoFinal(p,mesRef),promo:p,candidatos:[],necesitaRevision:false,excluir:false,hermanaDe:r});
+  });
 }
 
 // ── Solapa "Promociones activas" ───────────────────────────────────────────
@@ -2815,6 +2855,9 @@ function _promoElegirCandidato(i,sel){
     else S.splice(antes-1,1);
     _fgElegirBar();
   }
+  // las otras promos de la marca elegida van debajo (y se van las de la coincidencia de antes)
+  _promosResultados=_promosResultados.filter(function(x){return x.hermanaDe!==r;});
+  if(r.promo){var hs=_promoHermanas(r,_promosMesRef||new Date());if(hs.length){_promosResultados.splice.apply(_promosResultados,[_promosResultados.indexOf(r)+1,0].concat(hs));_promosPedirDetalle(hs.map(function(h){return h.promo.id;}),_promosResultados);}}
   renderPromosResultados();
 }
 function _promoToggleExcluir(i,on){
@@ -2856,7 +2899,7 @@ function _promoLimpiarFiltros(){
   // El tilde de "ocultar las online" vive en _promosFiltros para que lo
   // respeten el contador y el Excel, así que limpiar los filtros lo destilda.
   var o=document.getElementById('promos-sinubic');if(o)o.checked=false;
-  var um=document.getElementById('promos-unamarca');if(um)um.checked=false;
+  _promoUnaSync();
   var nu=document.getElementById('promos-nuevas');if(nu)nu.checked=false;
   renderPromosResultados();
 }
@@ -2979,9 +3022,9 @@ function _promoTh(campo,titulo){
 function _promosFilasVisibles(){
   var out=[];
   (_promosResultados||[]).forEach(function(r,i){if(_promoCoincideFiltro(r))out.push({r:r,i:i});});
-  // Sólo en "Activas": en "Buscar" cada fila ya es una marca distinta pegada
-  // por el usuario, y esconderle una que escribió sería una sorpresa fea.
-  if(_promoModoActivas()&&_promosFiltros.repetidas==='ocultar')out=_promoUnaPorMarca(out);
+  // En Buscar cada marca pegada trae todas sus promos; con el tilde queda una por
+  // marca pegada (la vigente / la que vence más tarde), nunca se esconde una marca.
+  if(_promosFiltros.repetidas==='ocultar')out=_promoUnaPorMarca(out);
   if(_promosOrden.campo){
     var campo=_promosOrden.campo,dir=_promosOrden.dir;
     out.sort(function(a,b){
@@ -3042,7 +3085,8 @@ function _promoUnaPorMarca(filas){
   var grupos={},orden=[];
   filas.forEach(function(v){
     var t=v.r.marca||(v.r.promo?v.r.promo.titulo:'');
-    var k=t?_promoClaveMarca(_promoBaseMarca(t),bases):('#'+v.i); // sin título, cada fila es su grupo
+    // En Buscar el grupo es la línea pegada (dos marcas que escribió distintas nunca se juntan)
+    var k=v.r.grupo!=null?('g'+v.r.grupo):t?_promoClaveMarca(_promoBaseMarca(t),bases):('#'+v.i); // sin título, cada fila es su grupo
     if(!grupos[k]){grupos[k]={mejor:v,n:0,nombres:[]};orden.push(k);}
     var g=grupos[k];g.n++;
     if(g.nombres.indexOf(t)<0)g.nombres.push(t);
@@ -15365,7 +15409,7 @@ function _fgFrIrActivas(st){
   if(typeof switchPromoTab==='function')switchPromoTab('activas');
   // los mismos filtros que en la ventana
   _promosFiltros.repetidas=st.una!==false?'ocultar':'';
-  var um=document.getElementById('promos-unamarca');if(um)um.checked=st.una!==false;
+  _promoUnaSync();
   _promosFiltros.online=st.sinOnline?'ocultar':'';
   var so=document.getElementById('promos-sinubic');if(so)so.checked=!!st.sinOnline;
   function seguir(){
