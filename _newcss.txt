@@ -1978,3 +1978,5 @@ html.dark #fg-optmas input{background:#2c2f36;}
 @media (max-width:480px){
   #fg-optbar .fgo-mas,#fg-optbar .fgo-vacio{padding:7px 6px;font-size:.75rem;}
 }
+/* Ventanas de marcas: "3 promos" (un mismo logo con varias promos; el detalle va en el title) */
+.fg-pf-mas{font-weight:600;color:var(--gray);text-decoration:underline dotted;text-underline-offset:2px;cursor:help;}

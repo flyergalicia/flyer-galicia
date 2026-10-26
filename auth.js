@@ -3186,28 +3186,36 @@ function _promoDiasFormato(set){
   var s2=t.length===1?t[0]:t.slice(0,-1).join(', ')+' y '+t[t.length-1];
   return s2.charAt(0).toUpperCase()+s2.slice(1);
 }
-var _promoDiasIdx={cat:null,porClave:null,cache:null};
-function _promoDias(p){
+var _promoDiasIdx={cat:null,porClave:null,cache:null,hayBenef:false};
+// zona (opcional, de _promoZona): sólo cuentan las promos de la provincia y la
+// localidad elegidas. Sin zona, las de todo el país (como antes).
+function _promoDias(p,zona){
   if(!p)return '';
   if(!_promoEsSuper(p)||!_promosCat)return _promoDiasCrudo(p);
   var I=_promoDiasIdx;
   if(I.cat!==_promosCat){
     I.cat=_promosCat;I.porClave=Object.create(null);I.cache=Object.create(null);
+    // sin la columna beneficio (base vieja) se usan los días tal cual; con ella,
+    // sólo los del %: una promo suelta sin beneficio no hace volver a los crudos
+    // (si no, una de cuotas podía poner sus días debajo del logo; lo vio Codex)
+    I.hayBenef=_promosCat.some(function(q){return !!q.beneficio;});
     _promosCat.forEach(function(q){
       if(!_promoEsSuper(q))return;
       [q.imagen?'i:'+q.imagen:'','m:'+_promoBaseMarca(q.titulo)].forEach(function(k){if(k)(I.porClave[k]=I.porClave[k]||[]).push(q);});
     });
   }
-  var ck=(p.imagen||'')+'|'+(p.titulo||'');
+  var ck=(p.imagen||'')+'|'+(p.titulo||'')+'|'+(zona?zona.k:'');
   if(I.cache[ck]!=null)return I.cache[ck];
   var hoy=new Date(),vistos=Object.create(null),grupo=[];
   ((I.porClave['i:'+p.imagen]||[]).concat(I.porClave['m:'+_promoBaseMarca(p.titulo)]||[])).forEach(function(q){
     if(vistos[q.id])return;vistos[q.id]=1;
     if(q.proximamente||_promoEstado(q.fecha_hasta,hoy)==='VENCIDA')return;
+    if(zona&&!zona.ok(q))return;
     grupo.push(q);
   });
   var out;
-  if(!grupo.some(function(q){return q.beneficio;}))out=_promoDiasCrudo(p);
+  if(zona&&!grupo.length)out=''; // ninguna promo de ese súper en la zona: no van días
+  else if(!I.hayBenef)out=_promoDiasCrudo(p);
   else{
     var set={},todos=false,crudo='';
     grupo.forEach(function(q){
@@ -3229,15 +3237,34 @@ function _promoDias(p){
 function _promoDiasPropios(p){return _promoDiasCrudo(p);}
 // ¿Es un súper con alguna promo vigente de % de descuento? (mismo grupo que usa
 // _promoDias: mismo logo o misma marca). Son los que llevan días al ponerlos.
-function _promoTienePct(p){
+// Con zona, sólo las promos de la provincia/localidad elegidas: Changomas tiene el
+// 20% en unos lugares y las cuotas en otros; sin esto salía con puntito (y pasaba el
+// tilde "Sólo súper con %") donde sólo tiene cuotas, y en pantalla completa no.
+function _promoTienePct(p,zona){
   if(!p||!_promoEsSuper(p)||!_promosCat)return false;
   _promoDias(p); // arma el índice por súper
   var I=_promoDiasIdx,hoy=new Date();
   var g=(I.porClave['i:'+p.imagen]||[]).concat(I.porClave['m:'+_promoBaseMarca(p.titulo)]||[]);
-  return g.some(function(q){return !q.proximamente&&_promoEstado(q.fecha_hasta,hoy)!=='VENCIDA'&&/%/.test(String(q.beneficio||''));});
+  return g.some(function(q){return !q.proximamente&&_promoEstado(q.fecha_hasta,hoy)!=='VENCIDA'&&/%/.test(String(q.beneficio||''))&&(!zona||zona.ok(q));});
+}
+// La zona elegida en una ventana de marcas (st con prov y loc): provincia y, si
+// Galicia ya contestó qué hay en la localidad, sólo esas (más las online, que no
+// son de ningún lugar). null = todo el país. Se recuerda por clave.
+var _promoZonaC={};
+function _promoZona(st){
+  if(!st||!st.prov)return null;
+  var ids=st.loc?_fgLocIds[st.prov+'|'+st.loc]:null,conLoc=Array.isArray(ids);
+  var k=st.prov+'|'+(conLoc?st.loc+'|'+ids.length:'');
+  if(_promoZonaC[k])return _promoZonaC[k];
+  var porId=null;if(conLoc){porId={};ids.forEach(function(id){porId[id]=1;});}
+  var prov=st.prov;
+  return (_promoZonaC[k]={k:k,ok:function(q){
+    if(!_promoEnProvincia(q,prov))return false;
+    return !porId||!!porId[q.id]||_promoEsOnline(q);
+  }});
 }
 // Puntito rojo sobre la miniatura (sólo en las listas: nunca va al flyer).
-function _promoPctDot(p){return _promoTienePct(p)?'<span class="fg-pf-pct" title="S&uacute;per con % de descuento: al ponerlo van sus d&iacute;as debajo"></span>':'';}
+function _promoPctDot(p,zona){return _promoTienePct(p,zona)?'<span class="fg-pf-pct" title="S&uacute;per con % de descuento: al ponerlo van sus d&iacute;as debajo"></span>':'';}
 // En la tabla de Promociones cada fila es UNA promo: el puntito y el tilde van en
 // la que tiene el % (Coto 25% sí; Coto en cuotas no).
 function _promoFilaPct(p){return !!(p&&_promoEsSuper(p)&&/%/.test(String(p.beneficio||'')));}
@@ -14855,13 +14882,14 @@ function _fgLgPonerDias(logoDet,texto,dias,lineas,cxLogo){
 // puesto, también sus días (sólo los del % de descuento). Si el súper no tiene
 // días con %, el texto de días viejo se borra (no quedan días que no van).
 // Devuelve 'dias', 'sinDias' o ''. Queda elegido el logo.
-function _fgLgAvisoMarca(nom,p,res){
-  if(res==='dias')return 'Listo: '+nom+' con sus días de descuento ('+_promoDias(p)+').';
+function _fgLgAvisoMarca(nom,p,res,zona){
+  if(res==='dias')return 'Listo: '+nom+' con sus días de descuento ('+_promoDias(p,zona)+').';
   if(res==='sinDias')return 'Listo: '+nom+'. No tiene días con % de descuento: saqué los días que había abajo.';
   return 'Listo: '+nom+' en este flyer.';
 }
-function _fgLgPonerMarca(det,p,logo,conDias){
-  var esSuper=conDias&&_promoEsSuper(p),dias=esSuper?_promoDias(p):'';
+// zona: la de la ventana (_promoZona): los días son los del % en ESE lugar.
+function _fgLgPonerMarca(det,p,logo,conDias,zona){
+  var esSuper=conDias&&_promoEsSuper(p),dias=esSuper?_promoDias(p,zona):'';
   if(!esSuper){_fgLgPoner(det,p.imagen,p.titulo,logo);return '';}
   var pt=_fgLgPartirDias(det),L=pt.logo;
   // el logo, con un tamaño parejo y sin pisar el texto de abajo
@@ -15222,7 +15250,7 @@ function _fgLgAbrir(det,op){
       Promise.all(P.map(function(p){return _fgLgTraer(p.imagen);})).then(function(logos){
         if(!lgOv.isConnected||_fgLgSrc()!==src0)return;
         cerrar();
-        P.forEach(function(p,i){if(T[i])_fgLgPonerMarca(T[i],p,logos[i],conD);});
+        var zn=_promoZona(_fgLgV);P.forEach(function(p,i){if(T[i])_fgLgPonerMarca(T[i],p,logos[i],conD,zn);});
         _fgLg.lugares=[];_fgLg.grupo=[];_fgLg.sel=-1;_fgLgListo();
         showToast('Listo: '+P.length+(P.length===1?' marca puesta':' marcas puestas')+(P.length<T.length?' ('+(T.length-P.length)+' lugares quedaron como estaban)':'')+'. Con Ctrl+Z se deshace.');
       }).catch(function(){
@@ -15250,8 +15278,8 @@ function _fgLgAbrir(det,op){
       // coordenadas del anterior)
       if(!lgOv.isConnected||_fgLgSrc()!==src0)return;
       cerrar();
-      var conD=_fgLgPonerMarca(det,p,logo,_fgLgV.conDias!==false);
-      showToast(_fgLgAvisoMarca(p.titulo,p,conD));
+      var zn=_promoZona(_fgLgV),conD=_fgLgPonerMarca(det,p,logo,_fgLgV.conDias!==false,zn);
+      showToast(_fgLgAvisoMarca(p.titulo,p,conD,zn));
     }).catch(function(){
       if(!lgOv.isConnected)return;
       it.disabled=false;it.classList.remove('cargando');
@@ -15347,7 +15375,7 @@ function _fgPfFiltrar(st,cambio){
     if(ids==='cargando')return {cargando:true,lista:[]};
     if(Array.isArray(ids)){porId={};ids.forEach(function(id){porId[id]=1;});}
   }
-  var hoy=new Date(),toks=_promoTokens(_promoNormalizar(st.q||'')),porImg={};
+  var hoy=new Date(),toks=_promoTokens(_promoNormalizar(st.q||'')),porImg={},deImg={};
   (_promosCat||[]).forEach(function(p){
     if(!p.imagen||p.proximamente)return;
     if(_promoEstado(p.fecha_hasta,hoy)==='VENCIDA')return;
@@ -15357,6 +15385,7 @@ function _fgPfFiltrar(st,cambio){
     if(st.sinOnline&&online)return;
     if(porId&&!porId[p.id]&&!online)return; // las online no son de ninguna localidad
     var o=porImg[p.imagen];if(!o||_promoMejorQue(p,o))porImg[p.imagen]=p;
+    (deImg[p.imagen]=deImg[p.imagen]||[]).push(p); // todas las promos de ese logo, para "3 promos"
   });
   // una por logo y por nombre (siempre); y, con el tilde, una por MARCA
   var vistos={},base=[];
@@ -15371,7 +15400,7 @@ function _fgPfFiltrar(st,cambio){
     });
     base=orden.map(function(k){return grupos[k];});
   }
-  if(st.soloPct)base=base.filter(_promoTienePct);
+  if(st.soloPct){var zn=_promoZona(st);base=base.filter(function(p){return _promoTienePct(p,zn);});}
   var L=toks.length?base.filter(function(p){var n=_promoNormalizar(p.titulo||'');for(var i=0;i<toks.length;i++)if(n.indexOf(toks[i])<0)return false;return true;}):base;
   var q0=toks.join(' ');
   L.sort(function(a,b){
@@ -15382,18 +15411,28 @@ function _fgPfFiltrar(st,cambio){
     if(st.prov){var oa=_promoEsOnline(a)?1:0,ob=_promoEsOnline(b)?1:0;if(oa!==ob)return oa-ob;}
     return na<nb?-1:na>nb?1:0;
   });
+  st.deImg=deImg;
   return {lista:L};
 }
 // Renglón chico de cada marca: rubro, si es de compra online (como en Activas) y hasta cuándo.
 // Súper: los días de esa promo y, si en el flyer van otros (sólo los del % de
 // descuento), se aclara cuáles: "Todos los días (en el flyer: Martes)".
-function _fgPfSub(p){
+// Cada tarjeta es UN logo: si ese logo tiene varias promos (Coto: 25%, 12 y 18
+// cuotas) se avisa "3 promos" y el detalle sale al pasar el mouse.
+function _fgPfMas(p,st){
+  var L=st&&st.deImg&&st.deImg[p.imagen];if(!L||L.length<2)return '';
+  var tit=L.map(function(q){var b=_promoBenef(q),d=_promoDiasPropios(q);return (b||q.titulo)+(d?' ('+d+')':'');}).join('\n');
+  return ' · <b class="fg-pf-mas" title="'+_escAttr(tit)+'">'+L.length+' promos</b>';
+}
+function _fgPfSub(p,zona,st){
   var d='';
   if(_promoEsSuper(p)){
-    var pr=_promoDiasPropios(p),fl=_promoDias(p);
-    d=pr&&fl&&_promoNormalizar(pr)!==_promoNormalizar(fl)?pr+' (en el flyer: '+fl+')':(pr||(fl?'en el flyer: '+fl:''));
+    var pr=_promoDiasPropios(p),fl=_promoDias(p,zona);
+    // "Viernes y Sábado" y "Viernes y sábados" son los mismos días: no se aclara
+    var L=_promoDiasLeer(p.dias),igual=_promoNormalizar(pr)===_promoNormalizar(fl)||(L.todos?'Todos los días':_promoDiasFormato(L.set))===fl;
+    d=pr&&fl&&!igual?pr+' (en el flyer: '+fl+')':(pr||(fl?'en el flyer: '+fl:''));
   }
-  return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'');
+  return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+_fgPfMas(p,st);
 }
 // Texto de "dónde": provincia y localidad elegidas.
 function _fgPfDonde(st){return st.prov?' en '+_promoTitulizar(st.loc||st.prov):'';}
@@ -15407,11 +15446,12 @@ function _fgLgLista(){
     (L.length?(L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes'+_fgPfDonde(_fgLgV)+': escribí o elegí un rubro para encontrar la tuya.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+_fgPfDonde(_fgLgV)+'.'):'');
   if(!(_promosCat&&_promosCat.length)){box.innerHTML='<div class="fg-lg-vacio">No se pudo leer el catálogo de promociones.</div>';return;}
   if(!L.length){box.innerHTML='<div class="fg-lg-vacio">No hay promos vigentes con esos filtros'+_escHtml(_fgPfDonde(_fgLgV))+'. Si la marca no est&aacute; en Promociones, us&aacute; <b>Subir logo de la PC</b>.</div>';return;}
+  var zona=_promoZona(_fgLgV),ST=_fgLgV;
   box.innerHTML=_fgLgV.res.map(function(p,i){
     return '<button type="button" class="fg-lg-it" data-i="'+i+'" title="'+_escAttr(p.titulo)+'">'+
-      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p)+'</span>'+
+      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p,zona)+'</span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
-      '<span class="fg-lg-it-s">'+_fgPfSub(p)+'</span></button>';
+      '<span class="fg-lg-it-s">'+_fgPfSub(p,zona,ST)+'</span></button>';
   }).join('');
   if(_fgLgV.varios)_fgLgVariosMarcar();
 }
@@ -15654,8 +15694,8 @@ function _fgLgVolverUno(st){
   _fgLgTraer(pick.img).then(function(logo){
     if(_fgLgSrc()!==st.src)return;
     var p=pick.p||{imagen:pick.img,titulo:pick.t};
-    var conD=_fgLgPonerMarca(st.det,p,logo,_fgLgV.conDias!==false);
-    showToast(_fgLgAvisoMarca(pick.t,p,conD));
+    var zn=_promoZona(_fgLgV),conD=_fgLgPonerMarca(st.det,p,logo,_fgLgV.conDias!==false,zn);
+    showToast(_fgLgAvisoMarca(pick.t,p,conD,zn));
   }).catch(function(){showToast('No se pudo bajar el logo de '+pick.t+'. Probá con otro o revisá la conexión.');});
 }
 function fgElegirCancelar(callado){
@@ -15973,13 +16013,14 @@ function _fgFrLista(){
   st.res=tildadas.concat(resto.slice(0,MAX));
   if(info&&!r.cargando)info.textContent=L.length>MAX?'Mostrando '+MAX+' de '+L.length+' marcas vigentes'+_fgPfDonde(st)+': escribí o elegí un rubro para encontrar las tuyas.':L.length+(L.length===1?' marca vigente':' marcas vigentes')+_fgPfDonde(st)+'.';
   if(!st.res.length){box.innerHTML='<div class="fg-lg-vacio">'+(r.cargando?'Buscando las promos de '+_escHtml(_promoTitulizar(st.loc))+'&hellip;':'No hay promos vigentes con esos filtros.')+'</div>';return;}
+  var zona=_promoZona(st),ST=st;
   box.innerHTML=st.res.map(function(p,i){
     var n=_fgFrIdx(p.imagen);
     return '<button type="button" class="fg-lg-it'+(n>=0?' fg-fr-on':'')+'" data-i="'+i+'" title="'+_escAttr(p.titulo)+'" aria-pressed="'+(n>=0)+'">'+
       (n>=0?'<span class="fg-fr-num">'+(n+1)+'</span>':'')+
-      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p)+'</span>'+
+      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p,zona)+'</span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
-      '<span class="fg-lg-it-s">'+_fgPfSub(p)+'</span></button>';
+      '<span class="fg-lg-it-s">'+_fgPfSub(p,zona,ST)+'</span></button>';
   }).join('');
 }
 function _fgFrSelPintar(){
@@ -15992,7 +16033,7 @@ function _fgFrSelPintar(){
   if(sg)sg.innerHTML='Siguiente: ordenar'+(n?' ('+n+')':'')+' &rarr;';
   box.innerHTML=n?st.sel.map(function(s,i){
     return '<div class="fg-fr-it'+(_fgFrElegidos(st).indexOf(i)>=0?' sel':'')+'" data-i="'+i+'" title="Tocala para marcar el logo en la vista previa (con Shift, varios)"><span class="fg-fr-mango" aria-hidden="true" title="Mantené apretado y arrastrá para cambiar el orden">&#10303;</span><b>'+(i+1)+'</b>'+
-      '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+s.img)+'">'+_promoPctDot(_promoDeImg(s.img))+'</span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
+      '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+s.img)+'">'+_promoPctDot(_promoDeImg(s.img),_promoZona(st))+'</span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
       (s.sug?'<span class="fg-fr-sugmark" title="Sugerida por la app">&#10024;</span>':'')+
       '<button type="button" data-a="arr" data-i="'+i+'" aria-label="Subir"'+(i===0?' disabled':'')+'>&uarr;</button>'+
       '<button type="button" data-a="aba" data-i="'+i+'" aria-label="Bajar"'+(i===n-1?' disabled':'')+'>&darr;</button>'+
@@ -16254,7 +16295,7 @@ function _fgFrAjustePintar(){
 // abajo. La letra es la misma para toda la franja (la que entra en el lugar más
 // justo), así quedan parejos. Devuelve {porI:[{logo,texto,ty}|null], fs, color}.
 function _fgFrDiasTodos(st,lug){
-  var out={porI:[],fs:0,color:'#1A1A1A'};
+  var out={porI:[],fs:0,color:'#1A1A1A'},zona=_promoZona(st);
   if(_fgLgV.conDias===false)return out;
   var hay=false,u=Math.max(0.5,baseImg.width/1240),I=st.info||{};
   // franja que ya tenía días debajo (la grilla de súper): el logo queda en su
@@ -16263,7 +16304,7 @@ function _fgFrDiasTodos(st,lug){
   var conTexto=!!I.conTexto;
   st.sel.forEach(function(s,i){
     var p=null;for(var j=0;j<(_promosCat||[]).length;j++){var q=_promosCat[j];if(q.imagen===s.img&&_promoEsSuper(q)){p=q;break;}}
-    var dias=p?_promoDias(p):'',l=lug[i];
+    var dias=p?_promoDias(p,zona):'',l=lug[i];
     if(!dias||!l){out.porI.push(null);return;}
     hay=true;
     if(conTexto)out.porI.push({texto:dias,logo:l,ty:0,l:l});
@@ -17122,7 +17163,8 @@ function _mgPonerItem(it,u,P){
   if(P.malos[it.img]){P.aprox.push(it.nombre+' (no se pudo bajar)');return Promise.resolve();}
   var im=_fgLg.imgs[it.img];if(!im){P.aprox.push(it.nombre+' (no se pudo cargar el logo)');return Promise.resolve();}
   var p=_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t,subtitulo:''};
-  if(it.esSuper&&it.conDias)_fgLgPonerMarca(u.det,p,im,true);
+  // los días, los del % en la provincia elegida al guardar (como el aviso amarillo)
+  if(it.esSuper&&it.conDias)_fgLgPonerMarca(u.det,p,im,true,_promoZona({prov:P.datos&&P.datos.prov}));
   else{
     if(it.esSuper)_fgLgPonerMarca(u.det,p,im,false);else _fgLgPoner(u.det,it.img,it.t,im);
     var e=_fgLgActivos()[_fgLgIndiceDe(u.det)];
@@ -17281,7 +17323,7 @@ function _mgPasoMostrar(){
     _mgPasoCajas(false);return;
   }
   var it=_mgPasoItem(),u=_mgPasoUb(),pv=P.datos.prov||'';
-  var dias=it.tipo==='logo'&&it.esSuper&&it.conDias?_promoDias(_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t}):'';
+  var dias=it.tipo==='logo'&&it.esSuper&&it.conDias?_promoDias(_mgPromoDe(it.img)||{imagen:it.img,titulo:it.t},_promoZona({prov:pv})):'';
   var titulo=_escHtml(it.nombre)+(dias?', con sus d&iacute;as ('+_escHtml(dias)+')':(it.tipo==='logo'&&it.esSuper&&it.conDias?' (sin d&iacute;as con % hoy)':''));
   var fp=it.tipo==='logo'&&pv&&_mgSinPromoEn(it.img,pv);
   var pista=it.tipo==='franja'?(u.ok?'Te marqu&eacute; d&oacute;nde ir&iacute;a. Si no es ah&iacute;, toc&aacute; la franja correcta o arrastr&aacute; un recuadro alrededor.':'No la encontr&eacute; segura: toc&aacute; la franja donde va o arrastr&aacute; un recuadro alrededor.')

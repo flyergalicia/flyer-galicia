@@ -1597,7 +1597,7 @@ const checks = {
   'recorte: el flyer recortado sigue listo (editar, guardar y descargar)': _authSrc.includes("bi.naturalWidth||(_fgRecActivo()&&bi.width)"),
   'promociones: puntito rojo y filtro de super con % (Activas y Buscar)': _authSrc.includes('function _promoTildesPct(') && _authSrc.includes("if(f.pct==='solo'&&!_promoFilaPct(r.promo))return false;") && _authSrc.includes('<span class="promos-logo-w">') && newCSS.includes('.promos-logo-w{'),
   'barra de flyers: 2 fijos + favorito + Otros (profiles.flyer_fav)': _authSrc.includes('function _fgOptPartes(') && _authSrc.includes('function fgOptFav(') && _authSrc.includes('lider_id,flyer_fav') && newCSS.includes('#fg-optmas{'),
-  'ventanas de marcas: puntito rojo y filtro de super con %': _authSrc.includes('function _promoTienePct(') && _authSrc.includes("id=\"'+px+'-pct\"") && _authSrc.includes('if(st.soloPct)base=base.filter(_promoTienePct);') && newCSS.includes('.fg-pf-pct{'),
+  'ventanas de marcas: puntito rojo y filtro de super con %': _authSrc.includes('function _promoTienePct(') && _authSrc.includes("id=\"'+px+'-pct\"") && _authSrc.includes('base=base.filter(function(p){return _promoTienePct(p,zn);});') && _authSrc.includes('function _promoZona(st){') && newCSS.includes('.fg-pf-pct{'),
   'pulido: Base de datos con explicacion plegable': (html.match(/<details class="bd-ayuda">/g) || []).length === 2,
   'lupa: los puntos no cuentan al buscar (S.A. = SA)': /function padronSearch\([\s\S]*?_padSinPuntos\(_padNorm\(q\)\)[\s\S]*?_padSinPuntos\(_padNorm\(r\.empresa\)\)/.test(_authSrc),
   // Barra fija "Vista previa · Descargar PDF · Otros" en la PC; el tutorial apunta a los botones movidos.
