@@ -1940,3 +1940,41 @@ html.dark .promos-logo{background:#fff;border-color:#3a3f47;}
 /* Promociones (Activas y Buscar): el mismo puntito rojo en el logo de los súper con % de descuento. */
 .promos-logo-w{position:relative;display:inline-block;line-height:0;}
 .promos-logo-w .fg-pf-pct{top:-3px;right:-3px;width:9px;height:9px;}
+
+/* ── Barra de flyers con muchos (26-oct): 2 fijos + "Tu favorito" + "Otros" ── */
+/* width:0 + min-width:100%: la barra nunca agranda el panel (con muchos flyers lo
+   empujaba más ancho que la pantalla del celular); los nombres se cortan con "…" */
+#fg-optbar{width:0;min-width:100%;box-sizing:border-box;}
+#fg-optbar .fgo{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* cada botón toma el ancho de su nombre y, si no entra, los largos se cortan antes que los cortos */
+#fg-optbar.fg-optbar-c .fgo{flex:1 1 auto;min-width:58px;}
+#fg-optbar .fgo-fav::before{content:"\2605";margin-right:4px;color:#E0A100;font-size:.8rem;}
+#fg-optbar .fgo-vacio,#fg-optbar .fgo-mas{font:inherit;font-size:.76rem;font-weight:600;color:var(--gray);background:none;border:none;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 10px;min-width:0;border-bottom:2px solid transparent;transition:.15s;}
+#fg-optbar .fgo-vacio{flex:1 1 auto;min-width:64px;border:1.5px dashed var(--border);padding:6px 8px;}
+#fg-optbar .fgo-vacio span,#fg-optbar .fgo-mas-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#fg-optbar .fgo-vacio:hover,#fg-optbar .fgo-mas:hover{color:var(--dark);}
+#fg-optbar .fgo-mas{flex:0 0 auto;}
+#fg-optbar .fgo-mas.on{flex:1 1 auto;min-width:30%;background:#fff;box-shadow:var(--sh-1);}
+html.dark #fg-optbar .fgo-mas.on{background:#2c2f36;color:#f3f4f6 !important;}
+#fg-optbar .fgo-mas-ch,#fg-optbar .fgo-st{flex-shrink:0;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+#fg-optbar .fgo-vacio:focus-visible,#fg-optbar .fgo-mas:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+#fg-optmas{position:fixed;z-index:9000;background:var(--card);color:var(--dark);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-2);padding:8px;max-height:min(420px,70vh);overflow:auto;box-sizing:border-box;}
+#fg-optmas[hidden]{display:none;}
+#fg-optmas input{width:100%;box-sizing:border-box;margin:0 0 6px;padding:8px 10px;font:inherit;font-size:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--field,#fff);color:var(--dark);}
+html.dark #fg-optmas input{background:#2c2f36;}
+#fg-optmas .fgm-ayuda{font-size:.75rem;color:var(--gray);padding:2px 8px 6px;line-height:1.4;}
+#fg-optmas .fgm-ayuda svg{width:12px;height:12px;vertical-align:-1px;fill:none;stroke:currentColor;stroke-width:2;}
+#fg-optmas .fgm-it{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 10px;border-radius:8px;cursor:pointer;font-size:.85rem;}
+#fg-optmas .fgm-it:hover,#fg-optmas .fgm-it:focus-visible{background:rgba(128,128,128,.12);outline:none;}
+#fg-optmas .fgm-it.on{font-weight:600;background:rgba(128,128,128,.1);}
+#fg-optmas .fgm-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+#fg-optmas .fgm-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#fg-optmas .fgm-st{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;border-radius:8px;cursor:pointer;color:var(--gray);padding:0;}
+#fg-optmas .fgm-st:hover{background:rgba(128,128,128,.16);color:#E0A100;}
+#fg-optmas .fgm-st svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;}
+#fg-optmas .fgm-st.on{color:#E0A100;}
+#fg-optmas .fgm-st.on svg{fill:currentColor;}
+#fg-optmas .fgm-nada{font-size:.85rem;color:var(--gray);padding:10px;}
+@media (max-width:480px){
+  #fg-optbar .fgo-mas,#fg-optbar .fgo-vacio{padding:7px 6px;font-size:.75rem;}
+}

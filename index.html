@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="d250483fba">
+<meta name="build-v" content="fae1038a5b">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -2051,8 +2051,46 @@ html.dark .promos-logo{background:#fff;border-color:#3a3f47;}
 /* Promociones (Activas y Buscar): el mismo puntito rojo en el logo de los súper con % de descuento. */
 .promos-logo-w{position:relative;display:inline-block;line-height:0;}
 .promos-logo-w .fg-pf-pct{top:-3px;right:-3px;width:9px;height:9px;}
+
+/* ── Barra de flyers con muchos (26-oct): 2 fijos + "Tu favorito" + "Otros" ── */
+/* width:0 + min-width:100%: la barra nunca agranda el panel (con muchos flyers lo
+   empujaba más ancho que la pantalla del celular); los nombres se cortan con "…" */
+#fg-optbar{width:0;min-width:100%;box-sizing:border-box;}
+#fg-optbar .fgo{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* cada botón toma el ancho de su nombre y, si no entra, los largos se cortan antes que los cortos */
+#fg-optbar.fg-optbar-c .fgo{flex:1 1 auto;min-width:58px;}
+#fg-optbar .fgo-fav::before{content:"\2605";margin-right:4px;color:#E0A100;font-size:.8rem;}
+#fg-optbar .fgo-vacio,#fg-optbar .fgo-mas{font:inherit;font-size:.76rem;font-weight:600;color:var(--gray);background:none;border:none;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 10px;min-width:0;border-bottom:2px solid transparent;transition:.15s;}
+#fg-optbar .fgo-vacio{flex:1 1 auto;min-width:64px;border:1.5px dashed var(--border);padding:6px 8px;}
+#fg-optbar .fgo-vacio span,#fg-optbar .fgo-mas-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#fg-optbar .fgo-vacio:hover,#fg-optbar .fgo-mas:hover{color:var(--dark);}
+#fg-optbar .fgo-mas{flex:0 0 auto;}
+#fg-optbar .fgo-mas.on{flex:1 1 auto;min-width:30%;background:#fff;box-shadow:var(--sh-1);}
+html.dark #fg-optbar .fgo-mas.on{background:#2c2f36;color:#f3f4f6 !important;}
+#fg-optbar .fgo-mas-ch,#fg-optbar .fgo-st{flex-shrink:0;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+#fg-optbar .fgo-vacio:focus-visible,#fg-optbar .fgo-mas:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+#fg-optmas{position:fixed;z-index:9000;background:var(--card);color:var(--dark);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-2);padding:8px;max-height:min(420px,70vh);overflow:auto;box-sizing:border-box;}
+#fg-optmas[hidden]{display:none;}
+#fg-optmas input{width:100%;box-sizing:border-box;margin:0 0 6px;padding:8px 10px;font:inherit;font-size:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--field,#fff);color:var(--dark);}
+html.dark #fg-optmas input{background:#2c2f36;}
+#fg-optmas .fgm-ayuda{font-size:.75rem;color:var(--gray);padding:2px 8px 6px;line-height:1.4;}
+#fg-optmas .fgm-ayuda svg{width:12px;height:12px;vertical-align:-1px;fill:none;stroke:currentColor;stroke-width:2;}
+#fg-optmas .fgm-it{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 10px;border-radius:8px;cursor:pointer;font-size:.85rem;}
+#fg-optmas .fgm-it:hover,#fg-optmas .fgm-it:focus-visible{background:rgba(128,128,128,.12);outline:none;}
+#fg-optmas .fgm-it.on{font-weight:600;background:rgba(128,128,128,.1);}
+#fg-optmas .fgm-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+#fg-optmas .fgm-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#fg-optmas .fgm-st{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;border-radius:8px;cursor:pointer;color:var(--gray);padding:0;}
+#fg-optmas .fgm-st:hover{background:rgba(128,128,128,.16);color:#E0A100;}
+#fg-optmas .fgm-st svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;}
+#fg-optmas .fgm-st.on{color:#E0A100;}
+#fg-optmas .fgm-st.on svg{fill:currentColor;}
+#fg-optmas .fgm-nada{font-size:.85rem;color:var(--gray);padding:10px;}
+@media (max-width:480px){
+  #fg-optbar .fgo-mas,#fg-optbar .fgo-vacio{padding:7px 6px;font-size:.75rem;}
+}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=df2b0cdfd1"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=a56d299bc0"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">

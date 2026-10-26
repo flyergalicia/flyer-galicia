@@ -23,6 +23,7 @@ const nube={
   subidas:[],    // registro de subidas
   disenos:[],    // tabla flyer_disenos
   seq:0,
+  favs:{},      // profiles.flyer_fav por usuario (barra de flyers)
 };
 const USERS={
   asesor:{id:'00000000-0000-4000-8000-000000000001',email:'asesor.prueba@bancogalicia.com.ar',name:'Asesor Prueba',role:'asesor'},
@@ -88,8 +89,12 @@ async function abrir(browser,o){
       const l=nube.logs.filter(x=>!gte||x.created_at>=gte);let a=0,lim=1000;const rg=req.headers()['range'];if(rg){const x=/(\d+)-(\d+)/.exec(rg);if(x){a=+x[1];lim=+x[2]-a+1;}}
       const sl=l.slice(a,a+lim);return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':(sl.length?a+'-'+(a+sl.length-1):'*')+'/'+l.length}});
     }
+    if(path==='/rest/v1/profiles'&&m==='PATCH'){
+      const b=JSON.parse(req.postData()||'{}');if('flyer_fav' in b)nube.favs[U.id]=b.flyer_fav;
+      return route.fulfill({status:204,body:'',headers:H});
+    }
     if(path==='/rest/v1/profiles'&&m==='GET'){
-      const fila={id:U.id,role:U.role,full_name:U.name,email:U.email,status:'active',email_asesor:U.email,facultades:null};
+      const fila={id:U.id,role:U.role,full_name:U.name,email:U.email,status:'active',email_asesor:U.email,facultades:null,flyer_fav:nube.favs[U.id]||null};
       return route.fulfill({status:200,body:JSON.stringify(obj?fila:[fila]),headers:H});
     }
     // ── promos
@@ -158,8 +163,10 @@ async function abrir(browser,o){
   await p.goto('http://127.0.0.1:8765/index.html');
   if(o.sinEsperar)return p;
   await p.waitForFunction(()=>window._fgPrevGate===false&&window.baseImg&&window.cv&&window._facLoaded&&window._opcLoaded,null,{timeout:25000});
-  if(U.role==='admin'||o.opt9){await p.evaluate(()=>{if(_optN(_fgOpt)!==9)switchFlyerOption(9);});}
-  await p.waitForFunction(()=>window._fgOpt===9&&window.baseImg&&baseImg.naturalWidth>0&&cv.height>1000&&_fgOptCache[9]&&_fgOptCache[9].img===baseImg,null,{timeout:25000});
+  // o.opt: la opción en la que arranca (por defecto la 9, la única con flyer en la nube simulada)
+  const OPT=o.opt||9;
+  if(U.role==='admin'||o.opt9||o.opt){await p.evaluate(n=>{if(_optN(_fgOpt)!==n)switchFlyerOption(n);},OPT);}
+  await p.waitForFunction(n=>window._fgOpt===n&&window.baseImg&&baseImg.naturalWidth>0&&cv.height>1000&&_fgOptCache[n]&&_fgOptCache[n].img===baseImg,OPT,{timeout:25000});
   return p;
 }
 module.exports={abrir,nube,USERS};

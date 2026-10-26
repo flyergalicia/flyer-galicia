@@ -1189,7 +1189,7 @@ const checks = {
   // (una marca que no esta en el catalogo hay que sacarla), ultimo lo vigente.
   'promos: orden por columna': _authSrc.includes('function _promoOrdenar(') && _authSrc.includes('var _PROMO_ORDEN_ESTADO=') && _authSrc.includes('function _promoValorOrden(') && _authSrc.includes('function _promoTh(') && _authSrc.includes('NO_ENCONTRADA:0,VENCIDA:1,FUERA_PROV:2,VENCE_ESTE_MES:3,REVISAR:4') && _authSrc.includes("chipDefs=[['NO_ENCONTRADA'"),
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
-  'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('bar.innerHTML=_facOptsDe(_fgVista).map(') && !_authSrc.includes('opciones_armador'),
+  'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('var opts=_facOptsDe(_fgVista),pt=_fgOptPartes(opts);') && !_authSrc.includes('opciones_armador'),
   // Flyer Rubros: tercera solapa del header que reusa el armador. Cada opción tiene
   // `solapa` ('flyer'|'rubros'); las de rubros dibujan el cartel "¡Beneficio
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
@@ -1267,7 +1267,7 @@ const checks = {
   'facultades: vista previa por perfil': _authSrc.includes('function startFacSim(') && _authSrc.includes('function stopFacSim(') && _authSrc.includes('function _adminNow(') && _authSrc.includes('if(_simRole)return !!((_FAC&&_FAC[_simRole]||{})[f]);') && html.includes('id="fac-grid"'),
   // El admin se puede destildar cosas a sí mismo (columna "Vos", guardada por
   // cuenta en profiles.facultades): ya no hay bypass fijo en _can.
-  'facultades: columna Vos del admin (profiles.facultades)': _authSrc.includes('function _facMe(') && _authSrc.includes('if(_admin)return _facMe(f);') && _authSrc.includes("update({facultades:me})") && _authSrc.includes('function _facFieldMe(') && _authSrc.includes(',facultades,es_prueba,lider_id\').eq(\'id\',user.id)') && !_authSrc.includes('checked disabled title="El administrador siempre tiene todas') && !html.includes('por eso su columna no se puede editar'),
+  'facultades: columna Vos del admin (profiles.facultades)': _authSrc.includes('function _facMe(') && _authSrc.includes('if(_admin)return _facMe(f);') && _authSrc.includes("update({facultades:me})") && _authSrc.includes('function _facFieldMe(') && _authSrc.includes(',facultades,es_prueba,lider_id,flyer_fav\').eq(\'id\',user.id)') && !_authSrc.includes('checked disabled title="El administrador siempre tiene todas') && !html.includes('por eso su columna no se puede editar'),
   // Data → Cambios en las empresas: lo escribe padron_replace (servidor, migración 007).
   'base de datos: cambios en las empresas (solapa Data)': html.includes('id="at-padronlog"') && html.includes('data-tab="padronlog"') && html.includes('id="plog-list"') && _authSrc.includes('function loadPadronLog(') && _authSrc.includes('function exportPadronLog(') && _authSrc.includes("'padronlog'") && _authSrc.includes("if(t==='padronlog')loadPadronLog();") && _authSrc.includes("_sb.from('padron_log')"),
   // Admin → Auditoría: audit_log lo escribe auth-admin (service_role), migración 023.
@@ -1282,7 +1282,7 @@ const checks = {
     exportHtml.includes('function gesInit(') && !_gesSrc.includes('</script>') &&
     _authSrc.includes("if(_esLider()&&!_LID_FAC[f])return false;") && _authSrc.includes("if(n==='ges')return typeof window.gesInit==='function';") &&
     _authSrc.includes("{id:'gestiones',el:'view-gestiones'") && _authSrc.includes("_sb.rpc('prueba_cambiar_rol'") &&
-    _authSrc.includes("status,facultades,es_prueba,lider_id')") &&   // sin esto Prospect entra como usuario común
+    _authSrc.includes("status,facultades,es_prueba,lider_id,flyer_fav')") &&   // sin esto Prospect entra como usuario común
     _authSrc.includes("if(!_esHunter()&&!_esLider())document.getElementById('layout').style.display='grid';") &&
     _gesSrc.includes("_sb.rpc('gestiones_tablero'") && !/service_role|SUPA_SERVICE/.test(_gesSrc),
   'preview: zoom con Ctrl + rueda (la rueda sola recorre), armador y Hunter':
@@ -1596,6 +1596,7 @@ const checks = {
   'promos: Buscar trae todas las promos de cada marca (+ una sola fila por marca)': _authSrc.includes('function _promoHermanas(') && _authSrc.includes('function _promoTildeUnaBuscar(') && _authSrc.includes("if(_promosFiltros.repetidas==='ocultar')out=_promoUnaPorMarca(out);") && _authSrc.includes("v.r.grupo!=null?('g'+v.r.grupo)"),
   'recorte: el flyer recortado sigue listo (editar, guardar y descargar)': _authSrc.includes("bi.naturalWidth||(_fgRecActivo()&&bi.width)"),
   'promociones: puntito rojo y filtro de super con % (Activas y Buscar)': _authSrc.includes('function _promoTildesPct(') && _authSrc.includes("if(f.pct==='solo'&&!_promoFilaPct(r.promo))return false;") && _authSrc.includes('<span class="promos-logo-w">') && newCSS.includes('.promos-logo-w{'),
+  'barra de flyers: 2 fijos + favorito + Otros (profiles.flyer_fav)': _authSrc.includes('function _fgOptPartes(') && _authSrc.includes('function fgOptFav(') && _authSrc.includes('lider_id,flyer_fav') && newCSS.includes('#fg-optmas{'),
   'ventanas de marcas: puntito rojo y filtro de super con %': _authSrc.includes('function _promoTienePct(') && _authSrc.includes("id=\"'+px+'-pct\"") && _authSrc.includes('if(st.soloPct)base=base.filter(_promoTienePct);') && newCSS.includes('.fg-pf-pct{'),
   'pulido: Base de datos con explicacion plegable': (html.match(/<details class="bd-ayuda">/g) || []).length === 2,
   'lupa: los puntos no cuentan al buscar (S.A. = SA)': /function padronSearch\([\s\S]*?_padSinPuntos\(_padNorm\(q\)\)[\s\S]*?_padSinPuntos\(_padNorm\(r\.empresa\)\)/.test(_authSrc),

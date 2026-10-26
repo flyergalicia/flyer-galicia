@@ -1063,7 +1063,7 @@ function doRegister(){
 function checkProfile(user){
   _fgPrecargaInicio(user.id); // la configuración viene en paralelo con el perfil
   _fgIngresoPend=user;
-  _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades,es_prueba,lider_id').eq('id',user.id).single().then(function(r){
+  _sb.from('profiles').select('role,full_name,nombre_asesor,celular_asesor,email_asesor,status,facultades,es_prueba,lider_id,flyer_fav').eq('id',user.id).single().then(function(r){
     _fgIngresoPend=null;
     var p=r.data;
     // Un corte de red o el servidor caído NO es una cuenta rechazada: antes caía
@@ -1102,6 +1102,8 @@ function checkProfile(user){
     // Gestiones comerciales: cuenta de prueba (Prospect) y el interruptor general.
     // Cuando llega el interruptor se re-aplica el gating (es idempotente).
     _esPrueba=!!p.es_prueba;_myLiderId=p.lider_id||null;
+    // flyer favorito de la barra de opciones (uno por solapa; ver _fgOptPartes)
+    _fgFav=Array.isArray(p.flyer_fav)?p.flyer_fav.map(Number).filter(function(x){return x>0;}):[];
     _gesFlagCargar(function(){if(_facLoaded)_applyFacultades();_gesAvisoCargar();});
     loadCashback(false,function(){if(typeof redraw==='function')redraw();}); // monto vigente, aunque el admin lo haya cambiado
     // El gating de la interfaz depende de la matriz de facultades, que viene de
@@ -4656,20 +4658,33 @@ function _fgEnsureOptBar(){
   // La barra se destruye y recrea al cambiar facultades; el estilo se agrega una vez.
   if(!document.getElementById('fg-optbar-style'))document.head.appendChild(st);
   var bar=document.createElement('div');bar.id='fg-optbar';
-  bar.innerHTML=_facOptsDe(_fgVista).map(function(o){
+  var opts=_facOptsDe(_fgVista),pt=_fgOptPartes(opts);
+  function pastilla(o,fav){
+    return '<div class="fgo'+(fav?' fgo-fav':'')+'" data-o="'+o+'" onclick="fgOptElegir('+o+')"'+(fav?' title="'+_escAttr(_optLabel(o))+' &middot; tu favorito. Para cambiarlo, toc&aacute; la estrellita de otro en &laquo;Otros&raquo;."':(pt?' title="'+_escAttr(_optLabel(o))+'"':''))+'>'+_escHtml(_optLabel(o))+'</div>'+protosDe(o);
+  }
+  function protosDe(o){
     // los diseños de Estudio abiertos con "Usar" van al lado de su flyer base
-    var protos=_fgProtos.filter(function(p){return p.opcion===o;}).map(function(p){
+    return _fgProtos.filter(function(p){return p.opcion===o;}).map(function(p){
       var tit=p.temp?'Borrador sin guardar sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda hasta que recargues la p&aacute;gina o lo cierres; para conservarlo, toc&aacute; &laquo;Guardar en Estudio&raquo;.':
         'Prototipo de Estudio sobre &laquo;'+_escAttr(_optLabel(o))+'&raquo;. Queda ac&aacute; hasta que recargues la p&aacute;gina; el dise&ntilde;o sigue guardado en Estudio.';
       return '<div class="fgp'+(p.temp?' fgp-bor':'')+'" data-p="'+_escAttr(p.id)+'" onclick="fgProtoAbrir(\''+_escAttr(p.id)+'\')" title="'+tit+'">'+
         '<svg class="fgp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'+
         '<span class="fgp-t">'+_escHtml(p.nombre)+'</span><button type="button" class="fgp-x" onclick="fgProtoCerrar(\''+_escAttr(p.id)+'\',event)" aria-label="Cerrar" title="'+(p.temp?'Cerrar borrador':'Cerrar (sigue guardado en Estudio)')+'">&times;</button></div>';
     }).join('');
-    return '<div class="fgo" data-o="'+o+'" onclick="fgOptElegir('+o+')">'+_escHtml(_optLabel(o))+'</div>'+protos;
-  }).join('');
+  }
+  if(!pt)bar.innerHTML=opts.map(function(o){return pastilla(o);}).join('');
+  else{
+    // muchos flyers: 2 fijos + "Tu favorito" + "Otros" (ver _fgOptPartes)
+    bar.innerHTML=pt.fijas.map(function(o){return pastilla(o);}).join('')+
+      (pt.fav?pastilla(pt.fav,true):'<button type="button" class="fgo-vacio" onclick="fgOptMas(event)" title="Eleg&iacute; tu flyer favorito: abr&iacute; &laquo;Otros&raquo; y toc&aacute; la estrellita">'+_FG_ESTRELLA+'<span>Tu favorito</span></button>')+
+      '<button type="button" class="fgo-mas" data-otras="'+pt.otras.join(',')+'" onclick="fgOptMas(event)" aria-haspopup="true" title="Los dem&aacute;s flyers"><span class="fgo-mas-t">Otros</span><svg class="fgo-mas-ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>'+
+      pt.otras.map(protosDe).join(''); // de los de "Otros", sólo sus prototipos abiertos
+  }
+  if(pt)bar.className='fg-optbar-c';
   tabs.parentNode.insertBefore(bar,tabs);
   if(_admin)_fgOptBarGestos(bar);
   _fgRenderOptBar();
+  _fgOptMasPintar(); // si la lista de "Otros" estaba abierta (tocar la estrellita rearma la barra)
 }
 function _fgRenderOptBar(){
   if(typeof _fgBorrGuardarPronto==='function')_fgBorrGuardarPronto(); // pestañas de borrador: se guardan en la PC
@@ -4682,6 +4697,107 @@ function _fgRenderOptBar(){
     // la opción activa se pinta con SU color (mismo que registros/historial)
     x.style.color=on?_optColor(o):'';
     x.style.borderBottomColor=on?_optColor(o):'transparent';
+  });
+  // "Otros": si el flyer de ahora está ahí adentro, el botón lleva su nombre y se
+  // marca como elegido (siempre se ve cuál está activo)
+  var mas=bar.querySelector('.fgo-mas');
+  if(mas){
+    var act=_optN(_fgOpt),dentro=!pAct&&mas.getAttribute('data-otras').split(',').map(Number).indexOf(act)>=0;
+    mas.classList.toggle('on',dentro);
+    mas.querySelector('.fgo-mas-t').textContent=dentro?_optLabel(act):'Otros';
+    mas.title=dentro?_optLabel(act)+' (de «Otros»)':'Los demás flyers';
+    mas.style.color=dentro?_optColor(act):'';
+    mas.style.borderBottomColor=dentro?_optColor(act):'transparent';
+  }
+  _fgOptMasPintar();
+}
+// ── Muchos flyers (26-oct): la barra muestra fijos los _FG_OPT_FIJAS primeros
+// (el orden que arma el admin), un tercero que elige cada persona con la
+// estrellita ("Tu favorito", se guarda en su cuenta: profiles.flyer_fav, una
+// lista con un número por solapa) y el resto en "Otros", una lista con buscador.
+// Con _FG_OPT_MAX flyers o menos queda como siempre: todos a la vista.
+var _FG_OPT_FIJAS=2,_FG_OPT_MAX=4,_fgFav=[];
+var _FG_ESTRELLA='<svg class="fgo-st" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
+function _fgOptPartes(opts){
+  if(opts.length<=_FG_OPT_MAX)return null;
+  var fijas=opts.slice(0,_FG_OPT_FIJAS),fav=null;
+  // un favorito que ya no está habilitado (o que el admin subió a los fijos) no cuenta
+  _fgFav.some(function(n){if(opts.indexOf(n)>=_FG_OPT_FIJAS){fav=n;return true;}return false;});
+  return {fijas:fijas,fav:fav,otras:opts.filter(function(n){return fijas.indexOf(n)<0&&n!==fav;})};
+}
+var _fgOptMasAbierta=false;
+function fgOptMas(ev){
+  if(ev){ev.stopPropagation();ev.preventDefault();}
+  _fgOptMasAbierta=!_fgOptMasAbierta;
+  var q=document.getElementById('fg-optmas-q');if(q)q.value='';
+  _fgOptMasPintar(true);
+}
+function _fgOptMasCerrar(){if(!_fgOptMasAbierta)return;_fgOptMasAbierta=false;_fgOptMasPintar();}
+// Pinta (o esconde) la lista de "Otros", colgada debajo de la barra.
+function _fgOptMasPintar(foco){
+  var pop=document.getElementById('fg-optmas');
+  var bar=document.getElementById('fg-optbar'),pt=bar&&_fgOptPartes(_facOptsDe(_fgVista));
+  if(!_fgOptMasAbierta||!pt){if(pop)pop.hidden=true;_fgOptMasAbierta=_fgOptMasAbierta&&!!pt;return;}
+  if(!pop){
+    pop=document.createElement('div');pop.id='fg-optmas';pop.setAttribute('role','dialog');pop.setAttribute('aria-label','Otros flyers');
+    pop.innerHTML='<input type="search" id="fg-optmas-q" placeholder="Buscar flyer" autocomplete="off">'+
+      '<div class="fgm-ayuda">Toc&aacute; la '+_FG_ESTRELLA+' para dejar uno siempre a la vista como tu favorito.</div><div id="fg-optmas-l"></div>';
+    document.body.appendChild(pop);
+    pop.addEventListener('pointerdown',function(e){e.stopPropagation();});
+    pop.querySelector('#fg-optmas-q').addEventListener('input',function(){_fgOptMasPintar();});
+    pop.addEventListener('keydown',function(e){
+      if(e.key==='Enter'&&e.target.id==='fg-optmas-q'){var f=pop.querySelector('.fgm-it');if(f){e.preventDefault();f.click();}}
+      else if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('fgm-it')){e.preventDefault();e.target.click();}
+    });
+    pop.addEventListener('click',function(e){
+      var st=e.target.closest('.fgm-st');
+      if(st){e.stopPropagation();fgOptFav(+st.getAttribute('data-o'));return;}
+      var it=e.target.closest('.fgm-it');
+      if(it){_fgOptMasCerrar();fgOptElegir(+it.getAttribute('data-o'));}
+    });
+    document.addEventListener('pointerdown',function(e){if(_fgOptMasAbierta&&!(e.target.closest&&e.target.closest('.fgo-mas,.fgo-vacio')))_fgOptMasCerrar();});
+    window.addEventListener('resize',_fgOptMasCerrar);
+    // Escape cierra aunque el foco no esté en la lista (tocar la estrellita la repinta)
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_fgOptMasAbierta){e.stopPropagation();_fgOptMasCerrar();}},true);
+    // al desplazarse la lista acompaña a la barra (cerrarla acá la cerraba al abrirla:
+    // tocar "Otros" o enfocar el buscador mueve la página)
+    window.addEventListener('scroll',function(e){if(_fgOptMasAbierta&&e.target!==pop&&!pop.contains(e.target))_fgOptMasUbicar();},true);
+  }
+  var lista=(pt.fav?[pt.fav]:[]).concat(pt.otras);
+  lista=_facOptsDe(_fgVista).filter(function(n){return lista.indexOf(n)>=0;}); // en el orden de la barra
+  var qEl=pop.querySelector('#fg-optmas-q');
+  qEl.hidden=lista.length<=6;
+  var q=_promoNormalizar(qEl.value||'');
+  var act=_optN(_fgOpt),vis=lista.filter(function(n){return !q||_promoNormalizar(_optLabel(n)).indexOf(q)>=0;});
+  pop.querySelector('#fg-optmas-l').innerHTML=vis.length?vis.map(function(n){
+    var fav=n===pt.fav;
+    return '<div class="fgm-it'+(n===act?' on':'')+'" data-o="'+n+'" role="button" tabindex="0"><span class="fgm-dot" style="background:'+_escAttr(_optColor(n))+'"></span>'+
+      '<span class="fgm-t">'+_escHtml(_optLabel(n))+'</span>'+
+      '<button type="button" class="fgm-st'+(fav?' on':'')+'" data-o="'+n+'" aria-pressed="'+fav+'" title="'+(fav?'Es tu favorito (tocá para sacarlo)':'Fijar como tu favorito')+'" aria-label="'+(fav?'Sacar de favorito':'Fijar como favorito')+'">'+_FG_ESTRELLA+'</button></div>';
+  }).join(''):'<div class="fgm-nada">No hay flyers con ese nombre.</div>';
+  pop.hidden=false;_fgOptMasUbicar();
+  if(foco&&!qEl.hidden)qEl.focus();
+}
+// Debajo de la barra, alineada a la derecha (donde está "Otros").
+function _fgOptMasUbicar(){
+  var pop=document.getElementById('fg-optmas'),bar=document.getElementById('fg-optbar');
+  if(!pop||!bar)return;
+  var r=bar.getBoundingClientRect(),w=Math.min(320,r.width);
+  pop.style.width=w+'px';pop.style.left=Math.max(8,r.right-w)+'px';pop.style.top=(r.bottom+6)+'px';
+}
+// Estrellita: fija (o saca) el favorito de la solapa a la vista y lo guarda en la cuenta.
+function fgOptFav(n){
+  if(!_me)return;
+  var solapa=_optSolapa(n),antes=_fgFav.slice(),era=_fgFav.indexOf(n)>=0;
+  _fgFav=_fgFav.filter(function(x){return _optSolapa(x)!==solapa;});
+  if(!era)_fgFav.push(n);
+  _facSyncOptBar();_fgRenderOptBar();
+  showToast(era?'Sacaste «'+_optLabel(n)+'» de tu favorito.':'«'+_optLabel(n)+'» quedó como tu favorito.');
+  _sb.from('profiles').update({flyer_fav:_fgFav}).eq('id',_me.id).then(function(r){
+    if(!r||!r.error)return;
+    console.warn('flyer_fav:',r.error);
+    _fgFav=antes;_facSyncOptBar();_fgRenderOptBar();
+    showToast('No se pudo guardar tu favorito. Probá de nuevo.');
   });
 }
 // Lista completa de opciones tal como está hoy, en orden, lista para saveOpciones.
