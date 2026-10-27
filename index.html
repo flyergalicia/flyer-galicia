@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="91c067c6e1">
+<meta name="build-v" content="85bf9fbd9a">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -2168,8 +2168,22 @@ html.dark #fg-optmas input{background:#2c2f36;}
 /* el nombre del flyer base va por CSS: no se suma al texto de la pestaña */
 #fg-optbar .fgp-de::before{content:"· " attr(data-de);}
 @media (max-width:480px){#fg-optbar .fgp-de{display:none;}}
+/* Provincia con Shift + clic (lista propia sobre el desplegable, 27-oct-2026) */
+.prov-pop{position:fixed;z-index:250000;background:var(--card,#fff);color:var(--dark);border:1px solid var(--border);border-radius:10px;box-shadow:var(--sh-2);padding:6px;overflow:auto;box-sizing:border-box;font-family:"Figtree",sans-serif;}
+.prov-pop .prov-it{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 8px;border-radius:7px;cursor:pointer;font-size:.8125rem;line-height:1.3;user-select:none;}
+.prov-pop .prov-it:hover,.prov-pop .prov-it.foco{background:rgba(128,128,128,.13);}
+.prov-pop .prov-it.on{font-weight:600;}
+.prov-pop .prov-tl{flex:0 0 14px;color:var(--accent,#E8611A);font-weight:700;}
+.prov-pop .prov-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.prov-pop .prov-mas{flex-shrink:0;width:26px;height:26px;border:none;border-radius:6px;background:none;color:var(--gray);font:600 1rem/1 "Figtree",sans-serif;cursor:pointer;padding:0;opacity:.45;}
+.prov-pop .prov-it:hover .prov-mas,.prov-pop .prov-it.on .prov-mas{opacity:1;}
+.prov-pop .prov-mas:hover{background:rgba(128,128,128,.2);color:var(--dark);}
+.prov-pop .prov-ayuda{position:sticky;bottom:-6px;margin:4px -6px -6px;padding:7px 10px;border-top:1px solid var(--border);background:var(--card,#fff);font-size:.75rem;color:var(--gray);line-height:1.4;}
+.prov-pop .prov-ayuda b{color:var(--dark);font-weight:600;}
+html.dark .prov-pop,html.dark .prov-pop .prov-ayuda{background:#24272d;}
+@media (hover:none){.prov-pop .prov-mas{opacity:1;width:34px;height:34px;}.prov-pop .prov-it{padding:6px 4px 6px 8px;}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=9b003f239f"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=69659beeab"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">

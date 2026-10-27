@@ -2216,6 +2216,7 @@ function _promoProvsDe(p){return _promoGeoConocida(p)?p.provincias:[];}
 function _promoEsOnline(p){return _promoGeoConocida(p)&&!p.provincias.length;}
 function _promoEnProvincia(p,prov){
   if(!prov)return true;
+  if(String(prov).indexOf(_PROV_SEP)>=0){var L=_provLista(prov);for(var j=0;j<L.length;j++)if(_promoEnProvincia(p,L[j]))return true;return false;}
   // MODO no publica los locales de algunas (YPF, WICO, súper regionales): con una
   // provincia elegida no se muestran; sólo con "Todas las provincias" (decisión
   // del dueño, 26-oct-2026: un asesor del sur veía súper de otras provincias)
@@ -2225,6 +2226,135 @@ function _promoEnProvincia(p,prov){
   for(var i=0;i<p.provincias.length;i++)if(_promoNormalizar(p.provincias[i])===k)return true;
   return false;
 }
+// ── Varias provincias (27-oct-2026) ──────────────────────────────────────────
+// En general se elige una, pero a veces el flyer va para dos (Capital y el
+// conurbano). En cualquier desplegable de Provincia, Shift + clic (o el "+" de la
+// fila) suma otra. El valor viaja como un texto con las provincias unidas por ";"
+// en el orden de la lista ("BUENOS AIRES;CAPITAL FEDERAL"): así todo lo que ya
+// guardaba o comparaba la provincia como texto sigue andando, y _promoEnProvincia
+// acepta cualquiera de ellas. Con varias no hay localidad (es de una provincia).
+var _PROV_SEP=';';
+function _provLista(v){return String(v||'').split(_PROV_SEP).filter(Boolean);}
+function _provVarias(v){return _provLista(v).length>1;}
+function _provNombre(v){var L=_provLista(v).map(_promoTitulizar);return L.length<2?(L[0]||''):L.slice(0,-1).join(', ')+' y '+L[L.length-1];}
+// Opciones de un desplegable de provincia: la elegida queda marcada aunque sean
+// varias (va como una opción más, que la lista propia no muestra).
+function _provOpciones(ps,cur,todas){
+  var v=_provValida(cur,ps);
+  return '<option value="">'+todas+'</option>'+ps.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===v?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('')+
+    (_provVarias(v)?'<option value="'+_escAttr(v)+'" selected data-varias="1">'+_escHtml(_provNombre(v))+'</option>':'');
+}
+// Lo elegido que todavía existe en la lista (una provincia que ya no está se cae).
+function _provValida(v,ps){return _provLista(v).filter(function(x){return ps.indexOf(x)>=0;}).join(_PROV_SEP);}
+// El <select> se sigue viendo igual (mismo estilo, modo oscuro, pruebas), pero al
+// tocarlo abre una lista propia: el desplegable del navegador no deja Shift + clic.
+var _provPop=null;
+function _provSel(sel){
+  if(!sel||sel._prov)return;
+  sel._prov=1;
+  var d=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');
+  // asignar varias desde el código (volver de pantalla completa, retomar) también funciona
+  Object.defineProperty(sel,'value',{configurable:true,get:function(){return d.get.call(sel);},set:function(v){_provOptAsegurar(sel,v);d.set.call(sel,v);}});
+  var abrir=function(e){if(sel.disabled)return;e.preventDefault();sel.focus();if(_provPop&&_provPop.sel===sel){_provCerrar();return;}_provAbrir(sel);};
+  sel.addEventListener('mousedown',function(e){if(e.button===0)abrir(e);});
+  sel.addEventListener('touchend',abrir);
+  sel.addEventListener('keydown',function(e){
+    if(_provPop)return; // con la lista abierta manda el teclado de la lista
+    if(e.key===' '||e.key==='Enter'||e.key==='ArrowDown'||e.key==='ArrowUp')abrir(e);
+  });
+  if(!sel.title)sel.title='Shift + clic para sumar otra provincia';
+}
+function _provOptAsegurar(sel,v){
+  v=String(v||'');if(v.indexOf(_PROV_SEP)<0)return;
+  for(var i=0;i<sel.options.length;i++)if(sel.options[i].value===v)return;
+  Array.prototype.slice.call(sel.querySelectorAll('option[data-varias]')).forEach(function(o){o.remove();});
+  var o=document.createElement('option');o.value=v;o.textContent=_provNombre(v);o.setAttribute('data-varias','1');sel.appendChild(o);
+}
+function _provPoner(sel,v){
+  if(sel.value===v)return;
+  sel.value=v;
+  sel.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function _provAbrir(sel){
+  _provCerrar();
+  var pop=document.createElement('div');pop.className='prov-pop';pop.setAttribute('role','listbox');
+  pop.setAttribute('aria-multiselectable','true');
+  document.body.appendChild(pop);
+  _provPop={pop:pop,sel:sel,i:-1,filas:[]};
+  _provPintar();
+  pop.addEventListener('mousedown',function(e){e.preventDefault();}); // el foco queda en el desplegable
+  pop.addEventListener('click',function(e){
+    var it=e.target.closest('.prov-it');if(!it)return;
+    _provElegir(it.getAttribute('data-v'),e.shiftKey||!!e.target.closest('.prov-mas'));
+  });
+  _provUbicar();
+  var r=pop.querySelector('.prov-it.on');if(r)pop.scrollTop=Math.max(0,r.offsetTop-pop.clientHeight/2+r.offsetHeight);
+}
+function _provPintar(){
+  var P=_provPop;if(!P)return;
+  var sel=P.sel,cur=_provLista(sel.value),filas=[],varias=cur.length>1;
+  for(var i=0;i<sel.options.length;i++){var o=sel.options[i];if(!o.hasAttribute('data-varias'))filas.push({v:o.value,t:o.textContent});}
+  P.filas=filas;
+  P.pop.innerHTML=filas.map(function(f,i){
+    var on=f.v?cur.indexOf(f.v)>=0:!cur.length,menos=on&&varias;
+    return '<div class="prov-it'+(on?' on':'')+(i===P.i?' foco':'')+'" role="option" aria-selected="'+on+'" data-v="'+_escAttr(f.v)+'">'+
+      '<span class="prov-tl">'+(on?'&#10003;':'')+'</span><span class="prov-t">'+_escHtml(f.t)+'</span>'+
+      (f.v?'<button type="button" class="prov-mas" tabindex="-1" title="'+(menos?'Sacar esta provincia':'Sumar esta provincia a la elegida')+'" aria-label="'+(menos?'Sacar ':'Sumar ')+_escAttr(f.t)+'">'+(menos?'&minus;':'+')+'</button>':'')+'</div>';
+  }).join('')+'<div class="prov-ayuda"><b>Shift + clic</b> (o el +) suma otra provincia'+(varias?'<br>Elegidas: <b>'+_escHtml(_provNombre(sel.value))+'</b>':'')+'</div>';
+}
+// sumar = Shift (o el +): agrega o saca esa provincia y la lista queda abierta.
+function _provElegir(v,sumar){
+  var P=_provPop;if(!P)return;var sel=P.sel;
+  if(!sumar||!v){_provCerrar();_provPoner(sel,v);return;}
+  var cur=_provLista(sel.value),k=cur.indexOf(v);
+  if(k>=0)cur.splice(k,1);else cur.push(v);
+  var orden=P.filas.map(function(f){return f.v;});
+  cur.sort(function(a,b){return orden.indexOf(a)-orden.indexOf(b);});
+  _provPoner(sel,cur.join(_PROV_SEP));
+  if(_provPop){_provPintar();_provUbicar();}
+}
+function _provCerrar(){if(_provPop){_provPop.pop.remove();_provPop=null;}}
+function _provUbicar(){
+  var P=_provPop;if(!P)return;
+  var r=P.sel.getBoundingClientRect(),pop=P.pop;
+  if(!r.width&&!r.height){_provCerrar();return;} // el desplegable se escondió
+  pop.style.width=Math.min(Math.max(r.width,250),window.innerWidth-16)+'px';
+  pop.style.left=Math.max(8,Math.min(r.left,window.innerWidth-8-pop.offsetWidth))+'px';
+  var abajo=window.innerHeight-r.bottom-12,arriba=r.top-12,alto=pop.scrollHeight;
+  var va=abajo>=Math.min(380,alto)||abajo>=arriba,h=Math.min(380,va?abajo:arriba);
+  pop.style.maxHeight=h+'px';
+  pop.style.top=(va?r.bottom+4:Math.max(8,r.top-4-Math.min(h,alto)))+'px';
+}
+document.addEventListener('mousedown',function(e){if(_provPop&&!_provPop.pop.contains(e.target)&&e.target!==_provPop.sel)_provCerrar();},true);
+document.addEventListener('touchstart',function(e){if(_provPop&&!_provPop.pop.contains(e.target)&&e.target!==_provPop.sel)_provCerrar();},{capture:true,passive:true});
+window.addEventListener('resize',function(){_provCerrar();});
+window.addEventListener('scroll',function(e){if(_provPop&&!_provPop.pop.contains(e.target))_provUbicar();},true);
+// en window y antes que nadie: con la lista abierta, Escape la cierra a ella sola
+// (no la ventana de marcas, que escucha Escape en document)
+window.addEventListener('keydown',function(e){
+  var P=_provPop;if(!P)return;
+  if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();_provCerrar();return;}
+  if(e.key==='Tab'){_provCerrar();return;}
+  var n=P.filas.length;if(!n)return;
+  function mover(){_provPintar();var f=P.pop.querySelector('.prov-it.foco');if(f)f.scrollIntoView({block:'nearest'});}
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();e.stopImmediatePropagation();
+    if(P.i<0){var cur=_provLista(P.sel.value);P.i=Math.max(0,P.filas.map(function(f){return f.v;}).indexOf(cur[0]||''));}
+    else P.i=(P.i+(e.key==='ArrowDown'?1:-1)+n)%n;
+    mover();return;
+  }
+  if(e.key==='Enter'||e.key===' '){
+    e.preventDefault();e.stopImmediatePropagation();
+    if(P.i>=0)_provElegir(P.filas[P.i].v,e.shiftKey);else _provCerrar();
+    return;
+  }
+  if(e.key.length===1&&!e.ctrlKey&&!e.altKey&&!e.metaKey){
+    // una letra salta a la próxima provincia que empieza así
+    var l=_promoNormalizar(e.key);if(!l)return;
+    for(var j=1;j<=n;j++){var k=(Math.max(P.i,0)+j)%n;if(P.filas[k].v&&_promoNormalizar(P.filas[k].t).indexOf(l)===0){P.i=k;break;}}
+    e.preventDefault();e.stopImmediatePropagation();mover();
+  }
+},true);
 // ¿El catálogo cargado trae geografía? Si no, el filtro por provincia no puede
 // hacer su trabajo y hay que decirlo en vez de fingir que filtró.
 function _promosHayGeo(){
@@ -2409,9 +2539,9 @@ function _promosPoblarProvincias(){
   }
   sel.disabled=false;
   var provs=_promosProvincias();
-  sel.innerHTML='<option value="">Todas las provincias</option>'+provs.map(function(n){
-    return '<option value="'+_escAttr(n)+'"'+(_promosProv===n?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';
-  }).join('');
+  if(_promosProv&&provs.length)_promosProv=_provValida(_promosProv,provs);
+  sel.innerHTML=_provOpciones(provs,_promosProv,'Todas las provincias');
+  _provSel(sel);
   _promosPoblarLocalidades();
 }
 function _promosPoblarLocalidades(){
@@ -2420,7 +2550,7 @@ function _promosPoblarLocalidades(){
   for(var i=0;i<_promosUbic.length;i++){if(String(_promosUbic[i].nombre)===_promosProv){u=_promosUbic[i];break;}}
   var locs=(u&&Array.isArray(u.localidades))?u.localidades:[];
   sel.disabled=!locs.length;
-  sel.innerHTML='<option value="">'+(_promosProv?'Todas las localidades':'Elegí una provincia primero')+'</option>'+
+  sel.innerHTML='<option value="">'+(_provVarias(_promosProv)?'Con varias provincias, sin localidad':_promosProv?'Todas las localidades':'Elegí una provincia primero')+'</option>'+
     locs.map(function(n){
       return '<option value="'+_escAttr(n)+'"'+(_promosLoc===n?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';
     }).join('');
@@ -3753,7 +3883,7 @@ function descargarExcelPromos(){
     var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     var a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    var slug=_promosProv?('_'+_promoNormalizar(_promosProv).replace(/ +/g,'_')):'';
+    var slug=_promosProv?('_'+_provLista(_promosProv).map(function(x){return _promoNormalizar(x).replace(/ +/g,'_');}).join('_')):'';
     a.download=(actExcel?'promociones_activas':'promociones_galicia')+slug+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     setTimeout(function(){URL.revokeObjectURL(a.href);},4000);
@@ -15338,7 +15468,7 @@ function _fgLgMarcas(){
     // logo nuevo: su recuadro (se mueve con él); lugar vacío: lo que se tapó
     var p=_fgLgAjustable(e)?_fgLgAPantalla(e.tx,e.ty,e.tw,e.th):_fgLgAPantalla(e.x,e.y,e.w,e.h);
     var vc=_fgLgVencida(e),fp=!vc&&_fgLgFueraProv(e);
-    return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+(vc?' vencida':'')+(fp?' fueraprov':'')+'"'+(vc?' data-v="Vencida · doble clic para cambiar"':fp?' data-v="'+_escAttr('Sin promo en '+_promoTitulizar(e.prov)+' · doble clic para cambiar')+'"':'')+' style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px">'+
+    return '<div class="fg-lg-marca'+(i===_fgLg.sel||eleg.indexOf(i)>=0?' elegido':'')+(eleg.length>1&&eleg.indexOf(i)>=0?' grupo':'')+(vc?' vencida':'')+(fp?' fueraprov':'')+'"'+(vc?' data-v="Vencida · doble clic para cambiar"':fp?' data-v="'+_escAttr('Sin promo en '+_provNombre(e.prov)+' · doble clic para cambiar')+'"':'')+' style="left:'+p.l.toFixed(1)+'px;top:'+p.t.toFixed(1)+'px;width:'+p.w.toFixed(1)+'px;height:'+p.h.toFixed(1)+'px">'+
       (e.franjaBase?'<button type="button" class="fg-lg-fr-edit" data-fr="'+_escAttr(e.franja)+'" title="Volver al editor de esta franja (sin marcarla de nuevo)">&#9998; Editar franja</button>':'')+'</div>';
   }).join('')+(_fgLg.lugares||[]).map(function(d){
     var p=_fgLgAPantalla(d.x,d.y,d.w,d.h);
@@ -16094,8 +16224,9 @@ function _fgPfPoblar(px,st){
   if(prov){
     var ps=_promosHayGeo()?_promosProvincias():[];
     prov.hidden=!ps.length;
-    if(st.prov&&ps.indexOf(st.prov)<0)st.prov='';
-    prov.innerHTML='<option value="">Todas las provincias</option>'+ps.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===st.prov?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('');
+    if(st.prov)st.prov=_provValida(st.prov,ps);
+    prov.innerHTML=_provOpciones(ps,st.prov,'Todas las provincias');
+    _provSel(prov);
   }
   _fgPfLocs(px,st);
 }
@@ -16198,7 +16329,7 @@ function _fgPfSub(p,zona,st){
   return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(_promoEsModo(p)?' · <b class="fg-pf-modo" title="Promoci&oacute;n de MODO: se paga con MODO (QR o NFC desde la app de Galicia)">MODO</b>':'')+(_promoAcl(p)?' · <b class="fg-pf-acl" title="'+_escAttr(_promoAcl(p))+'">'+_escHtml(_promoAcl(p).length>70?_promoAcl(p).slice(0,67)+'…':_promoAcl(p))+'</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+_fgPfMas(p,st);
 }
 // Texto de "dónde": provincia y localidad elegidas.
-function _fgPfDonde(st){return st.prov?' en '+_promoTitulizar(st.loc||st.prov):'';}
+function _fgPfDonde(st){return st.prov?' en '+(st.loc?_promoTitulizar(st.loc):_provNombre(st.prov)):'';}
 function _fgLgLista(){
   var box=document.getElementById('fg-lg-list'),info=document.getElementById('fg-lg-info');if(!box)return;
   var r=_fgPfFiltrar(_fgLgV,function(){if(document.getElementById('fg-lg-ov'))_fgLgLista();});
@@ -16376,7 +16507,7 @@ function _fgFrIrActivas(st){
     if(!_fgElegir||_fgElegir.st!==st)return;
     _fgElegirBar();
     if(!st.prov){showToast('Elegí una provincia a la izquierda y tocá «Ver promociones».');renderPromosResultados();return;}
-    var sp=document.getElementById('promos-prov');if(sp)sp.value=st.prov;
+    var sp=document.getElementById('promos-prov');if(sp){_provSel(sp);sp.value=st.prov;}
     _promosProv=st.prov;_promosLoc='';_promosLocIds=null;_promosPoblarLocalidades();
     if(st.loc){_promosLoc=st.loc;var sl=document.getElementById('promos-loc');if(sl)sl.value=st.loc;}
     _promosRubro=st.rubro||'';var sr=document.getElementById('promos-rubro');if(sr)sr.value=_promosRubro;
@@ -16741,7 +16872,7 @@ function _fgFrSugerir(st){
     var tope=Math.min(_FG_FR_MAX,meta);
     res.forEach(function(p){if(p&&st.sel.length<tope&&_fgFrIdx(p.imagen)<0){st.sel.push({img:p.imagen,t:p.titulo,sug:true});puestas++;}});
     _fgFrLista();_fgFrSelPintar();_fgFrPreview();
-    var donde=st.loc?_promoTitulizar(st.loc):(st.prov?_promoTitulizar(st.prov):'');
+    var donde=st.loc?_promoTitulizar(st.loc):(st.prov?_provNombre(st.prov):'');
     var de=(st.rubro?' de '+st.rubro:'')+(donde?' en '+donde:'');
     if(!puestas)showToast('No se pudieron bajar los logos sugeridos. Probá de nuevo.');
     else if(st.sel.length<tope)showToast('Con esos filtros encontré '+puestas+(puestas===1?' marca':' marcas')+de+'; los otros lugares quedan para que elijas vos.');
@@ -17685,10 +17816,10 @@ function _mgGuardar(){
       (mias.length?'<label class="fg-est-l" for="fg-mgg-dest">Guardar como</label><select id="fg-mgg-dest"><option value="">Una nueva</option>'+
         mias.map(function(d){return '<option value="'+_escAttr(d.id)+'"'+(ult&&ult.id===d.id?' selected':'')+'>Reemplazar &laquo;'+_escHtml(d.nombre)+'&raquo;</option>';}).join('')+'</select>':'')+
       '<label class="fg-est-l" for="fg-mgg-nom">Nombre</label><input type="text" id="fg-mgg-nom" maxlength="80" autocomplete="off" placeholder="Neuquén capital">'+
-      (provs.length?'<label class="fg-est-l" for="fg-mgg-prov">Provincia de estas marcas <span>(te aviso si alguna no tiene promo ah&iacute;)</span></label><select id="fg-mgg-prov"><option value="">Ninguna en particular</option>'+
-        provs.map(function(n){return '<option value="'+_escAttr(n)+'"'+(n===provDef?' selected':'')+'>'+_escHtml(_promoTitulizar(n))+'</option>';}).join('')+'</select>':'')+
+      (provs.length?'<label class="fg-est-l" for="fg-mgg-prov">Provincia de estas marcas <span>(te aviso si alguna no tiene promo ah&iacute;)</span></label><select id="fg-mgg-prov">'+_provOpciones(provs,provDef,'Ninguna en particular')+'</select>':'')+
       '<div class="fg-cf-acts"><button type="button" class="btn bg" id="fg-mgg-no">Cancelar</button><button type="button" class="btn bp" id="fg-mgg-ok">Guardar</button></div></div>');
     var nom=document.getElementById('fg-mgg-nom'),dest=document.getElementById('fg-mgg-dest'),prov=document.getElementById('fg-mgg-prov'),ok=document.getElementById('fg-mgg-ok');
+    _provSel(prov);
     var ponerNombre=function(){var d=dest&&dest.value?mias.filter(function(x){return x.id===dest.value;})[0]:null;nom.value=d?d.nombre:'';ok.textContent=d?'Reemplazar':'Guardar';};
     if(dest)dest.onchange=ponerNombre;ponerNombre();
     document.getElementById('fg-mgg-x').onclick=w.cerrar;document.getElementById('fg-mgg-no').onclick=w.cerrar;
@@ -17994,7 +18125,7 @@ function _mgHechoTxt(n){
 function _mgCuentas(P){
   var A=_fgLgActivos(),pv=P.datos.prov||'';
   return {hecho:_mgHechoTxt(P.n),venc:A.filter(_fgLgVencida).length,
-    fuera:pv?A.filter(function(e){return e.prov===pv&&_fgLgFueraProv(e);}).length:0,provN:pv?_promoTitulizar(pv):''};
+    fuera:pv?A.filter(function(e){return e.prov===pv&&_fgLgFueraProv(e);}).length:0,provN:pv?_provNombre(pv):''};
 }
 function _mgResumenFinal(P){
   var c=_mgCuentas(P);
@@ -18118,7 +18249,7 @@ function _mgPasoMostrar(){
   bar.innerHTML='<div class="mg-pb-mini">'+_mgPasoMiniHtml(it)+'</div>'+
     '<div class="mg-pb-txt"><div class="mg-pb-que">Colocando &laquo;'+N+'&raquo; &middot; '+(P.i+1)+' de '+tot+'</div>'+
       '<div class="mg-pb-tit">'+titulo+'</div>'+
-      (fp?'<div class="mg-pb-pista mg-av-a">Ojo: hoy no tiene promo en '+_escHtml(_promoTitulizar(pv))+'.</div>':'')+
+      (fp?'<div class="mg-pb-pista mg-av-a">Ojo: hoy no tiene promo en '+_escHtml(_provNombre(pv))+'.</div>':'')+
       '<div class="mg-pb-pista'+(u.ok?'':' aprox')+'">'+pista+'</div>'+
       '<div class="mg-pb-pts" role="group" aria-label="Pasos">'+puntos+'</div>'+
       (seg>=2?'<button type="button" class="mg-pb-link" data-mp="seguros">'+(seg===resto?'Poner de una los '+seg+' que faltan':'Poner de una los '+seg+' que encontr&eacute; seguro (y seguir con los otros '+(resto-seg)+')')+'</button>':'')+'</div>'+
@@ -18348,7 +18479,7 @@ function _mgOv(id,html){
 function _mgFilaHtml(d,acts){
   var mio=_estMio(d),vieja=!(+d.v>=2);
   var flyer=d.flyer||((_FG_OPTS.indexOf(+d.opcion)>=0)?_optLabel(+d.opcion):'');
-  var info=[d.resumen||'',flyer?'del flyer '+flyer:'',d.prov?_promoTitulizar(d.prov):''].filter(Boolean).join(' · ');
+  var info=[d.resumen||'',flyer?'del flyer '+flyer:'',d.prov?_provNombre(d.prov):''].filter(Boolean).join(' · ');
   var mini=d.miniatura&&/^data:image\/jpeg;base64,/.test(d.miniatura)?'<img alt="" src="'+_escAttr(d.miniatura)+'">':'';
   return '<div class="mg-fila"><div class="mg-fila-img'+(mini?'':' vacia')+'">'+mini+'</div>'+
     '<div class="mg-fila-t"><b>'+_escHtml(d.nombre)+'</b>'+(info?'<span class="mg-fila-c">'+_escHtml(info)+'</span>':'')+

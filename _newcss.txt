@@ -2057,3 +2057,17 @@ html.dark #fg-optmas input{background:#2c2f36;}
 /* el nombre del flyer base va por CSS: no se suma al texto de la pestaña */
 #fg-optbar .fgp-de::before{content:"· " attr(data-de);}
 @media (max-width:480px){#fg-optbar .fgp-de{display:none;}}
+/* Provincia con Shift + clic (lista propia sobre el desplegable, 27-oct-2026) */
+.prov-pop{position:fixed;z-index:250000;background:var(--card,#fff);color:var(--dark);border:1px solid var(--border);border-radius:10px;box-shadow:var(--sh-2);padding:6px;overflow:auto;box-sizing:border-box;font-family:"Figtree",sans-serif;}
+.prov-pop .prov-it{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 8px;border-radius:7px;cursor:pointer;font-size:.8125rem;line-height:1.3;user-select:none;}
+.prov-pop .prov-it:hover,.prov-pop .prov-it.foco{background:rgba(128,128,128,.13);}
+.prov-pop .prov-it.on{font-weight:600;}
+.prov-pop .prov-tl{flex:0 0 14px;color:var(--accent,#E8611A);font-weight:700;}
+.prov-pop .prov-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.prov-pop .prov-mas{flex-shrink:0;width:26px;height:26px;border:none;border-radius:6px;background:none;color:var(--gray);font:600 1rem/1 "Figtree",sans-serif;cursor:pointer;padding:0;opacity:.45;}
+.prov-pop .prov-it:hover .prov-mas,.prov-pop .prov-it.on .prov-mas{opacity:1;}
+.prov-pop .prov-mas:hover{background:rgba(128,128,128,.2);color:var(--dark);}
+.prov-pop .prov-ayuda{position:sticky;bottom:-6px;margin:4px -6px -6px;padding:7px 10px;border-top:1px solid var(--border);background:var(--card,#fff);font-size:.75rem;color:var(--gray);line-height:1.4;}
+.prov-pop .prov-ayuda b{color:var(--dark);font-weight:600;}
+html.dark .prov-pop,html.dark .prov-pop .prov-ayuda{background:#24272d;}
+@media (hover:none){.prov-pop .prov-mas{opacity:1;width:34px;height:34px;}.prov-pop .prov-it{padding:6px 4px 6px 8px;}}
