@@ -2522,7 +2522,7 @@ function _promosTraerTodo(desde,acc,cb){
 function _promosTraerModo(cb){
   _sbTodo(function(d,h){
     return _sb.from('promos_modo_cache')
-      .select('id,slug,titulo,subtitulo,imagen,beneficio,tope,dias,canales,solo_galicia,provincias,localidades,fecha_desde,fecha_hasta,proximamente,primera_vez')
+      .select('*') // todas: una columna nueva (aclaracion, 037) no rompe la lectura si la base todavía no la tiene
       .order('id',{ascending:true})
       .range(d,h);
   },function(err,filas){
@@ -3466,7 +3466,11 @@ function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDiasPropios(p):'';return
 // Qué da la promo ("25% de ahorro", "6 cuotas sin interés"): sin esto dos filas de
 // la misma marca parecían repetidas. Viene de la columna beneficio (migración 029).
 function _promoBenef(p){return p&&p.beneficio?_promoDecodeEntities(String(p.beneficio)).replace(/\s+/g,' ').replace(/[.\s]+$/,'').trim():'';}
-function _promoBenefHtml(p){var b=_promoBenef(p);return b?'<div class="promos-benef">'+_escHtml(b)+'</div>':'';}
+function _promoBenefHtml(p){var b=_promoBenef(p);return (b?'<div class="promos-benef">'+_escHtml(b)+'</div>':'')+_promoAclHtml(p);}
+// Aclaración de MODO (migración 037): sólo cuando dice una restricción de verdad
+// ("YPF" = YPF Boxes: "Aplica exclusivamente en cambio de aceite, filtro y escaneo...").
+function _promoAcl(p){return p&&p.aclaracion?String(p.aclaracion).replace(/\s+/g,' ').trim():'';}
+function _promoAclHtml(p){var a=_promoAcl(p);return a?'<div class="promos-acl">'+_escHtml(a)+'</div>':'';}
 function _promoOtrasHtml(r){
   if(_promosFiltros.repetidas!=='ocultar'||!r._otras)return '';
   var det='Esta marca tiene '+(r._otras+1)+' promociones vigentes (distintas tarjetas, plazos o locales).';
@@ -3699,7 +3703,7 @@ function descargarExcelPromos(){
       desde:r.promo?_promosFmtFecha(r.fechaDesde):'-',
       hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
       dias:r.promo?_promoDiasPropios(r.promo):'',
-      benef:r.promo?_promoBenef(r.promo):'',
+      benef:r.promo?_promoBenef(r.promo)+(_promoAcl(r.promo)?' ('+_promoAcl(r.promo)+')':''):'',
       estado:_promoEstadoTxt(r),
       origen:r.promo?(_promoEsModo(r.promo)?'MODO':'Galicia'):''
     });
@@ -15642,7 +15646,7 @@ function _fgPfSub(p,zona,st){
     var L=_promoDiasLeer(p.dias),igual=_promoNormalizar(pr)===_promoNormalizar(fl)||(L.todos?'Todos los días':_promoDiasFormato(L.set))===fl;
     d=pr&&fl&&!igual?pr+' (en el flyer: '+fl+')':(pr||(fl?'en el flyer: '+fl:''));
   }
-  return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(_promoEsModo(p)?' · <b class="fg-pf-modo" title="Promoci&oacute;n de MODO: se paga con MODO (QR o NFC desde la app de Galicia)">MODO</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+_fgPfMas(p,st);
+  return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(_promoEsModo(p)?' · <b class="fg-pf-modo" title="Promoci&oacute;n de MODO: se paga con MODO (QR o NFC desde la app de Galicia)">MODO</b>':'')+(_promoAcl(p)?' · <b class="fg-pf-acl" title="'+_escAttr(_promoAcl(p))+'">'+_escHtml(_promoAcl(p).length>70?_promoAcl(p).slice(0,67)+'…':_promoAcl(p))+'</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+_fgPfMas(p,st);
 }
 // Texto de "dónde": provincia y localidad elegidas.
 function _fgPfDonde(st){return st.prov?' en '+_promoTitulizar(st.loc||st.prov):'';}

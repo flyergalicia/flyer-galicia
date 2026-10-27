@@ -715,8 +715,7 @@ async function modoPdfFilas(buf: Uint8Array): Promise<{ loc: string; prov: strin
   }
   return filas;
 }
-async function modoPdfGeo(slug: string, nombres: string[]): Promise<{ provincias: string[]; localidades: string[] } | null> {
-  const d = await modoJson(`${MODO_API}/v2/benefit/${encodeURIComponent(slug)}`);
+async function modoPdfGeo(d: any, nombres: string[]): Promise<{ provincias: string[]; localidades: string[] } | null> {
   const url = String(d?.details?.download_button?.url || "");
   // sólo los PDF de MODO (su servidor de archivos)
   if (!/^https:\/\/assets\.mobile\.playdigital\.com\.ar\/.+\.pdf$/i.test(url)) return null;
@@ -736,6 +735,18 @@ async function modoPdfGeo(slug: string, nombres: string[]): Promise<{ provincias
     if (ciudad) ls.add(p + "|" + ciudad);
   }
   return ps.size ? { provincias: [...ps].sort(), localidades: [...ls].sort() } : null;
+}
+
+// La "aclaración" de MODO (details.applicability_description) casi siempre es de
+// relleno ("Consultá los locales adheridos", el nombre de la marca): sólo se
+// guarda cuando dice una restricción de verdad ("Aplica exclusivamente en cambio
+// de aceite, filtro y escaneo...", "Comercios que acepten MODO y Amex").
+const MODO_ACL_SI = /(exclusiv|s[oó]lo |[uú]nicamente|aplica|excepto|no v[aá]lid|no aplica|amex|american express)/i;
+const MODO_NO_COMBUSTIBLE = /(aceite|filtro|lubric|lavad|neum[aá]tic|escaneo|service|repuesto|lubricentro)/i;
+function modoAclaracion(det: any): string | null {
+  const t = String(det?.details?.applicability_description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!t || /^consult/i.test(t) || !MODO_ACL_SI.test(t)) return null;
+  return t.length > 220 ? t.slice(0, 217) + "…" : t;
 }
 
 async function syncModo(): Promise<{ total: number; conProvincia: number; conLogo: number; pdfLeidos: number; pdfErrores: number }> {
@@ -800,7 +811,7 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
     if (!gal || gal.length < 1000) break;
   }
 
-  const extra = new Map<string, { provincias: string[] | null; localidades: string[] | null; imagen: string }>();
+  const extra = new Map<string, { provincias: string[] | null; localidades: string[] | null; imagen: string; aclaracion: string | null }>();
   let idx = 0;
   async function worker() {
     while (idx < list.length) {
@@ -834,9 +845,18 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
       }
       // Sin locales en el mapa, MODO a veces los publica en un PDF ("Comercios
       // adheridos": YPF Boxes, WICO, Almacor...). Si no hay ni eso, null = no se sabe.
-      if (enLocal && provincias === null && c?.benefit?.publication?.slug) {
+      // El detalle de la promo: trae la aclaración ("Aplica exclusivamente en cambio
+      // de aceite...") y, a veces, el PDF con los locales.
+      let det: any = null;
+      const slug = String(c?.benefit?.publication?.slug || "");
+      if (slug) {
+        try { det = await modoJson(`${MODO_API}/v2/benefit/${encodeURIComponent(slug)}`); }
+        catch (e) { console.error("modo detalle", id, String((e as Error)?.message || e)); }
+      }
+      const aclaracion = modoAclaracion(det);
+      if (enLocal && provincias === null && det) {
         try {
-          const g = await modoPdfGeo(String(c.benefit.publication.slug), nombres);
+          const g = await modoPdfGeo(det, nombres);
           if (g) { provincias = g.provincias; localidades = g.localidades; pdfLeidos++; }
         } catch (e) { pdfErrores++; console.error("modo pdf", id, String((e as Error)?.message || e)); }
       }
@@ -854,7 +874,7 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
         const b = l?.brand, k = modoClave(b?.name);
         if (b?.id && b?.img_square && k && !marcasVistas.has(k)) marcasVistas.set(k, { id: String(b.id), url: String(b.img_square) });
       }
-      extra.set(id, { provincias, localidades, imagen });
+      extra.set(id, { provincias, localidades, imagen, aclaracion });
     }
   }
   const marcasVistas = new Map<string, { id: string; url: string }>();
@@ -891,12 +911,16 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
   const rows = list.map((c) => {
     const b = c.benefit, s = b?.conditions?.schedule || {}, x = extra.get(String(b.id))!;
     const tope = Number(c?.card?.cashback_cap || 0);
-    const rubro = MODO_RUBROS[String((c?.offer?.categories || [])[0] ?? "")] || "Otros";
+    let rubro = MODO_RUBROS[String((c?.offer?.categories || [])[0] ?? "")] || "Otros";
+    // "YPF" está en Estaciones de servicio, pero es YPF Boxes (cambio de aceite):
+    // no es combustible y no tiene que salir en un flyer de combustible
+    if (rubro === "Combustible" && x.aclaracion && MODO_NO_COMBUSTIBLE.test(x.aclaracion)) rubro = "Vehículos";
     return {
       id: String(b.id),
       slug: String(b?.publication?.slug || ""),
       titulo: String(c?.card?.validity_place || "").replace(/\s+/g, " ").trim(),
       subtitulo: rubro,
+      aclaracion: x.aclaracion,
       imagen: x.imagen,
       beneficio: String(c?.card?.benefit || "").replace(/\s+/g, " ").trim() || null,
       tope: tope > 0 ? String(tope) : null,

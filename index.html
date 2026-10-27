@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="433c76a8a7">
+<meta name="build-v" content="df16c671a4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1678,6 +1678,10 @@ html.dark #fg-optbar .fgp.on{background:#2c2f36;}
 .fg-lg-fil select[hidden]{display:none;}
 .fg-pf-onl{font-weight:700;color:var(--accent-2);}
 .fg-pf-modo{font-weight:700;color:#1e6b47;cursor:help;}
+/* aclaración de MODO ("sólo cambio de aceite..."): que se lea antes de ponerla en un flyer */
+.promos-acl{font-size:0.75rem;line-height:1.35;color:#9a4b00;font-weight:600;margin-top:2px;}
+.fg-pf-acl{font-weight:700;color:#9a4b00;cursor:help;}
+html.dark .promos-acl,html.dark .fg-pf-acl{color:#f0b46b;}
 html.dark .fg-pf-modo{color:#8fd6b0;}
 /* Armar franja: elegir en Activas y ordenar arrastrando */
 .fg-fr-infofila{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;flex-shrink:0;}
@@ -2125,7 +2129,7 @@ html.dark #fg-optmas input{background:#2c2f36;}
 #fg-optbar .fgp-de::before{content:"· " attr(data-de);}
 @media (max-width:480px){#fg-optbar .fgp-de{display:none;}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=77a9e25451"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=be91bc4618"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">

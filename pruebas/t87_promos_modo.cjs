@@ -16,7 +16,8 @@ module.exports=async(browser)=>{
   const fila=(o)=>Object.assign({slug:'',subtitulo:'Supermercados',imagen:'',beneficio:'',tope:null,dias:null,canales:['instore'],solo_galicia:false,
     provincias:null,localidades:null,fecha_desde:'2026-10-01',fecha_hasta:'2027-12-31',proximamente:false,primera_vez:null},o);
   nube.modo=[
-    fila({id:'a1',slug:'ypf-cuotas',titulo:'YPF',subtitulo:'Combustible',imagen:'modo/317.png',beneficio:'Hasta 6 cuotas sin interés',dias:'Todos los días'}),
+    // YPF Boxes: la aclaración de MODO dice que no es combustible (la función la pasa a Vehículos)
+    fila({id:'a1',slug:'ypf-cuotas',titulo:'YPF',subtitulo:'Vehículos',imagen:'modo/317.png',beneficio:'Hasta 6 cuotas sin interés',dias:'Todos los días',aclaracion:'Aplica exclusivamente en cambio de aceite, filtro y escaneo electrónico de tu vehículo'}),
     // la misma que Galicia ("Coto · 25% de ahorro."): no se suma
     fila({id:'a2',slug:'coto-oct26',titulo:'COTO',imagen:'coto_180.png',beneficio:'25% de reintegro',dias:'Martes',provincias:['BUENOS AIRES','CAPITAL FEDERAL'],fecha_hasta:'2026-10-31'}),
     // otra de Coto que Galicia no tiene: se suma y va en la misma tarjeta (mismo logo)
@@ -68,7 +69,7 @@ module.exports=async(browser)=>{
     const out={tilde:!!document.getElementById('fg-lg-modo')&&document.getElementById('fg-lg-modo').checked};
     _fgLgV.q='ypf';_fgLgLista();
     const y=it().find(b=>b.querySelector('.fg-lg-it-t').textContent==='YPF');
-    out.ypf=!!y;out.ypfTag=!!(y&&y.querySelector('.fg-pf-modo'));out.ypfImg=y&&y.querySelector('img').getAttribute('src');
+    out.ypf=!!y;out.ypfTag=!!(y&&y.querySelector('.fg-pf-modo'));out.ypfAcl=y&&y.querySelector('.fg-pf-acl')&&y.querySelector('.fg-pf-acl').title;out.ypfImg=y&&y.querySelector('img').getAttribute('src');
     _fgLgV.prov='MENDOZA';_fgLgLista();out.ypfMza=it().length;_fgLgV.prov='';
     _fgLgV.q='wico';_fgLgLista();out.wico=it().length;
     _fgLgV.q='coto';_fgLgV.prov='CAPITAL FEDERAL';_fgPfPoblar('fg-lg',_fgLgV);_fgLgLista();
@@ -97,6 +98,7 @@ module.exports=async(browser)=>{
   ok(v.tilde,'la ventana de un logo tiene el tilde "Incluir MODO", prendido');
   ok(v.ypf&&v.ypfTag&&/flyers\/modo\/317\.png/.test(v.ypfImg||''),'YPF aparece con la etiqueta MODO y su logo del bucket');
   ok(v.ypfMza===0,'con una provincia elegida, YPF (sin locales en MODO) no se ofrece');
+  ok(/cambio de aceite/.test(v.ypfAcl||''),'la tarjeta de YPF muestra la aclaración de MODO (cambio de aceite, no combustible)');
   ok(v.wico===0,'una de MODO sin logo (WICO) no se ofrece para el flyer');
   ok(v.cotoTarjetas===1&&/30%/.test(v.cotoTit)&&/MODO/.test(v.cotoTit),'Coto es una sola tarjeta y su detalle incluye la de MODO');
   ok(v.sinModo===0&&v.ls==='0'&&v.conModo===1,'apagando el tilde desaparece YPF (y queda recordado); prendiéndolo vuelve');
@@ -166,12 +168,14 @@ module.exports=async(browser)=>{
     const fila=[...document.querySelectorAll('.promos-table tbody tr')].find(tr=>/^YPF/.test((tr.querySelector('.pc-promo')||{}).textContent||''));
     const sinDato=fila&&fila.querySelector('.pc-donde').textContent;
     _promoSetProvincia('MENDOZA');const ypfMza=ypf&&ypf.estado;_promoSetProvincia('');
-    return {sinDato,ypfMza,ypf:ypf&&ypf.promo&&ypf.promo.titulo,ypfModo:!!(ypf&&_promoEsModo(ypf.promo)),ypfEstado:ypf&&ypf.estado,
+    const acl=fila&&fila.querySelector('.promos-acl');
+    return {acl:acl&&acl.textContent,sinDato,ypfMza,ypf:ypf&&ypf.promo&&ypf.promo.titulo,ypfModo:!!(ypf&&_promoEsModo(ypf.promo)),ypfEstado:ypf&&ypf.estado,
       coto25:R.filter(x=>x.marca==='Coto'&&x.promo&&/25%/.test(x.promo.beneficio||'')&&/martes/i.test(x.promo.dias||'')).length,
       coto30:R.filter(x=>x.marca==='Coto'&&x.promo&&/30%/.test(x.promo.beneficio||'')).length};
   });
   console.log('  ',JSON.stringify(b));
   ok(b.ypf==='YPF'&&b.ypfModo&&b.ypfEstado!=='NO_ENCONTRADA','Buscar encuentra YPF en MODO');
+  ok(/exclusivamente en cambio de aceite/.test(b.acl||''),'en la tabla, YPF lleva la aclaración debajo del beneficio');
   ok(b.sinDato==='Sin dato'&&b.ypfMza==='FUERA_PROV','sin provincia YPF dice "Sin dato" en Dónde; con una provincia elegida queda fuera');
   ok(b.coto25===1&&b.coto30===1,'Coto trae su 25% de los martes una sola vez y además el 30% de MODO');
   ok(p.errores.length===0,'sin errores de JavaScript ('+p.errores.join(' | ')+')');
