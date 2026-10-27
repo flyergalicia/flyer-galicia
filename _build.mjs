@@ -1559,7 +1559,8 @@ const checks = {
   'ux: Ingresando con sesion guardada (sin el formulario)': html.includes('id="lv-boot"') && html.includes(`localStorage.getItem('${SB_SESSION_KEY}'))_h.classList.add('fg-boot')`) && html.includes('html.fg-boot #lv-login') && _authSrc.includes('function _bootFin(') && (_authSrc.match(/_bootFin\(\)/g) || []).length >= 5,
   // La caché de un año va SÓLO en archivos de nombre único (llevan la hora): uno
   // de nombre fijo que se re-sube se seguiría viendo viejo un año.
-  'perf: imagenes de flyer con cache larga (solo nombres unicos)': (_authSrc.match(/cacheControl:'31536000'/g) || []).length === 2 && /var img=?|img='flyer_'+ts+'_op'+n2+'.jpg'/.test(_authSrc) && /var imgName='flyer_'\+Date\.now\(\)[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*_sb\.storage\.from\('flyers'\)\.upload\(imgName,blob,\{[^}]*cacheControl:'31536000'/.test(_authSrc),
+  // (la tercera es la imagen de "Flyers para copiar": también nombre único con la hora)
+  'perf: imagenes de flyer con cache larga (solo nombres unicos)': (_authSrc.match(/cacheControl:'31536000'/g) || []).length === 3 && _authSrc.includes("nomImg='fuente_'+ts+'.jpg'") &&/var img=?|img='flyer_'+ts+'_op'+n2+'.jpg'/.test(_authSrc) && /var imgName='flyer_'\+Date\.now\(\)[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*_sb\.storage\.from\('flyers'\)\.upload\(imgName,blob,\{[^}]*cacheControl:'31536000'/.test(_authSrc),
   // ── Operaciones que congelaban la pantalla (2026-10-14) ──
   // Normalizar texto es puro: se recuerda por texto (y las palabras de cada promo,
   // por promo). "Validar" de Promociones normalizaba ~350.000 veces.

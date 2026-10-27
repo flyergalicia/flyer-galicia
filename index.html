@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="d18ca574df">
+<meta name="build-v" content="ea5821bb57">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -1838,6 +1838,46 @@ html.dark .fg-fr-it.sel{background:rgba(242,97,34,.12);}
 .fg-sin-imp-aviso{font-size:.8125rem;color:var(--gray);line-height:1.45;padding:4px 2px;}
 @media (max-width:900px){.fg-rec-conf{bottom:72px;}}
 .fg-rec-chip[hidden]{display:none !important;}
+/* Insertar una sección (copiada de "Flyers para copiar") */
+.fg-lg-ins.on{background:#2563EB;border-color:#2563EB;color:#fff;}
+.prev.fg-ins-on #cv{cursor:crosshair;}
+.fg-ins-linea{position:absolute;left:0;right:0;height:0;border-top:3px solid #2563EB;pointer-events:none;z-index:4;}
+.fg-ins-linea[hidden]{display:none;}
+.fg-ins-va{position:absolute;right:8px;top:-12px;background:#2563EB;color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:10px;z-index:1;}
+.fg-ins-fant{position:absolute;left:0;right:0;top:0;background-size:100% 100%;background-repeat:no-repeat;opacity:.92;outline:2px dashed #2563EB;outline-offset:-2px;box-shadow:0 10px 28px rgba(15,17,20,.28);}
+.fg-ins-conf{border-color:#93B4F5;}
+.fg-cf.fg-ins{width:min(860px,96vw);max-height:92vh;display:flex;flex-direction:column;}
+.fg-ins-cuerpo{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:200px minmax(0,1fr);gap:12px;margin-top:10px;}
+.fg-ins-lista{overflow:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px;}
+.fg-ins-tit{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray);margin:4px 2px 0;}
+.fg-ins-f,.fg-ins-rec{display:flex;align-items:center;gap:8px;text-align:left;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;cursor:pointer;}
+.fg-ins-f:hover,.fg-ins-rec:hover{border-color:var(--accent-line);}
+.fg-ins-f.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring);}
+.fg-ins-f-img{width:40px;height:52px;flex-shrink:0;border-radius:6px;overflow:hidden;background:#fff;border:1px solid var(--border);}
+.fg-ins-f-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
+.fg-ins-rec{flex-direction:column;align-items:stretch;gap:4px;}
+.fg-ins-rec-img{display:block;min-height:24px;max-height:70px;overflow:hidden;border-radius:6px;background:#fff;border:1px solid var(--border);}
+.fg-ins-rec-img img{width:100%;display:block;}
+.fg-ins-vista{overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg,#f6f6f4);min-height:320px;max-height:68vh;padding:10px 22px 10px 10px;}
+.fg-ins-nada{font-size:13px;color:var(--gray);text-align:center;padding:48px 16px;line-height:1.6;}
+.fg-ins-nada .btn{margin-top:10px;}
+.fg-ins-hoja{position:relative;max-width:480px;margin:0 auto;cursor:row-resize;touch-action:none;user-select:none;}
+.fg-ins-hoja img{display:block;width:100%;height:auto;border-radius:4px;pointer-events:none;}
+.fg-ins-banda{position:absolute;left:0;right:0;background:rgba(37,99,235,.14);border-top:2px dashed #2563EB;border-bottom:2px dashed #2563EB;pointer-events:none;}
+.fg-ins-banda[hidden]{display:none;}
+.fg-ins-banda span{position:absolute;right:6px;top:4px;background:#2563EB;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;}
+.fg-ins-alto{flex:1;font-size:12px;color:var(--gray);line-height:1.4;}
+@media (max-width:640px){
+  .fg-ins-cuerpo{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);}
+  .fg-ins-lista{flex-direction:row;overflow-x:auto;overflow-y:hidden;}
+  .fg-ins-tit{display:none;}
+  .fg-ins-f,.fg-ins-rec{flex:0 0 auto;max-width:160px;}
+  .fg-ins-vista{max-height:56vh;min-height:240px;}
+}
+.est-fu-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.est-fu .mg-fila-img.fu-img{width:56px;aspect-ratio:3/4;}
+.est-fu .mg-fila-img.fu-img img{object-position:top;}
+.fu-sub{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray);margin:8px 2px 0;}
 /* Borradores: pestaña punteada al lado del flyer */
 #fg-optbar .fgp.fgp-bor{border-style:dashed;}
 #fg-optbar .fgp.fgp-bor .fgp-t{font-style:italic;}
@@ -2129,7 +2169,7 @@ html.dark #fg-optmas input{background:#2c2f36;}
 #fg-optbar .fgp-de::before{content:"· " attr(data-de);}
 @media (max-width:480px){#fg-optbar .fgp-de{display:none;}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=73bb8cb0ca"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=393c7a1502"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">
