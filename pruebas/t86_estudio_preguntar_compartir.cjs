@@ -70,6 +70,16 @@ module.exports=async(browser)=>{
   await adm2.fill('#fg-pt-i','¿Y el logo de abajo?');await adm2.click('#fg-pt-ok');
   await adm2.waitForFunction(()=>document.querySelectorAll('.est-card .est-msg').length===3,null,{timeout:8000}).catch(()=>{});
   ok(d.estado==='consulta'&&nube.mensajes.length===3,'tercera vuelta: '+d.estado+'/'+nube.mensajes.length);
+  // el autor tenía Estudio abierto: el refresco de 90 s trae la pregunta a la tarjeta (no sólo al numerito)
+  await a2.evaluate(()=>_estPoll());
+  await a2.waitForFunction(()=>Array.from(document.querySelectorAll('.est-card button')).some(b=>b.textContent==='Responder'),null,{timeout:8000}).catch(()=>{});
+  ok(await a2.evaluate(()=>Array.from(document.querySelectorAll('.est-card button')).some(b=>b.textContent==='Responder')&&document.querySelectorAll('.est-card .est-msg').length===3),'con Estudio abierto, el refresco muestra la pregunta nueva y Responder');
+  // y al admin con Estudio abierto le llega la respuesta sin volver a entrar
+  await a2.click('.est-card button[data-acc=responder]');await a2.waitForSelector('#fg-pt-i');await a2.fill('#fg-pt-i','Lo corrijo.');await a2.click('#fg-pt-ok');
+  await a2.waitForFunction(()=>document.querySelector('.est-card .est-estado.est-pedido'),null,{timeout:8000}).catch(()=>{});
+  await adm2.evaluate(()=>_estPoll());
+  await adm2.waitForFunction(()=>document.querySelectorAll('.est-card .est-msg').length===4,null,{timeout:8000}).catch(()=>{});
+  ok((await adm2.$$('.est-card .est-msg')).length===4,'con Estudio abierto, al admin le llega la respuesta en la tarjeta');
   await adm2.click('.est-card button[data-acc=rechazar]');await adm2.waitForSelector('#fg-pt-i');
   await adm2.fill('#fg-pt-i','Falta corregir el logo');await adm2.click('#fg-pt-ok');await adm2.waitForTimeout(700);
   ok(d.estado==='rechazado'&&d.nota_admin==='Falta corregir el logo','No aprobar funciona estando en consulta: '+d.estado);

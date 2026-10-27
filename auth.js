@@ -17877,7 +17877,7 @@ function estCompartir(id){
     var vis=gente.filter(function(p){return !t||_promoNormalizar(p.nombre+' '+p.mail).indexOf(t)>=0;});
     lista.innerHTML=vis.length?vis.map(function(p){
       return '<label class="fg-comp-it"><input type="checkbox" data-u="'+_escAttr(p.id)+'"'+(elegidos[p.id]?' checked':'')+'>'+
-        '<span class="fg-comp-n">'+_escHtml(p.nombre)+(tienen[p.id]?' <i>ya tiene una copia</i>':'')+'</span>'+
+        '<span class="fg-comp-n">'+_escHtml(p.nombre)+(tienen[p.id]?' <i>ya tiene una copia: se le reemplaza por esta versi&oacute;n</i>':'')+'</span>'+
         '<span class="fg-comp-r">'+_escHtml(_ROL_LBL[p.rol]||p.rol||'')+'</span></label>';
     }).join(''):'<div class="fg-comp-vacio">'+(gente.length?'Nadie con ese nombre.':'No hay otras personas activas.')+'</div>';
   }
@@ -17931,6 +17931,23 @@ function _estAvDe(filas){
 }
 // Con Estudio abierto la lista ya está entera: se recalcula de ahí.
 function _estAvDeLista(){if(_EST.lista)_estAvDe(_EST.lista.filter(_estMio));}
+// Refresco de cada 90 s. Con la solapa Estudio a la vista se relee la lista
+// (si no, llegaba la pregunta o la respuesta al numerito pero no a la tarjeta);
+// sin ella, al autor le alcanza el aviso y al admin el número de pedidos.
+function _estEnPantalla(){var v=document.getElementById('view-estudio');return !!(v&&v.style.display!=='none'&&document.getElementById('est-grid'));}
+function _estPoll(){
+  if(!_me||_esHunter()||_esLider())return;
+  if(_estEnPantalla()&&_estVer()){_estCargar();return;}
+  if(!_admin){_estAvisoCargar();return;}
+  if(!_estVer())return;
+  _sb.from('flyer_disenos').select('id',{count:'exact',head:true}).eq('estado','pedido').then(function(r){
+    if(!r||r.error)return;
+    var t=document.getElementById('apptab-estudio');if(!t)return;
+    var n=r.count||0,b=document.getElementById('est-tab-badge');
+    if(!b){b=document.createElement('i');b.id='est-tab-badge';b.className='tab-badge';t.appendChild(b);}
+    b.textContent=n>9?'9+':String(n||'');b.style.display=n>0?'':'none';
+  },function(){});
+}
 // Cartel al entrar: preguntas sin responder y diseños compartidos que todavía
 // no se avisaron en esta computadora (fg_est_avisados_<uid>).
 function _estCartel(){
@@ -18933,7 +18950,7 @@ function _msgPollInit(){
     if(!_me||document.hidden)return;
     _propCargarPendientes();
     _gesAvisoCargar();
-    _estAvisoCargar();
+    _estPoll();
     if(_esHunter()&&_can('proponer_oficiales'))_hunPropCargarMias(function(){
       if(document.getElementById('mis-cambios-list'))return;
       if(document.getElementById('hun-list'))_hunRender();
