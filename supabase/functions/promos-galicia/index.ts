@@ -655,7 +655,90 @@ async function modoCopiarLogo(m: { id: string; url: string }, yaEstan: Set<strin
   }
 }
 
-async function syncModo(): Promise<{ total: number; conProvincia: number; conLogo: number }> {
+// ── Locales en el PDF de "Comercios adheridos" ─────────────────────────────
+// Todos los de MODO son la misma plantilla: una tabla Calle/Dirección ·
+// Localidad · Provincia (YPF Boxes: 305 en las 24 provincias; Garrafa: 1.775).
+// Se lee el texto con su posición y cada pedazo va a la columna cuyo encabezado
+// le queda más cerca (en unos están alineados a la izquierda y en otros
+// centrados). El lector de PDF se carga recién acá: si no anduviera, sólo esta
+// parte falla y la promo queda "sin dato" como antes.
+let unpdf: any = null;
+async function modoPdfFilas(buf: Uint8Array): Promise<{ loc: string; prov: string }[]> {
+  if (!unpdf) unpdf = await import("https://esm.sh/unpdf@1.4.0");
+  const pdf = await unpdf.getDocumentProxy(buf);
+  // una lista cortada sería peor que "no se sabe" (ver el freno de los locales)
+  if (pdf.numPages > 60) throw new Error("PDF de " + pdf.numPages + " páginas");
+  let cols: { c: number[]; m: number[] } | null = null;
+  const filas: { loc: string; prov: string }[] = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const page = await pdf.getPage(n);
+    const tc = await page.getTextContent();
+    const items = (tc.items as any[]).filter((i) => i.str && String(i.str).trim())
+      .map((i) => ({ s: String(i.str), x: Number(i.transform[4]), w: Number(i.width || 0), y: Math.round(Number(i.transform[5])) }));
+    if (!cols) {
+      const h: Record<string, any> = {};
+      for (const i of items) {
+        const t = sinAcentos(i.s);
+        if (/^(DIRECCION|CALLE|DOMICILIO)/.test(t)) h.d = i;
+        if (/^LOCALIDAD/.test(t)) h.l = i;
+        if (/^PROVINCIA/.test(t)) h.p = i;
+      }
+      if (h.l && h.p) {
+        cols = {
+          c: [h.d ? h.d.x : -1e9, h.l.x, h.p.x],
+          m: [h.d ? h.d.x + h.d.w / 2 : -1e9, h.l.x + h.l.w / 2, h.p.x + h.p.w / 2],
+        };
+      }
+    }
+    if (!cols) continue;
+    const porY = new Map<number, typeof items>();
+    for (const i of items) {
+      const k = [...porY.keys()].find((y) => Math.abs(y - i.y) <= 2) ?? i.y;
+      if (!porY.has(k)) porY.set(k, []);
+      porY.get(k)!.push(i);
+    }
+    for (const fila of porY.values()) {
+      fila.sort((a, b) => a.x - b.x);
+      const celda: string[][] = [[], [], []];
+      for (const i of fila) {
+        let best = 0, dist = Infinity;
+        for (let k = 0; k < 3; k++) {
+          const d = Math.min(Math.abs(i.x - cols.c[k]), Math.abs(i.x + i.w / 2 - cols.m[k]));
+          if (d < dist) { dist = d; best = k; }
+        }
+        celda[best].push(i.s);
+      }
+      const loc = celda[1].join(" ").trim(), prov = celda[2].join(" ").trim();
+      if (!prov || /^PROVINCIA/.test(sinAcentos(prov))) continue;
+      filas.push({ loc, prov });
+    }
+  }
+  return filas;
+}
+async function modoPdfGeo(slug: string, nombres: string[]): Promise<{ provincias: string[]; localidades: string[] } | null> {
+  const d = await modoJson(`${MODO_API}/v2/benefit/${encodeURIComponent(slug)}`);
+  const url = String(d?.details?.download_button?.url || "");
+  // sólo los PDF de MODO (su servidor de archivos)
+  if (!/^https:\/\/assets\.mobile\.playdigital\.com\.ar\/.+\.pdf$/i.test(url)) return null;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("PDF " + r.status);
+  const buf = new Uint8Array(await r.arrayBuffer());
+  if (buf.length > 8 * 1024 * 1024) throw new Error("PDF muy grande");
+  const filas = await modoPdfFilas(buf);
+  const ps = new Set<string>(), ls = new Set<string>();
+  for (const f of filas) {
+    // "San Isidro (Buenos Aires)" → "SAN ISIDRO"; Capital cargada como Buenos Aires → Capital
+    const ciudad = sinAcentos(f.loc.replace(/\(.*$/, ""));
+    let p = modoProvincia(f.prov, nombres);
+    if (p === "BUENOS AIRES" && /^(CABA|CAPITAL FEDERAL|CIUDAD AUTONOMA DE BUENOS AIRES)$/.test(ciudad)) p = "CAPITAL FEDERAL";
+    if (!p) continue;
+    ps.add(p);
+    if (ciudad) ls.add(p + "|" + ciudad);
+  }
+  return ps.size ? { provincias: [...ps].sort(), localidades: [...ls].sort() } : null;
+}
+
+async function syncModo(): Promise<{ total: number; conProvincia: number; conLogo: number; pdfLeidos: number; pdfErrores: number }> {
   // 1) El listado con el filtro Galicia, de a 100 (MODO no acepta más por página).
   const crudo: any[] = [];
   for (let page = 1; page <= 20; page++) {
@@ -749,7 +832,15 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
         const p = prev.get(id);
         if (p) { provincias = p.provincias; localidades = p.localidades; imagen = p.imagen || ""; }
       }
-      // sin locales en el mapa (YPF en cuotas, "Transporte") y no es online: null = no se sabe
+      // Sin locales en el mapa, MODO a veces los publica en un PDF ("Comercios
+      // adheridos": YPF Boxes, WICO, Almacor...). Si no hay ni eso, null = no se sabe.
+      if (enLocal && provincias === null && c?.benefit?.publication?.slug) {
+        try {
+          const g = await modoPdfGeo(String(c.benefit.publication.slug), nombres);
+          if (g) { provincias = g.provincias; localidades = g.localidades; pdfLeidos++; }
+        } catch (e) { pdfErrores++; console.error("modo pdf", id, String((e as Error)?.message || e)); }
+      }
+      // sin locales en el mapa ni PDF (WICO antes, "Transporte") y no es online: null = no se sabe
       // Logo: primero el de esa marca en Galicia (así la promo de MODO y la de
       // Galicia van en la misma tarjeta y el flyer usa el mismo dibujo), después
       // el de la marca en sus locales de MODO.
@@ -767,6 +858,7 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
     }
   }
   const marcasVistas = new Map<string, { id: string; url: string }>();
+  let pdfLeidos = 0, pdfErrores = 0;
   await Promise.all(Array.from({ length: 6 }, worker));
   // Las que quedaron sin logo (YPF en cuotas no tiene locales en el mapa): el de
   // la misma marca visto en los locales de otra promo.
@@ -830,6 +922,8 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
     total: rows.length,
     conProvincia: rows.filter((r) => Array.isArray(r.provincias)).length,
     conLogo: rows.filter((r) => r.imagen).length,
+    pdfLeidos,
+    pdfErrores,
   };
 }
 // Corre después del catálogo de Galicia y nunca lo hace fallar: el error queda
