@@ -2157,12 +2157,38 @@ function _promoEnLocalidad(p,prov,loc,porId){
   if(!loc)return true;
   if(_promoEsOnline(p))return true; // las online no son de ninguna localidad
   if(_promoEsModo(p)){
-    if(!Array.isArray(p.localidades))return true;
-    var k=_promoNormalizar(prov+' '+loc);
-    for(var i=0;i<p.localidades.length;i++)if(_promoNormalizar(String(p.localidades[i]).replace('|',' '))===k)return true;
+    // sin ciudades (los locales no las traían) no se sabe la localidad: no se castiga
+    if(!Array.isArray(p.localidades)||!p.localidades.length)return true;
+    var kp=_promoLocNorm(prov);
+    for(var i=0;i<p.localidades.length;i++){
+      var x=String(p.localidades[i]).split('|');
+      if(_promoLocNorm(x[0])===kp&&_promoLocIgual(loc,x[1]||'',kp))return true;
+    }
     return false;
   }
   return !porId||!!porId[p.id];
+}
+// MODO escribe las ciudades a su manera: el 29% no coincidía con la localidad de
+// Galicia ("TUCUMAN" / "SAN MIGUEL DE TUCUMAN", "LANUS" / "LANUS OESTE",
+// "GRAL ROCA" / "GENERAL ROCA", "CABA" dentro de Capital). Se comparan con las
+// abreviaturas expandidas y con una contenida en la otra (palabras enteras, de 4
+// letras o más). Medido con los datos reales: 82% y ninguna ciudad cae en más de 3 localidades.
+var _PROMO_LOC_AB={GRAL:'GENERAL',ALTE:'ALMIRANTE',PTE:'PRESIDENTE',CNEL:'CORONEL',STA:'SANTA',STO:'SANTO',PDO:'PARTIDO',CDAD:'CIUDAD',DR:'DOCTOR',TTE:'TENIENTE',ING:'INGENIERO',CMTE:'COMANDANTE','3':'TRES','9':'NUEVE','25':'VEINTICINCO'};
+var _promoLocC=new Map();
+function _promoLocNorm(s){
+  var k=String(s||''),v=_promoLocC.get(k);
+  if(v!==undefined)return v;
+  if(_promoLocC.size>=20000)_promoLocC.clear();
+  v=_promoNormalizar(k).toUpperCase().split(' ').map(function(w){return _PROMO_LOC_AB[w]||w;}).join(' ');
+  _promoLocC.set(k,v);return v;
+}
+function _promoLocIgual(locGalicia,ciudad,provNorm){
+  var g=_promoLocNorm(locGalicia),c=_promoLocNorm(ciudad);
+  if(!g||!c)return false;
+  if(g===c)return true;
+  if(provNorm==='CAPITAL FEDERAL'&&/^(CABA|CAPITAL FEDERAL|CIUDAD AUTONOMA DE BUENOS AIRES|BUENOS AIRES)$/.test(c))return true;
+  function dentro(a,b){return b.length>=4&&(' '+a+' ').indexOf(' '+b+' ')>=0;}
+  return dentro(g,c)||dentro(c,g);
 }
 
 // ── Provincia ───────────────────────────────────────────────────────────────
@@ -2322,7 +2348,7 @@ function _promoEsNueva(p){
 }
 function _promoNuevaHtml(p){
   if(!_promoEsNueva(p))return '';
-  return ' <span class="promos-nueva" title="Apareci&oacute; en el cat&aacute;logo de Galicia el '+
+  return ' <span class="promos-nueva" title="Apareci&oacute; en '+(_promoEsModo(p)?'MODO':'el cat&aacute;logo de Galicia')+' el '+
     _promosFmtFecha(String(p.primera_vez).slice(0,10))+'">Nueva</span>';
 }
 

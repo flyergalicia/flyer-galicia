@@ -132,6 +132,17 @@ module.exports=async(browser)=>{
   },[locM,locM2]);
   console.log('  ',JSON.stringify(lc));
   ok(lc.en1&&!lc.en2,'el filtro de localidad usa los locales de MODO ('+locM+' sí, '+locM2+' no)');
+  // MODO escribe las ciudades a su manera (revisión del 26-oct con los datos reales: 29% no coincidía)
+  const li=await p.evaluate(()=>({
+    tuc:_promoLocIgual('SAN MIGUEL DE TUCUMAN','TUCUMAN','TUCUMAN'),lanus:_promoLocIgual('LANUS OESTE','LANUS','BUENOS AIRES'),
+    roca:_promoLocIgual('GENERAL ROCA','GRAL ROCA','RIO NEGRO'),caba:_promoLocIgual('PALERMO','CABA','CAPITAL FEDERAL'),
+    no:_promoLocIgual('MAR DEL PLATA','BAHIA BLANCA','BUENOS AIRES'),corta:_promoLocIgual('VILLA SAN JOSE','SAN','ENTRE RIOS'),
+    sinCiudades:_promoEnLocalidad({origen:'modo',provincias:['MENDOZA'],localidades:[]},'MENDOZA','GODOY CRUZ',{}),
+  }));
+  console.log('  ',JSON.stringify(li));
+  ok(li.tuc&&li.lanus&&li.roca&&li.caba,'localidad: Tucumán, Lanús, "Gral Roca" y "CABA" coinciden con los nombres de Galicia');
+  ok(!li.no&&!li.corta,'localidad: ciudades distintas (o una palabra corta suelta) no coinciden');
+  ok(li.sinCiudades,'una de MODO con provincia pero sin ciudades no se esconde al elegir una localidad');
   const neu=await p.evaluate(()=>{
     _promoSetProvincia('NEUQUEN');
     const at=_promosFilasVisibles().some(v=>v.r.promo&&v.r.promo.titulo==='Supermercados Atomo Prueba');

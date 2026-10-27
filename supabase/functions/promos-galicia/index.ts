@@ -604,7 +604,10 @@ async function modoLocales(id: string): Promise<any[]> {
     const res = d?.results;
     if (!Array.isArray(res)) throw new Error("MODO cambió el formato de los locales");
     out.push(...res);
-    if (page >= Number(d?.pagination?.total_pages || 1)) break;
+    const total = Number(d?.pagination?.total_pages || 1);
+    // más de 10 páginas (5.000 locales): mejor "no se sabe" que media lista de provincias
+    if (page === 10 && total > 10) throw new Error("demasiados locales (" + total + " páginas)");
+    if (page >= total) break;
   }
   return out;
 }
@@ -663,10 +666,15 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
     const d = await modoJson(`${MODO_API}/v2/filter?${qs}`);
     if (!Array.isArray(d?.cards)) throw new Error("MODO cambió el formato del listado");
     crudo.push(...d.cards);
-    if (page >= Number(d?.pagination?.total_pages || 1)) break;
+    const total = Number(d?.pagination?.total_pages || 1);
+    // un listado cortado borraría las que no llegaron: se frena antes de tocar la tabla
+    if (page === 20 && total > 20) throw new Error("MODO informa " + total + " páginas y se leen hasta 20: no se reemplaza por las dudas");
+    if (page >= total) break;
   }
   // 2) Sólo las vigentes y las por empezar (MODO deja las terminadas en el listado).
-  const hoy = new Date().toISOString().slice(0, 10);
+  // "Hoy" en la Argentina: la actualización manual de la noche (después de las
+  // 21) ya es mañana en UTC y descartaba las que vencen hoy.
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const vistos = new Set<string>();
   const list = crudo.filter((c) => {
     const id = String(c?.benefit?.id || "");
@@ -677,11 +685,16 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
     return !hasta || hasta >= hoy;
   });
   if (!crudo.length) throw new Error("MODO devolvió el listado vacío");
+  // Si MODO cambia de lugar los datos (sin título o sin fechas en muchas), se
+  // conserva la copia anterior en vez de guardar filas vacías y borrar las buenas.
+  const rotas = list.filter((c) => !String(c?.card?.validity_place || "").trim() || !isoFecha(c?.benefit?.conditions?.schedule?.stop_date)).length;
+  if (list.length && rotas > list.length * 0.2) throw new Error(`${rotas} de ${list.length} promociones de MODO vinieron sin nombre o sin fecha: MODO cambió el formato, no se reemplaza`);
   // El freno compara contra las guardadas que siguen vigentes HOY: las de MODO
   // vencen casi todas a fin de mes, y el día 1 llegarían "menos de la mitad"
   // de lo guardado aunque esté todo bien (y quedarían las vencidas).
-  const { count: guardadas } = await admin.from("promos_modo_cache").select("id", { count: "exact", head: true })
+  const { count: guardadas, error: eCount } = await admin.from("promos_modo_cache").select("id", { count: "exact", head: true })
     .or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
+  if (eCount) throw new Error("No se pudo contar la copia guardada de MODO: " + eCount.message);
   if (guardadas && list.length < guardadas * MINIMO_RELATIVO) {
     throw new Error(`MODO devolvió sólo ${list.length} promociones vigentes y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
   }
@@ -722,10 +735,12 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
       else if (leyo && locales.length) {
         const ps = new Set<string>(), ls = new Set<string>();
         for (const l of locales) {
-          const p = modoProvincia(l?.province, nombres);
+          const ciudad = sinAcentos(l?.city);
+          // MODO carga locales de Capital con provincia "Buenos Aires" y ciudad "CABA"
+          let p = modoProvincia(l?.province, nombres);
+          if (p === "BUENOS AIRES" && /^(CABA|CAPITAL FEDERAL|CIUDAD AUTONOMA DE BUENOS AIRES)$/.test(ciudad)) p = "CAPITAL FEDERAL";
           if (!p) continue;
           ps.add(p);
-          const ciudad = sinAcentos(l?.city);
           if (ciudad) ls.add(p + "|" + ciudad);
         }
         // locales sin ninguna provincia reconocible: mejor "no se sabe" que "online"
