@@ -78,9 +78,16 @@ module.exports=async(browser)=>{
   const U=await p.evaluate(()=>({H:baseImg.height,act:_fgRecActivo(),falta:_fgRecActivo()?_fgInsFaltan(_fgRec.cortes):-1}));
   ok(U.act&&U.H===H0+h-200&&U.falta===0,'"Usar" abre el diseño con la sección (la imagen se bajó antes de armarlo)');
   // ---- "Copiadas hace poco" ----
-  await p.click('#fg-lg-ins');await p.waitForSelector('#fg-ins-ov .fg-ins-rec');
-  ok(true,'la ventana ofrece la sección copiada hace poco');
-  await p.click('#fg-ins-no');
+  await p.evaluate(()=>{document.activeElement&&document.activeElement.blur&&document.activeElement.blur();});
+  await p.keyboard.press('i');await p.waitForSelector('#fg-ins-ov .fg-ins-rec');
+  ok(true,'la tecla I abre Insertar, y la ventana ofrece la sección copiada hace poco');
+  await p.click('#fg-ins-ov .fg-ins-rec');await p.waitForTimeout(300);
+  ok(await p.evaluate(()=>_fgIns.modo),'tocar una reciente va directo a colocarla');
+  await p.keyboard.press('i');await p.waitForTimeout(200);
+  ok(await p.evaluate(()=>!_fgIns.modo&&!document.getElementById('fg-ins-linea')),'la tecla I otra vez cancela la inserción');
+  await p.keyboard.press('r');await p.waitForTimeout(100);
+  ok(await p.evaluate(()=>_fgRecM.modo),'las otras letras siguen andando (R = Recortar)');
+  await p.keyboard.press('r');
   // ---- proponer un flyer desde Estudio ----
   await p.click('#apptab-estudio');await p.waitForSelector('#est-fu-subir');
   ok((await p.textContent('#est-fu-subir')).includes('Proponer'),'un asesor ve "Proponer un flyer (PDF)"');
