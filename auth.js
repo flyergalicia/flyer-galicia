@@ -1614,6 +1614,10 @@ function _can(f){
   if(_admin)return _facMe(f); // todo, menos lo que se destildó a sí mismo
   return !!((_FAC&&_FAC[_myRole]||{})[f]);
 }
+// ¿Puede usar el flyer n? El de su perfil, o (27-oct, decisión del dueño) el flyer
+// base de un diseño que le compartió el admin, MIENTRAS ese diseño está abierto:
+// compartir es permiso para ese diseño. El flyer no le aparece en la barra.
+function _canOpt(n){n=_optN(n);return _can('opcion_'+n)||(!_simRole&&typeof _fgProtos!=='undefined'&&_fgProtos.some(function(p){return p.comp&&p.opcion===n;}));}
 // "¿Es admin AHORA?" — false mientras se simula, para que la vista previa sea fiel.
 function _adminNow(){return _admin&&!_simRole;}
 // Opciones del armador habilitadas para el rol vigente.
@@ -1767,7 +1771,7 @@ function switchApp(view){
   // tiene): así la solapa de arranque cae en una opción permitida, llegue
   // primero lo que llegue de la red. Sin facultades cargadas no hay ninguna
   // habilitada y no se mueve nada, como antes.
-  if(_optSolapa(_fgOpt)!==view||!_can('opcion_'+_optN(_fgOpt))){
+  if(_optSolapa(_fgOpt)!==view||!_canOpt(_fgOpt)){
     var opts=_facOptsDe(view),ult=_fgUltOpt[view];
     if(opts.length){switchFlyerOption(opts.indexOf(ult)>=0?ult:opts[0]);return;}
   }
@@ -1841,7 +1845,7 @@ function _facSyncOptBar(){
   var opts=_facOptsDe(_fgVista);
   // con un prototipo abierto la barra se ve aunque haya una sola opción: es la
   // forma de volver al flyer original
-  if(opts.length>1||_fgProtos.some(function(p){return opts.indexOf(p.opcion)>=0;}))_fgEnsureOptBar();
+  if(opts.length>1||_fgProtos.some(function(p){return opts.indexOf(p.opcion)>=0||(p.comp&&_optSolapa(p.opcion)===_fgVista);}))_fgEnsureOptBar();
   // Si quedó parado en una opción que este perfil no tiene, lo muevo a la primera
   // que sí (de la misma solapa; si la solapa quedó vacía, a cualquiera habilitada,
   // y _fgSyncVista cambia de solapa). Sólo con la app ya visible, para no pisar
@@ -1849,8 +1853,8 @@ function _facSyncOptBar(){
   var lay=document.getElementById('layout');
   if(!lay||lay.style.display!=='grid')return;
   var cur=_optN(_fgOpt);
-  if(opts.length){if(opts.indexOf(cur)<0)switchFlyerOption(opts[0]);}
-  else{var todas=_facOpts();if(todas.length&&todas.indexOf(cur)<0)switchFlyerOption(todas[0]);}
+  if(opts.length){if(opts.indexOf(cur)<0&&!(_canOpt(cur)&&_fgProtoActivo()))switchFlyerOption(opts[0]);}
+  else{var todas=_facOpts();if(todas.length&&todas.indexOf(cur)<0&&!(_canOpt(cur)&&_fgProtoActivo()))switchFlyerOption(todas[0]);}
 }
 // Entra/sale de la vista previa de un perfil.
 function startFacSim(role){
@@ -4916,7 +4920,9 @@ function _fgEnsureOptBar(){
   // abría uno y se mezclaban lo fijo con lo temporal. Cada uno dice sobre qué flyer está.
   // los flyers van en su propia fila (.fgo-fila): así no se parten en dos renglones
   bar.innerHTML='<div class="fgo-fila">'+bar.innerHTML+'</div>';
-  var abiertos=opts.map(protosDe).join('');
+  // + los compartidos cuyo flyer base no está en la barra de este perfil (_canOpt)
+  var conComp=opts.concat(_fgProtos.filter(function(p){return p.comp&&opts.indexOf(p.opcion)<0&&_optSolapa(p.opcion)===_fgVista;}).map(function(p){return p.opcion;}).filter(function(o,i,a){return a.indexOf(o)===i;}));
+  var abiertos=conComp.map(protosDe).join('');
   if(abiertos)bar.innerHTML+='<div class="fgp-fila" role="group" aria-label="Borradores y dise&ntilde;os abiertos"><span class="fgp-rot">Abiertos</span>'+abiertos+'</div>';
   if(pt)bar.className='fg-optbar-c';
   tabs.parentNode.insertBefore(bar,tabs);
@@ -5251,7 +5257,7 @@ function _fgStashLegal(){
   if(el.value!==c.legal)c.legalEdited=el.value;else delete c.legalEdited;
 }
 function switchFlyerOption(opt,cb){
-  if(!_can('opcion_'+_optN(opt)))return; // gating real, no sólo visual
+  if(!_canOpt(opt))return; // gating real, no sólo visual
   opt=_optN(opt);
   if(_fgOptLoading[opt]){ // ya se está cargando (doble clic, red lenta): me sumo y listo
     _fgOpt=opt;_fgSyncVista();
@@ -16902,7 +16908,7 @@ function _fgLegalDeOpcion(o){
 function fgProtoAbrir(id){
   var p=_fgProtoBuscar(id);if(!p)return;
   if(_fgProtoActivo()===p)return;
-  if(_FG_OPTS.indexOf(p.opcion)<0||!_can('opcion_'+p.opcion)){showToast('El flyer base de este prototipo ya no está disponible.');return;}
+  if(_FG_OPTS.indexOf(p.opcion)<0||!_canOpt(p.opcion)){showToast('El flyer base de este prototipo ya no está disponible.');return;}
   if(!_fgProtoActivo())_fgStashLegal(); // desde el original: su legal editado queda para él
   _fgProtoGuardarActual();
   var turno=++_fgProtoTurno;
@@ -16964,7 +16970,8 @@ function estUsar(id){
   var d0=_estBuscar(id);if(!d0)return;
   var n=+d0.opcion;
   if(_FG_OPTS.indexOf(n)<0){showToast('El flyer sobre el que se armó este diseño ya no existe.');return;}
-  if(!_can('opcion_'+n)){showToast('No tenés habilitado el flyer «'+_optLabel(n)+'», que es la base de este diseño.');return;}
+  // uno compartido por el admin se puede usar aunque el perfil no tenga su flyer base (_canOpt)
+  if(!_can('opcion_'+n)&&!d0.compartido_por){showToast('No tenés habilitado el flyer «'+_optLabel(n)+'», que es la base de este diseño.');return;}
   showToast('Abriendo «'+d0.nombre+'»…');
   var turno=++_fgProtoTurno; // si mientras responde la base se elige otra cosa, no se abre
   _estDatos(id).then(function(d){
@@ -16972,7 +16979,7 @@ function estUsar(id){
     var p=_fgProtoBuscar(d.id);
     if(!p){p={id:d.id};_fgProtos.push(p);}
     // siempre con lo último guardado en Estudio
-    p.nombre=d.nombre;p.empresa=d.empresa||'';p.opcion=+d.opcion;p.mio=_estMio(d);p.estado=d.estado;
+    p.nombre=d.nombre;p.empresa=d.empresa||'';p.opcion=+d.opcion;p.mio=_estMio(d);p.estado=d.estado;p.comp=!!d0.compartido_por&&_estMio(d);
     p.cambios=(d.datos&&Array.isArray(d.datos.cambios))?d.datos.cambios:[];
     p.subidos=(d.datos&&d.datos.subidos)||{};
     p.recortes=(d.datos&&Array.isArray(d.datos.recortes))?d.datos.recortes:[];
@@ -17873,17 +17880,19 @@ function _estInit(){
   if(_mgPuede())_mgCargar(function(err){var l=document.getElementById('est-mg-lista');if(err&&l){l.innerHTML='<div class="mg-vacio">No se pudieron leer: '+_escHtml(_estErr(err))+'</div>';return;}_mgPintarListas();});
 }
 function _estCargar(){
-  if(_EST.cargando)return;_EST.cargando=true;
+  // pedida mientras ya se lee (el refresco de 90 s justo en ese momento): se repite al terminar
+  if(_EST.cargando){_EST.otraVez=true;return;}_EST.cargando=true;_EST.otraVez=false;
   var g=document.getElementById('est-grid');if(g&&!_EST.lista)g.innerHTML='<div class="est-vacio">Cargando dise&ntilde;os&hellip;</div>';
   _sbTodo(function(d,h){return _sb.from('flyer_disenos').select(_EST_COLS).eq('tipo','diseno').order('updated_at',{ascending:false}).range(d,h);},function(err,filas){
     _EST.cargando=false;
-    if(err){if(g)g.innerHTML='<div class="est-vacio">No se pudieron leer los dise&ntilde;os: '+_escHtml(_estErr(err))+'</div>';return;}
+    if(err){_EST.otraVez=false;if(g)g.innerHTML='<div class="est-vacio">No se pudieron leer los dise&ntilde;os: '+_escHtml(_estErr(err))+'</div>';return;}
     _EST.lista=filas||[];
     // el admin abre directo en los pedidos si hay alguno esperando (hasta que elija otra cosa)
     if(_admin&&!_EST.elegido)_EST.filtro=_EST.lista.some(function(d){return d.estado==='pedido';})?'pedidos':'mios';
     if(!_admin)_estAvDeLista();
     _estBadge();_estRender();
     _estHilosCargar(_EST.lista.filter(_estAbierto).map(function(d){return d.id;}));
+    if(_EST.otraVez)_estCargar();
   },1000,0,[]);
 }
 // ·· Preguntas sobre un pedido (migración 034) ··
@@ -17892,11 +17901,15 @@ function _estCargar(){
 function _estHilosCargar(ids,cb){
   ids=(ids||[]).filter(Boolean);
   if(!ids.length){if(cb)cb();return;}
+  // turno por diseño: una respuesta que llega tarde no pisa la de una lectura más nueva
+  var turno=_EST.hiloTurno=(_EST.hiloTurno||0)+1,T=_EST.hiloT=_EST.hiloT||{};
+  ids.forEach(function(id){T[id]=turno;});
   _sb.from('flyer_diseno_mensajes').select('diseno_id,rol,tipo,texto,autor_nombre,created_at').in('diseno_id',ids).order('created_at',{ascending:true})
     .then(function(r){
       if(r&&r.error){if(cb)cb();return;} // sin la tabla (migración sin aplicar) Estudio sigue andando
-      ids.forEach(function(id){_EST.hilos[id]=[];});
-      ((r&&r.data)||[]).forEach(function(m){(_EST.hilos[m.diseno_id]=_EST.hilos[m.diseno_id]||[]).push(m);});
+      var mios=ids.filter(function(id){return T[id]===turno;});
+      mios.forEach(function(id){_EST.hilos[id]=[];});
+      ((r&&r.data)||[]).forEach(function(m){if(mios.indexOf(m.diseno_id)>=0)_EST.hilos[m.diseno_id].push(m);});
       if(document.getElementById('est-grid'))_estRender();
       if(cb)cb();
     },function(){if(cb)cb();});

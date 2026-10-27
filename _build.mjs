@@ -1189,7 +1189,7 @@ const checks = {
   // (una marca que no esta en el catalogo hay que sacarla), ultimo lo vigente.
   'promos: orden por columna': _authSrc.includes('function _promoOrdenar(') && _authSrc.includes('var _PROMO_ORDEN_ESTADO=') && _authSrc.includes('function _promoValorOrden(') && _authSrc.includes('function _promoTh(') && _authSrc.includes('NO_ENCONTRADA:0,VENCIDA:1,FUERA_PROV:2,VENCE_ESTE_MES:3,REVISAR:4') && _authSrc.includes("chipDefs=[['NO_ENCONTRADA'"),
   // Una facultad por opcion del armador: al sumar una Opcion 4 a _FG_OPTS, su fila sale sola
-  'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_can('opcion_'+_optN(opt)))return;") && _authSrc.includes('var opts=_facOptsDe(_fgVista),pt=_fgOptPartes(opts);') && !_authSrc.includes('opciones_armador'),
+  'facultades: una por opcion del armador': _authSrc.includes('function _facOptList(') && _authSrc.includes("rows.push(['opcion_'+o,") && _authSrc.includes("if(!_canOpt(opt))return;") && _authSrc.includes("function _canOpt(n){n=_optN(n);return _can('opcion_'+n)||") && _authSrc.includes('var opts=_facOptsDe(_fgVista),pt=_fgOptPartes(opts);') && !_authSrc.includes('opciones_armador'),
   // Flyer Rubros: tercera solapa del header que reusa el armador. Cada opción tiene
   // `solapa` ('flyer'|'rubros'); las de rubros dibujan el cartel "¡Beneficio
   // exclusivo EMPRESA!" + "Tope de reintegro mensual $X" (zonas calibrables con
@@ -1555,7 +1555,7 @@ const checks = {
   'perf: legal de la opcion en paralelo con sus datos': /var legalP=loadGlobalLegal\(false,opt\);\s*_fetchActiveMeta\(opt,/.test(_authSrc),
   // La imagen (y el mapa) de la Opción 1 que llegan tarde no tapan a la opción
   // que el perfil ya tiene en pantalla.
-  'arranque: la Opcion 1 no pisa a otra opcion': _authSrc.includes('if(_optN(_fgOpt)!==1)return;') && _authSrc.includes('if(cfg&&_optN(_fgOpt)===1){_fgRecOlvidar();window.FLYER_CFG=cfg;}') && _authSrc.includes("||!_can('opcion_'+_optN(_fgOpt))){"),
+  'arranque: la Opcion 1 no pisa a otra opcion': _authSrc.includes('if(_optN(_fgOpt)!==1)return;') && _authSrc.includes('if(cfg&&_optN(_fgOpt)===1){_fgRecOlvidar();window.FLYER_CFG=cfg;}') && _authSrc.includes("||!_canOpt(_fgOpt)){"),
   'ux: Ingresando con sesion guardada (sin el formulario)': html.includes('id="lv-boot"') && html.includes(`localStorage.getItem('${SB_SESSION_KEY}'))_h.classList.add('fg-boot')`) && html.includes('html.fg-boot #lv-login') && _authSrc.includes('function _bootFin(') && (_authSrc.match(/_bootFin\(\)/g) || []).length >= 5,
   // La caché de un año va SÓLO en archivos de nombre único (llevan la hora): uno
   // de nombre fijo que se re-sube se seguiría viendo viejo un año.

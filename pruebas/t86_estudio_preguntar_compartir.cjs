@@ -133,6 +133,30 @@ module.exports=async(browser)=>{
   const sin=await abrir(browser,{rol:'asesor'});
   await sin.waitForTimeout(800);
   ok(!(await sin.isVisible('#apptab-estudio')),'sin facultad y sin nada compartido, no hay solapa Estudio');
+
+  // ───────── 6b) Su perfil NO tiene el flyer base del diseño (pasó con un VIP y "MVP")
+  console.log('\n[6b] Quien recibe no tiene habilitado el flyer base');
+  const opcAntes=JSON.stringify(nube.json['_opciones.json']);
+  nube.json['_opciones.json']={opts:[{n:9,nombre:'Combustible',solapa:'flyer'},{n:2,nombre:'MVP',solapa:'flyer'}]};
+  nube.json['_active2.json']=Object.assign({},nube.json['_active9.json'],{imageUrl:nube.json['_active9.json'].imageUrl.replace('flyer_t9','flyer_t2')});
+  nube.json['_legal2.json']={text:'Legal MVP'};
+  fac.roles.asesor=Object.assign({},fac.roles.asesor,{opcion_2:false,estudio:true});
+  copia.opcion=2;
+  const v=await abrir(browser,{rol:'asesor2',opt:9});
+  ok(!(await v.evaluate(()=>_can('opcion_2'))),'su perfil no tiene MVP');
+  await v.click('#apptab-estudio');await v.waitForSelector('.est-card');
+  await v.click('.est-card button[data-acc=usar]');
+  await v.waitForFunction(()=>_fgOpt===2&&_fgLg.list.length===1&&_fgProtoAct,null,{timeout:15000}).catch(()=>{});
+  ok(await v.evaluate(()=>_fgOpt===2&&_fgLg.list.length===1&&!!_fgProtoAct),'"Usar" abre el diseño sobre MVP igual');
+  ok(await v.evaluate(()=>!document.querySelector('#fg-optbar .fgo[data-o="2"]')&&!!document.querySelector('#fg-optbar .fgp')),'MVP no aparece en la barra; el diseño sí, en "Abiertos"');
+  await v.fill('#empresa','Prueba SA');
+  const dlv=v.waitForEvent('download',{timeout:20000}).catch(()=>null);
+  await v.click('#btn-dl-pdf');const archivo=await dlv;
+  ok(!!archivo,'baja el PDF: '+(archivo&&archivo.suggestedFilename()));
+  await v.click('#fg-optbar .fgp .fgp-x');
+  await v.waitForFunction(()=>_fgOpt!==2,null,{timeout:10000}).catch(()=>{});
+  ok(await v.evaluate(()=>_fgOpt!==2&&!_canOpt(2)),'al cerrar el diseño vuelve a su flyer y MVP deja de estar disponible');
+  nube.json['_opciones.json']=JSON.parse(opcAntes);copia.opcion=9;
   nube.json['_facultades.json']=JSON.parse(antes);
 
   // ───────── 7) Config → Flyer: las opciones sin flyer, al final y explicadas
