@@ -17,6 +17,8 @@
 //   set_password   (admin)    -> cambia la clave de un usuario
 //   approve_user   (admin)    -> activa una cuenta pendiente/inactiva
 //   notify_self_password (con sesión) -> sólo manda el aviso al propio usuario
+//   notify_estudio (admin)    -> avisa al autor que su pedido de Estudio se
+//                                 aprobó o no, o a quienes les compartió un diseño
 //   Todas avisan por mail a quien corresponda (ver avisar()).
 //
 // request_reset NUNCA cambia la clave real en el momento: si lo hiciera,
@@ -352,6 +354,42 @@ const MAILS = {
     parrafos: ["Alguien pidió publicar un diseño de Estudio. Revisalo en la solapa Estudio → Pedidos, donde podés verlo completo y aprobarlo o no."],
     datos: [["Autor", autor], ["Diseño", diseno], ["Empresa", empresa || "—"], ["Flyer base", opcion]],
   }),
+  estudioAprobado: (nombre: string, diseno: string, flyer: string): Mail => ({
+    asunto: "Armador de flyers · Se aprobó tu diseño",
+    titulo: "Se aprobó tu diseño",
+    saludo: hola(nombre),
+    parrafos: [
+      `El administrador aprobó tu diseño «${diseno}» y ya está publicado como un flyer más del armador.`,
+      "Lo ves en la barra de flyers la próxima vez que entres (si ya tenías la app abierta, recargala).",
+    ],
+    datos: flyer ? [["Diseño", diseno], ["Publicado como", flyer]] : [["Diseño", diseno]],
+  }),
+  fuenteAprobada: (nombre: string, diseno: string): Mail => ({
+    asunto: "Armador de flyers · Se aprobó tu propuesta",
+    titulo: "Se aprobó tu propuesta",
+    saludo: hola(nombre),
+    parrafos: [`El administrador aprobó «${diseno}» y ya está en Estudio → Flyers para copiar, para que todos puedan insertar sus secciones.`],
+  }),
+  estudioRechazado: (nombre: string, diseno: string, nota: string, fuente: boolean): Mail => ({
+    asunto: fuente ? "Armador de flyers · Tu propuesta no se aprobó" : "Armador de flyers · Tu diseño no se aprobó",
+    titulo: fuente ? "Tu propuesta no se aprobó" : "Tu diseño no se aprobó",
+    saludo: hola(nombre),
+    parrafos: [
+      `El administrador revisó «${diseno}» y por ahora no lo aprobó.`,
+      fuente ? "Si querés, podés proponerlo de nuevo desde Estudio → Flyers para copiar."
+        : "Lo seguís teniendo en la solapa Estudio: podés cambiarlo y volver a pedir que se publique.",
+    ],
+    datos: nota ? [["Motivo", nota]] : undefined,
+  }),
+  estudioCompartido: (nombre: string, diseno: string, quien: string): Mail => ({
+    asunto: "Armador de flyers · Te compartieron un diseño",
+    titulo: "Te compartieron un diseño",
+    saludo: hola(nombre),
+    parrafos: [
+      `${quien || "El administrador"} te compartió el diseño «${diseno}».`,
+      "Lo encontrás en la solapa Estudio: tocá «Usar» para abrirlo en el armador.",
+    ],
+  }),
   claveCambiadaPropia: (nombre: string): Mail => ({
     asunto: "Armador de flyers · Cambiaste tu contraseña",
     titulo: "Cambiaste tu contraseña",
@@ -575,6 +613,51 @@ Deno.serve(async (req: Request) => {
         if (e1 || ok1 === false) { if (e1) console.error("estudio_pedido:", e1.message); return json({ ok: true }); }
       } catch (e) { console.error("estudio_pedido:", String((e as Error)?.message || e)); return json({ ok: true }); }
       avisar(await mailsAdmins(), MAILS.pedidoEstudio(limpiarNombre(d.autor), limpiarNombre(d.nombre), limpiarNombre(d.empresa), "Opción " + Number(d.opcion || 0)));
+      return json({ ok: true });
+    }
+
+    // Aviso al autor cuando el admin resuelve su pedido de Estudio (aprobado o no;
+    // diseño o flyer para copiar) y a quienes recibieron un diseño compartido. Lo
+    // pide el navegador del admin después de hacer el cambio; acá se mira en la
+    // base qué pasó de verdad, y sólo si pasó hace menos de 10 minutos. Cada
+    // cambio manda UN mail aunque se repita la llamada.
+    if (action === "notify_estudio") {
+      const actor = await requireAdmin(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
+      if (!(await dentroDelLimite(req, "notify_estudio", 60, 3600))) return json({ error: MSG_DEMASIADOS }, 429);
+      const id = String(body.id || "");
+      const que = String(body.que || "");
+      if (!/^[0-9a-f-]{36}$/i.test(id) || !["resuelto", "compartido"].includes(que)) return json({ error: "Datos inválidos" }, 400);
+      const reciente = (t: string | null) => !!t && Date.now() - new Date(t).getTime() <= 10 * 60 * 1000;
+      const unaVez = async (clave: string): Promise<boolean> => {
+        try {
+          const { data: ok1, error: e1 } = await admin.rpc("rate_limit_hit", { p_clave: clave, p_max: 1, p_segundos: 30 * 24 * 3600 });
+          if (e1) console.error("notify_estudio:", e1.message);
+          return !e1 && ok1 !== false;
+        } catch (e) { console.error("notify_estudio:", String((e as Error)?.message || e)); return false; }
+      };
+      if (que === "resuelto") {
+        const { data: d } = await admin.from("flyer_disenos").select("user_id,nombre,estado,tipo,nota_admin,updated_at").eq("id", id).maybeSingle();
+        if (!d || !["publicado", "rechazado"].includes(d.estado) || !reciente(d.updated_at)) return json({ ok: true });
+        if (!(await unaVez("estudio_res|" + id + "|" + d.estado + "|" + d.updated_at))) return json({ ok: true });
+        const p = await perfil(d.user_id);
+        if (!p) return json({ ok: true });
+        const fuente = d.tipo === "fuente", nom = limpiarNombre(d.nombre);
+        if (d.estado === "publicado") {
+          avisar(p.email, fuente ? MAILS.fuenteAprobada(p.nombre, nom) : MAILS.estudioAprobado(p.nombre, nom, limpiarNombre(body.flyer)));
+        } else {
+          avisar(p.email, MAILS.estudioRechazado(p.nombre, nom, String(d.nota_admin || "").slice(0, 500), fuente));
+        }
+        return json({ ok: true });
+      }
+      // compartido: las copias que la base acaba de crear o actualizar
+      const { data: cs } = await admin.from("flyer_disenos").select("id,user_id,nombre,compartido_por,compartido_at").eq("compartido_de", id);
+      for (const c of cs || []) {
+        if (!reciente(c.compartido_at)) continue;
+        if (!(await unaVez("estudio_comp|" + c.id + "|" + c.compartido_at))) continue;
+        const p = await perfil(c.user_id);
+        if (p && p.status === "active") avisar(p.email, MAILS.estudioCompartido(p.nombre, limpiarNombre(c.nombre), limpiarNombre(c.compartido_por)));
+      }
       return json({ ok: true });
     }
 

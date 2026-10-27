@@ -83,6 +83,7 @@ module.exports=async(browser)=>{
   ok(nube.json['_legal'+n2+'.json']&&nube.json['_legal'+n2+'.json'].text==='Legal de prueba para la opción 9.','el legal se copió de la original');
   ok(nube.json['_facultades.json'].roles.asesor['opcion_'+n2]===true,'el asesor ve la variante nueva (igual que la original)');
   ok(nube.disenos[0].estado==='publicado'&&nube.disenos[0].opcion_publicada===n2,'diseño marcado publicado → opción '+n2);
+  ok((nube.llamadasAdmin||[]).some(b=>b.action==='notify_estudio'&&b.que==='resuelto'&&b.id===nube.disenos[0].id&&b.flyer),'aprobar avisa por mail al autor, con el nombre del flyer publicado');
   const opN=nube.json['_opciones.json'].opts.find(x=>x.n===n2);
   ok(opN&&opN.rubro==='ninguno'&&opN.nombre==='Combustible farmacias','queda fuera del ruteo por rubro, nombre elegido');
   // la imagen publicada tiene los cambios pegados

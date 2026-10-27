@@ -80,10 +80,12 @@ module.exports=async(browser)=>{
   await adm2.evaluate(()=>_estPoll());
   await adm2.waitForFunction(()=>document.querySelectorAll('.est-card .est-msg').length===4,null,{timeout:8000}).catch(()=>{});
   ok((await adm2.$$('.est-card .est-msg')).length===4,'con Estudio abierto, al admin le llega la respuesta en la tarjeta');
+  nube.llamadasAdmin=[];
   await adm2.click('.est-card button[data-acc=rechazar]');await adm2.waitForSelector('#fg-pt-i');
   await adm2.fill('#fg-pt-i','Falta corregir el logo');await adm2.click('#fg-pt-ok');await adm2.waitForTimeout(700);
   ok(d.estado==='rechazado'&&d.nota_admin==='Falta corregir el logo','No aprobar funciona estando en consulta: '+d.estado);
   ok((await adm2.$$('.est-card .est-msg')).length===0,'resuelto: el hilo se esconde y queda la nota');
+  ok((nube.llamadasAdmin||[]).some(b=>b.action==='notify_estudio'&&b.que==='resuelto'&&b.id===d.id),'No aprobar avisa por mail al autor (notify_estudio resuelto)');
 
   // ───────── 5) Compartir con una persona
   console.log('\n[5] Admin comparte el diseño con otra persona');
@@ -99,7 +101,10 @@ module.exports=async(browser)=>{
   await adm2.check('#fg-comp-ov input[type=checkbox]');
   ok(/con 1 persona/.test(await adm2.textContent('#fg-comp-ok')),'el botón dice "Compartir con 1 persona"');
   await adm2.screenshot({path:__dirname+'/capturas/t86_compartir.png'});
+  nube.llamadasAdmin=[];
   await adm2.click('#fg-comp-ok');await adm2.waitForSelector('#fg-comp-ov',{state:'detached'});
+  await adm2.waitForTimeout(200);
+  ok((nube.llamadasAdmin||[]).some(b=>b.action==='notify_estudio'&&b.que==='compartido'&&b.id===d.id),'Compartir avisa por mail a quien lo recibe (notify_estudio compartido)');
   const copia=nube.disenos.find(x=>x.user_id===USERS.asesor2.id);
   ok(copia&&copia.compartido_por==='Admin Prueba'&&copia.compartido_de===d.id&&copia.estado==='privado'&&copia.datos.cambios.length===1,'la otra persona tiene su copia (privada, con el cambio)');
   await adm2.waitForFunction(()=>(_EST.lista||[]).length===2,null,{timeout:8000}).catch(()=>{});

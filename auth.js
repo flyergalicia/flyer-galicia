@@ -14312,6 +14312,7 @@ function _estFuAprobar(id){
     // otra vez la sumaría repetida a la lista
     return _sb.from('flyer_disenos').update({estado:'publicado',datos:{}}).eq('id',id).eq('estado','pedido').then(function(r){return !(r&&r.error);},function(){return false;});
   }).then(function(marcada){_EST_FU.ocupado=false;
+    if(marcada)_estMailAutor(id,'resuelto');
     if(marcada)showToast('Aprobado: «'+d.nombre+'» ya está en Flyers para copiar.');
     else _fgToastLargo('«'+d.nombre+'» ya está en Flyers para copiar, pero no se pudo marcar la propuesta como aprobada. No la apruebes de nuevo: tocá «No aprobar» para sacarla de la lista de pendientes.',9000);
     _estFuCargar();},
@@ -14322,7 +14323,7 @@ function _estFuRechazar(id){
   fgPedirTexto('No aprobar','Si querés, decile por qué (lo ve quien lo propuso).','',{ok:'No aprobar',largo:500,area:true},function(n){
     if(n===null)return;
     _sb.from('flyer_disenos').update({estado:'rechazado',nota_admin:n||'',datos:{}}).eq('id',id).eq('estado','pedido').then(function(r){
-      if(r&&r.error){showToast('No se pudo: '+_estErr(r.error));return;}_estFuCargar();
+      if(r&&r.error){showToast('No se pudo: '+_estErr(r.error));return;}_estMailAutor(id,'resuelto');_estFuCargar();
     },function(e){showToast('No se pudo: '+_estErr(e));});
   });
 }
@@ -18713,6 +18714,11 @@ function estPedir(id){
     });
   });
 }
+// Mail a quien corresponde (auth-admin mira en la base qué pasó de verdad y manda
+// uno solo). Nunca frena ni avisa nada en pantalla: el cambio ya está hecho.
+function _estMailAutor(id,que,extra){
+  try{var b={id:id,que:que};if(extra)for(var k in extra)b[k]=extra[k];_callFn('notify_estudio',b,function(){});}catch(e){}
+}
 function estCancelarPedido(id){_estCambiar(id,{estado:'privado'},'Pedido cancelado.',['pedido','consulta']);}
 function estBorrar(id){
   var d=_estBuscar(id);if(!d)return;
@@ -18804,6 +18810,7 @@ function estCompartir(id){
       if(ac.length)msg.push((ac.length===1?ac[0]+' ya lo tenía: le llegó':lista2(ac)+' ya lo tenían: les llegó')+' esta versión.');
       if(sa.length)msg.push('No se compartió con '+sa.map(function(s){return s.nombre+' ('+s.motivo+')';}).join(', ')+'.');
       _fgToastLargo(msg.join(' ')||'Listo.',6000);
+      if(nu.length||ac.length)_estMailAutor(id,'compartido');
       _EST.lista=null;_estCargar(); // las copias aparecen en "Todos"
     },function(e){contar();showToast('No se pudo compartir: '+_estErr(e));});
   };
@@ -18879,7 +18886,9 @@ function estRechazar(id){
   var d=_estBuscar(id);if(!d)return;
   fgPedirTexto('No aprobar «'+d.nombre+'»','Contale por qué (lo ve quien lo pidió). Es opcional.','',{ok:'No aprobar',largo:500,area:true},function(nota){
     if(nota===null)return;
-    _estCambiar(id,{estado:'rechazado',nota_admin:nota.slice(0,500)},'Listo: no aprobado.',['pedido','consulta']);
+    _estCambiar(id,{estado:'rechazado',nota_admin:nota.slice(0,500)},'Listo: no aprobado.',['pedido','consulta']).then(function(fila){
+      if(fila)_estMailAutor(id,'resuelto');
+    });
   });
 }
 // Ventanita para pedir un texto (mismo estilo que fgConfirm). cb(null) = canceló.
@@ -19082,6 +19091,7 @@ function _estPublicar(id,d0,n,nombre){
     return _estCambiar(id,{estado:'publicado',opcion_publicada:n2,nota_admin:''},null,['pedido','consulta']).then(function(fila){
       _facSyncOptBar();_fgRenderOptBar();if(typeof _applyFacultades==='function')_applyFacultades();
       if(!fila){showToast('Se creó el flyer «'+nombre+'» (opción '+n2+'), pero el diseño no quedó marcado como publicado. No lo vuelvas a aprobar: si sobra, borralo desde Config → Opciones.');return;}
+      _estMailAutor(id,'resuelto',{flyer:nombre});
       showToast('Publicado: «'+nombre+'» ya está al lado de «'+_optLabel(n)+'».'+(okFac?'':' Revisá en Facultades quién lo ve.'));
     });
   }).catch(function(e){
