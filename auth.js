@@ -2037,10 +2037,133 @@ var PROMO_LOGO_BASE='https://www.galicia.ar/content/dam/galicia/banco-galicia/pe
 var PROMO_DETALLE_BASE='https://beneficios.galicia.ar/promocion/';
 function _promoUrl(p){
   if(!p||!p.id)return '';
+  if(_promoEsModo(p))return p.slug?PROMO_MODO_BASE+encodeURIComponent(p.slug):'';
   var t=_promoDecodeEntities(p.titulo||''),tipo=p.tipo_promocion||p.tipoPromocion||'Marca';
   return PROMO_DETALLE_BASE+encodeURIComponent(p.id)+'|'+encodeURIComponent(t)+'|'+encodeURIComponent(tipo);
 }
+// Logo de una promo: los de Galicia viven en su sitio; los de MODO que Galicia no
+// tiene, copiados a nuestro bucket ("modo/<marca>.png"), porque los de MODO no
+// dejan dibujarse en el PDF. Todo lo que muestre o baje un logo pasa por acá.
+function _promoLogoSrc(img){
+  img=String(img||'');if(!img)return '';
+  return img.indexOf('modo/')===0?FLYERS_PUBLIC+img:PROMO_LOGO_BASE+img;
+}
 var _promosCat=null,_promosCatLoading=false,_promosResultados=null,_promosMesRef=null;
+
+// ── MODO (26-oct-2026) ─────────────────────────────────────────────────────
+// Promos de modo.com.ar que valen con Galicia y Galicia no publica en su
+// buscador (combustible por marca, súper del interior, farmacias). Las copia la
+// Edge Function a promos_modo_cache (migración 035) con las mismas columnas que
+// las de Galicia, así que acá se suman al catálogo y TODO lo demás (Activas,
+// Buscar, ventanas de marcas, días de los súper, puntito rojo, vencidas) las
+// trata igual. Las que ya están en Galicia (misma marca y mismo beneficio) no
+// se suman: queda la de Galicia. El tilde "Incluir MODO" arranca prendido y se
+// recuerda en esta PC.
+//   _promosCatG     sólo Galicia
+//   _promosCatTodo  Galicia + MODO sin repetidas (lo que mira si un logo del flyer sigue vigente)
+//   _promosCat      lo que se ve: con o sin MODO según el tilde
+var PROMO_MODO_BASE='https://www.modo.com.ar/promos/';
+var _promosCatG=null,_promosCatM=null,_promosCatTodo=null;
+var _promosConModo=(function(){try{return localStorage.getItem('fg_promos_modo')!=='0';}catch(e){return true;}})();
+function _promoEsModo(p){return !!(p&&p.origen==='modo');}
+// Con el tilde apagado, un logo de MODO que ya está en el flyer no está "vencido":
+// para eso se mira el catálogo entero.
+function _promosTodo(){return (_promosCat&&_promosCat===_promosCatG&&_promosCatTodo)?_promosCatTodo:_promosCat;}
+// Marca para comparar con Galicia: sin rubros sueltos ni artículos, sin espacios
+// ("Supermercados Alvear" = "Alvear Supermercados", "BLOW MAX" = "Blowmax").
+function _promoModoClave(t){
+  return _promoNormalizar(t).replace(/\b(supermercados?|super|hiper(mercados?)?|mayorista|farmacias?|perfumerias?|y|de|del|la|el|los|las|grupo|s ?a)\b/g,' ').replace(/ /g,'');
+}
+// Qué da la promo, en números: "25% de ahorro" y "25% de reintegro" son lo mismo;
+// "20% y hasta 6 cuotas" no es "20%". Sin números ("Regalá Cine") no se compara.
+function _promoBenefFirma(b){
+  var t=_promoNormalizar(b),out=[],m,re=/(\d+)\s*(?:%|por ciento)/g;
+  var s=_promoDecodeEntities(String(b||''));
+  while((m=re.exec(s)))out.push('p'+m[1]);
+  re=/(\d+)\s+cuotas/g;while((m=re.exec(t)))out.push('c'+m[1]);
+  return out.sort().join(',');
+}
+// Días como firma ("Viernes y Sábado" = "Viernes y sábados"); '' = no se sabe.
+function _promoDiasFirma(d){
+  if(!d)return '';
+  var L=_promoDiasLeer(d);
+  return L.todos?'todos':Object.keys(L.set).sort().join(',');
+}
+// ¿Esa promo de MODO ya está en Galicia? Misma marca, mismo beneficio y, si las
+// dos dicen qué días, los mismos días (Combustible 10% los martes en Galicia y
+// los fines de semana en MODO son dos promos). Una de Galicia "próximamente" no
+// tapa a una de MODO que ya está vigente.
+function _promoModoRepetida(m,idx){
+  var f=_promoBenefFirma(m.beneficio);if(!f)return false;
+  var dm=_promoDiasFirma(m.dias);
+  var L=idx[_promoModoClave(m.titulo)]||[];
+  for(var i=0;i<L.length;i++){
+    var g=L[i];
+    if(_promoBenefFirma(g.beneficio)!==f)continue;
+    var dg=_promoDiasFirma(g.dias);
+    if(dm&&dg&&dm!==dg)continue;
+    if(g.proximamente&&!m.proximamente)continue;
+    return true;
+  }
+  return false;
+}
+function _promosArmarModo(filasModo){
+  var idx=Object.create(null),hoy=new Date();
+  (_promosCatG||[]).forEach(function(g){var k=_promoModoClave(g.titulo);if(k)(idx[k]=idx[k]||[]).push(g);});
+  // las vencidas no se suman (Galicia nunca las trae; una copia de MODO de ayer sí
+  // puede tenerlas si hoy no se pudo actualizar)
+  _promosCatM=(filasModo||[]).filter(function(r){return r&&r.id&&_promoEstado(r.fecha_hasta,hoy)!=='VENCIDA';}).map(function(r){
+    var p={};for(var k in r)p[k]=r[k];
+    p.id='m:'+r.id;p.origen='modo';p.tipo_promocion='MODO';
+    return p;
+  }).filter(function(p){return !_promoModoRepetida(p,idx);});
+  _promosCatTodo=_promosCatM.length?(_promosCatG||[]).concat(_promosCatM):_promosCatG;
+  _promosAplicarModo();
+}
+function _promosAplicarModo(){
+  if(!_promosCatG)return;
+  _promosCat=_promosConModo?_promosCatTodo:_promosCatG;
+}
+function _promoModoSync(){
+  document.querySelectorAll('.promos-modo-chk').forEach(function(c){c.checked=_promosConModo;});
+}
+// El tilde (en Activas, en Buscar y en las ventanas de marcas): es uno solo.
+function _promoSetModo(on){
+  _promosConModo=!!on;
+  try{localStorage.setItem('fg_promos_modo',on?'1':'0');}catch(e){}
+  _promoModoSync();
+  _promosAplicarModo();
+  _promosPoblarRubros();
+  if(_promosResultados){
+    if(_promosModo==='activas')buscarPromosActivas();
+    else if((document.getElementById('promos-marcas')||{}).value)validarPromos();
+  }
+  if(document.getElementById('fg-lg-ov'))_fgLgFiltros();
+  if(document.getElementById('fg-fr-ov'))_fgFrFiltros();
+}
+// Etiqueta "MODO" en la fila: se paga con MODO (QR o NFC desde la app del banco).
+function _promoModoHtml(p){
+  if(!_promoEsModo(p))return '';
+  return ' <span class="promos-modo" title="Promoci&oacute;n de MODO'+(p.solo_galicia?' exclusiva de Galicia':' que vale con Galicia (y otros bancos)')+
+    ': se paga con MODO, escaneando el QR o con NFC desde la app de Galicia.">MODO</span>';
+}
+function _promoModoTildeHtml(id){
+  return '<label class="promos-chk" title="Suma las promociones de MODO que valen con Galicia y no est&aacute;n en la p&aacute;gina del banco (por ejemplo, combustible por marca). Se pagan con MODO. Las que est&aacute;n en los dos lados se ven una sola vez.">'+
+    '<input type="checkbox" id="'+id+'" class="promos-modo-chk"'+(_promosConModo?' checked':'')+' onchange="_promoSetModo(this.checked)"> Incluir MODO</label>';
+}
+// Localidad: las de Galicia se la preguntan a Galicia (ids); las de MODO traen
+// sus locales ("PROVINCIA|LOCALIDAD"). Sin el dato no se castiga a la promo.
+function _promoEnLocalidad(p,prov,loc,porId){
+  if(!loc)return true;
+  if(_promoEsOnline(p))return true; // las online no son de ninguna localidad
+  if(_promoEsModo(p)){
+    if(!Array.isArray(p.localidades))return true;
+    var k=_promoNormalizar(prov+' '+loc);
+    for(var i=0;i<p.localidades.length;i++)if(_promoNormalizar(String(p.localidades[i]).replace('|',' '))===k)return true;
+    return false;
+  }
+  return !porId||!!porId[p.id];
+}
 
 // ── Provincia ───────────────────────────────────────────────────────────────
 // El catálogo de Galicia es nacional: una promo puede estar perfectamente
@@ -2102,6 +2225,9 @@ function _promosProvinciasN(){
 }
 function _promoDondeHtml(r){
   var p=r.promo;
+  // MODO no publica los locales de algunas promos: se dice, en vez de un "-" que
+  // parece un error (y se aclara que se muestra en todas las provincias)
+  if(p&&_promoEsModo(p)&&!_promoGeoConocida(p))return '<span class="promos-donde" title="MODO no informa en qu&eacute; locales vale esta promoci&oacute;n: aparece en todas las provincias. Mir&aacute; los locales en su ficha (Ver en MODO).">Sin dato</span>';
   if(!p||!_promoGeoConocida(p))return '<span class="promos-donde">-</span>';
   if(!p.provincias.length){
     return '<span class="promos-online" title="Compra por internet: no tiene local, as&iacute; que sirve desde cualquier provincia.">Online</span>';
@@ -2124,7 +2250,7 @@ function initPromosTab(){
     var d=new Date();
     mesInp.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
   }
-  _promoTildeNuevas();_promoTildeUnaBuscar();_promoTildesPct();
+  _promoTildeNuevas();_promoTildeUnaBuscar();_promoTildesPct();_promoTildesModo();
   if(!_promosCat&&!_promosCatLoading)loadPromosCatalogo();
 }
 // Tilde "Sólo las nuevas" de la solapa Activas, al lado de "Una sola fila por
@@ -2169,6 +2295,16 @@ function _promoTildesPct(){
     lbl.parentNode.insertBefore(l,lbl.nextSibling);
   });
   _promoPctSync();
+}
+// "Incluir MODO" en Activas y en Buscar, al lado del de % de descuento.
+function _promoTildesModo(){
+  [['promos-modo-a','promos-pct-a'],['promos-modo-b','promos-pct-b']].forEach(function(x){
+    if(document.getElementById(x[0]))return;
+    var ref=document.getElementById(x[1]),lbl=ref&&ref.closest('label');if(!lbl)return;
+    var t=document.createElement('span');t.innerHTML=_promoModoTildeHtml(x[0]);
+    lbl.parentNode.insertBefore(t.firstChild,lbl.nextSibling);
+  });
+  _promoModoSync();
 }
 function _promoSetSoloPct(on){_promosFiltros.pct=on?'solo':'';_promoPctSync();_promosPintarFilas();}
 function _promoPctSync(){var on=_promosFiltros.pct==='solo';['promos-pct-a','promos-pct-b'].forEach(function(id){var c=document.getElementById(id);if(c)c.checked=on;});}
@@ -2314,7 +2450,9 @@ function _promosSetSyncInfo(meta){
   }
   var d=new Date(meta.last_sync_at);
   el.textContent='Catálogo actualizado: '+d.toLocaleDateString('es-AR')+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'})+
-    _promosHace(d)+'. '+(meta.total||0).toLocaleString('es-AR')+' promociones. Se actualiza solo todos los días a las 9.';
+    _promosHace(d)+'. '+(meta.total||0).toLocaleString('es-AR')+' promociones'+
+    (_promosCatM&&_promosCatM.length?' de Galicia y '+_promosCatM.length.toLocaleString('es-AR')+' de MODO que no están en Galicia':'')+
+    '. Se actualiza solo todos los días a las 9.';
 }
 // Antigüedad de la copia en palabras. Importa que se vea: Galicia publica las
 // promos nuevas en tandas a lo largo del día, así que "de hace 20 horas" ya
@@ -2350,6 +2488,19 @@ function _promosTraerTodo(desde,acc,cb){
       .range(d,h);
   },cb,_PROMOS_PAGINA,desde,acc);
 }
+// Las de MODO (migración 035). Si la tabla todavía no existe o no se puede leer,
+// Promociones sigue andando sólo con Galicia (se avisa en la consola).
+function _promosTraerModo(cb){
+  _sbTodo(function(d,h){
+    return _sb.from('promos_modo_cache')
+      .select('id,slug,titulo,subtitulo,imagen,beneficio,tope,dias,canales,solo_galicia,provincias,localidades,fecha_desde,fecha_hasta,proximamente,primera_vez')
+      .order('id',{ascending:true})
+      .range(d,h);
+  },function(err,filas){
+    if(err)console.warn('promos_modo_cache:',err.message||err);
+    cb(err?[]:(filas||[]));
+  },_PROMOS_PAGINA,0,[]);
+}
 
 // Quienes esperan a que termine la carga en curso. Antes, si "Validar" se
 // tocaba mientras initPromosTab ya estaba cargando (sin callback), el botón
@@ -2367,7 +2518,8 @@ function loadPromosCatalogo(cb){
     new Promise(function(resolve){
       _promosTraerTodo(0,[],function(error,filas){resolve({data:filas,error:error});});
     }),
-    _sb.from('promos_galicia_meta').select('last_sync_at,total,ubicaciones').eq('id',1).single()
+    _sb.from('promos_galicia_meta').select('last_sync_at,total,ubicaciones').eq('id',1).single(),
+    new Promise(function(resolve){_promosTraerModo(resolve);})
   ]).then(function(res){
     var catRes=res[0],metaRes=res[1];
     if(catRes&&catRes.error){
@@ -2375,6 +2527,10 @@ function loadPromosCatalogo(cb){
       showToast('No se pudo leer el catálogo de promociones: '+(catRes.error.message||catRes.error));
     }
     _promosCat=(catRes&&catRes.data)||[];
+    // Galicia primero; las de MODO se suman sin las repetidas (ver _promosArmarModo)
+    _promosCatG=_promosCat;
+    _promosArmarModo(res[2]);
+    _promosCat=_promosCatG; // los avisos de abajo miran sólo Galicia
     var meta=metaRes&&metaRes.data;
     // RLS filtrando en silencio no cuenta como "error" de PostgREST: la fila
     // simplemente no vuelve. Si la metadata dice que hay catálogo pero la
@@ -2392,6 +2548,8 @@ function loadPromosCatalogo(cb){
       console.error('Catálogo incompleto: llegaron '+_promosCat.length+' de '+meta.total+' promociones.');
       showToast('Atención: el catálogo llegó incompleto ('+_promosCat.length+' de '+meta.total+'). Puede que falten marcas.');
     }
+    var nuncaSync=!_promosCat.length&&!(meta&&meta.total>0);
+    _promosAplicarModo(); // desde acá, _promosCat es lo que se ve (con o sin MODO)
     _promosSetSyncInfo(meta);
     _promosUbic=(meta&&Array.isArray(meta.ubicaciones))?meta.ubicaciones:[];
     _promosPoblarProvincias();
@@ -2400,13 +2558,13 @@ function loadPromosCatalogo(cb){
     // Auto-sync sólo si nunca se sincronizó (catálogo vacío y meta sin fecha).
     // No se dispara cuando el vacío se explica por un error o por RLS (meta
     // dice que hay filas): ahí sincronizar no arregla nada.
-    var nuncaSync=!_promosCat.length&&!(meta&&meta.total>0);
     if(!(catRes&&catRes.error)&&nuncaSync&&!_promosSyncing){syncPromosCatalogo(false);}
     _promosCatDone();
   }).catch(function(e){
     console.error('loadPromosCatalogo:',e);
     showToast('Error cargando el catálogo de promociones: '+((e&&e.message)||e));
     _promosCat=_promosCat||[];
+    if(!_promosCatG){_promosCatG=_promosCat;_promosCatTodo=_promosCat;}
     _promosCatLoading=false;
     _promosCatDone();
   });
@@ -2563,7 +2721,9 @@ function _promoBuscarCandidatos(marca,catalogo){
 // entre iguales, la que vence más tarde.
 function _promoMejorQue(a,b){
   if(!!a.proximamente!==!!b.proximamente)return !a.proximamente;
-  return (a.fecha_hasta||'')>(b.fecha_hasta||'');
+  var fa=a.fecha_hasta||'',fb=b.fecha_hasta||'';
+  if(fa===fb)return _promoEsModo(b)&&!_promoEsModo(a); // empate: la de Galicia
+  return fa>fb;
 }
 function _promoEstado(fechaHasta,mesRef){
   if(!fechaHasta)return 'SIN_FECHA';
@@ -2696,7 +2856,8 @@ function validarPromos(){
 
   // Pide fechaDesde (no viene en el listado) sólo de los matches confirmados,
   // que son los que se van a mostrar como certeros.
-  var ids=filas.filter(function(r){return r.promo&&!r.necesitaRevision;}).map(function(r){return r.promo.id;});
+  // (las de MODO ya traen su fecha de inicio: no se le preguntan a Galicia)
+  var ids=filas.filter(function(r){return r.promo&&!r.necesitaRevision&&!_promoEsModo(r.promo);}).map(function(r){return r.promo.id;});
   if(ids.length)_promosPedirDetalle(ids,filas);
 }
 // Promos del catálogo agrupadas por nombre (normalizado), para sumar las hermanas.
@@ -2773,7 +2934,7 @@ function buscarPromosActivas(){
   var filas=[];
   (_promosCat||[]).forEach(function(pr){
     if(!_promoEnProvincia(pr,_promosProv))return;
-    if(porId&&!porId[pr.id]&&!_promoEsOnline(pr))return; // las online no son de ninguna localidad
+    if(porId&&!_promoEnLocalidad(pr,_promosProv,_promosLoc,porId))return; // las online no son de ninguna localidad
     if(_promosRubro&&_promoDecodeEntities(pr.subtitulo||'')!==_promosRubro)return;
     filas.push(_promoDesdeInicial({
       marca:_promoDecodeEntities(pr.titulo||''),
@@ -3124,7 +3285,7 @@ function _promoUnaPorMarca(filas){
 function _promoFilaHtml(r,i){
   var css=_PROMO_ESTADO_CSS[r.estado]||'no',act=_promoModoActivas();
   var logo=r.promo&&r.promo.imagen?
-    '<img class="promos-logo" loading="lazy" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+r.promo.imagen)+'" onerror="this.classList.add(\'promos-logo-err\');this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'promos-logo promos-logo-err\',title:\'No se pudo cargar el logo\'}))" alt="">':
+    '<img class="promos-logo" loading="lazy" decoding="async" src="'+_escAttr(_promoLogoSrc(r.promo.imagen))+'" onerror="this.classList.add(\'promos-logo-err\');this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'promos-logo promos-logo-err\',title:\'No se pudo cargar el logo\'}))" alt="">':
     '<div class="promos-logo promos-logo-empty" title="Sin coincidencia"></div>';
   var candSel='';
   if(r.necesitaRevision||r.estado==='NO_ENCONTRADA'){
@@ -3148,7 +3309,7 @@ function _promoFilaHtml(r,i){
   return '<tr class="'+(r.excluir?'excluida':'')+(eleg>0?' elegida':'')+'">'+primera+
     '<td class="pc-logo"><span class="promos-logo-w">'+logo+_promoFilaPctDot(r.promo)+'</span></td>'+
     (act?'':'<td class="pc-marca">'+_escHtml(r.marca)+'</td>')+
-    '<td class="pc-promo">'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoOtrasHtml(r)+_promoBenefHtml(r.promo)+_promoDiasHtml(r.promo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
+    '<td class="pc-promo">'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.titulo))+_promoNuevaHtml(r.promo)+_promoModoHtml(r.promo)+_promoOtrasHtml(r)+_promoBenefHtml(r.promo)+_promoDiasHtml(r.promo)+(candSel?'<br>'+candSel:''):(candSel||'-'))+'</td>'+
     '<td class="pc-cat">'+(r.promo?_escHtml(_promoDecodeEntities(r.promo.subtitulo||'-')):'-')+'</td>'+
     '<td class="pc-donde">'+_promoDondeHtml(r)+'</td>'+
     '<td class="pc-desde">'+(r.promo?_promosFmtFecha(r.fechaDesde):'-')+'</td>'+
@@ -3259,10 +3420,10 @@ function _promoZona(st){
   var k=st.prov+'|'+(conLoc?st.loc+'|'+ids.length:'');
   if(_promoZonaC[k])return _promoZonaC[k];
   var porId=null;if(conLoc){porId={};ids.forEach(function(id){porId[id]=1;});}
-  var prov=st.prov;
+  var prov=st.prov,loc=st.loc;
   return (_promoZonaC[k]={k:k,ok:function(q){
     if(!_promoEnProvincia(q,prov))return false;
-    return !porId||!!porId[q.id]||_promoEsOnline(q);
+    return !porId||_promoEnLocalidad(q,prov,loc,porId);
   }});
 }
 // Puntito rojo sobre la miniatura (sólo en las listas: nunca va al flyer).
@@ -3271,7 +3432,7 @@ function _promoPctDot(p,zona){return _promoTienePct(p,zona)?'<span class="fg-pf-
 // la que tiene el % (Coto 25% sí; Coto en cuotas no).
 function _promoFilaPct(p){return !!(p&&_promoEsSuper(p)&&/%/.test(String(p.beneficio||'')));}
 function _promoFilaPctDot(p){return _promoFilaPct(p)?'<span class="fg-pf-pct" title="S&uacute;per con % de descuento: al ponerlo van estos d&iacute;as debajo"></span>':'';}
-function _promoDeImg(img){if(!_promosCat)return null;for(var i=0;i<_promosCat.length;i++)if(_promosCat[i].imagen===img)return _promosCat[i];return null;}
+function _promoDeImg(img){var C=_promosTodo();if(!C)return null;for(var i=0;i<C.length;i++)if(C[i].imagen===img)return C[i];return null;}
 function _promoDiasHtml(p){var d=_promoEsSuper(p)?_promoDiasPropios(p):'';return d?'<div class="promos-dias">'+_escHtml(d)+'</div>':'';}
 // Qué da la promo ("25% de ahorro", "6 cuotas sin interés"): sin esto dos filas de
 // la misma marca parecían repetidas. Viene de la columna beneficio (migración 029).
@@ -3293,6 +3454,8 @@ function _promoOtrasHtml(r){
 function _promoLinkHtml(r){
   var u=r.promo?_promoUrl(r.promo):'';
   if(!u)return '<span class="promos-link-no">-</span>';
+  if(_promoEsModo(r.promo))return '<a class="promos-link" href="'+_escAttr(u)+'" target="_blank" rel="noopener noreferrer" '+
+    'title="Abrir esta promoción en el sitio de MODO (vigencia, d&iacute;as, bancos y letra chica)">Ver en MODO</a>';
   return '<a class="promos-link" href="'+_escAttr(u)+'" target="_blank" rel="noopener noreferrer" '+
     'title="Abrir esta promoción en el sitio de Galicia (vigencia, d&iacute;as, tarjetas y letra chica)">Ver</a>';
 }
@@ -3468,6 +3631,7 @@ function descargarExcelPromos(){
       {header:'Hasta',key:'hasta',width:12},
       {header:'Días',key:'dias',width:16},
       {header:'Estado',key:'estado',width:16},
+      {header:'Origen',key:'origen',width:10},
       {header:'En Galicia',key:'link',width:14}
     ]);
   ws.getRow(1).font={bold:true};
@@ -3507,7 +3671,8 @@ function descargarExcelPromos(){
       hasta:r.promo?_promosFmtFecha(r.promo.fecha_hasta):'-',
       dias:r.promo?_promoDiasPropios(r.promo):'',
       benef:r.promo?_promoBenef(r.promo):'',
-      estado:_promoEstadoTxt(r)
+      estado:_promoEstadoTxt(r),
+      origen:r.promo?(_promoEsModo(r.promo)?'MODO':'Galicia'):''
     });
     row.height=32;
     row.eachCell(function(cell){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fills[r.estado]||'FFFFFFFF'}};});
@@ -3528,7 +3693,7 @@ function descargarExcelPromos(){
     // El mismo logo (una marca con varias promos) se baja e incrusta UNA vez y se
     // reusa en cada fila: antes era una descarga y una copia en el archivo por fila.
     var f=r.promo.imagen;
-    if(!(f in idPorLogo))idPorLogo[f]=_logoConCupo(function(){return fetch(PROMO_LOGO_BASE+f).then(function(resp){
+    if(!(f in idPorLogo))idPorLogo[f]=_logoConCupo(function(){return fetch(_promoLogoSrc(f)).then(function(resp){
       return resp.ok?resp.arrayBuffer():null;
     }).then(function(buf){return buf?wb.addImage({buffer:buf,extension:ext}):null;});})
       .catch(function(){return null;/* si el logo no carga, la fila igual queda con sus datos */});
@@ -4001,7 +4166,7 @@ function _vigGuardar(d){
 // Estado de una marca contra el catálogo cargado: 'ok' | 'vence' (7 días o menos) | 'vencida'
 function _vigEstado(v,hoy){
   var dia=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()).getTime(),k=_promoNormalizar(v.t||v.m||''),mejor=-1,sinFecha=false;
-  (_promosCat||[]).forEach(function(p){
+  (_promosTodo()||[]).forEach(function(p){ // con las de MODO (una marca que sólo está en MODO no está vencida)
     if(p.proximamente)return;
     if(!((v.img&&p.imagen===v.img)||(k&&_promoNormalizar(p.titulo||'')===k)))return;
     if(!p.fecha_hasta){sinFecha=true;return;}
@@ -13754,7 +13919,7 @@ function _fgLgDestino(det,asp){
 function _fgLgTraer(file){
   if(_fgLg.imgs[file])return Promise.resolve(_fgLg.imgs[file]);
   if(_fgLg.carga[file])return _fgLg.carga[file];
-  var p=fetch(PROMO_LOGO_BASE+file).then(function(r){
+  var p=fetch(_promoLogoSrc(file)).then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);return r.blob();
   }).then(function(b){
     return new Promise(function(res,rej){
@@ -14610,16 +14775,17 @@ var _fgLgMkAntes=null,_fgLgMkFlash={};
 // El índice por logo se arma una vez por catálogo y por día (se llama en cada dibujado).
 var _fgLgVencIdx={cat:null,dia:'',m:null};
 function _fgLgVencMapa(){
-  if(!_promosCat||!_promosCat.length)return null;
+  var C=_promosTodo(); // también las de MODO, aunque el tilde esté apagado
+  if(!C||!C.length)return null;
   var hoy=new Date(),dia=hoy.toDateString(),I=_fgLgVencIdx;
-  if(I.cat===_promosCat&&I.dia===dia&&I.m)return I.m;
+  if(I.cat===C&&I.dia===dia&&I.m)return I.m;
   var m=Object.create(null);
-  _promosCat.forEach(function(q){
+  C.forEach(function(q){
     if(!q.imagen)return;
     if(q.proximamente||_promoEstado(q.fecha_hasta,hoy)!=='VENCIDA')m[q.imagen]=1;
     else if(m[q.imagen]===undefined)m[q.imagen]=0;
   });
-  I.cat=_promosCat;I.dia=dia;I.m=m;return m;
+  I.cat=C;I.dia=dia;I.m=m;return m;
 }
 function _fgLgVencida(e){
   if(!e||e.tipo==='txt'||!e.img||_fgLgEsSubido(e.img)||String(e.img).indexOf('orig:')===0)return false;
@@ -14634,13 +14800,14 @@ function _fgLgVencida(e){
 var _fgLgProvIdx={cat:null,dia:'',m:{}};
 function _fgLgFueraProv(e){
   if(!e||!e.prov||e.tipo==='txt'||!e.img||_fgLgEsSubido(e.img)||String(e.img).indexOf('orig:')===0)return false;
-  if(!_promosCat||!_promosCat.length||!_promosHayGeo()||_fgLgVencida(e))return false;
+  var C=_promosTodo();
+  if(!C||!C.length||!_promosHayGeo()||_fgLgVencida(e))return false;
   var hoy=new Date(),dia=hoy.toDateString(),I=_fgLgProvIdx;
-  if(I.cat!==_promosCat||I.dia!==dia){I.cat=_promosCat;I.dia=dia;I.m={};}
+  if(I.cat!==C||I.dia!==dia){I.cat=C;I.dia=dia;I.m={};}
   var m=I.m[e.prov];
   if(!m){
     m=I.m[e.prov]=Object.create(null);
-    _promosCat.forEach(function(q){if(q.imagen&&(q.proximamente||_promoEstado(q.fecha_hasta,hoy)!=='VENCIDA')&&_promoEnProvincia(q,e.prov))m[q.imagen]=1;});
+    C.forEach(function(q){if(q.imagen&&(q.proximamente||_promoEstado(q.fecha_hasta,hoy)!=='VENCIDA')&&_promoEnProvincia(q,e.prov))m[q.imagen]=1;});
   }
   return !m[e.img];
 }
@@ -15321,7 +15488,8 @@ function _fgPfHtml(px,ph){
       '<select id="'+px+'-loc" aria-label="Localidad" hidden></select></div>'+
     '<div class="fg-lg-chk" id="'+px+'-chk"><label title="Junta en una sola tarjeta las sucursales o variantes de una marca: por ejemplo, Adidas, Adidas MDQ y Adidas Nordelta. Las promos de un mismo logo (Coto: 25%, 12 y 18 cuotas) van siempre en una sola tarjeta."><input type="checkbox" id="'+px+'-una"> Juntar sucursales de la misma marca</label>'+
       '<label><input type="checkbox" id="'+px+'-onl"> Sin las de compra online</label>'+
-      '<label title="S&oacute;lo los supermercados con alguna promo de % de descuento (los del puntito rojo)"><input type="checkbox" id="'+px+'-pct"> S&oacute;lo s&uacute;per con % de descuento</label></div>';
+      '<label title="S&oacute;lo los supermercados con alguna promo de % de descuento (los del puntito rojo)"><input type="checkbox" id="'+px+'-pct"> S&oacute;lo s&uacute;per con % de descuento</label>'+
+      '<label title="Suma las promociones de MODO que valen con Galicia y no est&aacute;n en la p&aacute;gina del banco. Se pagan con MODO."><input type="checkbox" id="'+px+'-modo" class="promos-modo-chk"'+(_promosConModo?' checked':'')+' onchange="_promoSetModo(this.checked)"> Incluir MODO</label></div>';
 }
 function _fgPfInit(px,st,cambio){
   var q=document.getElementById(px+'-q'),t=0;
@@ -15396,7 +15564,7 @@ function _fgPfFiltrar(st,cambio){
     if(st.prov&&!_promoEnProvincia(p,st.prov))return;
     var online=_promoEsOnline(p);
     if(st.sinOnline&&online)return;
-    if(porId&&!porId[p.id]&&!online)return; // las online no son de ninguna localidad
+    if(porId&&!_promoEnLocalidad(p,st.prov,st.loc,porId))return; // las online no son de ninguna localidad
     var o=porImg[p.imagen];if(!o||_promoMejorQue(p,o))porImg[p.imagen]=p;
     (deImg[p.imagen]=deImg[p.imagen]||[]).push(p); // todas las promos de ese logo, para "3 promos"
   });
@@ -15434,7 +15602,7 @@ function _fgPfFiltrar(st,cambio){
 // cuotas) se avisa "3 promos" y el detalle sale al pasar el mouse.
 function _fgPfMas(p,st){
   var L=st&&st.deImg&&st.deImg[p.imagen];if(!L||L.length<2)return '';
-  var tit=L.map(function(q){var b=_promoBenef(q),d=_promoDiasPropios(q);return (b||q.titulo)+(d?' ('+d+')':'');}).join('\n');
+  var tit=L.map(function(q){var b=_promoBenef(q),d=_promoDiasPropios(q);return (b||q.titulo)+(d?' ('+d+')':'')+(_promoEsModo(q)?' · MODO':'');}).join('\n');
   return ' · <b class="fg-pf-mas" title="'+_escAttr(tit)+'">'+L.length+' promos</b>';
 }
 function _fgPfSub(p,zona,st){
@@ -15445,7 +15613,7 @@ function _fgPfSub(p,zona,st){
     var L=_promoDiasLeer(p.dias),igual=_promoNormalizar(pr)===_promoNormalizar(fl)||(L.todos?'Todos los días':_promoDiasFormato(L.set))===fl;
     d=pr&&fl&&!igual?pr+' (en el flyer: '+fl+')':(pr||(fl?'en el flyer: '+fl:''));
   }
-  return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+_fgPfMas(p,st);
+  return _escHtml(p.subtitulo||'')+(d?' · <b class="fg-pf-dias">'+_escHtml(d)+'</b>':'')+(_promoEsOnline(p)?' · <b class="fg-pf-onl">Online</b>':'')+(_promoEsModo(p)?' · <b class="fg-pf-modo" title="Promoci&oacute;n de MODO: se paga con MODO (QR o NFC desde la app de Galicia)">MODO</b>':'')+(p.fecha_hasta?' · hasta '+_escHtml(_promosFmtFecha(p.fecha_hasta).slice(0,5)):'')+_fgPfMas(p,st);
 }
 // Texto de "dónde": provincia y localidad elegidas.
 function _fgPfDonde(st){return st.prov?' en '+_promoTitulizar(st.loc||st.prov):'';}
@@ -15462,7 +15630,7 @@ function _fgLgLista(){
   var zona=_promoZona(_fgLgV),ST=_fgLgV;
   box.innerHTML=_fgLgV.res.map(function(p,i){
     return '<button type="button" class="fg-lg-it" data-i="'+i+'" title="'+_escAttr(p.titulo)+'">'+
-      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p,zona)+'</span>'+
+      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(_promoLogoSrc(p.imagen))+'">'+_promoPctDot(p,zona)+'</span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
       '<span class="fg-lg-it-s">'+_fgPfSub(p,zona,ST)+'</span></button>';
   }).join('');
@@ -16031,7 +16199,7 @@ function _fgFrLista(){
     var n=_fgFrIdx(p.imagen);
     return '<button type="button" class="fg-lg-it'+(n>=0?' fg-fr-on':'')+'" data-i="'+i+'" title="'+_escAttr(p.titulo)+'" aria-pressed="'+(n>=0)+'">'+
       (n>=0?'<span class="fg-fr-num">'+(n+1)+'</span>':'')+
-      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(PROMO_LOGO_BASE+p.imagen)+'">'+_promoPctDot(p,zona)+'</span>'+
+      '<span class="fg-lg-it-img"><img loading="lazy" decoding="async" alt="" src="'+_escAttr(_promoLogoSrc(p.imagen))+'">'+_promoPctDot(p,zona)+'</span>'+
       '<span class="fg-lg-it-t">'+_escHtml(p.titulo)+'</span>'+
       '<span class="fg-lg-it-s">'+_fgPfSub(p,zona,ST)+'</span></button>';
   }).join('');
@@ -16046,7 +16214,7 @@ function _fgFrSelPintar(){
   if(sg)sg.innerHTML='Siguiente: ordenar'+(n?' ('+n+')':'')+' &rarr;';
   box.innerHTML=n?st.sel.map(function(s,i){
     return '<div class="fg-fr-it'+(_fgFrElegidos(st).indexOf(i)>=0?' sel':'')+'" data-i="'+i+'" title="Tocala para marcar el logo en la vista previa (con Shift, varios)"><span class="fg-fr-mango" aria-hidden="true" title="Mantené apretado y arrastrá para cambiar el orden">&#10303;</span><b>'+(i+1)+'</b>'+
-      '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(PROMO_LOGO_BASE+s.img)+'">'+_promoPctDot(_promoDeImg(s.img),_promoZona(st))+'</span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
+      '<span class="fg-fr-mini"><img alt="" decoding="async" src="'+_escAttr(_promoLogoSrc(s.img))+'">'+_promoPctDot(_promoDeImg(s.img),_promoZona(st))+'</span><span class="fg-fr-it-t">'+_escHtml(s.t)+'</span>'+
       (s.sug?'<span class="fg-fr-sugmark" title="Sugerida por la app">&#10024;</span>':'')+
       '<button type="button" data-a="arr" data-i="'+i+'" aria-label="Subir"'+(i===0?' disabled':'')+'>&uarr;</button>'+
       '<button type="button" data-a="aba" data-i="'+i+'" aria-label="Bajar"'+(i===n-1?' disabled':'')+'>&darr;</button>'+
@@ -17293,13 +17461,13 @@ function _mgVolverA(P,f){
 }
 function _mgPasoMiniHtml(it){
   if(it.tipo==='franja'){ // sus primeros logos, en grilla
-    return '<span class="mg-pb-grid">'+it.sel.slice(0,4).map(function(x){var c=_fgLg.imgs[x.img];var src='';try{src=c&&c.toDataURL?c.toDataURL('image/png'):PROMO_LOGO_BASE+x.img;}catch(e){src=PROMO_LOGO_BASE+x.img;}return '<img alt="" src="'+_escAttr(src)+'">';}).join('')+'</span>';
+    return '<span class="mg-pb-grid">'+it.sel.slice(0,4).map(function(x){var c=_fgLg.imgs[x.img];var src='';try{src=c&&c.toDataURL?c.toDataURL('image/png'):_promoLogoSrc(x.img);}catch(e){src=_promoLogoSrc(x.img);}return '<img alt="" src="'+_escAttr(src)+'">';}).join('')+'</span>';
   }
   if(it.tipo==='vacio')return '<span class="mg-pb-ico">&#8709;</span>';
   if(it.tipo==='texto')return '<span class="mg-pb-ico">T</span>';
   var c=_fgLg.imgs[it.img];
   if(c&&c.toDataURL){try{return '<img alt="" src="'+_escAttr(c.toDataURL('image/png'))+'">';}catch(e){}}
-  if(!_fgLgEsSubido(it.img)&&String(it.img).indexOf('orig:')!==0)return '<img alt="" src="'+_escAttr(PROMO_LOGO_BASE+it.img)+'">';
+  if(!_fgLgEsSubido(it.img)&&String(it.img).indexOf('orig:')!==0)return '<img alt="" src="'+_escAttr(_promoLogoSrc(it.img))+'">';
   return '<span class="mg-pb-ico">&#9733;</span>';
 }
 function _mgPasoMostrar(){

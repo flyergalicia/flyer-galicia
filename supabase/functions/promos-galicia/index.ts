@@ -178,6 +178,15 @@ const MAILS = {
     ],
     datos: [["Error", error]],
   }),
+  modo: (error: string): Mail => ({
+    asunto: "Armador de flyers · No se pudieron actualizar las promociones de MODO",
+    titulo: "No se pudieron actualizar las promociones de MODO",
+    parrafos: [
+      "Las promociones de Galicia se actualizaron bien, pero las de MODO no. En Promociones siguen las de MODO de la copia anterior.",
+      "Podés reintentar con el botón «Actualizar catálogo ahora». Si vuelve a fallar, es probable que MODO haya cambiado algo en su sitio.",
+    ],
+    datos: [["Error", error]],
+  }),
   vigiladas: (lineas: [string, string][]): Mail => ({
     asunto: "Armador de flyers · Marcas para revisar en tus flyers",
     titulo: "Marcas para revisar en tus flyers",
@@ -239,6 +248,10 @@ async function revisarVigiladas(): Promise<void> {
     cat.push(...((data || []) as Promo[]));
     if (!data || data.length < 1000) break;
   }
+  // Las de MODO (migración 035) también cuentan: una marca que sólo tiene promo
+  // en MODO no está vencida. Si la tabla no se puede leer, se sigue sólo con Galicia.
+  try { cat.push(...((await modoTodas("titulo,imagen,fecha_hasta,proximamente")) as Promo[])); }
+  catch (e) { console.error("vigiladas: sin las de MODO:", String((e as Error)?.message || e)); }
   const res = evaluarVigiladas(ops, cat, new Date());
   const firma = JSON.stringify(res.map((r) => [r.opcion, r.marca, r.estado, r.hasta]).sort());
   const prev = await leer("_vigilar_aviso.json");
@@ -509,6 +522,317 @@ async function syncCatalogo(): Promise<{ total: number; proximas: number; conPro
   };
 }
 
+// ── MODO: promos que valen con Galicia y Galicia no publica (26-oct-2026) ───
+// modo.com.ar/promos filtrando por el banco Galicia trae combustible por marca
+// (YPF, WICO), súper del interior y farmacias que el buscador de Galicia no
+// tiene. Su API responde sin headers especiales y con CORS abierto, pero se
+// copia acá igual: así la provincia (un pedido por promo) y los logos (sin CORS:
+// no se podrían dibujar en el PDF) se resuelven una vez por día y no en cada
+// asesor. Se guardan en promos_modo_cache (migración 035) con las mismas
+// columnas que las de Galicia, para que la app las trate igual. Cuáles ya están
+// en Galicia lo decide la app (tiene los dos catálogos en memoria).
+const MODO_API = "https://www.modo.com.ar/promos/api/rewards";
+const MODO_LOCALES = "https://promoshub.modo.com.ar/promos/api/map/stores/applications/onsite";
+const MODO_GALICIA = "88d8705e-2dda-46f9-8411-bb4916af858e"; // id del banco Galicia en MODO (rewards/banks)
+// Las secciones del "hub" de promos: son las que pide su propio sitio al filtrar.
+const MODO_SLOTS = [
+  "web-modo-hub-carrousel_principal", "web-modo-hub-destacadas", "web-modo-hub-supermercados",
+  "web-modo-hub-exclusivas-online", "web-modo-hub-promos-financiacion", "web-modo-hub-mas-promos",
+].join(",");
+const MODO_HEADERS: Record<string, string> = { "Accept": "application/json", "User-Agent": GALICIA_HEADERS["User-Agent"] };
+// Rubros de MODO (rewards/categories) con los nombres que usa Galicia: los
+// filtros de rubro y las reglas de supermercados (días, % de descuento) miran
+// el texto, así que una promo de "Mercados" tiene que decir "Supermercados".
+const MODO_RUBROS: Record<string, string> = {
+  "1": "Supermercados", "2": "Gastronomía", "3": "Indumentaria", "4": "Salud y Bienestar",
+  "5": "Combustible", "6": "Salud y Bienestar", "7": "Hogar", "8": "Vehículos", "10": "Electrónica",
+  "11": "Hogar", "12": "Mascotas", "13": "Juguetes", "14": "Entretenimiento",
+};
+const MODO_DIAS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+const MODO_DIAS_TXT = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábados", "domingos"];
+
+// Todas las filas guardadas de MODO, de a 1000 (PostgREST corta cada consulta ahí).
+async function modoTodas(cols: string): Promise<any[]> {
+  const out: any[] = [];
+  for (let d = 0; ; d += 1000) {
+    const { data, error } = await admin.from("promos_modo_cache").select(cols).order("id").range(d, d + 999);
+    if (error) throw new Error(error.message);
+    out.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+async function modoJson(url: string): Promise<any> {
+  const r = await fetch(url, { headers: MODO_HEADERS });
+  if (!r.ok) throw new Error(`MODO respondió ${r.status}`);
+  return await r.json();
+}
+function sinAcentos(s: unknown): string {
+  return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+}
+// Mismo formato que arma la app para el flyer (_promoDiasFormato): "Martes",
+// "Viernes y sábados", "Todos los días".
+export function modoDias(dias: unknown): string | null {
+  const set = new Set((Array.isArray(dias) ? dias : []).map((d) => MODO_DIAS.indexOf(String(d).toLowerCase())).filter((i) => i >= 0));
+  if (!set.size) return null;
+  if (set.size === 7) return "Todos los días";
+  const t = [...set].sort((a, b) => a - b).map((i) => MODO_DIAS_TXT[i]);
+  const s = t.length === 1 ? t[0] : t.slice(0, -1).join(", ") + " y " + t[t.length - 1];
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+// Las provincias de MODO vienen desparejas ("CABA", "Capital Federal",
+// "Córdoba", "NEUQUÉN"): se llevan a los nombres de Galicia, que son los del
+// filtro de la app. Lo que no se reconoce se descarta.
+export function modoProvincia(p: unknown, nombres: string[]): string | null {
+  const s = sinAcentos(p);
+  if (!s) return null;
+  if (/^(CABA|C\.?A\.?B\.?A\.?|CIUDAD (AUTONOMA )?DE BUENOS AIRES|CAPITAL( FEDERAL)?|CIUDAD AUTONOMA)$/.test(s)) return "CAPITAL FEDERAL";
+  if (/^TIERRA DEL FUEGO/.test(s)) return nombres.includes("TIERRA DEL FUEGO") ? "TIERRA DEL FUEGO" : null;
+  if (nombres.includes(s)) return s;
+  if (s === "PROVINCIA DE BUENOS AIRES" || s === "GBA") return "BUENOS AIRES";
+  return nombres.find((n) => s.startsWith(n + " ")) || null;
+}
+// Los locales de una promo (de a 500; las cadenas grandes pasan los 1400).
+async function modoLocales(id: string): Promise<any[]> {
+  const out: any[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const qs = new URLSearchParams({
+      application_id: id, source: "web_modo", limit: "500", slots: "false", text_search: "",
+      page: String(page), applications: "promotions", type: "onsite", hasGeolocation: "false",
+    });
+    const d = await modoJson(`${MODO_LOCALES}?${qs}`);
+    const res = d?.results;
+    if (!Array.isArray(res)) throw new Error("MODO cambió el formato de los locales");
+    out.push(...res);
+    if (page >= Number(d?.pagination?.total_pages || 1)) break;
+  }
+  return out;
+}
+// El logo de la marca sale de sus locales (brand.img_square, 180×180), sólo si
+// el nombre de la marca se parece al de la promo: "Combustible" tiene locales de
+// Axion, Gulf, etc., y no tiene que quedar con el logo de una de ellas.
+function modoClave(s: unknown): string {
+  return sinAcentos(s).toLowerCase()
+    .replace(/\b(supermercados?|super|hiper(mercados?)?|mayorista|farmacias?|perfumerias?|y|de|del|la|el|los|las|grupo|s ?a)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, "");
+}
+function modoMarcaLogo(locales: any[], titulo: string): { id: string; url: string } | null {
+  const k = modoClave(titulo), cuenta = new Map<string, { n: number; url: string }>();
+  for (const l of locales) {
+    const b = l?.brand;
+    if (!b?.id || !b?.img_square) continue;
+    const kb = modoClave(b.name);
+    if (!kb || !k || !(kb === k || (Math.min(kb.length, k.length) >= 4 && (kb.startsWith(k) || k.startsWith(kb))))) continue;
+    const c = cuenta.get(String(b.id)) || { n: 0, url: String(b.img_square) };
+    c.n++;
+    cuenta.set(String(b.id), c);
+  }
+  let mejor: { id: string; url: string } | null = null, max = 0;
+  for (const [id, c] of cuenta) if (c.n > max) { max = c.n; mejor = { id, url: c.url }; }
+  return mejor;
+}
+// Copia el logo al bucket una sola vez (flyers/modo/<id de la marca>.png).
+// Un logo que no se puede copiar no frena nada: la promo queda sin logo propio.
+async function modoCopiarLogo(m: { id: string; url: string }, yaEstan: Set<string>): Promise<string | null> {
+  const nombre = "modo/" + m.id.replace(/[^0-9a-zA-Z_-]/g, "") + ".png";
+  if (yaEstan.has(nombre)) return nombre;
+  try {
+    const r = await fetch(m.url);
+    if (!r.ok) return null;
+    const tipo = r.headers.get("content-type") || "image/png";
+    if (!/^image\//.test(tipo)) return null;
+    const blob = await r.blob();
+    const { error } = await admin.storage.from("flyers").upload(nombre, blob, { upsert: true, contentType: tipo });
+    if (error) { console.error("modo logo:", error.message); return null; }
+    yaEstan.add(nombre);
+    return nombre;
+  } catch (e) {
+    console.error("modo logo:", String((e as Error)?.message || e));
+    return null;
+  }
+}
+
+async function syncModo(): Promise<{ total: number; conProvincia: number; conLogo: number }> {
+  // 1) El listado con el filtro Galicia, de a 100 (MODO no acepta más por página).
+  const crudo: any[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const qs = new URLSearchParams({
+      slot_ids: MODO_SLOTS, banks: MODO_GALICIA, source: "web_modo", origin: "WEB_MODO",
+      limit: "100", page: String(page),
+    });
+    const d = await modoJson(`${MODO_API}/v2/filter?${qs}`);
+    if (!Array.isArray(d?.cards)) throw new Error("MODO cambió el formato del listado");
+    crudo.push(...d.cards);
+    if (page >= Number(d?.pagination?.total_pages || 1)) break;
+  }
+  // 2) Sólo las vigentes y las por empezar (MODO deja las terminadas en el listado).
+  const hoy = new Date().toISOString().slice(0, 10);
+  const vistos = new Set<string>();
+  const list = crudo.filter((c) => {
+    const id = String(c?.benefit?.id || "");
+    if (!id || vistos.has(id)) return false;
+    vistos.add(id);
+    if (c?.calculated_status === "FINISHED_FOR_PRODUCT") return false;
+    const hasta = isoFecha(c?.benefit?.conditions?.schedule?.stop_date);
+    return !hasta || hasta >= hoy;
+  });
+  if (!crudo.length) throw new Error("MODO devolvió el listado vacío");
+  // El freno compara contra las guardadas que siguen vigentes HOY: las de MODO
+  // vencen casi todas a fin de mes, y el día 1 llegarían "menos de la mitad"
+  // de lo guardado aunque esté todo bien (y quedarían las vencidas).
+  const { count: guardadas } = await admin.from("promos_modo_cache").select("id", { count: "exact", head: true })
+    .or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
+  if (guardadas && list.length < guardadas * MINIMO_RELATIVO) {
+    throw new Error(`MODO devolvió sólo ${list.length} promociones vigentes y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
+  }
+
+  // 3) Provincias (de la lista de Galicia, recién guardada por syncCatalogo).
+  const { data: meta } = await admin.from("promos_galicia_meta").select("ubicaciones").eq("id", 1).maybeSingle();
+  const nombres: string[] = (Array.isArray(meta?.ubicaciones) ? meta.ubicaciones : []).map((u: any) => sinAcentos(u?.nombre)).filter(Boolean);
+  // Lo de la corrida anterior se conserva si ahora no se pueden pedir los locales.
+  const prev = new Map<string, any>((await modoTodas("id,provincias,localidades,imagen")).map((p: any) => [p.id, p]));
+  const { data: logos } = await admin.storage.from("flyers").list("modo", { limit: 1000 });
+  const yaEstan = new Set<string>((logos || []).map((f: any) => "modo/" + f.name));
+  // Logo de Galicia de la misma marca: para las que no tienen locales (online,
+  // YPF en cuotas) o cuyos locales son de otra marca.
+  // (de a 1000: PostgREST corta cada consulta ahí y Galicia tiene más de 2000)
+  const logoGalicia = new Map<string, string>();
+  for (let d = 0; ; d += 1000) {
+    const { data: gal, error } = await admin.from("promos_galicia_cache").select("titulo,imagen").neq("imagen", "").order("id").range(d, d + 999);
+    if (error) throw new Error("Leyendo los logos de Galicia: " + error.message);
+    for (const g of gal || []) { const k = modoClave(g.titulo); if (k && !logoGalicia.has(k)) logoGalicia.set(k, g.imagen); }
+    if (!gal || gal.length < 1000) break;
+  }
+
+  const extra = new Map<string, { provincias: string[] | null; localidades: string[] | null; imagen: string }>();
+  let idx = 0;
+  async function worker() {
+    while (idx < list.length) {
+      const c = list[idx++];
+      const id = String(c.benefit.id), titulo = String(c?.card?.validity_place || "").trim();
+      const flujos: string[] = c?.benefit?.conditions?.payment_flow?.flows || [];
+      const enLocal = flujos.some((f) => /instore|all|trip/.test(f));
+      let provincias: string[] | null = null, localidades: string[] | null = null, imagen = "";
+      let locales: any[] = [];
+      let leyo = false;
+      if (enLocal) {
+        try { locales = await modoLocales(id); leyo = true; } catch (e) { console.error("modo locales", id, String((e as Error)?.message || e)); }
+      }
+      if (!enLocal) { provincias = []; localidades = []; } // sólo compra online: vale en todo el país
+      else if (leyo && locales.length) {
+        const ps = new Set<string>(), ls = new Set<string>();
+        for (const l of locales) {
+          const p = modoProvincia(l?.province, nombres);
+          if (!p) continue;
+          ps.add(p);
+          const ciudad = sinAcentos(l?.city);
+          if (ciudad) ls.add(p + "|" + ciudad);
+        }
+        // locales sin ninguna provincia reconocible: mejor "no se sabe" que "online"
+        if (ps.size) { provincias = [...ps].sort(); localidades = [...ls].sort(); }
+      } else if (!leyo) {
+        const p = prev.get(id);
+        if (p) { provincias = p.provincias; localidades = p.localidades; imagen = p.imagen || ""; }
+      }
+      // sin locales en el mapa (YPF en cuotas, "Transporte") y no es online: null = no se sabe
+      // Logo: primero el de esa marca en Galicia (así la promo de MODO y la de
+      // Galicia van en la misma tarjeta y el flyer usa el mismo dibujo), después
+      // el de la marca en sus locales de MODO.
+      const kg = logoGalicia.get(modoClave(titulo));
+      if (kg) imagen = kg;
+      else {
+        const marca = modoMarcaLogo(locales, titulo);
+        if (marca) imagen = (await modoCopiarLogo(marca, yaEstan)) || imagen;
+      }
+      for (const l of locales) { // todas las marcas vistas, para las promos sin locales propios
+        const b = l?.brand, k = modoClave(b?.name);
+        if (b?.id && b?.img_square && k && !marcasVistas.has(k)) marcasVistas.set(k, { id: String(b.id), url: String(b.img_square) });
+      }
+      extra.set(id, { provincias, localidades, imagen });
+    }
+  }
+  const marcasVistas = new Map<string, { id: string; url: string }>();
+  await Promise.all(Array.from({ length: 6 }, worker));
+  // Las que quedaron sin logo (YPF en cuotas no tiene locales en el mapa): el de
+  // la misma marca visto en los locales de otra promo.
+  for (const c of list) {
+    const x = extra.get(String(c.benefit.id))!;
+    if (x.imagen) continue;
+    const m = marcasVistas.get(modoClave(c?.card?.validity_place));
+    if (m) x.imagen = (await modoCopiarLogo(m, yaEstan)) || "";
+  }
+  // Las que no tienen locales en el mapa (las próximas todavía no los cargan) toman
+  // los de otra promo de la misma marca que sí los tiene (Basualdo de noviembre =
+  // los locales de Basualdo de octubre). Si no hay, quedan sin dato (null).
+  const geoMarca = new Map<string, { p: Set<string>; l: Set<string> }>();
+  for (const c of list) {
+    const x = extra.get(String(c.benefit.id))!, k = modoClave(c?.card?.validity_place);
+    if (!k || !Array.isArray(x.provincias) || !x.provincias.length) continue;
+    const g = geoMarca.get(k) || { p: new Set<string>(), l: new Set<string>() };
+    x.provincias.forEach((v) => g.p.add(v));
+    (x.localidades || []).forEach((v) => g.l.add(v));
+    geoMarca.set(k, g);
+  }
+  for (const c of list) {
+    const x = extra.get(String(c.benefit.id))!;
+    if (x.provincias !== null) continue;
+    const g = geoMarca.get(modoClave(c?.card?.validity_place));
+    if (g) { x.provincias = [...g.p].sort(); x.localidades = [...g.l].sort(); }
+  }
+
+  const syncStartedAt = new Date().toISOString();
+  const rows = list.map((c) => {
+    const b = c.benefit, s = b?.conditions?.schedule || {}, x = extra.get(String(b.id))!;
+    const tope = Number(c?.card?.cashback_cap || 0);
+    const rubro = MODO_RUBROS[String((c?.offer?.categories || [])[0] ?? "")] || "Otros";
+    return {
+      id: String(b.id),
+      slug: String(b?.publication?.slug || ""),
+      titulo: String(c?.card?.validity_place || "").replace(/\s+/g, " ").trim(),
+      subtitulo: rubro,
+      imagen: x.imagen,
+      beneficio: String(c?.card?.benefit || "").replace(/\s+/g, " ").trim() || null,
+      tope: tope > 0 ? String(tope) : null,
+      dias: modoDias(s.days_of_week),
+      canales: b?.conditions?.payment_flow?.flows || [],
+      solo_galicia: (c?.offer?.requirements?.banks?.list || []).length === 1,
+      provincias: x.provincias,
+      localidades: x.localidades,
+      fecha_desde: isoFecha(s.start_date),
+      fecha_hasta: isoFecha(s.stop_date),
+      proximamente: c?.calculated_status === "NEXT_FOR_PRODUCT" || (isoFecha(s.start_date) || "") > hoy,
+      updated_at: syncStartedAt,
+      // primera_vez no se manda: la pone la base al insertar (como en Galicia)
+    };
+  });
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await admin.from("promos_modo_cache").upsert(rows.slice(i, i + 500), { onConflict: "id" });
+    if (error) throw new Error("Guardando las promos de MODO: " + error.message);
+  }
+  const { error: delErr } = await admin.from("promos_modo_cache").delete().lt("updated_at", syncStartedAt);
+  if (delErr) throw new Error("Limpiando las promos de MODO: " + delErr.message);
+  return {
+    total: rows.length,
+    conProvincia: rows.filter((r) => Array.isArray(r.provincias)).length,
+    conLogo: rows.filter((r) => r.imagen).length,
+  };
+}
+// Corre después del catálogo de Galicia y nunca lo hace fallar: el error queda
+// en promos_galicia_meta (modo_error) y lo devuelve la acción para el mail.
+async function syncModoSeguro(): Promise<{ data?: unknown; error?: string }> {
+  try {
+    const data = await syncModo();
+    await admin.from("promos_galicia_meta")
+      .update({ modo_last_sync_at: new Date().toISOString(), modo_total: data.total, modo_error: null }).eq("id", 1);
+    return { data };
+  } catch (e) {
+    const msg = (e as Error)?.message || "error desconocido";
+    console.error("promos modo:", msg);
+    await admin.from("promos_galicia_meta").update({ modo_error: msg }).eq("id", 1);
+    return { error: msg };
+  }
+}
+
 // Promos de una provincia/localidad puntual, en vivo contra Galicia. Devuelve
 // sólo los ids: el cliente ya tiene el catálogo entero en memoria y lo hidrata
 // desde ahí. Existe por la localidad, que no se puede precalcular como la
@@ -562,8 +886,11 @@ Deno.serve(async (req: Request) => {
   // se avisa por mail al admin. (La manual muestra el error en la app.)
   if (cron) {
     try {
-      const data = await syncCatalogo();
-      if (data.geoError) await avisarAdmin(MAILS.sinProvincias(data.geoError));
+      const data: Record<string, unknown> = await syncCatalogo();
+      if (data.geoError) await avisarAdmin(MAILS.sinProvincias(String(data.geoError)));
+      const modo = await syncModoSeguro();
+      data.modo = modo.data ?? null;
+      if (modo.error) { data.modoError = modo.error; await avisarAdmin(MAILS.modo(modo.error)); }
       // marcas vigiladas: aparte, para que un error acá no tape la actualización
       try { await revisarVigiladas(); } catch (e) { console.error("vigiladas:", String((e as Error)?.message || e)); }
       return json({ data });
@@ -582,7 +909,10 @@ Deno.serve(async (req: Request) => {
       return json({ data });
     }
     if (action === "sync") {
-      const data = await syncCatalogo();
+      const data: Record<string, unknown> = await syncCatalogo();
+      const modo = await syncModoSeguro();
+      data.modo = modo.data ?? null;
+      if (modo.error) data.modoError = modo.error;
       // la actualización a mano también revisa las marcas vigiladas (la firma evita repetir el mail)
       try { await revisarVigiladas(); } catch (e) { console.error("vigiladas:", String((e as Error)?.message || e)); }
       return json({ data });

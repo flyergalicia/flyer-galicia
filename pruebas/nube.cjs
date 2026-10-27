@@ -113,6 +113,13 @@ async function abrir(browser,o){
       if(!lim)lim=1000;const sl=cat.slice(a,a+lim);
       return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':a+'-'+(a+sl.length-1)+'/'+cat.length}});
     }
+    // promos de MODO (migración 035): las que ponga la prueba en nube.modo (si no, ninguna)
+    if(path==='/rest/v1/promos_modo_cache'){
+      if(nube.modoFalla)return route.fulfill({status:404,body:JSON.stringify({message:'relation "promos_modo_cache" does not exist',code:'42P01'}),headers:H});
+      const l=nube.modo||[];let a=0,lim=1000;const rg=req.headers()['range'];if(rg){const x=/(\d+)-(\d+)/.exec(rg);if(x){a=+x[1];lim=+x[2]-a+1;}}
+      const sl=l.slice(a,a+lim);
+      return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':(sl.length?a+'-'+(a+sl.length-1):'*')+'/'+l.length}});
+    }
     // ── Estudio: preguntar / responder / compartir (migración 034)
     if(path==='/rest/v1/flyer_diseno_mensajes'){
       const ids=((u.searchParams.get('diseno_id')||'').match(/^in\.\((.*)\)$/)||[0,''])[1].split(',').map(x=>x.replace(/"/g,''));

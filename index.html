@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
 <meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=c432e66d83","integrity":"sha384-djPlKctqKCuqvC7iXW3UOL0ZEfxZr5Cy0tnJxVjGE6Oc7yQk2Si7KJIenS6GUcWf"}}'>
-<meta name="build-v" content="c78160f3b0">
+<meta name="build-v" content="f52226779c">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -627,6 +627,9 @@ html.dark .promos-online{background:#1e3247;color:#8fc0ec;}
 .promos-nueva{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#fff0e6;color:#b94a0c;border:1px solid #f7c9a8;white-space:nowrap;cursor:help;}
 html.dark .promos-badge.b-proxima,html.dark .promos-chip.c-proxima{background:#1e3247;color:#8fc0ec;}
 html.dark .promos-nueva{background:#3a2416;color:#f6a86f;border-color:#5a3520;}
+/* Promos de MODO (no están en la página de Galicia; se pagan con MODO) */
+.promos-modo{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:20px;font-size:0.75rem;font-weight:700;background:#e4f4ec;color:#1e6b47;border:1px solid #b6dfc9;white-space:nowrap;cursor:help;}
+html.dark .promos-modo{background:#173226;color:#8fd6b0;border-color:#24503b;}
 html.dark .promos-otras{background:#22262c;border-color:#333840;color:#9aa0a8;}
 html.dark .promos-search,html.dark .promos-filrow th{background:#22262c;border-color:#333840;color:#e9eaec;}
 html.dark .promos-fil{background:#1b1e23;border-color:#333840;color:#e9eaec;}
@@ -1674,6 +1677,8 @@ html.dark #fg-optbar .fgp.on{background:#2c2f36;}
 .fg-lg-chk[hidden]{display:none;}
 .fg-lg-fil select[hidden]{display:none;}
 .fg-pf-onl{font-weight:700;color:var(--accent-2);}
+.fg-pf-modo{font-weight:700;color:#1e6b47;cursor:help;}
+html.dark .fg-pf-modo{color:#8fd6b0;}
 /* Armar franja: elegir en Activas y ordenar arrastrando */
 .fg-fr-infofila{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;flex-shrink:0;}
 .fg-fr-infofila .fg-lg-info{flex:1;min-width:0;}
@@ -2120,7 +2125,7 @@ html.dark #fg-optmas input{background:#2c2f36;}
 #fg-optbar .fgp-de::before{content:"· " attr(data-de);}
 @media (max-width:480px){#fg-optbar .fgp-de{display:none;}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=3be697174f"></script></head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script src="auth.js?v=a062e17ab3"></script></head>
 <body>
 <script>try{var _h=document.documentElement;if(localStorage.getItem('fg_theme')==='dark')_h.classList.add('dark');var _p=localStorage.getItem('fg_palette');_h.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(_p||'')?_p:'t-marfil');if(localStorage.getItem('sb-cajyjnxjbobdpltflgnb-auth-token'))_h.classList.add('fg-boot');}catch(e){document.documentElement.classList.add('t-marfil');}</script>
 <div id="login-ov">

@@ -1479,6 +1479,16 @@ const checks = {
     _authSrc.includes('function _promoGeoConocida(') &&
     _authSrc.includes("FUERA_PROV:'Fuera de la provincia'") && _authSrc.includes("FUERA_PROV:'fuera'") &&
     _authSrc.includes("_promoTh('donde','Dónde')") && html.includes('.promos-badge.b-fuera'),
+  // Promos de MODO (migracion 035): se suman al catalogo sin las repetidas, con
+  // el tilde "Incluir MODO". Sus logos viven en el bucket ("modo/..."): todo
+  // logo de promo se arma con _promoLogoSrc, nunca PROMO_LOGO_BASE+ suelto
+  // (si no, el de MODO se pediria a galicia.ar y no aparece).
+  'promos: MODO (tilde, sin repetidas, logos por _promoLogoSrc)':
+    _authSrc.includes("from('promos_modo_cache')") && _authSrc.includes('function _promoModoRepetida(') &&
+    _authSrc.includes('function _promoSetModo(') && _authSrc.includes('function _promoEnLocalidad(') &&
+    (_authSrc.match(/PROMO_LOGO_BASE\+/g) || []).length === 1 &&
+    _authSrc.includes("return img.indexOf('modo/')===0?FLYERS_PUBLIC+img:PROMO_LOGO_BASE+img;") &&
+    html.includes('.promos-modo{') && html.includes('.fg-pf-modo{'),
   // "Nueva" (apareció en los últimos 7 días, columna primera_vez) y
   // "Próximamente" (ya publicada, todavía no arrancó; con su fecha de inicio).
   // El tilde "Sólo las nuevas" se agrega desde auth.js, no desde la plantilla.
