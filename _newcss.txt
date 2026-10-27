@@ -2071,3 +2071,9 @@ html.dark #fg-optmas input{background:#2c2f36;}
 .prov-pop .prov-ayuda b{color:var(--dark);font-weight:600;}
 html.dark .prov-pop,html.dark .prov-pop .prov-ayuda{background:#24272d;}
 @media (hover:none){.prov-pop .prov-mas{opacity:1;width:34px;height:34px;}.prov-pop .prov-it{padding:6px 4px 6px 8px;}}
+
+/* Editar usuario: "Enviar usuario y contraseña por mail" */
+.um-env-chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin:2px 0 10px}
+.um-env-chk input{width:16px;height:16px;margin:0;accent-color:var(--acc,#F26122)}
+.um-env-campos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+@media(max-width:600px){.um-env-campos{grid-template-columns:1fr}}

@@ -657,6 +657,19 @@ const userModal = `<div id="user-modal">
           <label class="login-lbl">Contrase&ntilde;a</label>
           <input type="password" id="um-pass" class="login-inp" placeholder="M&iacute;nimo 8 caracteres">
         </div>
+        <div id="um-env-wrap" class="um-full" style="display:none">
+          <label class="um-env-chk"><input type="checkbox" id="um-env"> Enviar usuario y contrase&ntilde;a por mail</label>
+          <div id="um-env-campos" class="um-env-campos" style="display:none">
+            <div>
+              <label class="login-lbl">Enviar a</label>
+              <input type="email" id="um-env-a" class="login-inp" placeholder="mail de quien lo recibe">
+            </div>
+            <div>
+              <label class="login-lbl">Nombre de quien lo recibe (opcional)</label>
+              <input type="text" id="um-env-n" class="login-inp" placeholder="Para el saludo del mail">
+            </div>
+          </div>
+        </div>
         <div>
           <label class="login-lbl">Rol</label>
           <select id="um-role" class="login-inp">

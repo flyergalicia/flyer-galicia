@@ -160,9 +160,11 @@ async function auditar(
 // Script publicado como aplicación web (supabase/mail/apps-script.gs): gratis y
 // sin claves de mail guardadas acá. Si los secretos no están cargados, no se
 // manda nada y todo sigue funcionando igual.
-// Reglas fijas: NUNCA la contraseña y NUNCA links ni imágenes (ya saben dónde
-// está la app; así no se parece a un phishing y no hay nada que robar). Un mail
-// que falla jamás hace fallar la operación.
+// Reglas fijas: NUNCA links ni imágenes (así no se parece a un phishing). La
+// contraseña va SÓLO en los dos mails que pide el admin al ponerla él: el alta
+// (cuentaCreada) y "enviar usuario y contraseña" al cambiarla (accesoEnviado);
+// nunca se guarda en ningún lado para mandarla después. Un mail que falla
+// jamás hace fallar la operación.
 const MAIL_URL = Deno.env.get("MAIL_HOOK_URL") || "";
 const MAIL_SECRET = Deno.env.get("MAIL_HOOK_SECRET") || "";
 const MAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -300,15 +302,21 @@ const MAILS = {
     saludo: hola(nombre),
     parrafos: ["Un administrador aprobó tu cuenta. Ya podés ingresar al Armador de flyers con tu mail y tu contraseña."],
   }),
-  cuentaCreada: (nombre: string, email: string): Mail => ({
+  cuentaCreada: (nombre: string, email: string, clave: string): Mail => ({
     asunto: "Armador de flyers · Se creó tu cuenta",
     titulo: "Se creó tu cuenta",
     saludo: hola(nombre),
-    parrafos: [
-      "Un administrador creó tu cuenta en el Armador de flyers.",
-      "La contraseña inicial te la comunica el administrador. Te recomendamos cambiarla en tu primer ingreso, desde el menú de tu nombre → Cambiar contraseña.",
-    ],
-    datos: [["Usuario", email]],
+    parrafos: ["Un administrador creó tu cuenta en el Armador de flyers. Estos son tus datos para ingresar:"],
+    datos: [["Usuario", email], ["Contraseña", clave]],
+    alerta: "Es una contraseña inicial: cambiala en tu primer ingreso, desde el menú de tu nombre → Cambiar contraseña, y borrá este mail.",
+  }),
+  accesoEnviado: (nombre: string, email: string, clave: string, cuenta: string): Mail => ({
+    asunto: "Armador de flyers · Tus datos de acceso",
+    titulo: "Tus datos de acceso",
+    saludo: hola(nombre),
+    parrafos: ["Te compartimos el usuario y la contraseña para ingresar al Armador de flyers."],
+    datos: cuenta ? [["Cuenta", cuenta], ["Usuario", email], ["Contraseña", clave]] : [["Usuario", email], ["Contraseña", clave]],
+    alerta: "No compartas estos datos. Si es tu cuenta, te recomendamos cambiar la contraseña desde el menú de tu nombre → Cambiar contraseña.",
   }),
   resetAdmin: (nombre: string, email: string): Mail => ({
     asunto: "Armador de flyers · Pedido de cambio de contraseña",
@@ -689,7 +697,7 @@ Deno.serve(async (req: Request) => {
       await auditar(actor, "create_user", { id: data.user.id, email }, { rol: role, estado: status });
       // Sólo si quedó activa: una cuenta creada inactiva recibe el aviso
       // cuando se la active (approve_user).
-      if (status === "active") avisar(email, MAILS.cuentaCreada(full_name, email));
+      if (status === "active") avisar(email, MAILS.cuentaCreada(full_name, email, password));
       return json({ ok: true, id: data.user.id });
     }
 
@@ -702,9 +710,17 @@ Deno.serve(async (req: Request) => {
       const { error } = await admin.auth.admin.updateUserById(uid, { password });
       if (error) return json({ error: error.message }, 400);
       const pp = await perfil(uid);
-      await auditar(actor, "set_password", { id: uid, email: pp?.email });
-      if (pp) avisar(pp.email, MAILS.claveCambiadaAdmin(pp.nombre));
-      return json({ ok: true });
+      // "Enviar usuario y contraseña por mail a…" (Admin → Usuarios → Editar): sale
+      // la clave recién puesta, al mail que eligió el admin (el de la cuenta u otro).
+      const enviarA = String(body.enviar_a || "").trim().toLowerCase();
+      const conEnvio = !!pp && MAIL_RE.test(enviarA);
+      await auditar(actor, "set_password", { id: uid, email: pp?.email }, conEnvio ? { enviado_a: enviarA } : undefined);
+      if (pp && conEnvio) {
+        const propio = enviarA === pp.email.toLowerCase();
+        avisar(enviarA, MAILS.accesoEnviado(propio ? pp.nombre : limpiarNombre(body.enviar_nombre), pp.email, password, propio ? "" : pp.nombre));
+        if (!propio) avisar(pp.email, MAILS.claveCambiadaAdmin(pp.nombre));
+      } else if (pp) avisar(pp.email, MAILS.claveCambiadaAdmin(pp.nombre));
+      return json({ ok: true, enviado: conEnvio });
     }
 
     if (action === "delete_user") {

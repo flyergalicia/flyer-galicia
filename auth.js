@@ -4537,6 +4537,7 @@ function openNewUser(){
   document.getElementById('um-pass').value='';
   document.getElementById('um-pass').placeholder='Mínimo 8 caracteres';
   var pl0=document.querySelector('#um-pass-wrap label');if(pl0)pl0.textContent='Contraseña';
+  _umEnvIni(null);
   document.getElementById('um-pass-wrap').style.display='block';
   document.getElementById('um-role').value='asesor';
   document.getElementById('um-status').value='active';
@@ -4559,6 +4560,7 @@ function openEditUser(uid){
   document.getElementById('um-pass').value='';
   document.getElementById('um-pass').placeholder='Dejar vacío para no cambiar';
   var pl=document.querySelector('#um-pass-wrap label');if(pl)pl.textContent='Nueva contraseña (opcional)';
+  _umEnvIni(u);
   document.getElementById('um-role').value=u.role||'asesor';
   document.getElementById('um-status').value=u.status||'active';
   _umLiderFill(u.lider_id||null,u.id);
@@ -4566,6 +4568,24 @@ function openEditUser(uid){
   document.getElementById('um-err').textContent='';
   document.getElementById('user-modal').style.display='flex';
   setTimeout(function(){document.getElementById('um-name').focus();},100);
+}
+
+// "Enviar usuario y contraseña por mail" (sólo al editar, con una contraseña nueva
+// escrita): sale en el mismo paso en que se cambia, porque después la clave ya
+// no se puede leer (Supabase guarda sólo su huella). Por defecto, al mail de la
+// cuenta; se puede poner otro (por ejemplo, para pasarle la cuenta de prueba a alguien).
+function _umEnvIni(u){
+  var w=document.getElementById('um-env-wrap');if(!w)return;
+  var ch=document.getElementById('um-env'),cs=document.getElementById('um-env-campos');
+  var pass=document.getElementById('um-pass'),a=document.getElementById('um-env-a'),n=document.getElementById('um-env-n');
+  ch.checked=false;cs.style.display='none';a.value=(u&&u.email)||'';n.value='';
+  var ver=function(){w.style.display=u&&pass.value?'':'none';};
+  pass.oninput=ver;ch.onchange=function(){cs.style.display=ch.checked?'':'none';if(ch.checked)try{a.focus();a.select();}catch(e){}};
+  ver();
+}
+function _umEnvDatos(){
+  var ch=document.getElementById('um-env');if(!ch||!ch.checked)return null;
+  return {a:document.getElementById('um-env-a').value.trim(),n:document.getElementById('um-env-n').value.trim()};
 }
 
 // "Líder a cargo": a qué Líder responde este usuario (arma los equipos que ve
@@ -4596,6 +4616,8 @@ function submitUser(){
   if(!name){errEl.textContent='El nombre completo es requerido.';return;}
   if(_editUid){
     if(pass&&pass.length<8){errEl.textContent='La nueva contraseña debe tener al menos 8 caracteres.';return;}
+    var env=pass?_umEnvDatos():null;
+    if(env&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(env.a)){errEl.textContent='Escribí a qué mail mandar el usuario y la contraseña.';return;}
     btn.textContent='Guardando...';btn.disabled=true;
     // Si pasa de no-activo a activo, después del guardado sale el mail de
     // "tu cuenta ya está activa" (approve_user es idempotente).
@@ -4608,10 +4630,12 @@ function submitUser(){
       if(r.error){btn.textContent='Guardar cambios';btn.disabled=false;errEl.textContent=r.error.message;return;}
       if(_activa)_callFn('approve_user',{uid:_uid},function(){});
       if(!pass){btn.textContent='Guardar cambios';btn.disabled=false;closeUserModal();loadUsers();loadStats();_refreshPendingBadge();showToast('Usuario actualizado');return;}
-      _callFn('set_password',{uid:_editUid,password:pass},function(err){
+      var b={uid:_editUid,password:pass};if(env){b.enviar_a=env.a;b.enviar_nombre=env.n;}
+      _callFn('set_password',b,function(err){
         btn.textContent='Guardar cambios';btn.disabled=false;
         if(err){errEl.textContent=err;return;}
-        closeUserModal();loadUsers();loadStats();_refreshPendingBadge();showToast('Usuario actualizado y contraseña cambiada');
+        closeUserModal();loadUsers();loadStats();_refreshPendingBadge();
+        showToast(env?'Contraseña cambiada. Usuario y contraseña enviados a '+env.a+'.':'Usuario actualizado y contraseña cambiada');
       });
     });
   } else {
