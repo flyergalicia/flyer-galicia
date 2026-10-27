@@ -69,6 +69,7 @@ module.exports=async(browser)=>{
     _fgLgV.q='ypf';_fgLgLista();
     const y=it().find(b=>b.querySelector('.fg-lg-it-t').textContent==='YPF');
     out.ypf=!!y;out.ypfTag=!!(y&&y.querySelector('.fg-pf-modo'));out.ypfImg=y&&y.querySelector('img').getAttribute('src');
+    _fgLgV.prov='MENDOZA';_fgLgLista();out.ypfMza=it().length;_fgLgV.prov='';
     _fgLgV.q='wico';_fgLgLista();out.wico=it().length;
     _fgLgV.q='coto';_fgLgV.prov='CAPITAL FEDERAL';_fgPfPoblar('fg-lg',_fgLgV);_fgLgLista();
     const c=it().filter(b=>/coto/i.test(b.querySelector('.fg-lg-it-t').textContent));
@@ -95,6 +96,7 @@ module.exports=async(browser)=>{
   console.log('  ',JSON.stringify(v));
   ok(v.tilde,'la ventana de un logo tiene el tilde "Incluir MODO", prendido');
   ok(v.ypf&&v.ypfTag&&/flyers\/modo\/317\.png/.test(v.ypfImg||''),'YPF aparece con la etiqueta MODO y su logo del bucket');
+  ok(v.ypfMza===0,'con una provincia elegida, YPF (sin locales en MODO) no se ofrece');
   ok(v.wico===0,'una de MODO sin logo (WICO) no se ofrece para el flyer');
   ok(v.cotoTarjetas===1&&/30%/.test(v.cotoTit)&&/MODO/.test(v.cotoTit),'Coto es una sola tarjeta y su detalle incluye la de MODO');
   ok(v.sinModo===0&&v.ls==='0'&&v.conModo===1,'apagando el tilde desaparece YPF (y queda recordado); prendiéndolo vuelve');
@@ -119,8 +121,7 @@ module.exports=async(browser)=>{
   ok(a.tilde&&a.buscarTilde,'Activas y Buscar tienen el tilde "Incluir MODO"');
   ok(a.atomo&&a.tag&&a.link==='Ver en MODO'&&/modo\.com\.ar\/promos\/atomo$/.test(a.href||''),'en Mendoza aparece el súper de MODO con su etiqueta y "Ver en MODO"');
   ok(a.dot&&a.dias==='Miércoles','con el puntito rojo y sus días, como un súper de Galicia');
-  ok(a.wico&&a.online,'sin locales conocidos (WICO) y online también aparecen');
-  ok(a.wicoDonde==='Sin dato','una de MODO sin locales dice "Sin dato" en Dónde');
+  ok(!a.wico&&a.online,'con una provincia elegida, una de MODO sin locales (WICO) no aparece; una online sí');
   // localidad: la de Atomo sí, otra no
   const lc=await p.evaluate(async([l1,l2])=>{
     const tiene=()=>_promosFilasVisibles().some(v=>v.r.promo&&v.r.promo.titulo==='Supermercados Atomo Prueba');
@@ -162,12 +163,16 @@ module.exports=async(browser)=>{
     document.getElementById('promos-marcas').value='YPF\nCoto';validarPromos();
     const R=_promosResultados||[];
     const ypf=R.find(x=>x.marca==='YPF');
-    return {ypf:ypf&&ypf.promo&&ypf.promo.titulo,ypfModo:!!(ypf&&_promoEsModo(ypf.promo)),ypfEstado:ypf&&ypf.estado,
+    const fila=[...document.querySelectorAll('.promos-table tbody tr')].find(tr=>/^YPF/.test((tr.querySelector('.pc-promo')||{}).textContent||''));
+    const sinDato=fila&&fila.querySelector('.pc-donde').textContent;
+    _promoSetProvincia('MENDOZA');const ypfMza=ypf&&ypf.estado;_promoSetProvincia('');
+    return {sinDato,ypfMza,ypf:ypf&&ypf.promo&&ypf.promo.titulo,ypfModo:!!(ypf&&_promoEsModo(ypf.promo)),ypfEstado:ypf&&ypf.estado,
       coto25:R.filter(x=>x.marca==='Coto'&&x.promo&&/25%/.test(x.promo.beneficio||'')&&/martes/i.test(x.promo.dias||'')).length,
       coto30:R.filter(x=>x.marca==='Coto'&&x.promo&&/30%/.test(x.promo.beneficio||'')).length};
   });
   console.log('  ',JSON.stringify(b));
   ok(b.ypf==='YPF'&&b.ypfModo&&b.ypfEstado!=='NO_ENCONTRADA','Buscar encuentra YPF en MODO');
+  ok(b.sinDato==='Sin dato'&&b.ypfMza==='FUERA_PROV','sin provincia YPF dice "Sin dato" en Dónde; con una provincia elegida queda fuera');
   ok(b.coto25===1&&b.coto30===1,'Coto trae su 25% de los martes una sola vez y además el 30% de MODO');
   ok(p.errores.length===0,'sin errores de JavaScript ('+p.errores.join(' | ')+')');
   await p.context().close();

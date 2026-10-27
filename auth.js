@@ -2212,7 +2212,10 @@ function _promoProvsDe(p){return _promoGeoConocida(p)?p.provincias:[];}
 function _promoEsOnline(p){return _promoGeoConocida(p)&&!p.provincias.length;}
 function _promoEnProvincia(p,prov){
   if(!prov)return true;
-  if(!_promoGeoConocida(p))return true; // sin el dato no se castiga a la promo
+  // MODO no publica los locales de algunas (YPF, WICO, súper regionales): con una
+  // provincia elegida no se muestran; sólo con "Todas las provincias" (decisión
+  // del dueño, 26-oct-2026: un asesor del sur veía súper de otras provincias)
+  if(!_promoGeoConocida(p))return !_promoEsModo(p); // a las de Galicia, sin el dato no se las castiga
   if(!p.provincias.length)return true;  // online: entra en cualquier provincia
   var k=_promoNormalizar(prov);
   for(var i=0;i<p.provincias.length;i++)if(_promoNormalizar(p.provincias[i])===k)return true;
@@ -2252,8 +2255,8 @@ function _promosProvinciasN(){
 function _promoDondeHtml(r){
   var p=r.promo;
   // MODO no publica los locales de algunas promos: se dice, en vez de un "-" que
-  // parece un error (y se aclara que se muestra en todas las provincias)
-  if(p&&_promoEsModo(p)&&!_promoGeoConocida(p))return '<span class="promos-donde" title="MODO no informa en qu&eacute; locales vale esta promoci&oacute;n: aparece en todas las provincias. Mir&aacute; los locales en su ficha (Ver en MODO).">Sin dato</span>';
+  // parece un error (y se aclara que sólo se ven sin provincia elegida)
+  if(p&&_promoEsModo(p)&&!_promoGeoConocida(p))return '<span class="promos-donde" title="MODO no informa en qu&eacute; locales vale esta promoci&oacute;n: s&oacute;lo se muestra con Todas las provincias. Mir&aacute; los locales en su ficha (Ver en MODO).">Sin dato</span>';
   if(!p||!_promoGeoConocida(p))return '<span class="promos-donde">-</span>';
   if(!p.provincias.length){
     return '<span class="promos-online" title="Compra por internet: no tiene local, as&iacute; que sirve desde cualquier provincia.">Online</span>';
