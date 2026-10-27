@@ -160,7 +160,8 @@ async function auditar(
 // Script publicado como aplicación web (supabase/mail/apps-script.gs): gratis y
 // sin claves de mail guardadas acá. Si los secretos no están cargados, no se
 // manda nada y todo sigue funcionando igual.
-// Reglas fijas: NUNCA links ni imágenes (así no se parece a un phishing). La
+// Reglas fijas: ningún link salvo el botón "Ingresar" (APP_URL fija) en los
+// mails para entrar (cuenta activa, alta, envío de acceso); nunca imágenes. La
 // contraseña va SÓLO en los dos mails que pide el admin al ponerla él: el alta
 // (cuentaCreada) y "enviar usuario y contraseña" al cambiarla (accesoEnviado);
 // nunca se guarda en ningún lado para mandarla después. Un mail que falla
@@ -178,10 +179,15 @@ type Mail = {
   parrafos: string[];
   datos?: [string, string][]; // recuadro con datos (etiqueta, valor)
   alerta?: string; // aviso destacado, ej. "¿No fuiste vos?..."
+  ingresar?: boolean; // botón "Ingresar al Armador" con la dirección de la app
 };
 
 const ACENTO = "#F26122";
 const MARINO = "#14213D";
+// Dirección de la app para el botón "Ingresar" (sólo en los mails para entrar
+// por primera vez o con datos nuevos). Siempre la misma, fija: nunca una que
+// llegue en el pedido.
+const APP_URL = "https://flyergalicia.github.io/flyer-galicia/";
 function esc(s: unknown): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -190,6 +196,7 @@ function armarTexto(m: Mail): string {
   if (m.saludo) l.push(m.saludo, "");
   m.parrafos.forEach((p) => l.push(p, ""));
   if (m.datos?.length) { m.datos.forEach(([k, v]) => l.push(`${k}: ${v}`)); l.push(""); }
+  if (m.ingresar) l.push("Ingresá desde: " + APP_URL, "");
   if (m.alerta) l.push("IMPORTANTE: " + m.alerta, "");
   l.push("—", "Armador de flyers · Mensaje automático.", "Nunca te vamos a pedir tu contraseña por mail.");
   return l.join("\n");
@@ -219,7 +226,11 @@ function armarHtml(m: Mail): string {
     `<tr><td style="padding:28px 28px 10px">` +
     `<h1 style="${F}margin:0 0 18px;font-size:21px;line-height:1.3;color:${MARINO}">${esc(m.titulo)}</h1>` +
     (m.saludo ? `<p style="${F}margin:0 0 14px;font-size:15px;line-height:1.6;color:#2b2f36">${esc(m.saludo)}</p>` : "") +
-    parrafos + datos + alerta +
+    parrafos + datos + (m.ingresar
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 18px"><tr>` +
+        `<td style="background:${ACENTO};border-radius:8px"><a href="${APP_URL}" target="_blank" style="${F}display:inline-block;padding:12px 22px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">Ingresar al Armador de flyers</a></td></tr></table>` +
+        `<p style="${F}margin:0 0 16px;font-size:13px;line-height:1.5;color:#6b7280">O copiá esta dirección en el navegador: <span style="color:#2b2f36">${APP_URL}</span></p>`
+      : "") + alerta +
     `</td></tr>` +
     `<tr><td style="padding:14px 28px 24px;border-top:1px solid #e5e7eb">` +
     `<div style="${F}font-size:12px;line-height:1.6;color:#6b7280">Mensaje automático del Armador de flyers.<br>Nunca te vamos a pedir tu contraseña por mail.</div>` +
@@ -297,12 +308,14 @@ const MAILS = {
     ],
   }),
   cuentaActiva: (nombre: string): Mail => ({
+    ingresar: true,
     asunto: "Armador de flyers · Tu cuenta ya está activa",
     titulo: "Tu cuenta ya está activa",
     saludo: hola(nombre),
     parrafos: ["Un administrador aprobó tu cuenta. Ya podés ingresar al Armador de flyers con tu mail y tu contraseña."],
   }),
   cuentaCreada: (nombre: string, email: string, clave: string): Mail => ({
+    ingresar: true,
     asunto: "Armador de flyers · Se creó tu cuenta",
     titulo: "Se creó tu cuenta",
     saludo: hola(nombre),
@@ -311,6 +324,7 @@ const MAILS = {
     alerta: "Es una contraseña inicial: cambiala en tu primer ingreso, desde el menú de tu nombre → Cambiar contraseña, y borrá este mail.",
   }),
   accesoEnviado: (nombre: string, email: string, clave: string, cuenta: string): Mail => ({
+    ingresar: true,
     asunto: "Armador de flyers · Tus datos de acceso",
     titulo: "Tus datos de acceso",
     saludo: hola(nombre),
