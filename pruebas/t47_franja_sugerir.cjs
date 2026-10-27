@@ -21,7 +21,7 @@ module.exports=async(browser)=>{
       // una misma imagen puede tener una promo local y otra online: cuenta como
       // online sólo si NO hay ninguna local de Neuquén con ese logo
       online:st.sel.filter(s=>s.sug).map(s=>!(_promosCat||[]).some(q=>q.imagen===s.img&&!_promoEsOnline(q)&&_promoEnProvincia(q,'NEUQUEN'))),
-      enProv:sug.every(p=>_promoEnProvincia(p,'NEUQUEN')||_promoEsOnline(p))};
+      enProv:st.sel.filter(s=>s.sug).every(s=>(_promosCat||[]).some(q=>q.imagen===s.img&&(_promoEnProvincia(q,'NEUQUEN')||_promoEsOnline(q))))}; // por logo: alguna de sus promos (antes miraba sólo la última del catálogo con esa imagen)
   });
   console.log('  sugeridas:',JSON.stringify({n:R.n,meta:R.meta,rubros:R.rubros,online:R.online}));
   ok(R.n>=Math.min(R.meta||8,30)-1&&R.n<=(R.meta||8),'completa los lugares de la franja ('+R.n+' de '+R.meta+')');

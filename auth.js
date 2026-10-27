@@ -7576,7 +7576,7 @@ function _renderPageBanded(page,done){
     var bx=band.getContext('2d');bx.setTransform(1,0,0,1,0,0);bx.fillStyle='#fff';bx.fillRect(0,0,W,bh);
     showToast(ys.length>1?'Convirtiendo PDF… parte '+(i+1)+' de '+ys.length+(ys.length>2?' (puede tardar un poco)':''):'Convirtiendo PDF…');
     // transform se aplica ANTES del viewport => corre el dibujo y0 px hacia arriba
-    page.render({canvasContext:bx,viewport:vp,transform:[1,0,0,1,0,-y0],useRequestAnimationFrame:true}).promise
+    page.render({canvasContext:bx,viewport:vp,transform:[1,0,0,1,0,-y0],useRequestAnimationFrame:!document.hidden}).promise // en otra pestaña el navegador frena requestAnimationFrame: la conversión quedaba parada
       .then(function(){ox.drawImage(band,0,y0);setTimeout(function(){step(i+1);},40);},
             function(e){console.warn('banda '+y0+' falló:',e);ox.drawImage(band,0,y0);setTimeout(function(){step(i+1);},40);});
   }
@@ -14050,7 +14050,7 @@ function _estFuCargar(){
     q.then(function(r){return r&&r.error?[]:(r.data||[]);},function(){return [];}) // sin la migración 038: sin propuestas
   ]).then(function(r){
     if(r[0]&&!_fgIns.lista){el.innerHTML='<div class="mg-vacio">No se pudo leer la lista: '+_escHtml(_estErr(r[0]))+'</div>';return;}
-    _EST_FU.prop=r[1];_estFuPintar();
+    _EST_FU.prop=r[1];_estFuPintar();_estBadge();
   });
 }
 function _estFuPintar(){
@@ -14101,7 +14101,10 @@ function _estFuArchivo(file){
 // La lista se vuelve a leer justo antes de guardarla (para no pisar lo de otra pestaña).
 function _estFuGuardarLista(cambiar){
   return _bucketJsonPedir(_FUENTES_FILE).then(function(d){
-    if(d===null&&_bjFallo(_FUENTES_FILE))throw new Error('sin conexión');
+    // sólo "no existe" (404/400) cuenta como lista vacía: cualquier otra respuesta sin
+    // datos (403, 5xx, sin red) frena, porque guardar pisaría el depósito entero
+    var st=_bjEstado[_FUENTES_FILE];
+    if(d===null&&st!==404&&st!==400)throw new Error(_bjFallo(_FUENTES_FILE)?'sin conexión':'no se pudo leer la lista ('+st+')');
     var L=cambiar(((d&&Array.isArray(d.lista))?d.lista:[]).slice());
     return _sb.storage.from('flyers').upload(_FUENTES_FILE,new Blob([JSON.stringify({lista:L,updated_at:new Date().toISOString()})],{type:'application/json'}),{contentType:'application/json',upsert:true})
       .then(function(r){if(r&&r.error)throw r.error;_fgIns.lista=L.filter(function(f){return f&&f.id&&typeof f.img==='string'&&f.img.indexOf(FLYERS_PUBLIC)===0;});});
@@ -14175,8 +14178,13 @@ function _estFuAprobar(id){
     return _estFuPublicar(b,(d.datos&&d.datos.w)||0,(d.datos&&d.datos.h)||0,d.miniatura||'',d.nombre,d.autor||'');
   }).then(function(){
     // la imagen ya vive en el bucket: la fila queda como registro, sin la copia pesada
-    return _sb.from('flyer_disenos').update({estado:'publicado',datos:{}}).eq('id',id).then(function(r){if(r&&r.error)console.warn('fuente aprobada sin marcar:',r.error);});
-  }).then(function(){_EST_FU.ocupado=false;showToast('Aprobado: «'+d.nombre+'» ya está en Flyers para copiar.');_estFuCargar();},
+    // si no se puede marcar, se avisa: la propuesta seguiría con "Aprobar" y aprobarla
+    // otra vez la sumaría repetida a la lista
+    return _sb.from('flyer_disenos').update({estado:'publicado',datos:{}}).eq('id',id).eq('estado','pedido').then(function(r){return !(r&&r.error);},function(){return false;});
+  }).then(function(marcada){_EST_FU.ocupado=false;
+    if(marcada)showToast('Aprobado: «'+d.nombre+'» ya está en Flyers para copiar.');
+    else _fgToastLargo('«'+d.nombre+'» ya está en Flyers para copiar, pero no se pudo marcar la propuesta como aprobada. No la apruebes de nuevo: tocá «No aprobar» para sacarla de la lista de pendientes.',9000);
+    _estFuCargar();},
     function(e){_EST_FU.ocupado=false;showToast('No se pudo aprobar: '+_estErr(e));_estFuCargar();});
 }
 function _estFuRechazar(id){
@@ -14189,9 +14197,13 @@ function _estFuRechazar(id){
   });
 }
 function _estFuCancelar(id){
-  _sb.from('flyer_disenos').delete().eq('id',id).then(function(r){
-    if(r&&r.error){showToast('No se pudo: '+_estErr(r.error));return;}showToast('Propuesta borrada.');_estFuCargar();
-  },function(e){showToast('No se pudo: '+_estErr(e));});
+  var d=(_EST_FU.prop||[]).filter(function(x){return String(x.id)===String(id);})[0];
+  fgConfirm('',{titulo:'¿Borrar la propuesta'+(d&&d.nombre?' «'+d.nombre+'»':'')+'?',texto:'Se borra con su imagen. Para proponerlo de nuevo vas a tener que volver a subir el PDF.',ok:'Borrar',cancelar:'Volver'},function(si){
+    if(!si)return;
+    _sb.from('flyer_disenos').delete().eq('id',id).then(function(r){
+      if(r&&r.error){showToast('No se pudo: '+_estErr(r.error));return;}showToast('Propuesta borrada.');_estFuCargar();
+    },function(e){showToast('No se pudo: '+_estErr(e));});
+  });
 }
 
 // ── CAMBIAR LOGOS DEL FLYER (prototipo 16-oct-2026) ──────────────────────────
@@ -18595,7 +18607,8 @@ function estIrVariante(id){
 function _estBadge(){
   _hdrMsgSync();
   var t=document.getElementById('apptab-estudio');if(!t)return;
-  var n=_admin?(_EST.lista||[]).filter(function(d){return d.estado==='pedido';}).length:_estAv.consulta.length;
+  // al admin también le cuentan las propuestas de "Flyers para copiar" (como en _estPoll)
+  var n=_admin?(_EST.lista||[]).concat(_EST_FU.prop||[]).filter(function(d){return d.estado==='pedido';}).length:_estAv.consulta.length;
   var b=document.getElementById('est-tab-badge');
   if(!b){b=document.createElement('i');b.id='est-tab-badge';b.className='tab-badge';t.appendChild(b);}
   b.textContent=n>9?'9+':String(n||'');b.style.display=n>0?'':'none';
@@ -18693,7 +18706,7 @@ function _estPoll(){
   if(_estEnPantalla()&&_estVer()){_estCargar();return;}
   if(!_admin){_estAvisoCargar();return;}
   if(!_estVer())return;
-  _sb.from('flyer_disenos').select('id',{count:'exact',head:true}).eq('estado','pedido').then(function(r){
+  _sb.from('flyer_disenos').select('id',{count:'exact',head:true}).eq('estado','pedido').in('tipo',['diseno','fuente']).then(function(r){
     if(!r||r.error)return;
     var t=document.getElementById('apptab-estudio');if(!t)return;
     var n=r.count||0,b=document.getElementById('est-tab-badge');
@@ -18721,7 +18734,7 @@ function _estCartel(){
 var _estBadgeHecho=false;
 function _estBadgeInicio(){
   if(_estBadgeHecho||!_admin||!_estVer())return;_estBadgeHecho=true;
-  _sb.from('flyer_disenos').select('id',{count:'exact',head:true}).eq('estado','pedido').then(function(r){
+  _sb.from('flyer_disenos').select('id',{count:'exact',head:true}).eq('estado','pedido').in('tipo',['diseno','fuente']).then(function(r){
     if(r.error||_EST.lista)return;
     var t=document.getElementById('apptab-estudio');if(!t)return;
     var n=r.count||0,b=document.getElementById('est-tab-badge');

@@ -105,12 +105,19 @@ module.exports=async(browser)=>{
   const adm=await abrir(browser,{rol:'admin'});
   await adm.click('#apptab-estudio');await adm.waitForSelector('#est-fu-lista button[data-fu=aprobar]');
   ok((await adm.textContent('#est-fu-subir')).includes('Subir'),'el admin ve "Subir un flyer (PDF)"');
+  ok((await adm.textContent('#est-tab-badge').catch(()=>''))==='1','la propuesta cuenta en el numerito de Estudio (también con la lista ya cargada)');
   await adm.screenshot({path:__dirname+'/capturas/t88_estudio_admin.png'});
   await adm.click('#est-fu-lista button[data-fu=aprobar]');
   await adm.waitForFunction(()=>!_EST_FU.ocupado,null,{timeout:20000});await adm.waitForTimeout(500);
   const L=nube.json['_fuentes.json'].lista,nuevo=L[L.length-1];
   ok(L.length===2&&nuevo.nombre==='Gastronomía Córdoba'&&nuevo.de==='Asesor Prueba'&&nube.bin[nuevo.img.split('/').pop()],'al aprobar, la imagen sube al bucket y entra al depósito');
   ok(prop.estado==='publicado'&&!(prop.datos&&prop.datos.img),'la propuesta queda aprobada y sin la copia pesada');
+  ok(await adm.evaluate(()=>{var b=document.getElementById('est-tab-badge');return !b||b.style.display==='none';}),'aprobada, se va el numerito');
+  // una lista que no se pudo leer (403) no se toma como vacía: no se pisa el depósito
+  const antes=JSON.stringify(nube.json['_fuentes.json']);
+  const err403=await adm.evaluate(()=>{var f=window.fetch;window.fetch=function(u,o){if(String(u).indexOf('_fuentes.json')>=0)return Promise.resolve(new Response('{}',{status:403}));return f.apply(this,arguments);};
+    return _estFuGuardarLista(function(L){return [];}).then(function(){window.fetch=f;return 'guardó';},function(e){window.fetch=f;return String(e&&e.message);});});
+  ok(err403!=='guardó'&&JSON.stringify(nube.json['_fuentes.json'])===antes,'con un 403 al leer la lista no se guarda nada');
   // quitar: deja de estar en la lista, la imagen queda (diseños que ya la usan)
   await adm.click('#est-fu-lista button[data-fu=quitar][data-id=f1]');await adm.click('#fg-cf-ok');await adm.waitForTimeout(600);
   ok(nube.json['_fuentes.json'].lista.length===1&&nube.bin['fuente_1.jpg'],'Quitar lo saca de la lista sin borrar la imagen');
