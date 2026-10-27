@@ -7552,26 +7552,36 @@ function _fgLoadPdfJs(cb){
 // máscaras de pdf.js falla silenciosamente y MEDIA PÁGINA sale en blanco (se perdían Pago
 // Fácil, dólares, colectivos, cajas, préstamos, galicia.ar, el logo y los legales).
 // Verificado: 1 pasada corta en ~4070px; en bandas llega a 6960px. No tocar sin re-verificar.
-var _FG_BAND_H=1600;
+// 27-oct-2026: OJO, pdf.js procesa la página ENTERA en cada banda (el corrimiento no
+// recorta el trabajo): con un PDF pesado eran ~5 s por banda sin soltar la máquina
+// ("Convirtiendo PDF... 17%" y la PC trabada; revisado con Codex). Bandas de 3600
+// (por debajo de los ~4070 que fallaban) = la mitad o menos de pasadas; verificado
+// que sale igual que con 1600 en los flyers de Galicia (prueba t89). Entre banda y
+// banda se cede el hilo para que la pantalla responda, y un PDF desmedido se frena.
+var _FG_BAND_H=3600;
+var _FG_RASTER_MAX_H=24000; // ~1240×24000: unos 120 MB de imagen; más alto se frena con aviso
 function _renderPageBanded(page,done){
   var vp1=page.getViewport({scale:1});
   var vp=page.getViewport({scale:_FG_TARGET_W/vp1.width});
   var W=Math.round(vp.width),H=Math.round(vp.height);
+  if(H>_FG_RASTER_MAX_H){done(null,'El PDF es demasiado largo para convertirlo ('+H+' px de alto con 1240 de ancho). Partilo en dos o más PDF más cortos.');return;}
   var out=document.createElement('canvas');out.width=W;out.height=H;
   var ox=out.getContext('2d');ox.fillStyle='#fff';ox.fillRect(0,0,W,H);
   var ys=[];for(var y=0;y<H;y+=_FG_BAND_H)ys.push(y);
+  var band=document.createElement('canvas');band.width=W; // una sola banda, reusada
   function step(i){
-    if(i>=ys.length){done(out);return;}
+    if(i>=ys.length){band.width=band.height=0;done(out);return;}
     var y0=ys[i],bh=Math.min(_FG_BAND_H,H-y0);
-    var band=document.createElement('canvas');band.width=W;band.height=bh;
-    var bx=band.getContext('2d');bx.fillStyle='#fff';bx.fillRect(0,0,W,bh);
-    showToast('Convirtiendo PDF... '+Math.round(i*100/ys.length)+'%');
+    band.height=bh;
+    var bx=band.getContext('2d');bx.setTransform(1,0,0,1,0,0);bx.fillStyle='#fff';bx.fillRect(0,0,W,bh);
+    showToast(ys.length>1?'Convirtiendo PDF… parte '+(i+1)+' de '+ys.length+(ys.length>2?' (puede tardar un poco)':''):'Convirtiendo PDF…');
     // transform se aplica ANTES del viewport => corre el dibujo y0 px hacia arriba
-    page.render({canvasContext:bx,viewport:vp,transform:[1,0,0,1,0,-y0]}).promise
-      .then(function(){ox.drawImage(band,0,y0);step(i+1);})
-      .catch(function(e){console.warn('banda '+y0+' falló:',e);ox.drawImage(band,0,y0);step(i+1);});
+    page.render({canvasContext:bx,viewport:vp,transform:[1,0,0,1,0,-y0],useRequestAnimationFrame:true}).promise
+      .then(function(){ox.drawImage(band,0,y0);setTimeout(function(){step(i+1);},40);},
+            function(e){console.warn('banda '+y0+' falló:',e);ox.drawImage(band,0,y0);setTimeout(function(){step(i+1);},40);});
   }
-  step(0);
+  // un respiro antes de la primera: que se pinte el aviso antes del trabajo pesado
+  setTimeout(function(){step(0);},40);
 }
 // file → blob JPG + canvas (1240px de ancho, fondo blanco). Soporta PDF (pág. 1) e imagen.
 function _rasterizeFlyer(file,cb){
@@ -7582,10 +7592,17 @@ function _rasterizeFlyer(file,cb){
       fr.onload=function(){
         try{
           var data=new Uint8Array(fr.result);
-          window.pdfjsLib.getDocument({data:data}).promise.then(function(pdf){return pdf.getPage(1);})
+          var doc=null;
+          // al terminar se suelta el PDF (antes quedaba en memoria, con sus imágenes decodificadas)
+          var soltar=function(){try{if(doc)doc.destroy();}catch(x){}doc=null;};
+          window.pdfjsLib.getDocument({data:data}).promise.then(function(pdf){doc=pdf;return pdf.getPage(1);})
           .then(function(page){
-            _renderPageBanded(page,function(cvs){_finishRaster(cvs,cb);});
-          }).catch(function(e){cb(null,null);showToast('Error leyendo PDF: '+(e&&e.message||e));});
+            _renderPageBanded(page,function(cvs,err){
+              try{page.cleanup();}catch(x){}
+              if(!cvs){soltar();cb(null,null);_fgToastLargo(err||'No se pudo convertir el PDF.',8000);return;}
+              _finishRaster(cvs,function(b,c){soltar();cb(b,c);});
+            });
+          }).catch(function(e){soltar();cb(null,null);showToast('Error leyendo PDF: '+(e&&e.message||e));});
         }catch(e){cb(null,null);showToast('Error leyendo PDF');}
       };
       fr.readAsArrayBuffer(file);
