@@ -129,6 +129,19 @@ async function abrir(browser,o){
       const sl=l.slice(a,a+lim);
       return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':(sl.length?a+'-'+(a+sl.length-1):'*')+'/'+l.length}});
     }
+    // tarjetas y salas VIP (migración 042): nube.benchTarj; escribe sólo el admin (como la regla de la base); nube.tarjFalla = tabla inexistente
+    if(path==='/rest/v1/promos_bench_tarjetas'){
+      if(nube.tarjFalla)return route.fulfill({status:404,body:JSON.stringify({message:'relation does not exist',code:'42P01'}),headers:H});
+      const l=nube.benchTarj=nube.benchTarj||[];
+      if(m==='GET')return route.fulfill({status:200,body:JSON.stringify(l),headers:{...H,'Content-Range':(l.length?'0-'+(l.length-1):'*')+'/'+l.length}});
+      if(U.role!=='admin')return route.fulfill({status:403,body:JSON.stringify({message:'new row violates row-level security policy for table "promos_bench_tarjetas"',code:'42501'}),headers:H});
+      const b=JSON.parse(req.postData()||'{}');
+      nube.tarjEscrituras=(nube.tarjEscrituras||[]).concat([{m,b,q:u.searchParams.get('id')}]);
+      if(m==='POST'){l.push(Object.assign({id:'nueva'+l.length+'x'},b));return route.fulfill({status:201,body:'[]',headers:H});}
+      const id=String(u.searchParams.get('id')||'').replace(/^eq\./,'');
+      if(m==='PATCH'){const f=l.find(x=>x.id===id);if(f)Object.assign(f,b);return route.fulfill({status:204,body:'',headers:H});}
+      if(m==='DELETE'){const i=l.findIndex(x=>x.id===id);if(i>=0)l.splice(i,1);return route.fulfill({status:204,body:'',headers:H});}
+    }
     if(path==='/functions/v1/benchmark-sync'){
       const b=JSON.parse(req.postData()||'{}');nube.llamadasBench=(nube.llamadasBench||[]).concat([b]);
       return route.fulfill({status:200,body:JSON.stringify({data:(b.action==='marcas'||b.action==='galicia')?{hechas:0,pendientes:0,total:0}:{resultados:[{banco:b.banco,total:1}],errores:[]}}),headers:H});

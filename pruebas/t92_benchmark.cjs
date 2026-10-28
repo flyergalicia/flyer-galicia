@@ -33,6 +33,12 @@ module.exports=async(browser)=>{
   nube.benchMeta=[{banco:'galicia',last_sync_at:new Date().toISOString(),total:4,error:null},{banco:'bbva',last_sync_at:new Date(Date.now()-20*86400000).toISOString(),total:3,error:null},
     {banco:'macro',last_sync_at:new Date().toISOString(),total:1,error:'MODO respondió 500'}];
   nube.benchHist=[];
+  const tarj=(o)=>Object.assign({id:'t'+Math.random().toString(36).slice(2,8),paquete:'',orden:0,pases_anio:null,salas_vip:'',fast_pass:'',acompanantes:'',parking:'',seguros:'',puntos:'',costo:'',vigencia:'',fuente_url:'',confianza:'oficial',revisada:'2026-10-28',notas:''},o);
+  nube.benchTarj=[
+    tarj({id:'tg1',banco:'galicia',tarjeta:'Visa Signature',paquete:'Éminent',orden:10,pases_anio:4,salas_vip:'4 pases por año a salones Visa Airport Companion.',fast_pass:'4 Fast Pass por año.',fuente_url:'https://www.galicia.ar/personas/tarjetas/beneficios-viajes'}),
+    tarj({id:'tb1',banco:'bbva',tarjeta:'Visa Signature + Mastercard Black',paquete:'Black+ All',orden:10,pases_anio:20,salas_vip:'Hasta 20 pases por año: 10 Sala VIP BBVA, 8 Visa Airport Companion y 2 Mastercard.',costo:'Mantenimiento mensual $188.000.',fuente_url:'https://www.bbva.com.ar/personas/productos/paquetes/black-all.html'}),
+    tarj({id:'tm1',banco:'macro',tarjeta:'Visa Signature',paquete:'Selecta',orden:10,pases_anio:10,salas_vip:'10 pases por año. Desde el 18/11/2026: 6 pases por año calendario.',vigencia:'Hasta el 17/11/2026; desde el 18/11/2026, 6 pases.',fuente_url:'javascript:alert(1)',notas:'<img src=x onerror=alert(2)>'}),
+    tarj({id:'ts1',banco:'supervielle',tarjeta:'Mastercard Black',paquete:'Identité',orden:20,pases_anio:null,salas_vip:'La página de la tarjeta no menciona salas VIP.',confianza:'sin_dato'})];
 
   // ── un asesor sin la facultad: no ve la solapa y no se piden las tablas ──
   const pa=await abrir(browser,{rol:'asesor'});
@@ -187,6 +193,86 @@ module.exports=async(browser)=>{
 
   const nota=await p.evaluate(()=>{const antes=benNotaOtros();for(let i=0;i<60;i++)BEN.rows.push({banco:'bbva',fuente:'bbva',rubro:'Otros'});const despues=benNotaOtros();BEN.rows.length-=60;return {antes,despues};});
   ok(nota.antes===''&&/no informa el rubro de sus promos: 61 quedan en/.test(nota.despues),'con muchas promos de BBVA sin rubro, la pantalla lo avisa (y con pocas no molesta)');
+  // ── entrega 3: tarjetas y salas VIP ──
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.tarj&&BEN.tarj.length===4,null,{timeout:10000});
+  await p.evaluate(()=>benVista('tarjetas'));
+  const tv=await p.evaluate(()=>{
+    const root=document.querySelector('#ben-root');
+    return {tabs:[...document.querySelectorAll('.ben-tab')].map(x=>x.textContent),filas:root.querySelectorAll('table.ben-t tbody tr').length,
+      texto:root.textContent.replace(/\s+/g,' '),links:[...root.querySelectorAll('table.ben-t a')].map(a=>a.getAttribute('href')),
+      imgInyectada:!!root.querySelector('img[src="x"]'),barras:root.querySelectorAll('.ben-bar').length,
+      botones:[...root.querySelectorAll('button')].map(b=>b.textContent)};
+  });
+  console.log('  ',JSON.stringify({tabs:tv.tabs,filas:tv.filas,links:tv.links,barras:tv.barras}));
+  ok(tv.tabs.indexOf('Tarjetas y salas VIP')>=0&&tv.filas===4,'la pestaña "Tarjetas y salas VIP" muestra las 4 tarjetas cargadas');
+  ok(/Los que más dan: BBVA Black\+ All \(20\), Macro Selecta \(10\), Galicia Éminent \(4\)/.test(tv.texto)&&/La de Galicia con más pases es Visa Signature \(4\)/.test(tv.texto),'el resumen ordena por pases (BBVA 20, Macro 10, Galicia 4) y dice cuál es la de Galicia');
+  ok(/Cambios anunciados/.test(tv.texto)&&/Macro · Visa Signature: cambia el 18\/11\/2026/.test(tv.texto),'avisa el cambio anunciado de Macro (18/11/2026)');
+  ok(tv.links.length===2&&tv.links.every(h=>/^https:\/\//.test(h)),'sólo se enlazan direcciones https (la "javascript:" no se convierte en link)');
+  ok(!tv.imgInyectada&&/<img src=x onerror=alert\(2\)>/.test(tv.texto),'un texto con HTML se muestra como texto, no se ejecuta');
+  ok(/sin dato/.test(tv.texto)&&/Sin dato firme/.test(tv.texto),'una tarjeta sin pases informados dice "sin dato" y "Sin dato firme"');
+  ok(tv.botones.indexOf('+ Agregar tarjeta')>=0&&tv.botones.filter(b=>b==='Editar').length===4,'el admin ve "+ Agregar tarjeta" y "Editar" en cada fila');
+  await p.screenshot({path:__dirname+'/capturas/bm5_tarjetas.png',fullPage:false});
+  // editar: cambiar los pases de la Visa Signature de Galicia
+  await p.evaluate(()=>benTarjEditar('tg1'));
+  await p.fill('#ben-f-pases_anio','6');
+  await p.fill('#ben-f-costo','Bonificada 6 meses.');
+  await p.evaluate(()=>benTarjGuardar('tg1'));
+  await p.waitForFunction(()=>!document.getElementById('ben-ed-ov')&&BEN.tarj.find(t=>t.id==='tg1').pases_anio===6,null,{timeout:8000});
+  const ed=await p.evaluate(()=>({g:BEN.tarj.find(t=>t.id==='tg1'),texto:document.querySelector('#ben-root').textContent.replace(/\s+/g,' ')}));
+  ok(ed.g.pases_anio===6&&ed.g.costo==='Bonificada 6 meses.'&&ed.g.revisada===new Date(Date.now()-3*3600000).toISOString().slice(0,10),'editar guarda los cambios y deja la fila como revisada hoy');
+  ok(/La de Galicia con más pases es Visa Signature \(6\)/.test(ed.texto),'la pantalla se actualiza sola después de guardar');
+  // validaciones
+  await p.evaluate(()=>benTarjEditar('tg1'));
+  await p.fill('#ben-f-fuente_url','http://sitio-inseguro.com');
+  await p.evaluate(()=>benTarjGuardar('tg1'));
+  const val=await p.evaluate(()=>({abierta:!!document.getElementById('ben-ed-ov'),toast:(document.querySelector('.fg-toast,#toast,.toast')||{}).textContent||''}));
+  ok(val.abierta,'una dirección sin https:// no se guarda y la ventana queda abierta');
+  await p.evaluate(()=>benTarjCerrar());
+  // agregar y quitar
+  await p.evaluate(()=>benTarjEditar(''));
+  await p.fill('#ben-f-tarjeta','Visa Infinite');
+  await p.selectOption('#ben-f-banco','santander');
+  await p.evaluate(()=>benTarjGuardar(''));
+  await p.waitForFunction(()=>BEN.tarj.some(t=>t.tarjeta==='Visa Infinite'),null,{timeout:8000});
+  ok(nube.benchTarj.some(t=>t.tarjeta==='Visa Infinite'&&t.banco==='santander'),'"+ Agregar tarjeta" crea la fila en la tabla');
+  await p.evaluate(()=>benTarjBorrar(BEN.tarj.find(t=>t.tarjeta==='Visa Infinite').id));
+  await p.waitForSelector('#fg-cf-ov',{timeout:5000});
+  await p.click('#fg-cf-ov button.fg-cf-ok, #fg-cf-ov .fg-cf-ok, #fg-cf-ov button:last-of-type');
+  await p.waitForFunction(()=>!BEN.tarj.some(t=>t.tarjeta==='Visa Infinite'),null,{timeout:8000});
+  ok(!nube.benchTarj.some(t=>t.tarjeta==='Visa Infinite'),'"Quitar" pide confirmación y borra la fila');
+  // quien no es admin no ve los botones de edición (y la base igual lo rechaza)
+  const sinAdmin=await p.evaluate(()=>{const a=_admin;_admin=false;benRender();const b=[...document.querySelectorAll('#ben-root button')].map(x=>x.textContent);_admin=a;benRender();return b;});
+  ok(sinAdmin.indexOf('Editar')<0&&sinAdmin.indexOf('+ Agregar tarjeta')<0,'sin ser admin no aparecen "Editar", "Quitar" ni "Agregar"');
+  // tabla inexistente (migración 042 sin aplicar): lo dice y el resto de la solapa anda
+  nube.tarjFalla=true;
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando,null,{timeout:10000});
+  const sf=await p.evaluate(()=>{const t=document.querySelector('#ben-root').textContent;benVista('rubro');return {t,rubro:document.querySelectorAll('#ben-root table.ben-t').length};});
+  ok(/migración 042/.test(sf.t)&&sf.rubro===1,'sin la tabla de tarjetas, esa pestaña lo explica y el resto de la solapa sigue andando');
+  nube.tarjFalla=false;
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.tarj.length>0,null,{timeout:10000});
+
+  // ── Excel ──
+  await p.evaluate(()=>{window.__blob=null;const f=URL.createObjectURL;URL.createObjectURL=function(b){window.__blob=b;return f.call(URL,b);};HTMLAnchorElement.prototype.click=function(){};});
+  await p.evaluate(()=>benExcel());
+  await p.waitForFunction(()=>window.__blob,null,{timeout:30000});
+  const xl=await p.evaluate(async()=>{
+    const wb=new ExcelJS.Workbook();await wb.xlsx.load(await window.__blob.arrayBuffer());
+    const hojas=wb.worksheets.map(w=>w.name);
+    const rub=wb.getWorksheet('Por rubro'),filasRub=[];rub.eachRow((r,i)=>{if(i>1)filasRub.push(r.values.slice(1));});
+    const tj=wb.getWorksheet('Tarjetas y salas VIP');
+    const pr=wb.getWorksheet('Promos'),nPromos=pr.rowCount-1;
+    const res=wb.getWorksheet('Resumen');const info=[];res.eachRow(r=>info.push(r.values.slice(1).join(' | ')));
+    return {hojas,supBbva:filasRub.find(r=>r[0]==='Supermercados'&&r[2]==='BBVA'),tarjetas:tj.rowCount-1,nPromos,vig:benFiltradas().length,info:info.slice(0,3).concat(info.filter(x=>/Compra|Supermercados|BBVA/.test(x)).slice(0,6)),btn:document.getElementById('ben-xl').textContent};
+  });
+  console.log('  ',JSON.stringify({hojas:xl.hojas,supBbva:xl.supBbva,tarjetas:xl.tarjetas,nPromos:xl.nPromos}));
+  ok(xl.hojas.join(',')==='Resumen,Por rubro,Por marca,Semana,Tarjetas y salas VIP,Promos','el Excel trae las hojas Resumen, Por rubro, Por marca, Semana, Tarjetas y salas VIP y Promos');
+  ok(xl.supBbva&&xl.supBbva[4]===30000&&xl.supBbva[5]===20,'Por rubro: Supermercados/BBVA devuelve $30.000 (20 %), igual que en pantalla');
+  ok(xl.tarjetas===4&&xl.nPromos===xl.vig,'la hoja de tarjetas tiene las 4 filas y la de Promos tiene las mismas promos que la pantalla ('+xl.vig+')');
+  ok(xl.info.some(x=>/150000/.test(x))&&xl.btn==='Descargar Excel','el Resumen deja las compras de referencia usadas y el botón vuelve a su texto');
+
   // ── Actualizar ahora: un banco por vez, después la web de BBVA, el catálogo de Galicia y las marcas ──
   nube.llamadasBench=[];
   await p.evaluate(()=>{benVista('rubro');benActualizar();});

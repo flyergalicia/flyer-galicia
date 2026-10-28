@@ -67,6 +67,11 @@
     '.ben-pill{display:inline-block;font-size:.75rem;padding:1px 7px;border-radius:99px;margin:0 4px 4px 0;border:1px solid var(--border);color:var(--ink-2);cursor:pointer;background:var(--card);}',
     '.ben-pill.on{background:var(--navy,#1F2328);color:#fff;border-color:var(--navy,#1F2328);}',
     'html.dark .ben-pill.on{background:#EEF1F6;color:#15171A;}',
+    '.ben-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;}',
+    '.ben-ed{background:var(--card);color:var(--ink);border-radius:var(--r-m,12px);max-width:760px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:var(--sh-3);}',
+    '.ben-ed-g{display:grid;grid-template-columns:1fr 1fr;gap:10px;}',
+    '.ben-ed textarea{font-size:.85rem;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--field);color:var(--ink);resize:vertical;font-family:inherit;}',
+    '@media (max-width:700px){.ben-ed-g{grid-template-columns:1fr;}}',
     '.ben-lista{margin:6px 0 0;padding-left:18px;font-size:.85rem;color:var(--ink);line-height:1.65;}',
     '.ben-lista li{margin-bottom:4px;}',
     '.ben-up{color:#2E7D32;font-weight:700;}',
@@ -138,7 +143,7 @@ function benCargar(cb) {
   if (BEN.cargando) return;
   BEN.cargando = true; BEN.error = '';
   benRender();
-  var pend = 4, fallo = null;
+  var pend = 5, fallo = null;
   function fin() {
     if (--pend > 0) return;
     BEN.cargando = false;
@@ -155,6 +160,7 @@ function benCargar(cb) {
   _sbTodo(function (a, b) { return _sb.from('promos_bench_marcas').select('*').order('marca_clave').range(a, b); }, function (err, d) {
     var m = {}; (d || []).forEach(function (x) { m[x.marca_clave] = x; }); BEN.marcas = m; fin();
   });
+  benTarjCargar(fin);
   _sb.from('promos_bench_meta').select('*').then(function (r) { BEN.meta = (r && r.data) || []; fin(); }, function () { fin(); });
   _sb.from('promos_bench_hist').select('*').order('semana', { ascending: false }).limit(2000).then(function (r) { BEN.hist = (r && r.data) || []; fin(); }, function () { fin(); });
 }
@@ -232,7 +238,7 @@ function benRoot() { return document.getElementById('ben-root'); }
 function benRender() {
   var root = benRoot(); if (!root) return;
   var h = '<div class="ben-top"><div><h2>Benchmark</h2><p>Galicia contra la competencia, a nivel persona. Todos los bancos salen de MODO; además se leen la web propia de BBVA y el catálogo propio de Galicia (la misma promo no se cuenta dos veces). Macro, Supervielle y Santander salen sólo de MODO.</p></div>' +
-    '<div class="ben-acts">' + (_admin ? '<button class="btn" id="ben-act" onclick="benActualizar()">Actualizar ahora</button>' : '') + '</div></div>';
+    '<div class="ben-acts">' + (BEN.rows && BEN.rows.length ? '<button class="btn" id="ben-xl" onclick="benExcel()">Descargar Excel</button>' : '') + (_admin ? '<button class="btn" id="ben-act" onclick="benActualizar()">Actualizar ahora</button>' : '') + '</div></div>';
   h += benFuentesHtml();
   if (BEN.cargando && BEN.rows === null) { root.innerHTML = h + '<div class="ben-vacio"><strong>Cargando…</strong>Trayendo las promos de cada banco.</div>'; return; }
   if (BEN.error) { root.innerHTML = h + '<div class="ben-vacio"><strong>' + benE(BEN.error) + '</strong><button class="btn" onclick="BEN.rows=null;benCargar()">Reintentar</button></div>'; return; }
@@ -242,11 +248,11 @@ function benRender() {
   }
   h += benFiltrosHtml();
   h += benNotaLugares();
-  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana'], ['versus', 'Galicia vs ' + BEN_NOM[BEN.vs]], ['evolucion', 'Evolución']];
+  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana'], ['versus', 'Galicia vs ' + BEN_NOM[BEN.vs]], ['evolucion', 'Evolución'], ['tarjetas', 'Tarjetas y salas VIP']];
   h += '<div class="ben-tabs" role="tablist">' + tabs.map(function (t) {
     return '<button class="ben-tab' + (BEN.vista === t[0] ? ' on' : '') + '" role="tab" aria-selected="' + (BEN.vista === t[0]) + '" onclick="benVista(\'' + t[0] + '\')">' + t[1] + '</button>';
   }).join('') + '</div>';
-  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : BEN.vista === 'versus' ? benVersusHtml() : BEN.vista === 'evolucion' ? benEvolucionHtml() : benRubroHtml();
+  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : BEN.vista === 'versus' ? benVersusHtml() : BEN.vista === 'evolucion' ? benEvolucionHtml() : BEN.vista === 'tarjetas' ? benTarjetasHtml() : benRubroHtml();
   root.innerHTML = h + body;
   var sel = document.getElementById('ben-prov'); if (sel && typeof _provSel === 'function') _provSel(sel);
 }
@@ -520,6 +526,223 @@ function benEvolucionHtml() {
     }).join('') + '</ul>' : '<p class="ben-sub">Sin cambios en la cantidad de promos.</p>') + '</div>';
   }
   return h + '<div class="ben-card ben-scroll"><table class="ben-t"><thead>' + cab + '</thead><tbody>' + cuerpo + '</tbody></table></div>';
+}
+
+// ── Vista 6: tarjetas premium y salas VIP (cargadas a mano, las edita el admin) ──
+function benOrdBanco(b) { for (var i = 0; i < BEN_BANCOS.length; i++) if (BEN_BANCOS[i][0] === b) return i; return 99; }
+function benUrlOk(u) { return /^https:\/\//i.test(String(u || '')); }
+function benTarjOrdenadas() {
+  return (BEN.tarj || []).slice().sort(function (a, b) { return benOrdBanco(a.banco) - benOrdBanco(b.banco) || (a.orden || 0) - (b.orden || 0); });
+}
+// "desde el 18/11/2026" en la vigencia o en el detalle: cambios que todavía no rigen
+function benTarjCambios() {
+  var hoy = benHoyIso(), out = [];
+  (BEN.tarj || []).forEach(function (t) {
+    var txt = [t.vigencia, t.salas_vip, t.notas].join(' '), re = /desde el (\d{1,2})\/(\d{1,2})\/(\d{4})/gi, m;
+    while ((m = re.exec(txt))) {
+      var iso = m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+      if (iso > hoy) { out.push({ t: t, fecha: m[1] + '/' + m[2] + '/' + m[3] }); break; }
+    }
+  });
+  return out;
+}
+function benTarjetasHtml() {
+  var L = benTarjOrdenadas();
+  var h = '<div class="ben-card"><h3>Tarjetas premium y salas VIP</h3><p class="ben-sub">Cargado a mano desde las páginas oficiales de cada banco. Estas condiciones cambian seguido: mirá la vigencia y la fecha de revisión de cada fila antes de usarlas con un cliente.' +
+    (_admin ? ' Vos podés corregir cada fila y agregar tarjetas.' : '') + '</p>' + (_admin && !BEN.tarjError ? '<button class="btn" onclick="benTarjEditar(\'\')">+ Agregar tarjeta</button>' : '') + '</div>';
+  if (BEN.tarjError) return h + '<div class="ben-vacio"><strong>No se pudo leer la tabla de tarjetas</strong>¿Está aplicada la migración 042? <button class="btn" onclick="BEN.rows=null;benCargar()">Reintentar</button></div>';
+  if (!L.length) return h + '<div class="ben-vacio"><strong>Todavía no hay tarjetas cargadas</strong>' + (_admin ? 'Agregá la primera con «+ Agregar tarjeta».' : 'El administrador las va a cargar.') + '</div>';
+  var cam = benTarjCambios();
+  if (cam.length) {
+    h += '<div class="ben-card"><h3>Cambios anunciados</h3><ul class="ben-lista">' + cam.map(function (c) {
+      return '<li><b>' + benE(BEN_NOM[c.t.banco] || c.t.banco) + ' · ' + benE(c.t.tarjeta) + '</b>: cambia el ' + c.fecha + '. ' + benE(c.t.vigencia || '') + '</li>';
+    }).join('') + '</ul></div>';
+  }
+  var max = Math.max.apply(null, L.map(function (t) { return t.pases_anio || 0; })) || 1;
+  var top = L.filter(function (t) { return t.pases_anio > 0; }).sort(function (a, b) { return b.pases_anio - a.pases_anio; }).slice(0, 3);
+  var gal = L.filter(function (t) { return t.banco === 'galicia' && t.pases_anio > 0; }).sort(function (a, b) { return b.pases_anio - a.pases_anio; })[0];
+  h += '<div class="ben-card"><h3>Pases a salas VIP por año (titular)</h3>' +
+    (top.length ? '<div class="ben-resumen" style="margin-bottom:8px">Los que más dan: ' + top.map(function (t) { return '<b>' + benE(BEN_NOM[t.banco] || t.banco) + ' ' + benE(t.paquete || t.tarjeta) + '</b> (' + t.pases_anio + ')'; }).join(', ') + '.' +
+      (gal ? ' La de Galicia con más pases es <b>' + benE(gal.tarjeta) + '</b> (' + gal.pases_anio + ').' : '') + '</div>' : '') +
+    L.map(function (t) {
+      var n = t.pases_anio;
+      return '<div class="ben-bar' + (t.banco === 'galicia' ? ' gal' : '') + '"><span style="width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + benE((BEN_NOM[t.banco] || t.banco) + ' ' + t.tarjeta + ' ' + t.paquete) + '">' + benE(BEN_NOM[t.banco] || t.banco) + ' · ' + benE(t.tarjeta) + (t.paquete ? ' (' + benE(t.paquete) + ')' : '') + '</span>' +
+        (n > 0 ? '<i style="width:' + Math.max(3, Math.round(n / max * 240)) + 'px"></i> ' + n : '<span class="ben-seg">sin dato</span>') + '</div>';
+    }).join('') + '<p class="ben-aviso">Las bajas de pases ya anunciadas (por ejemplo Macro desde el 18/11/2026) figuran en «Cambios anunciados» y en el detalle de cada fila.</p></div>';
+  var conf = { oficial: 'Página del banco', nota: 'Nota de prensa o blog', sin_dato: 'Sin dato firme' };
+  h += '<div class="ben-card ben-scroll"><table class="ben-t"><thead><tr><th>Tarjeta</th><th>Salas VIP</th><th>Fast Pass y parking</th><th>Acompañantes y adicionales</th><th>Seguros</th><th>Millas y puntos</th><th>Costo</th><th>Fuente</th>' + (_admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    L.map(function (t) {
+      var fp = [t.fast_pass, t.parking].filter(function (x) { return x; }).join(' ');
+      return '<tr class="' + (t.banco === 'galicia' ? 'gal' : '') + '"><td class="' + (t.banco === 'galicia' ? 'gal' : '') + '"><b>' + benE(BEN_NOM[t.banco] || t.banco) + '</b><div>' + benE(t.tarjeta) + '</div>' + (t.paquete ? '<div class="ben-seg">' + benE(t.paquete) + '</div>' : '') + '</td>' +
+        '<td style="min-width:220px">' + benE(t.salas_vip) + (t.vigencia ? '<div class="ben-seg">' + benE(t.vigencia) + '</div>' : '') + '</td>' +
+        '<td style="min-width:170px">' + benE(fp) + '</td><td style="min-width:200px">' + benE(t.acompanantes) + '</td><td style="min-width:230px">' + benE(t.seguros) + '</td>' +
+        '<td style="min-width:150px">' + benE(t.puntos) + '</td><td style="min-width:200px">' + benE(t.costo) + '</td>' +
+        '<td style="min-width:150px">' + (benUrlOk(t.fuente_url) ? '<a href="' + benE(t.fuente_url) + '" target="_blank" rel="noopener noreferrer">Ver página</a>' : '') +
+        '<div class="ben-seg">' + benE(conf[t.confianza] || '') + (t.revisada ? ' · revisada ' + benFecha(t.revisada) : '') + '</div>' + (t.notas ? '<div class="ben-seg">' + benE(t.notas) + '</div>' : '') + '</td>' +
+        (_admin ? '<td style="white-space:nowrap"><button class="btn" onclick="benTarjEditar(\'' + benE(t.id) + '\')">Editar</button> <button class="btn" onclick="benTarjBorrar(\'' + benE(t.id) + '\')">Quitar</button></td>' : '') + '</tr>';
+    }).join('') + '</tbody></table></div>';
+  return h;
+}
+function benTarjCargar(cb) {
+  _sb.from('promos_bench_tarjetas').select('*').then(function (r) {
+    if (r && r.error) { BEN.tarjError = true; BEN.tarj = []; } else { BEN.tarjError = false; BEN.tarj = (r && r.data) || []; }
+    if (cb) cb();
+  }, function () { BEN.tarjError = true; BEN.tarj = []; if (cb) cb(); });
+}
+// ── edición (sólo admin; la base también lo exige) ──
+var BEN_CAMPOS = [
+  ['tarjeta', 'Tarjeta', 'text'], ['paquete', 'Paquete o programa', 'text'], ['pases_anio', 'Pases a salas VIP por año (titular)', 'number'], ['orden', 'Orden dentro del banco', 'number'],
+  ['salas_vip', 'Salas VIP (detalle)', 'area'], ['fast_pass', 'Fast Pass', 'area'], ['acompanantes', 'Acompañantes y adicionales', 'area'], ['parking', 'Parking', 'area'],
+  ['seguros', 'Seguros y asistencia', 'area'], ['puntos', 'Millas y puntos', 'area'], ['costo', 'Costo y cómo bonificarlo', 'area'], ['vigencia', 'Vigencia o cambios anunciados', 'text'],
+  ['fuente_url', 'Dirección de la página (https://…)', 'text'], ['notas', 'Notas', 'area']
+];
+function benTarjEditar(id) {
+  if (!_admin) return;
+  var t = id ? (BEN.tarj || []).filter(function (x) { return x.id === id; })[0] : null;
+  if (id && !t) return;
+  t = t || { banco: 'galicia', tarjeta: '', paquete: '', orden: 0, confianza: 'oficial' };
+  var viejo = document.getElementById('ben-ed-ov'); if (viejo) viejo.remove();
+  var campos = BEN_CAMPOS.map(function (c) {
+    var v = t[c[0]] == null ? '' : t[c[0]];
+    var ctl = c[2] === 'area' ? '<textarea id="ben-f-' + c[0] + '" rows="2" style="width:100%">' + benE(v) + '</textarea>' :
+      '<input id="ben-f-' + c[0] + '" type="' + c[2] + '" value="' + benE(v) + '" style="width:100%">';
+    return '<label class="ben-f" style="grid-column:' + (c[2] === 'area' || c[0] === 'fuente_url' || c[0] === 'vigencia' ? '1 / -1' : 'auto') + '">' + c[1] + ctl + '</label>';
+  }).join('');
+  var ov = document.createElement('div');
+  ov.id = 'ben-ed-ov'; ov.className = 'ben-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+  ov.innerHTML = '<div class="ben-ed"><h3 style="margin:0 0 10px">' + (id ? 'Editar tarjeta' : 'Agregar tarjeta') + '</h3><div class="ben-ed-g">' +
+    '<label class="ben-f">Banco<select id="ben-f-banco">' + BEN_BANCOS.map(function (b) { return '<option value="' + b[0] + '"' + (t.banco === b[0] ? ' selected' : '') + '>' + b[1] + '</option>'; }).join('') + '</select></label>' +
+    '<label class="ben-f">De dónde sale<select id="ben-f-confianza"><option value="oficial"' + (t.confianza === 'oficial' ? ' selected' : '') + '>Página del banco</option><option value="nota"' + (t.confianza === 'nota' ? ' selected' : '') + '>Nota de prensa o blog</option><option value="sin_dato"' + (t.confianza === 'sin_dato' ? ' selected' : '') + '>Sin dato firme</option></select></label>' +
+    campos + '</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn" onclick="benTarjCerrar()">Cancelar</button><button class="btn" id="ben-ed-ok" onclick="benTarjGuardar(\'' + benE(id || '') + '\')">Guardar</button></div></div>';
+  ov.addEventListener('mousedown', function (e) { if (e.target === ov) benTarjCerrar(); });
+  document.body.appendChild(ov);
+  var p = document.getElementById('ben-f-tarjeta'); if (p) p.focus();
+}
+function benTarjCerrar() { var o = document.getElementById('ben-ed-ov'); if (o) o.remove(); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('ben-ed-ov')) benTarjCerrar(); });
+function benTarjGuardar(id) {
+  var g = function (k) { var el = document.getElementById('ben-f-' + k); return el ? el.value.trim() : ''; };
+  var o = { banco: g('banco'), confianza: g('confianza') };
+  BEN_CAMPOS.forEach(function (c) { o[c[0]] = g(c[0]); });
+  if (!o.tarjeta) { showToast('Falta el nombre de la tarjeta.'); return; }
+  if (o.fuente_url && !benUrlOk(o.fuente_url)) { showToast('La dirección de la página tiene que empezar con https://'); return; }
+  o.pases_anio = o.pases_anio === '' ? null : Math.max(0, Math.round(Number(o.pases_anio)));
+  if (o.pases_anio !== null && isNaN(o.pases_anio)) { showToast('Los pases tienen que ser un número.'); return; }
+  o.orden = Math.round(Number(o.orden)) || 0;
+  o.revisada = benHoyIso(); // al guardar queda como revisada hoy
+  var btn = document.getElementById('ben-ed-ok'); if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  var q = id ? _sb.from('promos_bench_tarjetas').update(o).eq('id', id) : _sb.from('promos_bench_tarjetas').insert(o);
+  q.then(function (r) {
+    if (r && r.error) { if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; } showToast('No se pudo guardar: ' + (r.error.message || 'error')); return; }
+    benTarjCerrar(); showToast('Guardado.'); benTarjCargar(benRender);
+  }, function () { if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; } showToast('No se pudo guardar. Revisá la conexión.'); });
+}
+function benTarjBorrar(id) {
+  if (!_admin) return;
+  var t = (BEN.tarj || []).filter(function (x) { return x.id === id; })[0]; if (!t) return;
+  fgConfirm('¿Quitar «' + t.tarjeta + '» de ' + (BEN_NOM[t.banco] || t.banco) + '?\nSe borra de la tabla. No se puede deshacer.', { ok: 'Quitar' }).then(function (ok) {
+    if (!ok) return;
+    _sb.from('promos_bench_tarjetas').delete().eq('id', id).then(function (r) {
+      if (r && r.error) { showToast('No se pudo quitar: ' + (r.error.message || 'error')); return; }
+      benTarjCargar(benRender);
+    }, function () { showToast('No se pudo quitar. Revisá la conexión.'); });
+  });
+}
+
+// ── Excel (para el que mira la solapa; sale con los filtros y las compras de referencia de la pantalla) ──
+function benDatosPorRubro() {
+  var lista = benFiltradas(), por = benAgrupar(lista, function (r) { return r.rubro; }), out = [];
+  Object.keys(por).sort().forEach(function (ru) {
+    var pb = benAgrupar(por[ru], function (r) { return r.banco; });
+    BEN_BANCOS.forEach(function (b) {
+      var l = pb[b[0]] || [], m = benMejor(l), c = benMasCuotas(l);
+      out.push({ rubro: ru, compra: benRefDe(ru), banco: b[1], promos: l.length, devuelve: m ? m.v : null, pct: m ? m.r.pct : null, marca: m ? m.r.titulo : '', tope: m && m.r.tope > 0 ? m.r.tope : null, dias: m ? m.r.dias : '', cuotas: c ? c.cuotas : null, marcaCuotas: c ? c.titulo : '' });
+    });
+  });
+  return out;
+}
+function benDatosPorMarca() {
+  var lista = benFiltradas().filter(function (r) { return r.marca_clave; }), por = benAgrupar(lista, function (r) { return r.marca_clave; }), out = [];
+  Object.keys(por).sort().forEach(function (k) {
+    var pb = benAgrupar(por[k], function (r) { return r.banco; }), mej = {}, max = 0, cuenta = 0;
+    BEN_BANCOS.forEach(function (b) { var m = benMejor(pb[b[0]] || []); mej[b[0]] = m; if (m) { cuenta++; if (m.v > max) max = m.v; } });
+    if (cuenta < 2) return; // sólo marcas que se pueden comparar
+    BEN_BANCOS.forEach(function (b) {
+      var m = mej[b[0]]; if (!m) return;
+      out.push({ marca: por[k][0].titulo, rubro: m.r.rubro, banco: b[1], devuelve: m.v, pct: m.r.pct, tope: m.r.tope > 0 ? m.r.tope : null, dias: m.r.dias, segmento: benSegTxt(m.r), gana: max > 0 && m.v >= max - 0.5 ? 'Sí' : '' });
+    });
+  });
+  return out;
+}
+function benDatosSemana() {
+  var por = benAgrupar(benFiltradas(), function (r) { return r.banco; }), out = [];
+  BEN_DIAS.forEach(function (dia, i) {
+    BEN_BANCOS.forEach(function (b) {
+      var m = benMejor((por[b[0]] || []).filter(function (r) { return !r.dias_n || !r.dias_n.length || r.dias_n.indexOf(i) >= 0; }));
+      out.push({ dia: dia, banco: b[1], devuelve: m ? m.v : null, pct: m ? m.r.pct : null, marca: m ? m.r.titulo : '', rubro: m ? m.r.rubro : '' });
+    });
+  });
+  return out;
+}
+function benExcel() {
+  var btn = document.getElementById('ben-xl');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+  function fin() { if (btn) { btn.disabled = false; btn.textContent = 'Descargar Excel'; } }
+  _lib(['exceljs']).then(function () {
+    var wb = new ExcelJS.Workbook(); wb.creator = 'Armador de flyers'; wb.created = new Date();
+    function hoja(nombre, cols, filas, fmt) {
+      var ws = wb.addWorksheet(nombre, { views: [{ state: 'frozen', ySplit: 1 }] });
+      ws.columns = cols.map(function (c) { return { header: c[1], key: c[0], width: c[2] || 16, style: c[3] ? { numFmt: c[3] } : {} }; });
+      filas.forEach(function (f) { ws.addRow(f); });
+      var h = ws.getRow(1); h.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      h.eachCell(function (cell) { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF14213D' } }; cell.alignment = { vertical: 'middle', wrapText: true }; });
+      if (filas.length) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+      return ws;
+    }
+    var P = '$#,##0', f = BEN.f, meta = {}; (BEN.meta || []).forEach(function (m) { meta[m.banco] = m; });
+    var info = [
+      ['Benchmark de promociones: Galicia contra la competencia'], ['Generado', new Date().toLocaleString('es-AR')], [],
+      ['Filtros de la pantalla'], ['Provincia', f.prov ? _provNombre(f.prov) : 'Todas las provincias'], ['Rubro', f.rubro || 'Todos'],
+      ['Tarjeta de la persona', { todos: 'Todas', clasico: 'Clásico / Gold', premium: 'Premium' }[f.seg] || f.seg], ['Tipo de tarjeta', f.tarj], [],
+      ['Compra de referencia (para calcular lo que devuelve)'], ['Supermercados', BEN.ref['Supermercados']], ['Combustible', BEN.ref['Combustible']], ['Farmacia / salud', BEN.ref['Salud y Bienestar']], ['Resto', BEN.ref['Otros']], [],
+      ['Fuentes y última actualización']
+    ];
+    BEN_BANCOS.forEach(function (b) {
+      var m = meta[b[0]], w = meta[b[0] + '_web'];
+      info.push([b[1], 'MODO' + (w ? ' + web propia' : '') + ' · ' + (m && m.last_sync_at ? new Date(m.last_sync_at).toLocaleDateString('es-AR') : 'sin datos')]);
+    });
+    info.push([], ['Cómo leerlo'], ['Lo que devuelve = el menor entre (compra de referencia × %) y el tope. Los topes de MODO suelen ser mensuales y se toman como no gastados.'],
+      ['Macro, Supervielle y Santander salen sólo de MODO; BBVA y Galicia suman su web propia. Revisá la promo en la web del banco antes de mostrársela a un cliente.']);
+    var ws0 = wb.addWorksheet('Resumen'); ws0.getColumn(1).width = 44; ws0.getColumn(2).width = 46;
+    info.forEach(function (r) { ws0.addRow(r); });
+    ws0.getRow(1).font = { bold: true, size: 14 };
+    [4, 10, 16, 20].forEach(function (n) { if (ws0.getRow(n)) ws0.getRow(n).font = { bold: true }; });
+    [11, 12, 13, 14].forEach(function (n) { ws0.getRow(n).getCell(2).numFmt = P; });
+    hoja('Por rubro', [['rubro', 'Rubro', 20], ['compra', 'Compra de referencia', 18, P], ['banco', 'Banco', 14], ['promos', 'Promos vigentes', 12], ['devuelve', 'Mejor: devuelve', 16, P], ['pct', '%', 8], ['marca', 'Marca', 26], ['tope', 'Tope', 14, P], ['dias', 'Días', 22], ['cuotas', 'Más cuotas sin interés', 14], ['marcaCuotas', 'Marca (cuotas)', 26]], benDatosPorRubro());
+    hoja('Por marca', [['marca', 'Marca', 28], ['rubro', 'Rubro', 20], ['banco', 'Banco', 14], ['devuelve', 'Devuelve', 14, P], ['pct', '%', 8], ['tope', 'Tope', 14, P], ['dias', 'Días', 22], ['segmento', 'Sólo para', 14], ['gana', 'Gana', 8]], benDatosPorMarca());
+    hoja('Semana', [['dia', 'Día', 12], ['banco', 'Banco', 14], ['devuelve', 'Devuelve', 14, P], ['pct', '%', 8], ['marca', 'Marca', 28], ['rubro', 'Rubro', 20]], benDatosSemana());
+    var conf = { oficial: 'Página del banco', nota: 'Nota de prensa o blog', sin_dato: 'Sin dato firme' };
+    hoja('Tarjetas y salas VIP', [['banco', 'Banco', 14], ['tarjeta', 'Tarjeta', 26], ['paquete', 'Paquete', 14], ['pases', 'Pases VIP por año (titular)', 14], ['salas', 'Salas VIP', 50], ['fast', 'Fast Pass', 34], ['acomp', 'Acompañantes y adicionales', 40], ['parking', 'Parking', 30], ['seguros', 'Seguros', 50], ['puntos', 'Millas y puntos', 36], ['costo', 'Costo', 44], ['vigencia', 'Vigencia', 30], ['fuente', 'Fuente', 40], ['conf', 'De dónde sale', 18], ['rev', 'Revisada', 12], ['notas', 'Notas', 40]],
+      benTarjOrdenadas().map(function (t) { return { banco: BEN_NOM[t.banco] || t.banco, tarjeta: t.tarjeta, paquete: t.paquete, pases: t.pases_anio, salas: t.salas_vip, fast: t.fast_pass, acomp: t.acompanantes, parking: t.parking, seguros: t.seguros, puntos: t.puntos, costo: t.costo, vigencia: t.vigencia, fuente: t.fuente_url, conf: conf[t.confianza] || '', rev: t.revisada || '', notas: t.notas }; }));
+    var segs = { premium: 'Premium', clasico: 'Clásico / Gold' };
+    hoja('Promos', [['banco', 'Banco', 14], ['fuente', 'Fuente', 12], ['marca', 'Marca', 28], ['rubro', 'Rubro', 20], ['beneficio', 'Beneficio', 36], ['pct', '%', 8], ['tope', 'Tope', 14, P], ['por', 'Tope por', 12], ['cuotas', 'Cuotas sin interés', 12], ['dias', 'Días', 22], ['tarjetas', 'Tarjetas', 22], ['segmento', 'Sólo para', 14], ['provincias', 'Dónde vale', 30], ['desde', 'Desde', 12], ['hasta', 'Hasta', 12]],
+      benFiltradas().map(function (r) {
+        var ps = benProvs(r);
+        return { banco: BEN_NOM[r.banco] || r.banco, fuente: r.fuente === 'modo' || !r.fuente ? 'MODO' : 'Web propia', marca: r.titulo, rubro: r.rubro, beneficio: r.beneficio || '', pct: r.pct, tope: r.tope > 0 ? r.tope : null,
+          por: { month: 'mes', week: 'semana', day: 'día', transaction: 'compra' }[r.tope_por] || '', cuotas: r.cuotas || null, dias: r.dias || '',
+          tarjetas: [r.credito ? 'Crédito' : '', r.debito ? 'Débito' : ''].filter(Boolean).join(' y '), segmento: segs[r.segmento] || '',
+          provincias: ps === null ? 'Sin dato' : ps.length ? ps.map(_promoTitulizar).join(', ') : 'Todo el país (online)', desde: r.fecha_desde || '', hasta: r.fecha_hasta || '' };
+      }));
+    return wb.xlsx.writeBuffer();
+  }).then(function (buf) {
+    var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Benchmark_' + benHoyIso() + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { try { URL.revokeObjectURL(a.href); } catch (e) { /* sin liberar */ } }, 4000);
+    fin(); showToast('Excel descargado.');
+  }).catch(function (e) {
+    console.error(e); fin(); showToast('No se pudo armar el Excel. Revisá la conexión e intentá de nuevo.');
+  });
 }
 
 // ── Actualizar ahora (sólo admin): un banco por vez y después las marcas ───
