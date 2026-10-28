@@ -67,6 +67,11 @@
     '.ben-pill{display:inline-block;font-size:.75rem;padding:1px 7px;border-radius:99px;margin:0 4px 4px 0;border:1px solid var(--border);color:var(--ink-2);cursor:pointer;background:var(--card);}',
     '.ben-pill.on{background:var(--navy,#1F2328);color:#fff;border-color:var(--navy,#1F2328);}',
     'html.dark .ben-pill.on{background:#EEF1F6;color:#15171A;}',
+    '.ben-lista{margin:6px 0 0;padding-left:18px;font-size:.85rem;color:var(--ink);line-height:1.65;}',
+    '.ben-lista li{margin-bottom:4px;}',
+    '.ben-up{color:#2E7D32;font-weight:700;}',
+    'html.dark .ben-up{color:#7BC47F;}',
+    '.ben-down{color:var(--danger,#B3261E);font-weight:700;}',
     '.ben-view{display:block;overflow:auto;height:calc(100vh - 62px - var(--simbar-h,0px));background:var(--paper,var(--light));}',
     '@media (max-width:900px){.ben-view{height:auto;overflow:visible;}.ben-root{padding:14px 14px 40px;}.ben-ref input{width:84px;}}',
   ].join('\n');
@@ -95,15 +100,29 @@ function benE(s) { return _escHtml(s == null ? '' : String(s)); }
 function benPlata(n) { return '$' + Math.round(n).toLocaleString('es-AR'); }
 function benFecha(iso) {
   if (!iso) return '';
+  var solo = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+  if (solo) return (+solo[3]) + '/' + (+solo[2]);
   var d = new Date(iso); if (isNaN(d)) return '';
   return d.getDate() + '/' + (d.getMonth() + 1);
 }
 function benHoyIso() { var d = new Date(Date.now() - 3 * 3600000); return d.toISOString().slice(0, 10); }
 function benRefDe(rubro) { var v = BEN.ref[rubro]; return v > 0 ? v : (BEN.ref['Otros'] > 0 ? BEN.ref['Otros'] : BEN_REF_DEF['Otros']); }
 
+// La misma promo vista por MODO y por la web propia del banco: se cuenta una vez y se queda la de la
+// web propia (trae el tope y las condiciones completas). Misma clave que claveDup de la función.
+function benClaveDup(r) { return [r.banco, r.marca_clave, r.pct == null ? '' : r.pct, r.cuotas || 0, (r.dias_n || []).join(''), r.credito ? 1 : 0, r.debito ? 1 : 0].join('|'); }
+function benDedup(rows) {
+  var m = {};
+  rows.forEach(function (r) {
+    var k = benClaveDup(r), p = m[k];
+    if (!p || ((p.fuente || 'modo') === 'modo' && (r.fuente || 'modo') !== 'modo')) m[k] = r;
+  });
+  return Object.keys(m).map(function (k) { return m[k]; });
+}
+
 // Lo que devuelve una promo en una compra de referencia (null = no devuelve plata: sólo cuotas).
 function benDevuelve(r) {
-  if (!(r.pct > 0)) return null;
+  if (!(r.pct > 0) || r.pct >= 100) return null;
   var compra = benRefDe(r.rubro), bruto = compra * r.pct / 100;
   return r.tope > 0 ? Math.min(bruto, r.tope) : bruto;
 }
@@ -130,7 +149,7 @@ function benCargar(cb) {
   }
   var filas = null;
   _sbTodo(function (a, b) { return _sb.from('promos_bench_cache').select('*').order('id').range(a, b); }, function (err, d) {
-    if (err) fallo = 'No se pudieron leer las promos del Benchmark. ¿Está aplicada la migración 039?'; else BEN.rows = d || [];
+    if (err) fallo = 'No se pudieron leer las promos del Benchmark. ¿Está aplicada la migración 039?'; else BEN.rows = benDedup(d || []);
     fin();
   });
   _sbTodo(function (a, b) { return _sb.from('promos_bench_marcas').select('*').order('marca_clave').range(a, b); }, function (err, d) {
@@ -212,7 +231,7 @@ function benInit() {
 function benRoot() { return document.getElementById('ben-root'); }
 function benRender() {
   var root = benRoot(); if (!root) return;
-  var h = '<div class="ben-top"><div><h2>Benchmark</h2><p>Galicia contra la competencia, a nivel persona. Todos los bancos salen de la misma fuente (MODO), así se comparan manzanas con manzanas; lo que un banco publica sólo en su propia web todavía no está.</p></div>' +
+  var h = '<div class="ben-top"><div><h2>Benchmark</h2><p>Galicia contra la competencia, a nivel persona. Todos los bancos salen de MODO; además se leen la web propia de BBVA y el catálogo propio de Galicia (la misma promo no se cuenta dos veces). Macro, Supervielle y Santander salen sólo de MODO.</p></div>' +
     '<div class="ben-acts">' + (_admin ? '<button class="btn" id="ben-act" onclick="benActualizar()">Actualizar ahora</button>' : '') + '</div></div>';
   h += benFuentesHtml();
   if (BEN.cargando && BEN.rows === null) { root.innerHTML = h + '<div class="ben-vacio"><strong>Cargando…</strong>Trayendo las promos de cada banco.</div>'; return; }
@@ -223,21 +242,25 @@ function benRender() {
   }
   h += benFiltrosHtml();
   h += benNotaLugares();
-  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana']];
+  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana'], ['versus', 'Galicia vs ' + BEN_NOM[BEN.vs]], ['evolucion', 'Evolución']];
   h += '<div class="ben-tabs" role="tablist">' + tabs.map(function (t) {
     return '<button class="ben-tab' + (BEN.vista === t[0] ? ' on' : '') + '" role="tab" aria-selected="' + (BEN.vista === t[0]) + '" onclick="benVista(\'' + t[0] + '\')">' + t[1] + '</button>';
   }).join('') + '</div>';
-  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : benRubroHtml();
+  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : BEN.vista === 'versus' ? benVersusHtml() : BEN.vista === 'evolucion' ? benEvolucionHtml() : benRubroHtml();
   root.innerHTML = h + body;
   var sel = document.getElementById('ben-prov'); if (sel && typeof _provSel === 'function') _provSel(sel);
 }
 function benFuentesHtml() {
   var meta = {}; (BEN.meta || []).forEach(function (m) { meta[m.banco] = m; });
   var hoy = Date.now();
+  var WEB = { bbva: 'bbva_web', galicia: 'galicia_web' }; // además de MODO, BBVA y Galicia se leen de su web propia
   return '<div class="ben-fuentes">' + BEN_BANCOS.map(function (b) {
-    var m = meta[b[0]], fecha = m && m.last_sync_at ? benFecha(m.last_sync_at) : 'sin datos';
-    var vieja = !m || !m.last_sync_at || hoy - new Date(m.last_sync_at).getTime() > 10 * 86400000;
-    return '<span class="ben-chip' + (vieja ? ' vieja' : '') + '" title="' + benE(m && m.error ? 'Último error: ' + m.error : 'Vía MODO') + '"><b>' + b[1] + '</b> · vía MODO · act. ' + fecha + (m && m.error ? ' ⚠' : '') + '</span>';
+    var m = meta[b[0]], w = WEB[b[0]] ? meta[WEB[b[0]]] : null;
+    var fechas = [m, w].filter(function (x) { return x && x.last_sync_at; }).map(function (x) { return x.last_sync_at; }).sort();
+    var fecha = fechas.length ? benFecha(fechas[0]) : 'sin datos', err = [m, w].filter(function (x) { return x && x.error; }).map(function (x) { return x.error; })[0];
+    var vieja = !m || !m.last_sync_at || hoy - new Date(fechas[0]).getTime() > 10 * 86400000;
+    var fuente = w && w.last_sync_at ? 'MODO + web propia' : 'vía MODO';
+    return '<span class="ben-chip' + (vieja ? ' vieja' : '') + '" title="' + benE(err ? 'Último error: ' + err : fuente) + '"><b>' + b[1] + '</b> · ' + fuente + ' · act. ' + fecha + (err ? ' ⚠' : '') + '</span>';
   }).join('') + '</div>';
 }
 function benFiltrosHtml() {
@@ -290,6 +313,12 @@ function benLogo(clave) {
   return m && m.imagen ? '<img class="ben-logo" loading="lazy" alt="" src="' + benE(typeof _promoLogoSrc === 'function' ? _promoLogoSrc(m.imagen) : FLYERS_PUBLIC + m.imagen) + '">' : '';
 }
 
+// La web de BBVA no informa el rubro de sus promos: las de marcas que MODO o Galicia ya conocen lo heredan; el resto queda en «Otros».
+function benNotaOtros() {
+  var n = (BEN.rows || []).filter(function (r) { return r.banco === 'bbva' && r.fuente === 'bbva' && r.rubro === 'Otros'; }).length;
+  return n > 50 ? 'La web de BBVA no informa el rubro de sus promos: ' + n + ' quedan en «Otros» (las marcas que ya estaban en MODO o en Galicia sí lo tienen). «Cara a cara por marca» y «Semana» las comparan igual.' : '';
+}
+
 // ── Vista 1: resumen por rubro ──────────────────────────────────────────────
 function benRubroHtml() {
   var lista = benFiltradas();
@@ -322,7 +351,7 @@ function benRubroHtml() {
     var n = lista.filter(function (r) { return r.banco === b[0]; }).length;
     return '<div class="ben-bar' + (b[0] === 'galicia' ? ' gal' : '') + '"><span style="width:92px">' + b[1] + '</span><i style="width:' + Math.max(2, Math.round(n / max * 260)) + 'px"></i> ' + n + '</div>';
   }).join('');
-  return '<div class="ben-card"><div class="ben-resumen">' + resumen + '</div><p class="ben-aviso">Gana el que más devuelve en la compra de referencia (verde). Ojo: la fuente es MODO para todos; los bancos con más promos propias fuera de MODO pueden tener más de lo que se ve acá.</p></div>' +
+  return '<div class="ben-card"><div class="ben-resumen">' + resumen + '</div><p class="ben-aviso">Gana el que más devuelve en la compra de referencia (verde). Ojo: Macro, Supervielle y Santander salen sólo de MODO y pueden tener más promos propias que no se ven acá. ' + benNotaOtros() + '</p></div>' +
     '<div class="ben-card"><h3>Promos vigentes por banco</h3>' + barras + '</div>' +
     '<div class="ben-card ben-scroll"><table class="ben-t"><thead><tr><th>Rubro</th>' + BEN_BANCOS.map(function (b) { return '<th class="' + (b[0] === 'galicia' ? 'gal' : '') + '">' + b[1] + '</th>'; }).join('') + '</tr></thead><tbody>' + filas + '</tbody></table></div>';
 }
@@ -401,6 +430,98 @@ function benSemanaHtml() {
     '<div class="ben-card ben-scroll"><table class="ben-t"><thead>' + hdr + '</thead><tbody>' + cuerpo + '</tbody></table></div>';
 }
 
+
+// ── Vista 4: Galicia contra un banco, en palabras ───────────────────────────
+function benLinea(m) {
+  var r = m.r;
+  return benPlata(m.v) + ' (' + r.pct + ' %' + (r.tope > 0 ? ', ' + benTopeTxt(r) : ', sin tope informado') + (r.dias && r.dias !== 'Todos los días' ? ', ' + benE(r.dias.toLowerCase()) : '') + ')';
+}
+function benVersusHtml() {
+  var lista = benFiltradas();
+  if (!lista.length) return '<div class="ben-vacio"><strong>Sin promos con estos filtros</strong></div>';
+  var vs = BEN.vs, NV = BEN_NOM[vs];
+  var G = lista.filter(function (r) { return r.banco === 'galicia'; }), V = lista.filter(function (r) { return r.banco === vs; });
+  var rub = benAgrupar(lista, function (r) { return r.rubro; }), rubros = [];
+  Object.keys(rub).forEach(function (ru) {
+    var g = rub[ru].filter(function (r) { return r.banco === 'galicia'; }), v = rub[ru].filter(function (r) { return r.banco === vs; });
+    rubros.push({ ru: ru, mg: benMejor(g), mv: benMejor(v), cg: benMasCuotas(g), cv: benMasCuotas(v), ng: g.length, nv: v.length });
+  });
+  var mar = benAgrupar(lista.filter(function (r) { return r.marca_clave; }), function (r) { return r.marca_clave; }), marcas = [];
+  Object.keys(mar).forEach(function (k) {
+    var g = benMejor(mar[k].filter(function (r) { return r.banco === 'galicia'; })), v = benMejor(mar[k].filter(function (r) { return r.banco === vs; }));
+    if (g && v) marcas.push({ nombre: mar[k][0].titulo, g: g, v: v, dif: g.v - v.v });
+  });
+  var gana = marcas.filter(function (x) { return x.dif >= 1; }).sort(function (a, b) { return b.dif - a.dif; });
+  var pierde = marcas.filter(function (x) { return x.dif <= -1; }).sort(function (a, b) { return a.dif - b.dif; });
+  var empata = marcas.length - gana.length - pierde.length;
+  var rubG = rubros.filter(function (x) { return x.mg && x.mv && x.mg.v - x.mv.v >= 1; }), rubV = rubros.filter(function (x) { return x.mg && x.mv && x.mv.v - x.mg.v >= 1; });
+  var h = '<div class="ben-card"><h3>Galicia vs ' + NV + '</h3><div class="ben-resumen">Con los filtros de arriba, Galicia tiene <b>' + G.length + '</b> promos y ' + NV + ' <b>' + V.length + '</b>. ' +
+    (marcas.length ? 'En las <b>' + marcas.length + '</b> marcas que tienen las dos, Galicia devuelve más en <b>' + gana.length + '</b>, ' + NV + ' en <b>' + pierde.length + '</b>' + (empata ? ' y empatan en ' + empata : '') + '. ' : 'No hay marcas con promo de los dos bancos a la vez. ') +
+    (rubG.length + rubV.length ? 'Por rubro, Galicia gana en <b>' + rubG.length + '</b> y ' + NV + ' en <b>' + rubV.length + '</b>.' : '') + '</div></div>';
+  function item(x) {
+    return '<li><b>' + benE(x.nombre) + '</b>: Galicia devuelve ' + benLinea(x.g) + ' contra ' + benLinea(x.v) + ' de ' + NV + '.</li>';
+  }
+  h += '<div class="ben-card"><h3>Dónde somos fuertes</h3>' + (gana.length ? '<ul class="ben-lista">' + gana.slice(0, 6).map(item).join('') + '</ul>' + (gana.length > 6 ? '<p class="ben-sub">Y ' + (gana.length - 6) + ' marcas más. Están todas en «Cara a cara por marca».</p>' : '') : '<p class="ben-sub">Con estos filtros no hay una marca donde Galicia devuelva más.</p>') + '</div>';
+  h += '<div class="ben-card"><h3>Dónde nos ganan</h3>' + (pierde.length ? '<ul class="ben-lista">' + pierde.slice(0, 6).map(item).join('') + '</ul>' + (pierde.length > 6 ? '<p class="ben-sub">Y ' + (pierde.length - 6) + ' marcas más.</p>' : '') : '<p class="ben-sub">Con estos filtros no hay una marca donde ' + NV + ' devuelva más.</p>') + '</div>';
+  var porRubro = rubros.filter(function (x) { return x.mg || x.mv; }).map(function (x) {
+    var c = benPlata(benRefDe(x.ru));
+    if (x.mg && x.mv) return '<li><b>' + benE(x.ru) + '</b> (compra de ' + c + '): ' + (Math.abs(x.mg.v - x.mv.v) < 1 ? 'empatan' : x.mg.v > x.mv.v ? '<span class="ben-up">gana Galicia</span>' : '<span class="ben-down">gana ' + NV + '</span>') + ' · Galicia ' + benPlata(x.mg.v) + ' (' + benE(x.mg.r.titulo) + ') contra ' + NV + ' ' + benPlata(x.mv.v) + ' (' + benE(x.mv.r.titulo) + ').</li>';
+    return '<li><b>' + benE(x.ru) + '</b>: sólo ' + (x.mg ? 'Galicia' : NV) + ' tiene promos con reintegro en este rubro (' + benPlata((x.mg || x.mv).v) + ' en una compra de ' + c + ').</li>';
+  });
+  h += '<div class="ben-card"><h3>Rubro por rubro</h3>' + (porRubro.length ? '<ul class="ben-lista">' + porRubro.join('') + '</ul>' : '<p class="ben-sub">Sin rubros con reintegro.</p>') + '</div>';
+  var cuotas = rubros.filter(function (x) { return x.cg || x.cv; }).map(function (x) {
+    var g = x.cg ? x.cg.cuotas + ' cuotas (' + benE(x.cg.titulo) + ')' : 'ninguna', v = x.cv ? x.cv.cuotas + ' cuotas (' + benE(x.cv.titulo) + ')' : 'ninguna';
+    var q = (x.cg ? x.cg.cuotas : 0) - (x.cv ? x.cv.cuotas : 0);
+    return '<li><b>' + benE(x.ru) + '</b>: Galicia ' + g + ', ' + NV + ' ' + v + (q > 0 ? ' · <span class="ben-up">más cuotas Galicia</span>' : q < 0 ? ' · <span class="ben-down">más cuotas ' + NV + '</span>' : '') + '</li>';
+  });
+  h += '<div class="ben-card"><h3>Cuotas sin interés</h3>' + (cuotas.length ? '<ul class="ben-lista">' + cuotas.join('') + '</ul>' : '<p class="ben-sub">Sin promos de cuotas con estos filtros.</p>') + '</div>';
+  h += '<p class="ben-aviso">Es un borrador armado con los datos de hoy y la compra de referencia de arriba: sirve para preparar la charla, no para repetirlo tal cual. Los topes de MODO suelen ser mensuales y no se consideran gastados. Antes de mostrarle algo a un cliente, conviene revisar la promo en la web del banco. ' + benNotaOtros() + '</p>';
+  return h;
+}
+
+// ── Vista 5: evolución semana a semana ──────────────────────────────────────
+function benEvolucionHtml() {
+  var hist = (BEN.hist || []).filter(function (x) { return !BEN.f.rubro || x.rubro === BEN.f.rubro; });
+  var sem = {};
+  hist.forEach(function (x) { sem[x.semana] = 1; });
+  var semanas = Object.keys(sem).sort().slice(-8); // las últimas 8, de la más vieja a la más nueva
+  if (!semanas.length) return '<div class="ben-vacio"><strong>Todavía no hay historial</strong>Se guarda una foto por semana (cuántas promos y el mejor % de cada banco y rubro). Se empieza a ver desde la segunda semana.</div>';
+  var tot = {}; // banco|semana -> {n, max}
+  hist.forEach(function (x) {
+    var k = x.banco + '|' + x.semana, t = tot[k] || (tot[k] = { n: 0, max: null });
+    t.n += x.promos || 0;
+    if (x.mejor_pct != null && (t.max == null || Number(x.mejor_pct) > t.max)) t.max = Number(x.mejor_pct);
+  });
+  var cab = '<tr><th>Banco</th>' + semanas.map(function (w) { return '<th>Semana del ' + benFecha(w) + '</th>'; }).join('') + '</tr>';
+  var cuerpo = BEN_BANCOS.map(function (b) {
+    return '<tr><td class="' + (b[0] === 'galicia' ? 'gal' : '') + '"><strong>' + b[1] + '</strong></td>' + semanas.map(function (w, i) {
+      var t = tot[b[0] + '|' + w], ant = i ? tot[b[0] + '|' + semanas[i - 1]] : null;
+      if (!t) return '<td class="ben-seg">—</td>';
+      var d = ant ? t.n - ant.n : 0;
+      return '<td><div class="ben-c"><span class="m">' + t.n + ' promos' + (d ? ' <span class="' + (d > 0 ? 'ben-up' : 'ben-down') + '">' + (d > 0 ? '+' : '') + d + '</span>' : '') + '</span>' + (t.max != null ? '<span class="d">mejor ' + t.max + ' %</span>' : '') + '</div></td>';
+    }).join('') + '</tr>';
+  }).join('');
+  var h = '<div class="ben-card"><h3>Cuántas promos tiene cada banco, semana a semana</h3><p class="ben-sub">' + (BEN.f.rubro ? 'Sólo ' + benE(BEN.f.rubro) + '. ' : 'Todos los rubros. ') + 'El número chico de color es el cambio contra la semana anterior.</p></div>';
+  if (semanas.length < 2) h += '<div class="ben-card"><div class="ben-resumen">Hay una sola semana guardada (' + benFecha(semanas[0]) + '). Los cambios se ven desde la segunda.</div></div>';
+  else {
+    var a = semanas[semanas.length - 1], b = semanas[semanas.length - 2], cam = [];
+    var por = {};
+    (BEN.hist || []).forEach(function (x) { if (x.semana === a || x.semana === b) por[x.banco + '|' + x.rubro + '|' + x.semana] = x; });
+    var vistos = {};
+    (BEN.hist || []).forEach(function (x) {
+      var k = x.banco + '|' + x.rubro; if (vistos[k]) return; vistos[k] = 1;
+      var n1 = por[k + '|' + a], n0 = por[k + '|' + b];
+      var d = (n1 ? n1.promos : 0) - (n0 ? n0.promos : 0);
+      if (d) cam.push({ banco: x.banco, rubro: x.rubro, d: d });
+    });
+    cam.sort(function (p, q) { return Math.abs(q.d) - Math.abs(p.d); });
+    h += '<div class="ben-card"><h3>Qué cambió esta semana</h3>' + (cam.length ? '<ul class="ben-lista">' + cam.slice(0, 10).map(function (c) {
+      return '<li><b>' + BEN_NOM[c.banco] + '</b> ' + (c.d > 0 ? '<span class="ben-up">sumó ' + c.d + '</span>' : '<span class="ben-down">perdió ' + (-c.d) + '</span>') + ' promos de ' + benE(c.rubro) + '.</li>';
+    }).join('') + '</ul>' : '<p class="ben-sub">Sin cambios en la cantidad de promos.</p>') + '</div>';
+  }
+  return h + '<div class="ben-card ben-scroll"><table class="ben-t"><thead>' + cab + '</thead><tbody>' + cuerpo + '</tbody></table></div>';
+}
+
 // ── Actualizar ahora (sólo admin): un banco por vez y después las marcas ───
 function benActualizar() {
   var btn = document.getElementById('ben-act');
@@ -419,8 +540,23 @@ function benActualizar() {
       if (pend > 0 && vez < 40) { if (btn) btn.textContent = 'Lugares y logos (faltan ' + pend + ')…'; marcas(vez + 1); } else listo();
     });
   }
+  function galicia(vez) {
+    if (btn) btn.textContent = 'Galicia (detalle de cada promo)…';
+    _callEdgeFn(FN_URL_BENCH, 'galicia', { presupuestoMs: 18000 }, function (err, d) {
+      if (err) { errores.push('Galicia propio: ' + err); marcas(0); return; }
+      var pend = d && d.data ? d.data.pendientes : 0;
+      if (pend > 0 && vez < 40) { if (btn) btn.textContent = 'Galicia (faltan ' + pend + ')…'; galicia(vez + 1); } else marcas(0);
+    });
+  }
+  function bbva() {
+    if (btn) btn.textContent = 'Actualizando la web de BBVA…';
+    _callEdgeFn(FN_URL_BENCH, 'bbva', {}, function (err) {
+      if (err) errores.push('BBVA propio: ' + err);
+      galicia(0);
+    });
+  }
   function siguiente() {
-    if (i >= BEN_BANCOS.length) { marcas(0); return; }
+    if (i >= BEN_BANCOS.length) { bbva(); return; }
     var b = BEN_BANCOS[i++];
     if (btn) btn.textContent = 'Actualizando ' + b[1] + '…';
     _callEdgeFn(FN_URL_BENCH, 'sync', { banco: b[0] }, function (err, d) {

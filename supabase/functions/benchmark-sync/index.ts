@@ -291,7 +291,7 @@ async function syncBanco(banco: string): Promise<{ total: number }> {
     throw new Error(`${rotas} de ${vigentes.length} promos vinieron sin nombre o sin fecha: MODO cambió el formato, no se reemplaza`);
   }
   const { count: guardadas, error: eCount } = await admin.from("promos_bench_cache").select("id", { count: "exact", head: true })
-    .eq("banco", banco).or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
+    .eq("banco", banco).eq("fuente", "modo").or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
   if (eCount) throw new Error("No se pudo contar la copia guardada: " + eCount.message);
   if (guardadas && vigentes.length < guardadas * MINIMO_RELATIVO) {
     throw new Error(`MODO devolvió sólo ${vigentes.length} promos vigentes y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
@@ -303,7 +303,7 @@ async function syncBanco(banco: string): Promise<{ total: number }> {
     const { error } = await admin.from("promos_bench_cache").upsert(filas.slice(i, i + 500), { onConflict: "id" });
     if (error) throw new Error("Guardando: " + error.message);
   }
-  const { error: del } = await admin.from("promos_bench_cache").delete().eq("banco", banco).lt("updated_at", ahora);
+  const { error: del } = await admin.from("promos_bench_cache").delete().eq("banco", banco).eq("fuente", "modo").lt("updated_at", ahora);
   if (del) throw new Error("Limpiando: " + del.message);
   return { total: filas.length };
 }
@@ -412,7 +412,7 @@ async function syncMarcas(presupuestoMs: number): Promise<{ hechas: number; pend
     if (!f.marca_clave || hechas.has(f.marca_clave) || Array.isArray(f.provincias)) continue;
     const r = reps.get(f.marca_clave) || { titulo: f.titulo, ids: [] };
     const id = String(f.id).split(":").slice(1).join(":");
-    if (r.ids.length < PROMOS_POR_MARCA && !r.ids.includes(id)) r.ids.push(id);
+    if (r.ids.length < PROMOS_POR_MARCA && !r.ids.includes(id) && id.includes("-")) r.ids.push(id);
     reps.set(f.marca_clave, r);
   }
   const cola = [...reps.entries()];
@@ -489,14 +489,19 @@ async function syncMarcas(presupuestoMs: number): Promise<{ hechas: number; pend
 async function guardarHistorial(): Promise<void> {
   const filas: any[] = [];
   for (let d = 0; ; d += 1000) {
-    const { data, error } = await admin.from("promos_bench_cache").select("banco,rubro,pct,proximamente").order("id").range(d, d + 999);
+    const { data, error } = await admin.from("promos_bench_cache").select("banco,rubro,pct,proximamente,marca_clave,cuotas,dias_n,credito,debito,fuente").order("id").range(d, d + 999);
     if (error) throw new Error(error.message);
     filas.push(...(data || []));
     if (!data || data.length < 1000) break;
   }
   const g = new Map<string, { banco: string; rubro: string; promos: number; mejor: number | null }>();
+  const vistas = new Set<string>();
+  filas.sort((a, b) => (a.fuente === "modo" ? 1 : 0) - (b.fuente === "modo" ? 1 : 0)); // la web propia primero
   for (const f of filas) {
     if (f.proximamente) continue;
+    const kd = claveDup(f);
+    if (vistas.has(kd)) continue;
+    vistas.add(kd);
     const k = f.banco + "|" + f.rubro;
     const x = g.get(k) || { banco: f.banco, rubro: f.rubro, promos: 0, mejor: null };
     x.promos++;
@@ -508,6 +513,235 @@ async function guardarHistorial(): Promise<void> {
   const semana = new Date(a.getTime() - ((a.getUTCDay() + 6) % 7) * 86400000).toISOString().slice(0, 10);
   const rows = [...g.values()].map((x) => ({ semana, banco: x.banco, rubro: x.rubro, promos: x.promos, mejor_pct: x.mejor }));
   if (rows.length) await admin.from("promos_bench_hist").upsert(rows, { onConflict: "semana,banco,rubro" });
+}
+
+// ── Webs propias: BBVA (lista abierta) y Galicia (detalle de cada promo) ────
+// MODO no tiene todo: BBVA publica ~1.000 promos en su propia web contra ~200 en
+// MODO, y el catálogo de Galicia (que ya baja Promociones) tiene ~1.700 vigentes
+// contra ~150 que MODO le atribuye. Estas filas llevan fuente 'bbva' / 'galicia'
+// (las de MODO, 'modo'); el cliente junta las que son la misma promo y se queda
+// con la de la web propia. Supervielle y Santander se probaron: su web propia
+// tiene menos que MODO (101 promos) o bloquea, así que siguen sólo por MODO.
+const RUBRO_PALABRAS: [RegExp, string][] = [
+  [/^(supermercados?|hiper|mayorista)/i, "Supermercados"], [/^gastronom/i, "Gastronomía"],
+  [/^(farmacia|perfumer|salud)/i, "Salud y Bienestar"], [/^(combustible|estaci)/i, "Combustible"],
+  [/^(indumentaria|moda)/i, "Indumentaria"], [/^(turismo|viajes)/i, "Entretenimiento"],
+  [/^hogar/i, "Hogar"], [/^(electro|tecnolog)/i, "Electrónica"],
+];
+// Los rubros de Galicia son más finos que los de MODO: se llevan a la lista de MODO
+// para que las dos fuentes se comparen en los mismos rubros.
+const RUBRO_GALICIA: Record<string, string> = {
+  "Bares": "Gastronomía", "Confitería": "Gastronomía", "Gastronomía": "Gastronomía", "Librerías": "Juguetes", "Juguetes": "Juguetes",
+  "Peluquerías": "Salud y Bienestar", "Salud y Bienestar": "Salud y Bienestar", "Viajes": "Entretenimiento", "Entretenimiento": "Entretenimiento",
+  "Supermercados": "Supermercados", "Combustible": "Combustible", "Indumentaria": "Indumentaria", "Hogar": "Hogar",
+  "Electrónica": "Electrónica", "Mascotas": "Mascotas", "Vehículos": "Vehículos",
+};
+export function rubroDeGalicia(r: unknown): string { return RUBRO_GALICIA[String(r || "")] || "Otros"; }
+// "Supermercados Vea QR Modo 20%" -> "Supermercados Vea"; "Lazaro 20% y 6 cuotas" -> "Lazaro"
+export function marcaDeCabecera(c: unknown): string {
+  return String(c || "").replace(/\s+/g, " ")
+    .replace(/\s*\b(qr|nfc)\b.*$/i, "").replace(/\s+modo\b.*$/i, "")
+    .replace(/\s*\d+(?:[.,]\d+)?\s*%.*$/, "").replace(/\s*(hasta\s*)?\d+\s*cuotas.*$/i, "").trim();
+}
+// BBVA: lunes primero ("0,1,0,0,0,0,0" = sólo martes; verificado contra las que también están en MODO)
+export function diasBbva(d: unknown): number[] {
+  const v = String(d ?? "").split(",").map((x) => x.trim());
+  if (v.length !== 7) return [];
+  const idx = v.map((x, i) => (x === "1" ? i : -1)).filter((i) => i >= 0);
+  return idx.length === 7 ? [] : idx;
+}
+export function normalizarBbva(x: any, rubroDe: (clave: string) => string | undefined, hoy: string, ahora: string): Record<string, unknown> | null {
+  const id = String(x?.id || ""), cab = String(x?.cabecera || "").replace(/\s+/g, " ").trim();
+  const marca = marcaDeCabecera(cab);
+  if (!id || !marca) return null;
+  const mp = cab.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/);
+  const mc = cab.match(/(\d{1,2})\s*cuotas/i);
+  const tope = Number(x?.montoTope || 0);
+  const grupo = String(x?.grupoTarjeta || "");
+  const dn = diasBbva(x?.diasPromo);
+  const clave = modoClave(marca);
+  const desde = isoFecha(x?.fechaDesde), hasta = isoFecha(x?.fechaHasta);
+  const porPalabra = RUBRO_PALABRAS.find(([re]) => re.test(marca));
+  return {
+    id: "bbva:b" + id, banco: "bbva", fuente: "bbva",
+    titulo: marca, marca_clave: clave,
+    rubro: rubroDe(clave) || (porPalabra ? porPalabra[1] : "Otros"),
+    slug: "", beneficio: cab,
+    pct: mp ? Number(mp[1].replace(",", ".")) : null,
+    tope: tope > 0 ? tope : null, tope_por: null,
+    cuotas: mc ? Number(mc[1]) : 0,
+    dias: diasTexto(dn), dias_n: dn,
+    credito: /cr[eé]dito/i.test(grupo) || !/d[eé]bito/i.test(grupo), debito: /d[eé]bito/i.test(grupo),
+    emisores: [], canales: [], segmento: null, segmento_txt: grupo || null,
+    provincias: null, fecha_desde: desde, fecha_hasta: hasta,
+    proximamente: (desde || "") > hoy, updated_at: ahora, detalle_at: ahora,
+  };
+}
+// Galicia: el tope, las tarjetas y el segmento están en el texto legal del detalle
+export function parsearLegalesGalicia(legales: unknown): { tope: number | null; por: string | null; credito: boolean; debito: boolean; emisores: string[]; segmento: string | null } {
+  const t = String(legales || "").replace(/\s+/g, " ");
+  const mt = t.match(/tope[^$.]{0,60}\$\s*([\d.]+)(?:,\d+)?\s*([^.]{0,50})/i);
+  const tope = mt ? Number(mt[1].replace(/\./g, "")) : 0;
+  const cola = (mt ? mt[2] : "").toLowerCase();
+  const por = !mt ? null : /por mes|mensual/.test(cola) ? "month" : /por semana|semanal/.test(cola) ? "week" : /por d[ií]a|diario/.test(cola) ? "day" : /por (compra|operaci|transacci)/.test(cola) ? "transaction" : null;
+  const mtar = t.match(/para compras realizadas con ([^.]{0,320})/i);
+  const tar = mtar ? mtar[1] : t.slice(0, 700);
+  const debito = /d[eé]bito/i.test(tar);
+  const credito = /(visa|master|american express|amex)/i.test(tar.replace(/tarjeta\s+(galicia\s+)?d[eé]bito/gi, "").replace(/visa\s+d[eé]bito/gi, ""));
+  const emisores: string[] = [];
+  if (/visa/i.test(tar)) emisores.push("visa");
+  if (/master/i.test(tar)) emisores.push("master");
+  if (/american express|amex/i.test(tar)) emisores.push("american_express");
+  const prem = /(clientes?|tarjetas?|paquetes?)[^.]{0,40}([eé]minent|black|platinum|signature|infinite)/i.test(t.slice(0, 900));
+  return { tope: tope > 0 ? tope : null, por, credito: credito || !debito, debito, emisores, segmento: prem ? "premium" : null };
+}
+const DIAS_GALICIA = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
+export function normalizarGalicia(p: any, det: any, hoy: string, ahora: string): Record<string, unknown> | null {
+  const titulo = String(p?.titulo || "").replace(/\s+/g, " ").trim();
+  if (!p?.id || !titulo) return null;
+  const ben = String(p?.beneficio || "");
+  const mp = ben.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/);
+  const mc = ben.match(/(\d{1,2})\s*cuotas/i);
+  const cuotas = Math.max(Number(det?.cuotaSinInteresHasta || 0), mc ? Number(mc[1]) : 0);
+  const cod = String(det?.diasAplicacion || "").split(";").map((s) => s.trim());
+  const dn = cod.map((s) => DIAS_GALICIA.indexOf(s)).filter((i) => i >= 0).sort((a, b) => a - b);
+  const dias = dn.length === 7 || !dn.length ? [] : dn;
+  const L = parsearLegalesGalicia(det?.legales);
+  return {
+    id: "galicia:g" + p.id, banco: "galicia", fuente: "galicia",
+    titulo, marca_clave: modoClave(titulo), rubro: rubroDeGalicia(p.subtitulo),
+    slug: "", beneficio: ben || null,
+    pct: mp ? Number(mp[1].replace(",", ".")) : null,
+    tope: L.tope, tope_por: L.por, cuotas,
+    dias: p.dias || diasTexto(dias), dias_n: dias,
+    credito: L.credito, debito: L.debito, emisores: L.emisores, canales: [],
+    segmento: L.segmento, segmento_txt: null,
+    provincias: Array.isArray(p.provincias) ? p.provincias : null,
+    fecha_desde: p.fecha_desde || null, fecha_hasta: p.fecha_hasta || null,
+    proximamente: !!p.proximamente, updated_at: ahora, detalle_at: ahora,
+  };
+}
+// Misma promo vista por dos fuentes: se queda la de la web propia (ver el cliente: benDedup).
+export function claveDup(r: any): string {
+  return [r.banco, r.marca_clave, r.pct ?? "", r.cuotas || 0, (r.dias_n || []).join(""), r.credito ? 1 : 0, r.debito ? 1 : 0].join("|");
+}
+
+async function rubroPorMarca(): Promise<Map<string, string>> {
+  const m = new Map<string, string>();
+  for (let d = 0; ; d += 1000) {
+    const { data, error } = await admin.from("promos_bench_cache").select("marca_clave,rubro").eq("fuente", "modo").order("id").range(d, d + 999);
+    if (error) throw new Error(error.message);
+    for (const r of data || []) if (r.marca_clave && r.rubro && r.rubro !== "Otros" && !m.has(r.marca_clave)) m.set(r.marca_clave, r.rubro);
+    if (!data || data.length < 1000) break;
+  }
+  for (let d = 0; ; d += 1000) {
+    const { data, error } = await admin.from("promos_galicia_cache").select("titulo,subtitulo").order("id").range(d, d + 999);
+    if (error) break;
+    for (const g of data || []) { const k = modoClave(g.titulo), r = rubroDeGalicia(g.subtitulo); if (k && r !== "Otros" && !m.has(k)) m.set(k, r); }
+    if (!data || data.length < 1000) break;
+  }
+  return m;
+}
+
+async function syncBbva(): Promise<{ total: number }> {
+  const todas: any[] = [];
+  let paginas = 1;
+  for (let p = 0; p < paginas && p < 120; p++) {
+    const r = await fetch("https://go.bbva.com.ar/willgo/fgo/API/v3/communications?pager=" + p, { headers: MODO_HEADERS });
+    if (!r.ok) throw new Error("BBVA respondió " + r.status);
+    const d = await r.json();
+    if (!Array.isArray(d?.data)) throw new Error("BBVA cambió el formato del listado");
+    if (p === 0) {
+      paginas = Number((/paginas:\s*(\d+)/.exec(String(d?.message || "")) || [0, 1])[1]);
+      if (paginas > 120) throw new Error("BBVA informa " + paginas + " páginas: no se reemplaza");
+    }
+    todas.push(...d.data);
+  }
+  if (!todas.length) throw new Error("BBVA devolvió el listado vacío");
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10), ahora = new Date().toISOString();
+  const rubros = await rubroPorMarca();
+  const vistos = new Set<string>();
+  const vigentes = todas.filter((x) => { const id = String(x?.id || ""); if (!id || vistos.has(id)) return false; vistos.add(id); const h = isoFecha(x?.fechaHasta); return !h || h >= hoy; });
+  const filas = vigentes.map((x) => normalizarBbva(x, (k) => rubros.get(k), hoy, ahora)).filter(Boolean) as Record<string, unknown>[];
+  if (filas.length < vigentes.length * 0.8) throw new Error(`Sólo ${filas.length} de ${vigentes.length} promos de BBVA se pudieron leer: cambió el formato, no se reemplaza`);
+  const { count: guardadas } = await admin.from("promos_bench_cache").select("id", { count: "exact", head: true }).eq("fuente", "bbva").or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
+  if (guardadas && filas.length < guardadas * MINIMO_RELATIVO) throw new Error(`BBVA devolvió sólo ${filas.length} promos y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
+  for (let i = 0; i < filas.length; i += 500) {
+    const { error } = await admin.from("promos_bench_cache").upsert(filas.slice(i, i + 500), { onConflict: "id" });
+    if (error) throw new Error("Guardando: " + error.message);
+  }
+  const { error: del } = await admin.from("promos_bench_cache").delete().eq("fuente", "bbva").lt("updated_at", ahora);
+  if (del) throw new Error("Limpiando: " + del.message);
+  return { total: filas.length };
+}
+
+const GALICIA_BFF_PORTAL = "https://loyalty.bff.bancogalicia.com.ar/api/portal/personalizacion/v1/promociones/idPromocion/";
+const GALICIA_HEADERS_B: Record<string, string> = {
+  "Accept": "application/json", "Origin": "https://beneficios.galicia.ar", "Referer": "https://beneficios.galicia.ar/",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+};
+const GALICIA_DETALLE_DIAS = 14; // el tope de una promo no cambia a menudo: se vuelve a leer cada 14 días
+// Las promos vigentes del catálogo de Galicia (el que ya baja Promociones), con el
+// tope y las tarjetas del detalle de cada una. Es una lectura larga: se hace por
+// tandas con tope de tiempo y se retoma donde quedó (devuelve cuántas faltan).
+async function syncGaliciaPropia(presupuestoMs: number): Promise<{ hechas: number; pendientes: number; total: number }> {
+  const t0 = Date.now();
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  const cat: any[] = [];
+  for (let d = 0; ; d += 1000) {
+    const { data, error } = await admin.from("promos_galicia_cache").select("id,titulo,subtitulo,beneficio,dias,provincias,fecha_desde,fecha_hasta,proximamente").order("id").range(d, d + 999);
+    if (error) throw new Error("Leyendo el catálogo de Galicia: " + error.message);
+    cat.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  const vigentes = cat.filter((p) => !p.proximamente && (!p.fecha_hasta || p.fecha_hasta >= hoy));
+  if (!vigentes.length) throw new Error("El catálogo de Galicia está vacío: no se lee");
+  const ya = new Map<string, number>();
+  for (let d = 0; ; d += 1000) {
+    const { data, error } = await admin.from("promos_bench_cache").select("id,detalle_at").eq("fuente", "galicia").order("id").range(d, d + 999);
+    if (error) throw new Error(error.message);
+    for (const r of data || []) ya.set(r.id, r.detalle_at ? new Date(r.detalle_at).getTime() : 0);
+    if (!data || data.length < 1000) break;
+  }
+  const vence = Date.now() - GALICIA_DETALLE_DIAS * 86400000;
+  const cola = vigentes.filter((p) => (ya.get("galicia:g" + p.id) ?? 0) < vence);
+  const ahora = new Date().toISOString();
+  let idx = 0, ok = 0, buf: Record<string, unknown>[] = [];
+  const vaciar = async () => {
+    if (!buf.length) return;
+    const lote = buf; buf = [];
+    const { error } = await admin.from("promos_bench_cache").upsert(lote, { onConflict: "id" });
+    if (error) throw new Error("Guardando: " + error.message);
+  };
+  async function worker() {
+    while (idx < cola.length && Date.now() - t0 < presupuestoMs) {
+      const p = cola[idx++];
+      try {
+        const r = await fetch(GALICIA_BFF_PORTAL + p.id, { headers: GALICIA_HEADERS_B });
+        if (!r.ok) throw new Error("Galicia respondió " + r.status);
+        const d = await r.json();
+        const fila = normalizarGalicia(p, d?.data, hoy, ahora);
+        if (fila) { buf.push(fila); ok++; }
+        if (buf.length >= 50) await vaciar();
+      } catch (e) {
+        console.error("benchmark galicia", p.id, String((e as Error)?.message || e));
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: 6 }, worker));
+  await vaciar();
+  const pendientes = Math.max(0, cola.length - idx);
+  // al terminar, se sacan las que ya no están vigentes en el catálogo
+  if (!pendientes) {
+    const hay = new Set(vigentes.map((p) => "galicia:g" + p.id));
+    const sobran = [...ya.keys()].filter((k) => !hay.has(k));
+    for (let i = 0; i < sobran.length; i += 200) await admin.from("promos_bench_cache").delete().in("id", sobran.slice(i, i + 200));
+  }
+  return { hechas: ok, pendientes, total: vigentes.length };
+}
+async function metaWeb(clave: string, r: { total?: number; error?: string }): Promise<void> {
+  if (r.error) await admin.from("promos_bench_meta").upsert({ banco: clave, error: r.error }, { onConflict: "banco" });
+  else await admin.from("promos_bench_meta").upsert({ banco: clave, last_sync_at: new Date().toISOString(), total: r.total ?? 0, error: null }, { onConflict: "banco" });
 }
 
 async function syncTodo(bancos: string[]): Promise<{ resultados: any[]; errores: [string, string][] }> {
@@ -530,7 +764,7 @@ Deno.serve(async (req: Request) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* vacío */ }
   const action = body?.action;
-  const cron = (action === "sync" || action === "marcas") && esCron(req);
+  const cron = (action === "sync" || action === "marcas" || action === "bbva" || action === "galicia") && esCron(req);
   if (!cron && !(await requireCan(req))) return json({ error: "No autorizado" }, 403);
   try {
     if (action === "status") {
@@ -545,6 +779,31 @@ Deno.serve(async (req: Request) => {
       const r = await syncTodo(lista);
       if (cron && r.errores.length) await avisarAdmin(MAIL_FALLO(r.errores));
       return json({ data: r });
+    }
+    if (action === "bbva") {
+      try {
+        const r = await syncBbva();
+        await metaWeb("bbva_web", r);
+        return json({ data: r });
+      } catch (e) {
+        const msg = (e as Error)?.message || "Error";
+        await metaWeb("bbva_web", { error: msg });
+        if (cron) await avisarAdmin(MAIL_FALLO([["BBVA (web propia)", msg]]));
+        return json({ error: msg }, 500);
+      }
+    }
+    if (action === "galicia") {
+      try {
+        const ms = Number(body?.presupuestoMs) > 0 ? Math.min(Number(body.presupuestoMs), 110000) : 100000;
+        const r = await syncGaliciaPropia(ms);
+        if (!r.pendientes) await metaWeb("galicia_web", { total: r.total });
+        return json({ data: r });
+      } catch (e) {
+        const msg = (e as Error)?.message || "Error";
+        await metaWeb("galicia_web", { error: msg });
+        if (cron) await avisarAdmin(MAIL_FALLO([["Galicia (catálogo propio)", msg]]));
+        return json({ error: msg }, 500);
+      }
     }
     if (action === "marcas") {
       const ms = Number(body?.presupuestoMs) > 0 ? Math.min(Number(body.presupuestoMs), 110000) : 100000;

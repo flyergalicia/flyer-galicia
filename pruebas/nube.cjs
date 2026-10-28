@@ -131,7 +131,7 @@ async function abrir(browser,o){
     }
     if(path==='/functions/v1/benchmark-sync'){
       const b=JSON.parse(req.postData()||'{}');nube.llamadasBench=(nube.llamadasBench||[]).concat([b]);
-      return route.fulfill({status:200,body:JSON.stringify({data:b.action==='marcas'?{hechas:0,pendientes:0}:{resultados:[{banco:b.banco,total:1}],errores:[]}}),headers:H});
+      return route.fulfill({status:200,body:JSON.stringify({data:(b.action==='marcas'||b.action==='galicia')?{hechas:0,pendientes:0,total:0}:{resultados:[{banco:b.banco,total:1}],errores:[]}}),headers:H});
     }
     // ── Estudio: preguntar / responder / compartir (migración 034)
     if(path==='/rest/v1/flyer_diseno_mensajes'){

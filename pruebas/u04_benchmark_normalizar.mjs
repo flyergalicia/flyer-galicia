@@ -6,8 +6,9 @@ import { readFileSync } from 'fs';
 import { stripTypeScriptTypes } from 'module';
 const src = readFileSync(new URL('../supabase/functions/benchmark-sync/index.ts', import.meta.url), 'utf8');
 const ini = src.indexOf('const MODO_RUBROS'), fin = src.indexOf('// Baja y guarda un banco');
-const js = stripTypeScriptTypes(src.slice(ini, fin)).replace(/export function/g, 'function');
-const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha };')();
+const ini2 = src.indexOf('// ── Webs propias'), fin2 = src.indexOf('async function rubroPorMarca');
+const js = stripTypeScriptTypes(src.slice(ini, fin) + '\n' + src.slice(ini2, fin2)).replace(/export function/g, 'function');
+const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup };')();
 const ok = (c, m) => { console.log((c ? '  OK  ' : '  FALLA ') + m); if (!c) process.exitCode = 1; };
 
 // BBVA real (27-oct-2026): 30% de reintegro, tope 15.000 por mes, lunes, crédito Master, 3 cuotas
@@ -41,6 +42,27 @@ ok(lib.diasTexto(lib.diasIdx(['monday', 'tuesday', 'wednesday', 'thursday', 'fri
 ok(lib.segmentoDe({ card: { participating_bank: 'Supervielle Gold' } }).segmento === 'clasico', 'Supervielle Gold = clásico');
 ok(lib.segmentoDe({ benefit: { name: 'Supervielle Black' } }).segmento === 'premium', 'Supervielle Black = premium');
 ok(lib.normalizar({ card: {}, benefit: {} }, 'bbva', 'h', 'a') === null, 'Una promo sin id ni nombre se descarta');
+
+
+// ── Webs propias (entrega 2) ──
+ok(lib.marcaDeCabecera('Supermercados Vea QR Modo 20%') === 'Supermercados Vea' && lib.marcaDeCabecera('Lazaro 20% y 6 cuotas') === 'Lazaro' && lib.marcaDeCabecera('Grimoldi 9 cuotas') === 'Grimoldi' && lib.marcaDeCabecera('Gastronomía 20% NFC') === 'Gastronomía', 'BBVA: la marca sale de la cabecera, sin el % ni las cuotas ni "QR Modo"');
+ok(JSON.stringify(lib.diasBbva('0,1,0,0,0,0,0')) === '[1]' && lib.diasBbva('1,1,1,1,1,1,1').length === 0 && lib.diasBbva(null).length === 0, 'BBVA: los días empiezan en lunes; todos o ninguno = todos los días');
+const bb = lib.normalizarBbva({ id: '88114', cabecera: 'Lazaro 20% y 6 cuotas', fechaDesde: '2026-10-06', fechaHasta: '2027-10-27', diasPromo: '0,1,0,0,0,0,0', montoTope: '50000', grupoTarjeta: 'Tarjetas de crédito BBVA' }, (k) => (k === 'lazaro' ? 'Indumentaria' : undefined), '2026-10-27', 'x');
+ok(bb.pct === 20 && bb.cuotas === 6 && bb.tope === 50000 && bb.dias === 'Martes' && bb.credito && !bb.debito && bb.rubro === 'Indumentaria' && bb.fuente === 'bbva' && bb.id === 'bbva:b88114', 'BBVA propio: 20 %, 6 cuotas, tope 50.000, martes, sólo crédito, rubro de la marca');
+const bb2 = lib.normalizarBbva({ id: '1', cabecera: 'Supermercados Vea QR Modo 20%', fechaDesde: '2026-07-01', fechaHasta: '2026-10-31', diasPromo: null, montoTope: '25000', grupoTarjeta: 'Tarjetas de crédito y débito BBVA' }, () => undefined, '2026-10-27', 'x');
+ok(bb2.credito && bb2.debito && bb2.rubro === 'Supermercados' && bb2.dias === 'Todos los días', 'BBVA: crédito y débito, rubro por la palabra de la cabecera, sin días = todos');
+const dar = lib.parsearLegalesGalicia('CARTERA DE CONSUMO. Promoción del 20% de ahorro en compras realizadas, en el país. Tope de reintegro: $15.000 en total por mes. Válida para Viernes comprendidos entre el 20/08/2026 y el 31/10/2026, para compras realizadas con Tarjeta Galicia Débito, Tarjeta Visa, Tarjeta Mastercard y Tarjeta American Express escaneando el QR de MODO desde la app Galicia. No aplica para pagos con dinero en cuenta.');
+ok(dar.tope === 15000 && dar.por === 'month' && dar.debito && dar.credito && dar.emisores.join() === 'visa,master,american_express', 'Galicia: el tope ($15.000 por mes) y las tarjetas salen del texto legal');
+const mas = lib.parsearLegalesGalicia('CARTERA DE CONSUMO. Promoción de hasta 12 cuotas sin interés, para compras realizadas en el País. Válida para todos los días, para compras realizadas con Tarjeta Visa y Tarjeta American Express. No aplica para compras realizadas con tarjetas de Credito Visa Business y Tarjetas de Débito.');
+ok(mas.tope === null && mas.credito && !mas.debito, 'Galicia: una promo de cuotas no tiene tope, y "no aplica para Tarjetas de Débito" no cuenta como débito');
+const gp = lib.normalizarGalicia({ id: 177749, titulo: 'Dar', subtitulo: 'Supermercados', beneficio: '20% de ahorro.', dias: 'Viernes', provincias: ['SANTA FE'], fecha_desde: '2026-08-20', fecha_hasta: '2026-10-31', proximamente: false }, { diasAplicacion: 'Vi', cuotaSinInteresHasta: null, legales: 'Tope de reintegro: $15.000 en total por mes. para compras realizadas con Tarjeta Visa.' }, '2026-10-27', 'x');
+ok(gp.pct === 20 && gp.tope === 15000 && JSON.stringify(gp.dias_n) === '[4]' && gp.id === 'galicia:g177749' && gp.fuente === 'galicia' && JSON.stringify(gp.provincias) === '["SANTA FE"]', 'Galicia propio: 20 %, tope 15.000, viernes, sus provincias del catálogo');
+const gc = lib.normalizarGalicia({ id: 1, titulo: 'Mas Go', subtitulo: 'Bares', beneficio: 'Hasta 12 cuotas sin interés.', dias: 'Todos los días' }, { diasAplicacion: 'Lu;Ma;Mi;Ju;Vi;Sa;Do', cuotaSinInteresHasta: 12, legales: '' }, '2026-10-27', 'x');
+ok(gc.cuotas === 12 && gc.dias_n.length === 0 && gc.pct === null && gc.rubro === 'Gastronomía', 'Galicia propio: 12 cuotas, los 7 días = todos, rubro "Bares" pasa a Gastronomía');
+const em = lib.parsearLegalesGalicia('CARTERA DE CONSUMO. Promoción del 25% de ahorro y hasta 3 cuotas sin interés, en compras realizadas en el País, para Clientes Éminent. Sin tope de reintegro. Válida para Viernes, para compras realizadas con Tarjeta Visa.');
+ok(em.segmento === 'premium' && em.tope === null, 'Galicia: "para Clientes Éminent" (con tilde) es premium, y "Sin tope de reintegro" no inventa un tope');
+ok(lib.rubroDeGalicia('Peluquerías') === 'Salud y Bienestar' && lib.rubroDeGalicia('Educación') === 'Otros', 'Los rubros finos de Galicia se llevan a los de MODO');
+ok(lib.claveDup(bb) === lib.claveDup({ ...bb, id: 'otro', fuente: 'modo' }) && lib.claveDup(bb) !== lib.claveDup({ ...bb, pct: 25 }), 'La misma promo vista por MODO y por la web propia tiene la misma clave; otro % es otra promo');
 
 // Con internet: una página real de cada banco
 const API = 'https://www.modo.com.ar/promos/api/rewards';

@@ -136,14 +136,65 @@ module.exports=async(browser)=>{
   ok(r5.pierde.length===1&&/Coto/.test(r5.pierde[0]),'el filtro "Perdemos" deja sólo Coto');
   ok(r5.dias.join(',')==='Lunes,Martes,Miércoles,Jueves,Viernes,Sábado,Domingo','Semana: una fila por día, de lunes a domingo');
 
-  // ── Actualizar ahora: un banco por vez, y después las marcas ──
+  // ── entrega 2: la misma promo en MODO y en la web propia se cuenta una vez; "100% OFF" no es reintegro ──
+  nube.bench.push(
+    fila({k:'bx1',banco:'bbva',fuente:'bbva',rubro:'Salud y Bienestar',titulo:'Farmacity',pct:20,tope:8000,dias:'Lunes',dias_n:[0],provincias:[]}), // la de MODO (b2) tiene tope 5.000
+    fila({k:'bx2',banco:'bbva',fuente:'bbva',rubro:'Otros',titulo:'Cabify',pct:100,tope:null,provincias:[]}),
+    fila({k:'gx1',banco:'galicia',fuente:'galicia',rubro:'Supermercados',titulo:'Mas Go',pct:null,cuotas:18,dias:'Todos los días',provincias:['CAPITAL FEDERAL']}),
+    fila({k:'bx3',banco:'bbva',fuente:'bbva',rubro:'Supermercados',titulo:'Coto',pct:null,cuotas:12,provincias:['CAPITAL FEDERAL']}));
+  nube.benchMeta.push({banco:'bbva_web',last_sync_at:new Date().toISOString(),total:2,error:null},{banco:'galicia_web',last_sync_at:new Date().toISOString(),total:2,error:null});
+  nube.benchHist=[
+    {semana:'2026-10-19',banco:'bbva',rubro:'Supermercados',promos:10,mejor_pct:20},{semana:'2026-10-26',banco:'bbva',rubro:'Supermercados',promos:25,mejor_pct:25},
+    {semana:'2026-10-19',banco:'galicia',rubro:'Salud y Bienestar',promos:9,mejor_pct:30},{semana:'2026-10-26',banco:'galicia',rubro:'Salud y Bienestar',promos:7,mejor_pct:30}];
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';BEN.vista='rubro';BEN.f={prov:'',seg:'todos',tarj:'todas',rubro:'',q:'',solo2:true,resultado:''};benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.rows.length,null,{timeout:10000});
+  const r6=await p.evaluate(()=>{
+    const far=benFiltradas().filter(x=>x.titulo==='Farmacity'&&x.banco==='bbva');
+    const cab=benFiltradas().find(x=>x.titulo==='Cabify');
+    const chips=[...document.querySelectorAll('.ben-chip')].map(c=>c.textContent);
+    return {farN:far.length,farFuente:far[0]&&far[0].fuente,farV:benMejor(far)&&benMejor(far).v,cabV:cab?benDevuelve(cab):'no está',
+      chipB:chips.find(c=>/^BBVA/.test(c)),chipGal:chips.find(c=>/^Galicia/.test(c)),chipMac:chips.find(c=>/^Macro/.test(c)),
+      cuotasG:benMasCuotas(benFiltradas().filter(x=>x.banco==='galicia')).cuotas};
+  });
+  console.log('  ',JSON.stringify(r6));
+  ok(r6.farN===1&&r6.farFuente==='bbva'&&r6.farV===8000,'la misma promo de BBVA en MODO y en su web se cuenta una sola vez, y se queda la de la web propia (tope 8.000)');
+  ok(r6.cabV===null,'"100% OFF" no cuenta como reintegro del 100 %');
+  ok(/MODO \+ web propia/.test(r6.chipB||'')&&/MODO \+ web propia/.test(r6.chipGal||'')&&/vía MODO/.test(r6.chipMac||''),'los bancos con web propia lo dicen en su etiqueta (BBVA y Galicia); Macro sigue vía MODO');
+  ok(r6.cuotasG===18,'las cuotas de Galicia de su catálogo propio (18) entran en la comparación');
+  // pestaña "Galicia vs BBVA"
+  await p.evaluate(()=>benVista('versus'));
+  const v=await p.evaluate(()=>{
+    const t=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
+    return {tab:[...document.querySelectorAll('.ben-tab')].map(x=>x.textContent),texto:t};
+  });
+  console.log('  ',JSON.stringify({tabs:v.tab}));
+  ok(v.tab.indexOf('Galicia vs BBVA')>=0&&v.tab.indexOf('Evolución')>=0,'las pestañas nuevas: "Galicia vs BBVA" y "Evolución"');
+  ok(/Dónde somos fuertes/.test(v.texto)&&/Farmacity: Galicia devuelve \$12\.000 \(30 %, tope \$15\.000 por mes, lunes\) contra \$8\.000/.test(v.texto),'Dónde somos fuertes: Farmacity, con los números y las condiciones ('+v.texto.slice(v.texto.indexOf('Dónde somos'),v.texto.indexOf('Dónde somos')+260)+')');
+  ok(/Dónde nos ganan/.test(v.texto)&&/Coto: Galicia devuelve \$10\.000/.test(v.texto)&&/contra \$30\.000.{0,70}de BBVA/.test(v.texto),'Dónde nos ganan: Coto');
+  ok(/Supermercados[^·]*Galicia 18 cuotas[^·]*BBVA 12 cuotas/.test(v.texto)&&/más cuotas Galicia/.test(v.texto),'Cuotas: Galicia llega a 18 y BBVA a 12 en supermercados');
+  await p.screenshot({path:__dirname+'/capturas/bm3_versus.png',fullPage:false});
+  // pestaña Evolución
+  await p.evaluate(()=>benVista('evolucion'));
+  const ev=await p.evaluate(()=>document.querySelector('#ben-root').textContent.replace(/\s+/g,' '));
+  ok(/Semana del 19\/10/.test(ev)&&/Semana del 26\/10/.test(ev)&&/BBVA sumó 15 promos de Supermercados/.test(ev)&&/Galicia perdió 2 promos de Salud y Bienestar/.test(ev),'Evolución: la semana del 19/10 y la del 26/10, con lo que sumó BBVA (+15) y lo que perdió Galicia (-2)');
+  await p.screenshot({path:__dirname+'/capturas/bm4_evolucion.png',fullPage:false});
+  nube.benchHist=[{semana:'2026-10-26',banco:'bbva',rubro:'Supermercados',promos:25,mejor_pct:25}];
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.hist.length===1,null,{timeout:10000});
+  const ev1=await p.evaluate(()=>{benVista('evolucion');return document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');});
+  ok(/una sola semana guardada/.test(ev1),'Evolución con una sola semana: lo dice y explica que los cambios se ven desde la segunda');
+  await p.evaluate(()=>benVista('rubro'));
+
+  const nota=await p.evaluate(()=>{const antes=benNotaOtros();for(let i=0;i<60;i++)BEN.rows.push({banco:'bbva',fuente:'bbva',rubro:'Otros'});const despues=benNotaOtros();BEN.rows.length-=60;return {antes,despues};});
+  ok(nota.antes===''&&/no informa el rubro de sus promos: 61 quedan en/.test(nota.despues),'con muchas promos de BBVA sin rubro, la pantalla lo avisa (y con pocas no molesta)');
+  // ── Actualizar ahora: un banco por vez, después la web de BBVA, el catálogo de Galicia y las marcas ──
   nube.llamadasBench=[];
   await p.evaluate(()=>{benVista('rubro');benActualizar();});
   await p.waitForTimeout(300);
   await p.waitForFunction(()=>{const b=document.getElementById('ben-act');return !b||!b.disabled;},null,{timeout:15000});
   await p.waitForTimeout(500);
   const ll=(nube.llamadasBench||[]).map(b=>b.action+(b.banco?':'+b.banco:''));
-  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,marcas','"Actualizar ahora" pide un banco por vez y después los lugares y logos ('+ll.join(',')+')');
+  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,bbva,galicia,marcas','"Actualizar ahora" pide MODO banco por banco, la web de BBVA, el catálogo de Galicia y al final los lugares y logos ('+ll.join(',')+')');
 
   // ── sin tablas (migración sin aplicar) y sin datos: se explica, no se rompe ──
   nube.benchFalla=true;
