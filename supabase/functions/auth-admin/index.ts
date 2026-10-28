@@ -160,8 +160,9 @@ async function auditar(
 // Script publicado como aplicación web (supabase/mail/apps-script.gs): gratis y
 // sin claves de mail guardadas acá. Si los secretos no están cargados, no se
 // manda nada y todo sigue funcionando igual.
-// Reglas fijas: ningún link salvo el botón "Ingresar" (APP_URL fija) en los
-// mails para entrar (cuenta activa, alta, envío de acceso); nunca imágenes. La
+// Reglas fijas: ningún link clickeable; en los mails para entrar va la dirección
+// de la app (APP_URL fija) como texto para copiar y pegar, sin botón (el filtro
+// del banco bloqueaba el botón) (cuenta activa, alta, envío de acceso); nunca imágenes. La
 // contraseña va SÓLO en los dos mails que pide el admin al ponerla él: el alta
 // (cuentaCreada) y "enviar usuario y contraseña" al cambiarla (accesoEnviado);
 // nunca se guarda en ningún lado para mandarla después. Un mail que falla
@@ -196,7 +197,7 @@ function armarTexto(m: Mail): string {
   if (m.saludo) l.push(m.saludo, "");
   m.parrafos.forEach((p) => l.push(p, ""));
   if (m.datos?.length) { m.datos.forEach(([k, v]) => l.push(`${k}: ${v}`)); l.push(""); }
-  if (m.ingresar) l.push("Ingresá desde: " + APP_URL, "");
+  if (m.ingresar) l.push("Para ingresar, copiá esta dirección y pegala en el navegador:", APP_URL, "");
   if (m.alerta) l.push("IMPORTANTE: " + m.alerta, "");
   l.push("—", "Armador de flyers · Mensaje automático.", "Nunca te vamos a pedir tu contraseña por mail.");
   return l.join("\n");
@@ -227,9 +228,9 @@ function armarHtml(m: Mail): string {
     `<h1 style="${F}margin:0 0 18px;font-size:21px;line-height:1.3;color:${MARINO}">${esc(m.titulo)}</h1>` +
     (m.saludo ? `<p style="${F}margin:0 0 14px;font-size:15px;line-height:1.6;color:#2b2f36">${esc(m.saludo)}</p>` : "") +
     parrafos + datos + (m.ingresar
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 18px"><tr>` +
-        `<td style="background:${ACENTO};border-radius:8px"><a href="${APP_URL}" target="_blank" style="${F}display:inline-block;padding:12px 22px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">Ingresar al Armador de flyers</a></td></tr></table>` +
-        `<p style="${F}margin:0 0 16px;font-size:13px;line-height:1.5;color:#6b7280">O copiá esta dirección en el navegador: <span style="color:#2b2f36">${APP_URL}</span></p>`
+      ? `<p style="${F}margin:0 0 8px;font-size:15px;line-height:1.6;color:#2b2f36">Para ingresar, copiá esta dirección y pegala en el navegador:</p>` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>` +
+        `<td style="background:#f6f7f9;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;font-family:Consolas,'Courier New',monospace;font-size:15px;color:${MARINO};word-break:break-all">${APP_URL}</td></tr></table>`
       : "") + alerta +
     `</td></tr>` +
     `<tr><td style="padding:14px 28px 24px;border-top:1px solid #e5e7eb">` +
