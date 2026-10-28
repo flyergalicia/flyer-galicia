@@ -1466,6 +1466,7 @@ html.dark .fg-lg-aviso{background:#3A2E1A;color:#FFD08A;}
 
 /* ── Estudio: solapa con los diseños de flyer guardados (ver _estInit en auth.js) ── */
 .est-view{display:block;overflow:auto;height:calc(100vh - 62px - var(--simbar-h,0px));background:var(--paper,var(--light));}
+.ben-view{display:block;overflow:auto;height:calc(100vh - 62px - var(--simbar-h,0px));background:var(--paper,var(--light));}
 .est-wrap{max-width:1100px;margin:0 auto;padding:24px 24px 60px;}
 .est-tit{font:800 1.35rem "Figtree",sans-serif;margin:0 0 4px;color:var(--ink);}
 .est-sub{margin:0 0 16px;font-size:.8125rem;line-height:1.5;color:var(--ink-2);max-width:68ch;}

@@ -120,6 +120,19 @@ async function abrir(browser,o){
       const sl=l.slice(a,a+lim);
       return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':(sl.length?a+'-'+(a+sl.length-1):'*')+'/'+l.length}});
     }
+    // ── Benchmark (migración 039): nube.bench / benchMarcas / benchMeta / benchHist; nube.benchFalla = tablas inexistentes
+    if(/^\/rest\/v1\/promos_bench_(cache|marcas|meta|hist)$/.test(path)){
+      nube.pedidosBench=(nube.pedidosBench||[]).concat([path]);
+      if(nube.benchFalla)return route.fulfill({status:404,body:JSON.stringify({message:'relation does not exist',code:'42P01'}),headers:H});
+      const l={promos_bench_cache:nube.bench,promos_bench_marcas:nube.benchMarcas,promos_bench_meta:nube.benchMeta,promos_bench_hist:nube.benchHist}[path.split('/').pop()]||[];
+      let a=0,lim=1000;const rg=req.headers()['range'];if(rg){const x=/(\d+)-(\d+)/.exec(rg);if(x){a=+x[1];lim=+x[2]-a+1;}}
+      const sl=l.slice(a,a+lim);
+      return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':(sl.length?a+'-'+(a+sl.length-1):'*')+'/'+l.length}});
+    }
+    if(path==='/functions/v1/benchmark-sync'){
+      const b=JSON.parse(req.postData()||'{}');nube.llamadasBench=(nube.llamadasBench||[]).concat([b]);
+      return route.fulfill({status:200,body:JSON.stringify({data:b.action==='marcas'?{hechas:0,pendientes:0}:{resultados:[{banco:b.banco,total:1}],errores:[]}}),headers:H});
+    }
     // ── Estudio: preguntar / responder / compartir (migración 034)
     if(path==='/rest/v1/flyer_diseno_mensajes'){
       const ids=((u.searchParams.get('diseno_id')||'').match(/^in\.\((.*)\)$/)||[0,''])[1].split(',').map(x=>x.replace(/"/g,''));

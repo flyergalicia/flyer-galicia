@@ -9,6 +9,8 @@ var FLYERS_PUBLIC='https://cajyjnxjbobdpltflgnb.supabase.co/storage/v1/object/pu
 var _activeFlyerUrl=null,_activeFlyerName='',_activeFlyerFallo=false;
 // Edge Function para el Buscador de Promociones (ver _callPromosFn más abajo).
 var FN_URL_PROMOS=SUPA_URL+'/functions/v1/promos-galicia';
+// Edge Function del Benchmark (competencia): aparte de la de Promociones, ver benchmark.js.
+var FN_URL_BENCH=SUPA_URL+'/functions/v1/benchmark-sync';
 
 // Llama a la Edge Function auth-admin. Adjunta el JWT de la sesión si existe
 // (necesario para las acciones de admin). cb(err, data).
@@ -834,6 +836,7 @@ function _libReady(n){
   if(n==='jszip')return typeof JSZip!=='undefined';
   if(n==='exceljs')return typeof ExcelJS!=='undefined'&&!!ExcelJS.Workbook;
   if(n==='ges')return typeof window.gesInit==='function';
+  if(n==='ben')return typeof window.benInit==='function';
   return true;
 }
 function _lib(names){
@@ -1469,16 +1472,16 @@ function _facMe(f){
 // asesor sin nada, VIP con notas + asesores guardados. Si el archivo todavía no
 // existe en la nube, nadie nota ningún cambio.
 var _FAC_DEF={
-  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false},
-  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false},
-  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false},
+  asesor:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,benchmark:false},
+  vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,benchmark:false},
+  pro:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,benchmark:false},
   // El Hunter no tiene NINGUNA de estas: lo único que se le decide son las filas
   // opcion_N (qué flyers puede bajar). El candado está en _can, así que esta fila
   // es sólo la foto coherente de lo que se guarda.
-  hunter:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,proponer_oficiales:false},
+  hunter:{padron_buscar:false,pegar_oficial:false,notas:false,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,benchmark:false,proponer_oficiales:false},
   // El Líder sólo mira el tablero de su equipo: igual que el Hunter, el candado
   // está en _can (_LID_FAC) y esta fila es la foto de lo que se guarda.
-  lider:{padron_buscar:false,pegar_oficial:false,notas:true,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,gestiones:true}
+  lider:{padron_buscar:false,pegar_oficial:false,notas:true,asesores_guardados:false,promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,benchmark:false,gestiones:true}
 };
 // Las opciones del armador son UNA FACULTAD CADA UNA (opcion_1, opcion_2, ...),
 // así se puede dar sólo algunas. Se generan desde _FG_OPTS en tiempo de ejecución:
@@ -1536,6 +1539,7 @@ function _facRows(){
   rows.push(['promos_buscar','Buscador de promociones','Agrega la pesta&ntilde;a "Promociones": pega las marcas del flyer y las cruza contra el buscador oficial de Galicia, con logo, fechas de vigencia y estado (vigente / vence este mes / vencida).']);
   rows.push(['guardar_trabajo','Guardar historial y borrador','El <strong>Historial</strong> queda guardado en el dispositivo (hoy se borra al cerrar o recargar la p&aacute;gina) y el formulario se guarda solo mientras escribe: si cierra la pesta&ntilde;a a mitad de un flyer, al volver le ofrece <em>&laquo;Seguir con ese flyer&raquo;</em>. Todo vive en su navegador, nada sale a la nube.']);
   rows.push(['oficiales_sede','Oficiales por sede','Suma una barrita en <strong>Otros &rarr; Oficiales por sede</strong>, para los flyers donde el banco pone un referente por zona. Prendida: puede cargar <strong>hasta 8 oficiales</strong> (en vez de 4), ponerle a cada uno su <strong>ubicaci&oacute;n</strong> (sale con el pin &#128205; y en negrita arriba del nombre) y escribir el <strong>t&iacute;tulo</strong> que va arriba del bloque. Apagada, el armador queda igual que siempre. Los oficiales 5 al 8 se cargan igual que los otros (Pegar y asesores guardados); lo &uacute;nico que no los alcanza es la carga masiva: la base de empresas y el Excel del masivo siguen trayendo hasta 4.']);
+  rows.push(['benchmark','Benchmark (competencia)','Agrega la solapa <strong>Benchmark</strong>: compara las promociones de Galicia contra BBVA, Macro, Supervielle y Santander, por rubro, por marca y por d&iacute;a de la semana, con el ganador seg&uacute;n lo que devuelve en una compra de referencia. Es una herramienta interna: viene <strong>apagada para todos</strong> y la ves vos. Los datos se actualizan solos una vez por semana.']);
   rows.push(['estudio','Estudio (dise&ntilde;os de flyer)','Agrega la solapa <strong>Estudio</strong> y el bot&oacute;n <strong>Guardar en Estudio</strong> en &laquo;Cambiar logos&raquo;. Cada uno guarda <strong>sus propios dise&ntilde;os</strong> (logos cambiados, movidos y textos) sin que nadie m&aacute;s los vea, y puede <strong>pedirte que se publiquen</strong>: el pedido te llega a vos en Estudio &rarr; Pedidos, y al aprobarlo se crea un flyer nuevo en la barra de opciones para todos los que usan ese flyer. Vos ves los dise&ntilde;os de todos.']);
   rows.push(['tutorial_auto','Tutorial al primer ingreso','La primera vez que entra, se le abre solo el recorrido guiado por el armador (flechas sobre cada bot&oacute;n, por cap&iacute;tulos, se puede omitir). Siempre puede repetirlo desde su nombre &rarr; "Ver tutorial". Para verlo vos antes de activarlo: tu nombre &rarr; Ver tutorial.']);
   rows.push(['proponer_oficiales','Proponer cambios de oficiales','S&oacute;lo aplica al perfil <strong>Hunter</strong>: le agrega un bot&oacute;n &laquo;&#9998; Oficiales&raquo; en cada empresa para proponer agregar, corregir o quitar un oficial. El cambio <strong>no impacta</strong> hasta que lo aprueba el oficial due&ntilde;o de esa empresa (o su suplente); hasta entonces, el flyer sigue saliendo con los datos de hoy.']);
@@ -1738,7 +1742,10 @@ var _VISTAS=[
    init:function(){_gesAbrir('gesInit');}},
   // Estudio: diseños de flyer guardados (ver el bloque ESTUDIO más abajo).
   {id:'estudio',el:'view-estudio',ver:function(){return _estVer();},
-   init:function(){_estInit();}}
+   init:function(){_estInit();}},
+  // Benchmark (competencia): el código vive en benchmark.js y se baja recién acá.
+  {id:'benchmark',el:'view-benchmark',ver:function(){return _can('benchmark');},
+   init:function(){_benAbrir();}}
 ];
 function _vista(id){for(var i=0;i<_VISTAS.length;i++)if(_VISTAS[i].id===id)return _VISTAS[i];return null;}
 function switchApp(view){
@@ -20269,6 +20276,10 @@ function _gesSync(){
   var pr=document.getElementById('hdr-dd-prueba');
   if(pr){pr.style.display=_esPrueba?'block':'none';if(_esPrueba)_pruebaRender();}
   if(!on&&_gesAviso){_gesAviso=0;_hdrMsgSync();}
+}
+function _benAbrir(){
+  _lib(['ben']).then(function(){window.benInit();})
+    .catch(function(){showToast('No se pudo cargar el Benchmark. Revisá la conexión e intentá de nuevo.');});
 }
 function _gesAbrir(fn,arg){
   _lib(['ges']).then(function(){window[fn](arg);})

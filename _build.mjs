@@ -129,6 +129,10 @@ for (const [name, url] of Object.entries(LAZY_LIBS)) {
 const _gesSrc = readFileSync('gestiones.js', 'utf8');
 const _gesHash = createHash('sha1').update(_gesSrc).digest('hex').slice(0, 10);
 _lazyMeta.ges = { src: 'gestiones.js?v=' + _gesHash, integrity: 'sha384-' + createHash('sha384').update(_gesSrc).digest('base64') };
+// benchmark.js (Benchmark: competencia) igual que gestiones.js: se baja al abrir la solapa.
+const _benSrc = readFileSync('benchmark.js', 'utf8');
+const _benHash = createHash('sha1').update(_benSrc).digest('hex').slice(0, 10);
+_lazyMeta.ben = { src: 'benchmark.js?v=' + _benHash, integrity: 'sha384-' + createHash('sha384').update(_benSrc).digest('base64') };
 // El comentario del template sobre ExcelJS queda huérfano sin el <script>: se saca también.
 html = html.replace(/<!-- ExcelJS:[\s\S]*?-->\n/, '');
 html = html.replace('<meta name="viewport"', `<meta name="fg-libs" content='${JSON.stringify(_lazyMeta)}'>\n<meta name="viewport"`);
@@ -188,6 +192,7 @@ html = html.replace(
   '<div class="header-text app-tab" id="apptab-sueldo" style="display:none" onclick="switchApp(\'sueldo\')"><h1>Flyer Sueldo</h1><span>ARMADOR</span></div>' +
   '<div class="header-text app-tab" id="apptab-estudio" style="display:none" onclick="switchApp(\'estudio\')"><h1>Estudio</h1><span>DISE\u00d1OS</span></div>' +
   '<div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp(\'promos\')"><h1>Promociones</h1><span>BUSCADOR</span></div>' +
+  '<div class="header-text app-tab" id="apptab-benchmark" style="display:none" onclick="switchApp(\'benchmark\')"><h1>Benchmark</h1><span>COMPETENCIA</span></div>' +
   // Perfil Hunter: su única solapa (ver _VISTAS en auth.js). La muestra
   // _applyFacultades sólo para ese rol, y para ese rol esconde las del armador.
   '<div class="header-text app-tab" id="apptab-hunter" style="display:none" onclick="switchApp(\'hunter\')"><h1>Buscar flyer</h1><span>HUNTER</span></div>' +
@@ -831,7 +836,8 @@ const hunterView = '<div class="hunter-view" id="view-hunter" style="display:non
 
 const gestionesView = '<div class="ges-view" id="view-gestiones" style="display:none"><div id="ges-root" class="ges-root"></div></div>';
 const estudioView = '<div class="est-view" id="view-estudio" style="display:none"></div>';
-html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n' + hunterView + '\n' + gestionesView + '\n' + estudioView + '\n</body>');
+const benchmarkView = '<div class="ben-view" id="view-benchmark" style="display:none"><div id="ben-root" class="ben-root"></div></div>';
+html = html.replace('</body>', adminBackdrop + '\n' + adminPanel + '\n' + userModal + '\n' + passModal + '\n' + notesModal + '\n' + toastEl + '\n' + hunterView + '\n' + gestionesView + '\n' + estudioView + '\n' + benchmarkView + '\n</body>');
 
 // ── ZOOM TOOLBAR EN EL PREVIEW ───────────────────────────────────────────────
 html = html.replace(
@@ -965,7 +971,7 @@ const exportHtml = html
   // Reemplazo por FUNCIÓN: con un string, "$'" / "$&" dentro de auth.js (ej. el
   // '$'+importe del cartel de Rubros) se interpretan como patrones de replace y
   // duplican el resto del HTML (el export pasó de 2,2 a 4,1 MB sin que nadie lo note).
-  .replace(AUTH_TAG, () => '<script>\n' + _authSrc + '\n</script>\n<script>\n' + _gesSrc + '\n</script>')
+  .replace(AUTH_TAG, () => '<script>\n' + _authSrc + '\n</script>\n<script>\n' + _gesSrc + '\n</script>\n<script>\n' + _benSrc + '\n</script>')
   .replace(CSP_META + '\n', '');
 const _htmlLenConImagen = html.length;
 // ── IMAGEN BASE FUERA DE index.html ─────────────────────────────────────────
@@ -1032,7 +1038,7 @@ const checks = {
   'CSP: en index.html, no en export': html.includes(CSP_META) && html.indexOf(CSP_META) < html.indexOf('<script src=') && !exportHtml.includes('Content-Security-Policy'),
   'export: auth.js inlineado': !exportHtml.includes('auth.js?v=') && !_authSrc.includes('</script>'),
   // Un "$'" en auth.js duplicaba el resto del HTML dentro del export (patrón de String.replace)
-  'export: sin HTML duplicado (una sola imagen base, un solo auth.js)': (exportHtml.match(/baseImg\.src="data:image/g) || []).length === 1 && (exportHtml.match(/function _installFlyerEngine\(/g) || []).length === 1 && exportHtml.length < _htmlLenConImagen + _authSrc.length + _gesSrc.length + 230,
+  'export: sin HTML duplicado (una sola imagen base, un solo auth.js)': (exportHtml.match(/baseImg\.src="data:image/g) || []).length === 1 && (exportHtml.match(/function _installFlyerEngine\(/g) || []).length === 1 && exportHtml.length < _htmlLenConImagen + _authSrc.length + _gesSrc.length + _benSrc.length + 290,
   // La imagen de ejemplo del template no viaja en index.html: queda en flyer_default.jpg
   // y la app la carga sólo si no hay flyer activo (index_export.html sí la conserva).
   'imagen base fuera de index.html (fallback flyer_default)': !!_imgBuf && _imgBuf.length > 100000 && !html.includes('baseImg.src="data:image') && html.includes(`baseImg.dataset.fallback="${_imgFile}"`) && html.length < 400000 && _authSrc.includes('baseImg.dataset.fallback'),
@@ -1179,7 +1185,7 @@ const checks = {
   'panel admin: subsolapas por pilar': html.includes('id="sg-admin"') && html.includes('id="sg-data"') && html.includes('id="sg-config"') && html.includes('data-tab="varios"'),
   // Facultades por perfil: la matriz vive en la nube y gobierna el gating de la UI
   'facultades: matriz por rol': html.includes('id="at-facultades"') && html.includes('id="fac-grid"') && _authSrc.includes('function _can(') && _authSrc.includes('function loadFacultades(') && _authSrc.includes('function _applyFacultades('),
-  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false}') && !_authSrc.includes('_canNotes'),
+  'facultades: defaults = comportamiento previo': _authSrc.includes('var _FAC_DEF={') && _authSrc.includes('vip:   {padron_buscar:false,pegar_oficial:false,notas:true, asesores_guardados:true, promos_buscar:false,tutorial_auto:false,guardar_trabajo:false,oficiales_sede:false,estudio:false,benchmark:false}') && !_authSrc.includes('_canNotes'),
   // Tutorial guiado: "Ver tutorial" en el menú para todos; el arranque
   // automático al primer ingreso es una facultad (apagada por default).
   'tutorial guiado': html.includes('id="hdr-dd-tour"') && _authSrc.includes('function _tourStart(') && _authSrc.includes('function _tourEnd(') && _authSrc.includes('function _tourCapitulos(') && _authSrc.includes("rows.push(['tutorial_auto',") && _authSrc.includes('_tourAutoStart();') && _authSrc.includes("_can('tutorial_auto')"),
@@ -1237,6 +1243,12 @@ const checks = {
   'logos: Shift elige varios (flyer y franja) y la franja reparte en las filas originales': _authSrc.includes('function _fgLgElegidos(') && _authSrc.includes('function _fgLgGrupoTocar(') && _authSrc.includes('function _fgFrElegidos(') && _authSrc.includes('while(Math.ceil(n/nf)>tope)nf++;'),
   'logos: deshacer/rehacer de a un paso y Ver limpio': _authSrc.includes('function _fgLgHistMarcar(') && _authSrc.includes('function fgLgDeshacer(') && _authSrc.includes('function fgLgRehacer(') && _authSrc.includes('_fgLgBarra();_fgLgMarcas();_fgLgHistPronto();') && _authSrc.includes('function fgLgLimpio(') && _authSrc.includes('if(!_fgLg.on||_fgLg.limpio||e.button!==0)return;') && _authSrc.includes('function _fgFrSelMarcar('),
   'logos: cambiar, mover, textos y subir (vista previa = descarga)': _authSrc.includes('function _fgLgDibujar(') && _authSrc.includes('function _fgLgPintar(') && _authSrc.includes('_fgLgDibujar(c,s,v);') && _authSrc.includes('_fgLgVals(o);') && _authSrc.includes('function _fgLgLeerArchivo(') && _authSrc.includes('function _fgLgTxtPintar(') && _authSrc.includes('function _fgLgMoverOriginal(') && _authSrc.includes('if(!_fgProtoActivo())_fgLgLimpiar();') && _authSrc.includes('_fgLgLimpiar(); // Restaurar') && _authSrc.includes('function _fgLgInit(') && _authSrc.includes('_fgLgInit();'),
+  'benchmark: solapa aparte, facultad apagada, carga diferida, tablas con RLS y sin tocar Promociones': html.includes('id="apptab-benchmark"') && html.includes('id="view-benchmark"') && html.includes('"ben":{"src":"benchmark.js?v=') && !html.includes('<script src="benchmark.js') &&
+    exportHtml.includes('function benInit(') && !_benSrc.includes('</script>') && _authSrc.includes("{id:'benchmark',el:'view-benchmark'") && _authSrc.includes("rows.push(['benchmark',") && _authSrc.includes('function _benAbrir(') && _authSrc.includes("if(n==='ben')return") &&
+    (_authSrc.match(/estudio:false,benchmark:false/g) || []).length === 5 && !/benchmark:true/.test(_authSrc.slice(_authSrc.indexOf('var _FAC_DEF={'), _authSrc.indexOf('\n};', _authSrc.indexOf('var _FAC_DEF={')))) &&
+    !/promos_bench/.test(_authSrc) && _benSrc.includes("from('promos_bench_cache')") && !/service_role|SUPA_SERVICE/.test(_benSrc) && _benSrc.includes('FN_URL_BENCH') &&
+    readFileSync(new URL('./supabase/migrations/039_benchmark.sql', import.meta.url), 'utf8').includes('enable row level security') && !/for (insert|update|delete)/i.test(readFileSync(new URL('./supabase/migrations/039_benchmark.sql', import.meta.url), 'utf8')) &&
+    readFileSync(new URL('./supabase/functions/benchmark-sync/index.ts', import.meta.url), 'utf8').includes('requireCan') && !readFileSync(new URL('./supabase/functions/promos-galicia/index.ts', import.meta.url), 'utf8').includes('promos_bench'),
   'estudio: solapa + facultad + tabla con RLS + aprobar como opcion nueva': html.includes('id="apptab-estudio"') && html.includes('id="view-estudio"') && html.indexOf('id="apptab-estudio"') < html.indexOf('id="apptab-promos"') && _authSrc.includes("{id:'estudio',el:'view-estudio'") && _authSrc.includes("rows.push(['estudio',") && _authSrc.includes('function estAprobar(') && _authSrc.includes('function _estPublicar(') && _authSrc.includes("from('flyer_disenos')") && _authSrc.includes("'_active'+n2+'.json'") && _authSrc.includes('function fgPedirTexto(') && readFileSync(new URL('./supabase/migrations/026_flyer_disenos.sql', import.meta.url), 'utf8').includes('enable row level security') && readFileSync(new URL('./supabase/migrations/026_flyer_disenos.sql', import.meta.url), 'utf8').includes('flyer_disenos_guardia'),
   'rubros: solapa + opciones por solapa + cartel del beneficio': html.includes('id="apptab-rubros"') && html.indexOf('id="apptab-rubros"') > html.indexOf('id="apptab-flyer"') && html.indexOf('id="apptab-rubros"') < html.indexOf('id="apptab-promos"') && _authSrc.includes('function _optSolapa(') && _authSrc.includes('function _facOptsDe(') && _authSrc.includes('function _fgSyncVista(') && _authSrc.includes('function fgDrawBenef(') && _authSrc.includes('if(v.benef)fgDrawBenef(c,s,v);') && _authSrc.includes('function _fgEnsureBenefFields(') && _authSrc.includes('function _fgFmtImporte(') && _authSrc.includes('function _calZones(') && _authSrc.includes('function _calBenefLinea(') && _authSrc.includes('var _BENEF_PLANTILLAS=') && _authSrc.includes('function _fgBenefLineas(') && _authSrc.includes('{importe2}') && _authSrc.includes('function _fgBenefFieldsSync(') && _authSrc.includes('function _padCheckRubro(') && _authSrc.includes("_PADRON_COLS='empresa,cuits,config,asesores,rubro,created_at'") && _authSrc.includes('ambos:{nombre:') && _authSrc.includes('function _padRubroOf(') && _authSrc.includes('id="benef-importe2"') && _authSrc.includes('function fgSavePDF(fc,v,force)') && _authSrc.includes('function _fgLegalConValores(') && _authSrc.includes('function _fgImporteSuma(') && _authSrc.includes('fgDrawLegal(c,s,_fgLegalConValores(v.legal,v))') && _authSrc.includes('function _fgBenefDetectarCuadro(') && _authSrc.includes('function _calBenefCentrar(') && _authSrc.includes('function _calBenefPlantillaPorOpcion(') && _authSrc.includes('onclick="_calBenefCentrar(false)"') && _authSrc.includes('id="cal-benef-row"') && _authSrc.includes('class="opc-sol"') && _authSrc.includes("solapa:sol") && html.includes('Flyer Rubros'),
   // Flyer Sueldo: cuarta solapa del header, clon del armador de Galicia con UN
@@ -1650,7 +1662,7 @@ const checks = {
     _authSrc.includes("addEventListener('touchmove'") && newCSS.includes('.modal.fg-mz{width:min(92vw,980px)'),
   'ux: vista previa sin texto de relleno (lo que se ve es lo que se baja)':!_authSrc.includes('_enPantalla') && !_authSrc.includes('_FG_EMPRESA_PH'),
   // Letra mínima: nada por debajo de 11 px salvo símbolos (flechitas, la ✕) y textos de gráficos SVG.
-  'ux: letra minima (nada < 11 px salvo simbolos)': [newCSS, _authSrc, readFileSync('gestiones.js', 'utf8')].every(src => src.split('\n').every(l => {
+  'ux: letra minima (nada < 11 px salvo simbolos)': [newCSS, _authSrc, readFileSync('gestiones.js', 'utf8'), readFileSync('benchmark.js', 'utf8')].every(src => src.split('\n').every(l => {
     const chicos = [...l.matchAll(/(?:font-size\s*:\s*|font\s*:\s*(?:(?:italic|normal|bold|bolder|lighter|[1-9]00)\s+)*)(0?\.\d+|\d+(?:\.\d+)?)(rem|px)(?![\w-])/g)]
       .filter(m => (m[2] === 'rem' ? parseFloat(m[1]) * 16 : parseFloat(m[1])) < 10.99);
     return !chicos.length || /caret|fac-car|as-del|fill\s*:|\[style\*=/.test(l); // [style*=…] es el selector que AGRANDA esos estilos
