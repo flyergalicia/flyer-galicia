@@ -25,7 +25,7 @@ module.exports=async(browser)=>{
     fila({k:'b3',banco:'bbva',rubro:'Combustible',titulo:'YPF',pct:10,tope:8000,cuotas:6,debito:true,credito:false,emisores:[],provincias:null}),
     // una vencida y una por empezar: no cuentan
     fila({k:'g3',banco:'galicia',titulo:'Vencida SA',pct:50,tope:99999,fecha_hasta:'2020-01-01',provincias:[]}),
-    fila({k:'g4',banco:'galicia',titulo:'Proxima SA',pct:50,tope:99999,proximamente:true,provincias:[]}),
+    fila({k:'g4',banco:'galicia',titulo:'Proxima SA',pct:50,tope:99999,proximamente:true,fecha_desde:'2027-06-01',provincias:[]}),
     // Santander: sólo cuotas (sin %)
     fila({k:'s1',banco:'santander',titulo:'Fravega',rubro:'Electrónica',pct:null,cuotas:12,provincias:[]}),
   ];
@@ -174,25 +174,87 @@ module.exports=async(browser)=>{
     return {tab:[...document.querySelectorAll('.ben-tab')].map(x=>x.textContent),texto:t};
   });
   console.log('  ',JSON.stringify({tabs:v.tab}));
-  ok(v.tab.indexOf('Galicia vs BBVA')>=0&&v.tab.indexOf('Evolución')>=0,'las pestañas nuevas: "Galicia vs BBVA" y "Evolución"');
+  ok(v.tab.indexOf('Galicia vs BBVA')>=0&&v.tab.indexOf('Evolución')<0,'está la pestaña "Galicia vs BBVA" y ya no la de Evolución (pedido del dueño)');
   ok(/Dónde somos fuertes/.test(v.texto)&&/Farmacity: Galicia devuelve \$12\.000 \(30 %, tope \$15\.000 por mes, lunes\) contra \$8\.000/.test(v.texto),'Dónde somos fuertes: Farmacity, con los números y las condiciones ('+v.texto.slice(v.texto.indexOf('Dónde somos'),v.texto.indexOf('Dónde somos')+260)+')');
   ok(/Dónde nos ganan/.test(v.texto)&&/Coto: Galicia devuelve \$10\.000/.test(v.texto)&&/contra \$30\.000.{0,70}de BBVA/.test(v.texto),'Dónde nos ganan: Coto');
   ok(/Supermercados[^·]*Galicia 18 cuotas[^·]*BBVA 12 cuotas/.test(v.texto)&&/más cuotas Galicia/.test(v.texto),'Cuotas: Galicia llega a 18 y BBVA a 12 en supermercados');
   await p.screenshot({path:__dirname+'/capturas/bm3_versus.png',fullPage:false});
-  // pestaña Evolución
-  await p.evaluate(()=>benVista('evolucion'));
-  const ev=await p.evaluate(()=>document.querySelector('#ben-root').textContent.replace(/\s+/g,' '));
-  ok(/Semana del 19\/10/.test(ev)&&/Semana del 26\/10/.test(ev)&&/BBVA sumó 15 promos de Supermercados/.test(ev)&&/Galicia perdió 2 promos de Salud y Bienestar/.test(ev),'Evolución: la semana del 19/10 y la del 26/10, con lo que sumó BBVA (+15) y lo que perdió Galicia (-2)');
-  await p.screenshot({path:__dirname+'/capturas/bm4_evolucion.png',fullPage:false});
-  nube.benchHist=[{semana:'2026-10-26',banco:'bbva',rubro:'Supermercados',promos:25,mejor_pct:25}];
+  // ── compartidas de MODO y promos que todavía no empezaron (29-oct) ──
+  const enDias=n=>new Date(Date.now()-3*3600000+n*86400000).toISOString().slice(0,10);
+  nube.bench.push(
+    fila({k:'sh1',banco:'galicia',rubro:'Combustible',titulo:'WICO Combustibles',beneficio:'15% de reintegro',pct:50,tope:99999,dias:'Jueves',dias_n:[3],bancos_n:5,provincias:[]}),
+    fila({k:'sh1',banco:'bbva',rubro:'Combustible',titulo:'WICO Combustibles',beneficio:'15% de reintegro',pct:50,tope:99999,dias:'Jueves',dias_n:[3],bancos_n:5,provincias:[]}),
+    fila({k:'gp1',banco:'galicia',fuente:'galicia',rubro:'Combustible',titulo:'Combustible',beneficio:'25% de ahorro.',pct:25,tope:20000,dias:'Martes',dias_n:[1],proximamente:true,fecha_desde:enDias(10),provincias:[]}),
+    fila({k:'gp2',banco:'galicia',fuente:'galicia',rubro:'Combustible',titulo:'Shell Lejana',pct:40,tope:50000,proximamente:true,fecha_desde:enDias(30),provincias:[]}));
+  nube.benchMeta.push({banco:'santander_web',last_sync_at:null,total:null,error:'Santander bloquea la lectura automática desde la nube (no respondió en 20 s)'});
   await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;benCargar();});
-  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.hist.length===1,null,{timeout:10000});
-  const ev1=await p.evaluate(()=>{benVista('evolucion');return document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');});
-  ok(/una sola semana guardada/.test(ev1),'Evolución con una sola semana: lo dice y explica que los cambios se ven desde la segunda');
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.rows.some(r=>r.titulo==='Shell Lejana'),null,{timeout:10000});
+  const cp=await p.evaluate(()=>{
+    const L=benFiltradas(),comb=L.filter(r=>r.rubro==='Combustible');
+    benSet('rubro','Combustible');benVista('rubro');
+    const t=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
+    const chipSan=[...document.querySelectorAll('.ben-chip')].map(c=>c.textContent).find(x=>/^Santander/.test(x));
+    benSet('rubro','');
+    return {compartidas:L.filter(r=>r.bancos_n>1).length,mejorG:benMejor(comb.filter(r=>r.banco==='galicia')),lejana:L.some(r=>r.titulo==='Shell Lejana'),texto:t,chipSan};
+  });
+  console.log('  ',JSON.stringify({compartidas:cp.compartidas,mejorG:cp.mejorG&&{t:cp.mejorG.r.titulo,v:cp.mejorG.v},lejana:cp.lejana,chipSan:cp.chipSan}));
+  ok(cp.compartidas===0,'las promos de MODO que valen con cualquier banco no entran en la comparación');
+  ok(cp.mejorG&&cp.mejorG.r.titulo==='Combustible'&&cp.mejorG.v===15000,'Combustible de Galicia: gana su promo propia de los martes (25 %, $15.000), no la compartida del 50 %');
+  ok(!cp.lejana,'una promo que empieza en 30 días no entra (sólo las de los próximos 15)');
+  ok(/Empieza el/.test(cp.texto),'la que empieza en 10 días entra con la etiqueta "Empieza el dd/mm"');
+  ok(/Con MODO y cualquier banco/.test(cp.texto)&&/WICO Combustibles: 15% de reintegro/.test(cp.texto)&&(cp.texto.match(/WICO Combustibles:/g)||[]).length===1,'las compartidas se avisan aparte, una sola vez ("Con MODO y cualquier banco")');
+  ok(/su web bloquea la lectura automática/.test(cp.chipSan||'')&&!/⚠/.test(cp.chipSan||''),'si Santander no deja leer su web, la etiqueta lo dice (sin marcarlo como error)');
+  await p.screenshot({path:__dirname+'/capturas/bm4_combustible.png',fullPage:false});
   await p.evaluate(()=>benVista('rubro'));
 
   const nota=await p.evaluate(()=>{const antes=benNotaOtros();for(let i=0;i<60;i++)BEN.rows.push({banco:'bbva',fuente:'bbva',rubro:'Otros'});const despues=benNotaOtros();BEN.rows.length-=60;return {antes,despues};});
   ok(nota.antes===''&&/no informa el rubro de sus promos: 61 quedan en/.test(nota.despues),'con muchas promos de BBVA sin rubro, la pantalla lo avisa (y con pocas no molesta)');
+  // ── promos cargadas a mano (Macro y Santander, 29-oct) ──
+  const mesPasado=new Date(Date.now()-40*86400000).toISOString();
+  nube.benchManual=[{id:'m1',banco:'santander',titulo:'YPF',rubro:'Combustible',beneficio:'Pagando con la App YPF',pct:15,tope:20000,tope_por:'month',cuotas:0,dias_n:[3],credito:true,debito:true,segmento:'premium',provincias:null,fecha_desde:'2026-10-01',fecha_hasta:'2027-12-31',fuente_url:'https://www.santander.com.ar/personas/beneficios',notas:'',updated_at:mesPasado},
+    {id:'m2',banco:'macro',titulo:'Vieja SA',rubro:'Otros',beneficio:'',pct:10,tope:null,tope_por:null,cuotas:0,dias_n:[],credito:true,debito:true,segmento:null,provincias:null,fecha_desde:'2026-01-01',fecha_hasta:'2026-02-01',fuente_url:'',notas:'',updated_at:mesPasado}];
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.vista='rubro';benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.manual&&BEN.manual.length===2,null,{timeout:10000});
+  const man=await p.evaluate(()=>{
+    const comb=benFiltradas().filter(r=>r.rubro==='Combustible'&&r.banco==='santander');
+    const m=benMejor(comb);
+    const chip=[...document.querySelectorAll('.ben-chip')].map(c=>c.textContent).find(x=>/^Santander/.test(x));
+    const aviso=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
+    benVista('manual');
+    const t=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
+    return {m:m&&{t:m.r.titulo,v:m.v,f:m.r.fuente},vieja:benFiltradas().some(r=>r.titulo==='Vieja SA'),chip,aviso:/Es día de revisar las promos cargadas a mano/.test(aviso),dia:Number(benHoyIso().slice(8,10)),t,
+      botones:[...document.querySelectorAll('#ben-root button')].map(b=>b.textContent)};
+  });
+  console.log('  ',JSON.stringify({m:man.m,chip:man.chip,aviso:man.aviso}));
+  ok(man.m&&man.m.t==='YPF'&&man.m.f==='manual'&&man.m.v===9000,'una promo de Santander cargada a mano entra a la comparación (YPF 15 %: $9.000 en una carga de $60.000)');
+  ok(!man.vieja,'una cargada a mano ya vencida no cuenta');
+  ok(/1 cargada a mano/.test(man.chip||''),'la etiqueta de Santander dice cuántas promos tiene cargadas a mano');
+  ok(man.dia<5||man.aviso,'desde el día 5, si no se tocaron en el mes, aparece el aviso "Es día de revisar las promos cargadas a mano"');
+  ok(/Promos cargadas a mano/.test(man.t)&&/Vencida/.test(man.t)&&man.botones.indexOf('+ Agregar promo')>=0&&man.botones.filter(b=>b==='Editar').length===2,'la pestaña "Cargadas a mano" lista las promos (la vencida marcada) con Editar y "+ Agregar promo"');
+  // agregar una de Macro
+  await p.evaluate(()=>benManualEditar(''));
+  await p.selectOption('#ben-m-banco','macro');
+  await p.selectOption('#ben-m-rubro','Supermercados');
+  await p.fill('#ben-m-titulo','Changomas');
+  await p.fill('#ben-m-pct','20');
+  await p.fill('#ben-m-tope','15000');
+  await p.selectOption('#ben-m-tope_por','month');
+  await p.check('.ben-m-dia[value="2"]');
+  await p.evaluate(()=>benManualGuardar(''));
+  await p.waitForFunction(()=>!document.getElementById('ben-ed-ov')&&BEN.rows&&!BEN.cargando&&BEN.manual&&BEN.manual.some(x=>x.titulo==='Changomas'),null,{timeout:10000});
+  const nm=nube.benchManual.find(x=>x.titulo==='Changomas');
+  ok(nm&&nm.banco==='macro'&&nm.pct===20&&nm.tope===15000&&nm.tope_por==='month'&&JSON.stringify(nm.dias_n)==='[2]'&&nm.provincias===null,'"+ Agregar promo" guarda la promo de Macro (20 %, tope $15.000 por mes, miércoles, todo el país)');
+  const cm=await p.evaluate(()=>{const r=benFiltradas().find(x=>x.titulo==='Changomas');return r&&{dias:r.dias,f:r.fuente,clave:r.marca_clave};});
+  ok(cm&&cm.dias==='Miércoles'&&cm.f==='manual'&&cm.clave==='changomas','la nueva entra enseguida a la comparación, con sus días y la misma clave de marca que las demás fuentes');
+  // validación
+  await p.evaluate(()=>benManualEditar(''));
+  await p.fill('#ben-m-titulo','Sin beneficio');
+  await p.evaluate(()=>benManualGuardar(''));
+  ok(await p.evaluate(()=>!!document.getElementById('ben-ed-ov')),'sin % ni cuotas no se guarda');
+  await p.evaluate(()=>benTarjCerrar());
+  const sinAdminM=await p.evaluate(()=>{const a=_admin;_admin=false;benRender();const b=[...document.querySelectorAll('#ben-root button')].map(x=>x.textContent);const av=/Es día de revisar/.test(document.querySelector('#ben-root').textContent);_admin=a;benVista('rubro');return {b,av};});
+  ok(sinAdminM.b.indexOf('+ Agregar promo')<0&&sinAdminM.b.indexOf('Editar')<0&&!sinAdminM.av,'sin ser admin: no se puede editar y no ve el aviso de revisión');
+
   // ── entrega 3: tarjetas y salas VIP ──
   await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});
   await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.tarj&&BEN.tarj.length===4,null,{timeout:10000});
@@ -280,7 +342,7 @@ module.exports=async(browser)=>{
   await p.waitForFunction(()=>{const b=document.getElementById('ben-act');return !b||!b.disabled;},null,{timeout:15000});
   await p.waitForTimeout(500);
   const ll=(nube.llamadasBench||[]).map(b=>b.action+(b.banco?':'+b.banco:''));
-  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,bbva,galicia,marcas','"Actualizar ahora" pide MODO banco por banco, la web de BBVA, el catálogo de Galicia y al final los lugares y logos ('+ll.join(',')+')');
+  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,bbva,supervielle,santander,galicia,marcas','"Actualizar ahora" pide MODO banco por banco, las webs de BBVA, Supervielle y Santander, el catálogo de Galicia y al final los lugares y logos ('+ll.join(',')+')');
 
   // ── sin tablas (migración sin aplicar) y sin datos: se explica, no se rompe ──
   nube.benchFalla=true;
@@ -288,7 +350,7 @@ module.exports=async(browser)=>{
   await p.waitForFunction(()=>BEN.error&&!BEN.cargando,null,{timeout:10000});
   const f1=await p.evaluate(()=>document.querySelector('#ben-root').textContent);
   ok(/migración 039/.test(f1)&&/Reintentar/.test(f1),'sin las tablas, la pantalla lo dice y ofrece Reintentar');
-  nube.benchFalla=false;nube.bench=[];
+  nube.benchFalla=false;nube.bench=[];nube.benchManual=[];
   await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});
   await p.waitForFunction(()=>BEN.rows&&!BEN.cargando,null,{timeout:10000});
   const f2=await p.evaluate(()=>document.querySelector('#ben-root').textContent);

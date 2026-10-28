@@ -257,6 +257,8 @@ export function normalizar(c: any, banco: string, hoy: string, ahora: string): R
     fecha_hasta: isoFecha(s.stop_date),
     proximamente: c?.calculated_status === "NEXT_FOR_PRODUCT" || (isoFecha(s.start_date) || "") > hoy,
     updated_at: ahora,
+    // 1 = exclusiva del banco; más = la comparten varios bancos en MODO ("bancos adheridos")
+    bancos_n: (c?.offer?.requirements?.banks?.list || []).length || null,
   };
 }
 
@@ -298,6 +300,16 @@ async function syncBanco(banco: string): Promise<{ total: number }> {
   }
   const filas = vigentes.map((c) => normalizar(c, banco, hoy, ahora)).filter(Boolean) as Record<string, unknown>[];
   if (!filas.length) throw new Error("Ninguna promo se pudo leer");
+  // Promociones lee la aclaración de cada promo de MODO y pasa a Vehículos las de "combustible" que en
+  // realidad son de lubricentro (YPF Boxes): se usa esa misma corrección (mismo id de MODO).
+  const corregidas = new Map<string, string>();
+  for (let d = 0; ; d += 1000) {
+    const { data, error } = await admin.from("promos_modo_cache").select("id,subtitulo").eq("subtitulo", "Vehículos").order("id").range(d, d + 999);
+    if (error) break;
+    for (const r of data || []) corregidas.set(String(r.id), r.subtitulo);
+    if (!data || data.length < 1000) break;
+  }
+  for (const f of filas) { const sub = corregidas.get(String(f.id).split(":").slice(1).join(":")); if (sub) f.rubro = sub; }
   // primera_vez no se manda: la pone la base al insertar y las que ya estaban la conservan
   for (let i = 0; i < filas.length; i += 500) {
     const { error } = await admin.from("promos_bench_cache").upsert(filas.slice(i, i + 500), { onConflict: "id" });
@@ -485,43 +497,13 @@ async function syncMarcas(presupuestoMs: number): Promise<{ hechas: number; pend
   return { hechas: ok, pendientes: Math.max(0, cola.length - idx) };
 }
 
-// Foto semanal: cuántas promos y mejor % por banco y rubro (para ver la evolución).
-async function guardarHistorial(): Promise<void> {
-  const filas: any[] = [];
-  for (let d = 0; ; d += 1000) {
-    const { data, error } = await admin.from("promos_bench_cache").select("banco,rubro,pct,proximamente,marca_clave,cuotas,dias_n,credito,debito,fuente").order("id").range(d, d + 999);
-    if (error) throw new Error(error.message);
-    filas.push(...(data || []));
-    if (!data || data.length < 1000) break;
-  }
-  const g = new Map<string, { banco: string; rubro: string; promos: number; mejor: number | null }>();
-  const vistas = new Set<string>();
-  filas.sort((a, b) => (a.fuente === "modo" ? 1 : 0) - (b.fuente === "modo" ? 1 : 0)); // la web propia primero
-  for (const f of filas) {
-    if (f.proximamente) continue;
-    const kd = claveDup(f);
-    if (vistas.has(kd)) continue;
-    vistas.add(kd);
-    const k = f.banco + "|" + f.rubro;
-    const x = g.get(k) || { banco: f.banco, rubro: f.rubro, promos: 0, mejor: null };
-    x.promos++;
-    if (f.pct != null && (x.mejor == null || Number(f.pct) > x.mejor)) x.mejor = Number(f.pct);
-    g.set(k, x);
-  }
-  // lunes de esta semana (hora Argentina)
-  const a = new Date(Date.now() - 3 * 3600000);
-  const semana = new Date(a.getTime() - ((a.getUTCDay() + 6) % 7) * 86400000).toISOString().slice(0, 10);
-  const rows = [...g.values()].map((x) => ({ semana, banco: x.banco, rubro: x.rubro, promos: x.promos, mejor_pct: x.mejor }));
-  if (rows.length) await admin.from("promos_bench_hist").upsert(rows, { onConflict: "semana,banco,rubro" });
-}
-
 // ── Webs propias: BBVA (lista abierta) y Galicia (detalle de cada promo) ────
 // MODO no tiene todo: BBVA publica ~1.000 promos en su propia web contra ~200 en
 // MODO, y el catálogo de Galicia (que ya baja Promociones) tiene ~1.700 vigentes
 // contra ~150 que MODO le atribuye. Estas filas llevan fuente 'bbva' / 'galicia'
 // (las de MODO, 'modo'); el cliente junta las que son la misma promo y se queda
-// con la de la web propia. Supervielle y Santander se probaron: su web propia
-// tiene menos que MODO (101 promos) o bloquea, así que siguen sólo por MODO.
+// con la de la web propia. Supervielle y Santander tienen su propio bloque más abajo;
+// Macro sigue sólo por MODO (su API pide una clave interna de su web).
 const RUBRO_PALABRAS: [RegExp, string][] = [
   [/^(supermercados?|hiper|mayorista)/i, "Supermercados"], [/^gastronom/i, "Gastronomía"],
   [/^(farmacia|perfumer|salud)/i, "Salud y Bienestar"], [/^(combustible|estaci)/i, "Combustible"],
@@ -607,6 +589,7 @@ export function normalizarGalicia(p: any, det: any, hoy: string, ahora: string):
   const dn = cod.map((s) => DIAS_GALICIA.indexOf(s)).filter((i) => i >= 0).sort((a, b) => a - b);
   const dias = dn.length === 7 || !dn.length ? [] : dn;
   const L = parsearLegalesGalicia(det?.legales);
+  const desde = p.fecha_desde || isoFecha(det?.fechaDesde);
   return {
     id: "galicia:g" + p.id, banco: "galicia", fuente: "galicia",
     titulo, marca_clave: modoClave(titulo), rubro: rubroDeGalicia(p.subtitulo),
@@ -617,8 +600,8 @@ export function normalizarGalicia(p: any, det: any, hoy: string, ahora: string):
     credito: L.credito, debito: L.debito, emisores: L.emisores, canales: [],
     segmento: L.segmento, segmento_txt: null,
     provincias: Array.isArray(p.provincias) ? p.provincias : null,
-    fecha_desde: p.fecha_desde || null, fecha_hasta: p.fecha_hasta || null,
-    proximamente: !!p.proximamente, updated_at: ahora, detalle_at: ahora,
+    fecha_desde: desde, fecha_hasta: p.fecha_hasta || null,
+    proximamente: (desde || "") > hoy || (!!p.proximamente && !desde), updated_at: ahora, detalle_at: ahora,
   };
 }
 // Misma promo vista por dos fuentes: se queda la de la web propia (ver el cliente: benDedup).
@@ -694,7 +677,9 @@ async function syncGaliciaPropia(presupuestoMs: number): Promise<{ hechas: numbe
     cat.push(...(data || []));
     if (!data || data.length < 1000) break;
   }
-  const vigentes = cat.filter((p) => !p.proximamente && (!p.fecha_hasta || p.fecha_hasta >= hoy));
+  // también las próximas: la solapa muestra las que empiezan en los próximos días (la fecha de inicio
+  // la trae el detalle cuando el listado no la tiene)
+  const vigentes = cat.filter((p) => !p.fecha_hasta || p.fecha_hasta >= hoy);
   if (!vigentes.length) throw new Error("El catálogo de Galicia está vacío: no se lee");
   const ya = new Map<string, number>();
   for (let d = 0; ; d += 1000) {
@@ -739,6 +724,267 @@ async function syncGaliciaPropia(presupuestoMs: number): Promise<{ hechas: numbe
   }
   return { hechas: ok, pendientes, total: vigentes.length };
 }
+// ── Supervielle: la API abierta del buscador de su web ────────────────────
+// /api/rubros (por segmento) y /api/beneficios?rubro=<nombre>&esIdentite=<bool>.
+// Sólo pide un User-Agent de navegador (sin él, CloudFront contesta 403).
+const SUP_API = "https://www.supervielle.com.ar/api";
+const DIAS_ES = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
+const RUBRO_SUPERVIELLE: [RegExp, string][] = [
+  [/combust/i, "Combustible"], [/supermerc|carnicer/i, "Supermercados"], [/farmac|belleza|optica|óptica/i, "Salud y Bienestar"],
+  [/automotor/i, "Vehículos"], [/tecnolog/i, "Electrónica"], [/turismo|transporte|entreten/i, "Entretenimiento"],
+  [/indument/i, "Indumentaria"], [/hogar/i, "Hogar"], [/mascota/i, "Mascotas"], [/restaur|bodega/i, "Gastronomía"],
+];
+// "Shell con MODO" -> "Shell" (para juntarla con la misma marca de los otros bancos)
+export function marcaSupervielle(m: unknown): string {
+  return String(m || "").replace(/\s+/g, " ").replace(/\s+con\s+(modo|mastercard|visa|qr)\b.*$/i, "").trim();
+}
+export function rubroSupervielle(rubro: unknown, marca: string, rubroDe: (clave: string) => string | undefined): string {
+  const r = RUBRO_SUPERVIELLE.find(([re]) => re.test(String(rubro || "")));
+  if (r) return r[1];
+  const porPalabra = RUBRO_PALABRAS.find(([re]) => re.test(marca));
+  return rubroDe(modoClave(marca)) || (porPalabra ? porPalabra[1] : "Otros");
+}
+export function normalizarSupervielle(b: any, rubroDe: (clave: string) => string | undefined, hoy: string, ahora: string): Record<string, unknown> | null {
+  const marca = marcaSupervielle(b?.marca);
+  if (!b?.id || !marca) return null;
+  const mp = String(b?.descuento || "").match(/(\d{1,3}(?:[.,]\d+)?)\s*%/);
+  const cuotas = Math.max(0, ...(Array.isArray(b?.cuotas) ? b.cuotas : []).map((x: unknown) => Number(String(x).replace(/\D/g, "")) || 0));
+  const idx = [...new Set((Array.isArray(b?.dias) ? b.dias : []).map((d: unknown) => DIAS_ES.indexOf(sinAcentos(d))).filter((i: number) => i >= 0))] as number[];
+  const dias = idx.length === 7 ? [] : idx.sort((x, y) => x - y);
+  const tope = Number(b?.tope || 0);
+  const cred = !!b?.esTarjetaCredito, deb = !!b?.esTarjetaDebito;
+  const rubroTxt = String(b?.rubro || "");
+  const emisores = /visa/i.test(rubroTxt) ? ["visa"] : /mastercard/i.test(rubroTxt) ? ["master"] : [];
+  const desde = isoFecha(b?.fechaVigenciaDesde), hasta = isoFecha(b?.fechaVigenciaHasta);
+  return {
+    id: "supervielle:p" + b.id, banco: "supervielle", fuente: "supervielle",
+    titulo: marca, marca_clave: modoClave(marca), rubro: rubroSupervielle(rubroTxt, marca, rubroDe),
+    slug: "", beneficio: [b?.descuento, cuotas ? "hasta " + cuotas + " cuotas sin interés" : ""].filter(Boolean).join(" y ") || null,
+    pct: mp ? Number(mp[1].replace(",", ".")) : null,
+    tope: tope > 0 ? tope : null, tope_por: null, cuotas,
+    dias: diasTexto(dias), dias_n: dias,
+    credito: cred || (!cred && !deb), debito: deb || (!cred && !deb), emisores, canales: [],
+    segmento: b?.esIdentite ? "premium" : null, segmento_txt: b?.esIdentite ? "Identité" : null,
+    provincias: null, fecha_desde: desde, fecha_hasta: hasta,
+    proximamente: (desde || "") > hoy, updated_at: ahora, detalle_at: ahora, bancos_n: null,
+  };
+}
+async function jsonCon(url: string, headers: Record<string, string>, ms = 20000): Promise<any> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { headers, signal: ctl.signal });
+    if (!r.ok) throw new Error("respondió " + r.status);
+    return await r.json();
+  } catch (e) {
+    throw new Error((e as Error)?.name === "AbortError" ? "no respondió en " + Math.round(ms / 1000) + " s" : (e as Error)?.message || String(e));
+  } finally {
+    clearTimeout(t);
+  }
+}
+async function syncSupervielle(): Promise<{ total: number }> {
+  const pares: [string, boolean][] = [];
+  for (const ide of [false, true]) {
+    const d = await jsonCon(`${SUP_API}/rubros/?esIdentite=${ide}`, MODO_HEADERS);
+    if (!Array.isArray(d?.rubros) || !d.rubros.length) throw new Error("Supervielle cambió el formato de los rubros");
+    for (const r of d.rubros) if (r?.nombre) pares.push([String(r.nombre), ide]);
+  }
+  const crudo: any[] = [];
+  let i = 0;
+  async function worker() {
+    while (i < pares.length) {
+      const [rubro, ide] = pares[i++];
+      const url = `${SUP_API}/beneficios?rubro=${encodeURIComponent(rubro)}&esIdentite=${ide}`;
+      let d: any;
+      try { d = await jsonCon(url, MODO_HEADERS); } catch { d = await jsonCon(url, MODO_HEADERS); } // un reintento
+      if (!Array.isArray(d?.beneficios)) throw new Error("Supervielle cambió el formato del listado");
+      crudo.push(...d.beneficios);
+    }
+  }
+  await Promise.all(Array.from({ length: 4 }, worker)); // si un rubro falla, falla todo: no se guarda una lista cortada
+  if (!crudo.length) throw new Error("Supervielle devolvió el listado vacío");
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10), ahora = new Date().toISOString();
+  const rubros = await rubroPorMarca();
+  // la clásica primero: si la de Identité es igual, queda la clásica (vale para todos)
+  crudo.sort((a, b) => (a?.esIdentite ? 1 : 0) - (b?.esIdentite ? 1 : 0));
+  const vistas = new Set<string>(), filas: Record<string, unknown>[] = [];
+  for (const b of crudo) {
+    const f = normalizarSupervielle(b, (k) => rubros.get(k), hoy, ahora);
+    if (!f || (f.fecha_hasta && String(f.fecha_hasta) < hoy)) continue;
+    const k = claveDup(f) + "|" + (f.segmento || "");
+    const kGeneral = claveDup(f) + "|";
+    if (vistas.has(k) || vistas.has(kGeneral)) continue; // Identité igual a una general, o farmacia repetida por local
+    vistas.add(k);
+    filas.push(f);
+  }
+  if (!filas.length) throw new Error("Ninguna promo de Supervielle se pudo leer");
+  const { count: guardadas } = await admin.from("promos_bench_cache").select("id", { count: "exact", head: true }).eq("fuente", "supervielle").or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
+  if (guardadas && filas.length < guardadas * MINIMO_RELATIVO) throw new Error(`Supervielle devolvió sólo ${filas.length} promos y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
+  for (let j = 0; j < filas.length; j += 500) {
+    const { error } = await admin.from("promos_bench_cache").upsert(filas.slice(j, j + 500), { onConflict: "id" });
+    if (error) throw new Error("Guardando: " + error.message);
+  }
+  const { error: del } = await admin.from("promos_bench_cache").delete().eq("fuente", "supervielle").lt("updated_at", ahora);
+  if (del) throw new Error("Limpiando: " + del.message);
+  return { total: filas.length };
+}
+
+// ── Santander: su buscador (/bff-benefits) ─────────────────────────────────
+// La web tiene protección anti-robots: desde un servidor puede no responder. Se
+// intenta con un pedido normal (sin disfrazarlo); si no contesta, queda anotado
+// y el Benchmark sigue con lo que haya: MODO y las promos que el admin carga a mano
+// (promos_bench_manual). No se disfraza el pedido ni se usan servicios para saltear la protección.
+const SAN_API = "https://www.santander.com.ar/bff-benefits";
+const SAN_CICLO_DIAS = 6;
+const SAN_BLOQUEO = "Santander bloquea la lectura automática desde la nube";
+const SAN_RUBROS: [RegExp, string][] = [
+  [/combust/i, "Combustible"], [/supermerc/i, "Supermercados"], [/gastronom|restaur|bar|caf/i, "Gastronomía"],
+  [/farmac|perfum|belleza|salud|óptic|optic/i, "Salud y Bienestar"], [/indument|moda|calzad/i, "Indumentaria"],
+  [/hogar|deco|muebl/i, "Hogar"], [/tecnolog|electr/i, "Electrónica"], [/mascota/i, "Mascotas"], [/juguet|librer/i, "Juguetes"],
+  [/viaje|turismo|entreten|espect|shopping/i, "Entretenimiento"], [/automotor/i, "Vehículos"],
+];
+export function rubroSantander(cats: any[]): string {
+  const desc = (Array.isArray(cats) ? cats : []).map((c) => String(c?.description || ""));
+  for (const [re, r] of SAN_RUBROS) if (desc.some((d) => re.test(d))) return r;
+  return "Otros";
+}
+const SAN_DIAS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+export function normalizarSantander(it: any, hoy: string, ahora: string): Record<string, unknown> | null {
+  const marca = String(it?.brands?.[0]?.name || "").replace(/\s+/g, " ").trim();
+  if (!it?.id || !marca) return null;
+  let dn = it?.fullWeek ? [] : SAN_DIAS.map((d, i) => (it?.[d] ? i : -1)).filter((i) => i >= 0);
+  if (dn.length === 7) dn = [];
+  const fr = String(it?.frecuency?.description || "").toLowerCase();
+  const codes = (Array.isArray(it?.categories) ? it.categories : []).map((c: any) => String(c?.code || ""));
+  const texto = String(it?.legal || "") + " " + String(it?.additionalText || "");
+  let cred = /cr[eé]dito/i.test(texto), deb = /d[eé]bito/i.test(texto);
+  if (!cred && !deb) { cred = true; deb = true; }
+  const emisores: string[] = [];
+  if (codes.includes("EXV") || /\bvisa\b/i.test(texto)) emisores.push("visa");
+  if (codes.includes("EXM") || /mastercard/i.test(texto)) emisores.push("master");
+  if (/american express|amex/i.test(texto)) emisores.push("american_express");
+  const desde = isoFecha(it?.startDatePublication), hasta = isoFecha(it?.endDatePublication);
+  const pct = Number(it?.customerDiscount) > 0 ? Number(it.customerDiscount) : null;
+  const tope = Number(it?.topAmount) > 0 ? Number(it.topAmount) : null;
+  const cuotas = it?.interestFreeFees ? Math.max(Number(it?.finalQuote) || 0, Number(it?.initialQuote) || 0) : 0;
+  return {
+    id: "santander:s" + it.id, banco: "santander", fuente: "santander",
+    titulo: marca, marca_clave: modoClave(marca), rubro: rubroSantander(it?.categories),
+    slug: "brand:" + String(it?.brands?.[0]?.id ?? ""),
+    beneficio: [it?.texts?.title, it?.texts?.description].filter(Boolean).join(" · ") || null,
+    pct, tope, tope_por: !tope ? null : /mensual/.test(fr) ? "month" : /semanal/.test(fr) ? "week" : /diari/.test(fr) ? "day" : null,
+    cuotas, dias: diasTexto(dn), dias_n: dn,
+    credito: cred, debito: deb, emisores, canales: it?.paymentType?.description ? [String(it.paymentType.description)] : [],
+    segmento: codes.includes("SEC") ? "premium" : null,
+    segmento_txt: [codes.includes("SEC") ? "Select" : "", it?.tag?.description || ""].filter(Boolean).join(" · ") || null,
+    provincias: null, fecha_desde: desde, fecha_hasta: hasta,
+    proximamente: (desde || "") > hoy, updated_at: ahora, detalle_at: ahora, bancos_n: null,
+  };
+}
+const SAN_HEADERS: Record<string, string> = { ...MODO_HEADERS, "Referer": "https://www.santander.com.ar/personas/beneficios" };
+async function sanMarcas(): Promise<{ id: number; name: string }[]> {
+  const out: { id: number; name: string }[] = [];
+  for (let page = 1; page <= 6; page++) {
+    const d = await jsonCon(`${SAN_API}/brands?page=${page}&limit=500`, SAN_HEADERS);
+    const items = Array.isArray(d?.items) ? d.items : Array.isArray(d?.data) ? d.data : null;
+    if (!items) throw new Error("Santander cambió el formato del listado");
+    for (const b of items) if (b?.id != null) out.push({ id: Number(b.id), name: String(b.name || "") });
+    const total = Number(d?.totalItems || 0);
+    if (!items.length || (total && out.length >= total)) break;
+  }
+  if (!out.length) throw new Error("Santander devolvió el listado vacío");
+  return out;
+}
+// Guarda las promos de una marca (reemplaza las anteriores de esa marca).
+async function sanGuardarMarca(brandId: number, items: any[], hoy: string, ahora: string): Promise<number> {
+  const filas = items.map((it) => normalizarSantander(it, hoy, ahora)).filter((f) => f && (!f.fecha_hasta || String(f.fecha_hasta) >= hoy)) as Record<string, unknown>[];
+  await admin.from("promos_bench_cache").delete().eq("fuente", "santander").eq("slug", "brand:" + brandId);
+  if (filas.length) {
+    const { error } = await admin.from("promos_bench_cache").upsert(filas, { onConflict: "id" });
+    if (error) throw new Error("Guardando: " + error.message);
+  }
+  return filas.length;
+}
+async function syncSantander(presupuestoMs: number): Promise<{ hechas: number; pendientes: number; total: number }> {
+  const t0 = Date.now();
+  const marcas = await sanMarcas(); // si Santander no responde, falla acá y no se toca nada
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10), ahora = new Date().toISOString();
+  const { data: m } = await admin.from("promos_bench_meta").select("progreso").eq("banco", "santander_web").maybeSingle();
+  let prog = (m?.progreso && typeof m.progreso === "object") ? m.progreso : null;
+  if (!prog || !prog.ciclo || Date.now() - new Date(prog.ciclo).getTime() > SAN_CICLO_DIAS * 86400000) prog = { ciclo: ahora, hechas: [] };
+  const hechas = new Set<number>((prog.hechas || []).map(Number));
+  const cola = marcas.filter((b) => !hechas.has(b.id));
+  let i = 0, ok = 0;
+  async function worker() {
+    while (i < cola.length && Date.now() - t0 < presupuestoMs) {
+      const b = cola[i++];
+      try {
+        const d = await jsonCon(`${SAN_API}/brands/${b.id}`, SAN_HEADERS);
+        await sanGuardarMarca(b.id, Array.isArray(d?.items) ? d.items : [], hoy, ahora);
+        hechas.add(b.id);
+        ok++;
+      } catch (e) {
+        console.error("benchmark santander", b.id, String((e as Error)?.message || e));
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: 6 }, worker));
+  const pendientes = marcas.filter((b) => !hechas.has(b.id)).length;
+  await admin.from("promos_bench_meta").upsert({ banco: "santander_web", progreso: { ciclo: prog.ciclo, hechas: [...hechas] } }, { onConflict: "banco" });
+  let total = 0;
+  if (!pendientes) {
+    // al terminar la vuelta, se sacan las marcas que ya no están en su listado
+    const vivas = new Set(marcas.map((b) => "brand:" + b.id));
+    const viejas: string[] = [];
+    for (let d = 0; ; d += 1000) {
+      const { data } = await admin.from("promos_bench_cache").select("id,slug").eq("fuente", "santander").order("id").range(d, d + 999);
+      for (const r of data || []) { if (vivas.has(r.slug)) total++; else viejas.push(r.id); }
+      if (!data || data.length < 1000) break;
+    }
+    for (let j = 0; j < viejas.length; j += 200) await admin.from("promos_bench_cache").delete().in("id", viejas.slice(j, j + 200));
+  }
+  return { hechas: ok, pendientes, total };
+}
+// ── Recordatorio mensual de las promos cargadas a mano (día 5) ─────────────
+// Macro y Santander bloquean la lectura automática de su web: sus promos propias
+// las carga el admin a mano (tabla promos_bench_manual). El día 5 llega un mail
+// con lo que hay por banco, lo vencido y lo que vence en los próximos 7 días.
+export function resumenManual(filas: any[], hoy: string): { banco: string; total: number; vencidas: string[]; porVencer: string[] }[] {
+  const en7 = new Date(new Date(hoy + "T12:00:00Z").getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const por = new Map<string, { banco: string; total: number; vencidas: string[]; porVencer: string[] }>();
+  for (const k of Object.keys(BANCOS)) por.set(k, { banco: k, total: 0, vencidas: [], porVencer: [] });
+  for (const f of filas || []) {
+    const x = por.get(String(f.banco)) || { banco: String(f.banco), total: 0, vencidas: [], porVencer: [] };
+    x.total++;
+    const h = f.fecha_hasta ? String(f.fecha_hasta) : "";
+    if (h && h < hoy) x.vencidas.push(String(f.titulo));
+    else if (h && h <= en7) x.porVencer.push(String(f.titulo));
+    por.set(x.banco, x);
+  }
+  return [...por.values()];
+}
+async function recordatorioManual(): Promise<{ enviado: boolean; resumen: unknown }> {
+  const { data, error } = await admin.from("promos_bench_manual").select("banco,titulo,fecha_hasta");
+  if (error) throw new Error("Leyendo las promos cargadas a mano: " + error.message);
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  const r = resumenManual(data || [], hoy);
+  const lineas: [string, string][] = r.filter((x) => x.banco === "macro" || x.banco === "santander" || x.total).map((x) => [
+    BANCOS[x.banco]?.nombre || x.banco,
+    x.total + " cargadas" + (x.vencidas.length ? " · vencidas: " + x.vencidas.slice(0, 6).join(", ") + (x.vencidas.length > 6 ? "…" : "") : "") +
+      (x.porVencer.length ? " · vencen esta semana: " + x.porVencer.slice(0, 6).join(", ") + (x.porVencer.length > 6 ? "…" : "") : ""),
+  ]);
+  await avisarAdmin({
+    asunto: "Armador de flyers · Benchmark: revisar las promos cargadas a mano",
+    titulo: "Es día de revisar las promos cargadas a mano",
+    parrafos: [
+      "Macro y Santander no dejan leer su web de forma automática, así que sus promos propias se cargan a mano en el Benchmark. Conviene revisar las del mes nuevo: sacar las vencidas y sumar las que aparecieron.",
+      "Se hace en la solapa Benchmark → Cargadas a mano (botones Editar, Quitar y + Agregar promo).",
+    ],
+    datos: lineas,
+  });
+  return { enviado: !!(MAIL_URL && MAIL_SECRET), resumen: r };
+}
+
 async function metaWeb(clave: string, r: { total?: number; error?: string }): Promise<void> {
   if (r.error) await admin.from("promos_bench_meta").upsert({ banco: clave, error: r.error }, { onConflict: "banco" });
   else await admin.from("promos_bench_meta").upsert({ banco: clave, last_sync_at: new Date().toISOString(), total: r.total ?? 0, error: null }, { onConflict: "banco" });
@@ -747,11 +993,6 @@ async function metaWeb(clave: string, r: { total?: number; error?: string }): Pr
 async function syncTodo(bancos: string[]): Promise<{ resultados: any[]; errores: [string, string][] }> {
   const resultados: any[] = [];
   for (const b of bancos) resultados.push(await syncBancoSeguro(b)); // uno por vez: no saturar a MODO
-  try {
-    await guardarHistorial();
-  } catch (e) {
-    console.error("benchmark hist:", String((e as Error)?.message || e));
-  }
   return {
     resultados,
     errores: resultados.filter((r) => r.error).map((r) => [BANCOS[r.banco]?.nombre || r.banco, String(r.error)] as [string, string]),
@@ -764,7 +1005,7 @@ Deno.serve(async (req: Request) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* vacío */ }
   const action = body?.action;
-  const cron = (action === "sync" || action === "marcas" || action === "bbva" || action === "galicia") && esCron(req);
+  const cron = ["sync", "marcas", "bbva", "galicia", "supervielle", "santander", "recordatorio"].includes(action) && esCron(req);
   if (!cron && !(await requireCan(req))) return json({ error: "No autorizado" }, 403);
   try {
     if (action === "status") {
@@ -791,6 +1032,34 @@ Deno.serve(async (req: Request) => {
         if (cron) await avisarAdmin(MAIL_FALLO([["BBVA (web propia)", msg]]));
         return json({ error: msg }, 500);
       }
+    }
+    if (action === "supervielle") {
+      try {
+        const r = await syncSupervielle();
+        await metaWeb("supervielle_web", r);
+        return json({ data: r });
+      } catch (e) {
+        const msg = (e as Error)?.message || "Error";
+        await metaWeb("supervielle_web", { error: msg });
+        if (cron) await avisarAdmin(MAIL_FALLO([["Supervielle (web propia)", msg]]));
+        return json({ error: msg }, 500);
+      }
+    }
+    if (action === "santander") {
+      // si Santander no responde se anota y se sigue: no es un error para el admin (está previsto)
+      try {
+        const ms = Number(body?.presupuestoMs) > 0 ? Math.min(Number(body.presupuestoMs), 110000) : 100000;
+        const r = await syncSantander(ms);
+        if (!r.pendientes) await metaWeb("santander_web", { total: r.total });
+        return json({ data: r });
+      } catch (e) {
+        const msg = SAN_BLOQUEO + " (" + ((e as Error)?.message || "error") + ")";
+        await metaWeb("santander_web", { error: msg });
+        return json({ data: { bloqueado: true, error: msg, pendientes: 0 } });
+      }
+    }
+    if (action === "recordatorio") {
+      return json({ data: await recordatorioManual() });
     }
     if (action === "galicia") {
       try {

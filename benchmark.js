@@ -148,21 +148,22 @@ function benCargar(cb) {
     if (--pend > 0) return;
     BEN.cargando = false;
     if (fallo) { BEN.error = fallo; BEN.rows = BEN.rows || []; }
+    else BEN.rows = benDedup((filas || []).concat((BEN.manual || []).map(benManualAFila)));
     BEN.cache = null;
     benRender();
     if (cb) cb();
   }
   var filas = null;
   _sbTodo(function (a, b) { return _sb.from('promos_bench_cache').select('*').order('id').range(a, b); }, function (err, d) {
-    if (err) fallo = 'No se pudieron leer las promos del Benchmark. ¿Está aplicada la migración 039?'; else BEN.rows = benDedup(d || []);
+    if (err) fallo = 'No se pudieron leer las promos del Benchmark. ¿Está aplicada la migración 039?'; else filas = d || [];
     fin();
   });
   _sbTodo(function (a, b) { return _sb.from('promos_bench_marcas').select('*').order('marca_clave').range(a, b); }, function (err, d) {
     var m = {}; (d || []).forEach(function (x) { m[x.marca_clave] = x; }); BEN.marcas = m; fin();
   });
   benTarjCargar(fin);
+  benManualCargar(fin);
   _sb.from('promos_bench_meta').select('*').then(function (r) { BEN.meta = (r && r.data) || []; fin(); }, function () { fin(); });
-  _sb.from('promos_bench_hist').select('*').order('semana', { ascending: false }).limit(2000).then(function (r) { BEN.hist = (r && r.data) || []; fin(); }, function () { fin(); });
 }
 
 // ── Filtros ─────────────────────────────────────────────────────────────────
@@ -172,8 +173,14 @@ function benProvs(r) {
   var m = BEN.marcas[r.marca_clave];
   return m && Array.isArray(m.provincias) ? m.provincias : null;
 }
+// Fecha (AAAA-MM-DD) de dentro de n días, en hora argentina.
+function benEnDias(n) { return new Date(Date.now() - 3 * 3600000 + n * 86400000).toISOString().slice(0, 10); }
+var BEN_PROX_DIAS = 15; // las que todavía no empezaron entran si empiezan en estos días (decisión del dueño)
+function benEmpieza(r) { return r.fecha_desde && r.fecha_desde > benHoyIso() ? 'Empieza el ' + benFecha(r.fecha_desde) : ''; }
 function benPasaFiltros(r, hoy) {
-  if (r.proximamente) return false;
+  // compartida en MODO (vale con cualquier banco): no diferencia a nadie; se avisa aparte
+  if (r.bancos_n > 1) return false;
+  if (r.proximamente || (r.fecha_desde && r.fecha_desde > hoy)) { if (!r.fecha_desde || r.fecha_desde > benEnDias(BEN_PROX_DIAS)) return false; }
   if (r.fecha_hasta && r.fecha_hasta < hoy) return false;
   var f = BEN.f;
   if (f.rubro && r.rubro !== f.rubro) return false;
@@ -237,7 +244,7 @@ function benInit() {
 function benRoot() { return document.getElementById('ben-root'); }
 function benRender() {
   var root = benRoot(); if (!root) return;
-  var h = '<div class="ben-top"><div><h2>Benchmark</h2><p>Galicia contra la competencia, a nivel persona. Todos los bancos salen de MODO; además se leen la web propia de BBVA y el catálogo propio de Galicia (la misma promo no se cuenta dos veces). Macro, Supervielle y Santander salen sólo de MODO.</p></div>' +
+  var h = '<div class="ben-top"><div><h2>Benchmark</h2><p>Galicia contra la competencia, a nivel persona. Todos los bancos salen de MODO; además se leen la web propia de BBVA, Supervielle y Santander (cuando su web lo permite) y el catálogo propio de Galicia (la misma promo no se cuenta dos veces). De Macro y Santander se suman las promos que cargás a mano (sus webs no dejan leerlas solas). Las promos de MODO que valen con cualquier banco no se comparan: se avisan aparte.</p></div>' +
     '<div class="ben-acts">' + (BEN.rows && BEN.rows.length ? '<button class="btn" id="ben-xl" onclick="benExcel()">Descargar Excel</button>' : '') + (_admin ? '<button class="btn" id="ben-act" onclick="benActualizar()">Actualizar ahora</button>' : '') + '</div></div>';
   h += benFuentesHtml();
   if (BEN.cargando && BEN.rows === null) { root.innerHTML = h + '<div class="ben-vacio"><strong>Cargando…</strong>Trayendo las promos de cada banco.</div>'; return; }
@@ -247,26 +254,32 @@ function benRender() {
     return;
   }
   h += benFiltrosHtml();
+  h += benManualAvisoHtml();
   h += benNotaLugares();
-  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana'], ['versus', 'Galicia vs ' + BEN_NOM[BEN.vs]], ['evolucion', 'Evolución'], ['tarjetas', 'Tarjetas y salas VIP']];
+  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana'], ['versus', 'Galicia vs ' + BEN_NOM[BEN.vs]], ['manual', 'Cargadas a mano'], ['tarjetas', 'Tarjetas y salas VIP']];
   h += '<div class="ben-tabs" role="tablist">' + tabs.map(function (t) {
     return '<button class="ben-tab' + (BEN.vista === t[0] ? ' on' : '') + '" role="tab" aria-selected="' + (BEN.vista === t[0]) + '" onclick="benVista(\'' + t[0] + '\')">' + t[1] + '</button>';
   }).join('') + '</div>';
-  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : BEN.vista === 'versus' ? benVersusHtml() : BEN.vista === 'evolucion' ? benEvolucionHtml() : BEN.vista === 'tarjetas' ? benTarjetasHtml() : benRubroHtml();
+  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : BEN.vista === 'versus' ? benVersusHtml() : BEN.vista === 'tarjetas' ? benTarjetasHtml() : BEN.vista === 'manual' ? benManualHtml() : benRubroHtml();
   root.innerHTML = h + body;
   var sel = document.getElementById('ben-prov'); if (sel && typeof _provSel === 'function') _provSel(sel);
 }
 function benFuentesHtml() {
   var meta = {}; (BEN.meta || []).forEach(function (m) { meta[m.banco] = m; });
   var hoy = Date.now();
-  var WEB = { bbva: 'bbva_web', galicia: 'galicia_web' }; // además de MODO, BBVA y Galicia se leen de su web propia
+  // además de MODO, se leen las webs propias (Santander, sólo si su web deja leerla desde la nube)
+  var WEB = { bbva: 'bbva_web', galicia: 'galicia_web', supervielle: 'supervielle_web', santander: 'santander_web' };
   return '<div class="ben-fuentes">' + BEN_BANCOS.map(function (b) {
     var m = meta[b[0]], w = WEB[b[0]] ? meta[WEB[b[0]]] : null;
-    var fechas = [m, w].filter(function (x) { return x && x.last_sync_at; }).map(function (x) { return x.last_sync_at; }).sort();
-    var fecha = fechas.length ? benFecha(fechas[0]) : 'sin datos', err = [m, w].filter(function (x) { return x && x.error; }).map(function (x) { return x.error; })[0];
-    var vieja = !m || !m.last_sync_at || hoy - new Date(fechas[0]).getTime() > 10 * 86400000;
-    var fuente = w && w.last_sync_at ? 'MODO + web propia' : 'vía MODO';
-    return '<span class="ben-chip' + (vieja ? ' vieja' : '') + '" title="' + benE(err ? 'Último error: ' + err : fuente) + '"><b>' + b[1] + '</b> · ' + fuente + ' · act. ' + fecha + (err ? ' ⚠' : '') + '</span>';
+    var bloqueada = !!(w && /bloquea/i.test(w.error || '')), conWeb = !!(w && w.last_sync_at);
+    var mensual = !!(w && conWeb && (w.error === 'carga mensual' || bloqueada)); // Santander: carga hecha a mano una vez por mes
+    var fechas = [m, conWeb ? w : null].filter(function (x) { return x && x.last_sync_at; }).map(function (x) { return x.last_sync_at; }).sort();
+    var err = [m, w].filter(function (x) { return x && x.error && !/bloquea/i.test(x.error) && x.error !== 'carga mensual'; }).map(function (x) { return x.error; })[0];
+    var fecha = fechas.length ? benFecha(fechas[0]) : 'sin datos';
+    var vieja = !m || !m.last_sync_at || hoy - new Date(fechas[0]).getTime() > (mensual ? 35 : 10) * 86400000;
+    var fuente = conWeb ? (mensual ? 'MODO + web propia (carga mensual)' : 'MODO + web propia') : bloqueada ? 'vía MODO · su web bloquea la lectura automática' : 'vía MODO';
+    var hoyIso = benHoyIso(), nMan = (BEN.manual || []).filter(function (x) { return x.banco === b[0] && (!x.fecha_hasta || x.fecha_hasta >= hoyIso); }).length;
+    return '<span class="ben-chip' + (vieja ? ' vieja' : '') + '" title="' + benE(err ? 'Último error: ' + err : fuente) + '"><b>' + b[1] + '</b> · ' + fuente + (nMan ? ' · ' + nMan + (nMan > 1 ? ' cargadas' : ' cargada') + ' a mano' : '') + ' · act. ' + fecha + (err ? ' ⚠' : '') + '</span>';
   }).join('') + '</div>';
 }
 function benFiltrosHtml() {
@@ -312,7 +325,7 @@ function benCeldaHtml(m, gana, cuotas) {
   var r = m.r;
   return '<div class="ben-c' + (gana ? ' gana' : '') + '"><span class="m">' + benPlata(m.v) + ' <span style="font-weight:500">(' + r.pct + '%)</span></span>' +
     '<span class="d">' + benE(r.titulo) + '</span><span class="d">' + benTopeTxt(r) + ' · ' + benE(r.dias || '') + '</span>' +
-    (benSegTxt(r) ? '<span class="ben-seg">Sólo ' + benSegTxt(r) + '</span>' : '') + '</div>';
+    (benSegTxt(r) ? '<span class="ben-seg">Sólo ' + benSegTxt(r) + '</span>' : '') + (benEmpieza(r) ? '<span class="ben-seg">' + benEmpieza(r) + '</span>' : '') + (r.fuente === 'manual' ? '<span class="ben-seg">Cargada a mano</span>' : '') + '</div>';
 }
 function benLogo(clave) {
   var m = BEN.marcas[clave];
@@ -323,6 +336,26 @@ function benLogo(clave) {
 function benNotaOtros() {
   var n = (BEN.rows || []).filter(function (r) { return r.banco === 'bbva' && r.fuente === 'bbva' && r.rubro === 'Otros'; }).length;
   return n > 50 ? 'La web de BBVA no informa el rubro de sus promos: ' + n + ' quedan en «Otros» (las marcas que ya estaban en MODO o en Galicia sí lo tienen). «Cara a cara por marca» y «Semana» las comparan igual.' : '';
+}
+
+// Las promos de MODO que valen con cualquier banco: no cuentan para ver quién gana, se listan aparte.
+function benCompartidasHtml() {
+  var hoy = benHoyIso(), lim = benEnDias(BEN_PROX_DIAS), vistas = {}, L = [];
+  (BEN.rows || []).forEach(function (r) {
+    if (!(r.bancos_n > 1)) return;
+    if (r.fecha_hasta && r.fecha_hasta < hoy) return;
+    if ((r.proximamente || (r.fecha_desde && r.fecha_desde > hoy)) && (!r.fecha_desde || r.fecha_desde > lim)) return;
+    if (BEN.f.rubro && r.rubro !== BEN.f.rubro) return;
+    var k = String(r.id).split(':').slice(1).join(':'); // la misma promo aparece una vez por banco
+    if (vistas[k]) return;
+    vistas[k] = 1; L.push(r);
+  });
+  if (!L.length) return '';
+  L.sort(function (a, b) { return (b.pct || 0) - (a.pct || 0); });
+  return '<div class="ben-card"><h3>Con MODO y cualquier banco</h3><p class="ben-sub">Estas promos valen pagando con MODO desde cualquier banco, así que no hacen diferencia y no cuentan para ver quién gana.</p><ul class="ben-lista">' +
+    L.slice(0, 8).map(function (r) {
+      return '<li><b>' + benE(r.titulo) + '</b>: ' + benE(r.beneficio || (r.pct ? r.pct + '%' : '')) + (r.tope > 0 ? ', ' + benTopeTxt(r) : '') + (r.dias ? ' · ' + benE(r.dias) : '') + (benEmpieza(r) ? ' · ' + benEmpieza(r) : '') + '</li>';
+    }).join('') + '</ul>' + (L.length > 8 ? '<p class="ben-sub">Y ' + (L.length - 8) + ' más.</p>' : '') + '</div>';
 }
 
 // ── Vista 1: resumen por rubro ──────────────────────────────────────────────
@@ -357,7 +390,7 @@ function benRubroHtml() {
     var n = lista.filter(function (r) { return r.banco === b[0]; }).length;
     return '<div class="ben-bar' + (b[0] === 'galicia' ? ' gal' : '') + '"><span style="width:92px">' + b[1] + '</span><i style="width:' + Math.max(2, Math.round(n / max * 260)) + 'px"></i> ' + n + '</div>';
   }).join('');
-  return '<div class="ben-card"><div class="ben-resumen">' + resumen + '</div><p class="ben-aviso">Gana el que más devuelve en la compra de referencia (verde). Ojo: Macro, Supervielle y Santander salen sólo de MODO y pueden tener más promos propias que no se ven acá. ' + benNotaOtros() + '</p></div>' +
+  return '<div class="ben-card"><div class="ben-resumen">' + resumen + '</div><p class="ben-aviso">Gana el que más devuelve en la compra de referencia (verde). Ojo: de Macro y Santander se ve lo de MODO y lo cargado a mano; pueden tener más promos propias que no se ven acá. ' + benNotaOtros() + '</p></div>' + benCompartidasHtml() +
     '<div class="ben-card"><h3>Promos vigentes por banco</h3>' + barras + '</div>' +
     '<div class="ben-card ben-scroll"><table class="ben-t"><thead><tr><th>Rubro</th>' + BEN_BANCOS.map(function (b) { return '<th class="' + (b[0] === 'galicia' ? 'gal' : '') + '">' + b[1] + '</th>'; }).join('') + '</tr></thead><tbody>' + filas + '</tbody></table></div>';
 }
@@ -440,7 +473,7 @@ function benSemanaHtml() {
 // ── Vista 4: Galicia contra un banco, en palabras ───────────────────────────
 function benLinea(m) {
   var r = m.r;
-  return benPlata(m.v) + ' (' + r.pct + ' %' + (r.tope > 0 ? ', ' + benTopeTxt(r) : ', sin tope informado') + (r.dias && r.dias !== 'Todos los días' ? ', ' + benE(r.dias.toLowerCase()) : '') + ')';
+  return benPlata(m.v) + ' (' + r.pct + ' %' + (r.tope > 0 ? ', ' + benTopeTxt(r) : ', sin tope informado') + (r.dias && r.dias !== 'Todos los días' ? ', ' + benE(r.dias.toLowerCase()) : '') + (benEmpieza(r) ? ', ' + benEmpieza(r).toLowerCase() : '') + ')';
 }
 function benVersusHtml() {
   var lista = benFiltradas();
@@ -481,51 +514,8 @@ function benVersusHtml() {
     return '<li><b>' + benE(x.ru) + '</b>: Galicia ' + g + ', ' + NV + ' ' + v + (q > 0 ? ' · <span class="ben-up">más cuotas Galicia</span>' : q < 0 ? ' · <span class="ben-down">más cuotas ' + NV + '</span>' : '') + '</li>';
   });
   h += '<div class="ben-card"><h3>Cuotas sin interés</h3>' + (cuotas.length ? '<ul class="ben-lista">' + cuotas.join('') + '</ul>' : '<p class="ben-sub">Sin promos de cuotas con estos filtros.</p>') + '</div>';
-  h += '<p class="ben-aviso">Es un borrador armado con los datos de hoy y la compra de referencia de arriba: sirve para preparar la charla, no para repetirlo tal cual. Los topes de MODO suelen ser mensuales y no se consideran gastados. Antes de mostrarle algo a un cliente, conviene revisar la promo en la web del banco. ' + benNotaOtros() + '</p>';
+  h += '<p class="ben-aviso">Es un borrador armado con los datos de hoy y la compra de referencia de arriba: sirve para preparar la charla, no para repetirlo tal cual. Los topes de MODO suelen ser mensuales y no se consideran gastados. Antes de mostrarle algo a un cliente, conviene revisar la promo en la web del banco. ' + benNotaOtros() + '</p>' + benCompartidasHtml();
   return h;
-}
-
-// ── Vista 5: evolución semana a semana ──────────────────────────────────────
-function benEvolucionHtml() {
-  var hist = (BEN.hist || []).filter(function (x) { return !BEN.f.rubro || x.rubro === BEN.f.rubro; });
-  var sem = {};
-  hist.forEach(function (x) { sem[x.semana] = 1; });
-  var semanas = Object.keys(sem).sort().slice(-8); // las últimas 8, de la más vieja a la más nueva
-  if (!semanas.length) return '<div class="ben-vacio"><strong>Todavía no hay historial</strong>Se guarda una foto por semana (cuántas promos y el mejor % de cada banco y rubro). Se empieza a ver desde la segunda semana.</div>';
-  var tot = {}; // banco|semana -> {n, max}
-  hist.forEach(function (x) {
-    var k = x.banco + '|' + x.semana, t = tot[k] || (tot[k] = { n: 0, max: null });
-    t.n += x.promos || 0;
-    if (x.mejor_pct != null && (t.max == null || Number(x.mejor_pct) > t.max)) t.max = Number(x.mejor_pct);
-  });
-  var cab = '<tr><th>Banco</th>' + semanas.map(function (w) { return '<th>Semana del ' + benFecha(w) + '</th>'; }).join('') + '</tr>';
-  var cuerpo = BEN_BANCOS.map(function (b) {
-    return '<tr><td class="' + (b[0] === 'galicia' ? 'gal' : '') + '"><strong>' + b[1] + '</strong></td>' + semanas.map(function (w, i) {
-      var t = tot[b[0] + '|' + w], ant = i ? tot[b[0] + '|' + semanas[i - 1]] : null;
-      if (!t) return '<td class="ben-seg">—</td>';
-      var d = ant ? t.n - ant.n : 0;
-      return '<td><div class="ben-c"><span class="m">' + t.n + ' promos' + (d ? ' <span class="' + (d > 0 ? 'ben-up' : 'ben-down') + '">' + (d > 0 ? '+' : '') + d + '</span>' : '') + '</span>' + (t.max != null ? '<span class="d">mejor ' + t.max + ' %</span>' : '') + '</div></td>';
-    }).join('') + '</tr>';
-  }).join('');
-  var h = '<div class="ben-card"><h3>Cuántas promos tiene cada banco, semana a semana</h3><p class="ben-sub">' + (BEN.f.rubro ? 'Sólo ' + benE(BEN.f.rubro) + '. ' : 'Todos los rubros. ') + 'El número chico de color es el cambio contra la semana anterior.</p></div>';
-  if (semanas.length < 2) h += '<div class="ben-card"><div class="ben-resumen">Hay una sola semana guardada (' + benFecha(semanas[0]) + '). Los cambios se ven desde la segunda.</div></div>';
-  else {
-    var a = semanas[semanas.length - 1], b = semanas[semanas.length - 2], cam = [];
-    var por = {};
-    (BEN.hist || []).forEach(function (x) { if (x.semana === a || x.semana === b) por[x.banco + '|' + x.rubro + '|' + x.semana] = x; });
-    var vistos = {};
-    (BEN.hist || []).forEach(function (x) {
-      var k = x.banco + '|' + x.rubro; if (vistos[k]) return; vistos[k] = 1;
-      var n1 = por[k + '|' + a], n0 = por[k + '|' + b];
-      var d = (n1 ? n1.promos : 0) - (n0 ? n0.promos : 0);
-      if (d) cam.push({ banco: x.banco, rubro: x.rubro, d: d });
-    });
-    cam.sort(function (p, q) { return Math.abs(q.d) - Math.abs(p.d); });
-    h += '<div class="ben-card"><h3>Qué cambió esta semana</h3>' + (cam.length ? '<ul class="ben-lista">' + cam.slice(0, 10).map(function (c) {
-      return '<li><b>' + BEN_NOM[c.banco] + '</b> ' + (c.d > 0 ? '<span class="ben-up">sumó ' + c.d + '</span>' : '<span class="ben-down">perdió ' + (-c.d) + '</span>') + ' promos de ' + benE(c.rubro) + '.</li>';
-    }).join('') + '</ul>' : '<p class="ben-sub">Sin cambios en la cantidad de promos.</p>') + '</div>';
-  }
-  return h + '<div class="ben-card ben-scroll"><table class="ben-t"><thead>' + cab + '</thead><tbody>' + cuerpo + '</tbody></table></div>';
 }
 
 // ── Vista 6: tarjetas premium y salas VIP (cargadas a mano, las edita el admin) ──
@@ -728,7 +718,7 @@ function benExcel() {
     hoja('Promos', [['banco', 'Banco', 14], ['fuente', 'Fuente', 12], ['marca', 'Marca', 28], ['rubro', 'Rubro', 20], ['beneficio', 'Beneficio', 36], ['pct', '%', 8], ['tope', 'Tope', 14, P], ['por', 'Tope por', 12], ['cuotas', 'Cuotas sin interés', 12], ['dias', 'Días', 22], ['tarjetas', 'Tarjetas', 22], ['segmento', 'Sólo para', 14], ['provincias', 'Dónde vale', 30], ['desde', 'Desde', 12], ['hasta', 'Hasta', 12]],
       benFiltradas().map(function (r) {
         var ps = benProvs(r);
-        return { banco: BEN_NOM[r.banco] || r.banco, fuente: r.fuente === 'modo' || !r.fuente ? 'MODO' : 'Web propia', marca: r.titulo, rubro: r.rubro, beneficio: r.beneficio || '', pct: r.pct, tope: r.tope > 0 ? r.tope : null,
+        return { banco: BEN_NOM[r.banco] || r.banco, fuente: r.fuente === 'manual' ? 'Cargada a mano' : r.fuente === 'modo' || !r.fuente ? 'MODO' : 'Web propia', marca: r.titulo, rubro: r.rubro, beneficio: r.beneficio || '', pct: r.pct, tope: r.tope > 0 ? r.tope : null,
           por: { month: 'mes', week: 'semana', day: 'día', transaction: 'compra' }[r.tope_por] || '', cuotas: r.cuotas || null, dias: r.dias || '',
           tarjetas: [r.credito ? 'Crédito' : '', r.debito ? 'Débito' : ''].filter(Boolean).join(' y '), segmento: segs[r.segmento] || '',
           provincias: ps === null ? 'Sin dato' : ps.length ? ps.map(_promoTitulizar).join(', ') : 'Todo el país (online)', desde: r.fecha_desde || '', hasta: r.fecha_hasta || '' };
@@ -745,14 +735,151 @@ function benExcel() {
   });
 }
 
+// ── Vista 7: promos cargadas a mano (Macro y Santander propios) ─────────────
+// Sus webs bloquean la lectura automática y no se esquiva esa protección: el admin
+// carga las promos importantes que ve en su web y entran a la comparación como
+// cualquier otra (fuente 'manual', etiqueta "cargada a mano"). El día 5 de cada mes
+// llega un mail para revisarlas y la solapa muestra el aviso.
+var BEN_RUBROS_BASE = ['Supermercados', 'Combustible', 'Gastronomía', 'Salud y Bienestar', 'Indumentaria', 'Hogar', 'Electrónica', 'Entretenimiento', 'Mascotas', 'Vehículos', 'Juguetes', 'Otros'];
+var BEN_DIAS_CORTOS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+var BEN_DIAS_TXT = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados', 'domingos'];
+// misma clave de marca que usa la función (modoClave), para juntarla con la de los otros bancos
+function benClave(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+    .replace(/\b(supermercados?|super|hiper(mercados?)?|mayorista|farmacias?|perfumerias?|y|de|del|la|el|los|las|grupo|s ?a)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, '');
+}
+function benDiasTxt(idx) {
+  if (!idx || !idx.length || idx.length === 7) return 'Todos los días';
+  var t = idx.slice().sort().map(function (i) { return BEN_DIAS_TXT[i]; });
+  var s = t.length === 1 ? t[0] : t.slice(0, -1).join(', ') + ' y ' + t[t.length - 1];
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function benManualAFila(m) {
+  var dn = (m.dias_n || []).map(Number);
+  return {
+    id: 'manual:' + m.id, banco: m.banco, fuente: 'manual', titulo: m.titulo, marca_clave: benClave(m.titulo), rubro: m.rubro || 'Otros',
+    beneficio: m.beneficio || '', pct: m.pct == null ? null : Number(m.pct), tope: m.tope == null ? null : Number(m.tope), tope_por: m.tope_por || null,
+    cuotas: m.cuotas || 0, dias: benDiasTxt(dn), dias_n: dn.length === 7 ? [] : dn, credito: !!m.credito, debito: !!m.debito, emisores: [],
+    segmento: m.segmento || null, segmento_txt: null, provincias: Array.isArray(m.provincias) && m.provincias.length ? m.provincias : [],
+    fecha_desde: m.fecha_desde || null, fecha_hasta: m.fecha_hasta || null, proximamente: !!(m.fecha_desde && m.fecha_desde > benHoyIso()), bancos_n: null
+  };
+}
+function benManualCargar(cb) {
+  _sb.from('promos_bench_manual').select('*').then(function (r) {
+    if (r && r.error) { BEN.manualError = true; BEN.manual = []; } else { BEN.manualError = false; BEN.manual = (r && r.data) || []; }
+    if (cb) cb();
+  }, function () { BEN.manualError = true; BEN.manual = []; if (cb) cb(); });
+}
+// ¿Toca revisarlas? Desde el día 5, si no se tocó ninguna en lo que va del mes.
+function benManualToca() {
+  var hoy = benHoyIso(); if (Number(hoy.slice(8, 10)) < 5) return false;
+  var mes = hoy.slice(0, 7) + '-01';
+  return !(BEN.manual || []).some(function (m) { return m.updated_at && String(m.updated_at).slice(0, 10) >= mes; });
+}
+function benManualAvisoHtml() {
+  if (!_admin || BEN.manualError || !benManualToca() || BEN.vista === 'manual') return '';
+  var ult = (BEN.manual || []).map(function (m) { return String(m.updated_at || '').slice(0, 10); }).sort().pop();
+  return '<div class="ben-card" style="border-color:var(--accent,#F26122)"><div style="font-size:.9rem;color:var(--ink);line-height:1.5"><b>Es día de revisar las promos cargadas a mano.</b> Macro y Santander no dejan leer su web de forma automática: sacá las vencidas y sumá las del mes nuevo' +
+    (ult ? ' (última actualización: ' + benFecha(ult) + ')' : '') + '.</div><button class="btn" style="margin-top:8px" onclick="benVista(\'manual\')">Ir a Cargadas a mano</button></div>';
+}
+function benManualHtml() {
+  var hoy = benHoyIso(), L = (BEN.manual || []).slice().sort(function (a, b) { return benOrdBanco(a.banco) - benOrdBanco(b.banco) || String(a.titulo).localeCompare(String(b.titulo), 'es'); });
+  var h = '<div class="ben-card"><h3>Promos cargadas a mano</h3><p class="ben-sub">Macro y Santander no dejan leer su web de forma automática. Las promos importantes que veas en su web se cargan acá y entran a la comparación con la etiqueta «cargada a mano». El día 5 de cada mes te llega un mail para revisarlas.</p>' +
+    (_admin && !BEN.manualError ? '<button class="btn" onclick="benManualEditar(\'\')">+ Agregar promo</button>' : '') + '</div>';
+  if (BEN.manualError) return h + '<div class="ben-vacio"><strong>No se pudo leer la tabla de promos cargadas a mano</strong>¿Está aplicada la migración 043? <button class="btn" onclick="BEN.rows=null;benCargar()">Reintentar</button></div>';
+  if (!L.length) return h + '<div class="ben-vacio"><strong>Todavía no hay promos cargadas a mano</strong>' + (_admin ? 'Agregá la primera con «+ Agregar promo».' : 'El administrador las va a cargar.') + '</div>';
+  var tPor = { month: ' por mes', week: ' por semana', day: ' por día', transaction: ' por compra' };
+  return h + '<div class="ben-card ben-scroll"><table class="ben-t"><thead><tr><th>Banco</th><th>Marca</th><th>Rubro</th><th>Beneficio</th><th>Días</th><th>Tarjetas</th><th>Vigencia</th><th>Fuente</th>' + (_admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    L.map(function (m) {
+      var vencida = m.fecha_hasta && m.fecha_hasta < hoy, empieza = m.fecha_desde && m.fecha_desde > hoy;
+      var ben = [m.pct != null ? m.pct + '%' : '', m.cuotas ? m.cuotas + ' cuotas sin interés' : '', m.tope ? 'tope ' + benPlata(m.tope) + (tPor[m.tope_por] || '') : ''].filter(Boolean).join(' · ');
+      return '<tr style="' + (vencida ? 'opacity:.55' : '') + '"><td><b>' + benE(BEN_NOM[m.banco] || m.banco) + '</b></td><td>' + benE(m.titulo) + '</td><td>' + benE(m.rubro) + '</td>' +
+        '<td style="min-width:180px">' + benE(ben) + (m.beneficio ? '<div class="ben-seg">' + benE(m.beneficio) + '</div>' : '') + (m.segmento === 'premium' ? '<div class="ben-seg">Sólo Premium</div>' : m.segmento === 'clasico' ? '<div class="ben-seg">Sólo Clásico/Gold</div>' : '') + '</td>' +
+        '<td>' + benE(benDiasTxt((m.dias_n || []).map(Number))) + '</td><td>' + [m.credito ? 'Crédito' : '', m.debito ? 'Débito' : ''].filter(Boolean).join(' y ') + '</td>' +
+        '<td>' + (vencida ? '<b class="ben-down">Vencida</b> ' : empieza ? 'Empieza el ' + benFecha(m.fecha_desde) + ' ' : '') + (m.fecha_hasta ? '<div class="ben-seg">hasta ' + benFecha(m.fecha_hasta) + '</div>' : '') + '</td>' +
+        '<td>' + (benUrlOk(m.fuente_url) ? '<a href="' + benE(m.fuente_url) + '" target="_blank" rel="noopener noreferrer">Ver página</a>' : '') + (m.updated_at ? '<div class="ben-seg">act. ' + benFecha(m.updated_at) + '</div>' : '') + (m.notas ? '<div class="ben-seg">' + benE(m.notas) + '</div>' : '') + '</td>' +
+        (_admin ? '<td style="white-space:nowrap"><button class="btn" onclick="benManualEditar(\'' + benE(m.id) + '\')">Editar</button> <button class="btn" onclick="benManualBorrar(\'' + benE(m.id) + '\')">Quitar</button></td>' : '') + '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+function benManualEditar(id) {
+  if (!_admin) return;
+  var m = id ? (BEN.manual || []).filter(function (x) { return x.id === id; })[0] : null;
+  if (id && !m) return;
+  m = m || { banco: 'santander', titulo: '', rubro: 'Supermercados', dias_n: [], credito: true, debito: true, segmento: null };
+  var viejo = document.getElementById('ben-ed-ov'); if (viejo) viejo.remove();
+  function opt(v, t, cur) { return '<option value="' + benE(v) + '"' + (cur === v ? ' selected' : '') + '>' + t + '</option>'; }
+  function inp(k, lbl, tipo, extra) { return '<label class="ben-f"' + (extra || '') + '>' + lbl + '<input id="ben-m-' + k + '" type="' + tipo + '" value="' + benE(m[k] == null ? '' : m[k]) + '" style="width:100%"></label>'; }
+  var rubros = BEN_RUBROS_BASE.slice(); if (m.rubro && rubros.indexOf(m.rubro) < 0) rubros.push(m.rubro);
+  var dias = (m.dias_n || []).map(Number);
+  var ov = document.createElement('div');
+  ov.id = 'ben-ed-ov'; ov.className = 'ben-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+  ov.innerHTML = '<div class="ben-ed"><h3 style="margin:0 0 10px">' + (id ? 'Editar promo' : 'Agregar promo') + '</h3><div class="ben-ed-g">' +
+    '<label class="ben-f">Banco<select id="ben-m-banco">' + BEN_BANCOS.map(function (b) { return opt(b[0], b[1], m.banco); }).join('') + '</select></label>' +
+    '<label class="ben-f">Rubro<select id="ben-m-rubro">' + rubros.map(function (r) { return opt(r, r, m.rubro); }).join('') + '</select></label>' +
+    inp('titulo', 'Marca o comercio', 'text') + inp('pct', '% de descuento o reintegro', 'number') +
+    inp('tope', 'Tope ($)', 'number') +
+    '<label class="ben-f">El tope es<select id="ben-m-tope_por">' + opt('', 'Sin dato', m.tope_por || '') + opt('month', 'Por mes', m.tope_por) + opt('week', 'Por semana', m.tope_por) + opt('day', 'Por día', m.tope_por) + opt('transaction', 'Por compra', m.tope_por) + '</select></label>' +
+    inp('cuotas', 'Cuotas sin interés', 'number') +
+    '<label class="ben-f">Para quién<select id="ben-m-segmento">' + opt('', 'Todos', m.segmento || '') + opt('clasico', 'Sólo Clásico / Gold', m.segmento) + opt('premium', 'Sólo Premium (Select, Selecta…)', m.segmento) + '</select></label>' +
+    '<div class="ben-f" style="grid-column:1 / -1">Días (ninguno marcado = todos los días)<div>' + BEN_DIAS_CORTOS.map(function (d, i) {
+      return '<label style="margin-right:10px;font-weight:500"><input type="checkbox" class="ben-m-dia" value="' + i + '"' + (dias.indexOf(i) >= 0 ? ' checked' : '') + '> ' + d + '</label>';
+    }).join('') + '</div></div>' +
+    '<div class="ben-f" style="grid-column:1 / -1">Tarjetas<div><label style="margin-right:10px;font-weight:500"><input type="checkbox" id="ben-m-credito"' + (m.credito ? ' checked' : '') + '> Crédito</label><label style="font-weight:500"><input type="checkbox" id="ben-m-debito"' + (m.debito ? ' checked' : '') + '> Débito</label></div></div>' +
+    inp('fecha_desde', 'Desde', 'date') + inp('fecha_hasta', 'Hasta', 'date') +
+    '<label class="ben-f" style="grid-column:1 / -1">Provincias (separadas por coma; vacío = todo el país)<input id="ben-m-provincias" type="text" value="' + benE((m.provincias || []).join(', ')) + '" style="width:100%"></label>' +
+    '<label class="ben-f" style="grid-column:1 / -1">Detalle (cómo se paga, condiciones)<textarea id="ben-m-beneficio" rows="2" style="width:100%">' + benE(m.beneficio || '') + '</textarea></label>' +
+    inp('fuente_url', 'Dirección de la página (https://…)', 'text', ' style="grid-column:1 / -1"') +
+    '<label class="ben-f" style="grid-column:1 / -1">Notas<textarea id="ben-m-notas" rows="2" style="width:100%">' + benE(m.notas || '') + '</textarea></label>' +
+    '</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn" onclick="benTarjCerrar()">Cancelar</button><button class="btn" id="ben-ed-ok" onclick="benManualGuardar(\'' + benE(id || '') + '\')">Guardar</button></div></div>';
+  ov.addEventListener('mousedown', function (e) { if (e.target === ov) benTarjCerrar(); });
+  document.body.appendChild(ov);
+  var p = document.getElementById('ben-m-titulo'); if (p) p.focus();
+}
+function benManualGuardar(id) {
+  var g = function (k) { var el = document.getElementById('ben-m-' + k); return el ? String(el.value).trim() : ''; };
+  var num = function (v) { return v === '' ? null : Number(v); };
+  var o = {
+    banco: g('banco'), rubro: g('rubro') || 'Otros', titulo: g('titulo'), pct: num(g('pct')), tope: num(g('tope')), tope_por: g('tope_por') || null,
+    cuotas: Math.max(0, Math.round(Number(g('cuotas')) || 0)), segmento: g('segmento') || null, beneficio: g('beneficio'), notas: g('notas'), fuente_url: g('fuente_url'),
+    fecha_desde: g('fecha_desde') || null, fecha_hasta: g('fecha_hasta') || null,
+    dias_n: [].slice.call(document.querySelectorAll('.ben-m-dia:checked')).map(function (x) { return Number(x.value); }),
+    credito: !!(document.getElementById('ben-m-credito') || {}).checked, debito: !!(document.getElementById('ben-m-debito') || {}).checked,
+    provincias: g('provincias') ? g('provincias').split(',').map(function (x) { return x.trim().toUpperCase(); }).filter(Boolean) : null
+  };
+  if (!o.titulo) { showToast('Falta la marca o el comercio.'); return; }
+  if (o.pct == null && !o.cuotas) { showToast('Poné el % de descuento o las cuotas sin interés.'); return; }
+  if ((o.pct != null && (isNaN(o.pct) || o.pct <= 0 || o.pct > 100)) || (o.tope != null && (isNaN(o.tope) || o.tope < 0))) { showToast('Revisá el % y el tope: tienen que ser números válidos.'); return; }
+  if (o.fuente_url && !benUrlOk(o.fuente_url)) { showToast('La dirección de la página tiene que empezar con https://'); return; }
+  if (o.fecha_desde && o.fecha_hasta && o.fecha_hasta < o.fecha_desde) { showToast('La fecha "hasta" es anterior a "desde".'); return; }
+  if (!o.credito && !o.debito) { o.credito = true; o.debito = true; }
+  var btn = document.getElementById('ben-ed-ok'); if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  var q = id ? _sb.from('promos_bench_manual').update(o).eq('id', id) : _sb.from('promos_bench_manual').insert(o);
+  q.then(function (r) {
+    if (r && r.error) { if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; } showToast('No se pudo guardar: ' + (r.error.message || 'error')); return; }
+    benTarjCerrar(); showToast('Guardado.'); BEN.rows = null; BEN.cargando = false; benCargar();
+  }, function () { if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; } showToast('No se pudo guardar. Revisá la conexión.'); });
+}
+function benManualBorrar(id) {
+  if (!_admin) return;
+  var m = (BEN.manual || []).filter(function (x) { return x.id === id; })[0]; if (!m) return;
+  fgConfirm('¿Quitar «' + m.titulo + '» de ' + (BEN_NOM[m.banco] || m.banco) + '?\nSe borra de las promos cargadas a mano. No se puede deshacer.', { ok: 'Quitar' }).then(function (ok) {
+    if (!ok) return;
+    _sb.from('promos_bench_manual').delete().eq('id', id).then(function (r) {
+      if (r && r.error) { showToast('No se pudo quitar: ' + (r.error.message || 'error')); return; }
+      BEN.rows = null; BEN.cargando = false; benCargar();
+    }, function () { showToast('No se pudo quitar. Revisá la conexión.'); });
+  });
+}
+
 // ── Actualizar ahora (sólo admin): un banco por vez y después las marcas ───
 function benActualizar() {
   var btn = document.getElementById('ben-act');
   if (btn) { btn.disabled = true; btn.textContent = 'Actualizando…'; }
-  var errores = [], i = 0;
+  var errores = [], i = 0, sanBloq = false;
   function listo() {
     if (btn) { btn.disabled = false; btn.textContent = 'Actualizar ahora'; }
-    showToast(errores.length ? 'Algo no se pudo actualizar: ' + errores.join(' · ') : 'Benchmark actualizado.');
+    showToast((errores.length ? 'Algo no se pudo actualizar: ' + errores.join(' · ') : 'Benchmark actualizado.') + (sanBloq ? ' Santander: su web no deja leerla desde la nube, sigue con MODO.' : ''));
     BEN.rows = null; BEN.cargando = false; benCargar();
   }
   function marcas(vez) {
@@ -771,11 +898,28 @@ function benActualizar() {
       if (pend > 0 && vez < 40) { if (btn) btn.textContent = 'Galicia (faltan ' + pend + ')…'; galicia(vez + 1); } else marcas(0);
     });
   }
+  function santander(vez) {
+    if (btn) btn.textContent = 'Actualizando la web de Santander…';
+    _callEdgeFn(FN_URL_BENCH, 'santander', { presupuestoMs: 18000 }, function (err, d) {
+      var dd = (d && d.data) || {};
+      if (err) { errores.push('Santander propio: ' + err); galicia(0); return; }
+      if (dd.bloqueado) { sanBloq = true; galicia(0); return; } // previsto: su web no deja leerla desde la nube
+      var pend = dd.pendientes || 0;
+      if (pend > 0 && vez < 60) { if (btn) btn.textContent = 'Santander (faltan ' + pend + ')…'; santander(vez + 1); } else galicia(0);
+    });
+  }
+  function supervielle() {
+    if (btn) btn.textContent = 'Actualizando la web de Supervielle…';
+    _callEdgeFn(FN_URL_BENCH, 'supervielle', {}, function (err) {
+      if (err) errores.push('Supervielle propio: ' + err);
+      santander(0);
+    });
+  }
   function bbva() {
     if (btn) btn.textContent = 'Actualizando la web de BBVA…';
     _callEdgeFn(FN_URL_BENCH, 'bbva', {}, function (err) {
       if (err) errores.push('BBVA propio: ' + err);
-      galicia(0);
+      supervielle();
     });
   }
   function siguiente() {

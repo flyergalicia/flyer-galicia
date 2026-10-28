@@ -130,9 +130,10 @@ async function abrir(browser,o){
       return route.fulfill({status:200,body:JSON.stringify(sl),headers:{...H,'Content-Range':(sl.length?a+'-'+(a+sl.length-1):'*')+'/'+l.length}});
     }
     // tarjetas y salas VIP (migración 042): nube.benchTarj; escribe sólo el admin (como la regla de la base); nube.tarjFalla = tabla inexistente
-    if(path==='/rest/v1/promos_bench_tarjetas'){
-      if(nube.tarjFalla)return route.fulfill({status:404,body:JSON.stringify({message:'relation does not exist',code:'42P01'}),headers:H});
-      const l=nube.benchTarj=nube.benchTarj||[];
+    if(path==='/rest/v1/promos_bench_tarjetas'||path==='/rest/v1/promos_bench_manual'){
+      const esMan=path.endsWith('manual');
+      if(esMan?nube.manualFalla:nube.tarjFalla)return route.fulfill({status:404,body:JSON.stringify({message:'relation does not exist',code:'42P01'}),headers:H});
+      const l=esMan?(nube.benchManual=nube.benchManual||[]):(nube.benchTarj=nube.benchTarj||[]);
       if(m==='GET')return route.fulfill({status:200,body:JSON.stringify(l),headers:{...H,'Content-Range':(l.length?'0-'+(l.length-1):'*')+'/'+l.length}});
       if(U.role!=='admin')return route.fulfill({status:403,body:JSON.stringify({message:'new row violates row-level security policy for table "promos_bench_tarjetas"',code:'42501'}),headers:H});
       const b=JSON.parse(req.postData()||'{}');
