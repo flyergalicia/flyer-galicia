@@ -115,7 +115,11 @@ function benRefDe(rubro) { var v = BEN.ref[rubro]; return v > 0 ? v : (BEN.ref['
 
 // La misma promo vista por MODO y por la web propia del banco: se cuenta una vez y se queda la de la
 // web propia (trae el tope y las condiciones completas). Misma clave que claveDup de la función.
-function benClaveDup(r) { return [r.banco, r.marca_clave, r.pct == null ? '' : r.pct, r.cuotas || 0, (r.dias_n || []).join(''), r.credito ? 1 : 0, r.debito ? 1 : 0].join('|'); }
+// El nivel (Macro Selecta Nivel 1…4: mismo %, días y tarjetas, distinto tope) también distingue: si no, se juntaban en una sola.
+function benClaveDup(r) {
+  var niv = /nivel\s*(\d)/i.exec(String(r.segmento_txt || '') + ' ' + String(r.beneficio || ''));
+  return [r.banco, r.marca_clave, r.pct == null ? '' : r.pct, r.cuotas || 0, (r.dias_n || []).join(''), r.credito ? 1 : 0, r.debito ? 1 : 0, niv ? niv[1] : ''].join('|');
+}
 function benDedup(rows) {
   var m = {};
   rows.forEach(function (r) {
@@ -136,7 +140,15 @@ function benTopeTxt(r) {
   var por = { month: ' por mes', week: ' por semana', day: ' por día', transaction: ' por compra' }[r.tope_por] || '';
   return 'tope ' + benPlata(r.tope) + por;
 }
-function benSegTxt(r) { return r.segmento === 'premium' ? 'Premium' : r.segmento === 'clasico' ? 'Clásico/Gold' : ''; }
+function benSegTxt(r) {
+  if (!r.segmento) return '';
+  var t = String(r.segmento_txt || '') + ' ' + String(r.beneficio || ''), niv = /nivel\s*(\d)/i.exec(t);
+  if (/selecta/i.test(t)) return 'Selecta' + (niv ? ' Nivel ' + niv[1] : '');
+  if (niv) return 'Nivel ' + niv[1];
+  var m = /(visa platinum|mastercard platinum|platinum|signature|black|identit[eé]|\bselect\b|[eé]minent|infinite|gold|cl[aá]sica?)/i.exec(t);
+  if (m) return m[1].replace(/^./, function (c) { return c.toUpperCase(); }).replace(/identite/i, 'Identité').replace(/eminent/i, 'Éminent');
+  return r.segmento === 'premium' ? 'Premium' : 'Clásico/Gold';
+}
 
 // ── Carga ───────────────────────────────────────────────────────────────────
 function benCargar(cb) {
@@ -193,8 +205,9 @@ function benPasaFiltros(r, hoy) {
   if ((t === 'visa' || t === 'master' || t === 'american_express') && r.emisores && r.emisores.length && r.emisores.indexOf(t) < 0) return false;
   if (f.prov) {
     var ps = benProvs(r), sel = _provLista(f.prov);
-    // sin dato de lugares no se muestra al elegir una provincia (igual que en Promociones)
-    if (ps === null) return false;
+    // sin dato de lugares: las de MODO no se muestran (igual que en Promociones); las de la web propia del banco
+    // (catálogo nacional: Supervielle, BBVA…) se muestran con "Zona sin confirmar"
+    if (ps === null) return !!(r.fuente && r.fuente !== 'modo');
     if (ps.length && !sel.some(function (p) { return ps.indexOf(p) >= 0; })) return false;
   }
   return true;
@@ -217,12 +230,15 @@ function benProvinciasDisp() {
 }
 
 // La mejor promo de un conjunto: la que más devuelve; sin devolución, la de más cuotas.
+function benAcceso(r) { return r.segmento === 'premium' ? 2 : r.segmento === 'clasico' ? 1 : 0; }
 function benMejor(lista) {
   var mejor = null, mv = -1;
   lista.forEach(function (r) {
     var v = benDevuelve(r);
     if (v == null) return;
-    if (v > mv) { mv = v; mejor = r; }
+    // empate (ej.: Macro Selecta niveles 2, 3 y 4 devuelven lo mismo): la más accesible y, si no, la de tope más bajo
+    var empata = mejor && Math.abs(v - mv) < 1;
+    if (v > mv + 0.5 || (empata && (benAcceso(r) < benAcceso(mejor) || (benAcceso(r) === benAcceso(mejor) && (r.tope || Infinity) < (mejor.tope || Infinity))))) { mv = Math.max(v, mv); mejor = r; }
   });
   return mejor ? { r: mejor, v: mv } : null;
 }
@@ -305,11 +321,11 @@ function benNotaLugares() {
   if (!BEN.f.prov) return '';
   var hoy = benHoyIso(), n = {};
   (BEN.rows || []).forEach(function (r) {
-    if (r.proximamente || (r.fecha_hasta && r.fecha_hasta < hoy) || benProvs(r) !== null) return;
+    if (r.proximamente || (r.fecha_hasta && r.fecha_hasta < hoy) || benProvs(r) !== null || (r.fuente && r.fuente !== 'modo')) return;
     n[r.banco] = (n[r.banco] || 0) + 1;
   });
   var t = BEN_BANCOS.filter(function (b) { return n[b[0]]; }).map(function (b) { return b[1] + ' ' + n[b[0]]; });
-  return t.length ? '<p class="ben-aviso" style="margin:-6px 0 12px">Con una provincia elegida no se muestran las promos de las que MODO no informa dónde valen: ' + t.join(', ') + '. Para verlas, elegí «Todas las provincias».</p>' : '';
+  return t.length ? '<p class="ben-aviso" style="margin:-6px 0 12px">Con una provincia elegida no se muestran las promos de las que MODO no informa dónde valen (las de las webs propias sin ese dato sí, marcadas «Zona sin confirmar»): ' + t.join(', ') + '. Para verlas, elegí «Todas las provincias».</p>' : '';
 }
 function benSet(k, v) { if (k === 'vs') BEN.vs = v; else BEN.f[k] = v; BEN.cache = null; benRender(); }
 function benVista(v) { BEN.vista = v; benRender(); }
@@ -325,7 +341,7 @@ function benCeldaHtml(m, gana, cuotas) {
   var r = m.r;
   return '<div class="ben-c' + (gana ? ' gana' : '') + '"><span class="m">' + benPlata(m.v) + ' <span style="font-weight:500">(' + r.pct + '%)</span></span>' +
     '<span class="d">' + benE(r.titulo) + '</span><span class="d">' + benTopeTxt(r) + ' · ' + benE(r.dias || '') + '</span>' +
-    (benSegTxt(r) ? '<span class="ben-seg">Sólo ' + benSegTxt(r) + '</span>' : '') + (benEmpieza(r) ? '<span class="ben-seg">' + benEmpieza(r) + '</span>' : '') + (r.fuente === 'manual' ? '<span class="ben-seg">Cargada a mano</span>' : '') + '</div>';
+    (benSegTxt(r) ? '<span class="ben-seg">Sólo ' + benSegTxt(r) + '</span>' : '') + (benEmpieza(r) ? '<span class="ben-seg">' + benEmpieza(r) + '</span>' : '') + (r.fuente === 'manual' ? '<span class="ben-seg">Cargada a mano</span>' : '') + (BEN.f.prov && benProvs(r) === null ? '<span class="ben-seg">Zona sin confirmar</span>' : '') + '</div>';
 }
 function benLogo(clave) {
   var m = BEN.marcas[clave];

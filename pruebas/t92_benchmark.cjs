@@ -209,6 +209,29 @@ module.exports=async(browser)=>{
 
   const nota=await p.evaluate(()=>{const antes=benNotaOtros();for(let i=0;i<60;i++)BEN.rows.push({banco:'bbva',fuente:'bbva',rubro:'Otros'});const despues=benNotaOtros();BEN.rows.length-=60;return {antes,despues};});
   ok(nota.antes===''&&/no informa el rubro de sus promos: 61 quedan en/.test(nota.despues),'con muchas promos de BBVA sin rubro, la pantalla lo avisa (y con pocas no molesta)');
+  // ── empate de Macro Selecta por nivel y webs propias sin zona (29-oct) ──
+  nube.bench.push(
+    fila({k:'mx4',banco:'macro',rubro:'Combustible',titulo:'YPF',beneficio:'30% de reintegro Nivel 4',pct:30,tope:90000,dias:'Miércoles',dias_n:[2],segmento:'premium',segmento_txt:'Macro Selecta · YPF Selecta Nivel 4',bancos_n:1,provincias:[]}),
+    fila({k:'mx2',banco:'macro',rubro:'Combustible',titulo:'YPF',beneficio:'30% en YPF Nivel 2',pct:30,tope:30000,dias:'Miércoles',dias_n:[2],segmento:'premium',segmento_txt:'Macro Selecta · YPF Selecta Nivel 2',bancos_n:1,provincias:[]}),
+    fila({k:'mxg',banco:'macro',rubro:'Combustible',titulo:'YPF',beneficio:'20% de reintegro',pct:20,tope:10000,dias:'Miércoles',dias_n:[2],segmento:'premium',segmento_txt:'Macro · 20% en YPF Combustible · Los miércoles pagando con Tarjetas de Crédito Visa Platinum Macro',bancos_n:1,provincias:[]}),
+    fila({k:'su1',banco:'supervielle',fuente:'supervielle',rubro:'Supermercados',titulo:'Dia Prueba',pct:20,tope:12000,provincias:null}));
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.rows.some(r=>r.titulo==='Dia Prueba'),null,{timeout:10000});
+  const mz=await p.evaluate(()=>{
+    const ypf=benFiltradas().filter(r=>r.banco==='macro'&&r.rubro==='Combustible'),m=benMejor(ypf);
+    const g=benFiltradas().find(r=>r.segmento_txt&&/Visa Platinum/.test(r.segmento_txt));
+    benSet('prov','CAPITAL FEDERAL');
+    const dia=benFiltradas().some(r=>r.titulo==='Dia Prueba'),modoSinZona=benFiltradas().some(r=>r.fuente!=='supervielle'&&r.fuente&&false);
+    benSet('rubro','Supermercados');benVista('rubro');
+    const txt=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
+    benSet('rubro','');benSet('prov','');
+    return {m:m&&{tope:m.r.tope,v:m.v,seg:benSegTxt(m.r)},platino:g&&benSegTxt(g),dia,txt};
+  });
+  console.log('  ',JSON.stringify({m:mz.m,platino:mz.platino,dia:mz.dia}));
+  ok(mz.m&&mz.m.v===18000&&mz.m.tope===30000&&mz.m.seg==='Selecta Nivel 2','Macro YPF: los niveles 2 y 4 empatan ($18.000) y se muestra el más accesible (Nivel 2, tope $30.000), no el de tope $90.000');
+  ok(mz.platino==='Visa Platinum','el 20 % general de Macro dice "Sólo Visa Platinum" (no "Premium")');
+  ok(mz.dia&&/Zona sin confirmar/.test(mz.txt),'con una provincia elegida, una promo de la web propia sin lugar informado se ve igual, marcada "Zona sin confirmar"');
+
   // ── promos cargadas a mano (Macro y Santander, 29-oct) ──
   const mesPasado=new Date(Date.now()-40*86400000).toISOString();
   nube.benchManual=[{id:'m1',banco:'santander',titulo:'YPF',rubro:'Combustible',beneficio:'Pagando con la App YPF',pct:15,tope:20000,tope_por:'month',cuotas:0,dias_n:[3],credito:true,debito:true,segmento:'premium',provincias:null,fecha_desde:'2026-10-01',fecha_hasta:'2027-12-31',fuente_url:'https://www.santander.com.ar/personas/beneficios',notas:'',updated_at:mesPasado},

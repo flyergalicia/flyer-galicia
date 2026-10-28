@@ -11,7 +11,7 @@ const ini3 = src.indexOf('// ── Supervielle: la API abierta'), fin3 = src.in
 const ini4 = src.indexOf('// ── Santander: su buscador'), fin4 = src.indexOf('const SAN_HEADERS');
 const ini5 = src.indexOf('// ── Recordatorio mensual'), fin5 = src.indexOf('async function recordatorioManual');
 const js = 'const BANCOS = { galicia: {}, bbva: {}, macro: {}, supervielle: {}, santander: {} };\n' + stripTypeScriptTypes([src.slice(ini, fin), src.slice(ini2, fin2), src.slice(ini3, fin3), src.slice(ini4, fin4), src.slice(ini5, fin5)].join('\n')).replace(/export function/g, 'function');
-const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual };')();
+const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual, topeLegalSupervielle };')();
 const ok = (c, m) => { console.log((c ? '  OK  ' : '  FALLA ') + m); if (!c) process.exitCode = 1; };
 
 // BBVA real (27-oct-2026): 30% de reintegro, tope 15.000 por mes, lunes, crédito Master, 3 cuotas
@@ -85,6 +85,10 @@ const ypf = lib.normalizarSantander({ startDatePublication: '2026-10-01T00:00:00
 ok(ypf.titulo === 'YPF' && ypf.pct === 15 && ypf.tope === 20000 && ypf.tope_por === 'month' && ypf.dias === 'Jueves' && ypf.rubro === 'Combustible' && ypf.segmento === 'premium' && ypf.credito && ypf.debito && ypf.slug === 'brand:546' && ypf.emisores.includes('visa'), 'Santander: YPF 15 % jueves, tope 20.000 por mes, Combustible (no Automotor), Select = premium, Visa crédito y débito');
 ok(lib.rubroSantander([{ description: 'Automotor' }, { description: 'Viajes' }]) === 'Entretenimiento' && lib.rubroSantander([{ description: 'Supermercados' }]) === 'Supermercados', 'Santander: el rubro sale de sus categorías');
 
+const tl1 = lib.topeLegalSupervielle('El beneficio consistirá en un reintegro del 30%. El importe máximo de reintegro será de $30.000 mensual o hasta agotar stock.');
+const tl2 = lib.topeLegalSupervielle('Reintegro del 20% con un tope mensual por cuenta de $15.000 (considerando la suma de los consumos).');
+const tl3 = lib.topeLegalSupervielle('Beneficio válido los martes. Sin tope de reintegro.');
+ok(tl1.tope === 30000 && tl1.por === 'month' && tl2.tope === 15000 && tl2.por === 'month' && tl3.tope === null, 'Supervielle: el tope sale del texto legal ("importe máximo… $30.000 mensual", "tope mensual por cuenta de $15.000"); "Sin tope" no inventa uno');
 // ── Recordatorio del día 5 ──
 const rm = lib.resumenManual([{ banco: 'santander', titulo: 'YPF', fecha_hasta: '2026-11-03' }, { banco: 'santander', titulo: 'Vieja', fecha_hasta: '2026-10-01' }, { banco: 'macro', titulo: 'Changomas', fecha_hasta: '2026-12-31' }], '2026-11-05');
 const rs = rm.find((x) => x.banco === 'santander'), rmc = rm.find((x) => x.banco === 'macro');

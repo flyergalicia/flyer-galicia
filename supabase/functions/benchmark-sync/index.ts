@@ -769,6 +769,16 @@ export function normalizarSupervielle(b: any, rubroDe: (clave: string) => string
     proximamente: (desde || "") > hoy, updated_at: ahora, detalle_at: ahora, bancos_n: null,
   };
 }
+// "El importe máximo de reintegro será de $30.000 mensual", "tope mensual por cuenta de $15.000"
+export function topeLegalSupervielle(legales: unknown): { tope: number | null; por: string | null } {
+  const t = String(legales || "").replace(/\s+/g, " ");
+  const m = t.match(/(importe m[aá]ximo(?: de reintegro)?|tope(?: de reintegro)?(?: mensual| semanal)?(?: por cuenta)?)[^$.]{0,40}\$\s*([\d.]+)(?:,\d+)?\s*([^.]{0,40})/i);
+  if (!m) return { tope: null, por: null };
+  const tope = Number(m[2].replace(/\./g, ""));
+  const txt = (m[1] + " " + m[3]).toLowerCase();
+  const por = /mensual|por mes/.test(txt) ? "month" : /semanal|por semana/.test(txt) ? "week" : /diari|por d[ií]a/.test(txt) ? "day" : /por (compra|transacci|operaci)/.test(txt) ? "transaction" : null;
+  return { tope: tope > 0 ? tope : null, por };
+}
 async function jsonCon(url: string, headers: Record<string, string>, ms = 20000): Promise<any> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
@@ -818,6 +828,22 @@ async function syncSupervielle(): Promise<{ total: number }> {
     filas.push(f);
   }
   if (!filas.length) throw new Error("Ninguna promo de Supervielle se pudo leer");
+  // El listado no trae el tope de muchas promos con %: está en el texto legal del detalle.
+  // Si un detalle no responde, la promo queda como "sin tope informado" (no frena la carga).
+  const sinTope = filas.filter((f) => f.pct != null && f.tope == null);
+  let k = 0;
+  const t0 = Date.now();
+  async function detalle() {
+    while (k < sinTope.length && Date.now() - t0 < 60000) {
+      const f = sinTope[k++];
+      try {
+        const d = await jsonCon(`${SUP_API}/beneficio?id=${encodeURIComponent(String(f.id).replace("supervielle:p", ""))}`, MODO_HEADERS);
+        const tp = topeLegalSupervielle((d?.beneficio || d)?.legales);
+        if (tp.tope) { f.tope = tp.tope; f.tope_por = tp.por; }
+      } catch { /* sin tope informado */ }
+    }
+  }
+  await Promise.all(Array.from({ length: 6 }, detalle));
   const { count: guardadas } = await admin.from("promos_bench_cache").select("id", { count: "exact", head: true }).eq("fuente", "supervielle").or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
   if (guardadas && filas.length < guardadas * MINIMO_RELATIVO) throw new Error(`Supervielle devolvió sólo ${filas.length} promos y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
   for (let j = 0; j < filas.length; j += 500) {
