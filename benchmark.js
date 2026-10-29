@@ -92,7 +92,7 @@ var BEN_MAX_FILAS = 250; // filas que se dibujan en Cara a cara (más pesa en la
 var BEN = {
   rows: null, marcas: {}, meta: [], hist: [], cargando: false, error: '',
   vista: 'rubro', vs: 'bbva',
-  f: { prov: '', seg: 'todos', tarj: 'todas', rubro: '', q: '', solo2: true, resultado: '' },
+  f: { prov: '', seg: 'todos', tarj: 'todas', rubro: '', q: '', solo2: true, resultado: '', haberes: false },
   ref: (function () {
     try { var r = JSON.parse(localStorage.getItem('fg_bench_ref') || 'null'); if (r) return Object.assign({}, BEN_REF_DEF, r); } catch (e) { /* sin guardado */ }
     return Object.assign({}, BEN_REF_DEF);
@@ -144,6 +144,8 @@ function benSegTxt(r) {
   // beneficio de un paquete (cargado a mano): "Paquete Black+ All · Visa Signature por NFC" -> "Paquete Black+ All"
   var pq = /paquete[^·]*/i.exec(String(r.segmento_txt || ''));
   if (pq) return pq[0].trim().replace(/^./, function (c) { return c.toUpperCase(); });
+  var cg = /^clientes?\s+(.*(haberes|galicia).*)$/i.exec(String(r.segmento_txt || ''));
+  if (cg && r.banco === 'galicia') return cg[1].replace(/(^|\s)(\S)/g, function (m, a, c) { return a + c.toUpperCase(); }).replace(/Eminent/g, 'Éminent');
   if (!r.segmento) return '';
   var t = String(r.segmento_txt || '') + ' ' + String(r.beneficio || ''), niv = /nivel\s*(\d)/i.exec(t);
   var gal = /\b(plus gold|plus|move)\b/i.exec(String(r.segmento_txt || '')); // Galicia: "para clientes Plus Gold"
@@ -193,6 +195,7 @@ function benProvs(r) {
 // Fecha (AAAA-MM-DD) de dentro de n días, en hora argentina.
 function benEnDias(n) { return new Date(Date.now() - 3 * 3600000 + n * 86400000).toISOString().slice(0, 10); }
 var BEN_PROX_DIAS = 15; // las que todavía no empezaron entran si empiezan en estos días (decisión del dueño)
+function benEsHaberes(r) { return /haberes|sueldo/i.test(String(r.segmento_txt || '')); }
 function benEmpieza(r) {
   if (r.fecha_desde && r.fecha_desde === r.fecha_hasta) return 'Sólo el ' + benFecha(r.fecha_desde) + ' (un solo día)';
   return r.fecha_desde && r.fecha_desde > benHoyIso() ? 'Empieza el ' + benFecha(r.fecha_desde) : '';
@@ -209,6 +212,8 @@ function benLink(r) {
 function benPasaFiltros(r, hoy) {
   // compartida en MODO (vale con cualquier banco): no diferencia a nadie; se avisa aparte
   if (r.bancos_n > 1) return false;
+  // sólo para quien cobra el sueldo en el banco ("Haberes Galicia", "cobrando el sueldo"): fuera salvo que se pida
+  if (!BEN.f.haberes && benEsHaberes(r)) return false;
   if (r.proximamente || (r.fecha_desde && r.fecha_desde > hoy)) { if (!r.fecha_desde || r.fecha_desde > benEnDias(BEN_PROX_DIAS)) return false; }
   if (r.fecha_hasta && r.fecha_hasta < hoy) return false;
   var f = BEN.f;
@@ -328,6 +333,7 @@ function benFiltrosHtml() {
     '<label class="ben-f">Tipo de tarjeta<select onchange="benSet(\'tarj\',this.value)">' +
       opt('todas', 'Todas', f.tarj) + opt('credito', 'Crédito', f.tarj) + opt('debito', 'Débito', f.tarj) + opt('visa', 'Visa', f.tarj) + opt('master', 'Mastercard', f.tarj) + opt('american_express', 'Amex', f.tarj) + '</select></label>' +
     '<label class="ben-f">Comparar Galicia con<select onchange="benSet(\'vs\',this.value)">' + BEN_BANCOS.filter(function (b) { return b[0] !== 'galicia'; }).map(function (b) { return opt(b[0], b[1], BEN.vs); }).join('') + '</select></label>' +
+    '<label class="ben-f" style="font-weight:500;align-self:end" title="Promos como «clientes Haberes Galicia» o «cobrando el sueldo en ICBC»: sólo valen si el sueldo se cobra en ese banco."><span><input type="checkbox" ' + (f.haberes ? 'checked' : '') + ' onchange="benSet(\'haberes\',this.checked)"> Incluir promos para quien cobra el sueldo en el banco</span></label>' +
     '<div class="ben-f">Compra de referencia ($)<div class="ben-ref">' + ['Supermercados', 'Combustible', 'Salud y Bienestar', 'Otros'].map(function (r) {
       return '<label class="ben-f" style="font-weight:500">' + (r === 'Salud y Bienestar' ? 'Farmacia / salud' : r === 'Otros' ? 'Resto' : r) + '<input type="number" min="0" step="1000" value="' + (BEN.ref[r] || 0) + '" onchange="benRef(\'' + r + '\',this.value)"></label>';
     }).join('') + '</div></div></div>';

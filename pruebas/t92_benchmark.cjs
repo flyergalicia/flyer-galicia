@@ -317,6 +317,24 @@ module.exports=async(browser)=>{
   ok(pc.tab&&pc.filas>0&&pc.bancos.length>=2&&pc.mej&&pc.vacio&&pc.corto&&pc.jue>0&&pc.jue<=pc.filas,"Por comercio: buscar YPF lista las promos de varios bancos con la mejor arriba, filtra por día y avisa si no hay ("+JSON.stringify(pc)+")");
   await p.evaluate(()=>{BEN.cq="";BEN.cdia=null;benVista("rubro");});
 
+  // ── promos sólo para quien cobra el sueldo en el banco (29-oct) ──
+  nube.bench.push(
+    fila({k:'hb1',banco:'galicia',fuente:'galicia',rubro:'Combustible',titulo:'Combustible Haberes',pct:25,tope:20000,dias:'Martes',dias_n:[1],segmento:'premium',segmento_txt:'clientes Haberes Galicia Éminent',bancos_n:1,provincias:[]}),
+    fila({k:'hb2',banco:'galicia',fuente:'galicia',rubro:'Combustible',titulo:'Combustible Eminent',pct:15,tope:15000,dias:'Martes',dias_n:[1],segmento:'premium',segmento_txt:'clientes Galicia Éminent',bancos_n:1,provincias:[]}));
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.rows.some(r=>r.titulo==='Combustible Haberes'),null,{timeout:10000});
+  const hb=await p.evaluate(()=>{
+    const sin=benFiltradas().filter(r=>/^Combustible (Haberes|Eminent)$/.test(r.titulo)).map(r=>r.titulo);
+    const mej=benMejor(benFiltradas().filter(r=>/^Combustible (Haberes|Eminent)$/.test(r.titulo))).r.titulo;
+    benSet('haberes',true);
+    const con=benFiltradas().filter(r=>/^Combustible (Haberes|Eminent)$/.test(r.titulo)).map(r=>r.titulo);
+    const et=benSegTxt(benFiltradas().find(r=>r.titulo==='Combustible Haberes'));
+    benSet('haberes',false);
+    return {sin,mej,con,et};
+  });
+  ok(hb.sin.join()==='Combustible Eminent'&&hb.con.length===2&&hb.et==='Haberes Galicia Éminent','las promos "Haberes" (sólo cobrando el sueldo en el banco) no entran salvo que se tilde el filtro, y se rotulan completas ('+JSON.stringify(hb)+')');
+  ok(hb.mej==='Combustible Eminent','Galicia combustible: sin las de haberes queda la de clientes Éminent (15 %, tope $15.000)');
+
   // ── entrega 3: tarjetas y salas VIP ──
   await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});
   await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.tarj&&BEN.tarj.length===4,null,{timeout:10000});
