@@ -141,8 +141,13 @@ function benTopeTxt(r) {
   return 'tope ' + benPlata(r.tope) + por;
 }
 function benSegTxt(r) {
+  // beneficio de un paquete (cargado a mano): "Paquete Black+ All · Visa Signature por NFC" -> "Paquete Black+ All"
+  var pq = /paquete[^·]*/i.exec(String(r.segmento_txt || ''));
+  if (pq) return pq[0].trim().replace(/^./, function (c) { return c.toUpperCase(); });
   if (!r.segmento) return '';
   var t = String(r.segmento_txt || '') + ' ' + String(r.beneficio || ''), niv = /nivel\s*(\d)/i.exec(t);
+  var gal = /\b(plus gold|plus|move)\b/i.exec(String(r.segmento_txt || '')); // Galicia: "para clientes Plus Gold"
+  if (gal) return gal[1].replace(/\b./g, function (c) { return c.toUpperCase(); });
   if (/selecta/i.test(t)) return 'Selecta' + (niv ? ' Nivel ' + niv[1] : '');
   if (niv) return 'Nivel ' + niv[1];
   var m = /(visa platinum|mastercard platinum|platinum|signature|black|identit[eé]|\bselect\b|[eé]minent|infinite|gold|cl[aá]sica?)/i.exec(t);
@@ -283,17 +288,17 @@ function benRender() {
 function benFuentesHtml() {
   var meta = {}; (BEN.meta || []).forEach(function (m) { meta[m.banco] = m; });
   var hoy = Date.now();
-  // además de MODO, se leen las webs propias (Santander, sólo si su web deja leerla desde la nube)
-  var WEB = { bbva: 'bbva_web', galicia: 'galicia_web', supervielle: 'supervielle_web', santander: 'santander_web' };
+  // además de MODO, se leen las webs propias; Santander y Macro, una vez por mes por la carga asistida
+  var WEB = { bbva: 'bbva_web', galicia: 'galicia_web', supervielle: 'supervielle_web', santander: 'santander_web', macro: 'macro_web' };
   return '<div class="ben-fuentes">' + BEN_BANCOS.map(function (b) {
     var m = meta[b[0]], w = WEB[b[0]] ? meta[WEB[b[0]]] : null;
     var bloqueada = !!(w && /bloquea/i.test(w.error || '')), conWeb = !!(w && w.last_sync_at);
-    var mensual = !!(w && conWeb && (w.error === 'carga mensual' || bloqueada)); // Santander: carga hecha a mano una vez por mes
+    var mensual = !!(w && conWeb && (/^carga (asistida|mensual)$/.test(w.error || '') || bloqueada)); // Santander y Macro: una vez por mes
     var fechas = [m, conWeb ? w : null].filter(function (x) { return x && x.last_sync_at; }).map(function (x) { return x.last_sync_at; }).sort();
-    var err = [m, w].filter(function (x) { return x && x.error && !/bloquea/i.test(x.error) && x.error !== 'carga mensual'; }).map(function (x) { return x.error; })[0];
+    var err = [m, w].filter(function (x) { return x && x.error && !/bloquea/i.test(x.error) && !/^carga (asistida|mensual)$/.test(x.error); }).map(function (x) { return x.error; })[0];
     var fecha = fechas.length ? benFecha(fechas[0]) : 'sin datos';
     var vieja = !m || !m.last_sync_at || hoy - new Date(fechas[0]).getTime() > (mensual ? 35 : 10) * 86400000;
-    var fuente = conWeb ? (mensual ? 'MODO + web propia (carga mensual)' : 'MODO + web propia') : bloqueada ? 'vía MODO · su web bloquea la lectura automática' : 'vía MODO';
+    var fuente = conWeb ? (mensual ? 'MODO + web propia (carga asistida)' : 'MODO + web propia') : bloqueada ? 'vía MODO · su web se carga una vez por mes (pendiente)' : 'vía MODO';
     var hoyIso = benHoyIso(), nMan = (BEN.manual || []).filter(function (x) { return x.banco === b[0] && (!x.fecha_hasta || x.fecha_hasta >= hoyIso); }).length;
     return '<span class="ben-chip' + (vieja ? ' vieja' : '') + '" title="' + benE(err ? 'Último error: ' + err : fuente) + '"><b>' + b[1] + '</b> · ' + fuente + (nMan ? ' · ' + nMan + (nMan > 1 ? ' cargadas' : ' cargada') + ' a mano' : '') + ' · act. ' + fecha + (err ? ' ⚠' : '') + '</span>';
   }).join('') + '</div>';
@@ -777,7 +782,7 @@ function benManualAFila(m) {
     id: 'manual:' + m.id, banco: m.banco, fuente: 'manual', titulo: m.titulo, marca_clave: benClave(m.titulo), rubro: m.rubro || 'Otros',
     beneficio: m.beneficio || '', pct: m.pct == null ? null : Number(m.pct), tope: m.tope == null ? null : Number(m.tope), tope_por: m.tope_por || null,
     cuotas: m.cuotas || 0, dias: benDiasTxt(dn), dias_n: dn.length === 7 ? [] : dn, credito: !!m.credito, debito: !!m.debito, emisores: [],
-    segmento: m.segmento || null, segmento_txt: null, provincias: Array.isArray(m.provincias) && m.provincias.length ? m.provincias : [],
+    segmento: m.segmento || null, segmento_txt: m.condicion || null, provincias: Array.isArray(m.provincias) && m.provincias.length ? m.provincias : [],
     fecha_desde: m.fecha_desde || null, fecha_hasta: m.fecha_hasta || null, proximamente: !!(m.fecha_desde && m.fecha_desde > benHoyIso()), bancos_n: null
   };
 }
@@ -796,12 +801,12 @@ function benManualToca() {
 function benManualAvisoHtml() {
   if (!_admin || BEN.manualError || !benManualToca() || BEN.vista === 'manual') return '';
   var ult = (BEN.manual || []).map(function (m) { return String(m.updated_at || '').slice(0, 10); }).sort().pop();
-  return '<div class="ben-card" style="border-color:var(--accent,#F26122)"><div style="font-size:.9rem;color:var(--ink);line-height:1.5"><b>Es día de revisar las promos cargadas a mano.</b> Macro y Santander no dejan leer su web de forma automática: sacá las vencidas y sumá las del mes nuevo' +
+  return '<div class="ben-card" style="border-color:var(--accent,#F26122)"><div style="font-size:.9rem;color:var(--ink);line-height:1.5"><b>Es día de revisar las promos cargadas a mano.</b> Sacá las vencidas y sumá las del mes nuevo (los beneficios de paquete también). Las promos propias de Macro y Santander se actualizan pidiéndole a Claude la carga asistida' +
     (ult ? ' (última actualización: ' + benFecha(ult) + ')' : '') + '.</div><button class="btn" style="margin-top:8px" onclick="benVista(\'manual\')">Ir a Cargadas a mano</button></div>';
 }
 function benManualHtml() {
   var hoy = benHoyIso(), L = (BEN.manual || []).slice().sort(function (a, b) { return benOrdBanco(a.banco) - benOrdBanco(b.banco) || String(a.titulo).localeCompare(String(b.titulo), 'es'); });
-  var h = '<div class="ben-card"><h3>Promos cargadas a mano</h3><p class="ben-sub">Macro y Santander no dejan leer su web de forma automática. Las promos importantes que veas en su web se cargan acá y entran a la comparación con la etiqueta «cargada a mano». El día 5 de cada mes te llega un mail para revisarlas.</p>' +
+  var h = '<div class="ben-card"><h3>Promos cargadas a mano</h3><p class="ben-sub">Lo que no llega solo se carga acá y entra a la comparación con la etiqueta «cargada a mano»: por ejemplo los beneficios de un paquete (poné el paquete en «Condición») o una promo de Macro o Santander que la carga asistida mensual no haya traído. El día 5 de cada mes te llega un mail para revisarlas.</p>' +
     (_admin && !BEN.manualError ? '<button class="btn" onclick="benManualEditar(\'\')">+ Agregar promo</button>' : '') + '</div>';
   if (BEN.manualError) return h + '<div class="ben-vacio"><strong>No se pudo leer la tabla de promos cargadas a mano</strong>¿Está aplicada la migración 043? <button class="btn" onclick="BEN.rows=null;benCargar()">Reintentar</button></div>';
   if (!L.length) return h + '<div class="ben-vacio"><strong>Todavía no hay promos cargadas a mano</strong>' + (_admin ? 'Agregá la primera con «+ Agregar promo».' : 'El administrador las va a cargar.') + '</div>';
@@ -811,7 +816,7 @@ function benManualHtml() {
       var vencida = m.fecha_hasta && m.fecha_hasta < hoy, empieza = m.fecha_desde && m.fecha_desde > hoy;
       var ben = [m.pct != null ? m.pct + '%' : '', m.cuotas ? m.cuotas + ' cuotas sin interés' : '', m.tope ? 'tope ' + benPlata(m.tope) + (tPor[m.tope_por] || '') : ''].filter(Boolean).join(' · ');
       return '<tr style="' + (vencida ? 'opacity:.55' : '') + '"><td><b>' + benE(BEN_NOM[m.banco] || m.banco) + '</b></td><td>' + benE(m.titulo) + '</td><td>' + benE(m.rubro) + '</td>' +
-        '<td style="min-width:180px">' + benE(ben) + (m.beneficio ? '<div class="ben-seg">' + benE(m.beneficio) + '</div>' : '') + (m.segmento === 'premium' ? '<div class="ben-seg">Sólo Premium</div>' : m.segmento === 'clasico' ? '<div class="ben-seg">Sólo Clásico/Gold</div>' : '') + '</td>' +
+        '<td style="min-width:180px">' + benE(ben) + (m.beneficio ? '<div class="ben-seg">' + benE(m.beneficio) + '</div>' : '') + (m.condicion ? '<div class="ben-seg">' + benE(m.condicion) + '</div>' : '') + (m.segmento === 'premium' ? '<div class="ben-seg">Sólo Premium</div>' : m.segmento === 'clasico' ? '<div class="ben-seg">Sólo Clásico/Gold</div>' : '') + '</td>' +
         '<td>' + benE(benDiasTxt((m.dias_n || []).map(Number))) + '</td><td>' + [m.credito ? 'Crédito' : '', m.debito ? 'Débito' : ''].filter(Boolean).join(' y ') + '</td>' +
         '<td>' + (vencida ? '<b class="ben-down">Vencida</b> ' : empieza ? 'Empieza el ' + benFecha(m.fecha_desde) + ' ' : '') + (m.fecha_hasta ? '<div class="ben-seg">hasta ' + benFecha(m.fecha_hasta) + '</div>' : '') + '</td>' +
         '<td>' + (benUrlOk(m.fuente_url) ? '<a href="' + benE(m.fuente_url) + '" target="_blank" rel="noopener noreferrer">Ver página</a>' : '') + (m.updated_at ? '<div class="ben-seg">act. ' + benFecha(m.updated_at) + '</div>' : '') + (m.notas ? '<div class="ben-seg">' + benE(m.notas) + '</div>' : '') + '</td>' +
@@ -838,6 +843,7 @@ function benManualEditar(id) {
     '<label class="ben-f">El tope es<select id="ben-m-tope_por">' + opt('', 'Sin dato', m.tope_por || '') + opt('month', 'Por mes', m.tope_por) + opt('week', 'Por semana', m.tope_por) + opt('day', 'Por día', m.tope_por) + opt('transaction', 'Por compra', m.tope_por) + '</select></label>' +
     inp('cuotas', 'Cuotas sin interés', 'number') +
     '<label class="ben-f">Para quién<select id="ben-m-segmento">' + opt('', 'Todos', m.segmento || '') + opt('clasico', 'Sólo Clásico / Gold', m.segmento) + opt('premium', 'Sólo Premium (Select, Selecta…)', m.segmento) + '</select></label>' +
+    inp('condicion', 'Condición (ej.: Paquete Black+ All · Visa Signature por NFC)', 'text', ' style="grid-column:1 / -1"') +
     '<div class="ben-f" style="grid-column:1 / -1">Días (ninguno marcado = todos los días)<div>' + BEN_DIAS_CORTOS.map(function (d, i) {
       return '<label style="margin-right:10px;font-weight:500"><input type="checkbox" class="ben-m-dia" value="' + i + '"' + (dias.indexOf(i) >= 0 ? ' checked' : '') + '> ' + d + '</label>';
     }).join('') + '</div></div>' +
@@ -857,7 +863,7 @@ function benManualGuardar(id) {
   var num = function (v) { return v === '' ? null : Number(v); };
   var o = {
     banco: g('banco'), rubro: g('rubro') || 'Otros', titulo: g('titulo'), pct: num(g('pct')), tope: num(g('tope')), tope_por: g('tope_por') || null,
-    cuotas: Math.max(0, Math.round(Number(g('cuotas')) || 0)), segmento: g('segmento') || null, beneficio: g('beneficio'), notas: g('notas'), fuente_url: g('fuente_url'),
+    cuotas: Math.max(0, Math.round(Number(g('cuotas')) || 0)), segmento: g('segmento') || null, condicion: g('condicion'), beneficio: g('beneficio'), notas: g('notas'), fuente_url: g('fuente_url'),
     fecha_desde: g('fecha_desde') || null, fecha_hasta: g('fecha_hasta') || null,
     dias_n: [].slice.call(document.querySelectorAll('.ben-m-dia:checked')).map(function (x) { return Number(x.value); }),
     credito: !!(document.getElementById('ben-m-credito') || {}).checked, debito: !!(document.getElementById('ben-m-debito') || {}).checked,
@@ -892,10 +898,10 @@ function benManualBorrar(id) {
 function benActualizar() {
   var btn = document.getElementById('ben-act');
   if (btn) { btn.disabled = true; btn.textContent = 'Actualizando…'; }
-  var errores = [], i = 0, sanBloq = false;
+  var errores = [], i = 0;
   function listo() {
     if (btn) { btn.disabled = false; btn.textContent = 'Actualizar ahora'; }
-    showToast((errores.length ? 'Algo no se pudo actualizar: ' + errores.join(' · ') : 'Benchmark actualizado.') + (sanBloq ? ' Santander: su web no deja leerla desde la nube, sigue con MODO.' : ''));
+    showToast((errores.length ? 'Algo no se pudo actualizar: ' + errores.join(' · ') : 'Benchmark actualizado.'));
     BEN.rows = null; BEN.cargando = false; benCargar();
   }
   function marcas(vez) {
@@ -914,21 +920,11 @@ function benActualizar() {
       if (pend > 0 && vez < 40) { if (btn) btn.textContent = 'Galicia (faltan ' + pend + ')…'; galicia(vez + 1); } else marcas(0);
     });
   }
-  function santander(vez) {
-    if (btn) btn.textContent = 'Actualizando la web de Santander…';
-    _callEdgeFn(FN_URL_BENCH, 'santander', { presupuestoMs: 18000 }, function (err, d) {
-      var dd = (d && d.data) || {};
-      if (err) { errores.push('Santander propio: ' + err); galicia(0); return; }
-      if (dd.bloqueado) { sanBloq = true; galicia(0); return; } // previsto: su web no deja leerla desde la nube
-      var pend = dd.pendientes || 0;
-      if (pend > 0 && vez < 60) { if (btn) btn.textContent = 'Santander (faltan ' + pend + ')…'; santander(vez + 1); } else galicia(0);
-    });
-  }
   function supervielle() {
     if (btn) btn.textContent = 'Actualizando la web de Supervielle…';
     _callEdgeFn(FN_URL_BENCH, 'supervielle', {}, function (err) {
       if (err) errores.push('Supervielle propio: ' + err);
-      santander(0);
+      galicia(0); // Santander y Macro: carga asistida una vez por mes
     });
   }
   function bbva() {

@@ -10,8 +10,9 @@ const ini2 = src.indexOf('// ── Webs propias'), fin2 = src.indexOf('async fu
 const ini3 = src.indexOf('// ── Supervielle: la API abierta'), fin3 = src.indexOf('async function jsonCon');
 const ini4 = src.indexOf('// ── Santander: su buscador'), fin4 = src.indexOf('const SAN_HEADERS');
 const ini5 = src.indexOf('// ── Recordatorio mensual'), fin5 = src.indexOf('async function recordatorioManual');
-const js = 'const BANCOS = { galicia: {}, bbva: {}, macro: {}, supervielle: {}, santander: {} };\n' + stripTypeScriptTypes([src.slice(ini, fin), src.slice(ini2, fin2), src.slice(ini3, fin3), src.slice(ini4, fin4), src.slice(ini5, fin5)].join('\n')).replace(/export function/g, 'function');
-const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual, topeLegalSupervielle };')();
+const ini6 = src.indexOf('// ── Carga asistida'), fin6 = src.indexOf('async function importarWeb');
+const js = 'const BANCOS = { galicia: {}, bbva: {}, macro: {}, supervielle: {}, santander: {} };\n' + stripTypeScriptTypes([src.slice(ini, fin), src.slice(ini2, fin2), src.slice(ini3, fin3), src.slice(ini4, fin4), src.slice(ini5, fin5), src.slice(ini6, fin6)].join('\n')).replace(/export function/g, 'function');
+const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual, topeLegalSupervielle, esMarcaCombustible, normalizarMacroWeb };')();
 const ok = (c, m) => { console.log((c ? '  OK  ' : '  FALLA ') + m); if (!c) process.exitCode = 1; };
 
 // BBVA real (27-oct-2026): 30% de reintegro, tope 15.000 por mes, lunes, crédito Master, 3 cuotas
@@ -99,6 +100,23 @@ ok(rm2.find((x) => x.banco === 'macro').porVencer.join() === 'Pronto', 'Recordat
 // Con internet: una página real de cada banco
 const API = 'https://www.modo.com.ar/promos/api/rewards';
 const SLOTS = ['web-modo-hub-carrousel_principal', 'web-modo-hub-destacadas', 'web-modo-hub-supermercados', 'web-modo-hub-exclusivas-online', 'web-modo-hub-promos-financiacion', 'web-modo-hub-mas-promos'].join(',');
+// ── Combustible, segmento de Galicia y carga asistida (29-oct) ──
+const bY = lib.normalizarBbva({ id: '7', cabecera: 'Ypf 10%', fechaDesde: '2026-10-01', fechaHasta: '2026-12-31', diasPromo: null, montoTope: '30000', grupoTarjeta: 'Tarjetas de crédito BBVA' }, (k) => (k === 'ypf' ? 'Vehículos' : undefined), '2026-10-28', 'x');
+ok(bY.rubro === 'Combustible', 'BBVA "Ypf 10%": es Combustible aunque la marca figure como Vehículos en MODO (era el lubricentro YPF Boxes)');
+const bE = lib.normalizarBbva({ id: '8', cabecera: 'Estacion Central 20%', fechaDesde: '2026-10-01', fechaHasta: '2026-12-31', diasPromo: null, montoTope: '30000', grupoTarjeta: 'Tarjetas de crédito BBVA' }, () => undefined, '2026-10-28', 'x');
+ok(bE.rubro !== 'Combustible', 'BBVA "Estación Central": un comercio, no una estación de servicio');
+ok(lib.esMarcaCombustible('YPF') && lib.esMarcaCombustible('Shell Full', '') === false && !lib.esMarcaCombustible('YPF Boxes') && !lib.esMarcaCombustible('YPF', 'cambio de aceite y filtros') && lib.esMarcaCombustible('Axion Energy') && !lib.esMarcaCombustible('Estación Central'), 'esMarcaCombustible: YPF sí; YPF Boxes, aceite/filtros, Shell Full y Estación Central no');
+ok(lib.rubroSupervielle('Varios', 'Shell', () => undefined) === 'Combustible', 'Supervielle: Shell es Combustible');
+const gs = lib.parsearLegalesGalicia('CARTERA DE CONSUMO. Promoción del 15% de ahorro, para compras realizadas en el País, para Clientes Plus Gold. Tope de reintegro: $20.000 por mes. Válida para Martes comprendidos entre el 03/11/2026 y el 24/11/2026, con Tarjeta Visa.');
+ok(gs.segTxt === 'Clientes Plus Gold' && gs.segmento === 'clasico' && gs.desde === '2026-11-03' && gs.hasta === '2026-11-24', 'Galicia: "para Clientes Plus Gold" = segmento clásico con su nombre, y las fechas salen de "comprendidos entre el … y el …"');
+const gem = lib.parsearLegalesGalicia('CARTERA DE CONSUMO. Promoción del 25% de ahorro, para Clientes Éminent. Tope de reintegro: $20.000 por mes. Válida para Martes, con Tarjeta Visa.');
+ok(gem.segmento === 'premium' && /minent/.test(gem.segTxt || ''), 'Galicia: "para Clientes Éminent" = premium con su nombre');
+const mw = lib.normalizarMacroWeb({ comercio: 'BRIDGESTONE', categoria: 'Automotor y Combustible', cuotas: '12 cuotas', segmento: 'General' }, '2026-10-28', 'x');
+ok(mw && mw.cuotas === 12 && mw.fuente === 'macro' && mw.banco === 'macro' && mw.rubro === 'Vehículos' && mw.segmento === null && mw.pct === null, 'Macro (carga asistida): 12 cuotas en un comercio de Automotor = Vehículos, sin segmento');
+const mw2 = lib.normalizarMacroWeb({ comercio: 'YPF', categoria: 'Automotor y Combustible', cuotas: '6 cuotas', segmento: 'Selecta' }, '2026-10-28', 'x');
+ok(mw2.rubro === 'Combustible' && mw2.segmento === 'premium' && mw2.segmento_txt === 'Selecta', 'Macro (carga asistida): YPF = Combustible; "Selecta" = premium');
+ok(lib.normalizarMacroWeb({ comercio: '', cuotas: '3' }, 'h', 'a') === null && lib.normalizarMacroWeb({ comercio: 'X' }, 'h', 'a') === null, 'Macro (carga asistida): sin comercio o sin cuotas ni % no se guarda');
+ok(lib.normalizarMacroWeb({ comercio: 'A', cuotas: '3', segmento: 'Selecta' }, 'h', 'a').id !== lib.normalizarMacroWeb({ comercio: 'A', cuotas: '3', segmento: 'General' }, 'h', 'a').id, 'Macro (carga asistida): Selecta y General del mismo comercio son promos distintas (ids distintos)');
 const BANCOS = { galicia: '88d8705e-2dda-46f9-8411-bb4916af858e', bbva: '049ad22b-c0f0-4733-be35-e31256801ce8', macro: '6a089c91-a7d3-4199-a578-2132a3733f69', supervielle: '54fdfe50-7b7e-4316-bf88-97923d5a8a8d', santander: '167504f6-caaf-4ead-b65b-6e6695ae6209' };
 for (const [b, id] of Object.entries(BANCOS)) {
   try {

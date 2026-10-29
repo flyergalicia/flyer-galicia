@@ -203,7 +203,7 @@ module.exports=async(browser)=>{
   ok(!cp.lejana,'una promo que empieza en 30 días no entra (sólo las de los próximos 15)');
   ok(/Empieza el/.test(cp.texto),'la que empieza en 10 días entra con la etiqueta "Empieza el dd/mm"');
   ok(/Con MODO y cualquier banco/.test(cp.texto)&&/WICO Combustibles: 15% de reintegro/.test(cp.texto)&&(cp.texto.match(/WICO Combustibles:/g)||[]).length===1,'las compartidas se avisan aparte, una sola vez ("Con MODO y cualquier banco")');
-  ok(/su web bloquea la lectura automática/.test(cp.chipSan||'')&&!/⚠/.test(cp.chipSan||''),'si Santander no deja leer su web, la etiqueta lo dice (sin marcarlo como error)');
+  ok(/se carga una vez por mes/.test(cp.chipSan||'')&&!/⚠/.test(cp.chipSan||''),'si Santander todavía no tiene su carga mensual, la etiqueta lo dice (sin marcarlo como error)');
   await p.screenshot({path:__dirname+'/capturas/bm4_combustible.png',fullPage:false});
   await p.evaluate(()=>benVista('rubro'));
 
@@ -277,6 +277,32 @@ module.exports=async(browser)=>{
   await p.evaluate(()=>benTarjCerrar());
   const sinAdminM=await p.evaluate(()=>{const a=_admin;_admin=false;benRender();const b=[...document.querySelectorAll('#ben-root button')].map(x=>x.textContent);const av=/Es día de revisar/.test(document.querySelector('#ben-root').textContent);_admin=a;benVista('rubro');return {b,av};});
   ok(sinAdminM.b.indexOf('+ Agregar promo')<0&&sinAdminM.b.indexOf('Editar')<0&&!sinAdminM.av,'sin ser admin: no se puede editar y no ve el aviso de revisión');
+
+  // ── beneficios de paquete y carga asistida (29-oct) ──
+  const hace2=new Date(Date.now()-2*86400000).toISOString();
+  nube.benchManual.push({id:'pq1',banco:'bbva',titulo:'Supermercados',rubro:'Supermercados',beneficio:'20% todos los días con Visa Signature por NFC',pct:20,tope:100000,tope_por:'month',cuotas:0,dias_n:[],credito:true,debito:false,segmento:'premium',condicion:'Paquete Black+ All · Visa Signature por NFC',provincias:null,fecha_desde:'2026-07-01',fecha_hasta:'2027-12-31',fuente_url:'https://www.bbva.com.ar/personas/productos/paquetes/black-all.html',notas:'',updated_at:hace2});
+  nube.benchMeta.push({banco:'macro_web',last_sync_at:hace2,total:40,error:'carga asistida'});
+  await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.vista='rubro';benCargar();});
+  await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.manual&&BEN.manual.some(x=>x.id==='pq1'),null,{timeout:10000});
+  const pq=await p.evaluate(()=>{
+    const r=BEN.rows.find(x=>x.id==='manual:pq1');
+    const chipMac=[...document.querySelectorAll('.ben-chip')].map(c=>c.textContent).find(x=>/^Macro/.test(x));
+    benVista('manual');
+    const t=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
+    benVista('rubro');
+    return {seg:r&&benSegTxt(r),segTxt:r&&r.segmento_txt,chipMac,t};
+  });
+  ok(pq.seg==='Paquete Black+ All','un beneficio de paquete cargado a mano se muestra "Sólo Paquete Black+ All"');
+  ok(/carga asistida/.test(pq.chipMac||''),'Macro cargado por la carga asistida: la etiqueta lo dice');
+  ok(/Paquete Black\+ All · Visa Signature por NFC/.test(pq.t),'la pestaña "Cargadas a mano" muestra la condición del paquete');
+  await p.evaluate(()=>benManualEditar('pq1'));
+  ok(await p.evaluate(()=>(document.getElementById('ben-m-condicion')||{}).value==='Paquete Black+ All · Visa Signature por NFC'),'el editor trae el campo Condición con lo guardado');
+  await p.fill('#ben-m-condicion','Paquete Black+ Travel');
+  await p.evaluate(()=>benManualGuardar('pq1'));
+  await p.waitForFunction(()=>!document.getElementById('ben-ed-ov')&&BEN.rows&&!BEN.cargando,null,{timeout:10000});
+  ok(nube.benchManual.find(x=>x.id==='pq1').condicion==='Paquete Black+ Travel','al guardar se escribe la condición');
+  const galSeg=await p.evaluate(()=>[benSegTxt({segmento:'clasico',segmento_txt:'Clientes Plus Gold'}),benSegTxt({segmento:'clasico',segmento_txt:'Clientes Move'})]);
+  ok(galSeg[0]==='Plus Gold'&&galSeg[1]==='Move','Galicia: el segmento sale con su nombre ("Plus Gold", "Move")');
 
   // ── entrega 3: tarjetas y salas VIP ──
   await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});
@@ -365,7 +391,7 @@ module.exports=async(browser)=>{
   await p.waitForFunction(()=>{const b=document.getElementById('ben-act');return !b||!b.disabled;},null,{timeout:15000});
   await p.waitForTimeout(500);
   const ll=(nube.llamadasBench||[]).map(b=>b.action+(b.banco?':'+b.banco:''));
-  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,bbva,supervielle,santander,galicia,marcas','"Actualizar ahora" pide MODO banco por banco, las webs de BBVA, Supervielle y Santander, el catálogo de Galicia y al final los lugares y logos ('+ll.join(',')+')');
+  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,bbva,supervielle,galicia,marcas','"Actualizar ahora" pide MODO banco por banco, las webs de BBVA y Supervielle (Santander y Macro van por la carga asistida), el catálogo de Galicia y al final los lugares y logos ('+ll.join(',')+')');
 
   // ── sin tablas (migración sin aplicar) y sin datos: se explica, no se rompe ──
   nube.benchFalla=true;

@@ -504,9 +504,17 @@ async function syncMarcas(presupuestoMs: number): Promise<{ hechas: number; pend
 // (las de MODO, 'modo'); el cliente junta las que son la misma promo y se queda
 // con la de la web propia. Supervielle y Santander tienen su propio bloque más abajo;
 // Macro sigue sólo por MODO (su API pide una clave interna de su web).
+// Marcas de combustible: una promo de estas marcas es Combustible, salvo que hable de lubricentro,
+// aceite o service (YPF Boxes es Vehículos). "Estación Central" (un comercio) NO es combustible.
+const MARCAS_COMBUSTIBLE = /\b(ypf|shell|axion|puma energy|gulf|dapsa|refinor|petrobras|voy)\b/i;
+const NO_COMBUSTIBLE = /(boxes|lubric|aceite|filtro|service|lavad|neum[aá]tic|tienda|full)/i;
+export function esMarcaCombustible(marca: unknown, texto: unknown = ""): boolean {
+  const m = String(marca || "");
+  return MARCAS_COMBUSTIBLE.test(m) && !NO_COMBUSTIBLE.test(m + " " + String(texto || ""));
+}
 const RUBRO_PALABRAS: [RegExp, string][] = [
   [/^(supermercados?|hiper|mayorista)/i, "Supermercados"], [/^gastronom/i, "Gastronomía"],
-  [/^(farmacia|perfumer|salud)/i, "Salud y Bienestar"], [/^(combustible|estaci)/i, "Combustible"],
+  [/^(farmacia|perfumer|salud)/i, "Salud y Bienestar"], [/^(combustible|estaci[oó]n de servicio)/i, "Combustible"],
   [/^(indumentaria|moda)/i, "Indumentaria"], [/^(turismo|viajes)/i, "Entretenimiento"],
   [/^hogar/i, "Hogar"], [/^(electro|tecnolog)/i, "Electrónica"],
 ];
@@ -547,7 +555,7 @@ export function normalizarBbva(x: any, rubroDe: (clave: string) => string | unde
   return {
     id: "bbva:b" + id, banco: "bbva", fuente: "bbva",
     titulo: marca, marca_clave: clave,
-    rubro: rubroDe(clave) || (porPalabra ? porPalabra[1] : "Otros"),
+    rubro: esMarcaCombustible(marca, cab) ? "Combustible" : rubroDe(clave) || (porPalabra ? porPalabra[1] : "Otros"),
     slug: "", beneficio: cab,
     pct: mp ? Number(mp[1].replace(",", ".")) : null,
     tope: tope > 0 ? tope : null, tope_por: null,
@@ -560,7 +568,7 @@ export function normalizarBbva(x: any, rubroDe: (clave: string) => string | unde
   };
 }
 // Galicia: el tope, las tarjetas y el segmento están en el texto legal del detalle
-export function parsearLegalesGalicia(legales: unknown): { tope: number | null; por: string | null; credito: boolean; debito: boolean; emisores: string[]; segmento: string | null } {
+export function parsearLegalesGalicia(legales: unknown): { tope: number | null; por: string | null; credito: boolean; debito: boolean; emisores: string[]; segmento: string | null; segTxt: string | null; desde: string | null; hasta: string | null } {
   const t = String(legales || "").replace(/\s+/g, " ");
   const mt = t.match(/tope[^$.]{0,60}\$\s*([\d.]+)(?:,\d+)?\s*([^.]{0,50})/i);
   const tope = mt ? Number(mt[1].replace(/\./g, "")) : 0;
@@ -575,7 +583,14 @@ export function parsearLegalesGalicia(legales: unknown): { tope: number | null; 
   if (/master/i.test(tar)) emisores.push("master");
   if (/american express|amex/i.test(tar)) emisores.push("american_express");
   const prem = /(clientes?|tarjetas?|paquetes?)[^.]{0,40}([eé]minent|black|platinum|signature|infinite)/i.test(t.slice(0, 900));
-  return { tope: tope > 0 ? tope : null, por, credito: credito || !debito, debito, emisores, segmento: prem ? "premium" : null };
+  // "…para Clientes Éminent." / "exclusivo para clientes Plus Gold" -> se muestra tal cual en la solapa
+  const ms = t.slice(0, 900).match(/para\s+(clientes?\s+(?:galicia\s+)?[A-ZÁÉÍÓÚÑa-záéíóúñ+ ]{2,30}?)(?=[.,;:]|\s+(?:que|con|en|de|del|y)\b)/i);
+  let segTxt = ms ? ms[1].replace(/\s+/g, " ").trim() : null;
+  if (segTxt && /^clientes?$/i.test(segTxt)) segTxt = null;
+  const segmento = prem ? "premium" : segTxt && /(plus|move|gold|cl[aá]sic|selecci)/i.test(segTxt) ? "clasico" : null;
+  // "comprendidos entre el 03/11/2026 y el 24/11/2026"
+  const mf = t.match(/comprendidos? entre el (\d{1,2}\/\d{1,2}\/\d{4}) y el (\d{1,2}\/\d{1,2}\/\d{4})/i);
+  return { tope: tope > 0 ? tope : null, por, credito: credito || !debito, debito, emisores, segmento, segTxt, desde: mf ? isoFecha(mf[1]) : null, hasta: mf ? isoFecha(mf[2]) : null };
 }
 const DIAS_GALICIA = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
 export function normalizarGalicia(p: any, det: any, hoy: string, ahora: string): Record<string, unknown> | null {
@@ -589,7 +604,7 @@ export function normalizarGalicia(p: any, det: any, hoy: string, ahora: string):
   const dn = cod.map((s) => DIAS_GALICIA.indexOf(s)).filter((i) => i >= 0).sort((a, b) => a - b);
   const dias = dn.length === 7 || !dn.length ? [] : dn;
   const L = parsearLegalesGalicia(det?.legales);
-  const desde = p.fecha_desde || isoFecha(det?.fechaDesde);
+  const desde = L.desde || p.fecha_desde || isoFecha(det?.fechaDesde);
   return {
     id: "galicia:g" + p.id, banco: "galicia", fuente: "galicia",
     titulo, marca_clave: modoClave(titulo), rubro: rubroDeGalicia(p.subtitulo),
@@ -598,9 +613,9 @@ export function normalizarGalicia(p: any, det: any, hoy: string, ahora: string):
     tope: L.tope, tope_por: L.por, cuotas,
     dias: p.dias || diasTexto(dias), dias_n: dias,
     credito: L.credito, debito: L.debito, emisores: L.emisores, canales: [],
-    segmento: L.segmento, segmento_txt: null,
+    segmento: L.segmento, segmento_txt: L.segTxt,
     provincias: Array.isArray(p.provincias) ? p.provincias : null,
-    fecha_desde: desde, fecha_hasta: p.fecha_hasta || null,
+    fecha_desde: desde, fecha_hasta: L.hasta || p.fecha_hasta || null,
     proximamente: (desde || "") > hoy || (!!p.proximamente && !desde), updated_at: ahora, detalle_at: ahora,
   };
 }
@@ -614,7 +629,8 @@ async function rubroPorMarca(): Promise<Map<string, string>> {
   for (let d = 0; ; d += 1000) {
     const { data, error } = await admin.from("promos_bench_cache").select("marca_clave,rubro").eq("fuente", "modo").order("id").range(d, d + 999);
     if (error) throw new Error(error.message);
-    for (const r of data || []) if (r.marca_clave && r.rubro && r.rubro !== "Otros" && !m.has(r.marca_clave)) m.set(r.marca_clave, r.rubro);
+    // "Vehículos" no se hereda: en MODO es la corrección de un lubricentro (YPF Boxes), no de la marca
+    for (const r of data || []) if (r.marca_clave && r.rubro && r.rubro !== "Otros" && r.rubro !== "Vehículos" && !m.has(r.marca_clave)) m.set(r.marca_clave, r.rubro);
     if (!data || data.length < 1000) break;
   }
   for (let d = 0; ; d += 1000) {
@@ -739,6 +755,7 @@ export function marcaSupervielle(m: unknown): string {
   return String(m || "").replace(/\s+/g, " ").replace(/\s+con\s+(modo|mastercard|visa|qr)\b.*$/i, "").trim();
 }
 export function rubroSupervielle(rubro: unknown, marca: string, rubroDe: (clave: string) => string | undefined): string {
+  if (esMarcaCombustible(marca)) return "Combustible";
   const r = RUBRO_SUPERVIELLE.find(([re]) => re.test(String(rubro || "")));
   if (r) return r[1];
   const porPalabra = RUBRO_PALABRAS.find(([re]) => re.test(marca));
@@ -895,7 +912,7 @@ export function normalizarSantander(it: any, hoy: string, ahora: string): Record
   const cuotas = it?.interestFreeFees ? Math.max(Number(it?.finalQuote) || 0, Number(it?.initialQuote) || 0) : 0;
   return {
     id: "santander:s" + it.id, banco: "santander", fuente: "santander",
-    titulo: marca, marca_clave: modoClave(marca), rubro: rubroSantander(it?.categories),
+    titulo: marca, marca_clave: modoClave(marca), rubro: esMarcaCombustible(marca, it?.additionalText) ? "Combustible" : rubroSantander(it?.categories),
     slug: "brand:" + String(it?.brands?.[0]?.id ?? ""),
     beneficio: [it?.texts?.title, it?.texts?.description].filter(Boolean).join(" · ") || null,
     pct, tope, tope_por: !tope ? null : /mensual/.test(fr) ? "month" : /semanal/.test(fr) ? "week" : /diari/.test(fr) ? "day" : null,
@@ -1005,10 +1022,67 @@ async function recordatorioManual(): Promise<{ enviado: boolean; resumen: unknow
     parrafos: [
       "Macro y Santander no dejan leer su web de forma automática, así que sus promos propias se cargan a mano en el Benchmark. Conviene revisar las del mes nuevo: sacar las vencidas y sumar las que aparecieron.",
       "Se hace en la solapa Benchmark → Cargadas a mano (botones Editar, Quitar y + Agregar promo).",
+      "Además, pedile a Claude la carga asistida de Santander y Macro: lee sus páginas en el navegador de la app y actualiza sus promos propias.",
     ],
     datos: lineas,
   });
   return { enviado: !!(MAIL_URL && MAIL_SECRET), resumen: r };
+}
+
+// ── Carga asistida (Santander y Macro) ──────────────────────────────────────
+// Sus webs no dejan leerlas desde un servidor. Una vez por mes, en una sesión, se
+// abren en el navegador de la app como lo haría una persona (sin forzar nada) y lo
+// leído llega acá con la acción importar_web:
+//   santander -> los detalles tal cual los pidió su página (/bff-benefits/brands/{id})
+//   macro     -> las tarjetas de su catálogo propio "Más beneficios con Macro"
+//                ({comercio, categoria, cuotas, segmento}); lo de MODO ya llega solo
+const RUBRO_MACRO_WEB: [RegExp, string][] = [
+  [/supermerc/i, "Supermercados"], [/gastronom/i, "Gastronomía"], [/salud|belleza|farmac/i, "Salud y Bienestar"],
+  [/automotor/i, "Vehículos"], [/electro|tecnolog/i, "Electrónica"], [/hogar|deco/i, "Hogar"], [/indument/i, "Indumentaria"],
+  [/juguet|librer/i, "Juguetes"], [/turismo|entreten|shopping/i, "Entretenimiento"],
+];
+export function normalizarMacroWeb(x: any, hoy: string, ahora: string): Record<string, unknown> | null {
+  const comercio = String(x?.comercio || "").replace(/\s+/g, " ").trim();
+  const cuotas = Number(String(x?.cuotas ?? "").replace(/\D/g, "")) || 0;
+  const pctM = String(x?.descuento || "").match(/(\d{1,3})\s*%/);
+  if (!comercio || (!cuotas && !pctM)) return null;
+  const cat = String(x?.categoria || "");
+  const r = RUBRO_MACRO_WEB.find(([re]) => re.test(cat));
+  const rubro = esMarcaCombustible(comercio) ? "Combustible" : r ? r[1] : "Otros";
+  const seg = String(x?.segmento || "");
+  const clave = modoClave(comercio);
+  return {
+    id: "macro:w" + clave + "-" + cuotas + "-" + (pctM ? pctM[1] : "") + "-" + sinAcentos(seg).toLowerCase().replace(/[^a-z0-9]/g, ""),
+    banco: "macro", fuente: "macro", titulo: comercio, marca_clave: clave, rubro, slug: "",
+    beneficio: [pctM ? pctM[1] + "%" : "", cuotas ? cuotas + " cuotas sin interés" : ""].filter(Boolean).join(" y ") || null,
+    pct: pctM ? Number(pctM[1]) : null, tope: null, tope_por: null, cuotas,
+    dias: "Todos los días", dias_n: [], credito: true, debito: false, emisores: [], canales: [],
+    segmento: /selecta/i.test(seg) ? "premium" : null, segmento_txt: seg && !/general/i.test(seg) ? seg : null,
+    provincias: null, fecha_desde: null, fecha_hasta: null, proximamente: false, updated_at: ahora, detalle_at: ahora, bancos_n: null,
+  };
+}
+async function importarWeb(banco: string, items: any[]): Promise<{ total: number }> {
+  if (banco !== "santander" && banco !== "macro") throw new Error("La carga asistida es sólo para Santander y Macro");
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10), ahora = new Date().toISOString();
+  const crudos = banco === "santander" ? items.flatMap((d) => (Array.isArray(d?.items) ? d.items : [d])) : items;
+  const vistos = new Set<string>(), filas: Record<string, unknown>[] = [];
+  for (const it of crudos) {
+    const f = banco === "santander" ? normalizarSantander(it, hoy, ahora) : normalizarMacroWeb(it, hoy, ahora);
+    if (!f || (f.fecha_hasta && String(f.fecha_hasta) < hoy) || vistos.has(String(f.id))) continue;
+    vistos.add(String(f.id));
+    filas.push(f);
+  }
+  if (!filas.length) throw new Error("La carga no trae ninguna promo vigente");
+  const { count: guardadas } = await admin.from("promos_bench_cache").select("id", { count: "exact", head: true }).eq("fuente", banco);
+  if (guardadas && filas.length < guardadas * MINIMO_RELATIVO) throw new Error(`La carga trae ${filas.length} promos y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
+  for (let j = 0; j < filas.length; j += 500) {
+    const { error } = await admin.from("promos_bench_cache").upsert(filas.slice(j, j + 500), { onConflict: "id" });
+    if (error) throw new Error("Guardando: " + error.message);
+  }
+  const { error: del } = await admin.from("promos_bench_cache").delete().eq("fuente", banco).lt("updated_at", ahora);
+  if (del) throw new Error("Limpiando: " + del.message);
+  await admin.from("promos_bench_meta").upsert({ banco: banco + "_web", last_sync_at: ahora, total: filas.length, error: "carga asistida" }, { onConflict: "banco" });
+  return { total: filas.length };
 }
 
 async function metaWeb(clave: string, r: { total?: number; error?: string }): Promise<void> {
@@ -1031,7 +1105,7 @@ Deno.serve(async (req: Request) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* vacío */ }
   const action = body?.action;
-  const cron = ["sync", "marcas", "bbva", "galicia", "supervielle", "santander", "recordatorio"].includes(action) && esCron(req);
+  const cron = ["sync", "marcas", "bbva", "galicia", "supervielle", "santander", "recordatorio", "importar_web"].includes(action) && esCron(req);
   if (!cron && !(await requireCan(req))) return json({ error: "No autorizado" }, 403);
   try {
     if (action === "status") {
@@ -1083,6 +1157,10 @@ Deno.serve(async (req: Request) => {
         await metaWeb("santander_web", { error: msg });
         return json({ data: { bloqueado: true, error: msg, pendientes: 0 } });
       }
+    }
+    if (action === "importar_web") {
+      const items = Array.isArray(body?.items) ? body.items : [];
+      return json({ data: await importarWeb(String(body?.banco || ""), items) });
     }
     if (action === "recordatorio") {
       return json({ data: await recordatorioManual() });
