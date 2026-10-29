@@ -134,6 +134,7 @@ export const BANCOS: Record<string, { id: string; nombre: string }> = {
   macro: { id: "6a089c91-a7d3-4199-a578-2132a3733f69", nombre: "Macro" },
   supervielle: { id: "54fdfe50-7b7e-4316-bf88-97923d5a8a8d", nombre: "Supervielle" },
   santander: { id: "167504f6-caaf-4ead-b65b-6e6695ae6209", nombre: "Santander" },
+  icbc: { id: "bcfcac03-6f79-4995-bfab-7b8916b0747a", nombre: "ICBC" },
 };
 const MAX_PAGINAS = 40; // Macro tiene ~21 de a 100
 const MINIMO_RELATIVO = 0.5;

@@ -391,7 +391,7 @@ module.exports=async(browser)=>{
   await p.waitForFunction(()=>{const b=document.getElementById('ben-act');return !b||!b.disabled;},null,{timeout:15000});
   await p.waitForTimeout(500);
   const ll=(nube.llamadasBench||[]).map(b=>b.action+(b.banco?':'+b.banco:''));
-  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,bbva,supervielle,galicia,marcas','"Actualizar ahora" pide MODO banco por banco, las webs de BBVA y Supervielle (Santander y Macro van por la carga asistida), el catálogo de Galicia y al final los lugares y logos ('+ll.join(',')+')');
+  ok(ll.join(',')==='sync:galicia,sync:bbva,sync:macro,sync:supervielle,sync:santander,sync:icbc,bbva,supervielle,galicia,marcas','"Actualizar ahora" pide MODO banco por banco, las webs de BBVA y Supervielle (Santander y Macro van por la carga asistida), el catálogo de Galicia y al final los lugares y logos ('+ll.join(',')+')');
 
   // ── sin tablas (migración sin aplicar) y sin datos: se explica, no se rompe ──
   nube.benchFalla=true;

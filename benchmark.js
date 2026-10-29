@@ -83,8 +83,8 @@
   document.head.appendChild(st);
 })();
 
-var BEN_BANCOS = [['galicia', 'Galicia'], ['bbva', 'BBVA'], ['macro', 'Macro'], ['supervielle', 'Supervielle'], ['santander', 'Santander']];
-var BEN_NOM = { galicia: 'Galicia', bbva: 'BBVA', macro: 'Macro', supervielle: 'Supervielle', santander: 'Santander' };
+var BEN_BANCOS = [['galicia', 'Galicia'], ['bbva', 'BBVA'], ['macro', 'Macro'], ['supervielle', 'Supervielle'], ['santander', 'Santander'], ['icbc', 'ICBC']];
+var BEN_NOM = { galicia: 'Galicia', bbva: 'BBVA', macro: 'Macro', supervielle: 'Supervielle', santander: 'Santander', icbc: 'ICBC' };
 var BEN_REF_DEF = { 'Supermercados': 150000, 'Combustible': 60000, 'Salud y Bienestar': 40000, 'Otros': 50000 };
 var BEN_DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 var BEN_MAX_FILAS = 250; // filas que se dibujan en Cara a cara (más pesa en las PC de sucursal)
