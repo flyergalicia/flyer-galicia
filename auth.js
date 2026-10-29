@@ -20210,21 +20210,32 @@ function _gesFlagCargar(cb){
 //     que derivé (visto_dueno, lo pone el servidor).
 // Al entrar sale un cartel con el resumen; después, en cada refresco, un aviso
 // sólo por lo que llegó nuevo. Son pocas filas y las filtra la RLS.
+// Desde la 045 también: mensajes sin leer en la conversación de una acción
+// (hunter, oficial y líder se escriben ahí; un "no puedo ir" llega igual) y,
+// para el líder, lo que le mandaron para asignar. Cada pedido extra falla
+// solo: si no anda, quedan los avisos de siempre.
 var _gesNov=[],_gesAvisados=null,_gesNombres=null;
 function _gesAvisoCargar(){
   if(!_me||!_gesOn()){if(_gesAviso){_gesAviso=0;_gesNov=[];_hdrMsgSync();_gesBadgeSync();}return;}
-  var yo=_me.id;
-  _sb.from('gestiones').select('serie_id,empresa,origen,estado,creada_por,hunter_id,dueno_id,visto_hunter,visto_dueno')
+  var yo=_me.id,nada=function(){return [];};
+  var pNov=_sb.from('gestiones').select('serie_id,empresa,origen,estado,creada_por,hunter_id,dueno_id,visto_hunter,visto_dueno')
     .or('and(hunter_id.eq.'+yo+',visto_hunter.eq.false),and(dueno_id.eq.'+yo+',visto_dueno.eq.false)')
     .order('created_at',{ascending:false}).limit(200)
-    .then(function(r){
+    .then(function(r){if(r&&r.error)throw r.error;return (r&&r.data)||[];});
+  var pMsg=_sb.rpc('gestiones_mensajes_nuevos').then(function(r){return (r&&!r.error&&r.data)||[];},nada);
+  var pAsig=_esLider()?_sb.from('gestiones').select('serie_id,empresa,creada_por').eq('lider_id',yo).is('hunter_id',null).eq('estado','planificada').limit(100)
+    .then(function(r){return (r&&!r.error&&r.data)||[];},nada):Promise.resolve([]);
+  Promise.all([pNov,pMsg,pAsig]).then(function(res){
       var vistas={},nov=[];
-      ((r&&r.data)||[]).forEach(function(g){
+      res[0].forEach(function(g){
         var esHun=g.hunter_id===yo&&!g.visto_hunter,esDue=g.dueno_id===yo&&!g.visto_dueno;
         if(esHun&&!vistas['h'+g.serie_id]){vistas['h'+g.serie_id]=1;nov.push({serie:g.serie_id,empresa:g.empresa,tipo:'derivada',quien:g.creada_por});}
         if(esDue&&!vistas['d'+g.serie_id]){vistas['d'+g.serie_id]=1;
           nov.push({serie:g.serie_id,empresa:g.empresa,tipo:(g.origen==='derivada'?'completada':'registro'),quien:g.hunter_id});}
       });
+      // Un mensaje nuevo en la misma acción vuelve a avisar (la clave lleva la hora del último).
+      res[1].forEach(function(m){nov.push({serie:m.gestion_id+'|'+m.ultimo_at,empresa:m.empresa,tipo:'mensaje',quien:m.ultimo_autor,n:m.n,noPuedo:!!m.no_puedo});});
+      res[2].forEach(function(g){if(!vistas['a'+g.serie_id]){vistas['a'+g.serie_id]=1;nov.push({serie:g.serie_id,empresa:g.empresa,tipo:'por_asignar',quien:g.creada_por});}});
       _gesNov=nov;_gesAviso=nov.length;_hdrMsgSync();_gesBadgeSync();
       if(typeof window.gesAvisoSync==='function')window.gesAvisoSync();
       _gesAvisar();
@@ -20252,12 +20263,18 @@ function _gesNombresCargar(cb){
 }
 function _gesQuien(id){return (_gesNombres&&_gesNombres[id])||'Un hunter';}
 function _gesAvisoTexto(l,primera){
-  var der=l.filter(function(n){return n.tipo==='derivada';}),due=l.filter(function(n){return n.tipo!=='derivada';});
+  var der=l.filter(function(n){return n.tipo==='derivada';}),due=l.filter(function(n){return n.tipo==='completada'||n.tipo==='registro';});
+  var msg=l.filter(function(n){return n.tipo==='mensaje';}),asig=l.filter(function(n){return n.tipo==='por_asignar';});
+  var lista=function(x){return x.slice(0,3).map(function(n){return n.empresa;}).join(', ')+(x.length>3?'…':'');};
   var partes=[];
   if(der.length===1)partes.push(_gesQuien(der[0].quien)+' te derivó una acción en '+der[0].empresa);
-  else if(der.length>1)partes.push('Te derivaron '+der.length+' acciones nuevas: '+der.slice(0,3).map(function(n){return n.empresa;}).join(', ')+(der.length>3?'…':''));
+  else if(der.length>1)partes.push('Te derivaron '+der.length+' acciones nuevas: '+lista(der));
   if(due.length===1){var d=due[0];partes.push(_gesQuien(d.quien)+(d.tipo==='completada'?' completó la acción que derivaste en ':' registró una acción en ')+d.empresa);}
-  else if(due.length>1)partes.push('Hay novedades en '+due.length+' acciones de tus empresas: '+due.slice(0,3).map(function(n){return n.empresa;}).join(', ')+(due.length>3?'…':''));
+  else if(due.length>1)partes.push('Hay novedades en '+due.length+' acciones de tus empresas: '+lista(due));
+  if(msg.length===1){var m=msg[0],q=(_gesNombres&&_gesNombres[m.quien])||'Alguien';partes.push(q+(m.noPuedo?' avisó que no puede ir a ':' te escribió sobre ')+m.empresa);}
+  else if(msg.length>1)partes.push('Tenés mensajes nuevos en '+msg.length+' acciones: '+lista(msg));
+  if(asig.length===1)partes.push('Hay una acción para asignar en '+asig[0].empresa);
+  else if(asig.length>1)partes.push('Hay '+asig.length+' acciones para asignar: '+lista(asig));
   if(!partes.length)return '';
   return partes.join('. ')+'. '+(l.length===1?'Está':'Están')+' en Gestiones.';
 }

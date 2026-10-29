@@ -17,6 +17,9 @@ const consulta = () => {
   q.gte = (c, v) => { q.filtros.push((r) => r[c] >= v); return q; };
   q.lte = (c, v) => { q.filtros.push((r) => r[c] <= v); return q; };
   q.eq = (c, v) => { q.filtros.push((r) => r[c] === v); return q; };
+  q.in = (c, v) => { q.filtros.push((r) => v.includes(r[c])); return q; };
+  q.is = (c, v) => { q.filtros.push((r) => (r[c] == null) === (v === null)); return q; };
+  q.not = (c, op, v) => { q.filtros.push((r) => !(op === 'is' && (r[c] == null) === (v === null))); return q; };
   q.insert = (d) => { q.ins = d; insertados.push(d); return q; };
   q.then = (ok, mal) => Promise.resolve(q.ins ? { data: Array.isArray(q.ins) ? q.ins.map((x, i) => ({ id: 'n' + i, ...x })) : { id: 'n0', ...q.ins } } : { data: TABLA.filter((r) => q.filtros.every((f) => f(r))) }).then(ok, mal);
   return q;

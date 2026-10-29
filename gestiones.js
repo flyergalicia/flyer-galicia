@@ -15,17 +15,25 @@
 // Repetición y cabecera del admin (2026-10-11).
 var GES_CSS_2=".ges-top-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}\n.ges-rep{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:.76rem;font-weight:600;color:var(--ink);}\n.ges-rep[hidden],.ges-mini[hidden]{display:none;}\n.ges-inp-n{width:64px;text-align:center;}\n.ges-atajos{display:inline-flex;gap:4px;}\n.ges-atajos button{border:1px solid var(--border);background:var(--card);color:var(--ink-2,var(--ink));border-radius:12px;padding:3px 9px;font-size:.75rem;font-weight:700;cursor:pointer;}\n.ges-atajos button:hover{border-color:var(--accent-line);color:var(--accent-2,var(--accent));}\n#gf-rep-ayuda{margin-top:4px;font-weight:400;line-height:1.4;}\n.ges-nov{display:inline-flex;align-items:center;gap:5px;margin-left:6px;font-size:.6875rem;font-weight:800;color:var(--accent-2,var(--accent));text-transform:uppercase;letter-spacing:.04em;}\n.ges-nov::before{content:\"\";width:7px;height:7px;border-radius:50%;background:var(--accent);}\n.ges-tr-nov td{background:var(--accent-soft);}\n.ges-mod.ancho{width:min(880px,100%);}\n.ges-opc{font-style:normal;font-weight:400;color:var(--gray);}\n.ges-hor{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.76rem;color:var(--ink);}\n.ges-hor input[type=time]{min-width:100px;}\n.ges-ocup{background:var(--ges-info-soft);color:var(--ges-info);border-radius:var(--r-s,8px);padding:8px 12px;font-size:.76rem;line-height:1.5;}\n.ges-ocup[hidden]{display:none;}\n.ges-ocup .ges-pisa{color:var(--danger);font-weight:700;}\n.ges-form-emp{margin-bottom:0;}\n.ges-emp-res{display:flex;flex-direction:column;gap:4px;max-height:190px;overflow:auto;}\n.ges-emp-res:empty{display:none;}\n.ges-emp-res button{text-align:left;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 10px;font-size:.78rem;font-weight:700;cursor:pointer;}\n.ges-emp-res button:hover{border-color:var(--accent-line);}\n.ges-ag-tool{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}\n.ges-ag-nav,.ges-ag-acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}\n.ges-ag-rango{font-weight:800;font-size:.92rem;color:var(--ink);margin-left:6px;}\n.ges-ag-sem{display:grid;grid-template-columns:repeat(var(--n,6),minmax(0,1fr));gap:8px;}\n.ges-ag-dia{background:var(--card);border:1px solid var(--border);border-radius:var(--r-m,12px);padding:8px;min-height:150px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--sh-1);}\n.ges-ag-dia h4{margin:0 0 2px;font-size:.75rem;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;}\n.ges-ag-dia.hoy{border-color:var(--accent-line);}\n.ges-ag-dia.hoy h4{color:var(--accent-2,var(--accent));}\n.ges-ag-libre{font-size:.75rem;color:var(--ges-ok);font-weight:700;padding:2px;}\n.ges-ag-b{display:flex;flex-direction:column;gap:1px;text-align:left;width:100%;border:0;border-left:3px solid var(--ges-info);background:var(--ges-info-soft);color:var(--ink);border-radius:6px;padding:6px 8px;cursor:pointer;font-size:.75rem;line-height:1.35;font-family:inherit;}\n.ges-ag-b:hover{box-shadow:0 0 0 1px var(--accent-line);}\n.ges-ag-b.est-realizada{border-left-color:var(--ges-ok);background:var(--ges-ok-soft);}\n.ges-ag-b.est-cancelada{border-left-color:var(--border);background:transparent;color:var(--gray);text-decoration:line-through;}\n.ges-ag-b.nueva{box-shadow:0 0 0 2px var(--accent-ring,rgba(242,97,34,.16));}\n.ges-ag-h{font-weight:800;color:var(--ges-info);font-variant-numeric:tabular-nums;}\n.ges-ag-b.est-realizada .ges-ag-h{color:var(--ges-ok);}\n.ges-ag-b.est-cancelada .ges-ag-h{color:var(--gray);}\n.ges-ag-e{font-weight:700;overflow-wrap:anywhere;}\n.ges-ag-t{color:var(--gray);}\n.ges-ag-nueva{font-weight:800;color:var(--accent-2,var(--accent));text-transform:uppercase;font-size:.6875rem;letter-spacing:.04em;}\n.ges-ag-pills{display:none;gap:4px;overflow-x:auto;margin-bottom:10px;}\n.ges-ag-pills button{flex:1;min-width:46px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 4px;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;}\n.ges-ag-pills button b{font-size:1rem;}\n.ges-ag-pills button[aria-pressed=\"true\"]{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-2,var(--accent));}\n.ges-ag-pills button.tiene::after{content:\"\";width:5px;height:5px;border-radius:50%;background:var(--accent);}\n@media (min-width:701px) and (max-width:1000px){.ges-ag-sem{grid-template-columns:repeat(3,minmax(0,1fr));}}\n@media (max-width:700px){.ges-ag-pills{display:flex;}.ges-ag-sem{grid-template-columns:1fr;}.ges-ag-dia{display:none;min-height:0;}.ges-ag-dia.on{display:flex;}}\n.ges-ag-fil{display:flex;flex-direction:column;gap:4px;}\n.ges-ag-ley{align-self:center;padding-top:14px;}\n.ges-ag-eq{border-collapse:collapse;width:100%;font-size:.75rem;color:var(--ink);}\n.ges-ag-eq th{text-align:left;font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray);font-weight:800;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;}\n.ges-ag-eq td{border-bottom:1px solid var(--border);padding:6px;vertical-align:top;min-width:108px;}\n.ges-ag-eq tr:last-child td{border-bottom:0;}\n.ges-ag-eq td.nom{font-weight:800;font-size:.8rem;min-width:130px;}\n.ges-ag-eq th.hoy,.ges-ag-eq td.hoy{background:var(--accent-soft);}\n.ges-ag-cel{display:flex;flex-direction:column;gap:4px;}\n.ges-ag-eq .ges-ag-b{padding:4px 6px;}\n.ges-ag-mas{border:1px dashed var(--border);background:transparent;color:var(--gray);border-radius:6px;padding:3px 6px;font-size:.75rem;font-weight:700;cursor:pointer;text-align:left;font-family:inherit;}\n.ges-ag-mas.libre{border-color:transparent;color:var(--ges-ok);}\n.ges-ag-mas:hover{border:1px solid var(--accent-line);color:var(--accent-2,var(--accent));}\n.ges-ag-ta{width:100%;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;resize:vertical;margin-bottom:8px;}\n.ges-ag-prev{margin-bottom:8px;}\n.ges-ag-prev .ges-tbl td{font-size:.75rem;}";
 var GES_CSS=":root{--ges-ok:#2E7D32;--ges-ok-soft:#E6F3E7;--ges-info:#1D4070;--ges-info-soft:#E8EEF7;--ges-warn:#9A5B00;--ges-warn-soft:#FFF2DC;--ges-b1:#F5B79A;--ges-grid:#EDE7DC;}\nhtml.dark{--ges-ok:#7BC47F;--ges-ok-soft:#1C2E1E;--ges-info:#8FB3E8;--ges-info-soft:#1C2636;--ges-warn:#F0B35A;--ges-warn-soft:#33281A;--ges-b1:#7A3E22;--ges-grid:#2A2E34;}\n.ges-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}\n.ges-h1{font-size:1.12rem;font-weight:800;margin:0 0 2px;color:var(--ink);text-wrap:balance;}\n.ges-sub{font-size:.78rem;color:var(--gray);margin:0 0 12px;line-height:1.45;}\n.ges-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap;}\n.ges-tab{border:0;background:none;padding:9px 14px;font-size:.8rem;font-weight:700;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;gap:6px;align-items:center;}\n.ges-tab:hover{color:var(--ink);}\n.ges-tab.on{color:var(--accent-2,var(--accent));border-bottom-color:var(--accent);}\n.ges-tab .fg-badge{margin-left:0;}\n.ges-cargando,.ges-vacio{padding:22px;text-align:center;color:var(--gray);font-size:.8rem;line-height:1.55;}\n.ges-vacio{border:1px dashed var(--border);border-radius:var(--r-m,12px);background:var(--card);}\n.ges-vacio .btn{margin-top:10px;}\n.ges-nota,.ges-mini{font-size:.75rem;color:var(--gray);}\n.ges-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-m,12px);box-shadow:var(--sh-1);}\n.ges-pad{padding:14px 16px;}\n.ges-lbl{font-size:.6875rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gray);}\n.ges-inp{border:1px solid var(--border);background:var(--field,var(--card));color:var(--ink);border-radius:var(--r-s,8px);padding:8px 10px;font-size:.8rem;min-width:0;}\n.ges-inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring,rgba(242,97,34,.16));}\n.ges-sel{min-width:150px;}\n.ges-tool{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}\n.ges-tool input[type=search]{flex:1;min-width:200px;}\n.ges-btn-sm{padding:6px 12px !important;font-size:.75rem !important;}\n.ges-link{border:0;background:none;color:var(--accent-2,var(--accent));font-weight:700;font-size:.76rem;cursor:pointer;padding:2px 0;}\n.ges-peligro{color:var(--danger) !important;}\n.ges-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:.75rem;font-weight:800;white-space:nowrap;}\n.ges-c-info{background:var(--ges-info-soft);color:var(--ges-info);}\n.ges-c-ok{background:var(--ges-ok-soft);color:var(--ges-ok);}\n.ges-c-bad{background:var(--danger-soft);color:var(--danger);}\n.ges-c-warn{background:var(--ges-warn-soft);color:var(--ges-warn);}\n.ges-ok{color:var(--ges-ok);}\n.ges-prueba{color:var(--ges-warn);font-weight:700;}\n.ges-list{display:flex;flex-direction:column;gap:8px;}\n.ges-row{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;border:1px solid var(--border);background:var(--card);border-radius:var(--r-s,8px);padding:10px 12px;cursor:pointer;box-shadow:var(--sh-1);color:var(--ink);}\n.ges-row:hover{border-color:var(--accent-line);}\n.ges-row.nueva{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring,rgba(242,97,34,.16));}\n.ges-row-t{display:flex;justify-content:space-between;align-items:center;gap:8px;}\n.ges-row-e{font-weight:800;font-size:.86rem;}\n.ges-row-d,.ges-row-n{font-size:.75rem;color:var(--gray);}\n.ges-row-n b{color:var(--ink);}\n.ges-row-n b.ges-ok{color:var(--ges-ok);}\n.ges-row-nueva{font-size:.75rem;color:var(--accent-2,var(--accent));font-weight:700;}\n.ges-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px;}\n.ges-kpis.ges-k4{grid-template-columns:repeat(4,minmax(0,1fr));}\n.ges-kpis.ges-k5{grid-template-columns:repeat(5,minmax(0,1fr));}\n.ges-kpi{padding:12px 14px;}\n.ges-kv{font-size:1.5rem;font-weight:800;line-height:1.1;margin-top:4px;color:var(--ink);font-variant-numeric:tabular-nums;}\n.ges-kd{font-size:.75rem;color:var(--gray);margin-top:2px;}\n.ges-kpi.hi{border-color:var(--accent-line);background:linear-gradient(180deg,var(--accent-soft),var(--card));}\n.ges-kpi.hi .ges-kv{color:var(--accent-2,var(--accent));}\n@media (max-width:1000px){.ges-kpis,.ges-kpis.ges-k5{grid-template-columns:repeat(3,minmax(0,1fr));}}\n@media (max-width:520px){.ges-kpis,.ges-kpis.ges-k4,.ges-kpis.ges-k5{grid-template-columns:repeat(2,minmax(0,1fr));}}\n.ges-tw{overflow-x:auto;}\n.ges-tbl{border-collapse:collapse;width:100%;font-size:.78rem;color:var(--ink);}\n.ges-tbl th{text-align:left;font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gray);font-weight:800;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}\n.ges-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}\n.ges-tbl tr:last-child td{border-bottom:0;}\n.ges-tbl .r{text-align:right;font-variant-numeric:tabular-nums;}\n.ges-num{font-variant-numeric:tabular-nums;white-space:nowrap;}\n.ges-hb{display:flex;align-items:center;gap:8px;}\n.ges-hb span{font-size:.75rem;font-weight:700;min-width:34px;font-variant-numeric:tabular-nums;}\n.ges-bar{flex:1;height:6px;border-radius:3px;background:var(--ges-grid);overflow:hidden;min-width:50px;}\n.ges-bar i{display:block;height:100%;background:var(--accent);border-radius:3px;}\n.ges-est{border:1px solid var(--border);background:var(--field,var(--card));color:var(--ink);border-radius:6px;padding:4px 6px;font-size:.75rem;font-weight:700;}\n.ges-est.alta{background:var(--ges-ok-soft);color:var(--ges-ok);border-color:transparent;}\n.ges-est.desc{background:var(--danger-soft);color:var(--danger);border-color:transparent;}\n.ges-est.gest{background:var(--ges-warn-soft);color:var(--ges-warn);border-color:transparent;}\nspan.ges-est{display:inline-block;}\n.ges-x{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--gray);cursor:pointer;font-size:1rem;line-height:1;}\n.ges-x:hover{background:var(--danger-soft);color:var(--danger);}\n.ges-det-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-top:6px;}\n.ges-acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}\n.ges-auto{display:flex;gap:8px;align-items:center;background:var(--ges-info-soft);color:var(--ges-info);border-radius:var(--r-s,8px);padding:9px 12px;font-size:.76rem;margin:0 0 12px;line-height:1.45;white-space:pre-wrap;}\n.ges-auto b{font-weight:800;}\n.ges-aviso{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:var(--r-s,8px);padding:9px 12px;font-size:.76rem;margin:0 0 12px;color:var(--ink);}\n.ges-ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap;}\n.ges-ct{font-weight:800;font-size:.86rem;color:var(--ink);}\n.ges-add{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-top:12px;align-items:center;}\n@media (max-width:640px){.ges-add{grid-template-columns:1fr 1fr;}.ges-add input:first-child{grid-column:1/-1;}}\n.ges-paste{margin-top:12px;border:1px dashed var(--accent-line);border-radius:var(--r-s,8px);padding:10px 12px;background:var(--accent-soft);}\n.ges-paste summary{cursor:pointer;font-weight:700;font-size:.78rem;color:var(--ink);}\n.ges-paste textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;margin:6px 0;resize:vertical;box-sizing:border-box;}\n.ges-paste-res{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}\n.ges-filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;}\n.ges-filtros label{display:flex;flex-direction:column;gap:4px;}\n.ges-filtros .ges-check{flex-direction:row;align-items:center;gap:6px;font-size:.76rem;color:var(--ink);padding-bottom:8px;}\n.ges-xls{margin-left:auto;}\n.ges-g2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;margin-bottom:14px;}\n.ges-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}\n@media (max-width:1000px){.ges-g2,.ges-g3{grid-template-columns:1fr;}}\n.ges-leg{display:flex;gap:12px;font-size:.75rem;color:var(--gray);}\n.ges-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}\n.ges-leg i.l1{background:var(--ges-b1);}\n.ges-leg i.l2{background:var(--accent);}\n.ges-svg{width:100%;height:auto;display:block;}\n.ges-svg .ges-grid{stroke:var(--ges-grid);stroke-width:1;}\n.ges-svg .ges-ax{font-size:10px;fill:var(--gray);}\n.ges-svg .ges-val{font-size:10px;font-weight:700;fill:var(--ink);}\n.ges-svg .ges-b1{fill:var(--ges-b1);}\n.ges-svg .ges-b2{fill:var(--accent);}\n.ges-fun{display:flex;flex-direction:column;gap:9px;}\n.ges-fun-r{display:grid;grid-template-columns:96px minmax(0,1fr) 64px;gap:10px;align-items:center;font-size:.76rem;color:var(--ink);}\n.ges-fun-b{height:24px;border-radius:6px;background:var(--accent);display:flex;align-items:center;padding-left:8px;color:#fff;font-weight:800;font-size:.75rem;min-width:30px;box-sizing:border-box;white-space:nowrap;}\n.ges-fun-b.f2{background:var(--accent-2,var(--accent));}\n.ges-fun-b.f3{background:var(--ges-ok);}\n.ges-fun-p{text-align:right;color:var(--gray);font-weight:700;font-size:.75rem;font-variant-numeric:tabular-nums;}\n.ges-ov{position:fixed;inset:0;background:rgba(20,18,15,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10000;}\n.ges-mod{background:var(--card);color:var(--ink);border-radius:var(--r-m,12px);box-shadow:var(--sh-3);width:min(580px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:18px 20px;box-sizing:border-box;}\n.ges-mt{margin:0 0 2px;font-size:1.02rem;font-weight:800;}\n.ges-ms{margin:0 0 12px;font-size:.78rem;color:var(--gray);}\n.ges-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;}\n.ges-form .full{grid-column:1/-1;}\n.ges-form label,.ges-form .ges-fl{display:flex;flex-direction:column;gap:5px;font-size:.75rem;font-weight:700;color:var(--ink-2,var(--gray));}\n.ges-form textarea{resize:vertical;}\n@media (max-width:520px){.ges-form{grid-template-columns:1fr;}}\n.ges-pills{display:flex;gap:6px;flex-wrap:wrap;}\n.ges-pills button{border:1px solid var(--border);background:var(--card);color:var(--ink-2,var(--ink));border-radius:20px;padding:6px 12px;font-size:.75rem;font-weight:700;cursor:pointer;}\n.ges-pills button[aria-pressed=\"true\"]{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-2,var(--accent));}\n.ges-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}";
-(function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2;document.head.appendChild(st);})();
+// Versión 2 (migración 045): CUIT, Base de datos, conversación e historial, "No puedo ir", bandeja del líder.
+var GES_CSS_3=".ges-form [hidden],.ges-band [hidden]{display:none !important;}\n.ges-cuit{font-size:.75rem;color:var(--gray);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}\n.ges-chips{display:flex;gap:6px;flex-wrap:wrap;}\n.ges-add{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;}\n@media (max-width:640px){.ges-add{grid-template-columns:1fr 1fr;}}\n.ges-elegir{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:12px 0;}\n.ges-elegir .btn{justify-content:center;text-align:center;}\n.ges-libres{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;}\n.ges-libres button{border:1px solid var(--ges-ok);background:var(--ges-ok-soft);color:var(--ges-ok);border-radius:14px;padding:4px 10px;font-size:.75rem;font-weight:800;cursor:pointer;font-family:inherit;}\n.ges-prox{margin-top:4px;padding:3px 5px;font-weight:600;}\n.ges-prox.vencido{border-color:var(--danger);color:var(--danger);}\n.ges-motivo{font-size:.75rem;color:var(--gray);margin-top:2px;}\n.ges-tel{color:var(--ink);text-decoration:none;border-bottom:1px dotted var(--gray);}\n.ges-chat{margin-top:14px;}\n.ges-msgs{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;margin-bottom:10px;padding:2px;}\n.ges-msg{max-width:78%;background:var(--ges-info-soft);color:var(--ink);border-radius:12px 12px 12px 4px;padding:8px 11px;font-size:.8rem;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;}\n.ges-msg.mio{align-self:flex-end;background:var(--accent-soft);border-radius:12px 12px 4px 12px;}\n.ges-msg.np{background:var(--ges-warn-soft);border:1px solid var(--ges-warn);}\n.ges-msg-q{display:block;font-size:.75rem;font-weight:800;color:var(--gray);margin-bottom:2px;white-space:normal;}\n.ges-msg-new{display:flex;gap:8px;align-items:flex-end;}\n.ges-msg-new textarea{flex:1;resize:vertical;}\n.ges-hist{margin-top:12px;font-size:.78rem;color:var(--ink);}\n.ges-hist summary{cursor:pointer;font-weight:800;font-size:.8rem;}\n.ges-hist ol{list-style:none;margin:8px 0 0;padding:0 0 0 10px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:6px;}\n.ges-hist li{line-height:1.45;}\n.ges-bands{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:12px;}\n.ges-band{background:var(--card);border:1px solid var(--border);border-radius:var(--r-m,12px);padding:10px 12px;box-shadow:var(--sh-1);}\n.ges-band.warn{border-color:var(--ges-warn);background:var(--ges-warn-soft);}\n.ges-band.info{border-color:var(--accent-line);}\n.ges-band h4{margin:0 0 6px;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray);}\n.ges-band-l{display:flex;flex-direction:column;gap:5px;}\n.ges-band-i{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 9px;font-size:.76rem;cursor:pointer;font-family:inherit;line-height:1.35;}\n.ges-band-i:hover{border-color:var(--accent-line);}\n.ges-band-i b{font-weight:800;}\n.ges-band-i .ges-mini{display:block;}\n.ges-ag-b.nopuede{border-left-color:var(--ges-warn);background:var(--ges-warn-soft);}";
+(function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2+'\n'+GES_CSS_3;document.head.appendChild(st);})();
 
 // A los hunters se los mide por el paquete que capta cada alta (no por la renta).
 // La base guarda la clave (columna paquete, migración 027); el orden es el de la pantalla.
-var GES_PAQ={caja:'Caja de Ahorro',plus:'Plus',gold:'Plus Gold',platinum:'Eminent Platinum',black:'Eminent Black'};
-var GES_TIPO={accion:'Acción',feria:'Feria',posicion:'Posición comercial'};
+// "Caja de Ahorro" es el alta sin paquete: así se separan con paquete / sin paquete.
+var GES_PAQ={caja:'Sin paquete (Caja de Ahorro)',plus:'Plus',gold:'Plus Gold',platinum:'Eminent Platinum',black:'Eminent Black'};
+var GES_PAQ_CORTO={caja:'Sin paquete',plus:'Plus',gold:'Plus Gold',platinum:'Eminent Platinum',black:'Eminent Black'};
+var GES_TIPO={accion:'Acción',feria:'Feria',posicion:'Posición comercial',datos:'Base de datos'};
 var GES_MOD={presencial:'Presencial',virtual:'Virtual'};
 var GES_FREC={unica:'Única',repite:'Se repite'};
 var GES_VECES_MAX=24; // tope al crear una serie de una vez (la base admite hasta 52)
 var GES_EST={planificada:'Planificada',realizada:'Realizada',cancelada:'Cancelada'};
-var GES_PEST={prospecto:'Prospecto',en_gestion:'En gestión',alta:'Alta',descartado:'Descartado'};
+var GES_EST_DATOS={planificada:'En curso',realizada:'Terminada',cancelada:'Cancelada'};
+var GES_PEST={a_contactar:'A contactar',prospecto:'Prospecto',en_gestion:'En gestión',alta:'Alta',descartado:'Descartado'};
+var GES_ABIERTO={a_contactar:1,prospecto:1,en_gestion:1}; // estados en los que se agenda un próximo contacto
+var GES_MOTIVO={ya_galicia:'Ya cobra en Galicia',no_interesa:'No le interesa',no_contesta:'No contesta',no_califica:'No califica',otro:'Otro motivo'};
+var GES_DATOS_MAX=1000; // personas por base de datos
 var GES_MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 var GES={verTodo:(function(){try{return localStorage.getItem('fg_ges_vertodo')==='1';}catch(e){return false;}})(),tab:null,lista:null,listaP:null,personas:null,perP:null,det:null,detG:null,detPros:[],
@@ -83,6 +91,56 @@ function gesNom(id){
 }
 function gesPuedeEditar(g){var y=gesYo();return !!g&&(g.hunter_id===y||g.creada_por===y||gesEsAdmin());}
 function gesPuedeBorrar(g){return !!g&&(g.creada_por===gesYo()||gesEsAdmin());}
+// ¿Es un hunter de mi equipo? (el líder lo ve en lider_id de cada persona)
+function gesDeMiEquipo(h){var p=GES.personas&&GES.personas[h];return !!(h&&p&&p.lider_id&&p.lider_id===gesYo());}
+// Guardar aunque el horario se pise: sólo el admin o el líder de ese hunter (lo frena la base).
+function gesPuedeForzar(h){return gesEsAdmin()||(gesRol()==='lider'&&gesDeMiEquipo(h));}
+// Cambiar el hunter: admin, el oficial que la derivó (mientras no esté realizada)
+// y el líder (el que la reparte o el del hunter). El hunter nunca.
+function gesPuedeReasignar(g){
+  if(!g)return false;
+  if(gesEsAdmin())return true;
+  if(g.estado==='realizada')return false;
+  var y=gesYo();
+  if(g.origen==='derivada'&&g.creada_por===y)return true;
+  return gesRol()==='lider'&&(g.lider_id===y||gesDeMiEquipo(g.hunter_id));
+}
+function gesLideres(){
+  var ps=GES.personas||{};
+  return Object.keys(ps).filter(function(id){return ps[id].rol==='lider';}).sort(function(a,b){return ps[a].nombre.localeCompare(ps[b].nombre);});
+}
+// El oficial puede mandarla "al equipo" para que la asigne el líder.
+function gesPuedeAlLider(){var r=gesRol();return r!=='hunter'&&r!=='lider'&&!gesEsAdmin()&&gesLideres().length>0;}
+// Lo que la base frena con un código (045) se cuenta en castellano.
+function gesErrTxt(e){
+  var m=String((e&&e.message)||e||'');
+  if(/GES_PISA/.test(m))return 'el horario se pisa con otra acción de ese hunter'+((m.match(/de (\d\d:\d\d a \d\d:\d\d)/)||[])[1]?' ('+m.match(/de (\d\d:\d\d a \d\d:\d\d)/)[1]+')':'')+'. Cambiá el horario o elegí otro hunter.';
+  if(/GES_PAQ/.test(m))return 'elegí con qué paquete fue el alta.';
+  if(/GES_MOT/.test(m))return 'elegí por qué se descarta.';
+  return m;
+}
+// CUIT de la empresa: la base guarda los dígitos separados por coma ("30712345678,30709876543").
+function gesCuitLista(c){return (Array.isArray(c)?c:String(c||'').split(/[,;\s]+/)).map(gesCuilLimpio).filter(Boolean);}
+function gesCuitTxt(c){var l=gesCuitLista(c);return l.length?'CUIT '+l.map(gesCuilFmt).join(' · '):'';}
+function gesCuitHtml(c){var t=gesCuitTxt(c);return t?'<span class="ges-cuit">'+gesE(t)+'</span>':'';}
+// "CUIL o referencia" en un solo campo: un CUIL válido se guarda como CUIL; un
+// número de 11 cifras que no es un CUIL válido se avisa; cualquier otra cosa
+// (legajo, sector, DNI) queda como referencia.
+function gesCuilORef(v){
+  v=String(v||'').trim();if(!v)return {};
+  var d=gesCuilLimpio(v);
+  if(/^[\d\s.\-]+$/.test(v)&&d.length===11)return gesCuilOk(d)?{cuil:d}:{error:'Ese CUIL no es válido. Revisalo, o escribí otra cosa como referencia.'};
+  return {referencia:v.slice(0,120)};
+}
+function gesCuilRefTxt(p){return p.cuil?gesCuilFmt(p.cuil):(p.referencia||'');}
+// Teléfono o mail, con link para llamar o escribir desde el celular.
+function gesContactoHtml(c){
+  c=String(c||'').trim();if(!c)return '<span class="ges-mini">—</span>';
+  if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c))return '<a class="ges-tel" href="mailto:'+_escAttr(c)+'">'+gesE(c)+'</a>';
+  var d=c.replace(/[^\d+]/g,'');
+  if(d.replace(/\D/g,'').length>=6)return '<a class="ges-tel" href="tel:'+_escAttr(d)+'">'+gesE(c)+'</a>';
+  return gesE(c);
+}
 
 // CUIL: 11 dígitos, prefijo válido y dígito verificador.
 function gesCuilLimpio(c){return String(c||'').replace(/\D/g,'');}
@@ -99,7 +157,7 @@ function gesCuilFmt(c){c=gesCuilLimpio(c);return c.length===11?c.slice(0,2)+'-'+
 function gesPaqDe(v){
   var s=_padNorm(v).replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim().replace(/^paquete /,'');
   if(!s)return null;
-  if(/^(caja( de ahorros?)?|ca)$/.test(s))return 'caja';
+  if(/^(caja( de ahorros?)?|ca)$/.test(s)||/^sin paquete( caja( de ahorros?)?)?$/.test(s))return 'caja';
   if(s==='plus')return 'plus';
   if(/^(plus )?gold$/.test(s))return 'gold';
   if(/^(eminent )?(platinum|platino)$/.test(s))return 'platinum';
@@ -118,6 +176,14 @@ function gesPersonas(){
   }).catch(function(){GES.perP=null;GES.personas={};return GES.personas;});
   return GES.perP;
 }
+// Mensajes de otros sin leer, por gestión (de lo que participo). Si falla, ninguno.
+function gesMsgNuevos(force){
+  if(GES.msgN&&!force)return Promise.resolve(GES.msgN);
+  return _sb.rpc('gestiones_mensajes_nuevos').then(function(r){
+    var m={};((r&&!r.error&&r.data)||[]).forEach(function(x){m[x.gestion_id]=x;});GES.msgN=m;return m;
+  },function(){GES.msgN={};return GES.msgN;});
+}
+function gesMsgDe(g){return (GES.msgN&&g&&GES.msgN[g.id])||null;}
 function gesLista(force){
   if(GES.lista&&!force)return Promise.resolve(GES.lista);
   if(GES.listaP&&!force)return GES.listaP;
@@ -173,9 +239,9 @@ function gesRender(){
 }
 function gesSubtitulo(){
   var r=gesRol();
-  if(r==='hunter')return 'Tu agenda con día y horario, las acciones que te derivaron y las que registraste. Después de cada una cargá los prospectos y marcá las altas.';
-  if(r==='lider')return 'Cómo viene tu equipo: la agenda de cada hunter, acciones, prospectos, altas y conversión.';
-  return 'Lo que se hizo con tus empresas. Vos derivás; la carga la hacen los hunters.';
+  if(r==='hunter')return 'Tu agenda con día y horario, las bases de datos para contactar y lo que te derivaron. Después de cada acción cargá los prospectos y marcá las altas (con o sin paquete). Si algo no está claro, preguntá en la conversación de la acción.';
+  if(r==='lider')return 'Cómo viene tu equipo: la agenda de cada hunter, lo que hay que asignar, quién pidió que se la pasen a otro, prospectos, altas y conversión.';
+  return 'Lo que se hizo con tus empresas. Vos derivás (a un hunter, o al líder para que la reparta); la carga la hacen los hunters.';
 }
 function gesBody(html){var b=document.getElementById('ges-body');if(b)b.innerHTML=html;}
 function gesErr(e){
@@ -186,39 +252,68 @@ function gesErr(e){
 function gesAvisoSync(){
   if(GES._ultAviso===_gesAviso)return;
   GES._ultAviso=_gesAviso;
+  GES.msgN=null;
   var v=document.getElementById('view-gestiones');
-  if(v&&v.style.display!=='none'&&!GES.det&&GES.tab==='lista'){GES.lista=null;gesRender();}
+  if(v&&v.style.display!=='none'&&!GES.det&&(GES.tab==='lista'||GES.tab==='agenda')){GES.lista=null;GES.ag.data=null;gesRender();}
 }
 
 // ── Chips ───────────────────────────────────────────────────────────────────
 function gesChipEst(g){
+  if(g.estado==='planificada'&&!g.hunter_id)return '<span class="ges-chip ges-c-warn">Por asignar'+(g.tipo==='datos'?'':' &middot; '+gesE(gesFecha(g.fecha)))+'</span>';
+  if(g.tipo==='datos'){
+    if(g.estado==='planificada')return '<span class="ges-chip ges-c-info">En curso'+(g.vence?' &middot; hasta el '+gesE(gesFecha(g.vence)):'')+'</span>';
+    if(g.estado==='cancelada')return '<span class="ges-chip ges-c-bad">Cancelada</span>';
+    return '<span class="ges-chip ges-c-ok">Terminada</span>';
+  }
   if(g.estado==='planificada')return '<span class="ges-chip ges-c-info">Planificada &middot; '+gesE(gesFecha(g.fecha))+'</span>';
   if(g.estado==='cancelada')return '<span class="ges-chip ges-c-bad">Cancelada</span>';
   return '<span class="ges-chip ges-c-ok">Realizada</span>';
 }
+// Chips de lo que espera a alguien: pidió reasignación, mensajes sin leer.
+function gesChipsExtra(g){
+  var h='',m=gesMsgDe(g);
+  if(g.no_puede_at&&g.estado==='planificada')h+='<span class="ges-chip ges-c-warn" title="'+_escAttr(g.no_puede_motivo||'')+'">'+(g.hunter_id===gesYo()?'Avisaste que no podés':'Pidió que se la pasen a otro')+'</span>';
+  if(m)h+='<span class="ges-chip ges-c-info">'+(m.n===1?'1 mensaje nuevo':m.n+' mensajes nuevos')+'</span>';
+  return h?'<span class="ges-chips">'+h+'</span>':'';
+}
 function gesNuevaHun(g){return g.hunter_id===gesYo()&&!g.visto_hunter;}
 function gesNuevaDue(g){return g.dueno_id===gesYo()&&g.visto_dueno===false;}
 function gesNueva(g){return gesNuevaHun(g)||gesNuevaDue(g);}
+// Lo que pide atención va primero en la lista: novedades y mensajes sin leer.
+function gesAtencion(g){return gesNueva(g)||!!gesMsgDe(g);}
 function gesNuevaTxt(g){
   if(gesNuevaHun(g))return 'Nueva'+(g.nota?': '+gesE(g.nota):'');
   return 'Novedad: '+gesE(gesNom(g.hunter_id))+(g.origen==='derivada'?' la complet\u00f3':' registr\u00f3 esta acci\u00f3n');
 }
 
 // ── Lista ───────────────────────────────────────────────────────────────────
+// Filtro de la lista: estado, "por asignar", "pidió reasignación" y texto
+// (empresa, CUIT o persona).
+function gesListaFiltrar(l){
+  var q=_padNorm(GES.q),qd=gesCuilLimpio(GES.q),est=GES.fEst;
+  var vis=l.filter(function(g){
+    if(est==='por_asignar'){if(g.hunter_id||g.estado!=='planificada')return false;}
+    else if(est==='no_puede'){if(!g.no_puede_at||g.estado!=='planificada')return false;}
+    else if(est==='datos'){if(g.tipo!=='datos')return false;}
+    else if(est&&g.estado!==est)return false;
+    if(q&&_padNorm(g.empresa).indexOf(q)<0&&_padNorm(gesNom(g.hunter_id)).indexOf(q)<0&&_padNorm(gesNom(g.dueno_id)).indexOf(q)<0
+       &&!(qd.length>=4&&gesCuitLista(g.cuit).some(function(c){return c.indexOf(qd)>=0;})))return false;
+    return true;
+  });
+  // Lo que pide atención (novedades, mensajes sin leer), primero.
+  vis.sort(function(a,b){return (gesAtencion(b)?1:0)-(gesAtencion(a)?1:0);});
+  return vis;
+}
 function gesListaRender(){
-  gesLista().then(function(l){
-    var q=_padNorm(GES.q),est=GES.fEst;
-    var vis=l.filter(function(g){
-      if(est&&g.estado!==est)return false;
-      if(q&&_padNorm(g.empresa).indexOf(q)<0&&_padNorm(gesNom(g.hunter_id)).indexOf(q)<0&&_padNorm(gesNom(g.dueno_id)).indexOf(q)<0)return false;
-      return true;
-    });
-    // Las derivadas que todavía no abrió, primero.
-    vis.sort(function(a,b){return (gesNueva(b)?1:0)-(gesNueva(a)?1:0);});
+  var pm=gesMsgNuevos(!GES.lista);
+  Promise.all([gesLista(),pm]).then(function(res){
+    var l=res[0],vis=gesListaFiltrar(l);
+    var ests=[['','Todos los estados']].concat(Object.keys(GES_EST).map(function(k){return [k,GES_EST[k]];}),[['datos','Bases de datos']],
+      gesRol()==='hunter'?[]:[['por_asignar','Por asignar'],['no_puede','Pidieron que se la pasen a otro']]);
     var tool='<div class="ges-tool">'+
-      '<input type="search" class="ges-inp" id="ges-q" placeholder="Buscar empresa o persona" value="'+_escAttr(GES.q)+'" oninput="GES.q=this.value;gesListaPintar()" autocomplete="off">'+
+      '<input type="search" class="ges-inp" id="ges-q" placeholder="Buscar empresa, CUIT o persona" value="'+_escAttr(GES.q)+'" oninput="GES.q=this.value;gesListaPintar()" autocomplete="off">'+
       '<select class="ges-inp ges-sel" id="ges-fest" onchange="GES.fEst=this.value;gesListaPintar()">'+
-        '<option value="">Todos los estados</option>'+Object.keys(GES_EST).map(function(k){return '<option value="'+k+'"'+(GES.fEst===k?' selected':'')+'>'+GES_EST[k]+'</option>';}).join('')+
+        ests.map(function(o){return '<option value="'+o[0]+'"'+(GES.fEst===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
       '</select>'+
       (gesRol()==='hunter'?'<button type="button" class="btn bg" onclick="switchApp(\'hunter\')">+ Registrar desde Buscar flyer</button>':'')+
       '</div>';
@@ -232,25 +327,32 @@ function gesListaRender(){
 // Re-pinta sólo la lista (no el buscador, para no perder el foco al tipear).
 function gesListaPintar(){
   var host=document.getElementById('ges-list');if(!host||!GES.lista){gesListaRender();return;}
-  var q=_padNorm(GES.q),est=GES.fEst;
-  var vis=GES.lista.filter(function(g){
-    if(est&&g.estado!==est)return false;
-    if(q&&_padNorm(g.empresa).indexOf(q)<0&&_padNorm(gesNom(g.hunter_id)).indexOf(q)<0&&_padNorm(gesNom(g.dueno_id)).indexOf(q)<0)return false;
-    return true;
-  });
-  vis.sort(function(a,b){return (gesNueva(b)?1:0)-(gesNueva(a)?1:0);});
+  var vis=gesListaFiltrar(GES.lista);
   host.innerHTML=vis.length?vis.slice(0,300).map(gesFila).join(''):'<div class="ges-vacio">Nada coincide con el filtro.</div>';
+}
+// "Hunter: Sofía" o "Hunter: por asignar (Laura)".
+function gesHunterTxt(g){
+  if(g.hunter_id)return gesE(gesNom(g.hunter_id));
+  return '<b>por asignar</b>'+(g.lider_id?' ('+gesE(gesNom(g.lider_id))+')':'');
+}
+// Tipo, día y horario en una línea. Una base de datos no tiene horario: va desde / hasta.
+function gesCuandoTxt(g){
+  if(g.tipo==='datos')return GES_TIPO.datos+' &middot; desde el '+gesE(gesFecha(g.fecha))+(g.vence?' hasta el '+gesE(gesFecha(g.vence)):'');
+  return GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+(gesHorario(g)?' '+gesE(gesHorario(g)):'')+(g.lugar?' &middot; '+gesE(g.lugar):'')+
+    (g.frecuencia==='repite'?' &middot; '+gesE(gesRepTxt(g)):'');
 }
 function gesFila(g){
   var r=gesRol(),quien;
   if(r==='hunter')quien=g.origen==='derivada'?'Te la derivó '+gesE(gesNom(g.creada_por)):'Empresa de '+gesE(gesNom(g.dueno_id));
-  else quien='Hunter: '+gesE(gesNom(g.hunter_id))+' &middot; Oficial: '+gesE(gesNom(g.dueno_id));
-  return '<button type="button" class="ges-row'+(gesNueva(g)?' nueva':'')+'" onclick="gesAbrirDet(\''+g.id+'\')">'+
-    '<span class="ges-row-t"><span class="ges-row-e">'+gesE(g.empresa)+'</span>'+gesChipEst(g)+'</span>'+
-    '<span class="ges-row-d">'+GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+(gesHorario(g)?' '+gesE(gesHorario(g)):'')+(g.lugar?' &middot; '+gesE(g.lugar):'')+
-      (g.frecuencia==='repite'?' &middot; '+gesE(gesRepTxt(g)):'')+' &middot; '+quien+
+  else quien='Hunter: '+gesHunterTxt(g)+' &middot; Oficial: '+gesE(gesNom(g.dueno_id));
+  var nums='';
+  if(g.tipo==='datos')nums='<span class="ges-row-n"><b>'+gesN(g.n_pros)+'</b> de '+gesN(g.n_datos)+' contactados &middot; <b class="ges-ok">'+gesN(g.n_altas)+'</b> '+(+g.n_altas===1?'alta':'altas')+'</span>';
+  else if(g.estado==='realizada')nums='<span class="ges-row-n"><b>'+gesN(g.n_pros)+'</b> prospectos &middot; <b class="ges-ok">'+gesN(g.n_altas)+'</b> '+(+g.n_altas===1?'alta':'altas')+' &middot; '+gesPct(g.n_altas,g.n_pros)+'</span>';
+  return '<button type="button" class="ges-row'+(gesAtencion(g)?' nueva':'')+'" onclick="gesAbrirDet(\''+g.id+'\')">'+
+    '<span class="ges-row-t"><span class="ges-row-e">'+gesE(g.empresa)+' '+gesCuitHtml(g.cuit)+'</span>'+gesChipEst(g)+'</span>'+
+    '<span class="ges-row-d">'+gesCuandoTxt(g)+' &middot; '+quien+
       (g.prueba?' &middot; <span class="ges-prueba">prueba</span>':'')+'</span>'+
-    (g.estado==='realizada'?'<span class="ges-row-n"><b>'+gesN(g.n_pros)+'</b> prospectos &middot; <b class="ges-ok">'+gesN(g.n_altas)+'</b> '+(+g.n_altas===1?'alta':'altas')+' &middot; '+gesPct(g.n_altas,g.n_pros)+'</span>':'')+
+    nums+gesChipsExtra(g)+
     (gesNueva(g)?'<span class="ges-row-nueva">'+gesNuevaTxt(g)+'</span>':'')+
   '</button>';
 }
@@ -258,7 +360,7 @@ function gesFila(g){
 // ── Mis empresas (oficial) ──────────────────────────────────────────────────
 function gesEmpresas(){
   var pEmp=GES.empresas?Promise.resolve(GES.empresas):
-    _sb.from('padron_empresas').select('empresa').eq('user_id',gesYo()).order('empresa').then(function(r){
+    _sb.from('padron_empresas').select('empresa,cuits').eq('user_id',gesYo()).order('empresa').then(function(r){
       if(r&&r.error)throw r.error;GES.empresas=(r&&r.data)||[];return GES.empresas;});
   Promise.all([pEmp,gesLista()]).then(function(res){
     var emps=res[0],l=res[1],yo=gesYo();
@@ -274,8 +376,8 @@ function gesEmpresas(){
     var kp='<div class="ges-kpis ges-k4">'+gesKpi('Acciones realizadas',gesN(tot.v),'en tus empresas')+gesKpi('Prospectos',gesN(tot.p),'')+
       gesKpi('Altas',gesN(tot.a),'sueldos en Galicia',true)+gesKpi('Conversión',gesPct(tot.a,tot.p),'altas ÷ prospectos')+'</div>';
     if(!emps.length){gesBody(kp+'<div class="ges-vacio">Todavía no tenés empresas cargadas. Cargalas en tu nombre &rarr; <b>Base de datos</b> &rarr; Mis empresas y vuelven a aparecer acá para derivarlas.</div>');return;}
-    GES._emps=emps.map(function(e){var k=_padNorm(e.empresa);return {empresa:e.empresa,k:k,s:st[k]||{v:0,p:0,a:0,plan:0}};});
-    gesBody(kp+'<div class="ges-tool"><input type="search" class="ges-inp" placeholder="Buscar en tus empresas" value="'+_escAttr(GES.qEmp)+'" oninput="GES.qEmp=this.value;gesEmpPintar()" autocomplete="off"></div>'+
+    GES._emps=emps.map(function(e){var k=_padNorm(e.empresa);return {empresa:e.empresa,cuits:gesCuitLista(e.cuits),k:k,s:st[k]||{v:0,p:0,a:0,plan:0}};});
+    gesBody(kp+'<div class="ges-tool"><input type="search" class="ges-inp" placeholder="Buscar en tus empresas (nombre o CUIT)" value="'+_escAttr(GES.qEmp)+'" oninput="GES.qEmp=this.value;gesEmpPintar()" autocomplete="off"></div>'+
       '<div class="ges-card"><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Empresa</th><th class="r">Acciones</th><th class="r">Prospectos</th><th class="r">Altas</th><th>Conversión</th><th>Último hunter</th><th></th></tr></thead>'+
       '<tbody id="ges-emp-tb"></tbody></table></div></div>');
     gesEmpPintar();
@@ -283,11 +385,12 @@ function gesEmpresas(){
 }
 function gesEmpPintar(){
   var tb=document.getElementById('ges-emp-tb');if(!tb||!GES._emps)return;
-  var q=_padNorm(GES.qEmp);
-  var vis=GES._emps.filter(function(e){return !q||e.k.indexOf(q)>=0;}).slice(0,400);
+  var q=_padNorm(GES.qEmp),qd=gesCuilLimpio(GES.qEmp);
+  var vis=GES._emps.filter(function(e){return !q||e.k.indexOf(q)>=0||(qd.length>=4&&e.cuits.some(function(c){return c.indexOf(qd)>=0;}));}).slice(0,400);
   tb.innerHTML=vis.map(function(e,i){
     var s=e.s,c=s.p?s.a/s.p:0,idx=GES._emps.indexOf(e);
-    return '<tr'+(s.nov?' class="ges-tr-nov"':'')+'><td><b>'+gesE(e.empresa)+'</b>'+(s.nov?' <span class="ges-nov" title="Hay novedades: abrilas en la solapa Gestiones">Novedad</span>':'')+(s.plan?'<div class="ges-mini">'+s.plan+' planificada'+(s.plan>1?'s':'')+'</div>':'')+'</td>'+
+    return '<tr'+(s.nov?' class="ges-tr-nov"':'')+'><td><b>'+gesE(e.empresa)+'</b>'+(s.nov?' <span class="ges-nov" title="Hay novedades: abrilas en la solapa Gestiones">Novedad</span>':'')+
+      (e.cuits.length?'<div>'+gesCuitHtml(e.cuits)+'</div>':'')+(s.plan?'<div class="ges-mini">'+s.plan+' planificada'+(s.plan>1?'s':'')+'</div>':'')+'</td>'+
       '<td class="r">'+s.v+'</td><td class="r">'+s.p+'</td><td class="r"><b>'+s.a+'</b></td>'+
       '<td><div class="ges-hb"><div class="ges-bar"><i style="width:'+Math.round(c*100)+'%"></i></div><span>'+gesPct(s.a,s.p)+'</span></div></td>'+
       '<td>'+(s.hun?gesE(gesNom(s.hun)):'<span class="ges-mini">—</span>')+'</td>'+
@@ -306,7 +409,21 @@ function gesModal(html,ancho){
   var f=ov.querySelector('input:not([type=hidden]),select,textarea,button');if(f)setTimeout(function(){try{f.focus();}catch(e){}},30);
 }
 function gesEsc(e){if(e.key==='Escape'&&document.getElementById('ges-ov')&&!document.getElementById('fg-cf-ov')){e.stopPropagation();gesCerrar();}}
-function gesCerrar(){var o=document.getElementById('ges-ov');if(o)o.remove();document.removeEventListener('keydown',gesEsc,true);}
+function gesCerrar(){
+  var o=document.getElementById('ges-ov');if(o)o.remove();document.removeEventListener('keydown',gesEsc,true);
+  GES._ocupHun=null;GES._ocupExcl=null;
+  var r=GES._elegirRes;GES._elegirRes=null;if(r)r(null); // una elección abierta se cancela
+}
+// Ventanita "elegí una opción" (paquete del alta, motivo del descarte). Promesa: la clave o null.
+function gesElegir(titulo,sub,opts){
+  return new Promise(function(res){
+    gesModal('<h3 class="ges-mt">'+titulo+'</h3>'+(sub?'<p class="ges-ms">'+sub+'</p>':'')+
+      '<div class="ges-elegir">'+Object.keys(opts).map(function(k){return '<button type="button" class="btn bg" onclick="gesElegido(\''+k+'\')">'+gesE(opts[k])+'</button>';}).join('')+'</div>'+
+      '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesElegido(null)">Cancelar</button></div>');
+    GES._elegirRes=res; // después de abrir: gesModal cierra lo anterior
+  });
+}
+function gesElegido(k){var r=GES._elegirRes;GES._elegirRes=null;gesCerrar();if(r)r(k);}
 function gesPills(name,opts,val){
   return '<div class="ges-pills" data-name="'+name+'">'+Object.keys(opts).map(function(k){
     return '<button type="button" data-v="'+k+'" aria-pressed="'+(val===k)+'" onclick="gesPill(this)">'+opts[k]+'</button>';
@@ -314,6 +431,7 @@ function gesPills(name,opts,val){
 }
 function gesPill(b){
   var p=b.parentNode;p.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
+  if(p.getAttribute('data-name')==='tipo')gesTipoCambio(b.getAttribute('data-v')==='datos');
   if(p.getAttribute('data-name')==='frecuencia'){
     var on=b.getAttribute('data-v')==='repite';
     ['gf-rep','gf-rep-ayuda'].forEach(function(id){var e=document.getElementById(id);if(e)e.hidden=!on;});
@@ -369,43 +487,67 @@ function gesOfrecerProxima(g){
 }
 function gesInt(id){var v=gesVal(id).replace(/\D/g,'');return v===''?null:Math.min(1000000,parseInt(v,10));}
 
-// Formulario común de registrar / derivar / editar.
+// Formulario común de registrar / derivar / asignar / agendar / editar.
+// Base de datos (tipo 'datos'): sin horario, lugar, modalidad ni repetición;
+// lleva "desde", "trabajarla hasta" y, al crearla, la lista de personas.
+function gesTiposDe(modo,g){
+  if(modo==='editar')return g.tipo==='datos'?{datos:GES_TIPO.datos}:{accion:GES_TIPO.accion,feria:GES_TIPO.feria,posicion:GES_TIPO.posicion};
+  if(modo==='derivar'||modo==='asignar')return GES_TIPO;
+  return {accion:GES_TIPO.accion,feria:GES_TIPO.feria,posicion:GES_TIPO.posicion};
+}
 function gesFormHtml(g,modo){
   g=g||{};
-  var hoy=gesHoy();
+  var hoy=gesHoy(),tipo=g.tipo||'accion',dt=tipo==='datos',asig=modo==='derivar'||modo==='asignar';
+  var oc=function(si){return si?' hidden':'';};
   var h='<div class="ges-form">'+
-    '<div class="ges-fl"><span>Tipo</span>'+gesPills('tipo',GES_TIPO,g.tipo||'accion')+'</div>'+
-    '<div class="ges-fl"><span>Modalidad</span>'+gesPills('modalidad',GES_MOD,g.modalidad||'presencial')+'</div>'+
-    gesRepHtml(g,modo)+
-    '<label><span>Fecha</span><input type="date" id="gf-fecha" class="ges-inp" value="'+_escAttr(g.fecha||hoy)+'" onchange="gesOcupForm()"></label>'+
-    '<div class="ges-fl"><span>Horario <i class="ges-opc">(opcional)</i></span><div class="ges-hor">'+
+    '<div class="ges-fl'+(asig?' full':'')+'"><span>Tipo</span>'+gesPills('tipo',gesTiposDe(modo,g),tipo)+'</div>'+
+    '<div class="ges-fl" data-ges-sec="mod"'+oc(dt)+'><span>Modalidad</span>'+gesPills('modalidad',GES_MOD,g.modalidad||'presencial')+'</div>'+
+    gesRepHtml(g,modo,dt)+
+    '<label><span id="gf-fecha-l">'+(dt?'Desde':'Fecha')+'</span><input type="date" id="gf-fecha" class="ges-inp" value="'+_escAttr(g.fecha||hoy)+'" onchange="gesOcupForm()"></label>'+
+    '<label data-ges-sec="datos"'+oc(!dt)+'><span>Trabajarla hasta <i class="ges-opc">(opcional)</i></span><input type="date" id="gf-vence" class="ges-inp" value="'+_escAttr(g.vence||'')+'"></label>'+
+    '<div class="ges-fl" data-ges-sec="hor"'+oc(dt)+'><span>Horario '+(asig?'':'<i class="ges-opc">(opcional)</i>')+'</span><div class="ges-hor">'+
       '<input type="time" id="gf-hd" class="ges-inp" value="'+_escAttr(gesHora(g.hora_desde))+'" aria-label="Desde" onchange="gesOcupForm()"><span>a</span>'+
       '<input type="time" id="gf-hh" class="ges-inp" value="'+_escAttr(gesHora(g.hora_hasta))+'" aria-label="Hasta" onchange="gesOcupForm()">'+
       '<span class="ges-atajos"><button type="button" onclick="gesHorSet(\'09:00\',\'13:00\')">Mañana</button><button type="button" onclick="gesHorSet(\'14:00\',\'18:00\')">Tarde</button></span>'+
     '</div></div>'+
-    '<label class="full"><span>Lugar <i class="ges-opc">(opcional)</i></span><input type="text" id="gf-lugar" class="ges-inp" maxlength="200" value="'+_escAttr(g.lugar||'')+'" placeholder="Sede, dirección, piso"></label>';
-  if(modo==='derivar'||modo==='asignar'){
-    h+='<label><span>Hunter</span><select id="gf-hunter" class="ges-inp" onchange="gesOcupForm()">'+gesHuntersOpts(g.hunter_id,modo==='asignar')+'</select></label>';
+    '<label class="full" data-ges-sec="hor"'+oc(dt)+'><span>Lugar <i class="ges-opc">(opcional)</i></span><input type="text" id="gf-lugar" class="ges-inp" maxlength="200" value="'+_escAttr(g.lugar||'')+'" placeholder="Sede, dirección, piso"></label>';
+  if(asig){
+    h+='<label><span>Hunter</span><select id="gf-hunter" class="ges-inp" onchange="gesHunterCambio()">'+gesHuntersOpts(g.hunter_id,modo==='asignar',gesPuedeAlLider())+'</select></label>'+
+      '<label data-ges-sec="lider" hidden><span>Líder que la asigna</span><select id="gf-lider" class="ges-inp">'+gesLideresOpts()+'</select></label>'+
+      '<div class="full ges-fl" data-ges-sec="datos"'+oc(!dt)+'><span>Personas para contactar</span>'+
+        '<span class="ges-mini" style="font-weight:400">Peg&aacute; desde Excel una fila por persona: <b>nombre</b>, <b>tel&eacute;fono o mail</b> y <b>CUIL o referencia</b> (legajo, sector, DNI&hellip;), en cualquier orden. S&oacute;lo el nombre es obligatorio.</span>'+
+        '<textarea id="gf-datos" class="ges-inp ges-ag-ta" rows="5" oninput="gesDatosPrev()" placeholder="Ana P&eacute;rez&#9;11 5555-1234&#9;Legajo 302"></textarea>'+
+        '<div id="gf-datos-prev"></div></div>';
   }else if(modo!=='agendar'){
-    h+='<label><span>Estado</span><select id="gf-estado" class="ges-inp">'+Object.keys(GES_EST).map(function(k){
-      return '<option value="'+k+'"'+((g.estado||'realizada')===k?' selected':'')+'>'+GES_EST[k]+'</option>';}).join('')+'</select></label>'+
-      '<label><span>Dotación de la empresa</span><input type="text" inputmode="numeric" id="gf-dot" class="ges-inp" value="'+(g.dotacion!=null?g.dotacion:'')+'" placeholder="Empleados"></label>'+
-      '<label><span>Asistentes o contactados</span><input type="text" inputmode="numeric" id="gf-asis" class="ges-inp" value="'+(g.asistentes!=null?g.asistentes:'')+'" placeholder="Personas que hablaron con vos"></label>';
-    if(modo==='editar'&&(g.creada_por===gesYo()||gesEsAdmin())&&g.origen==='derivada')
-      h+='<label><span>Hunter</span><select id="gf-hunter" class="ges-inp" onchange="gesOcupForm()">'+gesHuntersOpts(g.hunter_id)+'</select></label>';
+    var est=dt?GES_EST_DATOS:GES_EST;
+    h+='<label><span>Estado</span><select id="gf-estado" class="ges-inp">'+Object.keys(est).map(function(k){
+      return '<option value="'+k+'"'+((g.estado||'realizada')===k?' selected':'')+'>'+est[k]+'</option>';}).join('')+'</select></label>'+
+      '<label data-ges-sec="hor"'+oc(dt)+'><span>Dotación de la empresa</span><input type="text" inputmode="numeric" id="gf-dot" class="ges-inp" value="'+(g.dotacion!=null?g.dotacion:'')+'" placeholder="Empleados"></label>'+
+      '<label data-ges-sec="hor"'+oc(dt)+'><span>Asistentes o contactados</span><input type="text" inputmode="numeric" id="gf-asis" class="ges-inp" value="'+(g.asistentes!=null?g.asistentes:'')+'" placeholder="Personas que hablaron con vos"></label>';
   }
   h+='<div class="full ges-ocup" id="gf-ocup" hidden></div>'+
     '<label class="full"><span>Nota</span><textarea id="gf-nota" class="ges-inp" rows="2" maxlength="2000" placeholder="'+
-    (modo==='derivar'||modo==='asignar'||modo==='agendar'?'Con quién hablar, qué flyer llevar':'Cómo fue, próximos pasos')+'">'+gesE(g.nota||'')+'</textarea></label>'+
+    (dt?'Qué ofrecerles, con quién hablar en la empresa':asig||modo==='agendar'?'Con quién hablar, qué flyer llevar':'Cómo fue, próximos pasos')+'">'+gesE(g.nota||'')+'</textarea></label>'+
   '</div>';
   return h;
 }
+// Cambió el tipo en el formulario: una base de datos esconde horario, lugar,
+// modalidad y repetición y muestra "trabajarla hasta" y la lista.
+function gesTipoCambio(dt){
+  var ov=document.getElementById('ges-ov');if(!ov)return;
+  ov.querySelectorAll('[data-ges-sec]').forEach(function(e){
+    var s=e.getAttribute('data-ges-sec');
+    if(s==='datos')e.hidden=!dt;else if(s==='hor'||s==='mod'||s==='rep')e.hidden=dt;
+  });
+  var l=document.getElementById('gf-fecha-l');if(l)l.textContent=dt?'Desde':'Fecha';
+  gesOcupForm();
+}
 // "¿Se repite?": Única, o cada N días (atajos 7/15/30) y, si se sabe, cuántas
 // veces. Con la cantidad, al guardar se crean todas las fechas juntas.
-function gesRepHtml(g,modo){
+function gesRepHtml(g,modo,oculto){
   var fr=g.frecuencia==='repite'?'repite':'unica';
   var serie=modo==='editar'&&g.veces&&g.vez; // en una serie ya armada no se cambia la cantidad
-  return '<div class="full ges-fl"><span>¿Se repite?</span>'+gesPills('frecuencia',GES_FREC,fr)+
+  return '<div class="full ges-fl" data-ges-sec="rep"'+(oculto?' hidden':'')+'><span>¿Se repite?</span>'+gesPills('frecuencia',GES_FREC,fr)+
     '<div class="ges-rep" id="gf-rep"'+(fr==='repite'?'':' hidden')+'>'+
       '<span>Cada</span><input type="text" inputmode="numeric" id="gf-cada" class="ges-inp ges-inp-n" maxlength="3" value="'+(g.cada_dias||'')+'" placeholder="15" aria-label="Cada cuántos días"><span>días</span>'+
       '<span class="ges-atajos">'+[7,15,30].map(function(n){return '<button type="button" onclick="gesCada('+n+')">'+n+'</button>';}).join('')+'</span>'+
@@ -417,31 +559,144 @@ function gesRepHtml(g,modo){
 }
 function gesCada(n){var i=document.getElementById('gf-cada');if(i){i.value=n;i.focus();}}
 // soloEquipo: el líder sólo asigna a los hunters de su equipo (la base no le
-// deja asignar en empresas ajenas a otros).
-function gesHuntersOpts(sel,soloEquipo){
+// deja asignar en empresas ajenas a otros). conLider: el oficial puede dejarla
+// "para que la asigne el líder".
+function gesHuntersOpts(sel,soloEquipo,conLider){
   var ps=GES.personas||{},ids=gesHunters(soloEquipo);
   ids.sort(function(a,b){return ps[a].nombre.localeCompare(ps[b].nombre);});
-  if(!ids.length)return '<option value="">No hay hunters activos</option>';
-  if(!sel)return '<option value="">Elegí un hunter</option>'+ids.map(function(id){return '<option value="'+_escAttr(id)+'">'+gesE(ps[id].nombre)+(ps[id].es_prueba?' (prueba)':'')+'</option>';}).join('');
+  var lid=conLider?'<option value="__lider">Que la asigne el l&iacute;der</option>':'';
+  if(!ids.length)return '<option value="">No hay hunters activos</option>'+lid;
+  if(!sel)return '<option value="">Elegí un hunter</option>'+lid+ids.map(function(id){return '<option value="'+_escAttr(id)+'">'+gesE(ps[id].nombre)+(ps[id].es_prueba?' (prueba)':'')+'</option>';}).join('');
   return ids.map(function(id){
     return '<option value="'+_escAttr(id)+'"'+(id===sel?' selected':'')+'>'+gesE(ps[id].nombre)+(ps[id].es_prueba?' (prueba)':'')+'</option>';
-  }).join('');
+  }).join('')+lid;
 }
+// Líderes para "que la asigne el líder": primero el mío.
+function gesLideresOpts(){
+  var ps=GES.personas||{},ids=gesLideres(),mio=(typeof _myLiderId!=='undefined'&&_myLiderId&&ids.indexOf(_myLiderId)>=0)?_myLiderId:null;
+  if(mio)ids=[mio].concat(ids.filter(function(x){return x!==mio;}));
+  return ids.map(function(id){return '<option value="'+_escAttr(id)+'">'+gesE(ps[id].nombre)+(id===mio?' (tu l&iacute;der)':'')+'</option>';}).join('');
+}
+function gesHunterCambio(){
+  var hs=document.getElementById('gf-hunter'),ov=document.getElementById('ges-ov');
+  if(ov&&hs)ov.querySelectorAll('[data-ges-sec="lider"]').forEach(function(e){e.hidden=hs.value!=='__lider';});
+  gesOcupForm();
+}
+function gesElegirHunter(id){var hs=document.getElementById('gf-hunter');if(hs){hs.value=id;gesHunterCambio();}}
 function gesFormLeer(modo){
   var d={tipo:gesPillVal('tipo')||'accion',modalidad:gesPillVal('modalidad')||'presencial',frecuencia:gesPillVal('frecuencia')||'unica',
     fecha:gesVal('gf-fecha')||gesHoy(),nota:gesVal('gf-nota').trim()||null,
-    hora_desde:gesVal('gf-hd')||null,hora_hasta:gesVal('gf-hh')||null,lugar:gesVal('gf-lugar').trim()||null};
+    hora_desde:gesVal('gf-hd')||null,hora_hasta:gesVal('gf-hh')||null,lugar:gesVal('gf-lugar').trim()||null,vence:null};
+  if(d.tipo==='datos'){
+    // a distancia, sin horario ni repetición
+    d.modalidad='virtual';d.hora_desde=null;d.hora_hasta=null;d.lugar=null;d.frecuencia='unica';
+    d.vence=gesVal('gf-vence')||null;
+  }
   if(d.frecuencia==='repite'){
     d.cada_dias=gesInt('gf-cada');
     if(document.getElementById('gf-veces'))d.veces=gesInt('gf-veces');
   }else{d.cada_dias=null;d.veces=null;d.vez=null;}
-  if(modo==='derivar'||modo==='asignar'){d.hunter_id=gesVal('gf-hunter');d.estado='planificada';}
-  else if(modo==='agendar')d.estado='planificada';
-  else{
-    d.estado=gesVal('gf-estado')||'realizada';d.dotacion=gesInt('gf-dot');d.asistentes=gesInt('gf-asis');
-    var h=document.getElementById('gf-hunter');if(h&&h.value)d.hunter_id=h.value;
+  if(modo==='derivar'||modo==='asignar'){
+    var hv=gesVal('gf-hunter');
+    if(hv==='__lider'){d.hunter_id=null;d.lider_id=gesVal('gf-lider')||null;}else d.hunter_id=hv;
+    d.estado='planificada';
   }
+  else if(modo==='agendar')d.estado='planificada';
+  else{d.estado=gesVal('gf-estado')||'realizada';d.dotacion=gesInt('gf-dot');d.asistentes=gesInt('gf-asis');}
   return d;
+}
+// Lo que falta para derivar o asignar (null = está bien). Para que nadie le
+// pise la agenda a un hunter, con un hunter elegido el horario es obligatorio.
+function gesAsigError(d){
+  if(!d.hunter_id&&!d.lider_id)return 'Elegí el hunter (o que la asigne el líder).';
+  if(d.tipo!=='datos'&&d.hunter_id&&!d.hora_desde)return 'Poné el horario: así nadie le pisa la agenda al hunter. (Mañana y Tarde lo completan de un toque.)';
+  if(d.tipo==='datos'&&d.vence&&d.vence<d.fecha)return '"Trabajarla hasta" tiene que ser después de "Desde".';
+  return null;
+}
+
+// ── Personas pegadas desde Excel (prospectos y bases de datos) ──────────────
+// Una persona por renglón, celdas en cualquier orden. Cada celda se toma por
+// lo que parece: un paquete = paquete, 11 cifras que empiezan como un CUIL =
+// CUIL, un mail o un número de 10 cifras o más = contacto, la primera celda con
+// letras = nombre y otro texto (o un número corto, como un legajo o un DNI) =
+// referencia. Si la primera fila trae títulos, desempatan: en la columna
+// "Teléfono" un número corto es contacto, en "Legajo" es referencia, etc.
+function gesTitulos(c){
+  var t=[],n=0,nom=false;
+  c.forEach(function(x,i){
+    var s=_padNorm(x),k=null;
+    if(/^(nombre|apellido|nombre y apellido|apellido y nombre|empleado|persona)$/.test(s)){k='nombre';nom=true;}
+    else if(/tel|cel|mail|correo|contacto|whats/.test(s))k='contacto';
+    else if(/^(cuil|cuit)/.test(s))k='cuil';
+    else if(/ref|legajo|sector|dni|dato|area/.test(s))k='ref';
+    else if(/paquete/.test(s))k='paq';
+    if(k){t[i]=k;n++;}
+  });
+  return (nom&&n>=2)?t:null;
+}
+function gesCelda(x){
+  var d=gesCuilLimpio(x);
+  if(/@/.test(x))return 'contacto';
+  if(/^[\d\s.\-+()\/]+$/.test(x)&&d.length){
+    if(d.length===11&&/^(20|23|24|27|30|33|34)/.test(d))return 'cuil';
+    if(d.length>=10)return 'contacto';
+    return 'ref';
+  }
+  return 'texto';
+}
+// conPaq: también lee el paquete (prospectos). ya: los que ya están (para no repetir CUIL).
+function gesPersonasParse(t,conPaq,ya){
+  var tiene={};(ya||[]).forEach(function(p){if(p.cuil)tiene[p.cuil]=1;});
+  var vistos={},cols=null,out=[];
+  String(t||'').split(/\r?\n/).forEach(function(l){
+    if(!l.trim())return;
+    var crudo=l.indexOf('\t')>=0?l.split('\t'):l.split(/;|\s{2,}/);
+    var c=crudo.map(function(x){return x.trim();});
+    if(!cols&&!out.length){var hc=gesTitulos(c);if(hc){cols=hc;return;}}
+    var r={nombre:null,contacto:null,cuil:null,referencia:null,paquete:null,ok:true,motivo:''};
+    // Con títulos y la celda del nombre vacía, un texto de otra columna no pasa a ser el nombre.
+    var iNom=cols?cols.indexOf('nombre'):-1,sinNom=iNom>=0&&!c[iNom];
+    c.forEach(function(x,i){
+      if(!x)return;
+      var hk=cols?cols[i]:null,k=gesCelda(x),letras=/[a-záéíóúñ]/i.test(x);
+      if(sinNom&&k==='texto'&&(hk==='cuil'||hk==='ref')){if(!r.referencia)r.referencia=x.slice(0,120);return;}
+      if(conPaq&&!r.paquete){var pq=gesPaqDe(x);if(pq){r.paquete=pq;return;}}
+      if(hk==='contacto'&&!r.contacto&&(k!=='texto'||/@/.test(x))){r.contacto=x.slice(0,120);return;}
+      if(hk==='ref'&&!r.referencia&&k!=='cuil'){r.referencia=x.slice(0,120);return;}
+      if(hk==='nombre'&&!r.nombre&&k==='texto'&&letras){r.nombre=x.replace(/\s+/g,' ').slice(0,120);return;}
+      if(k==='cuil'&&!r.cuil){r.cuil=gesCuilLimpio(x);return;}
+      if(k==='contacto'&&!r.contacto){r.contacto=x.slice(0,120);return;}
+      if(k==='texto'&&!r.nombre&&letras){r.nombre=x.replace(/\s+/g,' ').slice(0,120);return;}
+      if(!r.referencia)r.referencia=x.slice(0,120);
+    });
+    if(!r.nombre){r.ok=false;r.motivo='sin nombre';}
+    else if(r.cuil&&!gesCuilOk(r.cuil)){r.ok=false;r.motivo='CUIL inválido';}
+    else if(r.cuil&&(tiene[r.cuil]||vistos[r.cuil])){r.ok=false;r.motivo='ya está en la lista';}
+    if(r.cuil)vistos[r.cuil]=1;
+    out.push(r);
+  });
+  return out;
+}
+// Vista previa de la lista de una base de datos (en el formulario de derivar/asignar).
+function gesDatosPrev(){
+  var host=document.getElementById('gf-datos-prev');if(!host)return;
+  var r=gesPersonasParse(gesVal('gf-datos'),false,[]),ok=r.filter(function(x){return x.ok;}),mal=r.filter(function(x){return !x.ok;});
+  if(!r.length){host.innerHTML='';return;}
+  host.innerHTML='<div class="ges-paste-res"><span class="ges-chip ges-c-ok">'+ok.length+(ok.length===1?' persona lista':' personas listas')+'</span>'+
+      (mal.length?'<span class="ges-chip ges-c-bad">'+mal.length+' con problemas (no se agregan): '+mal.slice(0,3).map(function(x){return gesE((x.nombre||'?')+' ('+x.motivo+')');}).join(', ')+(mal.length>3?'…':'')+'</span>':'')+
+      (ok.length>GES_DATOS_MAX?'<span class="ges-chip ges-c-warn">Se cargan las primeras '+GES_DATOS_MAX+'</span>':'')+'</div>'+
+    '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th>Contacto</th><th>CUIL / Ref.</th></tr></thead><tbody>'+
+    ok.slice(0,6).map(function(x){return '<tr><td>'+gesE(x.nombre)+'</td><td>'+gesE(x.contacto||'—')+'</td><td class="ges-num">'+gesE(gesCuilRefTxt(x)||'—')+'</td></tr>';}).join('')+
+    '</tbody></table></div>'+(ok.length>6?'<p class="ges-nota">Y '+(ok.length-6)+' más.</p>':'');
+}
+function gesDatosOk(){return gesPersonasParse(gesVal('gf-datos'),false,[]).filter(function(x){return x.ok;}).slice(0,GES_DATOS_MAX);}
+// Después de crear la base: sus personas, todas "A contactar".
+function gesDatosGuardar(g,lista,cb){
+  if(!g||g.tipo!=='datos'||!lista||!lista.length){cb(true);return;}
+  _sb.from('gestion_prospectos').insert(lista.map(function(x){return {gestion_id:g.id,nombre:x.nombre,contacto:x.contacto,cuil:x.cuil,referencia:x.referencia,estado:'a_contactar'};})).select('id').then(function(r){
+    if(r&&r.error){showToast('Se creó la base, pero no se pudieron cargar las personas: '+gesErrTxt(r.error)+'. Agregalas desde la acción.');cb(false);return;}
+    cb(true);
+  });
 }
 
 // ── Registrar (Hunter, desde Buscar flyer) ──────────────────────────────────
@@ -450,7 +705,7 @@ function gesRegistrar(r){
   if(!r.user_id){showToast('No se pudo identificar al oficial de esa empresa. Volvé a buscarla.');return;}
   GES._reg=r;
   gesPersonas().then(function(){
-    gesModal('<h3 class="ges-mt">Registrar gestión</h3><p class="ges-ms">'+gesE(r.empresa)+'</p>'+
+    gesModal('<h3 class="ges-mt">Registrar gestión</h3><p class="ges-ms">'+gesE(r.empresa)+' '+gesCuitHtml(r.cuits)+'</p>'+
       '<div class="ges-auto">Cedida por <b>'+gesE(gesNom(r.user_id))+'</b>, el oficial de esta empresa en la base. Se completa sola.</div>'+
       '<div id="ges-reg-plan"></div>'+
       gesFormHtml({},'registrar')+
@@ -478,7 +733,7 @@ function gesRegistrarOk(){
   gesChoque(gesYo(),d).then(function(seguir){
   if(!seguir){if(b){b.disabled=false;b.textContent='Guardar y cargar prospectos';}return;}
   _sb.from('gestiones').insert(d).select().single().then(function(res){
-    if(res&&res.error){if(b){b.disabled=false;b.textContent='Guardar y cargar prospectos';}showToast('No se pudo guardar: '+res.error.message);return;}
+    if(res&&res.error){if(b){b.disabled=false;b.textContent='Guardar y cargar prospectos';}showToast('No se pudo guardar: '+gesErrTxt(res.error));return;}
     gesCerrar();GES.lista=null;
     var g=res.data;
     gesCrearSerie(g,function(n){
@@ -496,46 +751,67 @@ function gesDerivar(idx){
   var e=GES._emps&&GES._emps[idx];if(!e)return;
   GES._der=e;
   gesPersonas().then(function(){
-    gesModal('<h3 class="ges-mt">Derivar a un hunter</h3><p class="ges-ms">'+gesE(e.empresa)+'</p>'+
+    gesModal('<h3 class="ges-mt">Derivar a un hunter</h3><p class="ges-ms">'+gesE(e.empresa)+' '+gesCuitHtml(e.cuits)+'</p>'+
       gesFormHtml({},'derivar')+
       '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cancelar</button>'+
-      '<button type="button" class="btn bp" id="ges-der-ok" onclick="gesDerivarOk()">Derivar</button></div>');
+      '<button type="button" class="btn bp" id="ges-der-ok" onclick="gesDerivarOk()">Derivar</button></div>',true);
     gesOcupForm();
   });
+}
+// Guarda una acción nueva derivada o asignada: revisa que no se pise, la crea,
+// carga la lista si es una base de datos y arma las otras fechas si se repite.
+// listo(g,n) después de guardar; volver() si no se guardó (rehabilita el botón).
+function gesGuardarNueva(d,lista,volver,listo){
+  gesChoque(d.hunter_id,d).then(function(seguir){
+    if(!seguir){volver();return;}
+    _sb.from('gestiones').insert(d).select().single().then(function(res){
+      if(res&&res.error){volver();showToast('No se pudo guardar: '+gesErrTxt(res.error));return;}
+      var g=res.data;
+      gesDatosGuardar(g,lista,function(){gesCrearSerie(g,function(n){listo(g,n);});});
+    });
+  });
+}
+function gesAsignadaTxt(d,n,lista){
+  var a=d.hunter_id?gesNom(d.hunter_id):null;
+  return (a?'Derivada a '+a:'Queda para que la asigne '+gesNom(d.lider_id))+
+    (lista&&lista.length?', con '+lista.length+(lista.length===1?' persona para contactar':' personas para contactar'):'')+
+    (n>0?', con las '+(n+1)+' fechas planificadas':'')+'.'+(a?' Le aparece en su agenda y en la marca de su avatar.':' Le aparece en su bandeja "Por asignar".');
 }
 function gesDerivarOk(){
   var e=GES._der;if(!e)return;
   var d=gesFormLeer('derivar');
-  if(!d.hunter_id){showToast('Elegí a qué hunter se la derivás.');return;}
-  var er=gesRepError(d)||gesHorError(d);if(er){showToast(er);return;}
+  var er=gesAsigError(d)||gesRepError(d)||gesHorError(d);if(er){showToast(er);return;}
+  var lista=d.tipo==='datos'?gesDatosOk():null;
+  if(d.tipo==='datos'&&!lista.length){showToast('Pegá al menos una persona para contactar.');return;}
   if(d.frecuencia==='repite')d.vez=1;
   var b=document.getElementById('ges-der-ok');if(b){b.disabled=true;b.textContent='Derivando…';}
   d.empresa=e.empresa;d.origen='derivada';
-  gesChoque(d.hunter_id,d).then(function(seguir){
-  if(!seguir){if(b){b.disabled=false;b.textContent='Derivar';}return;}
-  _sb.from('gestiones').insert(d).select().single().then(function(res){
-    if(res&&res.error){if(b){b.disabled=false;b.textContent='Derivar';}showToast('No se pudo derivar: '+res.error.message);return;}
-    gesCerrar();GES.lista=null;
-    gesCrearSerie(res.data,function(n){
-      showToast('Derivada a '+gesNom(d.hunter_id)+(n>0?', con las '+(n+1)+' fechas planificadas':'')+'. Le aparece en su agenda y en la marca de su avatar.');
-      GES.ag.data=null;gesRender();
-    });
-  });
+  gesGuardarNueva(d,lista,function(){if(b){b.disabled=false;b.textContent='Derivar';}},function(g,n){
+    gesCerrar();GES.lista=null;GES.ag.data=null;
+    showToast(gesAsignadaTxt(d,n,lista));
+    gesRender();
   });
 }
 
 // ── Detalle de una gestión ──────────────────────────────────────────────────
-function gesAbrirDet(id,editar){GES.det=id;GES._editarAlAbrir=!!editar;if(document.getElementById('view-gestiones').style.display==='none')switchApp('gestiones');else gesRender();window.scrollTo(0,0);}
+// Además de los prospectos: la conversación (hunter, oficial y líder se
+// escriben ahí) y el historial (lo anota la base: quién la derivó, a quién se
+// la pasaron, cambios de horario, altas y descartes).
+function gesAbrirDet(id,editar,reasignar){GES.det=id;GES._editarAlAbrir=!!editar;GES._reasigAlAbrir=!!reasignar;if(document.getElementById('view-gestiones').style.display==='none')switchApp('gestiones');else gesRender();window.scrollTo(0,0);}
 function gesVolver(){GES.det=null;GES.detG=null;GES.ag.data=null;gesRender();}
+// Si la tabla todavía no existe (migración sin aplicar) o falla, lista vacía.
+function gesFilas(p){return p.then(function(r){return (r&&!r.error&&r.data)||[];},function(){return [];});}
 function gesDetalle(id){
   Promise.all([
     _sb.from('gestiones').select('*').eq('id',id).maybeSingle(),
     _sb.from('gestion_prospectos').select('*').eq('gestion_id',id).order('created_at'),
-    gesPersonas()
+    gesPersonas(),
+    gesFilas(_sb.from('gestion_mensajes').select('*').eq('gestion_id',id).order('created_at')),
+    gesFilas(_sb.from('gestion_eventos').select('*').eq('gestion_id',id).order('at'))
   ]).then(function(res){
     var g=res[0]&&res[0].data;
     if(!g){gesBody('<button type="button" class="ges-link" onclick="gesVolver()">&larr; Volver</button><div class="ges-vacio">Esa gestión ya no existe o no tenés acceso.</div>');return;}
-    GES.detG=g;GES.detPros=(res[1]&&res[1].data)||[];
+    GES.detG=g;GES.detPros=(res[1]&&res[1].data)||[];GES.detMsg=res[3];GES.detEv=res[4];
     // Abrirla la saca de las novedades: toda la serie, para quien la abre
     // (hunter y/o dueño). Lo hace la base: el dueño no puede editar la acción.
     if(gesNueva(g)){
@@ -549,135 +825,290 @@ function gesDetalle(id){
         if(typeof _gesAvisoCargar==='function')_gesAvisoCargar();
       });
     }
+    // Y los mensajes quedan leídos.
+    var yo2=gesYo(),hayMsg=GES.detMsg.some(function(m){return m.autor!==yo2;});
+    if(hayMsg)_sb.rpc('gestion_marcar_leida',{p_gestion:g.id}).then(function(){
+      if(GES.msgN&&GES.msgN[g.id]){delete GES.msgN[g.id];if(typeof _gesAvisoCargar==='function')_gesAvisoCargar();}
+    },function(){});
     gesDetPintar();
     if(GES._editarAlAbrir){GES._editarAlAbrir=false;gesEditar(true);}
+    else if(GES._reasigAlAbrir){GES._reasigAlAbrir=false;if(gesPuedeReasignar(g))gesReasignar();}
   }).catch(gesErr);
+}
+// Recarga sólo la conversación y el historial (después de escribir o de un alta).
+function gesDetHilo(){
+  var g=GES.detG;if(!g)return Promise.resolve();
+  return Promise.all([
+    gesFilas(_sb.from('gestion_mensajes').select('*').eq('gestion_id',g.id).order('created_at')),
+    gesFilas(_sb.from('gestion_eventos').select('*').eq('gestion_id',g.id).order('at'))
+  ]).then(function(r){if(GES.detG!==g)return;GES.detMsg=r[0];GES.detEv=r[1];gesDetPintar();});
 }
 function gesDetPintar(){
   var g=GES.detG;if(!g)return;
-  var l=GES.detPros,ed=gesPuedeEditar(g);
+  var l=GES.detPros,ed=gesPuedeEditar(g),dt=g.tipo==='datos',yo=gesYo();
   var alt=l.filter(function(p){return p.estado==='alta';}).length;
+  var cont=l.filter(function(p){return p.estado!=='a_contactar';}).length;
   var acts='';
-  if(ed&&g.estado==='planificada')acts+='<button type="button" class="btn bp ges-btn-sm" onclick="gesEditar(true)">Marcar como realizada</button>';
+  if(ed&&g.estado==='planificada'&&g.hunter_id)acts+='<button type="button" class="btn bp ges-btn-sm" onclick="gesEditar(true)">'+(dt?'Terminar la base':'Marcar como realizada')+'</button>';
+  if(gesPuedeReasignar(g)&&g.estado!=='cancelada')acts+='<button type="button" class="btn '+(!g.hunter_id||g.no_puede_at?'bp':'bg')+' ges-btn-sm" onclick="gesReasignar()">'+(g.hunter_id?'Cambiar hunter':'Asignar a un hunter')+'</button>';
+  if(g.hunter_id===yo&&g.estado==='planificada'&&!g.no_puede_at)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesNoPuedo()">No puedo ir</button>';
   if(ed)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesEditar(false)">Editar datos</button>';
   if(ed&&g.frecuencia==='repite'&&!g.veces)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesRepetir()">Crear la próxima (+'+(g.cada_dias||30)+' días)</button>';
   if(gesPuedeBorrar(g))acts+='<button type="button" class="btn bg ges-btn-sm ges-peligro" onclick="gesBorrar()">Eliminar</button>';
-  var h='<button type="button" class="ges-link" onclick="gesVolver()">&larr; Volver</button>'+
-    '<div class="ges-det-top"><div><h3 class="ges-h1">'+gesE(g.empresa)+'</h3>'+
-    '<p class="ges-sub">'+GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+(gesHorario(g)?' &middot; '+gesE(gesHorario(g)):'')+(g.lugar?' &middot; '+gesE(g.lugar):'')+(g.frecuencia==='repite'?' &middot; '+gesE(gesRepTxt(g)):' &middot; Única vez')+
-      ' &middot; Hunter: '+gesE(gesNom(g.hunter_id))+' &middot; Oficial: '+gesE(gesNom(g.dueno_id))+
-      (g.origen==='derivada'?' &middot; Derivada por '+gesE(gesNom(g.creada_por)):'')+(g.prueba?' &middot; <span class="ges-prueba">prueba</span>':'')+'</p></div>'+
-    '<div class="ges-acts">'+gesChipEst(g)+acts+'</div></div>'+
-    (g.nota?'<div class="ges-auto">'+gesE(g.nota)+'</div>':'')+
+  var cu=gesCuitTxt(g.cuit);
+  var aviso='';
+  if(!g.hunter_id&&g.estado==='planificada')aviso='<div class="ges-aviso">Está esperando que la asigne <b>'+gesE(gesNom(g.lider_id))+'</b>.'+(gesPuedeReasignar(g)?' Tocá <b>Asignar a un hunter</b>: te muestra quién está libre a esa hora.':'')+'</div>';
+  else if(g.no_puede_at&&g.estado==='planificada')aviso='<div class="ges-aviso">'+(g.hunter_id===yo?'Avisaste que no podés ir'+(g.no_puede_motivo?' ('+gesE(g.no_puede_motivo)+')':'')+'. Sigue en tu agenda hasta que te la saquen.':
+    '<b>'+gesE(gesNom(g.hunter_id))+'</b> avisó que no puede ir'+(g.no_puede_motivo?': '+gesE(String(g.no_puede_motivo).replace(/[.\s]+$/,'')):'')+'.'+(gesPuedeReasignar(g)?' Tocá <b>Cambiar hunter</b> para pasársela a otro.':' La reasigna el líder o quien la derivó.'))+'</div>';
+  var kpis=dt?
+    '<div class="ges-kpis ges-k5">'+gesKpi('Personas',gesN(l.length),'en la base')+gesKpi('Contactados',gesN(cont),gesPct(cont,l.length)+' de la base')+
+      gesKpi('Prospectos',gesN(l.filter(function(p){return p.estado==='prospecto'||p.estado==='en_gestion';}).length),'en curso')+
+      gesKpi('Altas',gesN(alt),gesPaqResumen(l),true)+gesKpi('Conversión',gesPct(alt,cont),'altas ÷ contactados')+'</div>':
     '<div class="ges-kpis ges-k5">'+gesKpi('Dotación',g.dotacion!=null?gesN(g.dotacion):'—','empleados')+
       gesKpi('Asistentes',g.asistentes!=null?gesN(g.asistentes):'—','contactados')+
       gesKpi('Prospectos',gesN(l.length),g.asistentes?gesPct(l.length,g.asistentes)+' de los asistentes':'')+
-      gesKpi('Altas',gesN(alt),'sueldos en Galicia',true)+gesKpi('Conversión',gesPct(alt,l.length),'altas ÷ prospectos')+'</div>'+
-    '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Prospectos</span>'+
-      (ed?'<span class="ges-mini">Cuando el sueldo cae en Galicia, pasá el estado a <b>Alta</b>.</span>':'')+'</div>'+
-    '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th>CUIL</th><th>Paquete</th><th>Estado</th>'+(ed?'<th></th>':'')+'</tr></thead><tbody>'+
-    (l.length?l.map(function(p,i){
-      var cls=p.estado==='alta'?' alta':p.estado==='descartado'?' desc':p.estado==='en_gestion'?' gest':'';
-      return '<tr><td>'+gesE(p.nombre)+'</td><td class="ges-num">'+(p.cuil?gesE(gesCuilFmt(p.cuil)):'<span class="ges-mini">—</span>')+'</td>'+
-        '<td>'+(ed?'<select class="ges-est" aria-label="Paquete de '+_escAttr(p.nombre)+'" onchange="gesProsCampo('+i+',\'paquete\',this.value)"><option value="">—</option>'+gesPaqOpts(p.paquete)+'</select>'
-          :(GES_PAQ[p.paquete]||'—'))+'</td>'+
-        '<td>'+(ed?'<select class="ges-est'+cls+'" aria-label="Estado de '+_escAttr(p.nombre)+'" onchange="gesProsCampo('+i+',\'estado\',this.value)">'+
-          Object.keys(GES_PEST).map(function(k){return '<option value="'+k+'"'+(p.estado===k?' selected':'')+'>'+GES_PEST[k]+'</option>';}).join('')+'</select>'
-          :'<span class="ges-est'+cls+'">'+GES_PEST[p.estado]+'</span>')+
-          (p.estado==='alta'&&p.fecha_alta?'<div class="ges-mini">desde el '+gesE(gesFecha(p.fecha_alta))+'</div>':'')+'</td>'+
-        (ed?'<td class="r"><button type="button" class="ges-x" title="Quitar" aria-label="Quitar a '+_escAttr(p.nombre)+'" onclick="gesProsQuitar('+i+')">&times;</button></td>':'')+'</tr>';
-    }).join(''):'<tr><td colspan="5" class="ges-mini" style="padding:14px 10px">Todavía no hay prospectos.'+(ed?' Agregalos de a uno o pegá un bloque desde Excel.':'')+'</td></tr>')+
+      gesKpi('Altas',gesN(alt),gesPaqResumen(l),true)+gesKpi('Conversión',gesPct(alt,l.length),'altas ÷ prospectos')+'</div>';
+  var h='<button type="button" class="ges-link" onclick="gesVolver()">&larr; Volver</button>'+
+    '<div class="ges-det-top"><div><h3 class="ges-h1">'+gesE(g.empresa)+'</h3>'+
+    '<p class="ges-sub">'+(cu?'<b class="ges-num">'+gesE(cu)+'</b> &middot; ':'')+
+      (dt?GES_TIPO.datos+' &middot; desde el '+gesE(gesFecha(g.fecha))+(g.vence?' &middot; hasta el '+gesE(gesFecha(g.vence)):''):
+        GES_TIPO[g.tipo]+' '+(GES_MOD[g.modalidad]||'').toLowerCase()+' &middot; '+gesE(gesFecha(g.fecha))+(gesHorario(g)?' &middot; '+gesE(gesHorario(g)):'')+(g.lugar?' &middot; '+gesE(g.lugar):'')+(g.frecuencia==='repite'?' &middot; '+gesE(gesRepTxt(g)):' &middot; Única vez'))+
+      ' &middot; Hunter: '+gesHunterTxt(g)+' &middot; Oficial: '+gesE(gesNom(g.dueno_id))+
+      (g.origen==='derivada'?' &middot; Derivada por '+gesE(gesNom(g.creada_por)):'')+(g.prueba?' &middot; <span class="ges-prueba">prueba</span>':'')+'</p></div>'+
+    '<div class="ges-acts">'+gesChipEst(g)+acts+'</div></div>'+
+    aviso+(g.nota?'<div class="ges-auto">'+gesE(g.nota)+'</div>':'')+kpis+
+    '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">'+(dt?'Personas para contactar':'Prospectos')+'</span>'+
+      (ed?'<span class="ges-mini">'+(dt?'Pasá cada persona a <b>Prospecto</b> o <b>En gestión</b> cuando la contactes, y a <b>Alta</b> cuando el sueldo cae en Galicia.':'Cuando el sueldo cae en Galicia, pasá el estado a <b>Alta</b> (te pregunta si fue con paquete o sin paquete).')+'</span>':'')+'</div>'+
+    '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Nombre</th><th>Contacto</th><th>CUIL / Ref.</th><th>Paquete</th><th>Estado</th>'+(ed?'<th></th>':'')+'</tr></thead><tbody>'+
+    (l.length?l.map(function(p,i){return gesProsFila(p,i,ed,dt);}).join(''):'<tr><td colspan="6" class="ges-mini" style="padding:14px 10px">'+(dt?'La base no tiene personas cargadas.':'Todavía no hay prospectos.')+(ed?' Agregalos de a uno o pegá un bloque desde Excel.':'')+'</td></tr>')+
     '</tbody></table></div>'+
     (ed?gesAltaHtml():'')+
-    '</section>';
+    '</section>'+gesChatHtml()+gesHistHtml();
   gesBody(h);
   if(ed)gesPastePrev();
 }
+function gesProsFila(p,i,ed,dt){
+  var cls=p.estado==='alta'?' alta':p.estado==='descartado'?' desc':p.estado==='en_gestion'?' gest':'';
+  var ests=Object.keys(GES_PEST).filter(function(k){return k!=='a_contactar'||dt||p.estado==='a_contactar';});
+  var hoy=gesHoy(),prox='';
+  if(GES_ABIERTO[p.estado]){
+    if(ed)prox='<div><input type="date" class="ges-est ges-prox'+(p.proximo&&p.proximo<=hoy?' vencido':'')+'" value="'+_escAttr(p.proximo||'')+'" title="Próximo contacto" aria-label="Próximo contacto con '+_escAttr(p.nombre)+'" onchange="gesProsCampo('+i+',\'proximo\',this.value)"></div>';
+    else if(p.proximo)prox='<div class="ges-motivo">Volver a contactar el '+gesE(gesFecha(p.proximo))+'</div>';
+  }
+  return '<tr><td>'+gesE(p.nombre)+'</td><td>'+gesContactoHtml(p.contacto)+'</td>'+
+    '<td class="ges-num">'+(gesCuilRefTxt(p)?gesE(gesCuilRefTxt(p)):'<span class="ges-mini">—</span>')+'</td>'+
+    '<td>'+(ed?'<select class="ges-est" aria-label="Paquete de '+_escAttr(p.nombre)+'" onchange="gesProsCampo('+i+',\'paquete\',this.value)">'+(p.estado==='alta'&&p.paquete?'':'<option value="">—</option>')+gesPaqOpts(p.paquete)+'</select>'
+      :(GES_PAQ_CORTO[p.paquete]||'—'))+'</td>'+
+    '<td>'+(ed?'<select class="ges-est'+cls+'" aria-label="Estado de '+_escAttr(p.nombre)+'" onchange="gesProsCampo('+i+',\'estado\',this.value)">'+
+      ests.map(function(k){return '<option value="'+k+'"'+(p.estado===k?' selected':'')+'>'+GES_PEST[k]+'</option>';}).join('')+'</select>'
+      :'<span class="ges-est'+cls+'">'+GES_PEST[p.estado]+'</span>')+
+      (p.estado==='alta'&&p.fecha_alta?'<div class="ges-mini">desde el '+gesE(gesFecha(p.fecha_alta))+'</div>':'')+
+      (p.estado==='descartado'&&p.motivo?'<div class="ges-motivo">'+gesE(GES_MOTIVO[p.motivo]||p.motivo)+'</div>':'')+prox+'</td>'+
+    (ed?'<td class="r"><button type="button" class="ges-x" title="Quitar" aria-label="Quitar a '+_escAttr(p.nombre)+'" onclick="gesProsQuitar('+i+')">&times;</button></td>':'')+'</tr>';
+}
+// "3 con paquete · 1 sin paquete" de una lista de prospectos.
+function gesPaqResumen(l){
+  var a=l.filter(function(p){return p.estado==='alta';}),sin=a.filter(function(p){return p.paquete==='caja';}).length,con=a.filter(function(p){return p.paquete&&p.paquete!=='caja';}).length;
+  if(!a.length)return 'sueldos en Galicia';
+  return con+' con paquete &middot; '+sin+' sin paquete'+(a.length-con-sin?' &middot; '+(a.length-con-sin)+' sin cargar':'');
+}
 function gesKpi(t,v,d,hi){return '<div class="ges-card ges-kpi'+(hi?' hi':'')+'"><div class="ges-lbl">'+t+'</div><div class="ges-kv">'+v+'</div>'+(d?'<div class="ges-kd">'+d+'</div>':'')+'</div>';}
+
+// ── Conversación e historial ────────────────────────────────────────────────
+function gesFechaHora(iso){
+  if(!iso)return '';
+  var d=new Date(iso);if(isNaN(d))return '';
+  return gesFecha(gesIso(d))+' '+gesP2(d.getHours())+':'+gesP2(d.getMinutes());
+}
+function gesChatHtml(){
+  var ms=GES.detMsg||[],yo=gesYo();
+  return '<section class="ges-card ges-pad ges-chat"><div class="ges-ch"><span class="ges-ct">Conversación</span><span class="ges-mini">La ven el hunter, el oficial y el líder. Para preguntar qué hay que hacer o avisar algo.</span></div>'+
+    (ms.length?'<div class="ges-msgs" id="ges-msgs">'+ms.map(function(m){
+      return '<div class="ges-msg'+(m.autor===yo?' mio':'')+(m.tipo==='no_puedo'?' np':'')+'"><span class="ges-msg-q">'+gesE(m.autor===yo?'Vos':gesNom(m.autor))+' &middot; '+gesE(gesFechaHora(m.created_at))+(m.tipo==='no_puedo'?' &middot; avisó que no puede ir':'')+'</span>'+gesE(m.texto)+'</div>';
+    }).join('')+'</div>':'<p class="ges-mini">Todavía no hay mensajes.</p>')+
+    '<div class="ges-msg-new"><textarea id="ges-msg-t" class="ges-inp" rows="2" maxlength="1000" placeholder="Escribí una pregunta o un aviso"></textarea>'+
+    '<button type="button" class="btn bp ges-btn-sm" id="ges-msg-ok" onclick="gesMsgEnviar()">Enviar</button></div></section>';
+}
+function gesMsgEnviar(){
+  var g=GES.detG,ta=document.getElementById('ges-msg-t');if(!g||!ta)return;
+  var t=ta.value.trim();if(!t){showToast('Escribí el mensaje.');return;}
+  var b=document.getElementById('ges-msg-ok');if(b){b.disabled=true;b.textContent='Enviando…';}
+  _sb.rpc('gestion_mensaje_enviar',{p_gestion:g.id,p_texto:t}).then(function(r){
+    if(r&&r.error){if(b){b.disabled=false;b.textContent='Enviar';}showToast('No se pudo enviar: '+gesErrTxt(r.error));return;}
+    gesDetHilo().then(function(){var m=document.getElementById('ges-msgs');if(m)m.scrollTop=m.scrollHeight;});
+  },function(e){if(b){b.disabled=false;b.textContent='Enviar';}showToast('No se pudo enviar: '+gesErrTxt(e));});
+}
+// Lo que pasó con la acción, en castellano.
+function gesEvTxt(e){
+  // Siempre con el nombre (también el propio): "Vos se la derivó" no se lee bien.
+  var N=function(id){var p=GES.personas&&GES.personas[id];return p?p.nombre:gesNom(id);},d=e.detalle||{},q=N(e.quien);
+  if(e.que==='registrada')return q+' la registró.';
+  if(e.que==='derivada')return q+' se la derivó a '+N(d.hunter)+'.';
+  if(e.que==='por_asignar')return q+' la mandó al equipo para que la asigne '+N(d.lider)+'.';
+  if(e.que==='hunter')return d.de?q+' se la pasó de '+N(d.de)+' a '+N(d.a)+'.':q+' se la asignó a '+N(d.a)+'.';
+  if(e.que==='horario'){
+    var h=function(f,a,b){return (f?gesFecha(f):'')+(a?' '+a+(b?'–'+b:''):'');};
+    return q+' cambió el día u horario: '+h(d.fecha_de,d.desde_de,d.hasta_de)+' → '+h(d.fecha_a,d.desde_a,d.hasta_a)+'.';
+  }
+  if(e.que==='estado')return q+' la marcó como '+String(GES_EST[d.a]||d.a).toLowerCase()+'.';
+  if(e.que==='no_puede')return q+' avisó que no puede ir'+(d.motivo?': '+d.motivo:'')+'.';
+  if(e.que==='alta')return q+' marcó el alta de '+d.nombre+' ('+(GES_PAQ_CORTO[d.paquete]||'sin paquete cargado')+').';
+  if(e.que==='descarte')return q+' descartó a '+d.nombre+' ('+(GES_MOTIVO[d.motivo]||'sin motivo')+').';
+  return q+': '+e.que;
+}
+function gesHistHtml(){
+  var ev=GES.detEv||[];if(!ev.length)return '';
+  return '<details class="ges-hist"><summary>Historial ('+ev.length+')</summary><ol>'+ev.map(function(e){
+    return '<li><span class="ges-mini">'+gesE(gesFechaHora(e.at))+'</span> &middot; '+gesE(gesEvTxt(e))+'</li>';
+  }).join('')+'</ol></details>';
+}
+
+// ── "No puedo ir" (hunter) y cambiar el hunter (líder, admin, quien la derivó) ─
+function gesNoPuedo(){
+  var g=GES.detG;if(!g)return;
+  var lid=GES.personas&&GES.personas[g.hunter_id]&&GES.personas[g.hunter_id].lider_id;
+  gesModal('<h3 class="ges-mt">No puedo ir</h3><p class="ges-ms">'+gesE(g.empresa)+' &middot; '+gesE(gesFecha(g.fecha))+(gesHorario(g)?' '+gesE(gesHorario(g)):'')+'</p>'+
+    '<div class="ges-auto">Le avisamos a <b>'+gesE(gesNom(g.creada_por))+'</b>'+(lid&&lid!==g.creada_por?' y a <b>'+gesE(gesNom(lid))+'</b>':'')+' para que se la pasen a otro hunter. Mientras tanto sigue en tu agenda.</div>'+
+    '<div class="ges-form"><label class="full"><span>¿Por qué? <i class="ges-opc">(opcional)</i></span><textarea id="gf-np" class="ges-inp" rows="2" maxlength="500" placeholder="Tengo otra visita, estoy de licencia…"></textarea></label></div>'+
+    '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cancelar</button>'+
+    '<button type="button" class="btn bp" id="ges-np-ok" onclick="gesNoPuedoOk()">Avisar</button></div>');
+}
+function gesNoPuedoOk(){
+  var g=GES.detG;if(!g)return;
+  var b=document.getElementById('ges-np-ok');if(b){b.disabled=true;b.textContent='Avisando…';}
+  _sb.rpc('gestion_no_puedo',{p_gestion:g.id,p_motivo:gesVal('gf-np').trim()||null}).then(function(r){
+    if(r&&r.error){if(b){b.disabled=false;b.textContent='Avisar';}showToast('No se pudo avisar: '+gesErrTxt(r.error));return;}
+    gesCerrar();GES.lista=null;GES.ag.data=null;
+    showToast('Listo: les avisamos. Sigue en tu agenda hasta que la pasen a otro hunter.');
+    gesDetalle(g.id);
+  });
+}
+function gesReasignar(){
+  var g=GES.detG;if(!g)return;
+  var dt=g.tipo==='datos';
+  gesPersonas().then(function(){
+    gesModal('<h3 class="ges-mt">'+(g.hunter_id?'Cambiar el hunter':'Asignar a un hunter')+'</h3><p class="ges-ms">'+gesE(g.empresa)+' '+gesCuitHtml(g.cuit)+'</p>'+
+      (g.no_puede_at?'<div class="ges-aviso"><b>'+gesE(gesNom(g.hunter_id))+'</b> avisó que no puede'+(g.no_puede_motivo?': '+gesE(String(g.no_puede_motivo).replace(/[.\s]+$/,'')):'')+'.</div>':'')+
+      '<div class="ges-form">'+
+        '<label class="full"><span>Hunter</span><select id="gf-hunter" class="ges-inp" onchange="gesOcupForm()">'+
+          (g.hunter_id?'':'<option value="">Elegí un hunter</option>')+gesHuntersOpts(g.hunter_id||'x',gesRol()==='lider'&&!gesEsAdmin()&&!(g.origen==='derivada'&&g.creada_por===gesYo()))+'</select></label>'+
+        (dt?'':'<label><span>Fecha</span><input type="date" id="gf-fecha" class="ges-inp" value="'+_escAttr(g.fecha)+'" onchange="gesOcupForm()"></label>'+
+          '<div class="ges-fl"><span>Horario</span><div class="ges-hor">'+
+            '<input type="time" id="gf-hd" class="ges-inp" value="'+_escAttr(gesHora(g.hora_desde))+'" aria-label="Desde" onchange="gesOcupForm()"><span>a</span>'+
+            '<input type="time" id="gf-hh" class="ges-inp" value="'+_escAttr(gesHora(g.hora_hasta))+'" aria-label="Hasta" onchange="gesOcupForm()">'+
+            '<span class="ges-atajos"><button type="button" onclick="gesHorSet(\'09:00\',\'13:00\')">Mañana</button><button type="button" onclick="gesHorSet(\'14:00\',\'18:00\')">Tarde</button></span>'+
+          '</div></div>')+
+        '<div class="full ges-ocup" id="gf-ocup" hidden></div>'+
+      '</div>'+
+      '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cancelar</button>'+
+      '<button type="button" class="btn bp" id="ges-ra-ok" onclick="gesReasignarOk()">'+(g.hunter_id?'Guardar':'Asignar')+'</button></div>');
+    GES._ocupExcl=g.id;
+    gesOcupForm();
+  });
+}
+function gesReasignarOk(){
+  var g=GES.detG;if(!g)return;
+  var dt=g.tipo==='datos',hv=gesVal('gf-hunter');
+  if(!hv){showToast('Elegí el hunter.');return;}
+  var upd={hunter_id:hv};
+  if(!dt){
+    upd.fecha=gesVal('gf-fecha')||g.fecha;upd.hora_desde=gesVal('gf-hd')||null;upd.hora_hasta=gesVal('gf-hh')||null;
+    if(!upd.hora_desde){showToast('Poné el horario: así nadie le pisa la agenda al hunter.');return;}
+    var er=gesHorError(upd);if(er){showToast(er);return;}
+  }
+  var igual=hv===g.hunter_id&&(dt||(upd.fecha===g.fecha&&gesHora(upd.hora_desde)===gesHora(g.hora_desde)&&gesHora(upd.hora_hasta)===gesHora(g.hora_hasta)));
+  if(igual){gesCerrar();return;}
+  var b=document.getElementById('ges-ra-ok'),txt=b?b.textContent:'';
+  var volver=function(){if(b){b.disabled=false;b.textContent=txt;}};
+  if(b){b.disabled=true;b.textContent='Guardando…';}
+  gesChoque(hv,{fecha:upd.fecha||g.fecha,hora_desde:upd.hora_desde,hora_hasta:upd.hora_hasta,tipo:g.tipo,estado:g.estado},g.id).then(function(seguir){
+    if(!seguir){volver();return;}
+    _sb.from('gestiones').update(upd).eq('id',g.id).select().maybeSingle().then(function(res){
+      if(res&&res.error){volver();showToast('No se pudo guardar: '+gesErrTxt(res.error));return;}
+      // La base deja el hunter como estaba si quien guarda no puede cambiarlo.
+      if(res&&res.data&&res.data.hunter_id!==hv){volver();showToast('No podés cambiar el hunter de esta acción: lo hace el líder o quien la derivó.');return;}
+      gesCerrar();GES.lista=null;GES.ag.data=null;
+      showToast('Listo: ahora la tiene '+gesNom(hv)+'. Le aparece en su agenda.');
+      if(res&&res.data)gesDetalle(g.id);else gesVolver(); // si ya no la ve, vuelve a la lista
+    });
+  });
+}
 
 // Agregar de a uno + pegar desde Excel.
 function gesAltaHtml(){
   return '<div class="ges-add">'+
     '<input type="text" class="ges-inp" id="gp-nom" placeholder="Nombre y apellido" maxlength="120">'+
-    '<input type="text" class="ges-inp" id="gp-cuil" placeholder="CUIL (opcional)" inputmode="numeric" maxlength="13">'+
+    '<input type="text" class="ges-inp" id="gp-contacto" placeholder="Teléfono o mail (opcional)" maxlength="120">'+
+    '<input type="text" class="ges-inp" id="gp-cuil" placeholder="CUIL o referencia (opcional)" maxlength="120">'+
     '<select class="ges-inp" id="gp-paq" aria-label="Paquete"><option value="">Paquete</option>'+gesPaqOpts()+'</select>'+
     '<button type="button" class="btn bp ges-btn-sm" onclick="gesProsAgregar()">Agregar</button></div>'+
     '<details class="ges-paste"><summary>Pegar varios desde Excel</summary>'+
-    '<p class="ges-mini">Copiá las filas del Excel (nombre, CUIL y paquete, en cualquier orden) y pegalas acá. El paquete se reconoce escrito como en la lista (Plus, Plus Gold, Eminent Black…).</p>'+
-    '<textarea class="ges-inp" id="gp-paste" rows="4" oninput="gesPastePrev()" placeholder="Ana Pérez&#9;27-12345678-3&#9;Plus Gold"></textarea>'+
+    '<p class="ges-mini">Copiá las filas del Excel (nombre, teléfono o mail, CUIL o referencia y paquete, en cualquier orden) y pegalas acá. El paquete se reconoce escrito como en la lista (Sin paquete, Plus, Plus Gold, Eminent Black…).</p>'+
+    '<textarea class="ges-inp" id="gp-paste" rows="4" oninput="gesPastePrev()" placeholder="Ana Pérez&#9;11 5555-1234&#9;27-12345678-3&#9;Plus Gold"></textarea>'+
     '<div class="ges-paste-res" id="gp-prev"></div>'+
     '<button type="button" class="btn bp ges-btn-sm" id="gp-paste-ok" onclick="gesPasteOk()" disabled>Agregar a la lista</button></details>';
 }
-// Parser del bloque pegado: por renglón, el CUIL es la celda de 11 dígitos, el
-// paquete la celda que dice sólo un paquete (gesPaqDe) y el nombre la primera
-// otra celda con letras. Saltea la fila de títulos si viene.
-function gesPasteParse(t){
-  var ya={};(GES.detPros||[]).forEach(function(p){if(p.cuil)ya[p.cuil]=1;});
-  var vistos={};
-  return String(t||'').split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean).map(function(l){
-    var c=l.split(/\t|;|\s{2,}/).map(function(x){return x.trim();}).filter(Boolean);
-    if(c.length&&/nombre/i.test(l)&&/cuil|cuit|paquete/i.test(l))return null;
-    var cuil=null,paq=null,nom=null;
-    c.forEach(function(x){
-      var d=gesCuilLimpio(x);
-      if(!cuil&&d.length===11&&/^[\d\s.\-]+$/.test(x)){cuil=d;return;}
-      if(!paq){var pq=gesPaqDe(x);if(pq){paq=pq;return;}}
-      if(!nom&&/[a-záéíóúñ]/i.test(x))nom=x.replace(/\s+/g,' ');
-    });
-    var r={nombre:nom,cuil:cuil,paquete:paq,ok:true,motivo:''};
-    if(!nom){r.ok=false;r.motivo='sin nombre';}
-    else if(cuil&&!gesCuilOk(cuil)){r.ok=false;r.motivo='CUIL inválido';}
-    else if(cuil&&(ya[cuil]||vistos[cuil])){r.ok=false;r.motivo='ya está en la lista';}
-    if(cuil)vistos[cuil]=1;
-    return r;
-  }).filter(Boolean);
-}
+// Prospectos pegados: el mismo lector que el de las bases de datos, con paquete
+// y sin repetir los CUIL que ya están en la lista.
+function gesPasteParse(t){return gesPersonasParse(t,true,GES.detPros||[]);}
 function gesPastePrev(){
   var host=document.getElementById('gp-prev'),ta=document.getElementById('gp-paste');if(!host||!ta)return;
   var r=gesPasteParse(ta.value),ok=r.filter(function(x){return x.ok;}),mal=r.filter(function(x){return !x.ok;});
-  var sinC=ok.filter(function(x){return !x.cuil;}).length;
+  var sinC=ok.filter(function(x){return !x.cuil&&!x.referencia;}).length;
   host.innerHTML=r.length?('<span class="ges-chip ges-c-ok">'+ok.length+' listos</span>'+
-    (sinC?'<span class="ges-chip ges-c-warn">'+sinC+' sin CUIL</span>':'')+
+    (sinC?'<span class="ges-chip ges-c-warn">'+sinC+' sin CUIL ni referencia</span>':'')+
     (mal.length?'<span class="ges-chip ges-c-bad">'+mal.length+' con problemas: '+mal.slice(0,4).map(function(x){return gesE((x.nombre||'?')+' ('+x.motivo+')');}).join(', ')+(mal.length>4?'…':'')+'</span>':'')):'';
   var b=document.getElementById('gp-paste-ok');if(b){b.disabled=!ok.length;b.textContent=ok.length?'Agregar '+ok.length+' a la lista':'Agregar a la lista';}
 }
+function gesEstadoNuevo(){return GES.detG&&GES.detG.tipo==='datos'?'a_contactar':'prospecto';}
 function gesPasteOk(){
   var ta=document.getElementById('gp-paste');if(!ta||!GES.detG)return;
   var r=gesPasteParse(ta.value),ok=r.filter(function(x){return x.ok;});if(!ok.length)return;
   var b=document.getElementById('gp-paste-ok');if(b){b.disabled=true;b.textContent='Agregando…';}
-  var gid=GES.detG.id;
-  _sb.from('gestion_prospectos').insert(ok.map(function(x){return {gestion_id:gid,nombre:x.nombre,cuil:x.cuil,paquete:x.paquete,estado:'prospecto'};})).select().then(function(res){
-    if(res&&res.error){showToast('No se pudo agregar: '+res.error.message);gesPastePrev();return;}
+  var gid=GES.detG.id,est=gesEstadoNuevo();
+  _sb.from('gestion_prospectos').insert(ok.map(function(x){return {gestion_id:gid,nombre:x.nombre,contacto:x.contacto,cuil:x.cuil,referencia:x.referencia,paquete:x.paquete,estado:est};})).select().then(function(res){
+    if(res&&res.error){showToast('No se pudo agregar: '+gesErrTxt(res.error));gesPastePrev();return;}
     GES.detPros=GES.detPros.concat(res.data||[]);GES.lista=null;
     var mal=r.filter(function(x){return !x.ok;});
     gesDetPintar();
     // Lo que no entró queda en el cuadro para corregirlo.
     if(mal.length){
       var d=document.querySelector('.ges-paste');if(d)d.open=true;
-      var t2=document.getElementById('gp-paste');if(t2){t2.value=mal.map(function(x){return [x.nombre||'',x.cuil?gesCuilFmt(x.cuil):'',GES_PAQ[x.paquete]||''].join('\t');}).join('\n');gesPastePrev();}
+      var t2=document.getElementById('gp-paste');if(t2){t2.value=mal.map(function(x){return [x.nombre||'',x.contacto||'',x.cuil?gesCuilFmt(x.cuil):(x.referencia||''),GES_PAQ_CORTO[x.paquete]||''].join('\t');}).join('\n');gesPastePrev();}
     }
-    showToast((res.data||[]).length+' prospectos agregados'+(mal.length?'. Quedaron '+mal.length+' en el cuadro para corregir.':'.'));
+    showToast((res.data||[]).length+' agregados'+(mal.length?'. Quedaron '+mal.length+' en el cuadro para corregir.':'.'));
   });
 }
 function gesProsAgregar(){
-  var nom=gesVal('gp-nom').trim(),cuil=gesCuilLimpio(gesVal('gp-cuil')),paq=gesVal('gp-paq');
+  var nom=gesVal('gp-nom').trim(),contacto=gesVal('gp-contacto').trim(),cr=gesCuilORef(gesVal('gp-cuil')),paq=gesVal('gp-paq');
   if(!nom){showToast('Escribí el nombre.');return;}
-  if(cuil&&!gesCuilOk(cuil)){showToast('Ese CUIL no es válido. Revisalo o dejalo vacío.');return;}
-  if(cuil&&GES.detPros.some(function(p){return p.cuil===cuil;})){showToast('Ese CUIL ya está en la lista.');return;}
-  _sb.from('gestion_prospectos').insert({gestion_id:GES.detG.id,nombre:nom,cuil:cuil||null,paquete:paq||null,estado:'prospecto'}).select().single().then(function(res){
-    if(res&&res.error){showToast('No se pudo agregar: '+res.error.message);return;}
+  if(cr.error){showToast(cr.error);return;}
+  if(cr.cuil&&GES.detPros.some(function(p){return p.cuil===cr.cuil;})){showToast('Ese CUIL ya está en la lista.');return;}
+  _sb.from('gestion_prospectos').insert({gestion_id:GES.detG.id,nombre:nom,contacto:contacto||null,cuil:cr.cuil||null,referencia:cr.referencia||null,paquete:paq||null,estado:gesEstadoNuevo()}).select().single().then(function(res){
+    if(res&&res.error){showToast('No se pudo agregar: '+gesErrTxt(res.error));return;}
     GES.detPros.push(res.data);GES.lista=null;gesDetPintar();
     var n=document.getElementById('gp-nom');if(n)n.focus();
   });
 }
+// Pasar a Alta pregunta con qué paquete fue (si no lo tenía); pasar a
+// Descartado, por qué. La base exige las dos cosas (045).
 function gesProsCampo(i,campo,val){
   var p=GES.detPros[i];if(!p)return;
-  var upd={};upd[campo]=(campo==='paquete')?(val||null):val;
-  var antes=p[campo];
-  _sb.from('gestion_prospectos').update(upd).eq('id',p.id).select().single().then(function(res){
-    if(res&&res.error){p[campo]=antes;gesDetPintar();showToast('No se pudo guardar: '+res.error.message);return;}
-    GES.detPros[i]=res.data;GES.lista=null;gesDetPintar();
-    if(campo==='estado'&&val==='alta'&&antes!=='alta')showToast('Alta registrada. Ya cuenta en el tablero.');
+  var upd={};upd[campo]=(campo==='paquete'||campo==='proximo')?(val||null):val;
+  var pre=Promise.resolve(true);
+  if(campo==='estado'&&val==='alta'&&!p.paquete)
+    pre=gesElegir('¿Con qué paquete fue el alta?',gesE(p.nombre),GES_PAQ).then(function(k){if(!k)return false;upd.paquete=k;return true;});
+  else if(campo==='estado'&&val==='descartado'&&p.estado!=='descartado')
+    pre=gesElegir('¿Por qué se descarta?',gesE(p.nombre),GES_MOTIVO).then(function(k){if(!k)return false;upd.motivo=k;return true;});
+  else if(campo==='paquete'&&!val&&p.estado==='alta'){showToast('Un alta tiene que decir con qué paquete fue.');gesDetPintar();return;}
+  pre.then(function(seguir){
+    if(!seguir){gesDetPintar();return;}
+    _sb.from('gestion_prospectos').update(upd).eq('id',p.id).select().single().then(function(res){
+      if(res&&res.error){gesDetPintar();showToast('No se pudo guardar: '+gesErrTxt(res.error));return;}
+      GES.detPros[i]=res.data;GES.lista=null;gesDetPintar();
+      if(campo==='estado'&&val==='alta'&&p.estado!=='alta')showToast('Alta registrada ('+(GES_PAQ_CORTO[res.data.paquete]||'sin paquete')+'). Ya cuenta en el tablero.');
+      if(campo==='estado'&&(val==='alta'||val==='descartado'))gesDetHilo();
+    });
   });
 }
 function gesProsQuitar(i){
@@ -694,28 +1125,29 @@ function gesEditar(realizada){
   var g=GES.detG;if(!g)return;
   var base=Object.assign({},g);if(realizada){base.estado='realizada';if(base.fecha>gesHoy())base.fecha=gesHoy();}
   gesPersonas().then(function(){
-    gesModal('<h3 class="ges-mt">'+(realizada?'Completar la acción':'Editar datos')+'</h3><p class="ges-ms">'+gesE(g.empresa)+'</p>'+
+    gesModal('<h3 class="ges-mt">'+(realizada?(g.tipo==='datos'?'Terminar la base':'Completar la acción'):'Editar datos')+'</h3><p class="ges-ms">'+gesE(g.empresa)+' '+gesCuitHtml(g.cuit)+'</p>'+
       gesFormHtml(base,'editar')+
       '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cancelar</button>'+
       '<button type="button" class="btn bp" id="ges-ed-ok" onclick="gesEditarOk()">Guardar</button></div>');
+    GES._ocupHun=g.hunter_id;GES._ocupExcl=g.id;
     gesOcupForm();
   });
 }
 function gesEditarOk(){
   var g=GES.detG;if(!g)return;
   var d=gesFormLeer('editar');
-  if(d.estado==='realizada'&&d.fecha>gesHoy()){showToast('Una acción realizada no puede tener fecha futura.');return;}
+  if(d.estado==='realizada'&&d.fecha>gesHoy()&&d.tipo!=='datos'){showToast('Una acción realizada no puede tener fecha futura.');return;}
   if(d.frecuencia==='repite'&&g.veces&&d.veces===undefined)d.veces=g.veces; // serie ya armada: la cantidad no se toca
   var er=gesRepError(d)||gesHorError(d);if(er){showToast(er);return;}
   if(d.frecuencia==='repite'&&!g.vez)d.vez=1;
   var antes=g.estado;
   var b=document.getElementById('ges-ed-ok');if(b){b.disabled=true;b.textContent='Guardando…';}
-  var cambioHora=d.fecha!==g.fecha||gesHora(d.hora_desde)!==gesHora(g.hora_desde)||gesHora(d.hora_hasta)!==gesHora(g.hora_hasta)||(d.hunter_id&&d.hunter_id!==g.hunter_id);
-  (cambioHora&&d.estado!=='cancelada'?gesChoque(d.hunter_id||g.hunter_id,d,g.id):Promise.resolve(true)).then(function(seguir){
+  var cambioHora=d.fecha!==g.fecha||gesHora(d.hora_desde)!==gesHora(g.hora_desde)||gesHora(d.hora_hasta)!==gesHora(g.hora_hasta)||(antes==='cancelada'&&d.estado!=='cancelada');
+  (cambioHora&&d.estado!=='cancelada'?gesChoque(g.hunter_id,d,g.id):Promise.resolve(true)).then(function(seguir){
   if(!seguir){if(b){b.disabled=false;b.textContent='Guardar';}return;}
   _sb.from('gestiones').update(d).eq('id',g.id).select().single().then(function(res){
-    if(res&&res.error){if(b){b.disabled=false;b.textContent='Guardar';}showToast('No se pudo guardar: '+res.error.message);return;}
-    gesCerrar();GES.detG=res.data;GES.lista=null;GES.ag.data=null;gesDetPintar();showToast('Guardado.');
+    if(res&&res.error){if(b){b.disabled=false;b.textContent='Guardar';}showToast('No se pudo guardar: '+gesErrTxt(res.error));return;}
+    gesCerrar();GES.detG=res.data;GES.lista=null;GES.ag.data=null;gesDetPintar();showToast('Guardado.');gesDetHilo();
     if(antes!=='realizada')gesOfrecerProxima(res.data);
   });
   });
@@ -732,15 +1164,18 @@ function gesRepetir(base){
   // si la repite el hunter, es suya (el oficial dueño se mantiene).
   if(g.origen==='derivada'&&g.creada_por===yo){n.origen='derivada';n.hunter_id=g.hunter_id;n.dueno_id=g.dueno_id;}
   else{n.origen='propia';n.dueno_id=g.dueno_id;}
-  _sb.from('gestiones').insert(n).select().single().then(function(res){
-    if(res&&res.error){showToast('No se pudo crear: '+res.error.message);return;}
-    GES.lista=null;GES.det=res.data.id;gesRender();
-    showToast('Creada la próxima fecha: '+gesFecha(n.fecha)+'. Mismos datos, prospectos en cero.');
+  gesChoque(n.origen==='derivada'?n.hunter_id:yo,n).then(function(seguir){
+    if(!seguir)return;
+    _sb.from('gestiones').insert(n).select().single().then(function(res){
+      if(res&&res.error){showToast('No se pudo crear: '+gesErrTxt(res.error));return;}
+      GES.lista=null;GES.det=res.data.id;gesRender();
+      showToast('Creada la próxima fecha: '+gesFecha(n.fecha)+'. Mismos datos, prospectos en cero.');
+    });
   });
 }
 function gesBorrar(){
   var g=GES.detG;if(!g)return;
-  fgConfirm('¿Eliminar esta gestión?\nSe borran también sus '+GES.detPros.length+' prospectos. No se puede deshacer.',{ok:'Eliminar'}).then(function(ok){
+  fgConfirm('¿Eliminar esta gestión?\nSe borran también sus '+GES.detPros.length+' prospectos, la conversación y el historial. No se puede deshacer.',{ok:'Eliminar'}).then(function(ok){
     if(!ok)return;
     _sb.from('gestiones').delete().eq('id',g.id).then(function(res){
       if(res&&res.error){showToast('No se pudo eliminar: '+res.error.message);return;}
@@ -783,14 +1218,50 @@ function gesAgCargar(force){
   var a=GES.ag;if(!a.lunes)a.lunes=gesLunes(gesHoy());
   if(a.data&&a.dataL===a.lunes&&!force)return Promise.resolve(a.data);
   var l=a.lunes,turno=a.turno=(a.turno||0)+1;
-  var q=_sb.from('gestiones').select('id,empresa,tipo,modalidad,fecha,hora_desde,hora_hasta,lugar,estado,hunter_id,dueno_id,creada_por,origen,visto_hunter,visto_dueno,prueba')
+  var q=_sb.from('gestiones').select('id,empresa,cuit,tipo,modalidad,fecha,vence,hora_desde,hora_hasta,lugar,estado,hunter_id,dueno_id,creada_por,origen,lider_id,no_puede_at,visto_hunter,visto_dueno,prueba')
     .gte('fecha',l).lte('fecha',gesSumarDias(l,6)).order('fecha').limit(2000);
   if(gesRol()==='hunter')q=q.eq('hunter_id',gesYo());
-  return q.then(function(r){
+  return Promise.all([q,gesAgExtras()]).then(function(res){
+    var r=res[0];
     if(r&&r.error)throw r.error;
     if(turno!==a.turno)return null; // llegó tarde: ya se pidió otra semana
-    a.data=((r&&r.data)||[]).sort(gesAgOrden);a.dataL=l;return a.data;
+    // En la grilla, lo que tiene día y hunter; las bases de datos y lo "por asignar" van en las bandejas.
+    a.data=((r&&r.data)||[]).filter(function(g){return g.tipo!=='datos'&&g.hunter_id;}).sort(gesAgOrden);a.dataL=l;a.extras=res[1];return a.data;
   });
+}
+// Bandejas de arriba de la agenda (no dependen de la semana):
+//   hunter: para contactar hoy, bases de datos abiertas, lo que avisó que no puede;
+//   oficial, líder, admin: por asignar, piden que se la pasen a otro, bases abiertas.
+function gesAgExtras(){
+  var vacio={bases:[],porAsignar:[],noPuede:[],hoy:[],avance:{},empresas:{}};
+  try{return gesAgExtrasPedir();}catch(e){return Promise.resolve(vacio);} // las bandejas nunca traban la agenda
+}
+function gesAgExtrasPedir(){
+  var esHun=gesRol()==='hunter',yo=gesYo(),hoy=gesHoy();
+  var cols='id,empresa,cuit,tipo,fecha,vence,hora_desde,hora_hasta,estado,hunter_id,dueno_id,creada_por,lider_id,no_puede_at,no_puede_motivo,origen';
+  var bas=_sb.from('gestiones').select(cols).eq('tipo','datos').eq('estado','planificada').order('fecha').limit(200);
+  if(esHun)bas=bas.eq('hunter_id',yo);
+  var pedidos=[gesFilas(bas)];
+  if(esHun)pedidos.push(Promise.resolve([]),Promise.resolve([]),
+    gesFilas(_sb.from('gestion_prospectos').select('id,nombre,contacto,proximo,estado,gestion_id').lte('proximo',hoy).in('estado',['a_contactar','prospecto','en_gestion']).order('proximo').limit(100)));
+  else pedidos.push(
+    gesFilas(_sb.from('gestiones').select(cols).is('hunter_id',null).eq('estado','planificada').order('fecha').limit(100)),
+    gesFilas(_sb.from('gestiones').select(cols).not('no_puede_at','is',null).eq('estado','planificada').order('fecha').limit(100)),
+    Promise.resolve([]));
+  return Promise.all(pedidos).then(function(r){
+    var x={bases:r[0],porAsignar:r[1],noPuede:r[2],hoy:r[3],avance:{},empresas:{}};
+    // Avance de cada base (contactados / total) y empresa de cada "para contactar hoy".
+    var ids=x.bases.map(function(g){return g.id;}),gids=x.hoy.map(function(p){return p.gestion_id;}).filter(function(id){return ids.indexOf(id)<0;});
+    x.bases.forEach(function(g){x.empresas[g.id]=g.empresa;});
+    return Promise.all([
+      ids.length?gesFilas(_sb.from('gestion_prospectos').select('gestion_id,estado').in('gestion_id',ids).limit(20000)):Promise.resolve([]),
+      gids.length?gesFilas(_sb.from('gestiones').select('id,empresa').in('id',gids)):Promise.resolve([])
+    ]).then(function(rr){
+      rr[0].forEach(function(p){var v=x.avance[p.gestion_id]||(x.avance[p.gestion_id]={n:0,c:0,a:0});v.n++;if(p.estado!=='a_contactar')v.c++;if(p.estado==='alta')v.a++;});
+      rr[1].forEach(function(g){x.empresas[g.id]=g.empresa;});
+      return x;
+    });
+  }).catch(function(){return {bases:[],porAsignar:[],noPuede:[],hoy:[],avance:{},empresas:{}};});
 }
 function gesAgenda(){gesAgCargar().then(function(l){if(l)gesAgPintar();}).catch(gesErr);}
 function gesAgIr(n){
@@ -799,18 +1270,44 @@ function gesAgIr(n){
 }
 function gesAgDia(d){GES.ag.dia=d;gesAgPintar();}
 function gesAgBloque(g,corto){
-  var h=gesHorario(g),nueva=gesNueva(g),cls='ges-ag-b est-'+g.estado+(nueva?' nueva':'');
-  var tit=GES_TIPO[g.tipo]+' · '+g.empresa+(g.lugar?' · '+g.lugar:'')+(gesRol()!=='hunter'?' · '+gesNom(g.hunter_id):'');
+  var h=gesHorario(g),nueva=gesNueva(g),np=g.no_puede_at&&g.estado==='planificada',cls='ges-ag-b est-'+g.estado+(nueva?' nueva':'')+(np?' nopuede':'');
+  var tit=GES_TIPO[g.tipo]+' · '+g.empresa+(g.cuit?' · '+gesCuitTxt(g.cuit):'')+(g.lugar?' · '+g.lugar:'')+(gesRol()!=='hunter'?' · '+gesNom(g.hunter_id):'')+(np?' · pidió que se la pasen a otro':'');
   if(corto)return '<button type="button" class="'+cls+'" title="'+_escAttr(tit)+'" onclick="gesAbrirDet(\''+g.id+'\')">'+
     '<span class="ges-ag-h">'+(h?gesE(gesAgCorto(g)):'Sin horario')+'</span><span class="ges-ag-e">'+gesE(g.empresa)+'</span></button>';
-  return '<button type="button" class="'+cls+'" onclick="gesAbrirDet(\''+g.id+'\')">'+
+  return '<button type="button" class="'+cls+'" title="'+_escAttr(tit)+'" onclick="gesAbrirDet(\''+g.id+'\')">'+
     '<span class="ges-ag-h">'+(h?gesE(h):'Sin horario')+(g.estado==='realizada'?' &middot; Realizada':g.estado==='cancelada'?' &middot; Cancelada':'')+'</span>'+
     '<span class="ges-ag-e">'+gesE(g.empresa)+'</span>'+
     '<span class="ges-ag-t">'+GES_TIPO[g.tipo]+(g.modalidad==='virtual'?' virtual':'')+(g.lugar?' &middot; '+gesE(g.lugar):'')+'</span>'+
     (gesRol()!=='hunter'?'<span class="ges-ag-t">Hunter: '+gesE(gesNom(g.hunter_id))+'</span>':'')+
     (g.prueba?'<span class="ges-prueba">prueba</span>':'')+
-    (nueva?'<span class="ges-ag-nueva">Nueva</span>':'')+
+    (np?'<span class="ges-ag-nueva">'+(g.hunter_id===gesYo()?'Avisaste que no podés':'No puede ir')+'</span>':nueva?'<span class="ges-ag-nueva">Nueva</span>':'')+
   '</button>';
+}
+// Bandejas: "Para contactar hoy", "Bases para trabajar", "Por asignar", "Piden que se la pasen a otro".
+function gesAgBandas(){
+  var x=GES.ag.extras;if(!x)return '';
+  var esHun=gesRol()==='hunter',hoy=gesHoy(),h='';
+  var item=function(id,tit,sub,boton,reasig){
+    return '<button type="button" class="ges-band-i" onclick="gesAbrirDet(\''+id+'\',false,'+(reasig?'true':'false')+')"><span><b>'+tit+'</b><span class="ges-mini">'+sub+'</span></span>'+(boton?'<span class="ges-link">'+boton+'</span>':'')+'</button>';
+  };
+  var cuando=function(g){return gesE(gesFecha(g.fecha))+(gesHorario(g)?' '+gesE(gesHorario(g)):'');};
+  var mas=function(l,n){return l.length>n?'<span class="ges-mini">Y '+(l.length-n)+' más.</span>':'';};
+  if(esHun&&x.hoy.length)h+='<section class="ges-band info"><h4>Para contactar hoy ('+x.hoy.length+')</h4><div class="ges-band-l">'+x.hoy.slice(0,6).map(function(p){
+    return item(p.gestion_id,gesE(p.nombre),gesE(x.empresas[p.gestion_id]||'')+(p.contacto?' &middot; '+gesE(p.contacto):'')+(p.proximo<hoy?' &middot; <span class="ges-pisa">desde el '+gesE(gesFecha(p.proximo))+'</span>':''),'Abrir');
+  }).join('')+mas(x.hoy,6)+'</div></section>';
+  if(!esHun&&x.porAsignar.length)h+='<section class="ges-band warn"><h4>Por asignar ('+x.porAsignar.length+')</h4><div class="ges-band-l">'+x.porAsignar.slice(0,6).map(function(g){
+    return item(g.id,gesE(g.empresa),(GES_TIPO[g.tipo]||'')+' &middot; '+(g.tipo==='datos'?'base de datos':cuando(g))+' &middot; de '+gesE(gesNom(g.creada_por)),gesPuedeReasignar(g)?'Asignar':'',true);
+  }).join('')+mas(x.porAsignar,6)+'</div></section>';
+  var np=x.noPuede.filter(function(g){return g.hunter_id;});
+  if(np.length)h+='<section class="ges-band warn"><h4>'+(esHun?'Avisaste que no podés ('+np.length+')':'Piden que se la pasen a otro ('+np.length+')')+'</h4><div class="ges-band-l">'+np.slice(0,6).map(function(g){
+    return item(g.id,gesE(g.empresa),(esHun?'':gesE(gesNom(g.hunter_id))+' &middot; ')+cuando(g)+(g.no_puede_motivo?' &middot; '+gesE(g.no_puede_motivo):''),!esHun&&gesPuedeReasignar(g)?'Cambiar hunter':'',!esHun);
+  }).join('')+mas(np,6)+'</div></section>';
+  var bs=x.bases.filter(function(g){return g.hunter_id;});
+  if(bs.length)h+='<section class="ges-band"><h4>Bases para trabajar ('+bs.length+')</h4><div class="ges-band-l">'+bs.slice(0,6).map(function(g){
+    var v=x.avance[g.id]||{n:0,c:0,a:0};
+    return item(g.id,gesE(g.empresa),(esHun?'':gesE(gesNom(g.hunter_id))+' &middot; ')+v.c+' de '+v.n+' contactados'+(v.a?' &middot; '+v.a+(v.a===1?' alta':' altas'):'')+(g.vence?' &middot; <span'+(g.vence<hoy?' class="ges-pisa"':'')+'>hasta el '+gesE(gesFecha(g.vence))+'</span>':''),'Abrir');
+  }).join('')+mas(bs,6)+'</div></section>';
+  return h?'<div class="ges-bands">'+h+'</div>':'';
 }
 function gesAgPintar(){
   var a=GES.ag,l=a.data||[],hoy=gesHoy(),modo=gesAgModo(),dias=gesAgDias(a.lunes);
@@ -827,7 +1324,7 @@ function gesAgPintar(){
         '<button type="button" class="btn bg ges-btn-sm" onclick="gesAgPegar()">Pegar desde Excel</button>'+
         '<button type="button" class="btn bp ges-btn-sm" onclick="gesAgendar()">+ Asignar</button>')+
     '</div></div>';
-  gesBody(tool+(modo==='equipo'?gesAgEquipo(dias,l,hoy):gesAgSemana(dias,l,hoy)));
+  gesBody(tool+gesAgBandas()+(modo==='equipo'?gesAgEquipo(dias,l,hoy):gesAgSemana(dias,l,hoy)));
 }
 function gesAgSemana(dias,l,hoy){
   var a=GES.ag;
@@ -844,7 +1341,7 @@ function gesAgSemana(dias,l,hoy){
   return pills+'<div class="ges-ag-sem" style="--n:'+dias.length+'">'+cols+'</div>'+vacia;
 }
 function gesAgEquipo(dias,l,hoy){
-  var a=GES.ag,ps=GES.personas||{},hs=gesHunters(true);
+  var a=GES.ag,ps=GES.personas||{},hs=gesHunters(true),bases=(a.extras&&a.extras.bases)||[];
   // También quien tenga algo esa semana aunque ya no figure como hunter del equipo.
   l.forEach(function(g){if(g.hunter_id&&hs.indexOf(g.hunter_id)<0)hs.push(g.hunter_id);});
   var todos=hs.slice();
@@ -856,15 +1353,15 @@ function gesAgEquipo(dias,l,hoy){
   var head='<tr><th>Hunter</th>'+dias.map(function(d,i){return '<th'+(d===hoy?' class="hoy"':'')+'>'+GES_DSEM[i]+' '+(+d.slice(8))+'</th>';}).join('')+'</tr>';
   var filas=hs.map(function(id,hi){
     var suyas=l.filter(function(g){return g.hunter_id===id;});
-    var n=suyas.filter(function(g){return g.estado!=='cancelada';}).length;
-    return '<tr><td class="nom">'+gesE(gesNom(id))+(ps[id]&&ps[id].es_prueba?' <span class="ges-prueba">prueba</span>':'')+'<div class="ges-mini">'+(n?n+' esta semana':'Sin nada esta semana')+'</div></td>'+
+    var n=suyas.filter(function(g){return g.estado!=='cancelada';}).length,nb=bases.filter(function(g){return g.hunter_id===id;}).length;
+    return '<tr><td class="nom">'+gesE(gesNom(id))+(ps[id]&&ps[id].es_prueba?' <span class="ges-prueba">prueba</span>':'')+'<div class="ges-mini">'+(n?n+' esta semana':'Sin nada esta semana')+(nb?' &middot; '+nb+(nb===1?' base':' bases'):'')+'</div></td>'+
       dias.map(function(d){
         var its=suyas.filter(function(g){return g.fecha===d;}),libre=!its.some(function(g){return g.estado!=='cancelada';});
         return '<td'+(d===hoy?' class="hoy"':'')+'><div class="ges-ag-cel">'+its.map(function(g){return gesAgBloque(g,true);}).join('')+
           '<button type="button" class="ges-ag-mas'+(libre?' libre':'')+'" onclick="gesAgendar('+hi+',\''+d+'\')" title="Asignarle algo este día">'+(libre?'Libre':'+')+'</button></div></td>';
       }).join('')+'</tr>';
   }).join('');
-  return '<div class="ges-filtros">'+filtro+'<span class="ges-mini ges-ag-ley">Tocá <b>Libre</b> o <b>+</b> para asignarle algo ese día. Lo cancelado se ve tachado y no ocupa lugar.</span></div>'+
+  return '<div class="ges-filtros">'+filtro+'<span class="ges-mini ges-ag-ley">Tocá <b>Libre</b> o <b>+</b> para asignarle algo ese día. Lo cancelado se ve tachado y no ocupa lugar. En naranja, lo que el hunter avisó que no puede.</span></div>'+
     '<div class="ges-card"><div class="ges-tw"><table class="ges-ag-eq">'+head+filas+'</table></div></div>';
 }
 
@@ -876,11 +1373,11 @@ function gesAgendar(hi,fecha){
     var pre={fecha:fecha||gesHoy(),tipo:'posicion',estado:'planificada',hunter_id:(hi!=null&&GES._agHun)?GES._agHun[hi]:''};
     gesModal('<h3 class="ges-mt">'+(esHun?'Agendar':'Asignar a un hunter')+'</h3>'+
       '<p class="ges-ms">'+(esHun?'Queda en tu agenda como planificada. Después la marcás como realizada y cargás los prospectos.':'Le aparece en su agenda y en la marca de su avatar.')+'</p>'+
-      '<div class="ges-form ges-form-emp"><label class="full"><span>Empresa</span><input type="search" id="gf-emp" class="ges-inp" placeholder="Buscá por razón social" autocomplete="off" oninput="gesAgEmpBuscar()"></label>'+
+      '<div class="ges-form ges-form-emp"><label class="full"><span>Empresa</span><input type="search" id="gf-emp" class="ges-inp" placeholder="Buscá por razón social o CUIT" autocomplete="off" oninput="gesAgEmpBuscar()"></label>'+
       '<div class="full ges-emp-res" id="gf-emp-res"></div></div>'+
       gesFormHtml(pre,esHun?'agendar':'asignar')+
       '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cancelar</button>'+
-      '<button type="button" class="btn bp" id="ges-ag-ok" onclick="gesAgendarOk()">'+(esHun?'Agendar':'Asignar')+'</button></div>');
+      '<button type="button" class="btn bp" id="ges-ag-ok" onclick="gesAgendarOk()">'+(esHun?'Agendar':'Asignar')+'</button></div>',!esHun);
     gesOcupForm();
   });
 }
@@ -895,7 +1392,7 @@ function gesAgEmpBuscar(){
       if(r&&r.error){h.innerHTML='<span class="ges-mini">No se pudo buscar: '+gesE(r.error.message)+'</span>';return;}
       GES._agEmps=(r&&r.data)||[];
       h.innerHTML=GES._agEmps.length?GES._agEmps.map(function(e,i){
-        return '<button type="button" onclick="gesAgEmpElegir('+i+')">'+gesE(e.empresa)+' <span class="ges-mini">&middot; '+gesE(gesNom(e.dueno_id))+'</span></button>';
+        return '<button type="button" onclick="gesAgEmpElegir('+i+')">'+gesE(e.empresa)+' '+gesCuitHtml(e.cuits)+' <span class="ges-mini">&middot; '+gesE(gesNom(e.dueno_id))+'</span></button>';
       }).join(''):'<span class="ges-mini">Ninguna empresa de la base coincide.</span>';
     });
   },200);
@@ -903,28 +1400,24 @@ function gesAgEmpBuscar(){
 function gesAgEmpElegir(i){
   var e=GES._agEmps&&GES._agEmps[i];if(!e)return;
   GES._agEmp=e;var inp=document.getElementById('gf-emp');if(inp)inp.value=e.empresa;
-  var h=document.getElementById('gf-emp-res');if(h)h.innerHTML='<span class="ges-chip ges-c-ok">Empresa de '+gesE(gesNom(e.dueno_id))+'</span>';
+  var h=document.getElementById('gf-emp-res');if(h)h.innerHTML='<span class="ges-chip ges-c-ok">Empresa de '+gesE(gesNom(e.dueno_id))+(gesCuitTxt(e.cuits)?' &middot; '+gesE(gesCuitTxt(e.cuits)):'')+'</span>';
 }
 function gesAgendarOk(){
   var e=GES._agEmp;if(!e){showToast('Elegí la empresa de la lista.');return;}
   var esHun=gesRol()==='hunter',d=gesFormLeer(esHun?'agendar':'asignar');
-  if(!esHun&&!d.hunter_id){showToast('Elegí el hunter.');return;}
-  var er=gesRepError(d)||gesHorError(d);if(er){showToast(er);return;}
+  var er=(esHun?null:gesAsigError(d))||gesRepError(d)||gesHorError(d);if(er){showToast(er);return;}
+  var lista=d.tipo==='datos'?gesDatosOk():null;
+  if(d.tipo==='datos'&&!lista.length){showToast('Pegá al menos una persona para contactar.');return;}
   if(d.frecuencia==='repite')d.vez=1;
   d.empresa=e.empresa;d.dueno_id=e.dueno_id;d.origen=esHun?'propia':'derivada';
+  if(esHun)d.hunter_id=gesYo();
   var b=document.getElementById('ges-ag-ok'),txt=b?b.textContent:'';
-  var listo=function(){if(b){b.disabled=false;b.textContent=txt;}};
   if(b){b.disabled=true;b.textContent='Guardando…';}
-  gesChoque(esHun?gesYo():d.hunter_id,d).then(function(seguir){
-    if(!seguir){listo();return;}
-    _sb.from('gestiones').insert(d).select().single().then(function(res){
-      if(res&&res.error){listo();showToast('No se pudo guardar: '+res.error.message);return;}
-      gesCerrar();GES.lista=null;GES.ag.data=null;
-      gesCrearSerie(res.data,function(n){
-        showToast((esHun?'Agendada':'Asignada a '+gesNom(d.hunter_id))+(n>0?', con las '+(n+1)+' fechas':'')+'.');
-        GES.ag.lunes=gesLunes(d.fecha);GES.ag.dia=d.fecha;GES.tab='agenda';GES.det=null;gesRender();
-      });
-    });
+  gesGuardarNueva(d,lista,function(){if(b){b.disabled=false;b.textContent=txt;}},function(g,n){
+    gesCerrar();GES.lista=null;GES.ag.data=null;
+    showToast(esHun?'Agendada'+(n>0?', con las '+(n+1)+' fechas':'')+'.':gesAsignadaTxt(d,n,lista).replace(/^Derivada/,'Asignada'));
+    if(d.tipo!=='datos'&&d.hunter_id){GES.ag.lunes=gesLunes(d.fecha);GES.ag.dia=d.fecha;}
+    GES.tab='agenda';GES.det=null;gesRender();
   });
 }
 
@@ -932,35 +1425,60 @@ function gesAgendarOk(){
 // La base devuelve todo lo de ese hunter ese día (gestiones_ocupado): un
 // oficial no ve las gestiones de otros oficiales con el mismo hunter, pero sí
 // tiene que saber que está ocupado (sale "otra acción", sin la empresa).
+// Desde la 045 la base no deja pisar un horario: sólo el admin o el líder de
+// ese hunter pueden guardar igual. A los demás se les muestra quién está libre.
 function gesOcupTxt(x){return (gesHorario(x)||'sin horario')+' '+(x.empresa?'en '+x.empresa:'(otra acción)');}
-// Promesa: true = guardar. Avisa si se pisa y deja guardar igual.
+// Promesa: true = guardar.
 function gesChoque(hunter,d,excluir){
-  if(!hunter||!d.hora_desde||!d.fecha||d.estado==='cancelada')return Promise.resolve(true);
+  if(!hunter||!d.hora_desde||!d.fecha||d.estado==='cancelada'||d.tipo==='datos')return Promise.resolve(true);
   return _sb.rpc('gestiones_ocupado',{p_hunter:hunter,p_fecha:d.fecha}).then(function(r){
-    var l=((r&&r.data)||[]).filter(function(x){return x.id!==excluir&&gesSePisan(x,d);});
+    var l=((r&&r.data)||[]).filter(function(x){return x.id!==excluir&&x.tipo!=='datos'&&gesSePisan(x,d);});
     if(!l.length)return true;
-    return fgConfirm((hunter===gesYo()?'Ya tenés algo a esa hora':gesNom(hunter)+' ya tiene algo a esa hora')+'\n'+
-      l.map(gesOcupTxt).join(', ')+', el '+gesFecha(d.fecha)+'. ¿Guardar igual?',{ok:'Guardar igual',cancelar:'Cambiar el horario',peligro:false});
-  }).catch(function(){return true;}); // sin red no se frena la carga
+    var quien=hunter===gesYo()?'Ya tenés algo a esa hora':gesNom(hunter)+' ya tiene algo a esa hora';
+    var txt=l.map(gesOcupTxt).join(', ')+', el '+gesFecha(d.fecha);
+    if(gesPuedeForzar(hunter))return fgConfirm(quien+'\n'+txt+'. ¿Guardar igual?',{ok:'Guardar igual',cancelar:'Cambiar el horario',peligro:false});
+    showToast(quien+' ('+txt+'). Cambiá el horario'+(document.getElementById('gf-hunter')?' o elegí otro hunter':'')+'.');
+    gesOcupForm();
+    return false;
+  }).catch(function(){return true;}); // sin red no se frena acá (igual lo frena la base)
 }
-// Debajo del formulario: qué tiene ese hunter ese día (y qué se pisa).
+// Hunters libres en un tramo (para sugerir otro cuando el elegido está ocupado).
+function gesLibres(fecha,desde,hasta,menos){
+  return _sb.rpc('gestiones_dia',{p_fecha:fecha}).then(function(r){
+    var oc=(r&&!r.error&&r.data)||[],me={hora_desde:desde,hora_hasta:hasta};
+    return gesHunters(gesRol()==='lider'&&!gesEsAdmin()).filter(function(id){
+      return id!==menos&&!oc.some(function(x){return x.hunter_id===id&&gesSePisan(x,me);});
+    });
+  },function(){return [];});
+}
+// Debajo del formulario: qué tiene ese hunter ese día, qué se pisa y, si no se
+// puede guardar así, quién está libre a esa hora.
 function gesOcupForm(){
   var host=document.getElementById('gf-ocup');if(!host)return;
-  var ed=!!document.getElementById('ges-ed-ok')&&GES.detG,hs=document.getElementById('gf-hunter');
-  var hun=hs?hs.value:(ed?GES.detG.hunter_id:gesYo()),fecha=gesVal('gf-fecha'),excl=ed?GES.detG.id:null;
-  if(!hun||!fecha){host.hidden=true;return;}
+  var hs=document.getElementById('gf-hunter');
+  var hun=hs?hs.value:(GES._ocupHun||gesYo()),fecha=gesVal('gf-fecha'),excl=GES._ocupExcl||null;
+  if(!hun||hun==='__lider'||!fecha||gesPillVal('tipo')==='datos'||(GES.detG&&GES.detG.id===excl&&GES.detG.tipo==='datos')){host.hidden=true;return;}
   var t=GES._ocupTurno=(GES._ocupTurno||0)+1;
   _sb.rpc('gestiones_ocupado',{p_hunter:hun,p_fecha:fecha}).then(function(r){
     var h=document.getElementById('gf-ocup');if(t!==GES._ocupTurno||!h||(r&&r.error)){if(h&&r&&r.error)h.hidden=true;return;}
     var yo=hun===gesYo(),me={hora_desde:gesVal('gf-hd')||null,hora_hasta:gesVal('gf-hh')||null};
-    var l=((r&&r.data)||[]).filter(function(x){return x.id!==excl;});
+    var l=((r&&r.data)||[]).filter(function(x){return x.id!==excl&&x.tipo!=='datos';});
+    var pisa=l.some(function(x){return gesSePisan(x,me);}),bloq=pisa&&!gesPuedeForzar(hun);
     h.hidden=false;
-    h.innerHTML=l.length?'<b>'+(yo?'Ese día tenés':gesE(gesNom(hun))+' ese día tiene')+':</b> '+l.map(function(x){
+    h.innerHTML=(l.length?'<b>'+(yo?'Ese día tenés':gesE(gesNom(hun))+' ese día tiene')+':</b> '+l.map(function(x){
         var p=gesSePisan(x,me);return '<span'+(p?' class="ges-pisa"':'')+'>'+gesE(gesOcupTxt(x))+(p?' (se pisa)':'')+'</span>';
-      }).join(' &middot; '):(yo?'Ese día no tenés nada agendado.':gesE(gesNom(hun))+' no tiene nada agendado ese día.');
+      }).join(' &middot; '):(yo?'Ese día no tenés nada agendado.':gesE(gesNom(hun))+' no tiene nada agendado ese día.'))+
+      (pisa?'<div class="ges-pisa">'+(bloq?'Así no se puede guardar: cambiá el horario'+(hs?' o elegí otro hunter':'')+'.':'Como líder podés guardar igual, pero el hunter va a tener dos cosas a la vez.')+'</div>':'')+
+      '<div class="ges-libres" id="gf-libres"></div>';
+    if(bloq&&hs&&me.hora_desde)gesLibres(fecha,me.hora_desde,me.hora_hasta,hun).then(function(ids){
+      var x=document.getElementById('gf-libres');if(!x||t!==GES._ocupTurno)return;
+      x.innerHTML=ids.length?'<span class="ges-mini">Libres a esa hora:</span>'+ids.slice(0,8).map(function(id){return '<button type="button" onclick="gesElegirHunter(\''+_escAttr(id)+'\')">'+gesE(gesNom(id))+'</button>';}).join(''):
+        '<span class="ges-mini">Ningún hunter está libre a esa hora.</span>';
+    });
   }).catch(function(){var h=document.getElementById('gf-ocup');if(h)h.hidden=true;});
 }
 function gesHorSet(a,b){var x=document.getElementById('gf-hd'),y=document.getElementById('gf-hh');if(x)x.value=a;if(y)y.value=b;gesOcupForm();}
+
 
 // ── Pegar la agenda desde Excel ─────────────────────────────────────────────
 // Una fila por renglón, celdas en cualquier orden: la fecha (21/10 o
@@ -1016,6 +1534,7 @@ function gesAgPasteParse(t){
     if(!r.fecha){r.ok=false;r.motivo='sin fecha';}
     else if(!r.empresaTxt){r.ok=false;r.motivo='sin empresa';}
     else if(!r.hunter_id){r.ok=false;r.motivo='no se reconoce el hunter';}
+    else if(!r.hora_desde){r.ok=false;r.motivo='sin horario';} // sin horario no se puede cuidar que no se pise
     return r;
   }).filter(Boolean);
 }
@@ -1023,7 +1542,7 @@ function gesAgPegar(){
   gesPersonas().then(function(){
     GES._agPaste=[];
     gesModal('<h3 class="ges-mt">Pegar la agenda desde Excel</h3>'+
-      '<p class="ges-ms">Una fila por posición, con las columnas en cualquier orden: <b>fecha</b> (21/10), <b>horario</b> (10 a 12), <b>empresa</b>, <b>hunter</b> y, si querés, el <b>lugar</b>. Quedan planificadas como posición comercial (salvo que la fila diga Acción o Feria).</p>'+
+      '<p class="ges-ms">Una fila por posición, con las columnas en cualquier orden: <b>fecha</b> (21/10), <b>horario</b> (10 a 12), <b>empresa</b>, <b>hunter</b> y, si querés, el <b>lugar</b>. Quedan planificadas como posición comercial (salvo que la fila diga Acción o Feria). Las que se pisan con otra cosa del hunter no se agregan'+(gesRol()==='lider'||gesEsAdmin()?' (como líder, las de tu equipo sí, con aviso)':'')+'.</p>'+
       '<textarea class="ges-inp ges-ag-ta" id="ga-paste" rows="6" oninput="gesAgPasteEsperar()" placeholder="21/10&#9;10 a 12&#9;ACME SA&#9;Sofía&#9;Piso 3"></textarea>'+
       '<div id="ga-prev" class="ges-ag-prev"></div>'+
       '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cancelar</button>'+
@@ -1066,7 +1585,8 @@ function gesAgPasteRevisar(){
         if(!r.ok||!r.hora_desde)return;
         var ch=(om[r.hunter_id+'|'+r.fecha]||[]).filter(function(x){return gesSePisan(x,r);}).map(gesOcupTxt);
         rows.forEach(function(o,j){if(j<i&&o.ok&&o.hunter_id===r.hunter_id&&o.fecha===r.fecha&&gesSePisan(o,r))ch.push(gesHorario(o)+' en '+o.empresa+' (de esta lista)');});
-        if(ch.length)r.aviso='se pisa con '+ch.join(', ');
+        // El líder (de ese hunter) o el admin pueden cargarla igual; los demás no.
+        if(ch.length){if(gesPuedeForzar(r.hunter_id))r.aviso='se pisa con '+ch.join(', ');else{r.ok=false;r.motivo='se pisa con '+ch.join(', ');}}
       });
       gesAgPastePintar();
     });
@@ -1096,7 +1616,7 @@ function gesAgPasteOk(){
   var filas=ok.map(function(r){return {empresa:r.empresa,dueno_id:r.dueno_id,hunter_id:r.hunter_id,origen:'derivada',tipo:r.tipo,modalidad:'presencial',frecuencia:'unica',
     fecha:r.fecha,hora_desde:r.hora_desde,hora_hasta:r.hora_hasta,lugar:r.lugar,estado:'planificada'};});
   _sb.from('gestiones').insert(filas).select('id').then(function(res){
-    if(res&&res.error){gesAgPasteBoton();showToast('No se pudo agregar: '+res.error.message);return;}
+    if(res&&res.error){gesAgPasteBoton();showToast('No se pudo agregar: '+gesErrTxt(res.error));return;}
     var n=(res.data||[]).length,primera=ok.map(function(r){return r.fecha;}).sort()[0];
     gesCerrar();GES.lista=null;GES.ag.data=null;GES.ag.lunes=gesLunes(primera);GES.ag.dia=primera;GES.tab='agenda';GES.det=null;gesRender();
     showToast(n+(n===1?' posición agregada':' posiciones agregadas')+' a la agenda.');
@@ -1128,17 +1648,19 @@ function gesTableroPintar(){
   var filtros='<div class="ges-filtros">'+
     '<label><span class="ges-lbl">Período</span><select class="ges-inp ges-sel" onchange="GES.f.per=this.value;gesTablero()">'+
       [['30','Últimos 30 días'],['90','Últimos 90 días'],['anio','Este año'],['todo','Todo']].map(function(o){return '<option value="'+o[0]+'"'+(f.per===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'+
-    '<label><span class="ges-lbl">Tipo</span><select class="ges-inp ges-sel" onchange="GES.f.tipo=this.value;gesTablero()">'+opt('t',[['accion','Acciones'],['feria','Ferias'],['posicion','Posiciones comerciales']],f.tipo,'Todos')+'</select></label>'+
+    '<label><span class="ges-lbl">Tipo</span><select class="ges-inp ges-sel" onchange="GES.f.tipo=this.value;gesTablero()">'+opt('t',[['accion','Acciones'],['feria','Ferias'],['posicion','Posiciones comerciales'],['datos','Bases de datos']],f.tipo,'Todos')+'</select></label>'+
     (gesRol()!=='hunter'?'<label><span class="ges-lbl">Hunter</span><select class="ges-inp ges-sel" onchange="GES.f.hun=this.value;gesTablero()">'+opt('h',huns,f.hun,'Todos')+'</select></label>':'')+
     '<label><span class="ges-lbl">Oficial que cede</span><select class="ges-inp ges-sel" onchange="GES.f.due=this.value;gesTablero()">'+opt('d',dues,f.due,'Todos')+'</select></label>'+
     (gesPuedePrueba()?'<label class="ges-check"><input type="checkbox"'+(f.prueba?' checked':'')+' onchange="GES.f.prueba=this.checked;gesTablero()"> Incluir pruebas</label>':'')+
     '<button type="button" class="btn bg ges-xls" onclick="gesExcel()">Descargar Excel</button>'+
   '</div>';
   var vis=+k.visitas||0,asis=+k.asistentes||0,pros=+k.prospectos||0,alt=+k.altas||0;
+  var cs=gesConSin(t.por_paquete||[]);
   var kpis='<div class="ges-kpis">'+gesKpi('Acciones',gesN(vis),(+k.planificadas?gesN(k.planificadas)+' planificadas':'realizadas'))+
     gesKpi('Empresas',gesN(k.empresas),'distintas')+gesKpi('Asistentes',gesN(asis),'contactados')+
     gesKpi('Prospectos',gesN(pros),asis?gesPct(pros,asis)+' de los asistentes':'')+
-    gesKpi('Altas',gesN(alt),'sueldos en Galicia')+gesKpi('Conversión',gesPct(alt,pros),'altas ÷ prospectos',true)+'</div>';
+    gesKpi('Altas',gesN(alt),alt?gesN(cs.con)+' con paquete &middot; '+gesN(cs.sin)+' sin':'sueldos en Galicia')+gesKpi('Conversión',gesPct(alt,pros),'altas ÷ prospectos',true)+'</div>'+
+    (+k.datos?'<div class="ges-auto"><span><b>Bases de datos:</b> '+gesN(k.datos)+' personas, '+gesN(k.contactados)+' ya contactadas ('+gesPct(+k.contactados,+k.datos)+').</span></div>':'');
   if(!vis&&!(+k.planificadas)){
     gesBody(filtros+kpis+'<div class="ges-vacio">No hay gestiones en este período. Probá con un período más largo'+(gesPuedePrueba()&&!f.prueba?' o tildá &laquo;Incluir pruebas&raquo;':'')+'.</div>');
     return;
@@ -1152,8 +1674,24 @@ function gesTableroPintar(){
     '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Embudo</span></div>'+gesEmbudo(asis,pros,alt)+
       '<div class="ges-ch" style="margin-top:16px"><span class="ges-ct">Altas por paquete</span></div>'+gesPaquetes(t.por_paquete||[])+'</section></div>'+
     '<div class="ges-g3">'+rankH+rankD+rankE+'</div>'+
-    '<section class="ges-card ges-pad" style="margin-top:14px"><div class="ges-ch"><span class="ges-ct">Por tipo de acción</span></div>'+gesPorTipo(t.por_tipo||[])+'</section>');
+    '<div class="ges-g2" style="margin-top:14px"><section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Por tipo de acción</span></div>'+gesPorTipo(t.por_tipo||[])+'</section>'+
+    '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Por qué se descartan</span></div>'+gesMotivos(t.por_motivo||[])+'</section></div>');
 }
+// Altas con paquete / sin paquete (Caja de Ahorro) / sin cargar, desde por_paquete.
+function gesConSin(rows){
+  var r={con:0,sin:0,nada:0};
+  rows.forEach(function(x){var n=+x.altas||0;if(x.paquete==='caja')r.sin+=n;else if(GES_PAQ[x.paquete])r.con+=n;else r.nada+=n;});
+  return r;
+}
+function gesMotivos(rows){
+  var t={},tot=0;rows.forEach(function(r){var k=GES_MOTIVO[r.motivo]?r.motivo:'otro';t[k]=(t[k]||0)+(+r.n||0);tot+=+r.n||0;});
+  if(!tot)return '<div class="ges-mini">Todavía no hay descartes con motivo.</div>';
+  var mx=Math.max.apply(null,Object.keys(t).map(function(k){return t[k];}).concat([1]));
+  return '<div class="ges-fun">'+Object.keys(GES_MOTIVO).filter(function(k){return t[k];}).sort(function(a,b){return t[b]-t[a];}).map(function(k){
+    return '<div class="ges-fun-r"><span class="ges-mini">'+GES_MOTIVO[k]+'</span><div class="ges-bar"><i style="width:'+Math.round(t[k]*100/mx)+'%"></i></div><span class="ges-fun-p">'+t[k]+' &middot; '+gesPct(t[k],tot)+'</span></div>';
+  }).join('')+'</div>';
+}
+
 function gesChartMeses(rows){
   rows=rows.slice(-12);
   if(!rows.length)return '<div class="ges-mini">Sin datos.</div>';
@@ -1185,16 +1723,21 @@ function gesPaquetes(rows){
   var ks=Object.keys(GES_PAQ),t={},sin=0;ks.forEach(function(k){t[k]=0;});
   rows.forEach(function(r){if(GES_PAQ[r.paquete])t[r.paquete]+=+r.altas;else sin+=+r.altas;});
   var vs=ks.map(function(k){return t[k];}),tot=vs.reduce(function(s,v){return s+v;},0)+sin,mx=Math.max.apply(null,vs.concat([1]));
-  return '<div class="ges-fun">'+ks.map(function(k){
+  var cs=gesConSin(rows);
+  return '<div class="ges-mini" style="margin-bottom:8px"><b style="color:var(--ink)">Con paquete: '+cs.con+'</b> ('+gesPct(cs.con,tot)+') &middot; <b style="color:var(--ink)">Sin paquete: '+cs.sin+'</b> ('+gesPct(cs.sin,tot)+')</div>'+
+    '<div class="ges-fun">'+ks.map(function(k){
     var v=t[k];
-    return '<div class="ges-fun-r"><span class="ges-mini">'+GES_PAQ[k]+'</span><div class="ges-bar"><i style="width:'+Math.round(v*100/mx)+'%"></i></div><span class="ges-fun-p">'+v+' &middot; '+gesPct(v,tot)+'</span></div>';
+    return '<div class="ges-fun-r"><span class="ges-mini">'+GES_PAQ_CORTO[k]+'</span><div class="ges-bar"><i style="width:'+Math.round(v*100/mx)+'%"></i></div><span class="ges-fun-p">'+v+' &middot; '+gesPct(v,tot)+'</span></div>';
   }).join('')+(sin?'<div class="ges-mini">'+sin+' alta'+(sin>1?'s':'')+' sin paquete cargado</div>':'')+'</div>';
 }
-// "2 Plus · 1 Plus Gold": las altas de un hunter según el paquete que captó.
+// "7 con paquete (5 Plus · 2 Plus Gold) · 1 sin paquete": las altas de un hunter.
 function gesPaqTxt(m){
   m=m||{};
-  return Object.keys(GES_PAQ).filter(function(k){return +m[k];}).map(function(k){return (+m[k])+' '+GES_PAQ[k];}).join(' &middot; ');
+  var con=Object.keys(GES_PAQ).filter(function(k){return k!=='caja'&&+m[k];}),nc=con.reduce(function(s,k){return s+(+m[k]);},0),ns=+m.caja||0;
+  if(!nc&&!ns)return '';
+  return (nc?nc+' con paquete ('+con.map(function(k){return (+m[k])+' '+GES_PAQ[k];}).join(' &middot; ')+')':'')+(nc&&ns?' &middot; ':'')+(ns?ns+' sin paquete':'');
 }
+
 function gesRank(tit,rows,nom,conPaq){
   rows=rows.filter(function(x){return x.id;}).slice().sort(function(a,b){return b.altas-a.altas||b.visitas-a.visitas;});
   var mx=Math.max.apply(null,rows.map(function(r){return +r.altas;}).concat([1]));
@@ -1205,11 +1748,11 @@ function gesRank(tit,rows,nom,conPaq){
 }
 function gesRankEmp(rows){
   return '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Empresas con más altas</span></div><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Empresa</th><th class="r">Acciones</th><th class="r">Altas</th><th class="r">Conv.</th></tr></thead><tbody>'+
-    (rows.length?rows.slice(0,10).map(function(r){return '<tr><td>'+gesE(r.empresa)+'<div class="ges-mini">'+gesE(gesNom(r.dueno))+'</div></td><td class="r">'+r.visitas+'</td><td class="r"><b>'+r.altas+'</b></td><td class="r">'+gesPct(r.altas,r.prospectos)+'</td></tr>';}).join(''):
+    (rows.length?rows.slice(0,10).map(function(r){return '<tr><td>'+gesE(r.empresa)+'<div class="ges-mini">'+gesE(gesNom(r.dueno))+(gesCuitTxt(r.cuit)?' &middot; '+gesE(gesCuitTxt(r.cuit)):'')+'</div></td><td class="r">'+r.visitas+'</td><td class="r"><b>'+r.altas+'</b></td><td class="r">'+gesPct(r.altas,r.prospectos)+'</td></tr>';}).join(''):
       '<tr><td colspan="4" class="ges-mini">Sin datos.</td></tr>')+'</tbody></table></div></section>';
 }
 function gesPorTipo(rows){
-  var orden=['posicion|presencial','posicion|virtual','accion|presencial','accion|virtual','feria|presencial','feria|virtual'];
+  var orden=['posicion|presencial','posicion|virtual','accion|presencial','accion|virtual','feria|presencial','feria|virtual','datos|virtual','datos|presencial'];
   rows=rows.slice().sort(function(a,b){return orden.indexOf(a.tipo+'|'+a.modalidad)-orden.indexOf(b.tipo+'|'+b.modalidad);});
   return '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Tipo</th><th class="r">Cantidad</th><th class="r">Prospectos</th><th class="r">Altas</th><th class="r">Altas por acción</th><th class="r">Conversión</th></tr></thead><tbody>'+
     (rows.length?rows.map(function(r){return '<tr><td>'+GES_TIPO[r.tipo]+' '+(GES_MOD[r.modalidad]||'').toLowerCase()+'</td><td class="r">'+r.visitas+'</td><td class="r">'+r.prospectos+'</td><td class="r"><b>'+r.altas+'</b></td>'+
@@ -1234,22 +1777,30 @@ function gesExcel(){
     var wb=XLSX.utils.book_new();
     var resu=[['Gestiones comerciales'],['Período',desde?('Desde '+desde):'Todo'],['Generado',new Date().toLocaleString('es-AR')],[],
       ['Acciones realizadas',+k.visitas||0],['Planificadas',+k.planificadas||0],['Empresas',+k.empresas||0],['Asistentes',+k.asistentes||0],
-      ['Prospectos',+k.prospectos||0],['Altas',+k.altas||0],['Conversión',(+k.prospectos?(+k.altas/+k.prospectos):0)],[],['Altas por paquete']];
-    var porPaq={},sinPaq=0;(t.por_paquete||[]).forEach(function(r){if(GES_PAQ[r.paquete])porPaq[r.paquete]=+r.altas;else sinPaq+=+r.altas;});
+      ['Prospectos',+k.prospectos||0],['Altas',+k.altas||0],['Conversión',(+k.prospectos?(+k.altas/+k.prospectos):0)],[]];
+    var cs=gesConSin(t.por_paquete||[]);
+    resu.push(['Altas con paquete',cs.con],['Altas sin paquete (Caja de Ahorro)',cs.sin]);
+    if(cs.nada)resu.push(['Altas sin paquete cargado',cs.nada]);
+    resu.push([],['Altas por paquete']);
+    var porPaq={};(t.por_paquete||[]).forEach(function(r){if(GES_PAQ[r.paquete])porPaq[r.paquete]=+r.altas;});
     Object.keys(GES_PAQ).forEach(function(p){resu.push([GES_PAQ[p],porPaq[p]||0]);});
-    if(sinPaq)resu.push(['Sin paquete cargado',sinPaq]);
+    if(+k.datos)resu.push([],['Bases de datos: personas',+k.datos],['Bases de datos: contactadas',+k.contactados||0]);
+    var mot={};(t.por_motivo||[]).forEach(function(r){var m=GES_MOTIVO[r.motivo]?r.motivo:'otro';mot[m]=(mot[m]||0)+(+r.n||0);});
+    if(Object.keys(mot).length){resu.push([],['Descartes por motivo']);Object.keys(GES_MOTIVO).forEach(function(m){if(mot[m])resu.push([GES_MOTIVO[m],mot[m]]);});}
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resu),'Resumen');
     var rk=function(rows,conPaq){return rows.filter(function(x){return x.id;}).map(function(x){
       var o={Nombre:gesNom(x.id),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas,'Conversión':x.prospectos?x.altas/x.prospectos:0};
-      if(conPaq)Object.keys(GES_PAQ).forEach(function(p){o[GES_PAQ[p]]=+((x.paquetes||{})[p])||0;});
+      if(conPaq){var m=x.paquetes||{};o['Con paquete']=Object.keys(GES_PAQ).reduce(function(s,p){return s+(p!=='caja'?+m[p]||0:0);},0);o['Sin paquete']=+m.caja||0;
+        Object.keys(GES_PAQ).forEach(function(p){if(p!=='caja')o[GES_PAQ[p]]=+m[p]||0;});}
       return o;});};
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rk(t.por_hunter||[],true)),'Por hunter');
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rk(t.por_dueno||[])),'Por oficial');
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((t.por_empresa||[]).map(function(x){return {Empresa:x.empresa,Oficial:gesNom(x.dueno),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas};})),'Por empresa');
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(l.map(function(g){return {
-      Fecha:g.fecha,Horario:gesHorario(g),Empresa:g.empresa,Lugar:g.lugar||'',Tipo:GES_TIPO[g.tipo],Modalidad:GES_MOD[g.modalidad],'Se repite':gesRepTxt(g),Estado:GES_EST[g.estado],
-      Hunter:gesNom(g.hunter_id),'Oficial (cede)':gesNom(g.dueno_id),Origen:g.origen==='derivada'?'Derivada':'Propia',
-      'Dotación':g.dotacion,Asistentes:g.asistentes,Prospectos:+g.n_pros||0,Altas:+g.n_altas||0,Nota:g.nota||'',Prueba:g.prueba?'Sí':''};})),'Gestiones');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet((t.por_empresa||[]).map(function(x){return {Empresa:x.empresa,CUIT:gesCuitLista(x.cuit).map(gesCuilFmt).join(', '),Oficial:gesNom(x.dueno),Acciones:x.visitas,Prospectos:x.prospectos,Altas:x.altas};})),'Por empresa');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(l.map(function(g){var dt=g.tipo==='datos';return {
+      Fecha:g.fecha,'Hasta':g.vence||'',Horario:gesHorario(g),Empresa:g.empresa,CUIT:gesCuitLista(g.cuit).map(gesCuilFmt).join(', '),Lugar:g.lugar||'',Tipo:GES_TIPO[g.tipo],Modalidad:dt?'':GES_MOD[g.modalidad],'Se repite':gesRepTxt(g),Estado:(dt?GES_EST_DATOS:GES_EST)[g.estado],
+      Hunter:g.hunter_id?gesNom(g.hunter_id):'Por asignar',
+      'Oficial (cede)':gesNom(g.dueno_id),Origen:g.origen==='derivada'?'Derivada':'Propia','Pidió reasignación':g.no_puede_at?'Sí':'',
+      'Dotación':g.dotacion,Asistentes:g.asistentes,Personas:dt?+g.n_datos||0:'',Prospectos:+g.n_pros||0,Altas:+g.n_altas||0,Nota:g.nota||'',Prueba:g.prueba?'Sí':''};})),'Gestiones');
     XLSX.writeFile(wb,'Gestiones_'+gesHoy()+'.xlsx');
   }).catch(function(e){showToast('No se pudo armar el Excel: '+((e&&e.message)||e));});
 }

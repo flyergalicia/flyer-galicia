@@ -21,8 +21,8 @@ vm.runInContext(readFileSync(new URL('../gestiones.js', import.meta.url), 'utf8'
 
 const ok = (c, m) => { console.log((c ? '  OK  ' : '  FALLA ') + m); if (!c) process.exitCode = 1; };
 
-ok(Object.values(C.GES_PAQ).join('|') === 'Caja de Ahorro|Plus|Plus Gold|Eminent Platinum|Eminent Black', 'los 5 paquetes, en orden');
-ok(C.gesPaqDe('Caja de Ahorro') === 'caja' && C.gesPaqDe('CA') === 'caja' && C.gesPaqDe('caja de ahorros') === 'caja', 'Caja de Ahorro (y CA)');
+ok(Object.values(C.GES_PAQ).join('|') === 'Sin paquete (Caja de Ahorro)|Plus|Plus Gold|Eminent Platinum|Eminent Black', 'los 5 paquetes, en orden (Caja de Ahorro = sin paquete)');
+ok(C.gesPaqDe('Caja de Ahorro') === 'caja' && C.gesPaqDe('CA') === 'caja' && C.gesPaqDe('caja de ahorros') === 'caja' && C.gesPaqDe('Sin paquete') === 'caja' && C.gesPaqDe('Sin paquete (Caja de Ahorro)') === 'caja', 'Caja de Ahorro (y CA, "Sin paquete")');
 ok(C.gesPaqDe('Plus') === 'plus' && C.gesPaqDe('PAQUETE PLUS') === 'plus', 'Plus');
 ok(C.gesPaqDe('Plus Gold') === 'gold' && C.gesPaqDe('gold') === 'gold', 'Plus Gold (no se confunde con Plus)');
 ok(C.gesPaqDe('Eminent Platinum') === 'platinum' && C.gesPaqDe('Platino') === 'platinum', 'Eminent Platinum');
@@ -30,7 +30,7 @@ ok(C.gesPaqDe('eminent black') === 'black' && C.gesPaqDe('Black') === 'black', '
 ok(C.gesPaqDe('Eminent') === null && C.gesPaqDe('Ana Plus') === null && C.gesPaqDe('2500000') === null && C.gesPaqDe('') === null, 'lo que no es sólo un paquete no cuenta (un apellido, un importe, "Eminent" solo)');
 
 C.GES.detPros = [{ cuil: '27111111117' }];
-const r = C.gesPasteParse('Nombre\tCUIL\tPaquete\nAna Pérez\t20-12345678-6\tPlus Gold\nEminent Black\tLuis Gómez\nSin Paquete\t27-11111111-7\nJuan Black');
+const r = C.gesPasteParse('Nombre\tCUIL\tPaquete\nAna Pérez\t20-12345678-6\tPlus Gold\nEminent Black\tLuis Gómez\nPedro Sin\t27-11111111-7\nJuan Black');
 ok(r.length === 4, 'pegar: salta la fila de títulos (' + r.length + ' filas)');
 ok(r[0].ok && r[0].nombre === 'Ana Pérez' && r[0].cuil === '20123456786' && r[0].paquete === 'gold', 'pegar: nombre, CUIL y paquete en su lugar');
 ok(r[1].ok && r[1].nombre === 'Luis Gómez' && r[1].paquete === 'black', 'pegar: el paquete puede venir antes que el nombre');
@@ -52,7 +52,8 @@ el('ges-body');
 C.gesTableroPintar();
 const h = els['ges-body'].innerHTML;
 ok(h.includes('Altas por paquete') && !/renta/i.test(h), 'tablero: "Altas por paquete" en lugar de renta');
-ok(['Caja de Ahorro', 'Plus', 'Plus Gold', 'Eminent Platinum', 'Eminent Black'].every((p) => h.includes('>' + p + '<')), 'tablero: aparecen los 5 paquetes (también los que tienen 0)');
+ok(['Sin paquete', 'Plus', 'Plus Gold', 'Eminent Platinum', 'Eminent Black'].every((p) => h.includes('>' + p + '<')), 'tablero: aparecen los 5 paquetes (también los que tienen 0)');
+ok(h.includes('Con paquete: 8') && h.includes('Sin paquete: 0'), 'tablero: altas con paquete y sin paquete');
 ok(h.includes('5 &middot; 50%') && h.includes('2 altas sin paquete cargado'), 'tablero: cantidades y porcentaje sobre el total de altas');
 ok(h.includes('5 Plus &middot; 2 Plus Gold'), 'tablero: debajo de cada hunter, sus altas por paquete');
 ok(!/NaN|undefined/.test(h), 'tablero: sin NaN ni undefined');

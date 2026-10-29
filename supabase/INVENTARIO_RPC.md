@@ -33,12 +33,20 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `ids_prueba` | definer | no | sí | — | Ids de las cuentas de prueba (ayudante de RLS: separa las empresas de ejemplo de las reales, migración 032). |
 | `soy_prueba` | definer | no | sí | auth.uid() | ¿Quien llama es una cuenta de prueba? (ayudante de RLS, migración 032). |
 | `prueba_cambiar_rol` | definer | no | sí | activo, auth.uid() | Sólo la cuenta de prueba (es_prueba) puede cambiar de perfil. |
-| `gestiones_empresas` | definer | no | sí | activo, interruptor, rol, auth.uid() | Empresas que quien llama puede asignar en la Agenda, con su oficial: admin todo el padrón; hunter todo el de su mundo (real o de prueba, migración 032); líder lo suyo y lo de su equipo; el resto lo suyo (migración 030). |
-| `gestiones_ocupado` | definer | no | sí | activo, interruptor, auth.uid() | Horarios de un hunter en un día (para avisar si se pisan). La empresa sale sólo si quien llama puede ver esa gestión (migración 030). |
+| `gestiones_empresas` | definer | no | sí | activo, interruptor, rol, auth.uid() | Empresas que quien llama puede asignar en la Agenda, con su oficial: admin todo el padrón; hunter todo el de su mundo (real o de prueba, migración 032); líder lo suyo y lo de su equipo; el resto lo suyo (migración 030). Desde la 045 devuelve también los CUIT y busca por CUIT (4 cifras o más). |
+| `gestiones_ocupado` | definer | no | sí | activo, interruptor, auth.uid() | Horarios de un hunter en un día (para avisar si se pisan). La empresa sale sólo si quien llama puede ver esa gestión (migración 030; desde la 045 también el líder que reparte, y sin las bases de datos). |
+| `gestiones_dia` | definer | no | sí | activo, interruptor | Horarios de todos los hunters en un día, **sin empresas** (para "libres a esa hora", migración 045). |
+| `gestion_mensaje_enviar` | definer | no | sí | activo, interruptor, auth.uid() | Escribe en la conversación de una gestión que quien llama puede ver (como autor, siempre quien llama) y la marca leída (migración 045). |
+| `gestion_no_puedo` | definer | no | sí | activo, interruptor, auth.uid() | Sólo el hunter de una gestión planificada avisa que no puede: marca `no_puede_*` (con `set_config('fg.no_puede')` local; el trigger no deja tocarlo de otra forma) y deja el mensaje (migración 045). |
+| `gestion_marcar_leida` | definer | no | sí | activo, interruptor, auth.uid() | Marca leída la conversación de una gestión para quien llama, si la puede ver (migración 045). |
+| `gestion_participa` | definer | no | sí | rol, auth.uid() | Ayudante: ¿quien llama participa de esta gestión? (hunter, dueño, quien la creó, el líder que reparte o el del hunter). Sólo responde sobre quien llama (migración 045). |
+| `gestiones_despues` / `gestion_prospectos_despues` | definer | no | no | auth.uid() | Triggers que escriben el historial (`gestion_eventos`); no se llaman a mano (migración 045). |
+| `ges_fin` | invoker | no | no | — | Fin de un tramo horario (sin "hasta" = una hora). Puro, lo usa el trigger (migración 045). |
 | `puede_ver_gestion` | definer | no | sí | rol, auth.uid() | Ayudante de RLS de Gestiones (visibilidad por rol). |
 | `rate_limit_hit` | definer | no | no | — | Cuenta intentos por IP para la Edge Function. SOLO service_role. |
 | `asesores_replace` | invoker | no | sí | auth.uid() | Reemplaza los asesores guardados del usuario. Corre con los permisos de quien llama (RLS). |
 | `gestiones_lista` | invoker | no | sí | auth.uid() | Lista de gestiones. Corre con los permisos de quien llama (RLS). |
+| `gestiones_mensajes_nuevos` | invoker | no | sí | auth.uid() | Mensajes de otros sin leer, por gestión, de lo que quien llama participa. Corre con los permisos de quien llama (RLS) (migración 045). |
 | `gestiones_tablero` | invoker | no | sí | rol, auth.uid() | Tablero de Gestiones. Corre con los permisos de quien llama (RLS). |
 | `padron_asesores_norm` | invoker | no | sí | — | Normalizador puro de datos (no accede a tablas). |
 | `padron_cuits_norm` | invoker | no | sí | — | Normalizador puro de datos (no accede a tablas). |
