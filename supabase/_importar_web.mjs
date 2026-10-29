@@ -11,7 +11,7 @@ const TOKEN = process.env.SB_TOKEN;
 const REF = 'cajyjnxjbobdpltflgnb';
 const [banco, archivo] = process.argv.slice(2);
 if (!TOKEN) { console.error('Falta SB_TOKEN en el entorno.'); process.exit(1); }
-if (!['santander', 'macro'].includes(banco) || !archivo) { console.error('Uso: node supabase/_importar_web.mjs santander|macro <archivo.json>'); process.exit(1); }
+if (!['santander', 'macro', 'icbc'].includes(banco) || !archivo) { console.error('Uso: node supabase/_importar_web.mjs santander|macro|icbc <archivo.json>'); process.exit(1); }
 const items = JSON.parse(readFileSync(archivo, 'utf8'));
 if (!Array.isArray(items) || !items.length) { console.error('El archivo tiene que ser una lista con al menos un elemento.'); process.exit(1); }
 

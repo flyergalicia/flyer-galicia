@@ -1062,16 +1062,76 @@ export function normalizarMacroWeb(x: any, hoy: string, ahora: string): Record<s
     provincias: null, fecha_desde: null, fecha_hasta: null, proximamente: false, updated_at: ahora, detalle_at: ahora, bancos_n: null,
   };
 }
+// ICBC (beneficios.icbc.com.ar): cada tarjeta de la página trae el comercio y un texto corto como
+// "M JUEVES A DOMINGO 30% %a EXCLUSIVE BANKING 20% %a" (M = pagando con billetera MODO).
+// Cuando hay dos %, el más alto es para quien tiene la condición que nombra el texto
+// (Exclusive Banking o cobrar el sueldo en ICBC) y el más bajo es para todos.
+const ICBC_RUBROS: Record<string, string> = { super: "Supermercados", resto: "Gastronomía", belleza: "Salud y Bienestar", auto: "Vehículos", casa: "Hogar", moda: "Indumentaria", tecnologia: "Electrónica", turismo: "Entretenimiento", ninos: "Juguetes", entretenimiento: "Entretenimiento", mascotas: "Otros", libreria: "Otros", varios: "Otros", joyeria: "Indumentaria" };
+const ICBC_DIAS = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
+export function diasIcbc(texto: string): number[] {
+  const t = sinAcentos(texto).toUpperCase();
+  if (/4TO FINDE/.test(t)) return [5, 6];
+  const m = t.match(/(LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|SABADO|DOMINGO) A (LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|SABADO|DOMINGO)/);
+  if (m) {
+    const a = ICBC_DIAS.indexOf(m[1]), b = ICBC_DIAS.indexOf(m[2]), out: number[] = [];
+    for (let i = a; ; i = (i + 1) % 7) { out.push(i); if (i === b) break; }
+    return out;
+  }
+  const out: number[] = [];
+  for (const x of t.matchAll(/LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|SABADO|DOMINGO/g)) { const i = ICBC_DIAS.indexOf(x[0]); if (!out.includes(i)) out.push(i); }
+  return out.length === 7 ? [] : out.sort((a, b) => a - b);
+}
+export function normalizarIcbcWeb(x: any, hoy: string, ahora: string): Record<string, unknown>[] {
+  const comercio = String(x?.comercio || "").replace(/\s+/g, " ").trim();
+  const texto = String(x?.texto || "").replace(/\s+/g, " ").trim();
+  if (!comercio || comercio === "?" || !texto) return [];
+  const pcts = [...texto.matchAll(/(\d{1,3})\s*%/g)].map((m) => Number(m[1])).filter((n) => n > 0 && n < 100);
+  const cm = texto.match(/(\d{1,2})\s*CUOTAS/i);
+  const cuotas = cm ? Number(cm[1]) : 0;
+  if (!pcts.length && !cuotas) return [];
+  const exclusive = /EXCLUSIVE BANKING/i.test(texto), sueldo = /SUELDO/i.test(texto);
+  const label = exclusive ? "Exclusive Banking" : sueldo ? "Cobrando el sueldo en ICBC" : "";
+  const dn = diasIcbc(texto.replace(/ONLINE|HELADER[ÍI]AS/gi, ""));
+  const rubroBase = ICBC_RUBROS[String(x?.categoria || "")] || "Otros";
+  const rubro = esMarcaCombustible(comercio) ? "Combustible" : rubroBase;
+  const clave = modoClave(comercio);
+  const mk = (pct: number | null, tier: string, cuo: number) => ({
+    id: "icbc:w" + clave + "-" + (pct ?? "") + "-" + cuo + "-" + dn.join("") + "-" + sinAcentos(tier).toLowerCase().replace(/[^a-z]/g, ""),
+    banco: "icbc", fuente: "icbc", titulo: comercio, marca_clave: clave, rubro, slug: "",
+    beneficio: [pct ? pct + "% de ahorro" : "", cuo ? cuo + " cuotas sin interés" : ""].filter(Boolean).join(" y ") || null,
+    pct, tope: null, tope_por: null, cuotas: cuo, dias: diasTexto(dn), dias_n: dn, credito: true, debito: true, emisores: [],
+    canales: /^M /.test(texto) ? ["MODO"] : [],
+    segmento: /exclusive/i.test(tier) ? "premium" : null, segmento_txt: tier || null,
+    provincias: null, fecha_desde: null, fecha_hasta: null, proximamente: false, updated_at: ahora, detalle_at: ahora, bancos_n: null,
+  });
+  const out: Record<string, unknown>[] = [];
+  if (pcts.length >= 2 && label) {
+    out.push(mk(Math.min(...pcts), "", cuotas));
+    out.push(mk(Math.max(...pcts), label, cuotas));
+  } else if (pcts.length === 1 && label) out.push(mk(pcts[0], label, cuotas));
+  else if (pcts.length) out.push(mk(pcts[0], "", cuotas));
+  else out.push(mk(null, "", cuotas));
+  return out;
+}
 async function importarWeb(banco: string, items: any[]): Promise<{ total: number }> {
-  if (banco !== "santander" && banco !== "macro") throw new Error("La carga asistida es sólo para Santander y Macro");
+  if (banco !== "santander" && banco !== "macro" && banco !== "icbc") throw new Error("La carga asistida es sólo para Santander, Macro e ICBC");
   const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10), ahora = new Date().toISOString();
   const crudos = banco === "santander" ? items.flatMap((d) => (Array.isArray(d?.items) ? d.items : [d])) : items;
   const vistos = new Set<string>(), filas: Record<string, unknown>[] = [];
   for (const it of crudos) {
-    const f = banco === "santander" ? normalizarSantander(it, hoy, ahora) : normalizarMacroWeb(it, hoy, ahora);
-    if (!f || (f.fecha_hasta && String(f.fecha_hasta) < hoy) || vistos.has(String(f.id))) continue;
-    vistos.add(String(f.id));
-    filas.push(f);
+    const fs = banco === "icbc" ? normalizarIcbcWeb(it, hoy, ahora) : [banco === "santander" ? normalizarSantander(it, hoy, ahora) : normalizarMacroWeb(it, hoy, ahora)];
+    for (const f of fs) {
+      if (!f || (f.fecha_hasta && String(f.fecha_hasta) < hoy) || vistos.has(String(f.id))) continue;
+      vistos.add(String(f.id));
+      filas.push(f);
+    }
+  }
+  if (banco === "icbc") {
+    // la página no informa topes: se toman de la misma promo en MODO (misma marca, % y días)
+    const { data: modo } = await admin.from("promos_bench_cache").select("marca_clave,pct,dias_n,tope,tope_por").eq("fuente", "modo").eq("banco", "icbc").not("tope", "is", null).limit(2000);
+    const tp = new Map<string, any>();
+    for (const r of modo || []) tp.set([r.marca_clave, r.pct, (r.dias_n || []).join("")].join("|"), r);
+    for (const f of filas) { const r = tp.get([f.marca_clave, f.pct, (f.dias_n as number[]).join("")].join("|")); if (r) { f.tope = r.tope; f.tope_por = r.tope_por; } }
   }
   if (!filas.length) throw new Error("La carga no trae ninguna promo vigente");
   const { count: guardadas } = await admin.from("promos_bench_cache").select("id", { count: "exact", head: true }).eq("fuente", banco);

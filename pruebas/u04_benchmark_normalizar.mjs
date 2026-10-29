@@ -12,7 +12,7 @@ const ini4 = src.indexOf('// ── Santander: su buscador'), fin4 = src.indexOf
 const ini5 = src.indexOf('// ── Recordatorio mensual'), fin5 = src.indexOf('async function recordatorioManual');
 const ini6 = src.indexOf('// ── Carga asistida'), fin6 = src.indexOf('async function importarWeb');
 const js = 'const BANCOS = { galicia: {}, bbva: {}, macro: {}, supervielle: {}, santander: {} };\n' + stripTypeScriptTypes([src.slice(ini, fin), src.slice(ini2, fin2), src.slice(ini3, fin3), src.slice(ini4, fin4), src.slice(ini5, fin5), src.slice(ini6, fin6)].join('\n')).replace(/export function/g, 'function');
-const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual, topeLegalSupervielle, esMarcaCombustible, normalizarMacroWeb };')();
+const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual, topeLegalSupervielle, esMarcaCombustible, normalizarMacroWeb, normalizarIcbcWeb, diasIcbc };')();
 const ok = (c, m) => { console.log((c ? '  OK  ' : '  FALLA ') + m); if (!c) process.exitCode = 1; };
 
 // BBVA real (27-oct-2026): 30% de reintegro, tope 15.000 por mes, lunes, crédito Master, 3 cuotas
@@ -131,4 +131,19 @@ for (const [b, id] of Object.entries(BANCOS)) {
     ok(buenas.length >= d.cards.length * 0.95, `${b}: se leen al menos el 95 % de las promos`);
     ok(conPct >= buenas.length * 0.5, `${b}: la mayoría trae un % de reintegro`);
   } catch (e) { console.log('  (sin internet o MODO no responde: ' + e.message + ')'); break; }
+}
+
+// ── ICBC desde su página (29-oct) ──
+{
+  const n = (c, t, cat = 'super') => lib.normalizarIcbcWeb({ comercio: c, categoria: cat, texto: t }, '2026-10-29', 'x');
+  const a = n('CHANGOMAS', 'M TODOS LOS JUEVES 30% %a SI DEPOSITÁS TU SUELDO EN ICBC 20% %a');
+  ok(a.length === 2 && a[0].pct === 20 && a[0].segmento_txt === null && a[1].pct === 30 && a[1].segmento_txt === 'Cobrando el sueldo en ICBC' && JSON.stringify(a[0].dias_n) === '[3]' && a[0].rubro === 'Supermercados', 'ICBC: dos % = el menor para todos y el mayor para quien cobra el sueldo en ICBC');
+  const b = n('KALIMNOS', 'M JUEVES A DOMINGO 30% %a EXCLUSIVE BANKING 20% %a', 'resto');
+  ok(b[1].segmento === 'premium' && JSON.stringify(b[0].dias_n) === '[3,4,5,6]' && b[0].rubro === 'Gastronomía', 'ICBC: Exclusive Banking = premium; "jueves a domingo" = 4 días');
+  const c = n('THE FOOD MARKET', 'TODOS LOS DÍAS HASTA 3 CUOTAS si');
+  ok(c.length === 1 && c[0].pct === null && c[0].cuotas === 3 && c[0].dias_n.length === 0, 'ICBC: sólo cuotas, todos los días');
+  const d = n('YPF', 'M MARTES 15% %a SI DEPOSITÁS TU SUELDO EN ICBC', 'auto');
+  ok(d.length === 1 && d[0].rubro === 'Combustible' && d[0].pct === 15 && d[0].segmento_txt === 'Cobrando el sueldo en ICBC', 'ICBC: YPF es Combustible; un solo % con condición es sólo para esa condición');
+  ok(JSON.stringify(lib.diasIcbc('4TO FINDE DE CADA MES')) === '[5,6]' && JSON.stringify(lib.diasIcbc('LUNES Y MIÉRCOLES')) === '[0,2]', 'ICBC: días ("4to finde", "lunes y miércoles")');
+  ok(n('?', 'TODOS LOS DÍAS 30% %a').length === 0, 'ICBC: sin nombre de comercio no se guarda');
 }

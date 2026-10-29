@@ -289,7 +289,7 @@ function benFuentesHtml() {
   var meta = {}; (BEN.meta || []).forEach(function (m) { meta[m.banco] = m; });
   var hoy = Date.now();
   // además de MODO, se leen las webs propias; Santander y Macro, una vez por mes por la carga asistida
-  var WEB = { bbva: 'bbva_web', galicia: 'galicia_web', supervielle: 'supervielle_web', santander: 'santander_web', macro: 'macro_web' };
+  var WEB = { bbva: 'bbva_web', galicia: 'galicia_web', supervielle: 'supervielle_web', santander: 'santander_web', macro: 'macro_web', icbc: 'icbc_web' };
   return '<div class="ben-fuentes">' + BEN_BANCOS.map(function (b) {
     var m = meta[b[0]], w = WEB[b[0]] ? meta[WEB[b[0]]] : null;
     var bloqueada = !!(w && /bloquea/i.test(w.error || '')), conWeb = !!(w && w.last_sync_at);
