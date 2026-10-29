@@ -220,6 +220,16 @@ export function pctDe(c: any, texto: string): number | null {
   return m ? Number(m[1].replace(",", ".")) : null;
 }
 // Una fila lista para guardar, o null si no se puede identificar la promo.
+// MODO a veces deja una fecha de fin lejana en promos cuyo texto dice "Del 01/06/2026 al 30/09/2026"
+// (Macro Selecta Nivel 2-4 seguían "vigentes" hasta 2027): si el texto termina antes, manda el texto.
+export function finEnTexto(c: any): string | null {
+  let fin: string | null = null;
+  for (const m of JSON.stringify(c || {}).matchAll(/del\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+al\s+(\d{1,2}\/\d{1,2}\/\d{4})/gi)) {
+    const h = isoFecha(m[2]);
+    if (h && (!fin || h > fin)) fin = h;
+  }
+  return fin;
+}
 export function normalizar(c: any, banco: string, hoy: string, ahora: string): Record<string, unknown> | null {
   const b = c?.benefit, s = b?.conditions?.schedule || {};
   const id = String(b?.id || "");
@@ -255,7 +265,7 @@ export function normalizar(c: any, banco: string, hoy: string, ahora: string): R
     // sólo compra online: vale en todo el país; el resto lo completa promos_bench_marcas
     provincias: enLocal ? null : [],
     fecha_desde: isoFecha(s.start_date),
-    fecha_hasta: isoFecha(s.stop_date),
+    fecha_hasta: ((a, b) => (a && b && b < a ? b : a))(isoFecha(s.stop_date), finEnTexto(c)),
     proximamente: c?.calculated_status === "NEXT_FOR_PRODUCT" || (isoFecha(s.start_date) || "") > hoy,
     updated_at: ahora,
     // 1 = exclusiva del banco; más = la comparten varios bancos en MODO ("bancos adheridos")
@@ -574,7 +584,7 @@ export function parsearLegalesGalicia(legales: unknown): { tope: number | null; 
   const mt = t.match(/tope[^$.]{0,60}\$\s*([\d.]+)(?:,\d+)?\s*([^.]{0,50})/i);
   const tope = mt ? Number(mt[1].replace(/\./g, "")) : 0;
   const cola = (mt ? mt[2] : "").toLowerCase();
-  const por = !mt ? null : /por mes|mensual/.test(cola) ? "month" : /por semana|semanal/.test(cola) ? "week" : /por d[ií]a|diario/.test(cola) ? "day" : /por (compra|operaci|transacci)/.test(cola) ? "transaction" : null;
+  const por = !mt ? null : /por mes|mensual/.test(cola) ? "month" : /por semana|semanal/.test(cola) ? "week" : /por d[ií]a|diario/.test(cola) ? "day" : /por (compra|operaci|transacci)/.test(cola) ? "transaction" : /mientras dure|en total/.test(cola) ? "total" : null;
   const mtar = t.match(/para compras realizadas con ([^.]{0,320})/i);
   const tar = mtar ? mtar[1] : t.slice(0, 700);
   const debito = /d[eé]bito/i.test(tar);

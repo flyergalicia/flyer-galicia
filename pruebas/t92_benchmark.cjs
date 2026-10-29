@@ -243,7 +243,7 @@ module.exports=async(browser)=>{
     const m=benMejor(comb);
     const chip=[...document.querySelectorAll('.ben-chip')].map(c=>c.textContent).find(x=>/^Santander/.test(x));
     const aviso=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
-    benVista('manual');
+    BEN.vista='manual';benRender();
     const t=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
     return {m:m&&{t:m.r.titulo,v:m.v,f:m.r.fuente},vieja:benFiltradas().some(r=>r.titulo==='Vieja SA'),chip,aviso:/Es día de revisar las promos cargadas a mano/.test(aviso),dia:Number(benHoyIso().slice(8,10)),t,
       botones:[...document.querySelectorAll('#ben-root button')].map(b=>b.textContent)};
@@ -252,7 +252,11 @@ module.exports=async(browser)=>{
   ok(man.m&&man.m.t==='YPF'&&man.m.f==='manual'&&man.m.v===9000,'una promo de Santander cargada a mano entra a la comparación (YPF 15 %: $9.000 en una carga de $60.000)');
   ok(!man.vieja,'una cargada a mano ya vencida no cuenta');
   ok(/1 cargada a mano/.test(man.chip||''),'la etiqueta de Santander dice cuántas promos tiene cargadas a mano');
-  ok(man.dia<5||man.aviso,'desde el día 5, si no se tocaron en el mes, aparece el aviso "Es día de revisar las promos cargadas a mano"');
+  ok(!man.aviso,'el aviso de revisar las cargadas a mano ya no se muestra');
+  ok(!(await p.evaluate(()=>[...document.querySelectorAll(".ben-tab")].some(t=>/Cargadas a mano/.test(t.textContent)))),'la solapa "Cargadas a mano" no se ve (ni para el admin)');
+  const sv=await p.evaluate(()=>{BEN.vista="semana";BEN.sem=null;benRender();window.__dbg=JSON.stringify({f:BEN.f,n:Object.keys(BEN.semN||{}).length,btn:[...document.querySelectorAll("#ben-root button")].map(x=>x.textContent).slice(0,12)});const b=[...document.querySelectorAll("#ben-root button")].find(x=>/^Ver las \d+ promos$/.test(x.textContent));if(!b)return null;const n=Number(/\d+/.exec(b.textContent)[0]);b.click();const t=document.querySelector("#ben-root").textContent;const filas=document.querySelectorAll("#ben-root table.ben-t")[1];return {n,filas:filas?filas.querySelectorAll("tbody tr").length:0,titulo:/: \d+ promos/.test(t)};});
+  ok(sv&&sv.n>1&&sv.filas===Math.min(sv.n,120)&&sv.titulo,"Semana: tocar \"Ver las N promos\" lista todas las promos de ese banco ese día ("+JSON.stringify(sv)+await p.evaluate(()=>window.__dbg)+")");
+  await p.evaluate(()=>{BEN.sem=null;benVista("rubro");});
   ok(/Promos cargadas a mano/.test(man.t)&&/Vencida/.test(man.t)&&man.botones.indexOf('+ Agregar promo')>=0&&man.botones.filter(b=>b==='Editar').length===2,'la pestaña "Cargadas a mano" lista las promos (la vencida marcada) con Editar y "+ Agregar promo"');
   // agregar una de Macro
   await p.evaluate(()=>benManualEditar(''));
@@ -287,7 +291,7 @@ module.exports=async(browser)=>{
   const pq=await p.evaluate(()=>{
     const r=BEN.rows.find(x=>x.id==='manual:pq1');
     const chipMac=[...document.querySelectorAll('.ben-chip')].map(c=>c.textContent).find(x=>/^Macro/.test(x));
-    benVista('manual');
+    BEN.vista='manual';benRender();
     const t=document.querySelector('#ben-root').textContent.replace(/\s+/g,' ');
     benVista('rubro');
     return {seg:r&&benSegTxt(r),segTxt:r&&r.segmento_txt,chipMac,t};
@@ -303,6 +307,10 @@ module.exports=async(browser)=>{
   ok(nube.benchManual.find(x=>x.id==='pq1').condicion==='Paquete Black+ Travel','al guardar se escribe la condición');
   const galSeg=await p.evaluate(()=>[benSegTxt({segmento:'clasico',segmento_txt:'Clientes Plus Gold'}),benSegTxt({segmento:'clasico',segmento_txt:'Clientes Move'})]);
   ok(galSeg[0]==='Plus Gold'&&galSeg[1]==='Move','Galicia: el segmento sale con su nombre ("Plus Gold", "Move")');
+
+  const lk=await p.evaluate(()=>[benLink({fuente:"modo",slug:"abc-oct26",banco:"bbva"}),benLink({fuente:"galicia",id:"galicia:g187090",banco:"galicia"}),benLink({fuente:"santander",slug:"brand:546",banco:"santander"}),benLink({fuente:"manual",fuente_url:"https://x.com/a",banco:"bbva"}),benEmpieza({fecha_desde:"2026-11-10",fecha_hasta:"2026-11-10"}),benTopeTxt({tope:15000,tope_por:"total"})]);
+  ok(lk[0]==="https://www.modo.com.ar/promos/abc-oct26"&&lk[1]==="https://beneficios.galicia.ar/promocion/187090"&&/brandId=546$/.test(lk[2])&&lk[3]==="https://x.com/a","cada promo tiene su link a la página (MODO, Galicia, Santander, manual)");
+  ok(lk[4].indexOf("Sólo el 10/11")===0&&/en total/.test(lk[5]),"una promo de un solo día lo dice, y el tope total dice \"en total\"");
 
   // ── entrega 3: tarjetas y salas VIP ──
   await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});

@@ -12,7 +12,7 @@ const ini4 = src.indexOf('// ── Santander: su buscador'), fin4 = src.indexOf
 const ini5 = src.indexOf('// ── Recordatorio mensual'), fin5 = src.indexOf('async function recordatorioManual');
 const ini6 = src.indexOf('// ── Carga asistida'), fin6 = src.indexOf('async function importarWeb');
 const js = 'const BANCOS = { galicia: {}, bbva: {}, macro: {}, supervielle: {}, santander: {} };\n' + stripTypeScriptTypes([src.slice(ini, fin), src.slice(ini2, fin2), src.slice(ini3, fin3), src.slice(ini4, fin4), src.slice(ini5, fin5), src.slice(ini6, fin6)].join('\n')).replace(/export function/g, 'function');
-const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual, topeLegalSupervielle, esMarcaCombustible, normalizarMacroWeb, normalizarIcbcWeb, diasIcbc };')();
+const lib = new Function(js + '\nreturn { normalizar, segmentoDe, topeDe, cuotasDe, pctDe, diasIdx, diasTexto, modoClave, isoFecha, marcaDeCabecera, diasBbva, normalizarBbva, parsearLegalesGalicia, normalizarGalicia, rubroDeGalicia, claveDup, normalizarSupervielle, marcaSupervielle, rubroSupervielle, normalizarSantander, rubroSantander, resumenManual, topeLegalSupervielle, esMarcaCombustible, normalizarMacroWeb, normalizarIcbcWeb, diasIcbc, finEnTexto };')();
 const ok = (c, m) => { console.log((c ? '  OK  ' : '  FALLA ') + m); if (!c) process.exitCode = 1; };
 
 // BBVA real (27-oct-2026): 30% de reintegro, tope 15.000 por mes, lunes, crédito Master, 3 cuotas
@@ -146,4 +146,17 @@ for (const [b, id] of Object.entries(BANCOS)) {
   ok(d.length === 1 && d[0].rubro === 'Combustible' && d[0].pct === 15 && d[0].segmento_txt === 'Cobrando el sueldo en ICBC', 'ICBC: YPF es Combustible; un solo % con condición es sólo para esa condición');
   ok(JSON.stringify(lib.diasIcbc('4TO FINDE DE CADA MES')) === '[5,6]' && JSON.stringify(lib.diasIcbc('LUNES Y MIÉRCOLES')) === '[0,2]', 'ICBC: días ("4to finde", "lunes y miércoles")');
   ok(n('?', 'TODOS LOS DÍAS 30% %a').length === 0, 'ICBC: sin nombre de comercio no se guarda');
+}
+
+// ── Combustible: fechas dentro del texto y tope "en total" (29-oct) ──
+{
+  const vieja = { card: { benefit: '30% en YPF', validity_place: 'YPF', participating_bank: 'Macro Selecta' },
+    benefit: { id: 'z1', name: 'YPF Selecta Nivel 4', publication: { description: 'Del 01/06/2026 al 30/09/2026 con TC Visa Macro Selecta' }, conditions: { schedule: { start_date: '2026-06-01', stop_date: '2027-03-31', days_of_week: ['wednesday'] } } },
+    offer: { outcomes: { cashback: { amount: 30, amount_type: 'percent' } }, limits: { period_cap: { reset_by: 'month', amount_by_period: 90000 } }, categories: ['3'] } };
+  ok(lib.finEnTexto(vieja) === '2026-09-30', 'MODO: "Del 01/06/2026 al 30/09/2026" en el texto se lee como fin de vigencia');
+  ok(lib.normalizar(vieja, 'macro', '2026-10-29', 'x').fecha_hasta === '2026-09-30', 'MODO: si el texto termina antes que la fecha de MODO, manda el texto (Macro Selecta Nivel 4 estaba vencida)');
+  const nueva = { ...vieja, benefit: { ...vieja.benefit, publication: { description: 'Pagando con tarjetas Macro Selecta' } } };
+  ok(lib.normalizar(nueva, 'macro', '2026-10-29', 'x').fecha_hasta === '2027-03-31', 'MODO: sin fecha en el texto queda la de MODO');
+  const gl = lib.parsearLegalesGalicia('Promoción del 15% de ahorro, para clientes Galicia Éminent. Tope de reintegro $15.000 en total mientras dure la promoción, incluye compras de adicionales. Válida para Martes comprendidos entre el 10/11/2026 y el 10/11/2026 para compras realizadas con Tarjeta Mastercard.');
+  ok(gl.tope === 15000 && gl.por === 'total' && gl.desde === '2026-11-10' && gl.hasta === '2026-11-10', 'Galicia: "tope $15.000 en total mientras dure la promoción" (un solo día, 10/11)');
 }
