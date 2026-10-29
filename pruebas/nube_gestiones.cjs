@@ -76,6 +76,7 @@ function antesIns(U, b) {
       n.visto_hunter = true;
     } else {
       if (!perfil(n.hunter_id)) err('Ese hunter no existe o no está activo');
+      n.lider_id = null; // 046: con hunter no hay "líder que reparte"
       n.visto_hunter = n.hunter_id === U.id;
     }
   }
@@ -92,7 +93,8 @@ function antesUpd(U, v, c, flags) {
   flags = flags || {};
   const n = Object.assign({}, v, c);
   ['id', 'empresa', 'empresa_key', 'dueno_id', 'creada_por', 'origen', 'serie_id', 'created_at'].forEach((k) => { n[k] = v[k]; });
-  n.cuit = v.cuit || n.cuit; n.hora_desde = hms(n.hora_desde); n.hora_hasta = hms(n.hora_hasta);
+  n.cuit = v.cuit; n.hora_desde = hms(n.hora_desde); n.hora_hasta = hms(n.hora_hasta);
+  if (!n.cuit) { const pe = DB.padron.find((e) => e.user_id === v.dueno_id && e.empresa.trim().toLowerCase() === v.empresa_key); n.cuit = (pe && pe.cuits.join(',')) || null; } // 046
   if (U.role !== 'admin') n.lider_id = v.lider_id;
   if (!flags.marcar) { n.visto_hunter = v.visto_hunter; n.visto_dueno = v.visto_dueno; }
   if (!flags.noPuede) { n.no_puede_at = v.no_puede_at; n.no_puede_motivo = v.no_puede_motivo; }
@@ -157,7 +159,9 @@ const RPC = {
   gestiones_ocupado: (U, a) => DB.gestiones.filter((g) => g.hunter_id === a.p_hunter && g.fecha === a.p_fecha && g.estado !== 'cancelada' && g.tipo !== 'datos')
     .sort((x, y) => (min(x.hora_desde) ?? -1) - (min(y.hora_desde) ?? -1))
     .map((g) => ({ id: g.id, hora_desde: g.hora_desde, hora_hasta: g.hora_hasta, tipo: g.tipo, empresa: puedeVer(U, g) ? g.empresa : null })),
-  gestiones_dia: (U, a) => DB.gestiones.filter((g) => g.fecha === a.p_fecha && g.estado !== 'cancelada' && g.hunter_id && g.hora_desde && g.tipo !== 'datos')
+  // 046: no para hunters; el líder, sólo los de su equipo
+  gestiones_dia: (U, a) => DB.gestiones.filter((g) => U.role !== 'hunter' && (U.role !== 'lider' || esLiderDe(U, g.hunter_id))
+      && g.fecha === a.p_fecha && g.estado !== 'cancelada' && g.hunter_id && g.hora_desde && g.tipo !== 'datos')
     .map((g) => ({ hunter_id: g.hunter_id, hora_desde: g.hora_desde, hora_hasta: g.hora_hasta })),
   gestion_marcar_vista: (U, a) => {
     let n = 0;
@@ -281,7 +285,7 @@ async function ruta(route, U) {
   const mal = (e) => route.fulfill({ status: 400, body: JSON.stringify({ message: e.message, code: e.code || 'P0001' }), headers: H });
   const sp = u.searchParams, sel = sp.get('select');
   const lista = (l) => {
-    let a = 0, lim = +(sp.get('limit') || 0) || 100000; const rg = req.headers()['range']; if (rg) { const x = /(\d+)-(\d+)/.exec(rg); if (x) { a = +x[1]; lim = +x[2] - a + 1; } }
+    let a = +(sp.get('offset') || 0), lim = +(sp.get('limit') || 0) || 100000; const rg = req.headers()['range']; if (rg) { const x = /(\d+)-(\d+)/.exec(rg); if (x) { a = +x[1]; lim = +x[2] - a + 1; } }
     const sl = l.slice(a, a + lim).map((r) => proyectar(r, sel));
     if (obj) return sl.length === 1 ? ok(sl[0]) : route.fulfill({ status: 406, body: JSON.stringify({ message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116', details: 'The result contains 0 rows', hint: null }), headers: H });
     return route.fulfill({ status: 200, body: JSON.stringify(sl), headers: Object.assign({}, H, { 'Content-Range': (sl.length ? a + '-' + (a + sl.length - 1) : '*') + '/' + l.length }) });

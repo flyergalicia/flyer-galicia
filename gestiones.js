@@ -176,6 +176,14 @@ function gesPersonas(){
   }).catch(function(){GES.perP=null;GES.personas={};return GES.personas;});
   return GES.perP;
 }
+// Lecturas que pueden pasar de 1000 filas (una base de datos grande): de a 1000,
+// porque Supabase corta ahí. fab(a,b) arma la consulta con .range(a,b).
+function gesTodas(fab){
+  var out=[];
+  function pagina(a){return fab(a,a+999).then(function(r){
+    if(r&&r.error)throw r.error;var l=(r&&r.data)||[];out=out.concat(l);return l.length===1000?pagina(a+1000):out;});}
+  return pagina(0);
+}
 // Mensajes de otros sin leer, por gestión (de lo que participo). Si falla, ninguno.
 function gesMsgNuevos(force){
   if(GES.msgN&&!force)return Promise.resolve(GES.msgN);
@@ -470,13 +478,23 @@ function gesCrearSerie(p,cb){
     var n={empresa:p.empresa,tipo:p.tipo,modalidad:p.modalidad,frecuencia:'repite',cada_dias:p.cada_dias,veces:p.veces,vez:k+1,
       serie_id:p.serie_id,fecha:gesSumarDias(p.fecha,k*p.cada_dias),estado:'planificada',dotacion:p.dotacion,nota:p.nota,origen:p.origen,
       hora_desde:p.hora_desde||null,hora_hasta:p.hora_hasta||null,lugar:p.lugar||null};
-    if(p.origen==='derivada'){n.hunter_id=p.hunter_id;n.dueno_id=p.dueno_id;}else n.dueno_id=p.dueno_id;
+    if(p.origen==='derivada'){n.hunter_id=p.hunter_id;n.dueno_id=p.dueno_id;if(!p.hunter_id)n.lider_id=p.lider_id;}else n.dueno_id=p.dueno_id;
     filas.push(n);
   }
-  _sb.from('gestiones').insert(filas).select().then(function(r){
-    if(r&&r.error){showToast('Se guardó la primera, pero no las otras fechas: '+r.error.message);cb(-1);return;}
-    cb(filas.length);
-  });
+  // De a una: si una fecha choca con otra cosa del hunter, las demás igual se crean
+  // y se avisa cuáles faltan. cb(cuántas se crearon, las que no).
+  var hechas=0,fallas=[];
+  (function sig(i){
+    if(i>=filas.length){
+      if(fallas.length)showToast('Se crearon '+(hechas+1)+' de '+(filas.length+1)+' fechas. No se pudo: '+fallas.map(function(f){return gesFecha(f.fecha)+' ('+f.motivo+')';}).join('; ')+'. Agregalas a mano desde la agenda.');
+      cb(hechas,fallas);return;
+    }
+    var mal=function(e){fallas.push({fecha:filas[i].fecha,motivo:gesErrTxt(e)});sig(i+1);};
+    _sb.from('gestiones').insert(filas[i]).select('id').single().then(function(r){
+      if(r&&r.error){mal(r.error);return;}
+      hechas++;sig(i+1);
+    },mal);
+  })(0);
 }
 // Serie sin fin: al completar una, ofrecer la siguiente.
 function gesOfrecerProxima(g){
@@ -693,10 +711,16 @@ function gesDatosOk(){return gesPersonasParse(gesVal('gf-datos'),false,[]).filte
 // Después de crear la base: sus personas, todas "A contactar".
 function gesDatosGuardar(g,lista,cb){
   if(!g||g.tipo!=='datos'||!lista||!lista.length){cb(true);return;}
+  var fallo=function(e){
+    // La lista no se pierde: queda pegada en la acción para reintentar con un toque.
+    GES._pegarPend={gid:g.id,txt:lista.map(function(x){return [x.nombre,x.contacto||'',x.cuil?gesCuilFmt(x.cuil):(x.referencia||'')].join('\t');}).join('\n')};
+    showToast('Se creó la base, pero no se pudieron cargar las personas ('+gesErrTxt(e)+'). Te dejé la lista pegada en la acción: tocá «Agregar» para reintentar.');
+    cb(false);
+  };
   _sb.from('gestion_prospectos').insert(lista.map(function(x){return {gestion_id:g.id,nombre:x.nombre,contacto:x.contacto,cuil:x.cuil,referencia:x.referencia,estado:'a_contactar'};})).select('id').then(function(r){
-    if(r&&r.error){showToast('Se creó la base, pero no se pudieron cargar las personas: '+gesErrTxt(r.error)+'. Agregalas desde la acción.');cb(false);return;}
+    if(r&&r.error){fallo(r.error);return;}
     cb(true);
-  });
+  },fallo);
 }
 
 // ── Registrar (Hunter, desde Buscar flyer) ──────────────────────────────────
@@ -736,8 +760,8 @@ function gesRegistrarOk(){
     if(res&&res.error){if(b){b.disabled=false;b.textContent='Guardar y cargar prospectos';}showToast('No se pudo guardar: '+gesErrTxt(res.error));return;}
     gesCerrar();GES.lista=null;
     var g=res.data;
-    gesCrearSerie(g,function(n){
-      showToast(n>0?'Guardada, y planificadas las otras '+n+' fechas. Ahora cargá los prospectos.':'Gestión guardada. Ahora cargá los prospectos.');
+    gesCrearSerie(g,function(n,fallas){
+      if(!(fallas&&fallas.length))showToast(n>0?'Guardada, y planificadas las otras '+n+' fechas. Ahora cargá los prospectos.':'Gestión guardada. Ahora cargá los prospectos.');
       GES.det=g.id;GES.tab='lista';
       switchApp('gestiones');
       if(!n)gesOfrecerProxima(g);
@@ -767,8 +791,12 @@ function gesGuardarNueva(d,lista,volver,listo){
     _sb.from('gestiones').insert(d).select().single().then(function(res){
       if(res&&res.error){volver();showToast('No se pudo guardar: '+gesErrTxt(res.error));return;}
       var g=res.data;
-      gesDatosGuardar(g,lista,function(){gesCrearSerie(g,function(n){listo(g,n);});});
-    });
+      gesDatosGuardar(g,lista,function(okDatos){gesCrearSerie(g,function(n,fallas){
+        // Si algo no salió, el aviso ya lo dio quien falló: se abre la acción para seguir ahí.
+        if(!okDatos||(fallas&&fallas.length)){gesCerrar();GES.lista=null;GES.ag.data=null;GES.det=g.id;GES.tab='lista';gesRender();return;}
+        listo(g,n);
+      });});
+    },function(e){volver();showToast('No se pudo guardar: '+gesErrTxt(e));});
   });
 }
 function gesAsignadaTxt(d,n,lista){
@@ -804,7 +832,7 @@ function gesFilas(p){return p.then(function(r){return (r&&!r.error&&r.data)||[];
 function gesDetalle(id){
   Promise.all([
     _sb.from('gestiones').select('*').eq('id',id).maybeSingle(),
-    _sb.from('gestion_prospectos').select('*').eq('gestion_id',id).order('created_at'),
+    gesTodas(function(a,b){return _sb.from('gestion_prospectos').select('*').eq('gestion_id',id).order('created_at').order('id').range(a,b);}).then(function(l){return {data:l};}),
     gesPersonas(),
     gesFilas(_sb.from('gestion_mensajes').select('*').eq('gestion_id',id).order('created_at')),
     gesFilas(_sb.from('gestion_eventos').select('*').eq('gestion_id',id).order('at'))
@@ -828,7 +856,8 @@ function gesDetalle(id){
     // Y los mensajes quedan leídos.
     var yo2=gesYo(),hayMsg=GES.detMsg.some(function(m){return m.autor!==yo2;});
     if(hayMsg)_sb.rpc('gestion_marcar_leida',{p_gestion:g.id}).then(function(){
-      if(GES.msgN&&GES.msgN[g.id]){delete GES.msgN[g.id];if(typeof _gesAvisoCargar==='function')_gesAvisoCargar();}
+      if(GES.msgN)delete GES.msgN[g.id];
+      if(typeof _gesAvisoCargar==='function')_gesAvisoCargar(); // el numerito baja enseguida
     },function(){});
     gesDetPintar();
     if(GES._editarAlAbrir){GES._editarAlAbrir=false;gesEditar(true);}
@@ -885,6 +914,13 @@ function gesDetPintar(){
     (ed?gesAltaHtml():'')+
     '</section>'+gesChatHtml()+gesHistHtml();
   gesBody(h);
+  // La lista de una base que no se pudo cargar al crearla: queda pegada para reintentar.
+  var pend=GES._pegarPend;
+  if(ed&&pend&&pend.gid===g.id){
+    GES._pegarPend=null;
+    var ta=document.getElementById('gp-paste'),det=document.querySelector('.ges-paste');
+    if(ta)ta.value=pend.txt;if(det)det.open=true;
+  }
   if(ed)gesPastePrev();
 }
 function gesProsFila(p,i,ed,dt){
@@ -1254,7 +1290,7 @@ function gesAgExtrasPedir(){
     var ids=x.bases.map(function(g){return g.id;}),gids=x.hoy.map(function(p){return p.gestion_id;}).filter(function(id){return ids.indexOf(id)<0;});
     x.bases.forEach(function(g){x.empresas[g.id]=g.empresa;});
     return Promise.all([
-      ids.length?gesFilas(_sb.from('gestion_prospectos').select('gestion_id,estado').in('gestion_id',ids).limit(20000)):Promise.resolve([]),
+      ids.length?gesTodas(function(a,b){return _sb.from('gestion_prospectos').select('id,gestion_id,estado').in('gestion_id',ids).order('id').range(a,b);}).catch(function(){return [];}):Promise.resolve([]),
       gids.length?gesFilas(_sb.from('gestiones').select('id,empresa').in('id',gids)):Promise.resolve([])
     ]).then(function(rr){
       rr[0].forEach(function(p){var v=x.avance[p.gestion_id]||(x.avance[p.gestion_id]={n:0,c:0,a:0});v.n++;if(p.estado!=='a_contactar')v.c++;if(p.estado==='alta')v.a++;});

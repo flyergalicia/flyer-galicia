@@ -10,7 +10,8 @@
 --   node supabase/_runsql.mjs supabase/_seed_prospect_gestiones.sql
 do $$
 declare
-  u uuid; g uuid; hoy date := current_date;
+  -- "Hoy" en Argentina (la base trabaja en UTC: después de las 21 ya sería mañana).
+  u uuid; g uuid; hoy date := (now() at time zone 'America/Argentina/Buenos_Aires')::date;
   sid text := 'e0000000-0000-4000-8000-0000000000';
 begin
   select id into u from public.profiles where es_prueba and lower(email) = 'prospect@flyergalicia.test';

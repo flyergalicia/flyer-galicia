@@ -62,6 +62,26 @@ module.exports = async (browser) => {
   ok(base && base.hunter_id === P.hunter3.id && !base.hora_desde && base.cuit === '30900006110', 'la base queda para Julia, sin horario y con el CUIT copiado del padrón');
   ok(per.length === 3 && per.every((p) => p.estado === 'a_contactar') && per.some((p) => p.cuil === '27111111117') && per.some((p) => p.contacto === 'ramon.diaz@mail.com' && p.referencia === 'Legajo 55'), 'las personas quedan "A contactar" con contacto, CUIL o referencia');
 
+  // Una base de más de 1000 personas se lee entera (Supabase corta de a 1000).
+  for (let i = 0; i < 1100; i++) DB.prospectos.push({ id: 'pp' + String(i).padStart(5, '0'), gestion_id: base.id, nombre: 'Persona ' + i, estado: i < 10 ? 'prospecto' : 'a_contactar', created_at: '2026-01-01T00:00:00Z' });
+  await of.evaluate((id) => gesAbrirDet(id), base.id);
+  ok(await espera(of, () => GES.detPros && GES.detPros.length === 1103), 'el detalle de una base de 1103 personas las trae todas');
+  await of.evaluate(() => gesIr('agenda'));
+  ok(await espera(of, () => /13 de 1103 contactados|0 de 1103 contactados|de 1103 contactados/.test(document.getElementById('ges-body').innerHTML)), 'la agenda cuenta las 1103 personas de la base');
+  DB.prospectos = DB.prospectos.filter((p) => !/^pp/.test(p.id));
+  // Si la lista de una base no se puede cargar, queda pegada en la acción para reintentar.
+  await of.evaluate(() => gesIr('empresas'));
+  await espera(of, () => document.getElementById('ges-emp-tb') && /CLINICA/.test(document.getElementById('ges-emp-tb').innerHTML));
+  await of.route('**/rest/v1/gestion_prospectos**', (r) => (r.request().method() === 'POST' ? r.fulfill({ status: 500, body: JSON.stringify({ message: 'falla simulada' }), headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }) : r.fallback()));
+  await of.evaluate(() => { const i = GES._emps.findIndex((e) => /CLINICA/.test(e.empresa)); gesDerivar(i); });
+  await espera(of, () => document.getElementById('ges-der-ok'));
+  await of.evaluate((hid) => { const b = [...document.querySelectorAll('.ges-pills[data-name=tipo] button')].find((x) => x.dataset.v === 'datos'); gesPill(b);
+    document.getElementById('gf-hunter').value = hid; gesHunterCambio(); document.getElementById('gf-datos').value = 'Mario Paz\t11 4444-0001\nNora Gil\t11 4444-0002'; gesDatosPrev(); gesDerivarOk(); }, P.hunter3.id);
+  ok(await espera(of, () => document.getElementById('gp-paste') && /Mario Paz/.test(document.getElementById('gp-paste').value) && document.querySelector('.ges-paste').open), 'falla la carga de la lista: se abre la acción con la lista pegada para reintentar');
+  await of.unroute('**/rest/v1/gestion_prospectos**');
+  await of.evaluate(() => gesPasteOk());
+  ok(await espera(of, () => GES.detPros.length === 2 && GES.detPros.every((p) => p.estado === 'a_contactar')), 'con un toque se cargan las dos personas, "A contactar"');
+
   // ── Oficial: no puede pisar el horario de Sofía; ve quién está libre ──
   await of.evaluate(() => { const i = GES._emps.findIndex((e) => /TEXTIL/.test(e.empresa)); gesDerivar(i); });
   await espera(of, () => document.getElementById('ges-der-ok'));
@@ -172,6 +192,31 @@ module.exports = async (browser) => {
   ok(/Bases de datos:/.test(h), 'muestra cuántas personas de bases de datos se contactaron');
   ok(!/NaN|undefined/.test(h), 'tablero sin NaN ni undefined');
   await cap(of, '7_tablero');
+  // ── Instructivo: el capítulo Gestiones del tutorial, para cada perfil ──
+  const recorrer = (p) => p.evaluate(async () => {
+    const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+    _tourStart('gestiones'); await espera(300);
+    const vistos = [];
+    for (let k = 0; k < 12 && _tour; k++) {
+      const paso = _tour.pasos[_tour.i]; if (paso.cap !== 'gestiones') break;
+      const el = document.getElementById('fg-tour-hl'), tip = document.querySelector('#fg-tour-tip h4');
+      const t = typeof paso.target === 'function' ? paso.target() : document.querySelector(paso.target);
+      vistos.push({ titulo: tip ? tip.textContent : '', enSolapa: !!(t && t.closest && t.closest('#ges-root')) });
+      _tourNext(); await espera(350);
+    }
+    if (window._tour) _tourEnd();
+    return vistos;
+  });
+  let pasos = await recorrer(of);
+  ok(pasos.map((x) => x.titulo).join(' | ') === 'Gestiones comerciales | Derivar una acción | La agenda | Los horarios no se pisan | Cada acción por dentro | El tablero', 'tutorial del oficial: ' + pasos.map((x) => x.titulo).join(' | '));
+  ok(pasos.slice(1).every((x) => x.enSolapa), 'cada paso señala su solapa dentro de Gestiones');
+  pasos = await recorrer(hu);
+  ok(pasos.map((x) => x.titulo).join(' | ') === 'Registrá la gestión | Gestiones comerciales | Mi agenda | Los horarios no se pisan | Cada acción por dentro | El tablero', 'tutorial del hunter: ' + pasos.map((x) => x.titulo).join(' | '));
+  pasos = await recorrer(li);
+  ok(pasos.map((x) => x.titulo).join(' | ') === 'Gestiones comerciales | La agenda del equipo | Los horarios no se pisan | Cada acción por dentro | El tablero', 'tutorial de la líder: ' + pasos.map((x) => x.titulo).join(' | '));
+  await li.evaluate(async () => { _tourStart('gestiones'); await new Promise((r) => setTimeout(r, 300)); _tourNext(); await new Promise((r) => setTimeout(r, 400)); });
+  await cap(li, '8_tutorial_lider');
+  await li.evaluate(() => { if (window._tour) _tourEnd(); });
   const errs = [of, hu, li].reduce((s, p) => s + p.errores.length, 0);
   console.log('errores: ' + errs);
 };

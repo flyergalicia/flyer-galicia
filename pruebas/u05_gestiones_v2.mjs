@@ -90,3 +90,14 @@ C.GES.personas.a1 = { nombre: 'Admin', rol: 'admin' };
 ok(C.gesEvTxt({ que: 'hunter', quien: 'l1', detalle: { de: 'h2', a: 'h1' } }) === 'Laura Méndez se la pasó de Tomás Ríos a Sofía Paz.', 'historial: quién se la pasó de quién a quién');
 ok(C.gesEvTxt({ que: 'alta', quien: 'h1', detalle: { nombre: 'Ana', paquete: 'caja' } }) === 'Sofía Paz marcó el alta de Ana (Sin paquete).' && /No contesta/.test(C.gesEvTxt({ que: 'descarte', quien: 'h1', detalle: { nombre: 'Ana', motivo: 'no_contesta' } })), 'historial: altas con paquete y descartes con motivo');
 ok(/mandó al equipo para que la asigne Laura/.test(C.gesEvTxt({ que: 'por_asignar', quien: 'o1', detalle: { lider: 'l1' } })), 'historial: "la mandó al equipo para que la asigne…"');
+
+// ── Serie que se repite: de a una fecha (revisión del 29-oct) ──
+const insertadas = [];
+C._sb.from = () => { const q = {}; let fila; q.insert = (f) => { fila = f; insertadas.push(f); return q; }; q.select = () => q; q.single = () => q;
+  q.then = (okf, malf) => Promise.resolve(fila.fecha === '2026-11-12' ? { error: { message: 'GES_PISA: ese hunter ya tiene algo de 10:00 a 12:00 ese día' } } : { data: { id: 'x' } }).then(okf, malf); return q; };
+toasts.length = 0;
+let serie = await new Promise((res) => C.gesCrearSerie({ frecuencia: 'repite', veces: 4, cada_dias: 7, fecha: '2026-11-05', origen: 'derivada', hunter_id: 'h1', dueno_id: 'o1', empresa: 'ACME', tipo: 'feria', serie_id: 's1', hora_desde: '10:00' }, (n, f) => res({ n, f })));
+ok(insertadas.length === 3 && serie.n === 2 && serie.f.length === 1 && /Se crearon 3 de 4 fechas/.test(toasts[0] || '') && /12 nov/.test(toasts[0] || '') && /se pisa/.test(toasts[0] || ''), 'una fecha que choca no frena las demás: se crean las otras y avisa cuál falta');
+insertadas.length = 0;
+await new Promise((res) => C.gesCrearSerie({ frecuencia: 'repite', veces: 2, cada_dias: 7, fecha: '2026-11-06', origen: 'derivada', hunter_id: null, lider_id: 'l1', dueno_id: 'o1', empresa: 'ACME', tipo: 'feria', serie_id: 's2' }, () => res()));
+ok(insertadas.length === 1 && insertadas[0].lider_id === 'l1' && insertadas[0].hunter_id === null, 'una serie "para que la asigne el líder" lleva el líder en todas las fechas');

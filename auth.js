@@ -12422,6 +12422,14 @@ function _tourCapitulos(){
   function irHistorial(){cerrarOtros();closeUserMenu();if(typeof switchApp==='function')switchApp('flyer');if(typeof switchTab==='function')switchTab('historial');}
   function irHunter(){closeUserMenu();if(typeof switchApp==='function')switchApp('hunter');if(typeof _hunOtrosClose==='function')_hunOtrosClose();}
   function irHunterOtros(){closeUserMenu();if(typeof switchApp==='function')switchApp('hunter');if(typeof _hunOtrosOpen==='function')_hunOtrosOpen();}
+  // Gestiones vive en gestiones.js (se baja al abrir la solapa). Ya cargado, el
+  // paso va a la solapa interna; si todavía no, se muestra sobre la del header.
+  function irGes(tab){return function(){
+    cerrarOtros();closeUserMenu();
+    if(typeof switchApp==='function')switchApp('gestiones');
+    if(tab&&window.GES&&typeof window.gesIr==='function'&&typeof window.gesTabs==='function'&&gesTabs().some(function(t){return t[0]===tab;}))gesIr(tab);
+  };}
+  function gesTab(tab){return function(){return document.querySelector('#ges-root .ges-tab[onclick*="\''+tab+'\'"]')||document.getElementById('apptab-gestiones');};}
   // Los pasos de Promociones son los de la solapa "Buscar". Si el usuario está en
   // "Activas" SIN resultados, se vuelve a "Buscar"; con resultados cargados no se
   // toca nada (cambiar de solapa vacía la tabla) y los pasos que no se vean se
@@ -12554,11 +12562,31 @@ function _tourCapitulos(){
     ]},
     {id:'gestiones',titulo:'Gestiones',cond:puedeGes,pasos:[
       {target:'#hun-ges',titulo:'Registr&aacute; la gesti&oacute;n',cond:esHunter,
-       texto:'Despu&eacute;s de cada visita o feria, con la empresa elegida, toc&aacute; <strong>Registrar gesti&oacute;n</strong>. El oficial que te la cedi&oacute; se completa solo.',
+       texto:'Despu&eacute;s de cada visita o feria, con la empresa elegida, toc&aacute; <strong>Registrar gesti&oacute;n</strong> (o <kbd>Alt</kbd>+<kbd>G</kbd>). El oficial que te la cedi&oacute; se completa solo.',
        antes:irHunter},
       {target:'#apptab-gestiones',titulo:'Gestiones comerciales',
-       texto:'Ac&aacute; est&aacute;n las visitas (las que te derivaron y las que registraste), los <strong>prospectos</strong> y las <strong>altas</strong> de cada una, y el <strong>tablero</strong> con la conversi&oacute;n.',
-       antes:function(){cerrarOtros();closeUserMenu();}}
+       texto:esHunter?'Ac&aacute; est&aacute; tu trabajo: lo que te derivaron, lo que registraste, las <strong>bases de datos</strong> para contactar, los prospectos y las altas de cada acci&oacute;n. Cada empresa muestra su <strong>CUIT</strong>.':
+         _esLider()?'Ac&aacute; supervis&aacute;s a tu equipo de hunters: la agenda de cada uno, lo que te mandan para <strong>asignar</strong>, quien pidi&oacute; que <strong>le pasen una acci&oacute;n a otro</strong>, y el tablero.':
+         'Ac&aacute; le pas&aacute;s acciones a los hunters (o al l&iacute;der, para que las reparta) y ves c&oacute;mo les fue: prospectos, altas con o sin paquete y conversi&oacute;n. Cada empresa muestra su <strong>CUIT</strong>.',
+       antes:irGes(null)},
+      {target:gesTab('empresas'),cond:!esHunter&&!_esLider(),titulo:'Derivar una acci&oacute;n',
+       texto:'En <strong>Mis empresas</strong>, <strong>Derivar</strong> al lado de cada una. Eleg&iacute;s el tipo: <strong>Acci&oacute;n</strong>, <strong>Feria</strong>, <strong>Posici&oacute;n comercial</strong> o <strong>Base de datos</strong> (peg&aacute;s desde Excel una lista de empleados: nombre, tel&eacute;fono o mail y CUIL o una referencia como el legajo; el hunter los contacta a distancia). Despu&eacute;s, el hunter, o <strong>&laquo;Que la asigne el l&iacute;der&raquo;</strong> si no sab&eacute;s qui&eacute;n est&aacute; libre.',
+       antes:irGes('empresas')},
+      {target:gesTab('agenda'),titulo:esHunter?'Mi agenda':_esLider()?'La agenda del equipo':'La agenda',
+       texto:esHunter?'Tu semana con d&iacute;a y horario. Arriba: <strong>Para contactar hoy</strong> (las personas a las que les pusiste fecha de pr&oacute;ximo contacto) y <strong>Bases para trabajar</strong> (cu&aacute;ntas contactaste de cada base). Con <strong>+ Agendar</strong> sum&aacute;s lo tuyo.':
+         _esLider()?'Una fila por hunter y una columna por d&iacute;a; toc&aacute; <strong>Libre</strong> o <strong>+</strong> para asignarle algo. Arriba, las bandejas <strong>Por asignar</strong> (lo que los oficiales te mandan) y <strong>Piden que se la pasen a otro</strong>. Con <strong>Asignar</strong> / <strong>Cambiar hunter</strong> ves qui&eacute;n est&aacute; libre a esa hora.':
+         'Lo que tienen agendado los hunters en tus empresas, y las bandejas <strong>Por asignar</strong> y <strong>Piden que se la pasen a otro</strong>. Con <strong>+ Asignar</strong> o <strong>Pegar desde Excel</strong> carg&aacute;s varias de una.',
+       antes:irGes('agenda')},
+      {target:gesTab('agenda'),titulo:'Los horarios no se pisan',
+       texto:'Un hunter no puede estar en dos lugares: al asignarle algo el <strong>horario es obligatorio</strong> (Ma&ntilde;ana y Tarde lo completan de un toque) y si choca con otra cosa <strong>no se guarda</strong> y te muestra <strong>qui&eacute;n est&aacute; libre a esa hora</strong>.'+(_esLider()||_admin?' Como '+(_admin?'administrador':'l&iacute;der')+' pod&eacute;s guardar igual: te pregunta antes.':'')+' Las bases de datos no tienen horario.',
+       antes:irGes('agenda')},
+      {target:gesTab('lista'),titulo:'Cada acci&oacute;n por dentro',
+       texto:'Toc&aacute; una acci&oacute;n para ver sus <strong>prospectos</strong>. Al pasar a alguien a <strong>Alta</strong> te pregunta si fue <strong>con paquete o sin paquete</strong>; al <strong>Descartarlo</strong>, el motivo (ya cobra en Galicia, no le interesa, no contesta&hellip;); y a los que siguen en gesti&oacute;n les pon&eacute;s fecha de <strong>pr&oacute;ximo contacto</strong>. Al pie, la <strong>Conversaci&oacute;n</strong> (hunter, oficial y l&iacute;der se escriben ah&iacute;) y el <strong>Historial</strong> (qui&eacute;n la deriv&oacute;, a qui&eacute;n se la pasaron, cambios de horario, altas).'+
+         (esHunter?' Si no pod&eacute;s ir, <strong>No puedo ir</strong>: le avisa al oficial y al l&iacute;der para que se la pasen a otro.':' La pasan a otro hunter el l&iacute;der o quien la deriv&oacute; (mientras no est&eacute; realizada); el hunter, nunca.'),
+       antes:irGes('lista')},
+      {target:gesTab('tablero'),titulo:'El tablero',
+       texto:'Acciones, prospectos, altas y conversi&oacute;n, con las altas separadas <strong>con paquete / sin paquete</strong> (Caja de Ahorro) y por paquete, <strong>por qu&eacute; se descartan</strong> y cu&aacute;ntos de las bases de datos ya se contactaron. Filtr&aacute;s por per&iacute;odo, tipo, hunter y oficial, y lo baj&aacute;s en <strong>Excel</strong>.',
+       antes:irGes('tablero')}
     ]},
     {id:'opciones',titulo:'Opciones',cond:varias&&!sinArm,pasos:[
       {target:'#fg-optbar',titulo:'Varios armadores',

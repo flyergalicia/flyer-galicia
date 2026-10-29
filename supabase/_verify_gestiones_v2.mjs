@@ -53,6 +53,9 @@ await db.exec(mig('045_gestiones_v2.sql'));
 ok(true, 'la migración 045 corre sobre las anteriores de Gestiones');
 await db.exec(mig('045_gestiones_v2.sql'));
 ok(true, 'y se puede volver a correr (idempotente)');
+await db.exec(mig('046_gestiones_v2_ajustes.sql'));
+await db.exec(mig('046_gestiones_v2_ajustes.sql'));
+ok(true, 'la 046 corre encima y se puede volver a correr');
 ok((await db.query(`select cuit from public.gestiones where empresa = 'ACME SA'`)).rows[0].cuit === '30900001118', 'a las gestiones viejas se les completa el CUIT');
 
 await db.exec(`grant usage on schema public to authenticated; grant select, insert, update, delete on all tables in schema public to authenticated;`);
@@ -176,5 +179,20 @@ r = await como(U.of, `select * from public.gestiones_dia('${hoy}')`);
 ok(r.rows && r.rows.filter((x) => x.hunter_id === U.h1).length >= 2 && !r.rows.some((x) => x.empresa), 'horarios del día de todos los hunters, sin empresa');
 r = await como(U.of2, `select * from public.gestiones_ocupado('${U.h1}', '${hoy}')`);
 ok(r.rows && r.rows.length >= 2 && r.rows.some((x) => x.empresa === null) && r.rows.some((x) => x.empresa === 'GAMA SA'), 'ocupado: la empresa sólo si quien pregunta puede ver la acción');
+// ── 046 ──
+r = await como(U.of, `insert into public.gestiones(empresa, origen, hunter_id, lider_id, tipo, estado, fecha, hora_desde) values ('ACME SA','derivada','${U.h3}','${U.li2}','accion','planificada', current_date + 20, '09:00') returning lider_id`);
+ok(r.rows && r.rows[0].lider_id === null, '046: con hunter, un "líder" mandado a mano no queda (y no ve la acción)');
+r = await como(U.h1, `select count(*)::int n from public.gestiones_dia('${hoy}')`);
+ok(r.rows && r.rows[0].n === 0, '046: un hunter no puede pedir los horarios de todos');
+r = await como(U.li, `select array_agg(distinct hunter_id::text) h from public.gestiones_dia('${hoy}')`);
+ok(r.rows && (r.rows[0].h || []).every((x) => [U.h1, U.h2].includes(x)), '046: el líder ve sólo los de su equipo');
+r = await como(U.of, `select count(*)::int n from public.gestiones_dia('${hoy}')`);
+ok(r.rows && r.rows[0].n >= 2, '046: el oficial sí, para ver quién está libre');
+// Una gestión vieja que quedó sin CUIT (se simula salteando el trigger) y el padrón con uno.
+await db.exec(`reset role; update public.padron_empresas set cuits = '{30900099999}' where empresa = 'GAMA SA';
+  alter table public.gestiones disable trigger trg_gestiones_antes; update public.gestiones set cuit = null where empresa = 'GAMA SA';
+  alter table public.gestiones enable trigger trg_gestiones_antes;`);
+r = await como(U.li, `update public.gestiones set nota = 'x' where empresa = 'GAMA SA' returning cuit`);
+ok(r.rows && r.rows[0] && r.rows[0].cuit === '30900099999', '046: una gestión sin CUIT lo toma del padrón al editarla ' + (r.error || JSON.stringify(r.rows)));
 console.log(fallas ? fallas + ' FALLAS' : 'todo bien');
 process.exit(fallas ? 1 : 0);
