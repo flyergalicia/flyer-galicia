@@ -289,11 +289,11 @@ function benRender() {
   h += benFiltrosHtml();
   h += benManualAvisoHtml();
   h += benNotaLugares();
-  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana'], ['versus', 'Galicia vs ' + BEN_NOM[BEN.vs]], ['tarjetas', 'Tarjetas y salas VIP']]; // "Cargadas a mano" no se muestra a nadie (sus promos siguen entrando a la comparación)
+  var tabs = [['rubro', 'Resumen por rubro'], ['marca', 'Cara a cara por marca'], ['semana', 'Semana'], ['comercio', 'Por comercio'], ['versus', 'Galicia vs ' + BEN_NOM[BEN.vs]], ['tarjetas', 'Tarjetas y salas VIP']]; // "Cargadas a mano" no se muestra a nadie (sus promos siguen entrando a la comparación)
   h += '<div class="ben-tabs" role="tablist">' + tabs.map(function (t) {
     return '<button class="ben-tab' + (BEN.vista === t[0] ? ' on' : '') + '" role="tab" aria-selected="' + (BEN.vista === t[0]) + '" onclick="benVista(\'' + t[0] + '\')">' + t[1] + '</button>';
   }).join('') + '</div>';
-  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : BEN.vista === 'versus' ? benVersusHtml() : BEN.vista === 'tarjetas' ? benTarjetasHtml() : BEN.vista === 'manual' ? benManualHtml() : benRubroHtml();
+  var body = BEN.vista === 'marca' ? benMarcaHtml() : BEN.vista === 'semana' ? benSemanaHtml() : BEN.vista === 'comercio' ? benComercioHtml() : BEN.vista === 'versus' ? benVersusHtml() : BEN.vista === 'tarjetas' ? benTarjetasHtml() : BEN.vista === 'manual' ? benManualHtml() : benRubroHtml();
   root.innerHTML = h + body;
   var sel = document.getElementById('ben-prov'); if (sel && typeof _provSel === 'function') _provSel(sel);
 }
@@ -503,6 +503,42 @@ function benSemanaHtml() {
   }).join('');
   return '<div class="ben-card"><h3>La mejor promo de cada banco, día por día</h3><p class="ben-sub">Con los filtros de arriba. Conviene elegir un rubro (por ejemplo Supermercados) para que la compra de referencia sea la misma en toda la tabla.</p></div>' +
     '<div class="ben-card ben-scroll"><table class="ben-t"><thead>' + hdr + '</thead><tbody>' + cuerpo + '</tbody></table></div>' + benSemPanel(lista);
+}
+// ── Vista: Por comercio ("estoy en este comercio, ¿qué promo tengo?") ─────
+function benDiaHoy() { return (new Date(benHoyIso() + 'T12:00:00').getDay() + 6) % 7; } // 0 = lunes
+function benComercioHtml() {
+  if (BEN.cdia == null) BEN.cdia = benDiaHoy();
+  var h = '<div class="ben-card"><h3>¿Qué promos hay en este comercio?</h3><p class="ben-sub">Escribí el comercio (por ejemplo YPF, Coto o Farmacity) y elegí el día: ves las promos de todos los bancos, de la que más devuelve a la que menos, cada una con su link. Usa los filtros de arriba (rubro, tarjeta, segmento).</p>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="ben-f" style="flex:1;min-width:200px">Comercio<input id="ben-com-q" type="text" autocomplete="off" value="' + benE(BEN.cq || '') + '" placeholder="Ej.: YPF" oninput="benComQ(this.value)" style="width:100%"></label>' +
+    '<label class="ben-f">Día<select onchange="benComDia(this.value)"><option value="-1"' + (BEN.cdia === -1 ? ' selected' : '') + '>Cualquier día</option>' +
+    BEN_DIAS.map(function (d, i) { return '<option value="' + i + '"' + (BEN.cdia === i ? ' selected' : '') + '>' + d + (i === benDiaHoy() ? ' (hoy)' : '') + '</option>'; }).join('') + '</select></label></div></div>' +
+    '<div id="ben-com-res">' + benComRes() + '</div>';
+  return h;
+}
+function benComQ(v) { BEN.cq = v; var el = document.getElementById('ben-com-res'); if (el) el.innerHTML = benComRes(); }
+function benComDia(v) { BEN.cdia = Number(v); var el = document.getElementById('ben-com-res'); if (el) el.innerHTML = benComRes(); }
+function benComRes() {
+  var q = benClave(BEN.cq || ''), qt = String(BEN.cq || '').trim().toLowerCase();
+  if (q.length < 2) return '<div class="ben-vacio"><strong>Escribí el nombre de un comercio</strong>Aparecen las promos de todos los bancos.</div>';
+  var dia = BEN.cdia;
+  var L = benFiltradas().filter(function (r) {
+    if (!(String(r.marca_clave || '').indexOf(q) >= 0 || String(r.titulo || '').toLowerCase().indexOf(qt) >= 0)) return false;
+    return dia < 0 || !r.dias_n || !r.dias_n.length || r.dias_n.indexOf(dia) >= 0;
+  }).map(function (r) { return { r: r, v: benDevuelve(r) || 0 }; })
+    .sort(function (a, b) { return b.v - a.v || (b.r.cuotas || 0) - (a.r.cuotas || 0); });
+  if (!L.length) return '<div class="ben-vacio"><strong>No hay promos para «' + benE(BEN.cq) + '»</strong>' + (dia >= 0 ? 'Probá con «Cualquier día» o cambiá los filtros.' : 'Probá con otro nombre o cambiá los filtros.') + '</div>';
+  var mejor = L[0].v > 0 ? L[0] : null;
+  var h = '<div class="ben-card">' + (mejor ? '<p style="margin:0 0 6px"><b>La que más devuelve' + (dia >= 0 ? ' el ' + benE(BEN_DIAS[dia].toLowerCase()) : '') + ':</b> ' + benE(BEN_NOM[mejor.r.banco] || mejor.r.banco) + ' · ' + benE(mejor.r.titulo) + ' — ' + benPlata(mejor.v) + ' en una compra de referencia (' + benTopeTxt(mejor.r) + ').</p>' : '') +
+    '<p class="ben-sub" style="margin:0">' + L.length + ' promos' + (L.length > 150 ? ' (se muestran las primeras 150)' : '') + '. «Devuelve» usa la compra de referencia de cada rubro, ajustable arriba.</p></div>';
+  h += '<div class="ben-card ben-scroll"><table class="ben-t"><thead><tr><th>Banco</th><th>Comercio</th><th>Beneficio</th><th>Devuelve</th><th>Días y condiciones</th><th></th></tr></thead><tbody>' +
+    L.slice(0, 150).map(function (m, i) {
+      var r = m.r;
+      return '<tr' + (i === 0 && mejor ? ' style="background:var(--surface-2,rgba(242,97,34,.08))"' : '') + '><td class="' + (r.banco === 'galicia' ? 'gal' : '') + '"><b>' + benE(BEN_NOM[r.banco] || r.banco) + '</b></td><td>' + benE(r.titulo) + '<div class="ben-seg">' + benE(r.rubro) + '</div></td><td>' + benE(r.beneficio || '') + '</td>' +
+        '<td>' + (m.v > 0 ? '<b>' + benPlata(m.v) + '</b>' : '—') + '<div class="ben-seg">' + benTopeTxt(r) + '</div></td>' +
+        '<td>' + benE(r.dias || '') + (benSegTxt(r) ? '<div class="ben-seg">Sólo ' + benE(benSegTxt(r)) + '</div>' : '') + (benEmpieza(r) ? '<div class="ben-seg">' + benE(benEmpieza(r)) + '</div>' : '') + (r.cuotas ? '<div class="ben-seg">' + r.cuotas + ' cuotas sin interés</div>' : '') + '</td>' +
+        '<td>' + (benLink(r) ? '<a href="' + benE(benLink(r)) + '" target="_blank" rel="noopener noreferrer">Ver promo ↗</a>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  return h;
 }
 // Todas las promos de un banco en un día puntual (al tocar "Ver las N promos").
 function benSemVer(dia, banco) { BEN.sem = (BEN.sem && BEN.sem.dia === dia && BEN.sem.banco === banco) ? null : { dia: dia, banco: banco }; benRender(); }

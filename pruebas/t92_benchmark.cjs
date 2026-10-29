@@ -312,6 +312,11 @@ module.exports=async(browser)=>{
   ok(lk[0]==="https://www.modo.com.ar/promos/abc-oct26"&&lk[1]==="https://beneficios.galicia.ar/promocion/187090"&&/brandId=546$/.test(lk[2])&&lk[3]==="https://x.com/a","cada promo tiene su link a la página (MODO, Galicia, Santander, manual)");
   ok(lk[4].indexOf("Sólo el 10/11")===0&&/en total/.test(lk[5]),"una promo de un solo día lo dice, y el tope total dice \"en total\"");
 
+  // ── Por comercio ──
+  const pc=await p.evaluate(()=>{benVista("comercio");BEN.cdia=-1;benRender();benComQ("ypf");const t=document.querySelector("#ben-com-res").textContent.replace(/\s+/g," ");const filas=document.querySelectorAll("#ben-com-res tbody tr").length;const bancos=[...document.querySelectorAll("#ben-com-res tbody tr td:first-child")].map(x=>x.textContent);const vacio=(benComQ("zzzz"),document.querySelector("#ben-com-res").textContent);benComQ("");const corto=document.querySelector("#ben-com-res").textContent;const tabs=[...document.querySelectorAll(".ben-tab")].map(x=>x.textContent);benComQ("ypf");benComDia(3);const jue=document.querySelectorAll("#ben-com-res tbody tr").length;return {filas,bancos:[...new Set(bancos)],vacio:/No hay promos/.test(vacio),corto:/Escribí el nombre/.test(corto),tab:tabs.indexOf("Por comercio")>=0,mej:/La que más devuelve/.test(t),jue};});
+  ok(pc.tab&&pc.filas>0&&pc.bancos.length>=2&&pc.mej&&pc.vacio&&pc.corto&&pc.jue>0&&pc.jue<=pc.filas,"Por comercio: buscar YPF lista las promos de varios bancos con la mejor arriba, filtra por día y avisa si no hay ("+JSON.stringify(pc)+")");
+  await p.evaluate(()=>{BEN.cq="";BEN.cdia=null;benVista("rubro");});
+
   // ── entrega 3: tarjetas y salas VIP ──
   await p.evaluate(()=>{BEN.rows=null;BEN.cargando=false;BEN.error='';benCargar();});
   await p.waitForFunction(()=>BEN.rows&&!BEN.cargando&&BEN.tarj&&BEN.tarj.length===4,null,{timeout:10000});
