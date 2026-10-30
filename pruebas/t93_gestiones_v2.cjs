@@ -167,6 +167,14 @@ module.exports = async (browser) => {
   const hu = await G.abrirComo(browser, 'hunter');
   await hu.evaluate(() => gesIr('agenda'));
   ok(await espera(hu, () => /Para contactar \(/.test(document.getElementById('ges-body').innerHTML)), 'la agenda del hunter muestra "Para contactar"');
+  // El hunter arma su propia base de datos y ve SU semana al hacerlo
+  await hu.evaluate(() => gesAgendar());
+  ok(await espera(hu, () => document.querySelector('.ges-pills [data-v="datos"]')), 'el hunter puede elegir "Base de datos" al agendar');
+  await hu.evaluate(() => { gesPill(document.querySelector('.ges-pills [data-v="datos"]')); });
+  ok(await hu.evaluate(() => !!document.getElementById('gf-datos')), 'y le aparece dónde pegar la lista de personas');
+  await hu.evaluate(() => { gesPill(document.querySelector('.ges-pills [data-v="accion"]')); gesOcupForm(); });
+  ok(await espera(hu, () => { const p = document.getElementById('gf-ag'); return p && !p.hidden && /Tu semana/.test(p.innerHTML); }), 'y al agendar algo con horario ve su propia semana');
+  await hu.evaluate(() => gesCerrar());
   h = await hu.evaluate(() => document.getElementById('ges-body').innerHTML);
   ok(/Walter Ibáñez/.test(h) && /TRANSPORTES RIO SA/.test(h), 'con la persona a llamar y lo que tiene hoy');
   ok(/Ximena Toledo/.test(h) && /desde el/.test(h), 'y la que quedó vencida, marcada "desde el …"');

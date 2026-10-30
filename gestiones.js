@@ -46,7 +46,7 @@ var GES_DATOS_MAX=1000; // personas por base de datos
 var GES_MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 var GES={verTodo:(function(){try{return localStorage.getItem('fg_ges_vertodo')==='1';}catch(e){return false;}})(),tab:null,lista:null,listaP:null,personas:null,perP:null,det:null,detG:null,detPros:[],
-  q:'',fEst:'',empresas:null,qEmp:'',tab0:null,
+  q:'',fEst:'',fHun:'',empresas:null,qEmp:'',tab0:null,
   f:{per:'90',tipo:'',hun:'',due:'',prueba:true},tablero:null,
   // ver: null = todavía no eligió, y se decide por perfil al abrir la agenda
   // (el líder arranca viendo a todo su equipo; el resto, la semana).
@@ -310,8 +310,10 @@ function gesNuevaTxt(g){
 // Filtro de la lista: estado, "por asignar", "pidió reasignación" y texto
 // (empresa, CUIT o persona).
 function gesListaFiltrar(l){
-  var q=_padNorm(GES.q),qd=gesCuilLimpio(GES.q),est=GES.fEst;
+  var q=_padNorm(GES.q),qd=gesCuilLimpio(GES.q),est=GES.fEst,hun=GES.fHun;
   var vis=l.filter(function(g){
+    if(hun==='__sin'){if(g.hunter_id)return false;}
+    else if(hun&&g.hunter_id!==hun)return false;
     if(est==='por_asignar'){if(g.hunter_id||g.estado!=='planificada')return false;}
     else if(est==='no_puede'){if(!g.no_puede_at||g.estado!=='planificada')return false;}
     else if(est==='datos'){if(g.tipo!=='datos')return false;}
@@ -335,6 +337,9 @@ function gesListaRender(){
       '<select class="ges-inp ges-sel" id="ges-fest" onchange="GES.fEst=this.value;gesListaPintar()">'+
         ests.map(function(o){return '<option value="'+o[0]+'"'+(GES.fEst===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
       '</select>'+
+      // El líder y el admin filtran por hunter a cargo; el oficial, por el
+      // hunter que tiene lo suyo. El hunter no: todo lo que ve ya es suyo.
+      (gesRol()==='hunter'?'':gesListaFiltroHunter())+
       (gesRol()==='hunter'?'<button type="button" class="btn bg" onclick="switchApp(\'hunter\')">+ Registrar desde Buscar flyer</button>':'')+
       '</div>';
     var filas=vis.length?vis.slice(0,300).map(gesFila).join(''):
@@ -343,6 +348,17 @@ function gesListaRender(){
         'Todavía no hay gestiones. Derivá una acción desde <b>Mis empresas</b>.'))+'</div>';
     gesBody(tool+'<div class="ges-list" id="ges-list">'+filas+'</div>'+(vis.length>300?'<p class="ges-nota">Se muestran las 300 más recientes. Usá el buscador para encontrar otras.</p>':''));
   }).catch(gesErr);
+}
+// Filtro "Hunter" de la solapa Gestiones: los de su equipo para el líder, todos
+// para el oficial y el admin, más "Por asignar" para lo que todavía no es de nadie.
+function gesListaFiltroHunter(){
+  var ids=gesHunters(gesRol()==='lider'&&!gesEsAdmin());
+  (GES.lista||[]).forEach(function(g){if(g.hunter_id&&ids.indexOf(g.hunter_id)<0)ids.push(g.hunter_id);});
+  if(!ids.length)return '';
+  return '<select class="ges-inp ges-sel" id="ges-fhun" aria-label="Filtrar por hunter" onchange="GES.fHun=this.value;gesListaPintar()">'+
+    '<option value="">Todos los hunters</option>'+
+    '<option value="__sin"'+(GES.fHun==='__sin'?' selected':'')+'>Sin asignar</option>'+
+    ids.map(function(id){return '<option value="'+_escAttr(id)+'"'+(GES.fHun===id?' selected':'')+'>'+gesE(gesNom(id))+'</option>';}).join('')+'</select>';
 }
 // Re-pinta sólo la lista (no el buscador, para no perder el foco al tipear).
 function gesListaPintar(){
@@ -522,7 +538,9 @@ function gesInt(id){var v=gesVal(id).replace(/\D/g,'');return v===''?null:Math.m
 // lleva "desde", "trabajarla hasta" y, al crearla, la lista de personas.
 function gesTiposDe(modo,g){
   if(modo==='editar')return g.tipo==='datos'?{datos:GES_TIPO.datos}:{accion:GES_TIPO.accion,feria:GES_TIPO.feria,posicion:GES_TIPO.posicion};
-  if(modo==='derivar'||modo==='asignar')return GES_TIPO;
+  // El hunter también arma sus propias bases de datos (pedido del dueño): pega
+  // la lista de gente a contactar y la trabaja desde su agenda.
+  if(modo==='derivar'||modo==='asignar'||modo==='agendar')return GES_TIPO;
   return {accion:GES_TIPO.accion,feria:GES_TIPO.feria,posicion:GES_TIPO.posicion};
 }
 function gesFormHtml(g,modo){
@@ -541,10 +559,11 @@ function gesFormHtml(g,modo){
       '<span class="ges-atajos"><button type="button" onclick="gesHorSet(\'09:00\',\'13:00\')">Mañana</button><button type="button" onclick="gesHorSet(\'14:00\',\'18:00\')">Tarde</button></span>'+
     '</div></div>'+
     '<label class="full" data-ges-sec="hor"'+oc(dt)+'><span>Lugar <i class="ges-opc">(opcional)</i></span><input type="text" id="gf-lugar" class="ges-inp" maxlength="200" value="'+_escAttr(g.lugar||'')+'" placeholder="Sede, dirección, piso"></label>';
-  if(asig){
-    h+='<label><span>Hunter</span><select id="gf-hunter" class="ges-inp" onchange="gesHunterCambio()">'+gesHuntersOpts(g.hunter_id,modo==='asignar',gesPuedeAlLider())+'</select></label>'+
-      '<label data-ges-sec="lider" hidden><span>Líder que la asigna</span><select id="gf-lider" class="ges-inp">'+gesLideresOpts()+'</select></label>'+
-      '<div class="full ges-fl" data-ges-sec="datos"'+oc(!dt)+'><span>Personas para contactar</span>'+
+  if(asig||modo==='agendar'){
+    if(asig)h+='<label><span>Hunter</span><select id="gf-hunter" class="ges-inp" onchange="gesHunterCambio()">'+gesHuntersOpts(g.hunter_id,modo==='asignar',gesPuedeAlLider())+'</select></label>'+
+      '<label data-ges-sec="lider" hidden><span>Líder que la asigna</span><select id="gf-lider" class="ges-inp">'+gesLideresOpts()+'</select></label>';
+    // El hunter que se arma su propia base también pega acá la lista de gente.
+    h+='<div class="full ges-fl" data-ges-sec="datos"'+oc(!dt)+'><span>Personas para contactar</span>'+
         '<span class="ges-mini" style="font-weight:400">Peg&aacute; desde Excel una fila por persona: <b>nombre</b>, <b>tel&eacute;fono o mail</b> y <b>CUIL o referencia</b> (legajo, sector, DNI&hellip;), en cualquier orden. S&oacute;lo el nombre es obligatorio.</span>'+
         '<textarea id="gf-datos" class="ges-inp ges-ag-ta" rows="5" oninput="gesDatosPrev()" placeholder="Ana P&eacute;rez&#9;11 5555-1234&#9;Legajo 302"></textarea>'+
         '<div id="gf-datos-prev"></div></div>';
@@ -841,6 +860,9 @@ function gesDerivarOk(){
 // marcada (si no, en una base de 300 personas no se la encuentra).
 function gesAbrirDet(id,editar,reasignar,foco){GES.det=id;GES._editarAlAbrir=!!editar;GES._reasigAlAbrir=!!reasignar;GES._prosFoco=foco||null;GES._prosFocoIr=!!foco;if(document.getElementById('view-gestiones').style.display==='none')switchApp('gestiones');else gesRender();window.scrollTo(0,0);}
 function gesVolver(){GES.det=null;GES.detG=null;GES._prosFoco=null;GES.ag.data=null;gesRender();}
+// "Ver su flyer" del detalle: lo resuelve auth.js, que sabe si esta persona usa
+// la pantalla del hunter o la lupa del armador.
+function gesIrAlFlyer(){var g=GES.detG;if(g&&typeof _gesIrAlFlyer==='function')_gesIrAlFlyer(g.empresa,g.cuit);}
 // Si la tabla todavía no existe (migración sin aplicar) o falla, lista vacía.
 function gesFilas(p){return p.then(function(r){return (r&&!r.error&&r.data)||[];},function(){return [];});}
 function gesDetalle(id){
@@ -895,6 +917,9 @@ function gesDetPintar(){
   if(ed&&g.estado==='planificada'&&g.hunter_id)acts+='<button type="button" class="btn bp ges-btn-sm" onclick="gesEditar(true)">'+(dt?'Terminar la base':'Marcar como realizada')+'</button>';
   if(gesPuedeReasignar(g)&&g.estado!=='cancelada')acts+='<button type="button" class="btn '+(!g.hunter_id||g.no_puede_at?'bp':'bg')+' ges-btn-sm" onclick="gesReasignar()">'+(g.hunter_id?'Cambiar hunter':'Asignar a un hunter')+'</button>';
   if(g.hunter_id===yo&&g.estado==='planificada'&&!g.no_puede_at)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesNoPuedo()">No puedo ir</button>';
+  // Ir al flyer de esta empresa (el hunter en "Buscar flyer", el oficial con la lupa).
+  if(typeof _gesIrAlFlyer==='function'&&(gesRol()==='hunter'||_can('padron_buscar')))
+    acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesIrAlFlyer()" title="Abrir el flyer de '+_escAttr(g.empresa)+'">Ver su flyer</button>';
   if(ed)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesEditar(false)">Editar datos</button>';
   if(ed&&g.frecuencia==='repite'&&!g.veces)acts+='<button type="button" class="btn bg ges-btn-sm" onclick="gesRepetir()">Crear la próxima (+'+(g.cada_dias||30)+' días)</button>';
   if(gesPuedeBorrar(g))acts+='<button type="button" class="btn bg ges-btn-sm ges-peligro" onclick="gesBorrar()">Eliminar</button>';
@@ -1415,6 +1440,16 @@ function gesAgBloque(g,corto){
 function gesAgBandas(){
   var x=GES.ag.extras;if(!x)return '';
   var esHun=gesRol()==='hunter',hoy=gesHoy(),h='';
+  // Si se está mirando la agenda de UN hunter, las bandejas muestran lo de esa
+  // persona (si no, se ve todo mezclado y no se entiende de quién es cada cosa).
+  // Lo que todavía no tiene hunter ("Por asignar") se sigue viendo siempre:
+  // justamente es lo que hay que repartir.
+  var filtro=GES.ag.hun&&!esHun&&GES.ag.ver!=='mes';
+  if(filtro){
+    var suyo=function(l){return (l||[]).filter(function(g){return g.hunter_id===GES.ag.hun;});};
+    x={hoy:x.hoy,empresas:x.empresas,avance:x.avance,porAsignar:x.porAsignar,
+       noPuede:suyo(x.noPuede),bases:suyo(x.bases)};
+  }
   var item=function(id,tit,sub,boton,reasig){
     return '<button type="button" class="ges-band-i" onclick="gesAbrirDet(\''+id+'\',false,'+(reasig?'true':'false')+')"><span><b>'+tit+'</b><span class="ges-mini">'+sub+'</span></span>'+(boton?'<span class="ges-link">'+boton+'</span>':'')+'</button>';
   };
@@ -1820,22 +1855,28 @@ function gesAgPanel(){
   var oc=document.getElementById('gf-ocup');if(!oc||!oc.parentNode)return;
   var host=document.getElementById('gf-ag');
   if(!host){host=document.createElement('div');host.id='gf-ag';host.className='ges-hpanel';oc.parentNode.insertBefore(host,oc.nextSibling);}
-  var hs=document.getElementById('gf-hunter');
-  var hun=hs?hs.value:(GES._ocupHun||null),fecha=gesVal('gf-fecha');
-  if(!hun||hun==='__lider'||!fecha||gesRol()==='hunter'||gesPillVal('tipo')==='datos'){host.hidden=true;host.innerHTML='';return;}
+  var hs=document.getElementById('gf-hunter'),esHun=gesRol()==='hunter';
+  // El hunter que agenda lo suyo ve SU semana (la lee de sus propias acciones);
+  // quien asigna ve la del hunter elegido, con las empresas ajenas tapadas.
+  var hun=esHun?gesYo():(hs?hs.value:(GES._ocupHun||null)),fecha=gesVal('gf-fecha');
+  if(!hun||hun==='__lider'||!fecha||gesPillVal('tipo')==='datos'){host.hidden=true;host.innerHTML='';return;}
   var t=GES._panelT=(GES._panelT||0)+1,lunes=gesLunes(fecha);
-  _sb.rpc('gestiones_ocupacion',{p_desde:lunes,p_hasta:gesSumarDias(lunes,6)}).then(function(r){
+  var pedido=esHun
+    ? _sb.from('gestiones').select('id,empresa,tipo,estado,fecha,hora_desde,hora_hasta,hunter_id')
+        .eq('hunter_id',hun).gte('fecha',lunes).lte('fecha',gesSumarDias(lunes,6)).neq('estado','cancelada').limit(200)
+    : _sb.rpc('gestiones_ocupacion',{p_desde:lunes,p_hasta:gesSumarDias(lunes,6)});
+  pedido.then(function(r){
     var h=document.getElementById('gf-ag');if(!h||t!==GES._panelT)return;
     if(r&&r.error){h.hidden=true;return;}
     var excl=GES._ocupExcl||null;
-    var l=((r&&r.data)||[]).filter(function(x){return x.hunter_id===hun&&x.id!==excl;});
+    var l=((r&&r.data)||[]).filter(function(x){return x.hunter_id===hun&&x.id!==excl&&x.tipo!=='datos'&&gesMin(x.hora_desde)!=null;});
     l.forEach(function(x){if(!x.empresa)x._tapado=true;});
     var dias=gesAgDias(lunes),rr=gesHorRango(l),h0=rr[0],h1=rr[1],i;
     var horas='';for(i=h0;i<h1;i++)horas+='<div class="ges-hhora" style="height:'+GES_HH+'px"><span>'+gesHorEtiqueta(i)+'</span></div>';
     var cols=dias.map(function(d){return gesHorCol(d,l.filter(function(x){return x.fecha===d;}),h0,h1,'gesHorClicPanel',null,true);}).join('');
     var head=dias.map(function(d,n){return '<div class="ges-hth'+(d===fecha?' sel':'')+'">'+GES_DSEM[n]+' <b>'+(+d.slice(8))+'</b></div>';}).join('');
     h.hidden=false;
-    h.innerHTML='<div class="ges-hpanel-t"><b>La semana de '+gesE(gesNom(hun))+'</b><span class="ges-mini">Toc&aacute; un hueco libre y se completan el d&iacute;a y el horario.</span></div>'+
+    h.innerHTML='<div class="ges-hpanel-t"><b>'+(esHun?'Tu semana':'La semana de '+gesE(gesNom(hun)))+'</b><span class="ges-mini">Toc&aacute; un hueco libre y se completan el d&iacute;a y el horario.</span></div>'+
       '<div class="ges-hor ges-hor-mini" style="--n:'+dias.length+'"><div class="ges-hin">'+
         '<div class="ges-hhead"><div class="ges-hesq"></div>'+head+'</div>'+
         '<div class="ges-hbody"><div class="ges-hhoras">'+horas+'</div><div class="ges-hcols">'+cols+'</div></div></div></div>';

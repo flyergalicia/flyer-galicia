@@ -20364,6 +20364,41 @@ function _gesFlagSet(v){
     });
 }
 
+// ── Desde una gestión, ir al flyer de esa empresa ───────────────────────────
+// El hunter la busca en su pantalla "Buscar flyer"; el oficial la trae al
+// armador con la lupa, como si la hubiera buscado él. Si no aparece (no está en
+// su base, o no tiene flyer), se avisa y no se rompe nada.
+function _gesIrAlFlyer(nombre,cuit){
+  var n=String(nombre||'').trim();if(!n)return;
+  if(_esHunter()){
+    switchApp('hunter');
+    setTimeout(function(){
+      var q=document.getElementById('hun-q');
+      if(!q||typeof _hunRender!=='function'){showToast('No se pudo abrir el buscador de flyers.');return;}
+      q.value=n;_hunRender();
+      if(_hunHits&&_hunHits.length)_hunElegir(0);
+      else showToast('No encontré «'+n+'» en las empresas que podés bajar.');
+    },120);
+    return;
+  }
+  if(!_can('padron_buscar')){showToast('Tu perfil no tiene el buscador de empresas.');return;}
+  switchApp('flyer');
+  setTimeout(function(){
+    var l=(typeof _padBuscable==='function')?_padBuscable():(_padron||[]);
+    var hits=padronSearch(n,5,l);
+    // Primero por nombre exacto; si no, por CUIT; si no, la mejor coincidencia.
+    var ex=hits.filter(function(r){return _padNorm(r.empresa)===_padNorm(n);})[0];
+    if(!ex&&cuit){
+      var d=String(cuit).replace(/\D+/g,'');
+      if(d.length>=8)ex=l.filter(function(r){return (r.cuits||[]).some(function(c){return String(c).replace(/\D+/g,'')===d;});})[0];
+    }
+    var r=ex||hits[0];
+    if(!r){showToast('«'+n+'» no está en tus empresas.');return;}
+    _padApply(r);
+    showToast('Listo: '+r.empresa+' cargada en el armador.');
+  },120);
+}
+
 // ── Cuenta de prueba: cambiar de perfil desde el menú del nombre ──
 // El cambio es REAL (la base lo deja sólo a cuentas marcadas es_prueba, y nunca
 // a admin): así se prueba el circuito completo con otra sesión de verdad.
