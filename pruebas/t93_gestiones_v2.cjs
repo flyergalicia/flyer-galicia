@@ -267,6 +267,58 @@ module.exports = async (browser) => {
   ok(await of.evaluate(() => !GES.tablero.por_hunter.some((x) => !x.id)), 'ninguna fila de hunter queda sin dueño');
   ok(!/NaN|undefined/.test(h), 'tablero sin NaN ni undefined');
   await cap(of, '7_tablero');
+
+  // ── 049: filtro de oficiales que no se achica, y la nota de por qué el
+  //         tablero da menos que la lista ──
+  h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
+  ok(/El tablero cuenta/.test(h) && /se ve todo, sin per/.test(h), 'el tablero explica que cuenta sólo el período y las acciones con hunter');
+  // La líder ve lo de los dos oficiales: con uno elegido, el desplegable no se achica.
+  await li.evaluate(() => gesIr('tablero'));
+  await espera(li, () => GES.tablero);
+  const duenos0 = await li.evaluate(() => (GES.tablero.duenos || []).length);
+  await li.evaluate((id) => { GES.f.due = id; gesTablero(); }, P.oficial.id);
+  await espera(li, () => GES.f.due && GES.tablero);
+  ok(await li.evaluate((n) => (GES.tablero.duenos || []).length === n, duenos0) && duenos0 >= 2,
+    'con un oficial elegido, el desplegable "Oficial que cede" sigue trayendo a todos (' + duenos0 + ')');
+  ok(await li.evaluate((id) => (GES.tablero.por_dueno || []).every((x) => x.id === id), P.oficial.id), 'y lo que se cuenta sí respeta el filtro');
+  await li.evaluate(() => { GES.f.due = ''; gesTablero(); });
+
+  // ── 049: tipo a la vista, filtros por tipo y por fecha, leído / no leído ──
+  await of.evaluate(() => gesIr('lista'));
+  await espera(of, () => document.getElementById('ges-list'));
+  h = await of.evaluate(() => document.getElementById('ges-list').innerHTML);
+  ok(/ges-c-tipo/.test(h) && /Base de datos<\/span>/.test(h), 'cada gestión de la lista muestra su tipo');
+  const nTodas = await of.evaluate(() => document.querySelectorAll('#ges-list .ges-row').length);
+  await of.evaluate(() => { GES.fTipo = 'datos'; gesListaPintar(); });
+  ok(await of.evaluate(() => { const l = [...document.querySelectorAll('#ges-list .ges-row')]; return l.length > 0 && l.length < 99 && l.every((x) => /Base de datos/.test(x.innerHTML)); }), 'el filtro por tipo deja sólo las bases de datos');
+  await of.evaluate(() => { GES.fTipo = ''; GES.fD1 = '2099-01-01'; gesListaPintar(); });
+  ok(await of.evaluate(() => document.querySelectorAll('#ges-list .ges-row').length === 0), 'el filtro por fecha recorta la lista');
+  await of.evaluate(() => gesListaLimpiar());
+  ok(await espera(of, (n) => document.querySelectorAll('#ges-list .ges-row').length === n, nTodas), '"Limpiar filtros" las vuelve a mostrar todas');
+  // Dejar sin leer: vuelve a quedar marcada
+  await of.evaluate((id) => gesAbrirDet(id), S.g1.id);
+  await espera(of, (id) => GES.detG && GES.detG.id === id, S.g1.id);
+  await of.evaluate(() => gesNoLeida());
+  ok(await espera(of, () => GES.tab === 'lista' && !GES.det), 'desde la acción, "Dejar sin leer" vuelve a la lista');
+  ok(await espera(of, (id) => { const g = (GES.lista || []).find((x) => x.id === id); return g && (g.visto_dueno === false || !!(GES.msgN && GES.msgN[id])); }, S.g1.id), 'y la acción queda marcada otra vez');
+  ok(await espera(of, () => { const t = document.querySelector('.ges-tool'); return !!t && /Marcar todas como le/.test(t.innerHTML); }), 'con algo marcado aparece "Marcar todas como leídas"');
+  await of.evaluate(() => gesLeerTodas());
+  // Se espera a que la lista esté pintada (la pantalla se repinta sola cuando
+  // baja el numerito de avisos): sin el guardia, el chequeo podía caer justo en
+  // un "Cargando…" y dar por fallado algo que estaba bien.
+  ok(await espera(of, () => { const t = document.querySelector('.ges-tool'); return !!t && !!document.getElementById('ges-list') && !document.querySelector('#ges-list .ges-row.nueva') && !/Marcar todas como le/.test(t.innerHTML); }), '"Marcar todas como leídas" saca todos los carteles');
+
+  // ── 049: el hunter puede ver un solo día; quien asigna arranca por el equipo ──
+  ok(await of.evaluate(() => { GES.ag.ver = null; return gesAgVerDef(); }) === 'equipo', 'el oficial abre la agenda viendo el día de todos los hunters');
+  ok(await hu.evaluate(() => { GES.ag.ver = null; return gesAgVerDef(); }) === 'sem', 'el hunter, su semana');
+  await hu.evaluate(() => { gesIr('agenda'); });
+  await espera(hu, () => document.querySelector('.ges-ag-ver'));
+  await hu.evaluate(() => gesAgVer('dia'));
+  ok(await espera(hu, () => GES.ag.ver === 'dia' && document.querySelectorAll('#ges-body .ges-hcol').length === 1), 'el hunter ve un solo día por horarios');
+  ok(await hu.evaluate(() => { const d = GES.ag.dia, n = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][gesDiaSem(d)]; return document.querySelector('.ges-hth').textContent.indexOf(n) === 0; }), 'y el encabezado dice el día que corresponde');
+  await cap(hu, '7d_hunter_dia');
+  await hu.evaluate(() => gesAgVer('sem'));
+
   // ── Instructivo: el capítulo Gestiones del tutorial, para cada perfil ──
   const recorrer = (p) => p.evaluate(async () => {
     const espera = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -151,13 +151,13 @@ ok(!/<button/.test(colV), 'en el panel de "ver la agenda" los bloques son sólo 
 const pendientes = [];
 C._sb.from = () => { const q = {}; ['select', 'gte', 'lte', 'order', 'limit', 'eq', 'is', 'not', 'in'].forEach((m) => { q[m] = () => q; });
   q.then = (okf) => new Promise((res) => pendientes.push(res)).then(okf); return q; };
-C.GES.ag = { ver: 'sem', lunes: '2026-11-02', mes: '2026-11', dia: null, data: [{ id: 'vieja', fecha: '2026-11-02', tipo: 'accion', hunter_id: 'h1' }], dataL: 'sem|2026-11-02', ocup: null, hun: '', turno: 0 };
+C.GES.ag = { ver: 'sem', lunes: '2026-11-02', mes: '2026-11', dia: null, data: [{ id: 'vieja', fecha: '2026-11-02', tipo: 'accion', hunter_id: 'h1' }], dataL: '2026-11-02|2026-11-08', ocup: null, hun: '', turno: 0 }; // la memoria es por rango (049)
 C.GES.ag.lunes = '2026-11-09'; C.gesAgCargar();                 // se va a la semana siguiente (queda en el aire)
 C.GES.ag.lunes = '2026-11-02'; const vuelta = await C.gesAgCargar(); // vuelve: sale por memoria
 ok(vuelta && vuelta[0] && vuelta[0].id === 'vieja', 'volver a una semana que ya estaba cargada la muestra de una');
 pendientes.forEach((res) => res({ data: [{ id: 'otra', fecha: '2026-11-09', tipo: 'accion', hunter_id: 'h1' }] }));
 await new Promise((r) => setTimeout(r, 0));
-ok(C.GES.ag.data[0].id === 'vieja' && C.GES.ag.dataL === 'sem|2026-11-02', 'y cuando llega la respuesta de la otra semana, no la pisa');
+ok(C.GES.ag.data[0].id === 'vieja' && C.GES.ag.dataL === '2026-11-02|2026-11-08', 'y cuando llega la respuesta de la otra semana, no la pisa');
 
 // ── 047: un horario ocupado con otra empresa no se puede abrir ──
 const ocup = C.gesAgOcupado({ hora_desde: '10:00', hora_hasta: '12:00', empresa: null });

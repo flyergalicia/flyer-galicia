@@ -217,9 +217,31 @@ const RPC = {
     });
     return Object.values(out).sort((x, y) => y.ultimo_at.localeCompare(x.ultimo_at));
   },
+  // 049: dejarla sin leer otra vez (vuelve el cartel) y sacar todos los carteles.
+  gestion_marcar_no_leida: (U, a) => {
+    const g = gDe(a.p_gestion); if (!g || !puedeVer(U, g)) return null;
+    const i = DB.leido.findIndex((x) => x.gestion_id === g.id && x.user_id === U.id);
+    if (i >= 0) DB.leido.splice(i, 1);
+    if (g.hunter_id === U.id) g.visto_hunter = false;
+    if (g.dueno_id === U.id) g.visto_dueno = false;
+    return null;
+  },
+  gestiones_marcar_todas_leidas: (U) => {
+    let n = 0;
+    DB.gestiones.forEach((g) => {
+      if (g.hunter_id === U.id && !g.visto_hunter) { g.visto_hunter = true; n++; }
+      if (g.dueno_id === U.id && g.visto_dueno === false) { g.visto_dueno = true; n++; }
+    });
+    DB.mensajes.forEach((m) => {
+      const g = gDe(m.gestion_id); if (!g || m.autor === U.id || !participa(U, g)) return;
+      RPC.gestion_marcar_leida(U, { p_gestion: g.id }); n++;
+    });
+    return n;
+  },
   gestiones_tablero: (U, a) => {
-    const g = DB.gestiones.filter((x) => puedeVer(U, x) && (!a.p_desde || x.fecha >= a.p_desde) && (!a.p_hasta || x.fecha <= a.p_hasta) && (!a.p_tipo || x.tipo === a.p_tipo)
-      && (!a.p_hunter || x.hunter_id === a.p_hunter) && (!a.p_dueno || x.dueno_id === a.p_dueno) && (!a.p_solo_mio || [x.hunter_id, x.dueno_id, x.creada_por, x.lider_id].includes(U.id)));
+    const gd = DB.gestiones.filter((x) => puedeVer(U, x) && (!a.p_desde || x.fecha >= a.p_desde) && (!a.p_hasta || x.fecha <= a.p_hasta) && (!a.p_tipo || x.tipo === a.p_tipo)
+      && (!a.p_hunter || x.hunter_id === a.p_hunter) && (!a.p_solo_mio || [x.hunter_id, x.dueno_id, x.creada_por, x.lider_id].includes(U.id)));
+    const g = gd.filter((x) => !a.p_dueno || x.dueno_id === a.p_dueno);
     const r = g.filter((x) => x.estado === 'realizada' || (x.tipo === 'datos' && x.estado !== 'cancelada'));
     const gx = Object.fromEntries(r.map((x) => [x.id, x]));
     const todos = DB.prospectos.filter((p) => gx[p.gestion_id]).map((p) => Object.assign({}, p, { g: gx[p.gestion_id] }));
@@ -238,6 +260,8 @@ const RPC = {
       por_hunter: grupos((x) => x.hunter_id).map(([k, l]) => Object.assign({ id: k }, sumar(l), {
         paquetes: cuenta(pr.filter((p) => p.g.hunter_id === k && p.estado === 'alta' && p.paquete), (p) => p.paquete) })),
       por_dueno: grupos((x) => x.dueno_id).map(([k, l]) => Object.assign({ id: k }, sumar(l))),
+      // 049: todos los oficiales que ceden algo en el período, sin el filtro
+      duenos: Object.entries(cuenta(gd.filter((x) => x.dueno_id), (x) => x.dueno_id)).map(([k, n]) => ({ id: k, n })).sort((x, y) => y.n - x.n),
       por_empresa: grupos((x) => x.dueno_id + '|' + x.empresa_key).map(([k, l]) => Object.assign({ empresa: l[0].empresa, dueno: l[0].dueno_id, cuit: l[0].cuit }, sumar(l)))
         .sort((a1, b1) => b1.altas - a1.altas || b1.visitas - a1.visitas).slice(0, 300),
       por_paquete: Object.entries(cuenta(pr.filter((p) => p.estado === 'alta'), (p) => p.paquete || '')).map(([k, n]) => ({ paquete: k || null, altas: n })),

@@ -88,6 +88,9 @@ ok(!rb.error, '047: con el permiso, el líder ya puede editar lo de su equipo ' 
 await db.exec(mig('048_tablero_sin_asignar.sql'));
 await db.exec(mig('048_tablero_sin_asignar.sql'));
 ok(true, 'la 048 corre encima y se puede volver a correr');
+await db.exec(mig('049_tablero_duenos_y_leido.sql'));
+await db.exec(mig('049_tablero_duenos_y_leido.sql'));
+ok(true, 'la 049 corre encima y se puede volver a correr');
 
 // Oficial deriva a Sofía con horario; el CUIT se copia
 let r = await como(U.of, `insert into public.gestiones(empresa, origen, hunter_id, tipo, estado, fecha, hora_desde, hora_hasta) values ('BETA SRL','derivada','${U.h1}','posicion','planificada','${hoy}','10:00','12:00') returning id, cuit`);
@@ -202,6 +205,24 @@ r = await como(U.li, `update public.gestiones set hunter_id = '${U.h2}', hora_de
 const desp = (await como(U.of, `select public.gestiones_tablero(null, null, null, null, null, false, false) t`)).rows[0].t;
 ok(desp.kpis.sin_asignar === antes.kpis.sin_asignar - 1 && desp.kpis.planificadas === antes.kpis.planificadas + 1,
   '048: al asignarla, pasa de "sin asignar" a planificada');
+// 049: la lista de oficiales que ceden no depende del filtro ni del estado
+const conFil = (await como(U.li, `select public.gestiones_tablero(null, null, null, null, '${U.of}', false, false) t`)).rows[0].t;
+ok(conFil.duenos && conFil.duenos.length >= 2 && conFil.duenos.some((x) => x.id === U.of2),
+  '049: con el filtro puesto en un oficial, el desplegable sigue trayendo a los demás (' + (conFil.duenos || []).length + ')');
+ok(conFil.por_dueno.every((x) => x.id === U.of), '049: y lo que se cuenta sí respeta el filtro');
+// 049: dejar sin leer y marcar todas como leídas
+await como(U.of, `select public.gestion_marcar_no_leida('${g1}')`);
+r = await como(U.of, `select visto_dueno from public.gestiones where id = '${g1}'`);
+ok(r.rows && r.rows[0].visto_dueno === false, '049: "Dejar sin leer" vuelve a marcar la acción para el oficial');
+r = await como(U.h2, `select visto_dueno from public.gestiones where id = '${g1}'`);
+await como(U.of, `select public.gestiones_marcar_todas_leidas()`);
+r = await como(U.of, `select count(*)::int n from public.gestiones where dueno_id = '${U.of}' and not visto_dueno`);
+ok(r.rows && r.rows[0].n === 0, '049: "Marcar todas como leídas" no deja ninguna marcada');
+r = await como(U.h1, `select public.gestion_marcar_no_leida('${g1}')`);
+ok(!r.error, '049: el hunter de esa acción también puede dejarla sin leer');
+r = await como(U.h3, `select public.gestion_marcar_no_leida('${g1}')`);
+r = await como(U.of, `select visto_dueno from public.gestiones where id = '${g1}'`);
+ok(r.rows && r.rows[0].visto_dueno === true, '049: alguien de afuera no puede volver a marcarle la acción a otro');
 r = await como(U.h1, `select * from public.gestiones_empresas('7123', 10)`);
 ok(r.rows && r.rows.length === 1 && r.rows[0].empresa === 'BETA SRL' && r.rows[0].cuits.length === 2, 'buscar empresa por parte del CUIT');
 r = await como(U.of, `select * from public.gestiones_dia('${hoy}')`);

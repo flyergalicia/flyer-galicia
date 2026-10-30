@@ -40,6 +40,8 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `gestion_mensaje_enviar` | definer | no | sí | activo, interruptor, auth.uid() | Escribe en la conversación de una gestión que quien llama puede ver (como autor, siempre quien llama) y la marca leída (migración 045). |
 | `gestion_no_puedo` | definer | no | sí | activo, interruptor, auth.uid() | Sólo el hunter de una gestión planificada avisa que no puede: marca `no_puede_*` (con `set_config('fg.no_puede')` local; el trigger no deja tocarlo de otra forma) y deja el mensaje (migración 045). |
 | `gestion_marcar_leida` | definer | no | sí | activo, interruptor, auth.uid() | Marca leída la conversación de una gestión para quien llama, si la puede ver (migración 045). |
+| `gestion_marcar_no_leida` | definer | no | sí | activo, interruptor, auth.uid() | Lo contrario: vuelve a dejar marcada una gestión para quien llama (borra su marca de lectura y pone `visto_hunter`/`visto_dueno` en false, sólo en lo suyo). Migración 049. |
+| `gestiones_marcar_todas_leidas` | definer | no | sí | activo, interruptor, auth.uid() | Saca de una todas las marcas propias: novedades y mensajes sin leer de las conversaciones en las que participa. Migración 049. |
 | `gestion_participa` | definer | no | sí | rol, auth.uid() | Ayudante: ¿quien llama participa de esta gestión? (hunter, dueño, quien la creó, el líder que reparte o el del hunter). Sólo responde sobre quien llama (migración 045). |
 | `gestiones_despues` / `gestion_prospectos_despues` | definer | no | no | auth.uid() | Triggers que escriben el historial (`gestion_eventos`); no se llaman a mano (migración 045). |
 | `ges_fin` | invoker | no | no | — | Fin de un tramo horario (sin "hasta" = una hora). Puro, lo usa el trigger (migración 045). |
@@ -48,7 +50,7 @@ tiene que comprobar ella misma quién llama. Esconder el botón no es una barrer
 | `asesores_replace` | invoker | no | sí | auth.uid() | Reemplaza los asesores guardados del usuario. Corre con los permisos de quien llama (RLS). |
 | `gestiones_lista` | invoker | no | sí | auth.uid() | Lista de gestiones. Corre con los permisos de quien llama (RLS). |
 | `gestiones_mensajes_nuevos` | invoker | no | sí | auth.uid() | Mensajes de otros sin leer, por gestión, de lo que quien llama participa. Corre con los permisos de quien llama (RLS) (migración 045). |
-| `gestiones_tablero` | invoker | no | sí | rol, auth.uid() | Tablero de Gestiones. Corre con los permisos de quien llama (RLS). |
+| `gestiones_tablero` | invoker | no | sí | rol, auth.uid() | Tablero de Gestiones. Corre con los permisos de quien llama (RLS). Devuelve además `duenos`: los oficiales que ceden algo en el período, sin mirar el filtro de oficial, para armar el desplegable (migración 049). |
 | `padron_asesores_norm` | invoker | no | sí | — | Normalizador puro de datos (no accede a tablas). |
 | `padron_cuits_norm` | invoker | no | sí | — | Normalizador puro de datos (no accede a tablas). |
 | `padron_replace` | invoker | no | sí | auth.uid() | Reemplaza las empresas del usuario y registra los cambios. Corre con los permisos de quien llama (RLS). |
