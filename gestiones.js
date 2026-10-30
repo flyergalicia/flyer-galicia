@@ -48,7 +48,9 @@ var GES_MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','
 var GES={verTodo:(function(){try{return localStorage.getItem('fg_ges_vertodo')==='1';}catch(e){return false;}})(),tab:null,lista:null,listaP:null,personas:null,perP:null,det:null,detG:null,detPros:[],
   q:'',fEst:'',empresas:null,qEmp:'',tab0:null,
   f:{per:'90',tipo:'',hun:'',due:'',prueba:true},tablero:null,
-  ag:{lunes:null,mes:null,ver:(function(){try{return localStorage.getItem('fg_ges_agver')==='mes'?'mes':'sem';}catch(e){return 'sem';}})(),
+  // ver: null = todavía no eligió, y se decide por perfil al abrir la agenda
+  // (el líder arranca viendo a todo su equipo; el resto, la semana).
+  ag:{lunes:null,mes:null,ver:(function(){try{var v=localStorage.getItem('fg_ges_agver');return (v==='mes'||v==='sem'||v==='equipo')?v:null;}catch(e){return null;}})(),
       dia:null,data:null,dataL:null,ocup:null,hun:''}};
 
 // ── Utilidades ──────────────────────────────────────────────────────────────
@@ -1254,7 +1256,14 @@ function gesAgDias(lunes){var r=[];for(var i=0;i<7;i++)r.push(gesSumarDias(lunes
 function gesMesIni(m){return m+'-01';}
 function gesMesFin(m){var a=m.split('-');return gesIso(new Date(+a[0],+a[1],0));}
 function gesMesSumar(m,n){var a=m.split('-'),d=new Date(+a[0],+a[1]-1+n,1);return d.getFullYear()+'-'+gesP2(d.getMonth()+1);}
-function gesEnMes(){return GES.ag.ver==='mes';}
+// Qué vista corresponde si el usuario todavía no eligió ninguna: el líder ve de
+// entrada a TODO su equipo (es lo que necesita para repartir); los demás, la
+// semana por horarios. Una vez que toca un botón, se recuerda lo que eligió.
+function gesAgVerDef(){
+  if(!GES.ag.ver)GES.ag.ver=(gesRol()==='lider'&&!gesEsAdmin())?'equipo':'sem';
+  return GES.ag.ver;
+}
+function gesEnMes(){return gesAgVerDef()==='mes';}
 // Qué rango de fechas se está mirando.
 function gesAgRangoAct(){
   var a=GES.ag;
@@ -1288,7 +1297,7 @@ function gesHunters(soloEquipo){
   return ids;
 }
 function gesAgCargar(force){
-  var a=GES.ag;if(!a.lunes)a.lunes=gesLunes(gesHoy());if(!a.mes)a.mes=gesHoy().slice(0,7);
+  var a=GES.ag;gesAgVerDef();if(!a.lunes)a.lunes=gesLunes(gesHoy());if(!a.mes)a.mes=gesHoy().slice(0,7);
   var ran=gesAgRangoAct(),clave=a.ver+'|'+ran.desde;
   // El turno sube SIEMPRE, también cuando esto sale por memoria: si quedó un
   // pedido de otro período en el aire, su respuesta tiene que caer al vacío y no
@@ -1463,7 +1472,8 @@ function gesContactarTodas(){
     '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cerrar</button></div>',true);
 }
 function gesAgPintar(){
-  var a=GES.ag,l=a.data||[],hoy=gesHoy(),mes=gesEnMes(),eq=a.ver==='equipo',dias=gesAgDias(a.lunes);
+  var a=GES.ag,l=a.data||[],hoy=gesHoy(),mes=gesEnMes(),eq=gesAgVerDef()==='equipo',dias=gesAgDias(a.lunes);
+  if(eq&&!a.dia)a.dia=hoy;
   if(!mes){
     if(!l.some(function(g){return g.fecha===dias[6];}))dias=dias.slice(0,6); // el domingo, sólo si hay algo
     if(!a.dia||dias.indexOf(a.dia)<0)a.dia=dias.indexOf(hoy)>=0?hoy:dias[0];

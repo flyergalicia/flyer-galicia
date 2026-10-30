@@ -1967,6 +1967,12 @@ html.dark .mg-av-a,html.dark .mg-pb-pista.aprox,html.dark .mg-fila-t .mg-vieja{c
    Menú del usuario: los rótulos son <span> dentro de <header> y heredaban la píldora
    naranja de la regla vieja "header span" (se veían como etiquetas en mayúscula). */
 .hdr-dd-item span:not(#bd-badge):not(#hunprop-badge){background:none;color:inherit;padding:0;border-radius:0;font-size:inherit;font-weight:inherit;letter-spacing:normal;text-transform:none;width:auto;display:inline;}
+/* Lo mismo para "Cambiar de cuenta": sin este reset, el nombre y el perfil
+   heredaban la píldora naranja de "header span" y se veían como dos bloques. */
+.dd-cuentas button span{background:none;color:inherit;padding:0;border-radius:0;font-size:inherit;font-weight:inherit;letter-spacing:normal;text-transform:none;width:auto;display:inline;}
+.dd-cuentas .ini{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:.6875rem;font-weight:800;}
+.dd-cuentas .rol{flex:0 0 auto;display:inline-block;background:var(--light);color:var(--gray);border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-size:.75rem;font-weight:700;}
+html.dark .dd-cuentas .rol{background:transparent;}
 /* Oscuro: la opción elegida se pintaba con su color (marino) sobre gris oscuro; la letra va clara y el color queda en la raya de abajo. */
 html.dark #fg-optbar .fgo.on{color:#f3f4f6 !important;}
 /* Oscuro: los logos de Promociones van sobre blanco (los negros desaparecían). */

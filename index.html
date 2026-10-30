@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:; worker-src blob:; connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
-<meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=fa6eb9f52f","integrity":"sha384-hOr4svzIpPMlpGyA0CbUXqvwhjFcW3NOI2dOc0lIJoYavnxcoYa6RXDNUwwv6NAw"},"ben":{"src":"benchmark.js?v=aedea4a198","integrity":"sha384-6eA/wFp28AhE1YnA3epsUeUde1QQ/5P7wKswuLszH+SBXAxDMRfeBTz7HLr1w7zK"}}'>
-<meta name="build-v" content="505da1b25f">
+<meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=67615e49d7","integrity":"sha384-WkT6c5/FQgIrQ7ZuF3tJFbtD5d7dmrAB66UuLRIavVXlUe8iLkLvTvQHC00e3Pr5"},"ben":{"src":"benchmark.js?v=aedea4a198","integrity":"sha384-6eA/wFp28AhE1YnA3epsUeUde1QQ/5P7wKswuLszH+SBXAxDMRfeBTz7HLr1w7zK"}}'>
+<meta name="build-v" content="038c44e3fc">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
@@ -2078,6 +2078,12 @@ html.dark .mg-av-a,html.dark .mg-pb-pista.aprox,html.dark .mg-fila-t .mg-vieja{c
    Menú del usuario: los rótulos son <span> dentro de <header> y heredaban la píldora
    naranja de la regla vieja "header span" (se veían como etiquetas en mayúscula). */
 .hdr-dd-item span:not(#bd-badge):not(#hunprop-badge){background:none;color:inherit;padding:0;border-radius:0;font-size:inherit;font-weight:inherit;letter-spacing:normal;text-transform:none;width:auto;display:inline;}
+/* Lo mismo para "Cambiar de cuenta": sin este reset, el nombre y el perfil
+   heredaban la píldora naranja de "header span" y se veían como dos bloques. */
+.dd-cuentas button span{background:none;color:inherit;padding:0;border-radius:0;font-size:inherit;font-weight:inherit;letter-spacing:normal;text-transform:none;width:auto;display:inline;}
+.dd-cuentas .ini{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:.6875rem;font-weight:800;}
+.dd-cuentas .rol{flex:0 0 auto;display:inline-block;background:var(--light);color:var(--gray);border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-size:.75rem;font-weight:700;}
+html.dark .dd-cuentas .rol{background:transparent;}
 /* Oscuro: la opción elegida se pintaba con su color (marino) sobre gris oscuro; la letra va clara y el color queda en la raya de abajo. */
 html.dark #fg-optbar .fgo.on{color:#f3f4f6 !important;}
 /* Oscuro: los logos de Promociones van sobre blanco (los negros desaparecían). */

@@ -85,7 +85,13 @@ ok(h.includes('08:00') && h.includes('17:00'), 'la franja horaria arranca en 8 y
 ok(!/NaN|undefined/.test(h), 'semana: sin NaN ni undefined');
 
 // ── Grilla del equipo (líder) ──
-C._rol = 'lider'; C._me = { id: 'l1' }; C.GES.ag.data = null;
+// Sin haber elegido vista, el líder arranca viendo a TODO su equipo
+C._rol = 'lider'; C._me = { id: 'l1' }; C.GES.ag.data = null; C.GES.ag.ver = null; C.GES.ag.dia = null;
+C.gesAgenda(); await espera();
+h = els['ges-body'].innerHTML;
+ok(C.GES.ag.ver === 'equipo' && h.includes('ges-eqh'), 'el líder entra viendo el día de todo su equipo');
+ok(h.includes('Sofía Pérez') && h.includes('Tomás Gil'), 'con una fila por hunter a cargo');
+C.GES.ag.ver = 'sem'; C.GES.ag.data = null;
 C.gesAgenda(); await espera();
 h = els['ges-body'].innerHTML;
 ok(h.includes('Sofía Pérez') && h.includes('Tomás Gil') && !h.includes('Otra Persona'), 'equipo: sólo los hunters del líder');
