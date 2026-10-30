@@ -125,7 +125,7 @@ module.exports = async (browser) => {
   h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
   ok(/ALIMENTOS DEL SUR/.test(h), 'lo de sus empresas se ve entero');
   ok(/Ocupado/.test(h) && !/TRANSPORTES RIO/.test(h), 'lo de otro oficial se ve como "Ocupado", sin la empresa');
-  ok(await of.evaluate(() => { const o = document.querySelector('#ges-body .ges-hb.tapado'); return !!o && o.tagName !== 'BUTTON' && !o.getAttribute('onclick'); }), 'un bloque "Ocupado" no se puede abrir');
+  ok(await of.evaluate(() => { const o = document.querySelector('#ges-body .ges-hbl.tapado'); return !!o && o.tagName !== 'BUTTON' && !o.getAttribute('onclick'); }), 'un bloque "Ocupado" no se puede abrir');
   ok(/ocupados con empresas que no son tuyas/.test(h), 'la leyenda explica qué es el rojo');
   await cap(of, '7_agenda_oficial');
   // Día del equipo: una fila por hunter, una columna por hora
@@ -138,7 +138,7 @@ module.exports = async (browser) => {
   await of.evaluate(() => gesAgVer('mes'));
   ok(await espera(of, () => document.querySelector('#ges-body .ges-mes')), 'el botón Mes muestra el calendario del mes');
   h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
-  ok(/ALIMENTOS DEL SUR/.test(h) && !/ges-hb tapado|ges-hb.*tapado/.test(h), 'en el mes va lo propio, sin los "Ocupado"');
+  ok(/ALIMENTOS DEL SUR/.test(h) && !/ges-hbl.*tapado/.test(h), 'en el mes va lo propio, sin los "Ocupado"');
   ok(await of.evaluate(() => /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre) \d{4}$/.test(document.querySelector('.ges-ag-rango').textContent)), 'y el rótulo dice el mes y el año');
   await cap(of, '8_mes_oficial');
   const mes0 = await of.evaluate(() => GES.ag.mes);
@@ -154,7 +154,7 @@ module.exports = async (browser) => {
     document.getElementById('gf-hunter').value = h; gesHunterCambio();
   });
   ok(await espera(of, () => { const p = document.getElementById('gf-ag'); return p && !p.hidden && /La semana de/.test(p.innerHTML); }), 'al elegir el hunter se ve su semana en la misma ventana');
-  ok(await of.evaluate(() => !document.querySelector('#gf-ag .ges-hb button') && !!document.querySelector('#gf-ag .ges-hb')), 'los bloques del panel son sólo para mirar');
+  ok(await of.evaluate(() => !document.querySelector('#gf-ag .ges-hbl button') && !!document.querySelector('#gf-ag .ges-hbl')), 'los bloques del panel son sólo para mirar');
   await cap(of, '7c_panel_agenda');
   await of.evaluate(() => {
     const c = document.querySelector('#gf-ag .ges-hcol'), r = c.getBoundingClientRect();

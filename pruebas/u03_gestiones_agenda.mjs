@@ -79,7 +79,7 @@ C.gesAgenda(); await espera();
 let h = els['ges-body'].innerHTML;
 ok(h.indexOf('BETA SRL') > 0 && h.indexOf('BETA SRL') < h.indexOf('ACME SA'), 'semana del hunter: ordenada por hora (9–11 antes que 15–17)');
 ok(!h.includes('DELTA SA') && !h.includes('GAMA SA'), 'el hunter ve sólo lo suyo');
-ok(h.includes('15–17') && h.includes('ACME SA') && h.includes('ges-hb'), 'cada acción se dibuja en su horario dentro de la grilla');
+ok(h.includes('15–17') && h.includes('ACME SA') && h.includes('ges-hbl'), 'cada acción se dibuja en su horario dentro de la grilla');
 ok((h.match(/data-d="/g) || []).length === 6 && h.includes('+ Agendar') && h.includes('19 al 24 de oct'), 'lunes a sábado (sin domingo vacío), "+ Agendar" y el rango de la semana');
 ok(h.includes('08:00') && h.includes('17:00'), 'la franja horaria arranca en 8 y llega hasta las 18');
 ok(!/NaN|undefined/.test(h), 'semana: sin NaN ni undefined');
