@@ -20,7 +20,7 @@
 --   node supabase/_runsql.mjs supabase/_seed_equipo_prueba_gestiones.sql
 do $$
 declare
-  v_so uuid; v_le uuid; v_ni uuid; v_ma uuid;
+  v_so uuid; v_le uuid; v_ni uuid; v_ma uuid; v_ca uuid;
   hoy date := (now() at time zone 'America/Argentina/Buenos_Aires')::date;
   sid text := 'e1000000-0000-4000-8000-0000000000';
   g uuid; d date;
@@ -29,6 +29,7 @@ begin
   select id into v_le from public.profiles where es_prueba and lower(email) = 'pruebaoficial2@bancogalicia.com.ar';
   select id into v_ni from public.profiles where es_prueba and lower(email) = 'pruebahunter@bancogalicia.com.ar';
   select id into v_ma from public.profiles where es_prueba and lower(email) = 'pruebalider@bancogalicia.com.ar';
+  select id into v_ca from public.profiles where es_prueba and lower(email) = 'pruebahunter2@bancogalicia.com.ar';
   if v_so is null or v_le is null or v_ni is null or v_ma is null then
     raise exception 'Faltan cuentas de prueba (Sofia / Leandro / Nicolas / Martin) marcadas como es_prueba';
   end if;
@@ -240,6 +241,33 @@ begin
   -- Nicolas avisa que no puede ir a la de Automotores
   select id into g from public.gestiones where serie_id = (sid||'04')::uuid;
   perform public.gestion_no_puedo(g, 'Ese día tengo la capacitación de producto en la sucursal.');
+
+  -- ══ CAMILA (segundo hunter): para poder pasar una acción de un hunter a otro ═
+  -- Si la cuenta todavía no existe, esta parte se saltea sola.
+  if v_ca is not null then
+    perform set_config('request.jwt.claims', json_build_object('sub', v_so, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_so::text, true);
+    -- Algo ya hecho, para que el tablero compare a los dos hunters
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, dotacion, asistentes, nota, serie_id)
+    values ('Seguros del Litoral SA','derivada',v_ca,'accion','presencial','realizada', hoy-9,'10:00','13:00','Oficina central, piso 4', 85, 28,
+            'Equipo chico pero muy interesado en el paquete Gold.', (sid||'16')::uuid) returning id into g;
+    -- Mañana a la mañana (Nicolas ese día está a las 10 y a las 15: no se pisan)
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, nota, serie_id)
+    values ('Clínica Sierra Chica SA','derivada',v_ca,'posicion','presencial','planificada', hoy+1,'09:00','11:00','Hall de ingreso',
+            'Segunda visita: quedó gente del turno noche sin atender.', (sid||'17')::uuid);
+    perform set_config('request.jwt.claims', json_build_object('sub', v_le, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_le::text, true);
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, serie_id)
+    values ('Imprenta Offset Rivadavia SRL','derivada',v_ca,'accion','presencial','planificada', hoy+2,'14:00','16:00','Taller, entrada por el fondo', (sid||'18')::uuid);
+    -- Lo que cargó ella de su acción ya hecha
+    perform set_config('request.jwt.claims', json_build_object('sub', v_ca, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_ca::text, true);
+    insert into public.gestion_prospectos(gestion_id, nombre, contacto, cuil, referencia, estado, paquete, motivo, proximo, fecha_alta) values
+      (g,'Agustín Varela','11 5805-1001','20434455667','Siniestros','alta','gold',null,null, hoy-7),
+      (g,'Belén Nieto','11 5805-1002',null,'Atención al cliente','alta','caja',null,null, hoy-6),
+      (g,'Cristina Loyola','11 5805-1003',null,null,'descartado',null,'ya_galicia',null,null),
+      (g,'Darío Figueroa','11 5805-1004',null,'Sistemas','en_gestion',null,null, hoy, null);
+  end if;
 
   -- ══ SOFIA responde la pregunta ════════════════════════════════════════════
   perform set_config('request.jwt.claims', json_build_object('sub', v_so, 'role', 'authenticated')::text, true);
