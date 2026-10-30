@@ -23,7 +23,7 @@ declare
   v_so uuid; v_le uuid; v_ni uuid; v_ma uuid; v_ca uuid;
   hoy date := (now() at time zone 'America/Argentina/Buenos_Aires')::date;
   sid text := 'e1000000-0000-4000-8000-0000000000';
-  g uuid; d date;
+  g uuid; g2 uuid; g3 uuid; d date;
 begin
   select id into v_so from public.profiles where es_prueba and lower(email) = 'pruebaoficial@bancogalicia.com.ar';
   select id into v_le from public.profiles where es_prueba and lower(email) = 'pruebaoficial2@bancogalicia.com.ar';
@@ -267,6 +267,63 @@ begin
       (g,'Belén Nieto','11 5805-1002',null,'Atención al cliente','alta','caja',null,null, hoy-6),
       (g,'Cristina Loyola','11 5805-1003',null,null,'descartado',null,'ya_galicia',null,null),
       (g,'Darío Figueroa','11 5805-1004',null,'Sistemas','en_gestion',null,null, hoy, null);
+  end if;
+
+  -- ══ MÁS CRUCE ENTRE LOS DOS OFICIALES Y LOS DOS HUNTERS ═══════════════════
+  -- Para que la semana tenga movimiento de verdad y el tablero compare parejo.
+  if v_ca is not null then
+    perform set_config('request.jwt.claims', json_build_object('sub', v_so, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_so::text, true);
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, nota, serie_id) values
+      ('Molinos del Oeste SA','derivada',v_ni,'accion','presencial','planificada', hoy,'09:00','11:00','Portería, sector molienda',
+       'Vuelta de la feria: quedaron 12 personas para terminar de cerrar.', (sid||'19')::uuid),
+      ('Textiles Punta Mogotes SA','derivada',v_ca,'posicion','presencial','planificada', hoy,'11:00','13:00','Comedor del turno mañana', null, (sid||'20')::uuid),
+      ('Seguros del Litoral SA','derivada',v_ca,'accion','presencial','planificada', hoy+4,'09:00','11:00','Oficina central, piso 4',
+       'Segunda vuelta: quedó el equipo de Siniestros.', (sid||'21')::uuid);
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, dotacion, asistentes, nota, serie_id)
+    values ('Colegio San Jerónimo SRL','derivada',v_ni,'accion','presencial','realizada', hoy-15,'10:00','13:00','Sala de profesores', 70, 25,
+            'Jornada institucional. Muy buena recepción de los preceptores.', (sid||'22')::uuid) returning id into g;
+
+    perform set_config('request.jwt.claims', json_build_object('sub', v_le, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_le::text, true);
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, nota, serie_id) values
+      ('Supermercados Vía Norte SA','derivada',v_ni,'posicion','presencial','planificada', hoy+4,'10:00','12:00','Sucursal nueva, hall de cajas',
+       'Abrieron la sucursal de la ruta: 40 empleados nuevos.', (sid||'23')::uuid),
+      ('Centro Médico Los Tilos SRL','derivada',v_ni,'accion','presencial','planificada', hoy+8,'14:00','16:00','Sala de espera de guardia', null, (sid||'24')::uuid);
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, dotacion, asistentes, nota, serie_id)
+    values ('Constructora Piedra Alta SA','derivada',v_ca,'feria','presencial','realizada', hoy-18,'09:00','13:00','Obrador, comedor', 150, 40,
+            'Feria en el obrador. Mucho personal jornalizado.', (sid||'25')::uuid) returning id into g2;
+    insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, dotacion, asistentes, serie_id)
+    values ('Frigorífico Las Tres Marías SA','derivada',v_ca,'accion','presencial','realizada', hoy-4,'14:00','16:00', 410, 18, (sid||'26')::uuid) returning id into g3;
+
+    -- Lo que cargó cada hunter de lo suyo
+    perform set_config('request.jwt.claims', json_build_object('sub', v_ni, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_ni::text, true);
+    insert into public.gestion_prospectos(gestion_id, nombre, contacto, cuil, referencia, estado, paquete, motivo, proximo, fecha_alta) values
+      (g,'Mercedes Alonso','11 5806-2001','27445566778','Preceptoría','alta','plus',null,null, hoy-13),
+      (g,'Nicolás Tejada','11 5806-2002',null,'Maestranza','alta','caja',null,null, hoy-12),
+      (g,'Paula Gorosito','11 5806-2003',null,'Secretaría','descartado',null,'ya_galicia',null,null),
+      (g,'Ramiro Sequeira','11 5806-2004',null,null,'descartado',null,'no_califica',null,null),
+      (g,'Sol Mendizábal','11 5806-2005',null,'Inglés','en_gestion',null,null, hoy-2, null),
+      (g,'Tomás Urrutia','11 5806-2006',null,null,'prospecto',null,null, null, null);
+
+    perform set_config('request.jwt.claims', json_build_object('sub', v_ca, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_ca::text, true);
+    insert into public.gestion_prospectos(gestion_id, nombre, contacto, cuil, referencia, estado, paquete, motivo, proximo, fecha_alta) values
+      (g2,'Alberto Cáceres','11 5807-3001','20456677889','Obra','alta','gold',null,null, hoy-16),
+      (g2,'Beatriz Lescano','11 5807-3002',null,'Pañol','alta','plus',null,null, hoy-15),
+      (g2,'Carlos Villar','11 5807-3003',null,null,'alta','caja',null,null, hoy-14),
+      (g2,'Delia Ferrari','11 5807-3004',null,'Administración','descartado',null,'no_interesa',null,null),
+      (g2,'Enzo Barboza','11 5807-3005',null,null,'descartado',null,'no_contesta',null,null),
+      (g2,'Flavia Pintos','11 5807-3006',null,null,'en_gestion',null,null, hoy, null),
+      (g3,'Gonzalo Ayerza','11 5807-4001',null,'Cámara','alta','platinum',null,null, hoy-2),
+      (g3,'Hilda Vera','11 5807-4002',null,null,'prospecto',null,null, hoy+5, null);
+
+    -- Una conversación más, de Leandro con Nicolas
+    perform set_config('request.jwt.claims', json_build_object('sub', v_le, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_le::text, true);
+    select id into g from public.gestiones where serie_id = (sid||'23')::uuid;
+    perform public.gestion_mensaje_enviar(g, 'Ojo que la sucursal abre 10:30, no 10. Preguntá por Vanina.');
   end if;
 
   -- ══ SOFIA responde la pregunta ════════════════════════════════════════════

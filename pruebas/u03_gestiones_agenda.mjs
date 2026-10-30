@@ -79,8 +79,9 @@ C.gesAgenda(); await espera();
 let h = els['ges-body'].innerHTML;
 ok(h.indexOf('BETA SRL') > 0 && h.indexOf('BETA SRL') < h.indexOf('ACME SA'), 'semana del hunter: ordenada por hora (9–11 antes que 15–17)');
 ok(!h.includes('DELTA SA') && !h.includes('GAMA SA'), 'el hunter ve sólo lo suyo');
-ok(h.includes('15:00–17:00') && h.includes('Piso 3') && h.includes('Posición comercial') && h.includes('Nueva'), 'cada bloque: horario, tipo, lugar y "Nueva" si no la abrió');
-ok((h.match(/ges-ag-dia/g) || []).length === 6 && h.includes('Libre') && h.includes('+ Agendar') && h.includes('19 al 24 de oct'), 'lunes a sábado (sin domingo vacío), días libres, "+ Agendar" y el rango de la semana');
+ok(h.includes('15–17') && h.includes('ACME SA') && h.includes('ges-hb'), 'cada acción se dibuja en su horario dentro de la grilla');
+ok((h.match(/data-d="/g) || []).length === 6 && h.includes('+ Agendar') && h.includes('19 al 24 de oct'), 'lunes a sábado (sin domingo vacío), "+ Agendar" y el rango de la semana');
+ok(h.includes('08:00') && h.includes('17:00'), 'la franja horaria arranca en 8 y llega hasta las 18');
 ok(!/NaN|undefined/.test(h), 'semana: sin NaN ni undefined');
 
 // ── Grilla del equipo (líder) ──
@@ -88,9 +89,19 @@ C._rol = 'lider'; C._me = { id: 'l1' }; C.GES.ag.data = null;
 C.gesAgenda(); await espera();
 h = els['ges-body'].innerHTML;
 ok(h.includes('Sofía Pérez') && h.includes('Tomás Gil') && !h.includes('Otra Persona'), 'equipo: sólo los hunters del líder');
-ok(h.includes('DELTA SA') && h.includes('10–12') && (h.match(/>Libre</g) || []).length >= 8, 'equipo: bloques cortos ("10–12") y casillas "Libre"');
-ok(/est-cancelada[^]*GAMA SA/.test(h) && h.includes('Pegar desde Excel') && h.includes('+ Asignar'), 'lo cancelado se ve (tachado) y están "Pegar desde Excel" y "+ Asignar"');
+// La semana del líder muestra la agenda de UN hunter, el que elija arriba
+C.GES.ag.hun = 'h2'; C.gesAgPintar();
+h = els['ges-body'].innerHTML;
+ok(h.includes('DELTA SA') && h.includes('10–12'), 'eligiendo a Tomás se ve lo suyo en su horario');
+ok(/est-cancelada/.test(h) && /Sin horario/.test(h) && h.includes('GAMA SA'), 'lo cancelado y sin horario se ve aparte, tachado');
+ok(h.includes('Pegar desde Excel') && h.includes('+ Asignar'), 'están "Pegar desde Excel" y "+ Asignar"');
+// Día del equipo: una fila por hunter y una columna por hora
+C.GES.ag.ver = 'equipo'; C.GES.ag.dia = '2026-10-23'; C.gesAgPintar();
+h = els['ges-body'].innerHTML;
+ok(h.includes('ges-eqh') && h.includes('Sofía Pérez') && h.includes('Tomás Gil'), 'el día del equipo lista a los hunters');
+ok(h.includes('DELTA SA') && (h.match(/>Libre</g) || []).length >= 8, 'con lo ocupado y los huecos libres por hora');
 ok(!/NaN|undefined/.test(h), 'equipo: sin NaN ni undefined');
+C.GES.ag.ver = 'sem'; C.GES.ag.hun = '';
 // Si mientras carga se cambia de solapa, la agenda no pisa lo que se está mirando.
 C.GES.ag.data = null; els['ges-body'].innerHTML = 'OTRA COSA';
 C.gesAgenda(); C.GES.tab = 'lista'; await espera();

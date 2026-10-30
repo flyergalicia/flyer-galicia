@@ -21,6 +21,10 @@ var GES_CSS_3=".ges-form [hidden],.ges-band [hidden]{display:none !important;}\n
 var GES_CSS_4=".ges-band-mas{align-self:flex-start;border:0;background:none;color:var(--accent);font-size:.78rem;font-weight:800;cursor:pointer;font-family:inherit;padding:4px 2px;text-decoration:underline;}\n.ges-contactar{max-height:60vh;overflow:auto;padding:2px;}\n.ges-grupo{display:flex;align-items:baseline;gap:8px;margin:12px 0 6px;font-size:.8rem;font-weight:800;}\n.ges-grupo:first-child{margin-top:4px;}\n.ges-grupo .ges-mini{font-weight:600;}\n.ges-foco td{background:var(--accent-soft);}\n.ges-foco td:first-child{box-shadow:inset 3px 0 0 var(--accent);}\n"+
 ".ges-ag-ocup{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;border:1px dashed var(--border);background:var(--bg-soft,transparent);color:var(--gray);border-radius:8px;padding:5px 7px;font-size:.75rem;line-height:1.3;}\n.ges-ag-ocup .ges-ag-h{font-weight:800;}\n"+
 ".ges-ag-ver{display:flex;gap:0;border:1px solid var(--border);border-radius:999px;overflow:hidden;}\n.ges-ag-ver button{border:0;background:var(--card);color:var(--gray);font-family:inherit;font-size:.78rem;font-weight:800;padding:5px 13px;cursor:pointer;}\n.ges-ag-ver button[aria-pressed=true]{background:var(--accent);color:#fff;}\n"+
+".ges-rojo{color:var(--danger);}\n.ges-auto-w{border-color:var(--ges-warn);background:var(--ges-warn-soft);}\n"+
+".ges-hor{padding:10px;overflow-x:auto;}\n.ges-hin{width:max-content;min-width:100%;}\n.ges-hhead{display:grid;grid-template-columns:58px repeat(var(--n,6),minmax(96px,1fr));gap:2px;}\n.ges-hth{text-align:center;font-size:.75rem;font-weight:700;color:var(--gray);padding:4px 2px;border-radius:8px;}\n.ges-hth b{display:block;font-size:.95rem;color:var(--ink);}\n.ges-hth.hoy,.ges-hth.sel{background:var(--accent-soft);}\n.ges-hth.hoy b,.ges-hth.sel b{color:var(--accent-2,var(--accent));}\n.ges-hsins{margin-top:2px;}\n.ges-hsin{display:flex;flex-direction:column;gap:2px;min-height:4px;}\n.ges-hbody{display:grid;grid-template-columns:58px 1fr;gap:2px;margin-top:2px;}\n.ges-hhoras{display:flex;flex-direction:column;}\n.ges-hhora{position:relative;border-top:1px solid var(--border);}\n.ges-hhora span{position:absolute;top:-8px;right:6px;font-size:.75rem;color:var(--gray);background:var(--card);padding:0 2px;}\n.ges-hcols{display:grid;grid-template-columns:repeat(var(--n,6),minmax(96px,1fr));gap:2px;}\n.ges-hcol{position:relative;border-left:1px solid var(--border);background:repeating-linear-gradient(to bottom,transparent 0,transparent 45px,var(--border) 45px,var(--border) 46px);border-radius:6px;}\n.ges-hcol.clicable{cursor:copy;}\n.ges-hcol.clicable:hover{background-color:var(--accent-soft);}\n.ges-hb{position:absolute;display:flex;flex-direction:column;gap:1px;overflow:hidden;border:0;border-left:3px solid var(--ges-info);background:var(--ges-info-soft);color:var(--ink);border-radius:6px;padding:3px 5px;font-size:.75rem;line-height:1.25;text-align:left;font-family:inherit;cursor:pointer;}\n.ges-hb.est-realizada{border-left-color:var(--ges-ok);background:var(--ges-ok-soft);}\n.ges-hb.est-cancelada{border-left-color:var(--border);background:var(--light);color:var(--gray);text-decoration:line-through;}\n.ges-hb.nopuede{border-left-color:var(--ges-warn);background:var(--ges-warn-soft);}\n.ges-hb.tapado{border-left-color:var(--danger);background:var(--danger-soft,rgba(211,47,47,.12));color:var(--danger);cursor:default;}\n.ges-hb-h{font-weight:800;font-variant-numeric:tabular-nums;}\n.ges-hb-e{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}\n"+
+".ges-hpanel{margin-top:10px;}\n.ges-hpanel[hidden]{display:none;}\n.ges-hpanel-t{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px;font-size:.8rem;}\n.ges-hor-mini{padding:6px;border:1px solid var(--border);border-radius:var(--r-m,12px);max-height:340px;overflow:auto;}\n.ges-hor-mini .ges-hhead{grid-template-columns:44px repeat(var(--n,6),minmax(64px,1fr));}\n.ges-hor-mini .ges-hbody{grid-template-columns:44px 1fr;}\n.ges-hor-mini .ges-hcols{grid-template-columns:repeat(var(--n,6),minmax(64px,1fr));}\n.ges-hor-mini .ges-hb{font-size:.75rem;}\n"+
+".ges-eqh{border-collapse:collapse;width:100%;font-size:.75rem;color:var(--ink);}\n.ges-eqh th{text-align:center;font-size:.75rem;letter-spacing:.02em;color:var(--gray);font-weight:800;padding:6px 4px;border-bottom:1px solid var(--border);white-space:nowrap;}\n.ges-eqh th.nom{text-align:left;min-width:150px;}\n.ges-eqh td{border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:0;text-align:center;min-width:64px;height:38px;}\n.ges-eqh td.nom{border-left:0;text-align:left;padding:6px 8px;font-weight:800;font-size:.8rem;}\n.ges-eqh tr:last-child td{border-bottom:0;}\n.ges-eqh td.libre button{width:100%;height:100%;min-height:36px;border:0;background:none;color:var(--ges-ok);font-size:.75rem;font-weight:700;font-family:inherit;cursor:pointer;}\n.ges-eqh td.libre button:hover{background:var(--ges-ok-soft);}\n.ges-eqh td.ocupado{background:var(--ges-info-soft);}\n.ges-eqh td.ocupado button{width:100%;height:100%;min-height:36px;border:0;background:none;color:var(--ink);font-size:.75rem;font-weight:700;font-family:inherit;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;}\n.ges-eqh td.tapado{background:var(--danger-soft,rgba(211,47,47,.12));color:var(--danger);font-weight:800;}\n"+
 ".ges-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;}\n.ges-mes-h{font-size:.75rem;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.04em;text-align:center;padding:2px 0;}\n.ges-mes-d{min-height:86px;border:1px solid var(--border);border-radius:10px;background:var(--card);padding:4px;display:flex;flex-direction:column;gap:3px;}\n.ges-mes-d.otro{opacity:.45;}\n.ges-mes-d.hoy{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}\n.ges-mes-n{font-size:.75rem;font-weight:800;color:var(--gray);}\n.ges-mes-d.hoy .ges-mes-n{color:var(--accent);}\n@media (max-width:700px){.ges-mes{grid-template-columns:repeat(7,minmax(42px,1fr));overflow-x:auto;}.ges-mes-d{min-height:64px;}}\n";
 (function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2+'\n'+GES_CSS_3+'\n'+GES_CSS_4;document.head.appendChild(st);})();
 
@@ -1258,9 +1262,6 @@ function gesAgRangoAct(){
   var l=a.lunes||gesLunes(gesHoy());
   return {desde:l,hasta:gesSumarDias(l,6)};
 }
-// La grilla hunters × días la ven todos menos el hunter (él ve su propia semana).
-// El oficial la ve desde la 047: lo suyo completo y lo ajeno como "Ocupado".
-function gesAgModo(){return gesRol()==='hunter'?'semana':'equipo';}
 // ¿Hay que pedir la ocupación tapada? Sólo el oficial: el líder y el admin ya ven
 // todo lo de su gente por la RLS, y al hunter la base no le contesta.
 function gesAgPideOcup(){var r=gesRol();return !gesEsAdmin()&&r!=='hunter'&&r!=='lider';}
@@ -1299,7 +1300,7 @@ function gesAgCargar(force){
   if(gesRol()==='hunter')q=q.eq('hunter_id',gesYo());
   // Los horarios ocupados con otras empresas: sólo en la grilla de la semana (en
   // el mes serían ilegibles). Si falla, la agenda igual se muestra.
-  var oc=(gesAgPideOcup()&&!gesEnMes()&&gesAgModo()==='equipo')
+  var oc=(gesAgPideOcup()&&!gesEnMes())
     ? _sb.rpc('gestiones_ocupacion',{p_desde:ran.desde,p_hasta:ran.hasta}).then(function(r){return (r&&!r.error&&r.data)||[];},function(){return [];})
     : Promise.resolve([]);
   return Promise.all([q,gesAgExtras(),oc]).then(function(res){
@@ -1357,24 +1358,34 @@ function gesAgenda(){gesAgCargar().then(function(l){if(l&&GES.tab==='agenda'&&!G
 function gesAgIr(n){
   var a=GES.ag;
   if(gesEnMes())a.mes=n===0?gesHoy().slice(0,7):gesMesSumar(a.mes||gesHoy().slice(0,7),n);
-  else a.lunes=n===0?gesLunes(gesHoy()):gesSumarDias(a.lunes||gesLunes(gesHoy()),7*n);
-  a.dia=null;
+  else if(a.ver==='equipo'){
+    // El día del equipo se mueve de a un día; si se sale de la semana, la cambia.
+    var d=n===0?gesHoy():gesSumarDias(a.dia||gesHoy(),n);
+    a.dia=d;a.lunes=gesLunes(d);
+  }
+  else {a.lunes=n===0?gesLunes(gesHoy()):gesSumarDias(a.lunes||gesLunes(gesHoy()),7*n);a.dia=null;}
   gesBody('<div class="ges-cargando">Cargando&hellip;</div>');gesAgenda();
 }
-// Semana / Mes. Al cambiar, el período nuevo se para donde estaba el anterior.
+// Semana / Día del equipo / Mes. Al cambiar, el período nuevo se para donde
+// estaba el anterior, para no perder de vista lo que se estaba mirando.
 function gesAgVer(v){
   var a=GES.ag;if(a.ver===v)return;
-  if(v==='mes')a.mes=(a.lunes||gesHoy()).slice(0,7);
-  else a.lunes=gesLunes(a.mes===gesHoy().slice(0,7)?gesHoy():gesMesIni(a.mes||gesHoy().slice(0,7)));
-  a.ver=v;a.dia=null;
+  var ancla=gesEnMes()?(a.mes===gesHoy().slice(0,7)?gesHoy():gesMesIni(a.mes||gesHoy().slice(0,7))):(a.dia||a.lunes||gesHoy());
+  if(v==='mes')a.mes=ancla.slice(0,7);
+  else {a.lunes=gesLunes(ancla);a.dia=(v==='equipo')?ancla:null;}
+  a.ver=v;
   try{localStorage.setItem('fg_ges_agver',v);}catch(e){}
   gesBody('<div class="ges-cargando">Cargando&hellip;</div>');gesAgenda();
 }
-// Rótulo del período: "27 al 2 de nov" o "Noviembre 2026".
+// Rótulo: "27 al 2 de nov", "Jueves 30 de oct" o "Noviembre 2026".
 function gesAgTitulo(dias){
-  if(!gesEnMes())return gesAgRango(dias[0],dias[dias.length-1]);
-  var m=(GES.ag.mes||gesHoy().slice(0,7)).split('-');
-  return GES_MESL[+m[1]-1].charAt(0).toUpperCase()+GES_MESL[+m[1]-1].slice(1)+' '+m[0];
+  var a=GES.ag;
+  if(gesEnMes()){
+    var m=(a.mes||gesHoy().slice(0,7)).split('-');
+    return GES_MESL[+m[1]-1].charAt(0).toUpperCase()+GES_MESL[+m[1]-1].slice(1)+' '+m[0];
+  }
+  if(a.ver==='equipo'&&a.dia)return gesFecha(a.dia);
+  return gesAgRango(dias[0],dias[dias.length-1]);
 }
 function gesAgDia(d){GES.ag.dia=d;gesAgPintar();}
 function gesAgBloque(g,corto){
@@ -1452,26 +1463,31 @@ function gesContactarTodas(){
     '<div class="ges-foot"><button type="button" class="btn bg" onclick="gesCerrar()">Cerrar</button></div>',true);
 }
 function gesAgPintar(){
-  var a=GES.ag,l=a.data||[],hoy=gesHoy(),modo=gesAgModo(),mes=gesEnMes(),dias=gesAgDias(a.lunes);
+  var a=GES.ag,l=a.data||[],hoy=gesHoy(),mes=gesEnMes(),eq=a.ver==='equipo',dias=gesAgDias(a.lunes);
   if(!mes){
     if(!l.some(function(g){return g.fecha===dias[6];}))dias=dias.slice(0,6); // el domingo, sólo si hay algo
     if(!a.dia||dias.indexOf(a.dia)<0)a.dia=dias.indexOf(hoy)>=0?hoy:dias[0];
   }
-  var esHun=gesRol()==='hunter',per=mes?'mes':'semana';
+  var esHun=gesRol()==='hunter';
+  var que=mes?'Mes':eq?'Día':'Semana';
   var tool='<div class="ges-ag-tool"><div class="ges-ag-nav">'+
-      '<button type="button" class="btn bg ges-btn-sm" onclick="gesAgIr(-1)" aria-label="'+(mes?'Mes':'Semana')+' anterior" title="'+(mes?'Mes':'Semana')+' anterior">&larr;</button>'+
+      '<button type="button" class="btn bg ges-btn-sm" onclick="gesAgIr(-1)" aria-label="'+que+' anterior" title="'+que+' anterior">&larr;</button>'+
       '<button type="button" class="btn bg ges-btn-sm" onclick="gesAgIr(0)">Hoy</button>'+
-      '<button type="button" class="btn bg ges-btn-sm" onclick="gesAgIr(1)" aria-label="'+(mes?'Mes':'Semana')+' siguiente" title="'+(mes?'Mes':'Semana')+' siguiente">&rarr;</button>'+
+      '<button type="button" class="btn bg ges-btn-sm" onclick="gesAgIr(1)" aria-label="'+que+' siguiente" title="'+que+' siguiente">&rarr;</button>'+
       '<span class="ges-ag-rango">'+gesE(gesAgTitulo(dias))+'</span></div>'+
     '<div class="ges-ag-acts">'+
       '<div class="ges-ag-ver" role="group" aria-label="C&oacute;mo ver la agenda">'+
-        '<button type="button" aria-pressed="'+(!mes)+'" onclick="gesAgVer(\'sem\')">Semana</button>'+
+        '<button type="button" aria-pressed="'+(!mes&&!eq)+'" onclick="gesAgVer(\'sem\')">Semana</button>'+
+        (esHun?'':'<button type="button" aria-pressed="'+eq+'" onclick="gesAgVer(\'equipo\')">D&iacute;a del equipo</button>')+
         '<button type="button" aria-pressed="'+mes+'" onclick="gesAgVer(\'mes\')">Mes</button></div>'+
       (esHun?'<button type="button" class="btn bp ges-btn-sm" onclick="gesAgendar()">+ Agendar</button>':
         '<button type="button" class="btn bg ges-btn-sm" onclick="gesAgPegar()">Pegar desde Excel</button>'+
         '<button type="button" class="btn bp ges-btn-sm" onclick="gesAgendar()">+ Asignar</button>')+
     '</div></div>';
-  gesBody(tool+gesAgBandas()+(mes?gesAgMes(l,hoy):modo==='equipo'?gesAgEquipo(dias,l,hoy):gesAgSemana(dias,l,hoy)));
+  var pills=(!mes&&eq)?'<div class="ges-ag-pills" role="tablist">'+dias.map(function(d,i){
+      return '<button type="button" role="tab" aria-selected="'+(d===a.dia)+'" aria-pressed="'+(d===a.dia)+'" onclick="gesAgDia(\''+d+'\')">'+GES_DSEM[i]+'<b>'+(+d.slice(8))+'</b></button>';
+    }).join('')+'</div>':'';
+  gesBody(tool+gesAgBandas()+pills+(mes?gesAgMes(l,hoy):eq?gesAgDiaEquipo(a.dia,l,hoy):gesAgHoras(dias,l,hoy)));
 }
 // Calendario del mes: lunes a domingo, con los días de los meses de al lado
 // apagados. Cada día lista sus acciones cortas, como las casillas de la grilla.
@@ -1486,9 +1502,9 @@ function gesAgMes(l,hoy){
       '<span class="ges-mes-n">'+(+f.slice(8))+(f===hoy?' &middot; hoy':'')+'</span>'+
       its.map(function(g){return gesAgBloque(g,true);}).join('')+'</div>';
   }).join('');
-  var filtro=(gesAgModo()==='equipo')?gesAgFiltroHunter():'';
+  var filtro=(gesRol()==='hunter')?'':gesAgFiltroHunter();
   var vacio=!items.length?'<p class="ges-nota">'+(gesRol()==='hunter'?'Este mes no ten&eacute;s nada agendado.':'No hay nada agendado este mes.')+'</p>':'';
-  return (filtro?'<div class="ges-filtros">'+filtro+'<span class="ges-mini ges-ag-ley">En el mes se ve lo que ten&eacute;s cargado. Para ver d&oacute;nde tienen lugar los hunters, pas&aacute; a <b>Semana</b>.</span></div>':'')+
+  return (filtro?'<div class="ges-filtros">'+filtro+'<span class="ges-mini ges-ag-ley">En el mes se ve lo que ten&eacute;s cargado. Para ver los horarios y d&oacute;nde hay lugar, pas&aacute; a <b>Semana</b> o <b>D&iacute;a del equipo</b>.</span></div>':'')+
     '<div class="ges-card ges-pad"><div class="ges-mes">'+
     GES_DSEM.map(function(n){return '<div class="ges-mes-h">'+n+'</div>';}).join('')+cel+'</div></div>'+vacio;
 }
@@ -1498,63 +1514,184 @@ function gesAgFiltroHunter(todos){
   return '<label class="ges-ag-fil"><span class="ges-lbl">Hunter</span><select class="ges-inp ges-sel" onchange="GES.ag.hun=this.value;gesAgPintar()"><option value="">Todos</option>'+
     ids.map(function(id){return '<option value="'+_escAttr(id)+'"'+(id===a.hun?' selected':'')+'>'+gesE(gesNom(id))+'</option>';}).join('')+'</select></label>';
 }
-function gesAgSemana(dias,l,hoy){
-  var a=GES.ag;
-  var pills='<div class="ges-ag-pills" role="tablist">'+dias.map(function(d,i){
-    var n=l.filter(function(g){return g.fecha===d&&g.estado!=='cancelada';}).length;
-    return '<button type="button" role="tab" aria-selected="'+(d===a.dia)+'" aria-pressed="'+(d===a.dia)+'" class="'+(n?'tiene':'')+'" onclick="gesAgDia(\''+d+'\')">'+GES_DSEM[i]+'<b>'+(+d.slice(8))+'</b></button>';
-  }).join('')+'</div>';
-  var cols=dias.map(function(d,i){
-    var its=l.filter(function(g){return g.fecha===d;});
-    return '<section class="ges-ag-dia'+(d===hoy?' hoy':'')+(d===a.dia?' on':'')+'"><h4>'+GES_DSEM[i]+' '+(+d.slice(8))+(d===hoy?' &middot; hoy':'')+'</h4>'+
-      (its.length?its.map(function(g){return gesAgBloque(g);}).join(''):'<div class="ges-ag-libre">Libre</div>')+'</section>';
-  }).join('');
-  var vacia=!l.length?'<p class="ges-nota">'+(gesRol()==='hunter'?'Esta semana no tenés nada agendado. Lo que te asignen aparece acá; vos también podés agendar con <b>+ Agendar</b>.':'No hay nada agendado esta semana.')+'</p>':'';
-  return pills+'<div class="ges-ag-sem" style="--n:'+dias.length+'">'+cols+'</div>'+vacia;
-}
-function gesAgEquipo(dias,l,hoy){
-  var a=GES.ag,ps=GES.personas||{},bases=(a.extras&&a.extras.bases)||[],ocup=a.ocup||[];
-  // El líder, los de su equipo; el oficial y el admin, todos los hunters activos.
-  var hs=gesHunters(gesRol()==='lider'&&!gesEsAdmin());
-  // También quien tenga algo esa semana aunque ya no figure como hunter del equipo.
-  l.concat(ocup).forEach(function(g){if(g.hunter_id&&hs.indexOf(g.hunter_id)<0)hs.push(g.hunter_id);});
-  var todos=hs.slice();
-  if(a.hun)hs=hs.filter(function(id){return id===a.hun;});
-  GES._agHun=hs;
-  var filtro=gesAgFiltroHunter(todos);
-  if(!hs.length)return '<div class="ges-vacio">'+(gesRol()==='lider'?'Todavía no tenés hunters en tu equipo. El administrador los asigna en Admin &rarr; Usuarios &rarr; &laquo;Líder a cargo&raquo;.':'No hay hunters activos.')+'</div>';
-  var head='<tr><th>Hunter</th>'+dias.map(function(d,i){return '<th'+(d===hoy?' class="hoy"':'')+'>'+GES_DSEM[i]+' '+(+d.slice(8))+'</th>';}).join('')+'</tr>';
-  var filas=hs.map(function(id,hi){
-    var suyas=l.filter(function(g){return g.hunter_id===id;}),otras=ocup.filter(function(g){return g.hunter_id===id;});
-    var n=suyas.filter(function(g){return g.estado!=='cancelada';}).length,nb=bases.filter(function(g){return g.hunter_id===id;}).length;
-    var sub=n?n+' esta semana':(otras.length?'Nada tuyo esta semana':'Sin nada esta semana');
-    return '<tr><td class="nom">'+gesE(gesNom(id))+(ps[id]&&ps[id].es_prueba?' <span class="ges-prueba">prueba</span>':'')+'<div class="ges-mini">'+sub+(nb?' &middot; '+nb+(nb===1?' base':' bases'):'')+'</div></td>'+
-      dias.map(function(d){
-        var its=suyas.filter(function(g){return g.fecha===d;}),oc=otras.filter(function(g){return g.fecha===d;});
-        var libre=!oc.length&&!its.some(function(g){return g.estado!=='cancelada';});
-        return '<td'+(d===hoy?' class="hoy"':'')+'><div class="ges-ag-cel">'+its.map(function(g){return gesAgBloque(g,true);}).join('')+
-          oc.map(gesAgOcupado).join('')+
-          '<button type="button" class="ges-ag-mas'+(libre?' libre':'')+'" onclick="gesAgendar('+hi+',\''+d+'\')" title="Asignarle algo este día">'+(libre?'Libre':'+')+'</button></div></td>';
-      }).join('')+'</tr>';
-  }).join('');
-  var ley='Tocá <b>Libre</b> o <b>+</b> para asignarle algo ese día. Lo cancelado se ve tachado y no ocupa lugar. En naranja, lo que el hunter avisó que no puede.'+
-    (gesAgPideOcup()?' En gris, horarios ya ocupados con otras empresas: ves que no hay lugar, no de qué se trata.':'');
-  return '<div class="ges-filtros">'+filtro+'<span class="ges-mini ges-ag-ley">'+ley+'</span></div>'+
-    '<div class="ges-card"><div class="ges-tw"><table class="ges-ag-eq">'+head+filas+'</table></div></div>';
-}
 // Un horario ocupado con una empresa que quien mira no puede ver: no es un botón,
-// no hay nada que abrir.
+// no hay nada que abrir. Va en rojo: es tiempo que NO está disponible.
 function gesAgOcupado(x){
   return '<span class="ges-ag-ocup" title="Ocupado: ya tiene algo a esa hora">'+
     '<span class="ges-ag-h">'+(gesAgCorto(x)?gesE(gesAgCorto(x)):'Sin horario')+'</span><span>Ocupado</span></span>';
 }
 
+// ── Agenda por horarios (como un calendario) ────────────────────────────────
+// Dos vistas: la SEMANA de una persona (horas × días) y el DÍA del equipo
+// (hunters × horas). La franja va de 8 a 18, y se estira sola si hay algo
+// fuera de ese rango para que nunca quede nada escondido.
+var GES_H0=8,GES_H1=18,GES_HH=46;
+function gesHorRango(l){
+  var h0=GES_H0,h1=GES_H1;
+  (l||[]).forEach(function(g){
+    var a=gesMin(g.hora_desde);if(a==null)return;
+    var b=gesMin(g.hora_hasta);if(b==null||b<=a)b=Math.min(a+60,1440);
+    h0=Math.min(h0,Math.floor(a/60));h1=Math.max(h1,Math.ceil(b/60));
+  });
+  if(h1<=h0)h1=h0+1;
+  return [Math.max(0,h0),Math.min(24,h1)];
+}
+// Lo que se pisa se reparte en columnas, para que no se tapen entre sí. Las
+// columnas se cuentan por grupo de superposición: una sola acción ocupa todo.
+function gesHorColumnas(items){
+  var l=(items||[]).filter(function(g){return gesMin(g.hora_desde)!=null;})
+    .map(function(g){var a=gesMin(g.hora_desde),b=gesMin(g.hora_hasta);if(b==null||b<=a)b=a+60;return {g:g,a:a,b:b};})
+    .sort(function(x,y){return x.a-y.a||x.b-y.b;});
+  var out=[],grupo=[],finG=-1,fin=[];
+  var cerrar=function(){
+    var n=Math.max(1,fin.length);
+    grupo.forEach(function(x){x.n=n;out.push(x);});
+    grupo=[];fin=[];
+  };
+  l.forEach(function(x){
+    if(grupo.length&&x.a>=finG)cerrar();
+    var c=0;while(fin[c]!=null&&fin[c]>x.a)c++;
+    fin[c]=x.b;x.col=c;grupo.push(x);
+    finG=Math.max(finG===-1?x.b:finG,x.b);
+    if(grupo.length===1)finG=x.b;
+  });
+  if(grupo.length)cerrar();
+  return out;
+}
+function gesHorEtiqueta(h){return (h<10?'0':'')+h+':00';}
+// Una columna de día con sus bloques puestos a la hora que van.
+function gesHorCol(d,items,h0,h1,clic,hi,soloVer){
+  var alto=(h1-h0)*GES_HH;
+  var cols=gesHorColumnas(items);
+  var html=cols.map(function(x){
+    var g=x.g,top=(x.a-h0*60)*GES_HH/60,alt=Math.max(20,(x.b-x.a)*GES_HH/60);
+    var ancho=100/x.n,izq=ancho*x.col;
+    var tapado=!!g._tapado;
+    var cls='ges-hb'+(tapado?' tapado':' est-'+g.estado)+(g.no_puede_at&&g.estado==='planificada'?' nopuede':'');
+    var tit=tapado?'Ocupado: ya tiene algo a esa hora':(GES_TIPO[g.tipo]+' · '+(g.empresa||'')+(g.lugar?' · '+g.lugar:''));
+    var cuerpo='<span class="ges-hb-h">'+gesE(gesAgCorto(g)||'')+'</span>'+
+      '<span class="ges-hb-e">'+(tapado?'Ocupado':gesE(g.empresa||''))+'</span>';
+    if(tapado||soloVer)return '<span class="'+cls+'" style="top:'+top+'px;height:'+alt+'px;left:'+izq+'%;width:'+ancho+'%" title="'+_escAttr(tit)+'">'+cuerpo+'</span>';
+    return '<button type="button" class="'+cls+'" style="top:'+top+'px;height:'+alt+'px;left:'+izq+'%;width:'+ancho+'%" title="'+_escAttr(tit)+'" onclick="event.stopPropagation();gesAbrirDet(\''+g.id+'\')">'+cuerpo+'</button>';
+  }).join('');
+  var on=clic?' onclick="'+clic+'(event,\''+d+'\','+(hi==null?'null':hi)+')" role="button" tabindex="0" title="Tocá un hueco libre para asignar algo a esa hora"':'';
+  return '<div class="ges-hcol'+(clic?' clicable':'')+'" data-d="'+d+'" data-h0="'+h0+'" style="height:'+alto+'px"'+on+'>'+html+'</div>';
+}
+// De dónde se tocó a qué hora (redondeado a la media hora de arriba).
+function gesHorClicMin(ev,h0){
+  var c=ev.currentTarget,r=c.getBoundingClientRect();
+  var y=Math.max(0,Math.min(r.height-1,(ev.clientY||0)-r.top));
+  var m=h0*60+Math.floor(y/GES_HH*60);
+  return Math.floor(m/30)*30;
+}
+function gesHorHHMM(m){return gesP2(Math.floor(m/60))+':'+gesP2(m%60);}
+
+// Vista 1: la semana de UNA persona, horas × días.
+function gesAgHoras(dias,l,hoy){
+  var a=GES.ag,esHun=gesRol()==='hunter';
+  var quien=esHun?gesYo():(a.hun||null);
+  var todos=gesHunters(gesRol()==='lider'&&!gesEsAdmin());
+  (l||[]).concat(a.ocup||[]).forEach(function(g){if(g.hunter_id&&todos.indexOf(g.hunter_id)<0)todos.push(g.hunter_id);});
+  if(!esHun&&!quien&&todos.length){quien=todos[0];a.hun=quien;}
+  var propias=(l||[]).filter(function(g){return !quien||g.hunter_id===quien;});
+  var tapadas=(a.ocup||[]).filter(function(g){return !quien||g.hunter_id===quien;}).map(function(g){g._tapado=true;return g;});
+  var items=propias.concat(tapadas);
+  var r=gesHorRango(items),h0=r[0],h1=r[1];
+  var horas='';for(var h=h0;h<h1;h++)horas+='<div class="ges-hhora" style="height:'+GES_HH+'px"><span>'+gesHorEtiqueta(h)+'</span></div>';
+  var sinH=dias.map(function(d){
+    var s=items.filter(function(g){return g.fecha===d&&gesMin(g.hora_desde)==null;});
+    return '<div class="ges-hsin">'+s.map(function(g){return gesAgBloque(g,true);}).join('')+'</div>';
+  }).join('');
+  var haySin=items.some(function(g){return gesMin(g.hora_desde)==null;});
+  var cols=dias.map(function(d,i){
+    return gesHorCol(d,items.filter(function(g){return g.fecha===d;}),h0,h1,esHun?'gesHorClicPropio':'gesHorClicAsignar',null);
+  }).join('');
+  var head=dias.map(function(d,i){return '<div class="ges-hth'+(d===hoy?' hoy':'')+'">'+GES_DSEM[i]+' <b>'+(+d.slice(8))+'</b></div>';}).join('');
+  var sel=esHun?'':'<label class="ges-ag-fil"><span class="ges-lbl">Agenda de</span><select class="ges-inp ges-sel" onchange="GES.ag.hun=this.value;gesAgPintar()">'+
+    todos.map(function(id){return '<option value="'+_escAttr(id)+'"'+(id===quien?' selected':'')+'>'+gesE(gesNom(id))+'</option>';}).join('')+'</select></label>';
+  if(!esHun&&!todos.length)return '<div class="ges-vacio">'+(gesRol()==='lider'?'Todavía no tenés hunters en tu equipo. El administrador los asigna en Admin &rarr; Usuarios &rarr; &laquo;Líder a cargo&raquo;.':'No hay hunters activos.')+'</div>';
+  var ley=esHun?'Tocá un hueco libre para agendar algo a esa hora.':
+    'Tocá un hueco libre para asignarle algo a esa hora.'+(gesAgPideOcup()?' En <b class="ges-rojo">rojo</b>, horarios ya ocupados con empresas que no son tuyas: ves que no hay lugar, no de qué se trata.':'');
+  return (sel?'<div class="ges-filtros">'+sel+'<span class="ges-mini ges-ag-ley">'+ley+'</span></div>':'<p class="ges-nota">'+ley+'</p>')+
+    '<div class="ges-card ges-hor" style="--n:'+dias.length+'"><div class="ges-hin">'+
+      '<div class="ges-hhead"><div class="ges-hesq"></div>'+head+'</div>'+
+      (haySin?'<div class="ges-hhead ges-hsins"><div class="ges-hesq"><span class="ges-mini">Sin horario</span></div>'+sinH+'</div>':'')+
+      '<div class="ges-hbody"><div class="ges-hhoras">'+horas+'</div><div class="ges-hcols">'+cols+'</div></div>'+
+    '</div></div>';
+}
+function gesHorClicAsignar(ev,d){
+  var m=gesHorClicMin(ev,+ev.currentTarget.getAttribute('data-h0'));
+  var hs=GES._agHun||[],i=hs.indexOf(GES.ag.hun);
+  gesAgendar(i>=0?i:null,d,gesHorHHMM(m),GES.ag.hun||null);
+}
+function gesHorClicPropio(ev,d){
+  var m=gesHorClicMin(ev,+ev.currentTarget.getAttribute('data-h0'));
+  gesAgendar(null,d,gesHorHHMM(m));
+}
+
+// Vista 2: el día del equipo, hunters × horas. Para ver de un vistazo quién
+// tiene lugar a cada hora.
+function gesAgDiaEquipo(dia,l,hoy){
+  var a=GES.ag,ps=GES.personas||{},ocup=a.ocup||[];
+  var hs=gesHunters(gesRol()==='lider'&&!gesEsAdmin());
+  l.concat(ocup).forEach(function(g){if(g.hunter_id&&hs.indexOf(g.hunter_id)<0)hs.push(g.hunter_id);});
+  GES._agHun=hs;
+  if(!hs.length)return '<div class="ges-vacio">'+(gesRol()==='lider'?'Todavía no tenés hunters en tu equipo. El administrador los asigna en Admin &rarr; Usuarios &rarr; &laquo;Líder a cargo&raquo;.':'No hay hunters activos.')+'</div>';
+  var deHoy=l.filter(function(g){return g.fecha===dia&&g.estado!=='cancelada';});
+  var ocHoy=ocup.filter(function(g){return g.fecha===dia;}).map(function(g){g._tapado=true;return g;});
+  var todo=deHoy.concat(ocHoy);
+  var r=gesHorRango(todo),h0=r[0],h1=r[1];
+  var head='<tr><th class="nom">Hunter</th>';
+  for(var h=h0;h<h1;h++)head+='<th>'+gesHorEtiqueta(h)+'</th>';
+  head+='</tr>';
+  var filas=hs.map(function(id,hi){
+    var suyas=todo.filter(function(g){return g.hunter_id===id;});
+    // Qué ocupa cada hora; después las horas seguidas de lo mismo se unen en
+    // una sola celda, para que el nombre de la empresa no se repita.
+    var porHora=[],h;
+    for(h=h0;h<h1;h++){
+      var a0=h*60,a1=a0+60;
+      porHora.push(suyas.filter(function(g){
+        var x=gesMin(g.hora_desde);if(x==null)return false;
+        var y=gesMin(g.hora_hasta);if(y==null||y<=x)y=x+60;
+        return x<a1&&y>a0;
+      })[0]||null);
+    }
+    var f='<tr><td class="nom">'+gesE(gesNom(id))+(ps[id]&&ps[id].es_prueba?' <span class="ges-prueba">prueba</span>':'')+'</td>';
+    var i=0;
+    while(i<porHora.length){
+      var g=porHora[i],n=1;
+      while(i+n<porHora.length&&((g&&porHora[i+n]&&porHora[i+n].id===g.id)||(!g&&!porHora[i+n])))n++;
+      var cs=n>1?' colspan="'+n+'"':'';
+      if(!g){
+        for(var k=0;k<n;k++){
+          var hh=gesHorEtiqueta(h0+i+k);
+          f+='<td class="libre"><button type="button" title="Libre: asignarle algo a las '+hh+'" onclick="gesAgendar('+hi+',\''+dia+'\',\''+hh+'\')">Libre</button></td>';
+        }
+      }else{
+        var tap=!!g._tapado;
+        f+='<td'+cs+' class="'+(tap?'tapado':'ocupado')+'" title="'+_escAttr(tap?'Ocupado: ya tiene algo a esa hora':((GES_TIPO[g.tipo]||'')+' · '+(g.empresa||'')))+'">'+
+          (tap?'<span>Ocupado</span>':'<button type="button" onclick="gesAbrirDet(\''+g.id+'\')">'+gesE(g.empresa||'')+'</button>')+'</td>';
+      }
+      i+=n;
+    }
+    return f+'</tr>';
+  }).join('');
+  var ley='Tocá <b>Libre</b> para asignarle algo a esa hora.'+(gesAgPideOcup()?' En <b class="ges-rojo">rojo</b>, horarios ocupados con empresas que no son tuyas.':'');
+  return '<div class="ges-filtros"><span class="ges-mini ges-ag-ley">'+ley+'</span></div>'+
+    '<div class="ges-card"><div class="ges-tw"><table class="ges-eqh">'+head+filas+'</table></div></div>';
+}
+
 // ── Agendar (hunter) / Asignar (oficial, líder, admin) ──────────────────────
-function gesAgendar(hi,fecha){
+// hi = índice del hunter en la grilla (o null); hora = "10:00" si se tocó un
+// hueco de la agenda; hun = id del hunter cuando no viene por índice.
+function gesAgendar(hi,fecha,hora,hun){
   var esHun=gesRol()==='hunter';
   GES._agEmp=null;GES._agEmps=[];
   gesPersonas().then(function(){
-    var pre={fecha:fecha||gesHoy(),tipo:'posicion',estado:'planificada',hunter_id:(hi!=null&&GES._agHun)?GES._agHun[hi]:''};
+    var quien=hun||((hi!=null&&GES._agHun)?GES._agHun[hi]:'');
+    var pre={fecha:fecha||gesHoy(),tipo:'posicion',estado:'planificada',hunter_id:quien||''};
+    if(hora){pre.hora_desde=hora;pre.hora_hasta=gesHorHHMM(Math.min(23*60+59,(gesMin(hora)||0)+60));}
     gesModal('<h3 class="ges-mt">'+(esHun?'Agendar':'Asignar a un hunter')+'</h3>'+
       '<p class="ges-ms">'+(esHun?'Queda en tu agenda como planificada. Después la marcás como realizada y cargás los prospectos.':'Le aparece en su agenda y en la marca de su avatar.')+'</p>'+
       '<div class="ges-form ges-form-emp"><label class="full"><span>Empresa</span><input type="search" id="gf-emp" class="ges-inp" placeholder="Buscá por razón social o CUIT" autocomplete="off" oninput="gesAgEmpBuscar()"></label>'+
@@ -1660,8 +1797,45 @@ function gesOcupForm(){
         '<span class="ges-mini">Ningún hunter está libre a esa hora.</span>';
     });
   }).catch(function(){var h=document.getElementById('gf-ocup');if(h)h.hidden=true;});
+  gesAgPanel();
 }
 function gesHorSet(a,b){var x=document.getElementById('gf-hd'),y=document.getElementById('gf-hh');if(x)x.value=a;if(y)y.value=b;gesOcupForm();}
+
+// ── "Ver cómo tiene la agenda" dentro de la ventana de asignar ──────────────
+// Al elegir el hunter aparece debajo su semana por horarios (la de la fecha que
+// esté puesta). Tocás un hueco libre y se completan el día y el horario, sin
+// perder lo que ya cargaste. Sólo para quien asigna: al hunter la base no le
+// contesta la ocupación de los demás (y la suya ya la ve en su agenda).
+function gesAgPanel(){
+  var oc=document.getElementById('gf-ocup');if(!oc||!oc.parentNode)return;
+  var host=document.getElementById('gf-ag');
+  if(!host){host=document.createElement('div');host.id='gf-ag';host.className='ges-hpanel';oc.parentNode.insertBefore(host,oc.nextSibling);}
+  var hs=document.getElementById('gf-hunter');
+  var hun=hs?hs.value:(GES._ocupHun||null),fecha=gesVal('gf-fecha');
+  if(!hun||hun==='__lider'||!fecha||gesRol()==='hunter'||gesPillVal('tipo')==='datos'){host.hidden=true;host.innerHTML='';return;}
+  var t=GES._panelT=(GES._panelT||0)+1,lunes=gesLunes(fecha);
+  _sb.rpc('gestiones_ocupacion',{p_desde:lunes,p_hasta:gesSumarDias(lunes,6)}).then(function(r){
+    var h=document.getElementById('gf-ag');if(!h||t!==GES._panelT)return;
+    if(r&&r.error){h.hidden=true;return;}
+    var excl=GES._ocupExcl||null;
+    var l=((r&&r.data)||[]).filter(function(x){return x.hunter_id===hun&&x.id!==excl;});
+    l.forEach(function(x){if(!x.empresa)x._tapado=true;});
+    var dias=gesAgDias(lunes),rr=gesHorRango(l),h0=rr[0],h1=rr[1],i;
+    var horas='';for(i=h0;i<h1;i++)horas+='<div class="ges-hhora" style="height:'+GES_HH+'px"><span>'+gesHorEtiqueta(i)+'</span></div>';
+    var cols=dias.map(function(d){return gesHorCol(d,l.filter(function(x){return x.fecha===d;}),h0,h1,'gesHorClicPanel',null,true);}).join('');
+    var head=dias.map(function(d,n){return '<div class="ges-hth'+(d===fecha?' sel':'')+'">'+GES_DSEM[n]+' <b>'+(+d.slice(8))+'</b></div>';}).join('');
+    h.hidden=false;
+    h.innerHTML='<div class="ges-hpanel-t"><b>La semana de '+gesE(gesNom(hun))+'</b><span class="ges-mini">Toc&aacute; un hueco libre y se completan el d&iacute;a y el horario.</span></div>'+
+      '<div class="ges-hor ges-hor-mini" style="--n:'+dias.length+'"><div class="ges-hin">'+
+        '<div class="ges-hhead"><div class="ges-hesq"></div>'+head+'</div>'+
+        '<div class="ges-hbody"><div class="ges-hhoras">'+horas+'</div><div class="ges-hcols">'+cols+'</div></div></div></div>';
+  },function(){var h=document.getElementById('gf-ag');if(h)h.hidden=true;});
+}
+function gesHorClicPanel(ev,d){
+  var m=gesHorClicMin(ev,+ev.currentTarget.getAttribute('data-h0'));
+  var f=document.getElementById('gf-fecha');if(f)f.value=d;
+  gesHorSet(gesHorHHMM(m),gesHorHHMM(Math.min(23*60+59,m+60)));
+}
 
 
 // ── Pegar la agenda desde Excel ─────────────────────────────────────────────
@@ -1844,6 +2018,9 @@ function gesTableroPintar(){
     gesKpi('Empresas',gesN(k.empresas),'distintas')+gesKpi('Asistentes',gesN(asis),'contactados')+
     gesKpi('Prospectos',gesN(pros),asis?gesPct(pros,asis)+' de los asistentes':'')+
     gesKpi('Altas',gesN(alt),alt?gesN(cs.con)+' con paquete &middot; '+gesN(cs.sin)+' sin':'sueldos en Galicia')+gesKpi('Conversión',gesPct(alt,pros),'altas ÷ prospectos',true)+'</div>'+
+    // Lo derivado que nadie asignó todavía no cuenta en los números (no es
+    // trabajo de nadie): va aparte, como recordatorio.
+    (+k.sin_asignar?'<div class="ges-auto ges-auto-w"><span><b>'+gesN(k.sin_asignar)+(+k.sin_asignar===1?' acción derivada sin asignar':' acciones derivadas sin asignar')+'.</b> No cuenta en los números de arriba hasta que tenga hunter. Está en la bandeja <b>Por asignar</b> de la agenda.</span></div>':'')+
     (+k.datos?'<div class="ges-auto"><span><b>Bases de datos:</b> '+gesN(k.datos)+' personas, '+gesN(k.contactados)+' ya contactadas ('+gesPct(+k.contactados,+k.datos)+').</span></div>':'');
   if(!vis&&!(+k.planificadas)){
     gesBody(filtros+kpis+'<div class="ges-vacio">No hay gestiones en este período. Probá con un período más largo'+(gesPuedePrueba()&&!f.prueba?' o tildá &laquo;Incluir pruebas&raquo;':'')+'.</div>');

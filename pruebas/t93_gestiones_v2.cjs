@@ -115,27 +115,53 @@ module.exports = async (browser) => {
   ok(DB.gestiones.filter((g) => !g.hunter_id && g.lider_id === P.lider.id).length === 2, 'queda sin hunter, para Laura');
 
   // ── Oficial: la agenda de los hunters (047) ──
-  await of.evaluate(() => { GES.ag.ver = 'sem'; gesIr('agenda'); });
-  ok(await espera(of, () => document.querySelector('#ges-body .ges-ag-eq')), 'el oficial ve la grilla de hunters por día');
+  await of.evaluate(() => { GES.ag.ver = 'sem'; GES.ag.hun = ''; gesIr('agenda'); });
+  ok(await espera(of, () => document.querySelector('#ges-body .ges-hcol')), 'el oficial ve la agenda por horarios (horas × días)');
   h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
-  ok(/Sofía Paz/.test(h) && /Tomás Ríos/.test(h) && /Julia Sosa/.test(h), 'con todos los hunters, aunque no haya trabajado con ellos');
+  ok(/Sofía Paz/.test(h) && /Tomás Ríos/.test(h) && /Julia Sosa/.test(h), 'y arriba elige de qué hunter es la agenda, entre todos');
+  ok(/08:00/.test(h) && /17:00/.test(h), 'la franja horaria va de 8 a 18');
+  // Sofía: lo propio entero y lo del otro oficial, tapado y en rojo
+  await of.evaluate(async () => { GES.ag.hun = (await _sb.rpc('gestiones_personas')).data.find((p) => /Sofía/.test(p.nombre)).id; gesAgPintar(); });
+  h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
   ok(/ALIMENTOS DEL SUR/.test(h), 'lo de sus empresas se ve entero');
   ok(/Ocupado/.test(h) && !/TRANSPORTES RIO/.test(h), 'lo de otro oficial se ve como "Ocupado", sin la empresa');
-  ok(await of.evaluate(() => { const o = document.querySelector('#ges-body .ges-ag-ocup'); return !!o && o.tagName !== 'BUTTON' && !o.getAttribute('onclick'); }), 'un bloque "Ocupado" no se puede abrir');
-  ok(/ocupados con otras empresas/.test(h), 'la leyenda explica qué es el gris');
+  ok(await of.evaluate(() => { const o = document.querySelector('#ges-body .ges-hb.tapado'); return !!o && o.tagName !== 'BUTTON' && !o.getAttribute('onclick'); }), 'un bloque "Ocupado" no se puede abrir');
+  ok(/ocupados con empresas que no son tuyas/.test(h), 'la leyenda explica qué es el rojo');
   await cap(of, '7_agenda_oficial');
+  // Día del equipo: una fila por hunter, una columna por hora
+  await of.evaluate(() => gesAgVer('equipo'));
+  ok(await espera(of, () => document.querySelector('#ges-body .ges-eqh')), 'el botón "Día del equipo" muestra hunters por hora');
+  h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
+  ok(/Sofía Paz/.test(h) && />Libre</.test(h), 'con los huecos libres de cada uno');
+  await cap(of, '7b_dia_equipo');
   // Semana / Mes
   await of.evaluate(() => gesAgVer('mes'));
   ok(await espera(of, () => document.querySelector('#ges-body .ges-mes')), 'el botón Mes muestra el calendario del mes');
   h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
-  ok(/ALIMENTOS DEL SUR/.test(h) && !/ges-ag-ocup/.test(h), 'en el mes va lo propio, sin los "Ocupado"');
+  ok(/ALIMENTOS DEL SUR/.test(h) && !/ges-hb tapado|ges-hb.*tapado/.test(h), 'en el mes va lo propio, sin los "Ocupado"');
   ok(await of.evaluate(() => /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre) \d{4}$/.test(document.querySelector('.ges-ag-rango').textContent)), 'y el rótulo dice el mes y el año');
   await cap(of, '8_mes_oficial');
   const mes0 = await of.evaluate(() => GES.ag.mes);
   await of.evaluate(() => gesAgIr(1));
   ok(await espera(of, (m) => GES.ag.mes !== m, mes0) && await of.evaluate(() => GES.ag.mes) > mes0, 'la flecha mueve de a un mes');
   await of.evaluate(() => { gesAgIr(0); gesAgVer('sem'); });
-  ok(await espera(of, () => !!document.querySelector('#ges-body .ges-ag-eq') && !document.querySelector('.ges-mes')), 'y se vuelve a la semana');
+  ok(await espera(of, () => !!document.querySelector('#ges-body .ges-hcol') && !document.querySelector('.ges-mes')), 'y se vuelve a la semana por horarios');
+  // Al asignar: elegir el hunter abre su agenda al lado, y tocar un hueco pone el horario
+  await of.evaluate(() => gesAgendar());
+  ok(await espera(of, () => document.getElementById('gf-hunter')), 'se abre "Asignar a un hunter"');
+  await of.evaluate(async () => {
+    const h = (await _sb.rpc('gestiones_personas')).data.find((p) => /Sofía/.test(p.nombre)).id;
+    document.getElementById('gf-hunter').value = h; gesHunterCambio();
+  });
+  ok(await espera(of, () => { const p = document.getElementById('gf-ag'); return p && !p.hidden && /La semana de/.test(p.innerHTML); }), 'al elegir el hunter se ve su semana en la misma ventana');
+  ok(await of.evaluate(() => !document.querySelector('#gf-ag .ges-hb button') && !!document.querySelector('#gf-ag .ges-hb')), 'los bloques del panel son sólo para mirar');
+  await cap(of, '7c_panel_agenda');
+  await of.evaluate(() => {
+    const c = document.querySelector('#gf-ag .ges-hcol'), r = c.getBoundingClientRect();
+    c.dispatchEvent(new MouseEvent('click', { bubbles: true, clientY: r.top + 46 * 2 + 5, clientX: r.left + 5 }));
+  });
+  ok(await espera(of, () => /^\d\d:\d\d$/.test(document.getElementById('gf-hd').value)), 'tocar un hueco libre completa el horario (' + await of.evaluate(() => document.getElementById('gf-hd').value + ' a ' + document.getElementById('gf-hh').value) + ')');
+  await of.evaluate(() => gesCerrar());
 
   // ── Hunter (Sofía): agenda, mensaje, "No puedo ir", alta con paquete, descarte con motivo ──
   const hu = await G.abrirComo(browser, 'hunter');
@@ -225,6 +251,12 @@ module.exports = async (browser) => {
   h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
   ok(/Sin paquete: 2/.test(h) && /Por qué se descartan/.test(h) && /No contesta/.test(h), 'cuenta las altas sin paquete y muestra los motivos de descarte');
   ok(/Bases de datos:/.test(h), 'muestra cuántas personas de bases de datos se contactaron');
+  // 048: lo derivado que nadie asignó va aparte y no infla las planificadas
+  const kp = await of.evaluate(() => GES.tablero.kpis);
+  const sinA = DB.gestiones.filter((g) => g.estado === 'planificada' && g.tipo !== 'datos' && !g.hunter_id && (g.dueno_id === P.oficial.id || g.creada_por === P.oficial.id)).length;
+  ok(kp.sin_asignar === sinA && sinA > 0, 'cuenta aparte lo derivado que nadie asignó (' + kp.sin_asignar + ')');
+  ok(/sin asignar/.test(h) && /No cuenta en los n/.test(h), 'y lo avisa, aclarando que no entra en los números');
+  ok(await of.evaluate(() => !GES.tablero.por_hunter.some((x) => !x.id)), 'ninguna fila de hunter queda sin dueño');
   ok(!/NaN|undefined/.test(h), 'tablero sin NaN ni undefined');
   await cap(of, '7_tablero');
   // ── Instructivo: el capítulo Gestiones del tutorial, para cada perfil ──

@@ -1267,6 +1267,14 @@ ul.prop-diff li{padding:2px 0;border:0;}
 .dd-prueba{display:flex;flex-wrap:wrap;gap:4px;padding:2px 12px 8px;}
 .dd-prueba button{border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:14px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;}
 .dd-prueba button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+/* Cambiar de cuenta (prueba): una fila por cuenta, como los demás ítems del menú.
+   Antes usaba las píldoras de "Probar como" y los nombres largos se partían. */
+.dd-cuentas{display:flex;flex-direction:column;gap:2px;padding:0 6px 6px;}
+.dd-cuentas button{width:100%;display:flex;align-items:center;gap:9px;background:none;border:none;text-align:left;padding:7px 5px;border-radius:8px;font-family:inherit;font-size:.8rem;font-weight:600;color:var(--dark);cursor:pointer;transition:background .12s;}
+.dd-cuentas button:hover{background:var(--light);}
+.dd-cuentas .ini{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent-2,var(--accent));display:flex;align-items:center;justify-content:center;font-size:.6875rem;font-weight:800;letter-spacing:.02em;}
+.dd-cuentas .nom{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dd-cuentas .rol{flex:0 0 auto;font-size:.75rem;font-weight:600;color:var(--gray);text-transform:none;letter-spacing:0;}
 .badge-lider{background:#E3F2FD;color:#0D47A1;}
 html.dark .badge-lider{background:#13263D;color:#90CAF9;}
 

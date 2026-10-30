@@ -116,14 +116,35 @@ ok(C.gesAgTitulo([]) === 'Febrero 2024', 'el rótulo del mes dice el mes con may
 ok(C.gesDias('2026-11-02', '2026-11-09') === 7 && C.gesDias('2026-11-09', '2026-11-02') === -7 && C.gesDias(null, '2026-11-02') === 0, 'los días entre dos fechas (0 si falta alguna)');
 C.GES.ag.ver = 'sem';
 
-// ── 047: quién ve la grilla y a quién se le pide la ocupación tapada ──
-const rolModo = (rol, admin) => { C._rol = rol; C._admin = !!admin; return [C.gesAgModo(), C.gesAgPideOcup()]; };
-ok(JSON.stringify(rolModo('hunter')) === '["semana",false]', 'el hunter ve su propia semana y no pide la ocupación (la base no le contesta)');
-ok(JSON.stringify(rolModo('vip')) === '["equipo",true]', 'el oficial ve la grilla de hunters y sí la pide, para los "Ocupado"');
-ok(JSON.stringify(rolModo('asesor')) === '["equipo",true]' && JSON.stringify(rolModo('pro')) === '["equipo",true]', 'lo mismo para asesor y pro');
-ok(JSON.stringify(rolModo('lider')) === '["equipo",false]', 'el líder ve la grilla y no la necesita: ya ve todo lo de su equipo');
-ok(JSON.stringify(rolModo('admin', true)) === '["equipo",false]', 'y el admin tampoco');
+// ── 047: a quién se le pide la ocupación tapada ──
+const pide = (rol, admin) => { C._rol = rol; C._admin = !!admin; return C.gesAgPideOcup(); };
+ok(pide('hunter') === false, 'al hunter no se le pide la ocupación de los demás (la base no le contesta)');
+ok(pide('vip') === true && pide('asesor') === true && pide('pro') === true, 'al oficial sí, para marcar los horarios ocupados');
+ok(pide('lider') === false, 'al líder no le hace falta: ya ve todo lo de su equipo');
+ok(pide('admin', true) === false, 'y al admin tampoco');
 C._rol = 'vip'; C._admin = false;
+
+// ── La agenda por horarios (franja 8 a 18, que se estira si hace falta) ──
+let rg = C.gesHorRango([]);
+ok(rg[0] === 8 && rg[1] === 18, 'sin nada, la franja va de 8 a 18');
+rg = C.gesHorRango([{ hora_desde: '07:30:00', hora_hasta: '09:00:00' }, { hora_desde: '19:00:00', hora_hasta: '20:30:00' }]);
+ok(rg[0] === 7 && rg[1] === 21, 'si hay algo antes o después, la franja se estira para que no se esconda nada');
+rg = C.gesHorRango([{ hora_desde: '10:00:00', hora_hasta: null }]);
+ok(rg[0] === 8 && rg[1] === 18, 'sin "hasta" se cuenta una hora y sigue entrando en la franja');
+// Lo que se pisa se reparte en columnas; lo que no, ocupa todo el ancho
+let cl = C.gesHorColumnas([{ hora_desde: '10:00', hora_hasta: '12:00' }, { hora_desde: '11:00', hora_hasta: '13:00' }]);
+ok(cl.length === 2 && cl[0].n === 2 && cl[1].n === 2 && cl[0].col !== cl[1].col, 'dos acciones que se pisan se ponen una al lado de la otra');
+cl = C.gesHorColumnas([{ hora_desde: '09:00', hora_hasta: '10:00' }, { hora_desde: '11:00', hora_hasta: '12:00' }]);
+ok(cl.length === 2 && cl[0].n === 1 && cl[1].n === 1, 'si no se pisan, cada una ocupa todo el ancho de su día');
+ok(C.gesHorColumnas([{ hora_desde: null, hora_hasta: null }]).length === 0, 'lo que no tiene horario no entra en la grilla de horas');
+ok(C.gesHorHHMM(630) === '10:30' && C.gesHorEtiqueta(9) === '09:00', 'las horas se escriben con dos dígitos');
+// Un horario ocupado y tapado se dibuja en rojo y no se puede abrir
+const colT = C.gesHorCol('2026-11-02', [{ id: 'x', hora_desde: '10:00', hora_hasta: '12:00', empresa: null, _tapado: true, estado: 'planificada' }], 8, 18, null, null);
+ok(/tapado/.test(colT) && /Ocupado/.test(colT) && !/<button/.test(colT), 'el horario ocupado con otra empresa se marca y no se abre');
+const colP = C.gesHorCol('2026-11-02', [{ id: 'y', hora_desde: '10:00', hora_hasta: '12:00', empresa: 'ACME SA', estado: 'planificada' }], 8, 18, null, null);
+ok(/<button/.test(colP) && /ACME SA/.test(colP), 'lo propio se ve con su empresa y se puede abrir');
+const colV = C.gesHorCol('2026-11-02', [{ id: 'y', hora_desde: '10:00', hora_hasta: '12:00', empresa: 'ACME SA', estado: 'planificada' }], 8, 18, null, null, true);
+ok(!/<button/.test(colV), 'en el panel de "ver la agenda" los bloques son sólo para mirar');
 
 // ── 047: ir a otra semana y volver enseguida no pinta la semana equivocada ──
 // (lo encontró Codex: al salir por memoria, el pedido viejo seguía siendo válido)

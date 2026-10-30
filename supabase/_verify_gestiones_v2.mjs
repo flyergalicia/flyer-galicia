@@ -85,6 +85,9 @@ await db.exec(mig('047_gestiones_agenda_compartida.sql'));
 ok(true, 'la 047 corre encima y se puede volver a correr');
 rb = await como(U.li, `update public.gestiones set nota = 'x' where empresa = 'ACME SA' returning id`);
 ok(!rb.error, '047: con el permiso, el líder ya puede editar lo de su equipo ' + (rb.error || ''));
+await db.exec(mig('048_tablero_sin_asignar.sql'));
+await db.exec(mig('048_tablero_sin_asignar.sql'));
+ok(true, 'la 048 corre encima y se puede volver a correr');
 
 // Oficial deriva a Sofía con horario; el CUIT se copia
 let r = await como(U.of, `insert into public.gestiones(empresa, origen, hunter_id, tipo, estado, fecha, hora_desde, hora_hasta) values ('BETA SRL','derivada','${U.h1}','posicion','planificada','${hoy}','10:00','12:00') returning id, cuit`);
@@ -191,6 +194,14 @@ await como(U.h1, `update public.gestiones set estado = 'realizada' where id = '$
 r = await como(U.of, `select public.gestiones_tablero(null, null, null, null, null, false, false) t`);
 const t = r.rows && r.rows[0].t;
 ok(t && t.kpis.altas === 1 && t.por_paquete.some((x) => x.paquete === 'caja') && Array.isArray(t.por_motivo) && 'datos' in t.kpis, 'el tablero suma altas por paquete, motivos y bases ' + (r.error || ''));
+// 048: lo derivado que nadie asignó todavía va aparte, no como planificado
+r = await como(U.of, `insert into public.gestiones(empresa, origen, hunter_id, lider_id, tipo, estado, fecha) values ('ACME SA','derivada',null,'${U.li}','accion','planificada', current_date + 3) returning id`);
+const antes = (await como(U.of, `select public.gestiones_tablero(null, null, null, null, null, false, false) t`)).rows[0].t;
+ok(antes.kpis.sin_asignar >= 1, '048: lo que nadie asignó se cuenta aparte en "sin_asignar" (' + antes.kpis.sin_asignar + ')');
+r = await como(U.li, `update public.gestiones set hunter_id = '${U.h2}', hora_desde = '08:00' where id = '${r.rows[0].id}' returning hunter_id`);
+const desp = (await como(U.of, `select public.gestiones_tablero(null, null, null, null, null, false, false) t`)).rows[0].t;
+ok(desp.kpis.sin_asignar === antes.kpis.sin_asignar - 1 && desp.kpis.planificadas === antes.kpis.planificadas + 1,
+  '048: al asignarla, pasa de "sin asignar" a planificada');
 r = await como(U.h1, `select * from public.gestiones_empresas('7123', 10)`);
 ok(r.rows && r.rows.length === 1 && r.rows[0].empresa === 'BETA SRL' && r.rows[0].cuits.length === 2, 'buscar empresa por parte del CUIT');
 r = await como(U.of, `select * from public.gestiones_dia('${hoy}')`);

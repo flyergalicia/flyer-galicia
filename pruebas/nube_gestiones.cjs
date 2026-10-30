@@ -228,7 +228,10 @@ const RPC = {
     const grupos = (fn) => { const m = new Map(); r.forEach((x) => { const k = fn(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return [...m.entries()]; };
     const cuenta = (l, fn) => { const m = {}; l.forEach((x) => { const k = fn(x); m[k] = (m[k] || 0) + 1; }); return m; };
     return {
-      kpis: { visitas: r.length, planificadas: g.filter((x) => x.estado === 'planificada' && x.tipo !== 'datos').length, empresas: new Set(r.map((x) => x.dueno_id + '|' + x.empresa_key)).size,
+      // 048: lo que nadie asignó todavía no cuenta como planificado, va aparte
+      kpis: { visitas: r.length, planificadas: g.filter((x) => x.estado === 'planificada' && x.tipo !== 'datos' && x.hunter_id).length,
+        sin_asignar: g.filter((x) => x.estado === 'planificada' && x.tipo !== 'datos' && !x.hunter_id).length,
+        empresas: new Set(r.map((x) => x.dueno_id + '|' + x.empresa_key)).size,
         asistentes: r.reduce((s, x) => s + (+x.asistentes || 0), 0), prospectos: pr.length, altas: pr.filter((p) => p.estado === 'alta').length,
         datos: todos.filter((p) => p.g.tipo === 'datos').length, contactados: todos.filter((p) => p.g.tipo === 'datos' && p.estado !== 'a_contactar').length },
       por_mes: grupos((x) => x.fecha.slice(0, 7)).sort((a1, b1) => a1[0].localeCompare(b1[0])).map(([k, l]) => Object.assign({ mes: k }, sumar(l))),

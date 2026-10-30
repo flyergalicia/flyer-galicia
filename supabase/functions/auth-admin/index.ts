@@ -765,10 +765,17 @@ Deno.serve(async (req: Request) => {
       const actor = await requireCambioPrueba(req);
       if (!actor) return json({ error: "No autorizado" }, 403);
       const { data, error } = await admin
-        .from("profiles").select("id,full_name,email,role")
+        .from("profiles").select("id,full_name,email,role,lider_id")
         .eq("es_prueba", true).in("status", ["active", "reset_pending"]).order("full_name");
       if (error) return json({ error: error.message }, 400);
-      return json({ ok: true, cuentas: (data || []).filter((x) => x.id !== actor.id) });
+      // Sólo las cuentas de prueba que forman un EQUIPO: las que tienen líder, y
+      // el líder que las tiene a cargo. Así una cuenta de prueba suelta (Prospect,
+      // que es su propia demo) no se mezcla con el simulador del equipo.
+      const todas = data || [];
+      const conEquipo = todas.filter((x) =>
+        x.lider_id !== null || todas.some((y) => y.lider_id === x.id)
+      );
+      return json({ ok: true, cuentas: conEquipo.filter((x) => x.id !== actor.id) });
     }
 
     if (action === "entrar_como") {
