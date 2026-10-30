@@ -34,10 +34,10 @@ declare
   -- Oficiales de fantasía que salen impresos en el flyer. El primero es la
   -- persona de la cuenta, así el flyer sale con sus datos.
   v_sofia_ases jsonb := '[{"nombre":"Sofia Merle","celular":"11 5700-1001","email":"pruebaoficial@bancogalicia.com.ar"},{"nombre":"Bruno Carrizo Elía","celular":"11 5700-1002","email":"bruno.carrizo@bancogalicia.com.ar"},{"nombre":"","celular":"","email":""},{"nombre":"","celular":"","email":""}]'::jsonb;
-  v_leandro_ases jsonb := '[{"nombre":"Leandro Peralta","celular":"11 5700-2001","email":"pruenaoficial2@bancogalicia.com.ar"},{"nombre":"Delfina Ocaranza Rivas","celular":"11 5700-2002","email":"delfina.ocaranza@bancogalicia.com.ar"},{"nombre":"","celular":"","email":""},{"nombre":"","celular":"","email":""}]'::jsonb;
+  v_leandro_ases jsonb := '[{"nombre":"Leandro Peralta","celular":"11 5700-2001","email":"pruebaoficial2@bancogalicia.com.ar"},{"nombre":"Delfina Ocaranza Rivas","celular":"11 5700-2002","email":"delfina.ocaranza@bancogalicia.com.ar"},{"nombre":"","celular":"","email":""},{"nombre":"","celular":"","email":""}]'::jsonb;
 begin
   select id into v_sofia   from public.profiles where es_prueba and lower(email) = 'pruebaoficial@bancogalicia.com.ar';
-  select id into v_leandro from public.profiles where es_prueba and lower(email) = 'pruenaoficial2@bancogalicia.com.ar';
+  select id into v_leandro from public.profiles where es_prueba and lower(email) = 'pruebaoficial2@bancogalicia.com.ar';
   if v_sofia is null or v_leandro is null then
     raise exception 'No encontré las cuentas de prueba (Sofia Merle / Leandro Peralta) marcadas como es_prueba';
   end if;
@@ -68,5 +68,5 @@ end $$;
 
 select p.full_name, count(e.id) as empresas
   from public.profiles p left join public.padron_empresas e on e.user_id = p.id
- where lower(p.email) in ('pruebaoficial@bancogalicia.com.ar','pruenaoficial2@bancogalicia.com.ar')
+ where lower(p.email) in ('pruebaoficial@bancogalicia.com.ar','pruebaoficial2@bancogalicia.com.ar')
  group by p.full_name order by 1;

@@ -26,7 +26,7 @@ declare
   g uuid; d date;
 begin
   select id into v_so from public.profiles where es_prueba and lower(email) = 'pruebaoficial@bancogalicia.com.ar';
-  select id into v_le from public.profiles where es_prueba and lower(email) = 'pruenaoficial2@bancogalicia.com.ar';
+  select id into v_le from public.profiles where es_prueba and lower(email) = 'pruebaoficial2@bancogalicia.com.ar';
   select id into v_ni from public.profiles where es_prueba and lower(email) = 'pruebahunter@bancogalicia.com.ar';
   select id into v_ma from public.profiles where es_prueba and lower(email) = 'pruebalider@bancogalicia.com.ar';
   if v_so is null or v_le is null or v_ni is null or v_ma is null then

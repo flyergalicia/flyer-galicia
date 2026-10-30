@@ -1105,6 +1105,7 @@ function checkProfile(user){
     // Gestiones comerciales: cuenta de prueba (Prospect) y el interruptor general.
     // Cuando llega el interruptor se re-aplica el gating (es idempotente).
     _esPrueba=!!p.es_prueba;_myLiderId=p.lider_id||null;
+    if(_esPrueba)_cpGuardar(); // deja fresca esta sesión para el cambio de cuenta
     // flyer favorito de la barra de opciones (uno por solapa; ver _fgOptPartes)
     _fgFav=Array.isArray(p.flyer_fav)?p.flyer_fav.map(Number).filter(function(x){return x>0;}):[];
     _gesFlagCargar(function(){if(_facLoaded)_applyFacultades();_gesAvisoCargar();});
@@ -1334,7 +1335,9 @@ function doLogin(){
   });
 }
 
-function doLogout(){_sb.auth.signOut().then(function(){location.reload();});}
+// Al salir se olvidan TODAS las cuentas de prueba guardadas: no queda ninguna
+// sesión viva en este navegador después de cerrar.
+function doLogout(){_cpOlvidarTodo();_sb.auth.signOut().then(function(){location.reload();});}
 
 // ── CAMBIAR MI PROPIA CLAVE (cualquier usuario logueado) ────────────────────────
 // El usuario autenticado cambia su clave directamente con updateUser. No pasa por
@@ -20320,6 +20323,7 @@ function _gesSync(){
   var b=document.getElementById('hun-ges');if(b)b.style.display=on?'':'none';
   var pr=document.getElementById('hdr-dd-prueba');
   if(pr){pr.style.display=_esPrueba?'block':'none';if(_esPrueba)_pruebaRender();}
+  _cpRender();
   if(!on&&_gesAviso){_gesAviso=0;_hdrMsgSync();}
 }
 function _benAbrir(){
@@ -20380,5 +20384,73 @@ function _pruebaRol(role){
     if(r&&r.error){showToast('No se pudo cambiar: '+r.error.message);return;}
     showToast('Listo: ahora sos '+(_ROLE_LBL[role]||role)+'. Recargando…');
     setTimeout(function(){location.reload();},700);
+  });
+}
+
+// ── Cambiar de cuenta de prueba sin salir ───────────────────────────────────
+// Para simular el circuito completo (oficial → hunter → líder) con varias
+// cuentas, el navegador se acuerda de las sesiones de las cuentas de PRUEBA en
+// las que entraste y el menú del nombre deja saltar de una a otra con un clic.
+// No es "hacerse pasar por" nadie: cada sesión es real y se guardó porque vos
+// entraste con su clave. Nunca se guarda una cuenta común, y al salir se borran
+// todas. Si una sesión caducó, se pide entrar de nuevo con la clave.
+var _CP_KEY='fg_cuentas_prueba';
+function _cpLeer(){
+  try{var o=JSON.parse(localStorage.getItem(_CP_KEY)||'{}');return (o&&typeof o==='object'&&!Array.isArray(o))?o:{};}catch(e){return {};}
+}
+function _cpEscribir(o){try{localStorage.setItem(_CP_KEY,JSON.stringify(o));}catch(e){}}
+function _cpOlvidarTodo(){try{localStorage.removeItem(_CP_KEY);}catch(e){}}
+function _cpOlvidar(id){var o=_cpLeer();if(o[id]){delete o[id];_cpEscribir(o);}_cpRender();}
+// Se llama al entrar: deja fresca la sesión de ESTA cuenta (el token de refresco
+// rota al usarse, así que el guardado se renueva en cada ingreso).
+function _cpGuardar(){
+  if(!_esPrueba||!_me||!_me.id||!_sb.auth.getSession)return;
+  _sb.auth.getSession().then(function(r){
+    var s=r&&r.data&&r.data.session;
+    if(!s||!s.refresh_token)return;
+    var o=_cpLeer();
+    o[_me.id]={nombre:_myName||'',email:(_me.email||''),rol:_myRole,at:Date.now(),
+               access_token:s.access_token,refresh_token:s.refresh_token};
+    _cpEscribir(o);_cpRender();
+  },function(){});
+}
+function _cpOtras(){
+  var o=_cpLeer(),yo=(_me&&_me.id)||'';
+  return Object.keys(o).filter(function(id){return id!==yo&&o[id]&&o[id].refresh_token;})
+    .map(function(id){var x=o[id];x.id=id;return x;})
+    .sort(function(a,b){return String(a.nombre).localeCompare(String(b.nombre));});
+}
+function _cpRender(){
+  var pr=document.getElementById('hdr-dd-prueba');if(!pr||!pr.parentNode)return;
+  var host=document.getElementById('hdr-dd-cuentas');
+  if(!host){
+    host=document.createElement('div');host.id='hdr-dd-cuentas';
+    pr.parentNode.insertBefore(host,pr);
+  }
+  var otras=_cpOtras();
+  // Se ve si estás en una cuenta de prueba, o si sos admin y hay alguna guardada.
+  if(!otras.length||!(_esPrueba||_admin)){host.style.display='none';host.innerHTML='';return;}
+  host.style.display='block';
+  host.innerHTML='<div class="hdr-dd-lbl">Cambiar de cuenta (prueba)</div><div class="dd-prueba">'+
+    otras.map(function(x){
+      return '<button type="button" title="'+_escHtml(x.email||'')+'" onclick="_cpIr(\''+_escHtml(x.id)+'\')">'+
+        _escHtml(x.nombre||x.email||'Cuenta')+'<span class="ges-opc"> &middot; '+_escHtml(_ROLE_LBL[x.rol]||x.rol||'')+'</span></button>';
+    }).join('')+'</div>'+
+    (_esPrueba?'':'<div class="hdr-dd-lbl" style="font-weight:400">Tu cuenta de administrador no se guarda: para volver, entrá de nuevo.</div>');
+}
+function _cpIr(id){
+  var x=_cpLeer()[id];
+  if(!x||!x.refresh_token){showToast('Esa cuenta ya no está guardada. Entrá con su clave una vez.');_cpRender();return;}
+  showToast('Cambiando a '+(x.nombre||x.email||'la otra cuenta')+'…');
+  _sb.auth.setSession({access_token:x.access_token,refresh_token:x.refresh_token}).then(function(r){
+    if(r&&r.error){
+      _cpOlvidar(id);
+      showToast('La sesión de '+(x.nombre||'esa cuenta')+' caducó. Entrá con su clave una vez y vuelve a quedar guardada.');
+      return;
+    }
+    location.reload();
+  },function(){
+    _cpOlvidar(id);
+    showToast('No se pudo cambiar de cuenta. Probá entrando con su clave.');
   });
 }

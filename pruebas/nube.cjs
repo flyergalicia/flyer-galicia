@@ -94,7 +94,7 @@ async function abrir(browser,o){
       return route.fulfill({status:204,body:'',headers:H});
     }
     if(path==='/rest/v1/profiles'&&m==='GET'){
-      const fila={id:U.id,role:U.role,full_name:U.name,email:U.email,status:'active',email_asesor:U.email,facultades:null,flyer_fav:nube.favs[U.id]||null};
+      const fila={id:U.id,role:U.role,full_name:U.name,email:U.email,status:'active',email_asesor:U.email,facultades:null,flyer_fav:nube.favs[U.id]||null,es_prueba:!!nube.esPrueba};
       return route.fulfill({status:200,body:JSON.stringify(obj?fila:[fila]),headers:H});
     }
     // ── promos
