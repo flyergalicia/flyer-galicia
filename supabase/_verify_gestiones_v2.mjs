@@ -1,7 +1,9 @@
-// Verificación de la migración 045 SIN tocar Supabase: corre las migraciones de
-// Gestiones (014, 015, 016, 017, 027, 030) y la 045 en un Postgres local (PGlite)
-// con lo mínimo de Supabase simulado (auth.uid, roles) y prueba las reglas
-// nuevas como cada persona, con la RLS de verdad (45 comprobaciones).
+// Verificación de las migraciones de Gestiones SIN tocar Supabase: corre las
+// anteriores (014, 015, 016, 017, 027, 030) y después la 045, la 046 y la 047 en
+// un Postgres local (PGlite) con lo mínimo de Supabase simulado (auth.uid, roles)
+// y prueba las reglas como cada persona, con la RLS de verdad.
+// Ojo: acá se reproduce a mano el revoke de es_lider_de que hace la 019 (ver más
+// abajo). Sin eso, el problema que arregla la 047 no se ve.
 // Necesita PGlite instalado en una carpeta aparte (no se versiona):
 //   npm install @electric-sql/pglite@0.2.17   (en esa carpeta)
 //   PGLITE=<esa carpeta>/node_modules/@electric-sql/pglite node supabase/_verify_gestiones_v2.mjs
@@ -38,6 +40,10 @@ await db.exec(`
 create or replace function public.soy_prueba() returns boolean language sql security definer stable set search_path = public as $$ select coalesce((select es_prueba from public.profiles where id = auth.uid()), false) $$;
 create or replace function public.ids_prueba() returns uuid[] language sql security definer stable set search_path = public as $$ select coalesce(array_agg(id), '{}'::uuid[]) from public.profiles where es_prueba $$;
 update public.app_flags set valor = 'on' where clave = 'gestiones';
+-- Como la 019 en la base real: es_lider_de deja de ser ejecutable por las cuentas
+-- con sesión. Importa porque la 045 la usa DENTRO de la policy "gestiones: editar",
+-- y las policies corren con los permisos de quien consulta (lo arregla la 047).
+revoke execute on function public.es_lider_de(uuid) from public, anon, authenticated;
 `);
 // Una gestión vieja (antes de la 045) para ver que se le completa el CUIT.
 const U = { of: 'a0000000-0000-4000-8000-000000000001', of2: 'a0000000-0000-4000-8000-000000000002', h1: 'b0000000-0000-4000-8000-000000000001', h2: 'b0000000-0000-4000-8000-000000000002', h3: 'b0000000-0000-4000-8000-000000000003', li: 'c0000000-0000-4000-8000-000000000001', li2: 'c0000000-0000-4000-8000-000000000002' };
@@ -67,6 +73,18 @@ async function como(uid, sql, params) {
   finally { await db.exec('reset role;'); }
 }
 const hoy = (await db.query('select current_date::text d')).rows[0].d;
+
+// ── 047: el permiso que faltaba ────────────────────────────────────────────
+// Antes de la 047, el líder no puede editar nada de su equipo: la policy llama a
+// es_lider_de y la cuenta con sesión no la puede ejecutar. Se ve acá para que, si
+// alguien vuelve a quitar el permiso, esta comprobación lo cante.
+let rb = await como(U.li, `update public.gestiones set nota = 'x' where empresa = 'ACME SA' returning id`);
+ok(!!rb.error && /es_lider_de/.test(rb.error), '047: sin el permiso, el líder no podía editar lo de su equipo (' + (rb.error || 'no falló') + ')');
+await db.exec(mig('047_gestiones_agenda_compartida.sql'));
+await db.exec(mig('047_gestiones_agenda_compartida.sql'));
+ok(true, 'la 047 corre encima y se puede volver a correr');
+rb = await como(U.li, `update public.gestiones set nota = 'x' where empresa = 'ACME SA' returning id`);
+ok(!rb.error, '047: con el permiso, el líder ya puede editar lo de su equipo ' + (rb.error || ''));
 
 // Oficial deriva a Sofía con horario; el CUIT se copia
 let r = await como(U.of, `insert into public.gestiones(empresa, origen, hunter_id, tipo, estado, fecha, hora_desde, hora_hasta) values ('BETA SRL','derivada','${U.h1}','posicion','planificada','${hoy}','10:00','12:00') returning id, cuit`);
@@ -188,6 +206,19 @@ r = await como(U.li, `select array_agg(distinct hunter_id::text) h from public.g
 ok(r.rows && (r.rows[0].h || []).every((x) => [U.h1, U.h2].includes(x)), '046: el líder ve sólo los de su equipo');
 r = await como(U.of, `select count(*)::int n from public.gestiones_dia('${hoy}')`);
 ok(r.rows && r.rows[0].n >= 2, '046: el oficial sí, para ver quién está libre');
+// ── 047: la ocupación de toda una semana ───────────────────────────────────
+r = await como(U.of2, `select * from public.gestiones_ocupacion('${hoy}', '${hoy}')`);
+ok(r.rows && r.rows.length >= 2 && r.rows.some((x) => x.empresa === null) && r.rows.some((x) => x.empresa === 'GAMA SA'),
+  '047: la semana trae los horarios de todos, con la empresa sólo si la puede ver');
+ok(r.rows && !r.rows.some((x) => x.tipo === 'datos'), '047: las bases de datos no ocupan horario');
+r = await como(U.h1, `select count(*)::int n from public.gestiones_ocupacion('${hoy}', '${hoy}')`);
+ok(r.rows && r.rows[0].n === 0, '047: a un hunter no le contesta');
+r = await como(U.li, `select array_agg(distinct hunter_id::text) h from public.gestiones_ocupacion('${hoy}', '${hoy}')`);
+ok(r.rows && (r.rows[0].h || []).every((x) => [U.h1, U.h2].includes(x)), '047: al líder, sólo los de su equipo');
+r = await como(U.of, `select count(*)::int n from public.gestiones_ocupacion('${hoy}', (date '${hoy}' + 60)::date)`);
+ok(r.rows && r.rows[0].n === 0, '047: no se puede pedir un rango enorme de una');
+r = await como(U.of, `select count(*)::int n from public.gestiones_ocupacion('${hoy}', (date '${hoy}' + 30)::date)`);
+ok(r.rows && r.rows[0].n >= 3, '047: un mes sí, y trae lo de los días siguientes');
 // Una gestión vieja que quedó sin CUIT (se simula salteando el trigger) y el padrón con uno.
 await db.exec(`reset role; update public.padron_empresas set cuits = '{30900099999}' where empresa = 'GAMA SA';
   alter table public.gestiones disable trigger trg_gestiones_antes; update public.gestiones set cuit = null where empresa = 'GAMA SA';

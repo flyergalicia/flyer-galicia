@@ -101,3 +101,43 @@ ok(insertadas.length === 3 && serie.n === 2 && serie.f.length === 1 && /Se crear
 insertadas.length = 0;
 await new Promise((res) => C.gesCrearSerie({ frecuencia: 'repite', veces: 2, cada_dias: 7, fecha: '2026-11-06', origen: 'derivada', hunter_id: null, lider_id: 'l1', dueno_id: 'o1', empresa: 'ACME', tipo: 'feria', serie_id: 's2' }, () => res()));
 ok(insertadas.length === 1 && insertadas[0].lider_id === 'l1' && insertadas[0].hunter_id === null, 'una serie "para que la asigne el líder" lleva el líder en todas las fechas');
+
+// ── 047: qué período de la agenda se pide (semana / mes) ──
+C.GES.ag.ver = 'sem'; C.GES.ag.lunes = '2026-11-02';
+let ran = C.gesAgRangoAct();
+ok(ran.desde === '2026-11-02' && ran.hasta === '2026-11-08', 'en semana se piden los 7 días desde el lunes');
+C.GES.ag.ver = 'mes'; C.GES.ag.mes = '2026-11';
+ran = C.gesAgRangoAct();
+ok(ran.desde === '2026-11-01' && ran.hasta === '2026-11-30', 'en mes, del 1 al último día (noviembre tiene 30)');
+C.GES.ag.mes = '2026-02'; ok(C.gesAgRangoAct().hasta === '2026-02-28', 'febrero termina el 28');
+C.GES.ag.mes = '2024-02'; ok(C.gesAgRangoAct().hasta === '2024-02-29', 'y en un año bisiesto, el 29');
+ok(C.gesMesSumar('2026-12', 1) === '2027-01' && C.gesMesSumar('2026-01', -1) === '2025-12', 'la flecha del mes cambia de año');
+ok(C.gesAgTitulo([]) === 'Febrero 2024', 'el rótulo del mes dice el mes con mayúscula y el año');
+ok(C.gesDias('2026-11-02', '2026-11-09') === 7 && C.gesDias('2026-11-09', '2026-11-02') === -7 && C.gesDias(null, '2026-11-02') === 0, 'los días entre dos fechas (0 si falta alguna)');
+C.GES.ag.ver = 'sem';
+
+// ── 047: quién ve la grilla y a quién se le pide la ocupación tapada ──
+const rolModo = (rol, admin) => { C._rol = rol; C._admin = !!admin; return [C.gesAgModo(), C.gesAgPideOcup()]; };
+ok(JSON.stringify(rolModo('hunter')) === '["semana",false]', 'el hunter ve su propia semana y no pide la ocupación (la base no le contesta)');
+ok(JSON.stringify(rolModo('vip')) === '["equipo",true]', 'el oficial ve la grilla de hunters y sí la pide, para los "Ocupado"');
+ok(JSON.stringify(rolModo('asesor')) === '["equipo",true]' && JSON.stringify(rolModo('pro')) === '["equipo",true]', 'lo mismo para asesor y pro');
+ok(JSON.stringify(rolModo('lider')) === '["equipo",false]', 'el líder ve la grilla y no la necesita: ya ve todo lo de su equipo');
+ok(JSON.stringify(rolModo('admin', true)) === '["equipo",false]', 'y el admin tampoco');
+C._rol = 'vip'; C._admin = false;
+
+// ── 047: ir a otra semana y volver enseguida no pinta la semana equivocada ──
+// (lo encontró Codex: al salir por memoria, el pedido viejo seguía siendo válido)
+const pendientes = [];
+C._sb.from = () => { const q = {}; ['select', 'gte', 'lte', 'order', 'limit', 'eq', 'is', 'not', 'in'].forEach((m) => { q[m] = () => q; });
+  q.then = (okf) => new Promise((res) => pendientes.push(res)).then(okf); return q; };
+C.GES.ag = { ver: 'sem', lunes: '2026-11-02', mes: '2026-11', dia: null, data: [{ id: 'vieja', fecha: '2026-11-02', tipo: 'accion', hunter_id: 'h1' }], dataL: 'sem|2026-11-02', ocup: null, hun: '', turno: 0 };
+C.GES.ag.lunes = '2026-11-09'; C.gesAgCargar();                 // se va a la semana siguiente (queda en el aire)
+C.GES.ag.lunes = '2026-11-02'; const vuelta = await C.gesAgCargar(); // vuelve: sale por memoria
+ok(vuelta && vuelta[0] && vuelta[0].id === 'vieja', 'volver a una semana que ya estaba cargada la muestra de una');
+pendientes.forEach((res) => res({ data: [{ id: 'otra', fecha: '2026-11-09', tipo: 'accion', hunter_id: 'h1' }] }));
+await new Promise((r) => setTimeout(r, 0));
+ok(C.GES.ag.data[0].id === 'vieja' && C.GES.ag.dataL === 'sem|2026-11-02', 'y cuando llega la respuesta de la otra semana, no la pisa');
+
+// ── 047: un horario ocupado con otra empresa no se puede abrir ──
+const ocup = C.gesAgOcupado({ hora_desde: '10:00', hora_hasta: '12:00', empresa: null });
+ok(/Ocupado/.test(ocup) && /10–12/.test(ocup) && !/<button/.test(ocup) && !/onclick/.test(ocup), 'el bloque "Ocupado" muestra el horario, no la empresa, y no es un botón');

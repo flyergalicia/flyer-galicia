@@ -72,6 +72,8 @@ TABLA = [
   { id: 'd', empresa: 'DELTA SA', tipo: 'posicion', modalidad: 'presencial', fecha: '2026-10-23', hora_desde: '10:00:00', hora_hasta: '12:00:00', estado: 'realizada', hunter_id: 'h2', visto_hunter: true },
 ];
 el('ges-body');
+// La agenda sólo se pinta si se sigue mirando esa solapa (si no, taparía otra).
+C.GES.tab = 'agenda'; C.GES.det = null;
 C._rol = 'hunter'; C._me = { id: 'h1' }; C.GES.ag.lunes = lunes; C.GES.ag.data = null;
 C.gesAgenda(); await espera();
 let h = els['ges-body'].innerHTML;
@@ -89,6 +91,11 @@ ok(h.includes('Sofía Pérez') && h.includes('Tomás Gil') && !h.includes('Otra 
 ok(h.includes('DELTA SA') && h.includes('10–12') && (h.match(/>Libre</g) || []).length >= 8, 'equipo: bloques cortos ("10–12") y casillas "Libre"');
 ok(/est-cancelada[^]*GAMA SA/.test(h) && h.includes('Pegar desde Excel') && h.includes('+ Asignar'), 'lo cancelado se ve (tachado) y están "Pegar desde Excel" y "+ Asignar"');
 ok(!/NaN|undefined/.test(h), 'equipo: sin NaN ni undefined');
+// Si mientras carga se cambia de solapa, la agenda no pisa lo que se está mirando.
+C.GES.ag.data = null; els['ges-body'].innerHTML = 'OTRA COSA';
+C.gesAgenda(); C.GES.tab = 'lista'; await espera();
+ok(els['ges-body'].innerHTML === 'OTRA COSA', 'cambiar de solapa mientras carga: la agenda ya no se pinta encima');
+C.GES.tab = 'agenda';
 
 // ── Aviso de horarios que se pisan ──
 RPC.gestiones_ocupado = () => [{ id: 'x', hora_desde: '10:00:00', hora_hasta: '12:00:00', tipo: 'posicion', empresa: 'ACME SA' }, { id: 'y', hora_desde: '15:00:00', hora_hasta: '16:00:00', tipo: 'accion', empresa: null }];

@@ -163,6 +163,16 @@ const RPC = {
   gestiones_dia: (U, a) => DB.gestiones.filter((g) => U.role !== 'hunter' && (U.role !== 'lider' || esLiderDe(U, g.hunter_id))
       && g.fecha === a.p_fecha && g.estado !== 'cancelada' && g.hunter_id && g.hora_desde && g.tipo !== 'datos')
     .map((g) => ({ hunter_id: g.hunter_id, hora_desde: g.hora_desde, hora_hasta: g.hora_hasta })),
+  // 047: los horarios ocupados de toda una semana, con la empresa tapada si no
+  // la puede ver. Mismos frenos de rol que gestiones_dia.
+  gestiones_ocupacion: (U, a) => {
+    const dias = (x, y) => Math.round((Date.parse(y + 'T00:00:00') - Date.parse(x + 'T00:00:00')) / 86400000);
+    if (!a.p_desde || !a.p_hasta || dias(a.p_desde, a.p_hasta) < 0 || dias(a.p_desde, a.p_hasta) > 45) return [];
+    return DB.gestiones.filter((g) => U.role !== 'hunter' && (U.role !== 'lider' || esLiderDe(U, g.hunter_id))
+        && g.fecha >= a.p_desde && g.fecha <= a.p_hasta && g.estado !== 'cancelada' && g.hunter_id && g.hora_desde && g.tipo !== 'datos')
+      .sort((x, y) => (x.fecha < y.fecha ? -1 : x.fecha > y.fecha ? 1 : (min(x.hora_desde) ?? -1) - (min(y.hora_desde) ?? -1)))
+      .map((g) => ({ id: g.id, hunter_id: g.hunter_id, fecha: g.fecha, hora_desde: g.hora_desde, hora_hasta: g.hora_hasta, tipo: g.tipo, empresa: puedeVer(U, g) ? g.empresa : null }));
+  },
   gestion_marcar_vista: (U, a) => {
     let n = 0;
     DB.gestiones.forEach((g) => {
@@ -399,6 +409,7 @@ function sembrar() {
   const p5 = DB.prospectos.filter((p) => p.gestion_id === g5.id);
   cambiar('hunter', p5[0], { estado: 'alta', paquete: 'plus' }); cambiar('hunter', p5[1], { estado: 'alta', paquete: 'gold' }); cambiar('hunter', p5[2], { estado: 'alta', paquete: 'caja' });
   cambiar('hunter', p5[3], { estado: 'descartado', motivo: 'no_interesa' }); cambiar('hunter', p5[4], { estado: 'en_gestion', proximo: hoy() });
+  cambiar('hunter', p5[5], { estado: 'prospecto', proximo: dia(-4) }); // se le pasó la fecha: "Para contactar" la muestra vencida
   // 6) Diego le derivó a Sofía algo hoy a la tarde (para probar que no se pise)
   crear('oficial2', { empresa: 'TRANSPORTES RIO SA', origen: 'derivada', hunter_id: P.hunter.id, tipo: 'posicion', estado: 'planificada', fecha: hoy(), hora_desde: '15:00', hora_hasta: '17:00', lugar: 'Base Barracas' });
   // 7) Tomás hace dos semanas

@@ -114,13 +114,48 @@ module.exports = async (browser) => {
   ok(await espera(of, () => !document.getElementById('ges-ov')), 'se manda al equipo');
   ok(DB.gestiones.filter((g) => !g.hunter_id && g.lider_id === P.lider.id).length === 2, 'queda sin hunter, para Laura');
 
+  // ── Oficial: la agenda de los hunters (047) ──
+  await of.evaluate(() => { GES.ag.ver = 'sem'; gesIr('agenda'); });
+  ok(await espera(of, () => document.querySelector('#ges-body .ges-ag-eq')), 'el oficial ve la grilla de hunters por día');
+  h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
+  ok(/Sofía Paz/.test(h) && /Tomás Ríos/.test(h) && /Julia Sosa/.test(h), 'con todos los hunters, aunque no haya trabajado con ellos');
+  ok(/ALIMENTOS DEL SUR/.test(h), 'lo de sus empresas se ve entero');
+  ok(/Ocupado/.test(h) && !/TRANSPORTES RIO/.test(h), 'lo de otro oficial se ve como "Ocupado", sin la empresa');
+  ok(await of.evaluate(() => { const o = document.querySelector('#ges-body .ges-ag-ocup'); return !!o && o.tagName !== 'BUTTON' && !o.getAttribute('onclick'); }), 'un bloque "Ocupado" no se puede abrir');
+  ok(/ocupados con otras empresas/.test(h), 'la leyenda explica qué es el gris');
+  await cap(of, '7_agenda_oficial');
+  // Semana / Mes
+  await of.evaluate(() => gesAgVer('mes'));
+  ok(await espera(of, () => document.querySelector('#ges-body .ges-mes')), 'el botón Mes muestra el calendario del mes');
+  h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
+  ok(/ALIMENTOS DEL SUR/.test(h) && !/ges-ag-ocup/.test(h), 'en el mes va lo propio, sin los "Ocupado"');
+  ok(await of.evaluate(() => /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre) \d{4}$/.test(document.querySelector('.ges-ag-rango').textContent)), 'y el rótulo dice el mes y el año');
+  await cap(of, '8_mes_oficial');
+  const mes0 = await of.evaluate(() => GES.ag.mes);
+  await of.evaluate(() => gesAgIr(1));
+  ok(await espera(of, (m) => GES.ag.mes !== m, mes0) && await of.evaluate(() => GES.ag.mes) > mes0, 'la flecha mueve de a un mes');
+  await of.evaluate(() => { gesAgIr(0); gesAgVer('sem'); });
+  ok(await espera(of, () => !!document.querySelector('#ges-body .ges-ag-eq') && !document.querySelector('.ges-mes')), 'y se vuelve a la semana');
+
   // ── Hunter (Sofía): agenda, mensaje, "No puedo ir", alta con paquete, descarte con motivo ──
   const hu = await G.abrirComo(browser, 'hunter');
   await hu.evaluate(() => gesIr('agenda'));
-  ok(await espera(hu, () => /Para contactar hoy/.test(document.getElementById('ges-body').innerHTML)), 'la agenda del hunter muestra "Para contactar hoy"');
+  ok(await espera(hu, () => /Para contactar \(/.test(document.getElementById('ges-body').innerHTML)), 'la agenda del hunter muestra "Para contactar"');
   h = await hu.evaluate(() => document.getElementById('ges-body').innerHTML);
   ok(/Walter Ibáñez/.test(h) && /TRANSPORTES RIO SA/.test(h), 'con la persona a llamar y lo que tiene hoy');
+  ok(/Ximena Toledo/.test(h) && /desde el/.test(h), 'y la que quedó vencida, marcada "desde el …"');
   await cap(hu, '4_agenda_hunter');
+  // Ver todas: vencidas y de hoy, y al tocar una se abre su acción con esa persona marcada
+  await hu.evaluate(() => gesContactarTodas());
+  ok(await espera(hu, () => /Vencidas \(1\)/.test((document.getElementById('ges-ov') || {}).innerHTML || '')), '"Ver todas" separa las vencidas');
+  h = await hu.evaluate(() => document.getElementById('ges-ov').innerHTML);
+  ok(/Hoy \(1\)/.test(h) && /Ximena Toledo/.test(h) && /Walter Ibáñez/.test(h), 'y las de hoy, con todas las personas');
+  await cap(hu, '9_contactar_todas');
+  await hu.evaluate(() => { const b = Array.prototype.find.call(document.querySelectorAll('#ges-ov .ges-band-i'), (x) => /Ximena/.test(x.textContent)); b.click(); });
+  ok(await espera(hu, () => document.querySelector('#ges-body .ges-foco')), 'al tocarla se abre la acción con esa persona marcada');
+  ok(await hu.evaluate(() => /Ximena/.test(document.querySelector('#ges-body .ges-foco').textContent)), 'y la marcada es ella');
+  await hu.evaluate(() => gesVolver());
+  await espera(hu, () => !document.querySelector('#ges-body .ges-foco'));
   ok(await hu.evaluate(async () => { await gesMsgNuevos(true); return !!(GES.msgN && Object.keys(GES.msgN).length); }), 'le llega el mensaje del oficial como novedad');
   await hu.evaluate((id) => gesAbrirDet(id), S.g1.id);
   ok(await espera(hu, () => /40 camiones/.test(document.getElementById('ges-body').innerHTML)), 've la respuesta del oficial');

@@ -11,7 +11,7 @@ module.exports = async (browser) => {
   const sacar = async (p, n) => { await new Promise((r) => setTimeout(r, 500)); await p.screenshot({ path: path.join(out, 'gv2_' + n + '.png'), fullPage: true }); };
   // Celular: hunter
   const hc = await G.abrirComo(browser, 'hunter', { w: 390, h: 844, touch: true });
-  await hc.evaluate(() => gesIr('agenda')); await hc.waitForFunction(() => /Para contactar hoy/.test(document.getElementById('ges-body').innerHTML));
+  await hc.evaluate(() => gesIr('agenda')); await hc.waitForFunction(() => /Para contactar \(/.test(document.getElementById('ges-body').innerHTML));
   await sacar(hc, 'cel_hunter_agenda');
   await hc.evaluate((id) => gesAbrirDet(id), S.g5.id); await hc.waitForFunction(() => /Walter/.test(document.getElementById('ges-body').innerHTML));
   await sacar(hc, 'cel_hunter_detalle');
