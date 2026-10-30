@@ -100,6 +100,24 @@ async function requireAdmin(req: Request): Promise<Actor | null> {
   return ok ? { id: data.user.id, email: data.user.email || "" } : null;
 }
 
+// Quién puede usar el cambiador de cuentas de prueba: el admin, o una cuenta de
+// prueba (para saltar entre ellas). Tiene que estar activa. Devuelve quién es
+// (para la auditoría) o null. OJO: esto sólo habilita a PEDIR el cambio; el
+// destino se valida aparte y siempre tiene que ser una cuenta de prueba.
+async function requireCambioPrueba(req: Request): Promise<Actor | null> {
+  const auth = req.headers.get("Authorization") || "";
+  const token = auth.replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data?.user) return null;
+  const { data: prof } = await admin
+    .from("profiles").select("role,status,es_prueba").eq("id", data.user.id).single();
+  if (!prof) return null;
+  const activo = prof.status === "active" || prof.status === "reset_pending";
+  const ok = activo && (prof.role === "admin" || prof.es_prueba === true);
+  return ok ? { id: data.user.id, email: data.user.email || "" } : null;
+}
+
 // ── Límite por IP (acciones públicas) ─────────────────────────────────────────
 // La IP la pone el proxy de Supabase (Cloudflare) en cf-connecting-ip y quien
 // llama no la puede falsear (probado: mandar x-forwarded-for / x-real-ip
@@ -736,6 +754,43 @@ Deno.serve(async (req: Request) => {
         if (!propio) avisar(pp.email, MAILS.claveCambiadaAdmin(pp.nombre));
       } else if (pp) avisar(pp.email, MAILS.claveCambiadaAdmin(pp.nombre));
       return json({ ok: true, enviado: conEnvio });
+    }
+
+    // ── Cambiar entre CUENTAS DE PRUEBA sin la clave ─────────────────────────
+    // Para simular el circuito completo (oficial → hunter → líder) con varias
+    // personas. Las dos puntas están acotadas: lo pide el admin o una cuenta de
+    // prueba, y el destino SIEMPRE tiene que ser una cuenta de prueba activa.
+    // Nunca se puede entrar a una cuenta común por esta vía. Queda auditado.
+    if (action === "cuentas_prueba") {
+      const actor = await requireCambioPrueba(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
+      const { data, error } = await admin
+        .from("profiles").select("id,full_name,email,role")
+        .eq("es_prueba", true).in("status", ["active", "reset_pending"]).order("full_name");
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, cuentas: (data || []).filter((x) => x.id !== actor.id) });
+    }
+
+    if (action === "entrar_como") {
+      const actor = await requireCambioPrueba(req);
+      if (!actor) return json({ error: "No autorizado" }, 403);
+      const uid = String(body.uid || "");
+      if (!uid) return json({ error: "Datos inválidos" }, 400);
+      const { data: dest } = await admin
+        .from("profiles").select("id,email,full_name,es_prueba,status").eq("id", uid).single();
+      const activo = !!dest && (dest.status === "active" || dest.status === "reset_pending");
+      if (!dest || dest.es_prueba !== true || !activo) {
+        return json({ error: "Sólo se puede cambiar a una cuenta de prueba activa" }, 403);
+      }
+      // generateLink NO manda mail: devuelve el token de un solo uso, que el
+      // navegador canjea por la sesión. Caduca solo y no sirve dos veces.
+      const { data: link, error } = await admin.auth.admin.generateLink({
+        type: "magiclink", email: dest.email,
+      });
+      const hash = link?.properties?.hashed_token;
+      if (error || !hash) return json({ error: error?.message || "No se pudo preparar el cambio" }, 400);
+      await auditar(actor, "entrar_como", { id: dest.id, email: dest.email });
+      return json({ ok: true, token_hash: hash, nombre: dest.full_name || dest.email });
     }
 
     if (action === "delete_user") {

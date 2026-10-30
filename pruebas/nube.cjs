@@ -101,7 +101,17 @@ async function abrir(browser,o){
     const UB=GEO?GEO.ubic:[];
     if(path==='/rest/v1/promos_galicia_meta')return route.fulfill({status:200,body:JSON.stringify(obj?{last_sync_at:new Date().toISOString(),total:cat.length,ubicaciones:UB}:[{last_sync_at:new Date().toISOString(),total:cat.length,ubicaciones:UB}]),headers:H});
     // Edge Function promos-galicia: "ubicacion" devuelve los ids de la localidad (los de San Martín de los Andes, pedidos a Galicia)
-    if(path==='/functions/v1/auth-admin'){const b=JSON.parse(req.postData()||'{}');nube.llamadasAdmin=(nube.llamadasAdmin||[]).concat([b]);return route.fulfill({status:200,body:JSON.stringify({ok:true}),headers:H});}
+    if(path==='/functions/v1/auth-admin'){
+      const b=JSON.parse(req.postData()||'{}');nube.llamadasAdmin=(nube.llamadasAdmin||[]).concat([b]);
+      // Cambiador de cuentas de prueba: la lista y el permiso de un solo uso.
+      if(b.action==='cuentas_prueba')return route.fulfill({status:200,body:JSON.stringify({ok:true,cuentas:nube.cuentasPrueba||[]}),headers:H});
+      if(b.action==='entrar_como'){
+        const c=(nube.cuentasPrueba||[]).find(x=>x.id===b.uid);
+        if(!c)return route.fulfill({status:403,body:JSON.stringify({error:'Sólo se puede cambiar a una cuenta de prueba activa'}),headers:H});
+        return route.fulfill({status:200,body:JSON.stringify({ok:true,token_hash:'th-'+b.uid,nombre:c.full_name}),headers:H});
+      }
+      return route.fulfill({status:200,body:JSON.stringify({ok:true}),headers:H});
+    }
     if(path==='/functions/v1/promos-galicia'){
       const b=JSON.parse(req.postData()||'{}');nube.llamadasLoc=(nube.llamadasLoc||0)+(b.action==='ubicacion'?1:0);
       if(b.action==='ubicacion'){await new Promise(x=>setTimeout(x,400));return route.fulfill({status:200,body:JSON.stringify({data:{ids:LOC_IDS}}),headers:H});}
