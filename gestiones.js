@@ -23,7 +23,7 @@ var GES_CSS_4=".ges-band-mas{align-self:flex-start;border:0;background:none;colo
 ".ges-ag-ver{display:flex;gap:0;border:1px solid var(--border);border-radius:999px;overflow:hidden;}\n.ges-ag-ver button{border:0;background:var(--card);color:var(--gray);font-family:inherit;font-size:.78rem;font-weight:800;padding:5px 13px;cursor:pointer;}\n.ges-ag-ver button[aria-pressed=true]{background:var(--accent);color:#fff;}\n"+
 ".ges-rojo{color:var(--danger);}\n.ges-auto-w{border-color:var(--ges-warn);background:var(--ges-warn-soft);}\n"+
 ".ges-hor{padding:10px;overflow-x:auto;width:0;min-width:100%;}\n.ges-hin{width:max-content;min-width:100%;}\n.ges-hhead{display:grid;grid-template-columns:58px repeat(var(--n,6),minmax(96px,1fr));gap:2px;}\n.ges-hth{text-align:center;font-size:.75rem;font-weight:700;color:var(--gray);padding:4px 2px;border-radius:8px;}\n.ges-hth b{display:block;font-size:.95rem;color:var(--ink);}\n.ges-hth.hoy,.ges-hth.sel{background:var(--accent-soft);}\n.ges-hth.hoy b,.ges-hth.sel b{color:var(--accent-2,var(--accent));}\n.ges-hsins{margin-top:2px;}\n.ges-hsin{display:flex;flex-direction:column;gap:2px;min-height:4px;}\n.ges-hbody{display:grid;grid-template-columns:58px 1fr;gap:2px;margin-top:2px;}\n.ges-hhoras{display:flex;flex-direction:column;}\n.ges-hhora{position:relative;border-top:1px solid var(--border);}\n.ges-hhora span{position:absolute;top:-8px;right:6px;font-size:.75rem;color:var(--gray);background:var(--card);padding:0 2px;}\n.ges-hcols{display:grid;grid-template-columns:repeat(var(--n,6),minmax(96px,1fr));gap:2px;}\n.ges-hcol{position:relative;border-left:1px solid var(--border);background:repeating-linear-gradient(to bottom,transparent 0,transparent 45px,var(--border) 45px,var(--border) 46px);border-radius:6px;}\n.ges-hcol.clicable{cursor:copy;}\n.ges-hcol.clicable:hover{background-color:var(--accent-soft);}\n.ges-hbl{position:absolute;display:flex;flex-direction:column;gap:1px;overflow:hidden;border:0;border-left:3px solid var(--ges-info);background:var(--ges-info-soft);color:var(--ink);border-radius:6px;padding:3px 5px;font-size:.75rem;line-height:1.25;text-align:left;font-family:inherit;cursor:pointer;}\n.ges-hbl.est-realizada{border-left-color:var(--ges-ok);background:var(--ges-ok-soft);}\n.ges-hbl.est-cancelada{border-left-color:var(--border);background:var(--light);color:var(--gray);text-decoration:line-through;}\n.ges-hbl.nopuede{border-left-color:var(--ges-warn);background:var(--ges-warn-soft);}\n.ges-hbl.tapado{border-left-color:var(--danger);background:var(--danger-soft,rgba(211,47,47,.12));color:var(--danger);cursor:default;}\n.ges-hbl-h{font-weight:800;font-variant-numeric:tabular-nums;}\n.ges-hbl-e{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}\n"+
-".ges-hpanel{margin-top:10px;}\n.ges-hpanel[hidden]{display:none;}\n.ges-hpanel-t{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px;font-size:.8rem;}\n.ges-hor-mini{padding:6px;border:1px solid var(--border);border-radius:var(--r-m,12px);max-height:340px;overflow:auto;}\n.ges-hor-mini .ges-hhead{grid-template-columns:44px repeat(var(--n,6),minmax(64px,1fr));}\n.ges-hor-mini .ges-hbody{grid-template-columns:44px 1fr;}\n.ges-hor-mini .ges-hcols{grid-template-columns:repeat(var(--n,6),minmax(64px,1fr));}\n.ges-hor-mini .ges-hbl{font-size:.75rem;}\n"+
+".ges-hpanel{margin-top:10px;}\n.ges-hpanel[hidden]{display:none;}\n.ges-hpanel-t{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px;font-size:.8rem;}\n.ges-hor-mini{padding:6px;border:1px solid var(--border);border-radius:var(--r-m,12px);max-height:460px;overflow:auto;}\n.ges-hor-mini .ges-hhead{grid-template-columns:44px repeat(var(--n,6),minmax(64px,1fr));}\n.ges-hor-mini .ges-hbody{grid-template-columns:44px 1fr;}\n.ges-hor-mini .ges-hcols{grid-template-columns:repeat(var(--n,6),minmax(64px,1fr));}\n.ges-hor-mini .ges-hbl{font-size:.75rem;}\n"+
 ".ges-eqh{border-collapse:collapse;width:100%;font-size:.75rem;color:var(--ink);}\n.ges-eqh th{text-align:center;font-size:.75rem;letter-spacing:.02em;color:var(--gray);font-weight:800;padding:6px 4px;border-bottom:1px solid var(--border);white-space:nowrap;}\n.ges-eqh th.nom{text-align:left;min-width:150px;}\n.ges-eqh td{border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:0;text-align:center;min-width:64px;height:38px;}\n.ges-eqh td.nom{border-left:0;text-align:left;padding:6px 8px;font-weight:800;font-size:.8rem;}\n.ges-eqh tr:last-child td{border-bottom:0;}\n.ges-eqh td.libre button{width:100%;height:100%;min-height:36px;border:0;background:none;color:var(--ges-ok);font-size:.75rem;font-weight:700;font-family:inherit;cursor:pointer;}\n.ges-eqh td.libre button:hover{background:var(--ges-ok-soft);}\n.ges-eqh td.ocupado{background:var(--ges-info-soft);}\n.ges-eqh td.ocupado button{width:100%;height:100%;min-height:36px;border:0;background:none;color:var(--ink);font-size:.75rem;font-weight:700;font-family:inherit;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;}\n.ges-eqh td.tapado{background:var(--danger-soft,rgba(211,47,47,.12));color:var(--danger);font-weight:800;}\n"+
 ".ges-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;}\n.ges-mes-h{font-size:.75rem;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.04em;text-align:center;padding:2px 0;}\n.ges-mes-d{min-height:86px;border:1px solid var(--border);border-radius:10px;background:var(--card);padding:4px;display:flex;flex-direction:column;gap:3px;}\n.ges-mes-d.otro{opacity:.45;}\n.ges-mes-d.hoy{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}\n.ges-mes-n{font-size:.75rem;font-weight:800;color:var(--gray);}\n.ges-mes-d.hoy .ges-mes-n{color:var(--accent);}\n@media (max-width:700px){.ges-mes{grid-template-columns:repeat(7,minmax(42px,1fr));overflow-x:auto;}.ges-mes-d{min-height:64px;}}\n";
 // Tablero que entra en la pantalla (sin barritas al costado dentro de cada
@@ -31,7 +31,8 @@ var GES_CSS_4=".ges-band-mas{align-self:flex-start;border:0;background:none;colo
 var GES_CSS_5=".ges-g3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}\n.ges-tbl-c th{white-space:normal;padding:7px 6px;line-height:1.25;}\n.ges-tbl-c td{padding:6px;}\n.ges-tbl-c .ges-bar{min-width:24px;}\n.ges-tbl-c .ges-hb{gap:6px;}\n.ges-tbl-c .ges-hb span{min-width:30px;}\n.ges-nota-t{margin:-4px 0 14px;line-height:1.5;}\n"+
 ".ges-eqh th{padding:6px 3px;}\n.ges-eqh td{min-width:56px;}\n.ges-eqh td.ocupado button,.ges-eqh td.libre button{padding:0 4px;}\n"+
 ".ges-qp{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin:-4px 0 14px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r-m,12px);background:var(--card);}\n.ges-q-a{display:flex;flex-direction:column;gap:4px;}\n.ges-q-g{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;flex:1;min-width:0;}\n.ges-q-c{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}\n.ges-q-h{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;}\n.ges-q-b{border:1px solid var(--border);background:var(--card);color:var(--ink-2,var(--ink));border-radius:999px;padding:6px 12px;font-family:inherit;font-size:.78rem;font-weight:800;cursor:pointer;}\n.ges-q-h .ges-q-b{border:0;border-radius:0;}\n.ges-q-b span{font-weight:600;color:var(--gray);margin-left:2px;}\n.ges-q-b.medio{background:var(--accent-soft);}\n.ges-q-b.on{background:var(--accent);border-color:var(--accent);color:#fff;}\n.ges-q-b.on span{color:#fff;}\n.ges-q-x{border:0;border-left:1px solid var(--border);background:var(--card);color:var(--gray);padding:0 10px;cursor:pointer;font-size:.78rem;}\n.ges-q-x:hover{color:var(--accent);}\n.ges-q-m{display:flex;gap:6px;flex-wrap:wrap;padding-left:6px;}\n.ges-q-m .ges-q-b{padding:5px 11px;font-weight:700;}\n.ges-q-ley{align-self:flex-end;}\n@media (max-width:700px){.ges-q-g{flex-direction:column;}.ges-q-ley{align-self:flex-start;}}\n.ges-c-tipo{background:var(--light);color:var(--gray);font-weight:700;}\n.ges-row-t{flex-wrap:wrap;}\n.ges-fdes{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray);font-weight:700;}\n.ges-fdes input[type=date]{min-width:0;width:140px;}\n.ges-leer{margin-left:auto;}\n@media (max-width:700px){.ges-leer{margin-left:0;}.ges-fdes{flex:1;}.ges-fdes input[type=date]{flex:1;width:auto;}}\n";
-(function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2+'\n'+GES_CSS_3+'\n'+GES_CSS_4+'\n'+GES_CSS_5;document.head.appendChild(st);})();
+var GES_CSS_6=".ges-tool-e{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}\n.ges-tool-e .ges-inp:first-child{flex:1 1 260px;}\n.ges-tool-e select.ges-inp{flex:0 1 230px;}\n.ges-emp-n{white-space:nowrap;}\n.ges-tbl-e th{white-space:normal;line-height:1.25;padding:9px 8px;}\n.ges-tbl-e td{padding:9px 8px;}\n.ges-tbl-e .ges-td-b{width:1%;white-space:nowrap;}\n.ges-tbl-e .ges-hb{min-width:96px;}\n.ges-tbl-e .ges-cuit{white-space:normal;}\n.ges-hhead{grid-template-columns:58px repeat(var(--n,6),minmax(72px,1fr));}\n.ges-hcols{grid-template-columns:repeat(var(--n,6),minmax(72px,1fr));}\n@media (max-width:700px){\n.ges-hhead{grid-template-columns:44px repeat(var(--n,6),minmax(104px,1fr));}\n.ges-hcols{grid-template-columns:repeat(var(--n,6),minmax(104px,1fr));}\n.ges-tbl-e thead{display:none;}\n.ges-tbl-e,.ges-tbl-e tbody{display:block;}\n.ges-tbl-e tr{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 8px;padding:12px 14px;border-bottom:1px solid var(--border);}\n.ges-tbl-e td{border:0;padding:0;display:block;text-align:left;}\n.ges-tbl-e td.r{text-align:left;}\n.ges-tbl-e td[data-l]::before{content:attr(data-l);display:block;font-size:.6875rem;letter-spacing:.05em;text-transform:uppercase;color:var(--gray);font-weight:800;}\n.ges-tbl-e .ges-td-e{grid-column:1/-1;margin-bottom:6px;}\n.ges-tbl-e td[data-l=Conversión]{grid-column:1/-1;margin-top:6px;}\n.ges-tbl-e .ges-td-h{grid-column:1/3;margin-top:6px;}\n.ges-tbl-e .ges-td-b{grid-column:3;width:auto;align-self:end;text-align:right;margin-top:6px;}\n}\n@media (max-width:520px){.ges-tbl-c th:nth-child(5):nth-last-child(2),.ges-tbl-c td:nth-child(5):nth-last-child(2){display:none;}.ges-tbl-c .ges-bar{display:none;}.ges-tbl-c th,.ges-tbl-c td{padding:6px 4px;}}\n";
+(function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2+'\n'+GES_CSS_3+'\n'+GES_CSS_4+'\n'+GES_CSS_5+'\n'+GES_CSS_6;document.head.appendChild(st);})();
 
 // A los hunters se los mide por el paquete que capta cada alta (no por la renta).
 // La base guarda la clave (columna paquete, migración 027); el orden es el de la pantalla.
@@ -444,7 +445,8 @@ function gesEmpresas(){
     var st={};
     l.forEach(function(g){
       if(g.dueno_id!==yo)return;
-      var k=_padNorm(g.empresa),x=st[k]||(st[k]={v:0,p:0,a:0,plan:0,ult:null,hun:null,nov:0});
+      var k=_padNorm(g.empresa),x=st[k]||(st[k]={v:0,p:0,a:0,plan:0,ult:null,hun:null,nov:0,der:0});
+      if(g.estado!=='cancelada')x.der++;
       if(g.visto_dueno===false)x.nov++;
       if(g.estado==='realizada'){x.v++;x.p+=+g.n_pros||0;x.a+=+g.n_altas||0;if(!x.ult||g.fecha>x.ult){x.ult=g.fecha;x.hun=g.hunter_id;}}
       if(g.estado==='planificada')x.plan++;
@@ -453,26 +455,42 @@ function gesEmpresas(){
     var kp='<div class="ges-kpis ges-k4">'+gesKpi('Acciones realizadas',gesN(tot.v),'en tus empresas')+gesKpi('Prospectos',gesN(tot.p),'')+
       gesKpi('Altas',gesN(tot.a),'sueldos en Galicia',true)+gesKpi('Conversión',gesPct(tot.a,tot.p),'altas ÷ prospectos')+'</div>';
     if(!emps.length){gesBody(kp+'<div class="ges-vacio">Todavía no tenés empresas cargadas. Cargalas en tu nombre &rarr; <b>Base de datos</b> &rarr; Mis empresas y vuelven a aparecer acá para derivarlas.</div>');return;}
-    GES._emps=emps.map(function(e){var k=_padNorm(e.empresa);return {empresa:e.empresa,cuits:gesCuitLista(e.cuits),k:k,s:st[k]||{v:0,p:0,a:0,plan:0}};});
-    gesBody(kp+'<div class="ges-tool"><input type="search" class="ges-inp" placeholder="Buscar en tus empresas (nombre o CUIT)" value="'+_escAttr(GES.qEmp)+'" oninput="GES.qEmp=this.value;gesEmpPintar()" autocomplete="off"></div>'+
-      '<div class="ges-card"><div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Empresa</th><th class="r">Acciones</th><th class="r">Prospectos</th><th class="r">Altas</th><th>Conversión</th><th>Último hunter</th><th></th></tr></thead>'+
+    GES._emps=emps.map(function(e){var k=_padNorm(e.empresa);return {empresa:e.empresa,cuits:gesCuitLista(e.cuits),k:k,s:st[k]||{v:0,p:0,a:0,plan:0,der:0,nov:0}};});
+    gesBody(kp+'<div class="ges-tool ges-tool-e"><input type="search" class="ges-inp" placeholder="Buscar en tus empresas (nombre o CUIT)" value="'+_escAttr(GES.qEmp)+'" oninput="GES.qEmp=this.value;gesEmpPintar()" autocomplete="off">'+
+      '<select class="ges-inp" id="ges-emp-f" aria-label="Filtrar empresas" onchange="GES.fEmp=this.value;gesEmpPintar()"></select>'+
+      '<span class="ges-mini ges-emp-n" id="ges-emp-n"></span></div>'+
+      '<div class="ges-card"><div class="ges-tw"><table class="ges-tbl ges-tbl-e"><thead><tr><th>Empresa</th><th class="r">Acciones</th><th class="r">Prospectos</th><th class="r">Altas</th><th>Conversión</th><th>Último hunter</th><th></th></tr></thead>'+
       '<tbody id="ges-emp-tb"></tbody></table></div></div>');
     gesEmpPintar();
   }).catch(gesErr);
 }
+var GES_EMP_F=[
+  ['todas','Todas',function(){return true;}],
+  ['derivadas','Derivadas (con acciones)',function(e){return e.s.der>0;}],
+  ['sin','Sin derivar',function(e){return !e.s.der;}],
+  ['plan','Con acciones planificadas',function(e){return e.s.plan>0;}],
+  ['altas','Con altas',function(e){return e.s.a>0;}],
+  ['nov','Con novedades',function(e){return e.s.nov>0;}]
+];
 function gesEmpPintar(){
   var tb=document.getElementById('ges-emp-tb');if(!tb||!GES._emps)return;
   var q=_padNorm(GES.qEmp),qd=gesCuilLimpio(GES.qEmp);
-  var vis=GES._emps.filter(function(e){return !q||e.k.indexOf(q)>=0||(qd.length>=4&&e.cuits.some(function(c){return c.indexOf(qd)>=0;}));}).slice(0,400);
+  var F=GES_EMP_F,fe=GES.fEmp||'todas',fs=document.getElementById('ges-emp-f');
+  if(fs&&!fs.options.length){fs.innerHTML=F.map(function(f){var n=GES._emps.filter(f[2]).length;return '<option value="'+f[0]+'">'+f[1]+' ('+n+')</option>';}).join('');}
+  if(fs)fs.value=fe;
+  var fn=(F.filter(function(f){return f[0]===fe;})[0]||F[0])[2];
+  var hall=GES._emps.filter(function(e){return !q||e.k.indexOf(q)>=0||(qd.length>=4&&e.cuits.some(function(c){return c.indexOf(qd)>=0;}));}).filter(fn);
+  var vis=hall.slice(0,400);
+  var nn=document.getElementById('ges-emp-n');if(nn)nn.textContent=hall.length===GES._emps.length?GES._emps.length+' empresas':hall.length+' de '+GES._emps.length+' empresas';
   tb.innerHTML=vis.map(function(e,i){
     var s=e.s,c=s.p?s.a/s.p:0,idx=GES._emps.indexOf(e);
-    return '<tr'+(s.nov?' class="ges-tr-nov"':'')+'><td><b>'+gesE(e.empresa)+'</b>'+(s.nov?' <span class="ges-nov" title="Hay novedades: abrilas en la solapa Gestiones">Novedad</span>':'')+
+    return '<tr'+(s.nov?' class="ges-tr-nov"':'')+'><td class="ges-td-e"><b>'+gesE(e.empresa)+'</b>'+(s.nov?' <span class="ges-nov" title="Hay novedades: abrilas en la solapa Gestiones">Novedad</span>':'')+
       (e.cuits.length?'<div>'+gesCuitHtml(e.cuits)+'</div>':'')+(s.plan?'<div class="ges-mini">'+s.plan+' planificada'+(s.plan>1?'s':'')+'</div>':'')+'</td>'+
-      '<td class="r">'+s.v+'</td><td class="r">'+s.p+'</td><td class="r"><b>'+s.a+'</b></td>'+
-      '<td><div class="ges-hb"><div class="ges-bar"><i style="width:'+Math.round(c*100)+'%"></i></div><span>'+gesPct(s.a,s.p)+'</span></div></td>'+
-      '<td>'+(s.hun?gesE(gesNom(s.hun)):'<span class="ges-mini">—</span>')+'</td>'+
-      '<td class="r"><button type="button" class="btn bg ges-btn-sm" onclick="gesDerivar('+idx+')">Derivar</button></td></tr>';
-  }).join('')||'<tr><td colspan="7" class="ges-mini" style="padding:14px">Ninguna empresa coincide.</td></tr>';
+      '<td class="r" data-l="Acciones">'+s.v+'</td><td class="r" data-l="Prospectos">'+s.p+'</td><td class="r" data-l="Altas"><b>'+s.a+'</b></td>'+
+      '<td data-l="Conversión"><div class="ges-hb"><div class="ges-bar"><i style="width:'+Math.round(c*100)+'%"></i></div><span>'+gesPct(s.a,s.p)+'</span></div></td>'+
+      '<td class="ges-td-h" data-l="Último hunter">'+(s.hun?gesE(gesNom(s.hun)):'<span class="ges-mini">—</span>')+'</td>'+
+      '<td class="r ges-td-b"><button type="button" class="btn bg ges-btn-sm" onclick="gesDerivar('+idx+')">Derivar</button></td></tr>';
+  }).join('')||'<tr><td colspan="7" class="ges-mini" style="padding:14px">Ninguna empresa coincide con ese filtro.</td></tr>';
 }
 
 // ── Modal propio (por encima de todo, se cierra con Escape o tocando afuera) ─
@@ -1921,7 +1939,7 @@ function gesHorSet(a,b){var x=document.getElementById('gf-hd'),y=document.getEle
 function gesAgPanel(){
   var oc=document.getElementById('gf-ocup');if(!oc||!oc.parentNode)return;
   var host=document.getElementById('gf-ag');
-  if(!host){host=document.createElement('div');host.id='gf-ag';host.className='ges-hpanel';oc.parentNode.insertBefore(host,oc.nextSibling);}
+  if(!host){host=document.createElement('div');host.id='gf-ag';host.className='ges-hpanel full';oc.parentNode.insertBefore(host,oc.nextSibling);}
   var hs=document.getElementById('gf-hunter'),esHun=gesRol()==='hunter';
   // El hunter que agenda lo suyo ve SU semana (la lee de sus propias acciones);
   // quien asigna ve la del hunter elegido, con las empresas ajenas tapadas.

@@ -1248,7 +1248,7 @@ ul.prop-diff li{padding:2px 0;border:0;}
 
 /* ===== GESTIONES COMERCIALES: lo que se ve antes de bajar gestiones.js (el resto viaja con el módulo) ===== */
 .ges-view{display:block;overflow:auto;height:calc(100vh - 62px - var(--simbar-h,0px));background:var(--paper,var(--light));}
-.ges-root{max-width:1240px;margin:0 auto;padding:18px 18px 48px;}
+.ges-root{width:100%;box-sizing:border-box;max-width:1480px;margin:0 auto;padding:18px 24px 48px;}
 @media (max-width:900px){.ges-view{height:auto;overflow:visible;}.ges-root{padding:14px 16px 40px;}}
 .hun-ges{display:inline-flex;align-items:center;gap:6px;}
 .hun-ges .ico{width:16px;height:16px;}

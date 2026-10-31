@@ -137,6 +137,9 @@ module.exports = async (browser) => {
   // Semana / Mes
   await of.evaluate(() => gesAgVer('mes'));
   ok(await espera(of, () => document.querySelector('#ges-body .ges-mes')), 'el botón Mes muestra el calendario del mes');
+  // la acción es de mañana: si hoy es fin de mes, cae en el mes que viene
+  await of.evaluate((f) => { if (f.slice(0, 7) !== gesHoy().slice(0, 7)) gesAgIr(1); }, S.g1.fecha);
+  await quieto(600);
   h = await of.evaluate(() => document.getElementById('ges-body').innerHTML);
   ok(/ALIMENTOS DEL SUR/.test(h) && !/ges-hbl.*tapado/.test(h), 'en el mes va lo propio, sin los "Ocupado"');
   ok(await of.evaluate(() => /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre) \d{4}$/.test(document.querySelector('.ges-ag-rango').textContent)), 'y el rótulo dice el mes y el año');
