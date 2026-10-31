@@ -283,6 +283,39 @@ module.exports = async (browser) => {
   ok(await li.evaluate((id) => (GES.tablero.por_dueno || []).every((x) => x.id === id), P.oficial.id), 'y lo que se cuenta sí respeta el filtro');
   await li.evaluate(() => { GES.f.due = ''; gesTablero(); });
 
+  // ── 050: período por trimestre y por mes, con Shift para sumar ──
+  const sel = () => li.evaluate(() => GES.f.meses.join(','));
+  await li.evaluate(() => gesPerSet('q'));
+  ok(await espera(li, () => document.querySelector('.ges-qp') && GES.tablero), 'elegir "Por trimestre o mes…" muestra el panel con los trimestres');
+  ok(await li.evaluate(() => [...document.querySelectorAll('.ges-q-h .ges-q-b')].map((b) => b.textContent.slice(0, 2)).join(',') === '1Q,2Q,3Q,4Q'), 'están 1Q, 2Q, 3Q y 4Q');
+  ok(await li.evaluate(() => GES.f.meses.length === 3), 'arranca con el trimestre de hoy');
+  await li.evaluate(() => gesQClic(1, { shiftKey: false })); await espera(li, () => GES.tablero);
+  ok(await sel() === '01,02,03', 'un clic en 1Q elige enero, febrero y marzo');
+  await li.evaluate(() => gesQClic(3, { shiftKey: true })); await espera(li, () => GES.tablero);
+  ok(await sel() === '01,02,03,07,08,09', 'con Shift, 3Q se suma a 1Q');
+  await li.evaluate(() => gesQClic(1, { shiftKey: true })); await espera(li, () => GES.tablero);
+  ok(await sel() === '07,08,09', 'con Shift sobre uno ya elegido, se saca');
+  await li.evaluate(() => gesQClic(2, { shiftKey: false })); await espera(li, () => GES.tablero);
+  ok(await sel() === '04,05,06', 'sin Shift queda sólo lo tocado');
+  await li.evaluate(() => gesQAbrir(2));
+  ok(await espera(li, () => document.querySelectorAll('.ges-q-m .ges-q-b').length === 3), 'la flecha abre los 3 meses del 2Q');
+  await li.evaluate(() => gesMesClic('05', { shiftKey: false })); await espera(li, () => GES.tablero);
+  ok(await sel() === '05', 'un clic en un mes elige sólo ese mes');
+  await li.evaluate(() => gesMesClic('06', { shiftKey: true })); await espera(li, () => GES.tablero);
+  ok(await sel() === '05,06', 'con Shift se suma otro mes');
+  ok(await li.evaluate(() => gesQTxt()) === 'mayo y junio de ' + new Date().getFullYear(), 'la nota dice qué meses se están mirando');
+  await li.evaluate(() => gesMesClic('05', { shiftKey: true })); await li.evaluate(() => gesMesClic('06', { shiftKey: true }));
+  ok(await sel() === '06', 'el último mes elegido no se puede sacar (nunca queda vacío)');
+  // El pedido a la base viaja con los meses, y lo que no cae en ellos no cuenta
+  const mes = await li.evaluate(() => (new Date(Date.now() - 6 * 86400000)).toISOString().slice(0, 7).slice(5));
+  await li.evaluate((m) => { GES.f.meses = [m]; gesTablero(); }, mes);
+  await espera(li, () => GES.tablero);
+  ok(await li.evaluate(() => GES.tablero.kpis.visitas > 0), 'el mes de las acciones realizadas las cuenta');
+  await li.evaluate(() => { GES.f.anio = 2019; gesTablero(); });
+  ok(await espera(li, () => GES.tablero && GES.tablero.kpis.visitas === 0), 'otro año no cuenta nada');
+  await cap(li, '7e_tablero_trimestre');
+  await li.evaluate(() => { GES.f.per = '90'; gesTablero(); });
+
   // ── 049: tipo a la vista, filtros por tipo y por fecha, leído / no leído ──
   await of.evaluate(() => gesIr('lista'));
   await espera(of, () => document.getElementById('ges-list'));

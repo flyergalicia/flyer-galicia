@@ -240,7 +240,7 @@ const RPC = {
   },
   gestiones_tablero: (U, a) => {
     const gd = DB.gestiones.filter((x) => puedeVer(U, x) && (!a.p_desde || x.fecha >= a.p_desde) && (!a.p_hasta || x.fecha <= a.p_hasta) && (!a.p_tipo || x.tipo === a.p_tipo)
-      && (!a.p_hunter || x.hunter_id === a.p_hunter) && (!a.p_solo_mio || [x.hunter_id, x.dueno_id, x.creada_por, x.lider_id].includes(U.id)));
+      && (!a.p_hunter || x.hunter_id === a.p_hunter) && (!a.p_meses || a.p_meses.includes(x.fecha.slice(0, 7))) && (!a.p_solo_mio || [x.hunter_id, x.dueno_id, x.creada_por, x.lider_id].includes(U.id)));
     const g = gd.filter((x) => !a.p_dueno || x.dueno_id === a.p_dueno);
     const r = g.filter((x) => x.estado === 'realizada' || (x.tipo === 'datos' && x.estado !== 'cancelada'));
     const gx = Object.fromEntries(r.map((x) => [x.id, x]));

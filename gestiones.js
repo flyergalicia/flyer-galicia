@@ -30,7 +30,7 @@ var GES_CSS_4=".ges-band-mas{align-self:flex-start;border:0;background:none;colo
 // tarjeta), tipo de acción en la lista y filtros por tipo y fecha.
 var GES_CSS_5=".ges-g3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}\n.ges-tbl-c th{white-space:normal;padding:7px 6px;line-height:1.25;}\n.ges-tbl-c td{padding:6px;}\n.ges-tbl-c .ges-bar{min-width:24px;}\n.ges-tbl-c .ges-hb{gap:6px;}\n.ges-tbl-c .ges-hb span{min-width:30px;}\n.ges-nota-t{margin:-4px 0 14px;line-height:1.5;}\n"+
 ".ges-eqh th{padding:6px 3px;}\n.ges-eqh td{min-width:56px;}\n.ges-eqh td.ocupado button,.ges-eqh td.libre button{padding:0 4px;}\n"+
-".ges-c-tipo{background:var(--light);color:var(--gray);font-weight:700;}\n.ges-row-t{flex-wrap:wrap;}\n.ges-fdes{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray);font-weight:700;}\n.ges-fdes input[type=date]{min-width:0;width:140px;}\n.ges-leer{margin-left:auto;}\n@media (max-width:700px){.ges-leer{margin-left:0;}.ges-fdes{flex:1;}.ges-fdes input[type=date]{flex:1;width:auto;}}\n";
+".ges-qp{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin:-4px 0 14px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r-m,12px);background:var(--card);}\n.ges-q-a{display:flex;flex-direction:column;gap:4px;}\n.ges-q-g{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;flex:1;min-width:0;}\n.ges-q-c{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}\n.ges-q-h{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;}\n.ges-q-b{border:1px solid var(--border);background:var(--card);color:var(--ink-2,var(--ink));border-radius:999px;padding:6px 12px;font-family:inherit;font-size:.78rem;font-weight:800;cursor:pointer;}\n.ges-q-h .ges-q-b{border:0;border-radius:0;}\n.ges-q-b span{font-weight:600;color:var(--gray);margin-left:2px;}\n.ges-q-b.medio{background:var(--accent-soft);}\n.ges-q-b.on{background:var(--accent);border-color:var(--accent);color:#fff;}\n.ges-q-b.on span{color:#fff;}\n.ges-q-x{border:0;border-left:1px solid var(--border);background:var(--card);color:var(--gray);padding:0 10px;cursor:pointer;font-size:.78rem;}\n.ges-q-x:hover{color:var(--accent);}\n.ges-q-m{display:flex;gap:6px;flex-wrap:wrap;padding-left:6px;}\n.ges-q-m .ges-q-b{padding:5px 11px;font-weight:700;}\n.ges-q-ley{align-self:flex-end;}\n@media (max-width:700px){.ges-q-g{flex-direction:column;}.ges-q-ley{align-self:flex-start;}}\n.ges-c-tipo{background:var(--light);color:var(--gray);font-weight:700;}\n.ges-row-t{flex-wrap:wrap;}\n.ges-fdes{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray);font-weight:700;}\n.ges-fdes input[type=date]{min-width:0;width:140px;}\n.ges-leer{margin-left:auto;}\n@media (max-width:700px){.ges-leer{margin-left:0;}.ges-fdes{flex:1;}.ges-fdes input[type=date]{flex:1;width:auto;}}\n";
 (function(){if(document.getElementById('ges-css'))return;var st=document.createElement('style');st.id='ges-css';st.textContent=GES_CSS+'\n'+GES_CSS_2+'\n'+GES_CSS_3+'\n'+GES_CSS_4+'\n'+GES_CSS_5;document.head.appendChild(st);})();
 
 // A los hunters se los mide por el paquete que capta cada alta (no por la renta).
@@ -52,7 +52,7 @@ var GES_MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','
 
 var GES={verTodo:(function(){try{return localStorage.getItem('fg_ges_vertodo')==='1';}catch(e){return false;}})(),tab:null,lista:null,listaP:null,personas:null,perP:null,det:null,detG:null,detPros:[],
   q:'',fEst:'',fHun:'',fTipo:'',fD1:'',fD2:'',empresas:null,qEmp:'',tab0:null,
-  f:{per:'90',tipo:'',hun:'',due:'',prueba:true},tablero:null,
+  f:{per:'90',anio:new Date().getFullYear(),meses:[],qAb:[],tipo:'',hun:'',due:'',prueba:true},tablero:null,
   // ver: null = todavía no eligió, y se decide por perfil al abrir la agenda
   // (el líder arranca viendo a todo su equipo; el resto, la semana).
   ag:{lunes:null,mes:null,ver:(function(){try{var v=localStorage.getItem('fg_ges_agver');return (v==='mes'||v==='sem'||v==='equipo'||v==='dia')?v:null;}catch(e){return null;}})(),
@@ -2107,13 +2107,53 @@ function gesDesde(per){
   if(per==='anio')return d.getFullYear()+'-01-01';
   return null;
 }
+// ── Período por trimestre (1Q a 4Q) y por mes ────────────────────────────────
+// Se elige un año y, dentro, trimestres y/o meses sueltos. Un clic elige sólo
+// eso; con Shift se suma (o se saca) sin perder lo que ya estaba elegido.
+function gesQMeses(q){var r=[],i;for(i=0;i<3;i++)r.push(gesP2((q-1)*3+i+1));return r;}
+function gesQTodos(q,ms){return gesQMeses(q).every(function(m){return ms.indexOf(m)>=0;});}
+function gesQActual(){return Math.floor(new Date().getMonth()/3)+1;}
+// Meses elegidos ('01'..'12'); si todavía no se eligió nada, el trimestre de hoy.
+function gesQSel(){var f=GES.f;return f.meses.length?f.meses:gesQMeses(gesQActual());}
+// Lista 'AAAA-MM' de lo elegido, o null si el período no es por trimestre.
+function gesPerMeses(){
+  var f=GES.f;if(f.per!=='q')return null;
+  return gesQSel().map(function(m){return f.anio+'-'+m;});
+}
+function gesQSet(shift,nuevos){
+  // sin Shift: queda sólo lo tocado. Con Shift: si todo lo tocado ya estaba, se saca; si no, se suma.
+  var f=GES.f,cur=gesQSel().slice();
+  if(!shift)cur=nuevos.slice();
+  else if(nuevos.every(function(m){return cur.indexOf(m)>=0;}))cur=cur.filter(function(m){return nuevos.indexOf(m)<0;});
+  else nuevos.forEach(function(m){if(cur.indexOf(m)<0)cur.push(m);});
+  if(!cur.length)cur=nuevos.slice(0,1); // nunca queda vacío
+  f.meses=cur.sort();
+}
+function gesQClic(q,ev){gesQSet(!!(ev&&ev.shiftKey),gesQMeses(q));gesTablero();}
+function gesMesClic(m,ev){gesQSet(!!(ev&&ev.shiftKey),[m]);gesTablero();}
+function gesQAbrir(q){var a=GES.f.qAb,i=a.indexOf(q);if(i>=0)a.splice(i,1);else a.push(q);gesTableroPintar();}
+function gesAnioSet(v){GES.f.anio=+v;gesTablero();}
+function gesPerSet(v){
+  var f=GES.f;f.per=v;
+  if(v==='q'&&!f.meses.length)f.meses=gesQMeses(gesQActual());
+  gesTablero();
+}
+// "1Q y 3Q de 2026" o "enero y marzo de 2026".
+function gesQTxt(){
+  var f=GES.f,sel=gesQSel();
+  var qs=[1,2,3,4].filter(function(q){return gesQTodos(q,sel);});
+  var soloQ=qs.length*3===sel.length;
+  var lista=function(a){return a.length<2?a.join(''):a.slice(0,-1).join(', ')+' y '+a[a.length-1];};
+  return (soloQ?lista(qs.map(function(q){return q+'Q';})):lista(sel.map(function(m){return GES_MESL[+m-1];})))+' de '+f.anio;
+}
 // Cómo se llama el período elegido, para explicar de dónde salen los números.
 function gesPerTxt(per){
+  if(per==='q')return gesQTxt();
   return per==='30'?'los últimos 30 días':per==='90'?'los últimos 90 días':per==='anio'?'este año':'todo';
 }
 function gesTablero(){
   var f=GES.f;
-  var args={p_desde:gesDesde(f.per),p_hasta:null,p_tipo:f.tipo||null,p_hunter:f.hun||null,p_dueno:f.due||null,p_prueba:gesPuedePrueba()&&!!f.prueba,p_solo_mio:gesSoloMio()};
+  var args={p_desde:gesDesde(f.per),p_hasta:null,p_tipo:f.tipo||null,p_hunter:f.hun||null,p_dueno:f.due||null,p_prueba:gesPuedePrueba()&&!!f.prueba,p_solo_mio:gesSoloMio(),p_meses:gesPerMeses()};
   Promise.all([_sb.rpc('gestiones_tablero',args),gesPersonas()]).then(function(res){
     var r=res[0];if(r&&r.error)throw r.error;
     GES.tablero=r.data;gesTableroPintar();
@@ -2130,14 +2170,15 @@ function gesTableroPintar(){
   dues.sort(function(a,b){return String(a[1]).localeCompare(String(b[1]));});
   if(f.due&&!dues.some(function(x){return x[0]===f.due;}))dues.push([f.due,gesNom(f.due)]);
   var filtros='<div class="ges-filtros">'+
-    '<label><span class="ges-lbl">Período</span><select class="ges-inp ges-sel" onchange="GES.f.per=this.value;gesTablero()">'+
-      [['30','Últimos 30 días'],['90','Últimos 90 días'],['anio','Este año'],['todo','Todo']].map(function(o){return '<option value="'+o[0]+'"'+(f.per===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'+
+    '<label><span class="ges-lbl">Período</span><select class="ges-inp ges-sel" onchange="gesPerSet(this.value)">'+
+      [['30','Últimos 30 días'],['90','Últimos 90 días'],['anio','Este año'],['q','Por trimestre o mes…'],['todo','Todo']].map(function(o){return '<option value="'+o[0]+'"'+(f.per===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'+
     '<label><span class="ges-lbl">Tipo</span><select class="ges-inp ges-sel" onchange="GES.f.tipo=this.value;gesTablero()">'+opt('t',[['accion','Acciones'],['feria','Ferias'],['posicion','Posiciones comerciales'],['datos','Bases de datos']],f.tipo,'Todos')+'</select></label>'+
     (gesRol()!=='hunter'?'<label><span class="ges-lbl">Hunter</span><select class="ges-inp ges-sel" onchange="GES.f.hun=this.value;gesTablero()">'+opt('h',huns,f.hun,'Todos')+'</select></label>':'')+
     '<label><span class="ges-lbl">Oficial Payroll</span><select class="ges-inp ges-sel" onchange="GES.f.due=this.value;gesTablero()">'+opt('d',dues,f.due,'Todos')+'</select></label>'+
     (gesPuedePrueba()?'<label class="ges-check"><input type="checkbox"'+(f.prueba?' checked':'')+' onchange="GES.f.prueba=this.checked;gesTablero()"> Incluir pruebas</label>':'')+
     '<button type="button" class="btn bg ges-xls" onclick="gesExcel()">Descargar Excel</button>'+
   '</div>';
+  var panelQ=f.per==='q'?gesQPanel():'';
   var vis=+k.visitas||0,asis=+k.asistentes||0,pros=+k.prospectos||0,alt=+k.altas||0;
   var cs=gesConSin(t.por_paquete||[]);
   var kpis='<div class="ges-kpis">'+gesKpi('Acciones',gesN(vis),(+k.planificadas?gesN(k.planificadas)+' planificadas':'realizadas'))+
@@ -2151,13 +2192,13 @@ function gesTableroPintar(){
     // Por qué los números no dan igual que la lista de la otra solapa.
     '<p class="ges-nota ges-nota-t">El tablero cuenta <b>'+gesE(gesPerTxt(f.per))+'</b> y s&oacute;lo acciones con hunter: no entran las bases de datos, lo cancelado ni lo que todav&iacute;a est&aacute; por asignar. En la solapa <b>'+(gesRol()==='lider'?'Gestiones del equipo':gesRol()==='hunter'?'Mis gestiones':'Gestiones')+'</b> se ve todo, sin per&iacute;odo.</p>';
   if(!vis&&!(+k.planificadas)){
-    gesBody(filtros+kpis+'<div class="ges-vacio">No hay gestiones en este período. Probá con un período más largo'+(gesPuedePrueba()&&!f.prueba?' o tildá &laquo;Incluir pruebas&raquo;':'')+'.</div>');
+    gesBody(filtros+panelQ+kpis+'<div class="ges-vacio">No hay gestiones en este período. Probá con un período más largo'+(gesPuedePrueba()&&!f.prueba?' o tildá &laquo;Incluir pruebas&raquo;':'')+'.</div>');
     return;
   }
   var rankH=gesRank(gesRol()==='hunter'?'Por hunter':'Hunters',t.por_hunter||[],function(x){return gesNom(x.id);},true);
   var rankD=gesRank('Oficiales Payroll',t.por_dueno||[],function(x){return gesNom(x.id);});
   var rankE=gesRankEmp(t.por_empresa||[]);
-  gesBody(filtros+kpis+
+  gesBody(filtros+panelQ+kpis+
     '<div class="ges-g2"><section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Evolución mensual</span>'+
       '<span class="ges-leg"><span><i class="l1"></i>Prospectos</span><span><i class="l2"></i>Altas</span></span></div>'+gesChartMeses(t.por_mes||[])+'</section>'+
     '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Embudo</span></div>'+gesEmbudo(asis,pros,alt)+
@@ -2165,6 +2206,22 @@ function gesTableroPintar(){
     '<div class="ges-g3">'+rankH+rankD+rankE+'</div>'+
     '<div class="ges-g2" style="margin-top:14px"><section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Por tipo de acción</span></div>'+gesPorTipo(t.por_tipo||[])+'</section>'+
     '<section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Por qué se descartan</span></div>'+gesMotivos(t.por_motivo||[])+'</section></div>');
+}
+// Panel del período por trimestre: año, 1Q a 4Q y, abriendo cada uno, sus meses.
+function gesQPanel(){
+  var f=GES.f,ms=gesQSel(),y0=new Date().getFullYear(),anios=[y0,y0-1,y0-2];
+  if(anios.indexOf(f.anio)<0)anios.push(f.anio);
+  var h='<div class="ges-qp"><label class="ges-q-a"><span class="ges-lbl">Año</span><select class="ges-inp ges-sel" onchange="gesAnioSet(this.value)">'+
+    anios.map(function(a){return '<option value="'+a+'"'+(a===f.anio?' selected':'')+'>'+a+'</option>';}).join('')+'</select></label><div class="ges-q-g">';
+  [1,2,3,4].forEach(function(q){
+    var ab=f.qAb.indexOf(q)>=0,todo=gesQTodos(q,ms),alguno=gesQMeses(q).some(function(m){return ms.indexOf(m)>=0;});
+    h+='<div class="ges-q-c"><div class="ges-q-h"><button type="button" class="ges-q-b'+(todo?' on':alguno?' medio':'')+'" aria-pressed="'+todo+'" onclick="gesQClic('+q+',event)" title="Un clic elige este trimestre; con Shift se suma a lo ya elegido">'+q+'Q <span>'+GES_MES[(q-1)*3]+'–'+GES_MES[q*3-1]+'</span></button>'+
+      '<button type="button" class="ges-q-x" aria-expanded="'+ab+'" aria-label="'+(ab?'Cerrar':'Abrir')+' los meses del '+q+'Q" title="'+(ab?'Cerrar':'Elegir')+' meses del '+q+'Q" onclick="gesQAbrir('+q+')">'+(ab?'&#9662;':'&#9656;')+'</button></div>';
+    if(ab)h+='<div class="ges-q-m">'+gesQMeses(q).map(function(m){
+      return '<button type="button" class="ges-q-b'+(ms.indexOf(m)>=0?' on':'')+'" aria-pressed="'+(ms.indexOf(m)>=0)+'" onclick="gesMesClic(\''+m+'\',event)">'+gesE(GES_MESL[+m-1].charAt(0).toUpperCase()+GES_MESL[+m-1].slice(1))+'</button>';}).join('')+'</div>';
+    h+='</div>';
+  });
+  return h+'</div><span class="ges-mini ges-q-ley">Un clic elige uno; con <b>Shift</b> sum&aacute;s (o sac&aacute;s) otros.</span></div>';
 }
 // Altas con paquete / sin paquete (Caja de Ahorro) / sin cargar, desde por_paquete.
 function gesConSin(rows){
@@ -2253,9 +2310,10 @@ function gesPorTipo(rows){
 function gesExcel(){
   showToast('Preparando el Excel…');
   Promise.all([_lib(['xlsx']),gesLista(true)]).then(function(res){
-    var t=GES.tablero||{},k=t.kpis||{},f=GES.f,desde=gesDesde(f.per),incl=gesPuedePrueba()&&!!f.prueba;
+    var t=GES.tablero||{},k=t.kpis||{},f=GES.f,desde=gesDesde(f.per),meses=gesPerMeses(),incl=gesPuedePrueba()&&!!f.prueba;
     var l=res[1].filter(function(g){
       if(desde&&g.fecha<desde)return false;
+      if(meses&&meses.indexOf(String(g.fecha).slice(0,7))<0)return false;
       if(g.fecha>gesHoy())return false;
       if(f.tipo&&g.tipo!==f.tipo)return false;
       if(f.hun&&g.hunter_id!==f.hun)return false;
@@ -2264,7 +2322,7 @@ function gesExcel(){
       return true;
     });
     var wb=XLSX.utils.book_new();
-    var resu=[['Gestiones comerciales'],['Período',desde?('Desde '+desde):'Todo'],['Generado',new Date().toLocaleString('es-AR')],[],
+    var resu=[['Gestiones comerciales'],['Período',meses?gesQTxt():desde?('Desde '+desde):'Todo'],['Generado',new Date().toLocaleString('es-AR')],[],
       ['Acciones realizadas',+k.visitas||0],['Planificadas',+k.planificadas||0],['Empresas',+k.empresas||0],['Asistentes',+k.asistentes||0],
       ['Prospectos',+k.prospectos||0],['Altas',+k.altas||0],['Conversión',(+k.prospectos?(+k.altas/+k.prospectos):0)],[]];
     var cs=gesConSin(t.por_paquete||[]);

@@ -91,6 +91,9 @@ ok(true, 'la 048 corre encima y se puede volver a correr');
 await db.exec(mig('049_tablero_duenos_y_leido.sql'));
 await db.exec(mig('049_tablero_duenos_y_leido.sql'));
 ok(true, 'la 049 corre encima y se puede volver a correr');
+await db.exec(mig('050_tablero_por_trimestre.sql'));
+await db.exec(mig('050_tablero_por_trimestre.sql'));
+ok(true, 'la 050 corre encima y se puede volver a correr');
 
 // Oficial deriva a Sofía con horario; el CUIT se copia
 let r = await como(U.of, `insert into public.gestiones(empresa, origen, hunter_id, tipo, estado, fecha, hora_desde, hora_hasta) values ('BETA SRL','derivada','${U.h1}','posicion','planificada','${hoy}','10:00','12:00') returning id, cuit`);
@@ -210,6 +213,17 @@ const conFil = (await como(U.li, `select public.gestiones_tablero(null, null, nu
 ok(conFil.duenos && conFil.duenos.length >= 2 && conFil.duenos.some((x) => x.id === U.of2),
   '049: con el filtro puesto en un oficial, el desplegable sigue trayendo a los demás (' + (conFil.duenos || []).length + ')');
 ok(conFil.por_dueno.every((x) => x.id === U.of), '049: y lo que se cuenta sí respeta el filtro');
+// 050: por mes. Un mes sin nada da cero; los meses de las acciones las cuentan; y la versión
+// de 7 parámetros (pantalla vieja) sigue andando sin dar "no sé cuál elegir".
+const mesHoy = new Date().toISOString().slice(0, 7);
+let t50 = (await como(U.of, `select public.gestiones_tablero('{2019-01}'::text[], p_prueba => false) t`)).rows[0].t;
+ok(t50.kpis.visitas === 0 && t50.kpis.planificadas === 0, '050: un mes sin nada no cuenta nada');
+const todos50 = (await como(U.of, `select public.gestiones_tablero(null::text[], p_prueba => false) t`)).rows[0].t;
+const meses50 = (await como(U.of, `select array_agg(distinct to_char(fecha, 'YYYY-MM')) m from public.gestiones`)).rows[0].m;
+t50 = (await como(U.of, `select public.gestiones_tablero('{${meses50.join(',')}}'::text[], p_prueba => false) t`)).rows[0].t;
+ok(t50.kpis.visitas === todos50.kpis.visitas && t50.kpis.planificadas === todos50.kpis.planificadas, '050: con todos los meses, igual que sin filtro (' + todos50.kpis.visitas + ' / ' + todos50.kpis.planificadas + ')');
+const viejo = await como(U.of, `select public.gestiones_tablero(null, null, null, null, null, false, false) t`);
+ok(!viejo.error && viejo.rows[0].t.kpis.visitas === todos50.kpis.visitas, '050: la llamada de 7 parámetros sigue andando ' + (viejo.error || ''));
 // 049: dejar sin leer y marcar todas como leídas
 await como(U.of, `select public.gestion_marcar_no_leida('${g1}')`);
 r = await como(U.of, `select visto_dueno from public.gestiones where id = '${g1}'`);
