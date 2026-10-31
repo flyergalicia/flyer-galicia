@@ -279,7 +279,7 @@ module.exports = async (browser) => {
   await li.evaluate((id) => { GES.f.due = id; gesTablero(); }, P.oficial.id);
   await espera(li, () => GES.f.due && GES.tablero);
   ok(await li.evaluate((n) => (GES.tablero.duenos || []).length === n, duenos0) && duenos0 >= 2,
-    'con un oficial elegido, el desplegable "Oficial que cede" sigue trayendo a todos (' + duenos0 + ')');
+    'con un oficial elegido, el desplegable "Oficial Payroll" sigue trayendo a todos (' + duenos0 + ')');
   ok(await li.evaluate((id) => (GES.tablero.por_dueno || []).every((x) => x.id === id), P.oficial.id), 'y lo que se cuenta sí respeta el filtro');
   await li.evaluate(() => { GES.f.due = ''; gesTablero(); });
 

@@ -12586,7 +12586,7 @@ function _tourCapitulos(){
          ' En la lista, cada acci&oacute;n muestra su <strong>tipo</strong> y pod&eacute;s filtrar por tipo, estado, hunter y <strong>fechas</strong>. Las marcadas (novedades y mensajes nuevos) se destildan al abrirlas: adentro, <strong>Dejar sin leer</strong> vuelve a marcarla, y arriba <strong>Marcar todas como le&iacute;das</strong> las saca a todas.',
        antes:irGes('lista')},
       {target:gesTab('tablero'),titulo:'El tablero',
-       texto:'Acciones, prospectos, altas y conversi&oacute;n, con las altas separadas <strong>con paquete / sin paquete</strong> (Caja de Ahorro) y por paquete, <strong>por qu&eacute; se descartan</strong> y cu&aacute;ntos de las bases de datos ya se contactaron. Filtr&aacute;s por per&iacute;odo, tipo, hunter y oficial, y lo baj&aacute;s en <strong>Excel</strong>. Ojo: cuenta s&oacute;lo el per&iacute;odo elegido y las acciones con hunter, as&iacute; que da menos que la lista de la otra solapa (ah&iacute; est&aacute; todo).',
+       texto:'Acciones, prospectos, altas y conversi&oacute;n, con las altas separadas <strong>con paquete / sin paquete</strong> (Caja de Ahorro) y por paquete, <strong>por qu&eacute; se descartan</strong> y cu&aacute;ntos de las bases de datos ya se contactaron. Filtr&aacute;s por per&iacute;odo, tipo, hunter y oficial Payroll, y lo baj&aacute;s en <strong>Excel</strong>. Ojo: cuenta s&oacute;lo el per&iacute;odo elegido y las acciones con hunter, as&iacute; que da menos que la lista de la otra solapa (ah&iacute; est&aacute; todo).',
        antes:irGes('tablero')}
     ]},
     {id:'opciones',titulo:'Opciones',cond:varias&&!sinArm,pasos:[

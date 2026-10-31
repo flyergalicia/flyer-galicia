@@ -2126,7 +2126,7 @@ function gesTableroPintar(){
   // Los oficiales del desplegable salen de "duenos": TODOS los que ceden algo en
   // el período, estén o no en el resultado filtrado (si no, al elegir uno la
   // lista se quedaba con ése solo y no se podía pasar a otro).
-  var dues=((t.duenos&&t.duenos.length?t.duenos:(t.por_dueno||[]))).map(function(x){return [x.id,gesNom(x.id)+(x.n?' ('+x.n+')':'')];}).filter(function(x){return x[0];});
+  var dues=((t.duenos&&t.duenos.length?t.duenos:(t.por_dueno||[]))).map(function(x){return [x.id,gesNom(x.id)];}).filter(function(x){return x[0];});
   dues.sort(function(a,b){return String(a[1]).localeCompare(String(b[1]));});
   if(f.due&&!dues.some(function(x){return x[0]===f.due;}))dues.push([f.due,gesNom(f.due)]);
   var filtros='<div class="ges-filtros">'+
@@ -2134,7 +2134,7 @@ function gesTableroPintar(){
       [['30','Últimos 30 días'],['90','Últimos 90 días'],['anio','Este año'],['todo','Todo']].map(function(o){return '<option value="'+o[0]+'"'+(f.per===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'+
     '<label><span class="ges-lbl">Tipo</span><select class="ges-inp ges-sel" onchange="GES.f.tipo=this.value;gesTablero()">'+opt('t',[['accion','Acciones'],['feria','Ferias'],['posicion','Posiciones comerciales'],['datos','Bases de datos']],f.tipo,'Todos')+'</select></label>'+
     (gesRol()!=='hunter'?'<label><span class="ges-lbl">Hunter</span><select class="ges-inp ges-sel" onchange="GES.f.hun=this.value;gesTablero()">'+opt('h',huns,f.hun,'Todos')+'</select></label>':'')+
-    '<label><span class="ges-lbl">Oficial que cede</span><select class="ges-inp ges-sel" onchange="GES.f.due=this.value;gesTablero()">'+opt('d',dues,f.due,'Todos')+'</select></label>'+
+    '<label><span class="ges-lbl">Oficial Payroll</span><select class="ges-inp ges-sel" onchange="GES.f.due=this.value;gesTablero()">'+opt('d',dues,f.due,'Todos')+'</select></label>'+
     (gesPuedePrueba()?'<label class="ges-check"><input type="checkbox"'+(f.prueba?' checked':'')+' onchange="GES.f.prueba=this.checked;gesTablero()"> Incluir pruebas</label>':'')+
     '<button type="button" class="btn bg ges-xls" onclick="gesExcel()">Descargar Excel</button>'+
   '</div>';
@@ -2155,7 +2155,7 @@ function gesTableroPintar(){
     return;
   }
   var rankH=gesRank(gesRol()==='hunter'?'Por hunter':'Hunters',t.por_hunter||[],function(x){return gesNom(x.id);},true);
-  var rankD=gesRank('Oficiales que ceden acciones',t.por_dueno||[],function(x){return gesNom(x.id);});
+  var rankD=gesRank('Oficiales Payroll',t.por_dueno||[],function(x){return gesNom(x.id);});
   var rankE=gesRankEmp(t.por_empresa||[]);
   gesBody(filtros+kpis+
     '<div class="ges-g2"><section class="ges-card ges-pad"><div class="ges-ch"><span class="ges-ct">Evolución mensual</span>'+
@@ -2288,7 +2288,7 @@ function gesExcel(){
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(l.map(function(g){var dt=g.tipo==='datos';return {
       Fecha:g.fecha,'Hasta':g.vence||'',Horario:gesHorario(g),Empresa:g.empresa,CUIT:gesCuitLista(g.cuit).map(gesCuilFmt).join(', '),Lugar:g.lugar||'',Tipo:GES_TIPO[g.tipo],Modalidad:dt?'':GES_MOD[g.modalidad],'Se repite':gesRepTxt(g),Estado:(dt?GES_EST_DATOS:GES_EST)[g.estado],
       Hunter:g.hunter_id?gesNom(g.hunter_id):'Por asignar',
-      'Oficial (cede)':gesNom(g.dueno_id),Origen:g.origen==='derivada'?'Derivada':'Propia','Pidió reasignación':g.no_puede_at?'Sí':'',
+      'Oficial Payroll':gesNom(g.dueno_id),Origen:g.origen==='derivada'?'Derivada':'Propia','Pidió reasignación':g.no_puede_at?'Sí':'',
       'Dotación':g.dotacion,Asistentes:g.asistentes,Personas:dt?+g.n_datos||0:'',Prospectos:+g.n_pros||0,Altas:+g.n_altas||0,Nota:g.nota||'',Prueba:g.prueba?'Sí':''};})),'Gestiones');
     XLSX.writeFile(wb,'Gestiones_'+gesHoy()+'.xlsx');
   }).catch(function(e){showToast('No se pudo armar el Excel: '+((e&&e.message)||e));});
