@@ -19,10 +19,11 @@ module.exports = async (browser) => {
       const a = document.getElementById('gf-ag'), f = a && a.closest('.ges-form, form, div[class*=ges]');
       const hor = a && a.querySelector('.ges-hor');
       const modal = a && a.parentElement;
-      return { panel: a ? a.clientWidth : 0, form: modal ? modal.clientWidth : 0, sc: hor ? hor.scrollWidth : 0, cw: hor ? hor.clientWidth : 0 };
+      return { panel: a ? a.clientWidth : 0, form: modal ? modal.clientWidth : 0, sc: hor ? hor.scrollWidth : 0, cw: hor ? hor.clientWidth : 0, vsc: hor ? hor.scrollHeight : 0, vch: hor ? hor.clientHeight : 0 };
     });
     ok(m.panel > 0 && m.panel >= m.form - 2, w + 'px: la semana ocupa todo el ancho de la ventana (' + m.panel + ' de ' + m.form + ')');
     ok(m.sc <= m.cw + 1, w + 'px: sin barra horizontal en la semana del hunter (' + m.sc + ' ≤ ' + m.cw + ')');
+    ok(m.vsc <= m.vch + 1, w + 'px: la semana se ve entera, sin barra vertical propia (' + m.vsc + ' ≤ ' + m.vch + ')');
     await p.screenshot({ path: __dirname + '/capturas/t96_asignar_' + w + '.png' }).catch(() => {});
     await p.context().close().catch(() => {});
   }
