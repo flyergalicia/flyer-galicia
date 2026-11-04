@@ -41,6 +41,7 @@ function webServers() {
   if (asksOnlyFor("legacy")) return [LEGACY_SERVER];
   if (asksOnlyFor("react")) return [PREVIEW_SERVER];
   if (asksOnlyFor("design-system")) return [LEGACY_SERVER, STORYBOOK_SERVER];
+  if (asksOnlyFor("flyer-engine")) return [STORYBOOK_SERVER];
   return [LEGACY_SERVER, PREVIEW_SERVER, STORYBOOK_SERVER];
 }
 
@@ -73,7 +74,7 @@ export default defineConfig<TargetOption & StorybookOption>({
   projects: [
     {
       name: "legacy",
-      testIgnore: ["**/specs/build/**", "**/specs/design-system/**"],
+      testIgnore: ["**/specs/build/**", "**/specs/design-system/**", "**/specs/flyer-engine/**"],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${LEGACY_PORT}/`,
@@ -82,12 +83,21 @@ export default defineConfig<TargetOption & StorybookOption>({
     },
     {
       name: "react",
-      testIgnore: "**/specs/design-system/**",
+      testIgnore: ["**/specs/design-system/**", "**/specs/flyer-engine/**"],
       grep: /@react/,
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${PREVIEW_PORT}${PUBLISHED_PATH}`,
         target: "react",
+      },
+    },
+    {
+      // The new engine against the printed flyer stored from the current app.
+      name: "flyer-engine",
+      testMatch: "**/specs/flyer-engine/**",
+      use: {
+        ...devices["Desktop Chrome"],
+        storybookUrl: `http://127.0.0.1:${STORYBOOK_PORT}/`,
       },
     },
     {

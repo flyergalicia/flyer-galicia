@@ -239,8 +239,8 @@ export function textBelowMinimum(page: Page): Promise<SmallText[]> {
 const STORYBOOK_INDEX = fileURLToPath(
   new URL("../../../../storybook-static/index.json", import.meta.url),
 );
-/** The harness stories are the ones of the network: they show no text of their own. */
-const HARNESS_STORY = /cloudharness/;
+/** The harness stories only give tests a way in: they show no text of their own. */
+const HARNESS_STORY = /cloudharness|engineharness/;
 
 interface StorybookIndexEntry {
   id?: unknown;

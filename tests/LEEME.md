@@ -44,6 +44,12 @@ npm run storybook:build
 npx playwright test --project=design-system
 ```
 
+El motor del flyer nuevo contra el flyer impreso de referencia. También necesita Storybook armado:
+
+```bash
+npx playwright test --project=flyer-engine
+```
+
 La primera vez hay que instalar el navegador con `npx playwright install chromium`.
 
 ## Qué hay acá
@@ -54,6 +60,8 @@ La primera vez hay que instalar el navegador con `npx playwright install chromiu
 | `e2e/support/driver/`                | Cómo se hace cada cosa, con métodos nombrados por intención. `legacy/` maneja la versión actual; `react/` manejará la nueva        |
 | `e2e/specs/design-system/`           | `shared` contra la versión actual: tokens, componentes, capturas, red y letra mínima. Se explica en `docs/PLAN_MIGRACION_REACT.md` |
 | `e2e/support/design-system/`         | Qué story tiene que igualar a qué parte de la app (`cases.ts`), y cómo se mide                                                     |
+| `e2e/specs/flyer-engine/`            | `shared/flyer-engine` contra `fixtures/golden/`: los mismos píxeles y el mismo PDF, sin tolerancia                                 |
+| `e2e/support/flyer-engine/`          | Abre la story del motor y baja lo que sale. Trae las entradas grabadas de cada caso (`golden-inputs.json`)                         |
 | `e2e/support/cloud/`                 | La nube simulada: tablas, bucket, funciones y reglas. Se crea una por prueba                                                       |
 | `unit/`                              | Lógica suelta, sin navegador                                                                                                       |
 | `fixtures/data/`, `fixtures/logos/`  | Lo que sirve la nube simulada: flyer, catálogo de promociones, geografía y logos                                                   |
@@ -90,6 +98,19 @@ Límites de las capturas:
 - Muestran lo que entra en la ventana, más una imagen del contenido en las pantallas que abren con filtros arriba.
 - Valen sólo para macOS, y por eso no corren en CI. En otro sistema hay que generarlas ahí.
 - El proyecto `design-system` compara recortes de esas mismas capturas: no tiene referencias propias. Si cambia una captura a propósito, él se entera solo.
+
+## El motor del flyer contra la referencia
+
+`e2e/specs/flyer-engine/` abre la story `EngineHarness` y baja el PNG y el PDF con la API pública del motor, sin formulario ni nube. Lee `fixtures/golden/`, nunca las escribe. Lo que depende de la plataforma lleva `@golden` y no corre en CI.
+
+`e2e/support/flyer-engine/golden-inputs.json` son los datos de cada caso, tal como los tenía la app actual en el momento de descargar. No hay nada personal: son personas y empresas inventadas. Las direcciones son de un dominio `.invalid`, y sólo contestan los archivos de `fixtures/`.
+
+Hay que regrabarlas sólo si cambia un caso de `golden/flyer-output.spec.ts` o la calibración de `fixtures/data/`, así:
+
+1. Con una spec temporal en `specs/golden/` (no se versiona), hacer lo mismo que el caso y envolver `window.fullRes` antes de apretar el botón, para guardar los valores que recibe.
+2. Guardar también `window.FLYER_CFG` (con un recorte, `_fgRec.cfg0` y `_fgRec.cortes`), el texto de `#filename` y las claves de `_fgLg.imgs`. Del Masivo se guardan las filas.
+3. Cambiar la dirección del flyer por la de `golden-inputs.json`, también en `logosSrc`.
+4. Si las referencias no cambiaron, el motor tiene que seguir dando diferencia 0: eso demuestra que las entradas están bien.
 
 ## Casos especiales
 

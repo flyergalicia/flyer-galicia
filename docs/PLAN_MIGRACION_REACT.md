@@ -116,7 +116,7 @@ Cada dato va en el primer nivel que le alcance:
 |---|---|---|
 | 1 | Referencia de la versión actual (capturas, PDF/PNG, contrato de red, peso) y las 87 pruebas viejas en TS, contra las dos versiones | Todas pasan contra la versión actual |
 | 2 | `shared`: tokens, `ui`, Supabase, sesión | Storybook coincide con las capturas y el contrato de red pasa |
-| 3 | `flyer-engine` en TS, partido hasta cumplir la complejidad | PDF y PNG idénticos a la referencia |
+| 3 | `flyer-engine` en TS, partido hasta cumplir la complejidad. **Hecha**, ver abajo | PDF y PNG idénticos a la referencia |
 | 4 | Slices, en orden: `auth` y shell, `promotions`, `company-registry`, `logo-editor`, `flyer-editor`, `hunter`, `studio`, `commercial-actions`, `benchmark`, `admin`, `search` y `tour` | Cada slice pasa lint, complejidad, coverage y sus pruebas antes de seguir |
 | 5 | Corte local con `npm run release`, que copia `dist/` a la raíz | Todo en verde y paridad con la referencia |
 | 6 | Limpieza del código viejo y documentación | Sin rastros del código viejo |
@@ -150,6 +150,35 @@ Todo el proyecto desaparece con la versión actual, en la etapa 6: compara contr
 - **`shared/ui`:** `Button`, `Field` (con `Input`, `Select` y `Textarea`), `Checkbox`, `Switch`, `Tabs`, `Card`, `StatCard`, `Badge`, `Avatar`, `ListRow`, `Modal`, `ConfirmDialog`, `Menu`, `DataTable`, `Toast`, `Spinner`, `Skeleton`, `EmptyState`, `Notice`, `ProgressBar`, `SectionLabel`, `Icon`, `PalettePicker` y `ThemeProvider`. En los compuestos, las partes van en `X.parts.tsx` y el objeto armado en `X.ts`. Quedan para sus slices las piezas de una sola pantalla: `cfg-btn`, la barra de zoom, la barra fija de abajo y el encabezado.
 - **Rarezas de la app actual que se conservan** porque el aspecto no cambia: en oscuro, un campo con foco no cambia de borde; las tarjetas del panel admin tienen otra superficie (`--raised`) que las del armador (`--card`); en el celular el `Input` mediano va a 16 px y el `Input` grande y el `Select` no.
 - **Tipos de la base:** `npm run db:types` los genera de `supabase/migrations/`, sin red. La base de `profiles` y `flyer_logs` no tiene `create table` en ninguna migración: están declaradas a mano en el generador, y una prueba controla que esa lista no crezca.
+
+## Etapa 3: el motor del flyer
+
+`web/src/shared/flyer-engine` dibuja el flyer y lo saca a PDF y PNG. Recibe datos y devuelve dibujo: no lee el formulario ni globales de la app. **El PDF y el PNG salen idénticos a la referencia**, píxel por píxel y sin tolerancia, en los 6 casos de `tests/fixtures/golden/` (`tests/e2e/specs/flyer-engine/`).
+
+### Decisiones de la etapa
+
+- **`FlyerScene`** junta la imagen con su calibración y es de sólo lectura. Sólo nace de `loadFlyerArtwork` (una imagen que cargó de verdad) o de `cropScene`, así que un flyer que no cargó no se puede dibujar sobre la imagen de otro (invariante 23), y la imagen y la calibración de un recorte no se pueden desfasar (invariante 22). `window.baseImg`, `window.FLYER_CFG`, `_fgExtra` y `_fgContentBottomBase` ya no existen: el dibujo devuelve `{ extra, contentBottom }` y no deja nada guardado.
+- **`cropScene`** baja antes las imágenes de las secciones insertadas y cuenta las que faltan (invariante 27). Los cortes se cuentan siempre desde el flyer entero.
+- **`createFlyerPreview`**: `drawNow()` dibuja antes de volver (invariante 1) y `requestDraw()` junta los pedidos de un mismo cuadro. Usa el mismo dibujo que la descarga (invariante 16).
+- **`flyerSlotReducer`** es la regla de "qué flyer está en pantalla": una opción sin imagen no toca la escena, y `downloadBlock` dice por qué no se puede bajar con un código (`loading`, `network`, `no-flyer`, `not-loaded`). Los textos los pone el slice.
+- **`createLogoLibrary`** guarda los logos en memoria. Cómo se baja cada logo se le inyecta: `shared` no sabe de galicia.ar ni del bucket.
+- **`generateBatch`** tiene lo que ninguna tanda puede saltear: no dibuja un grupo cuyo flyer no cargó, anota la fila que falla y sigue, no pisa nombres y sin nada generado no hay ZIP. Qué dice cada fila y las palabras de `Resumen.txt` llegan de afuera.
+- **jsPDF 4.2.1 y JSZip 3.10.2** ahora son dependencias del proyecto, con `import()` diferido. Los resultados dicen si el archivo salió (invariante 24).
+- **Las claves de lo guardado no se traducen:** `FlyerValues`, la calibración, los cambios de logos y los cortes siguen con sus nombres (`empresa`, `xc`, `recortes`).
+
+### Rarezas que se conservan
+
+Para dar los mismos píxeles: en la vista previa el suavizado alto de un logo queda prendido mientras el canvas no cambia de tamaño (la descarga no, porque guarda y restaura el contexto); un importe que falta se escribe como "undefined", igual que hoy; `cropCalibration` hace la copia por JSON.
+
+Se sacaron dos `try/catch` que no podían saltar: al estirar la fila del hueco y al recortar un logo `orig:` de una imagen ya cargada.
+
+### Lo que queda para los slices
+
+| Slice | Qué |
+|---|---|
+| `flyer-editor` | `fgGetVals` y el formulario, calcSC y el zoom, `_fgDescargar` y su candado, toasts, historial, `flyer_logs`, `_padCheckRubro`, las filas y textos del Masivo y Generar flyers (`_masFila`, `_fgRowBenef`, `_pgVals`, Resumen) |
+| `logo-editor` | Detectar y editar logos (`_fgLgDetectar`, `_fgLgPixeles`, `_fgLgRenglones`, `_fgLgColorDe`, `_fgLgTxtMedir`, `_fgLgAchicar`, `_fgLgEsBlanco`, `_fgLgLeerArchivo`), franjas, marcas guardadas y la interacción de Recortar e Insertar (`_fgRecMejorUnion`, `_fgInsFilas`, huecos) |
+| `admin` y `studio` | Calibrador, `_BENEF_PLANTILLAS` salvo la de combustible (el motor la necesita como respaldo), pdf.js y `_rasterizeFlyer` |
 
 ## Pruebas y coverage
 
