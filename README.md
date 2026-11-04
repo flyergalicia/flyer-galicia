@@ -25,7 +25,7 @@ La interfaz y el estado de pantalla van en el frontend. Las credenciales privile
 
 ## Requisitos
 
-- [Node.js](https://nodejs.org/) 22.13 o más nuevo (probado con la 24).
+- [Node.js](https://nodejs.org/) 26, la LTS activa. La versión exacta está en `.nvmrc`; con [nvm](https://github.com/nvm-sh/nvm), `nvm install` la instala y `nvm use` la activa.
 - Git.
 - Para las pruebas con navegador: Playwright y Chromium, que se instalan una sola vez:
 

@@ -28,7 +28,7 @@
 // admin lo revisa.
 // Versión FIJA, la misma que usa la app (SUPABASE_JS_URL en _build.mjs): con "@2"
 // cada deploy tomaba la última 2.x que hubiera, sin que nadie la probara.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 // Preferimos la nueva secret key (ADMIN_SECRET); fallback a la legacy mientras

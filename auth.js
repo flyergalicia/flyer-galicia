@@ -7673,36 +7673,45 @@ var _FG_TARGET_W=1240;
 function _finishRaster(cvs,cb){
   cvs.toBlob(function(b){cb(b,cvs);},'image/jpeg',0.92);
 }
+// pdf.js va en jsDelivr (cdnjs tarda en sumar versiones) y en su armado "legacy": el
+// común sólo anda en navegadores muy recientes y las PC de sucursal pueden no estarlo.
+var _FG_PDFJS='https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/';
+// Desde pdf.js 5, JPEG 2000 y fax/JBIG2 se decodifican con WebAssembly. Los pide el
+// worker por mensaje y los baja esta fábrica, con su hash (fetch del worker no lo verifica).
+// Sin wasmUrl no hay otro camino: si un archivo no llega, esa imagen no se dibuja.
+var _FG_PDF_WASM={
+  'openjpeg.wasm':'sha384-zUaz4HmvfKEHP9lus9TOMat1FFL0UcpbPw5V11mhoW2ma/L1IDw03o1QQqv7AkF2',
+  'jbig2.wasm':'sha384-iaCfit7ahDwR6i0sUBtQtjqoUs/cixFPu1hRkl4j14vBZ9WWoGkJhy0wQ9N9P5ED'
+};
+function _FgPdfBinarios(){}
+_FgPdfBinarios.prototype.fetch=function(q){
+  var sri=q&&q.kind==='wasmUrl'&&_FG_PDF_WASM[q.filename];
+  if(!sri)return Promise.reject(new Error('pdf.js pidió '+(q&&q.filename)));
+  return fetch(_FG_PDFJS+'wasm/'+q.filename,{integrity:sri,mode:'cors'})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
+    .then(function(b){return new Uint8Array(b);});
+};
 function _fgLoadPdfJs(cb){
-  if(window.pdfjsLib&&window.pdfjsLib.getDocument){cb();return;}
+  if(window.pdfjsLib&&window.pdfjsLib.getDocument&&window.pdfjsLib.GlobalWorkerOptions.workerSrc){cb();return;}
   // Integridad (SRI) fijada a la versión exacta, igual que los scripts del <head>:
   // si el CDN devolviera otro contenido, el navegador no lo ejecuta.
   var s=document.createElement('script');
-  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-  s.integrity='sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+  s.type='module'; // pdf.js ya no viene como script común; al ejecutarse deja window.pdfjsLib
+  s.src=_FG_PDFJS+'legacy/build/pdf.min.mjs';
+  s.integrity='sha384-8Nzt4NtLKsO5Ksqwrdc+JzLh0297H8590bi0lcBPKcMRxReio/DNZsRsiBMZydqe';
   s.crossOrigin='anonymous';
   s.onload=function(){
-    var wsrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    var wsri='sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
-    function fallback(){
-      try{
-        // Worker cross-origin robusto: blob mismo-origen que importa el worker real (cdnjs manda CORS).
-        var blob=new Blob(['importScripts('+JSON.stringify(wsrc)+');'],{type:'application/javascript'});
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
-      }catch(e){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=wsrc;}catch(_){}}
-      cb();
-    }
-    // importScripts no soporta integrity, pero fetch sí: se baja el worker con su
-    // hash verificado y se lo sirve desde un blob. Si algo falla, el camino de antes.
-    try{
-      fetch(wsrc,{integrity:wsri,mode:'cors'})
-        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
-        .then(function(code){
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([code],{type:'application/javascript'}));
-          cb();
-        })
-        .catch(function(e){console.warn('pdf.js worker con SRI falló, uso importScripts:',e);fallback();});
-    }catch(e){fallback();}
+    var wsrc=_FG_PDFJS+'legacy/build/pdf.worker.min.mjs';
+    var wsri='sha384-h2OX4gf3I6e1sZFfB/7wpAKzqaygzUba1e7GWT5x1gZqWrNDRIrSERQHlEFPSfu+';
+    // Un Worker no admite integrity, pero fetch sí: se baja con su hash verificado y se
+    // lo sirve desde un blob. Si falla no hay otro camino, sería correr código sin verificar.
+    fetch(wsrc,{integrity:wsri,mode:'cors'})
+      .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+      .then(function(code){
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
+        cb();
+      })
+      .catch(function(e){console.warn('pdf.js worker:',e);showToast('No se pudo cargar el lector de PDF');});
   };
   s.onerror=function(){showToast('No se pudo cargar el lector de PDF');};
   document.head.appendChild(s);
@@ -7756,7 +7765,7 @@ function _rasterizeFlyer(file,cb){
           var doc=null;
           // al terminar se suelta el PDF (antes quedaba en memoria, con sus imágenes decodificadas)
           var soltar=function(){try{if(doc)doc.destroy();}catch(x){}doc=null;};
-          window.pdfjsLib.getDocument({data:data}).promise.then(function(pdf){doc=pdf;return pdf.getPage(1);})
+          window.pdfjsLib.getDocument({data:data,useWorkerFetch:false,BinaryDataFactory:_FgPdfBinarios}).promise.then(function(pdf){doc=pdf;return pdf.getPage(1);})
           .then(function(page){
             _renderPageBanded(page,function(cvs,err){
               try{page.cleanup();}catch(x){}

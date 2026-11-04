@@ -17,7 +17,7 @@
 // Autoriza: admin, o un rol con la facultad "benchmark" en _facultades.json
 // (validado acá: la facultad del cliente es sólo interfaz). El cron entra con
 // x-cron-secret (BENCH_CRON_SECRET), sólo para sync/marcas.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("ADMIN_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

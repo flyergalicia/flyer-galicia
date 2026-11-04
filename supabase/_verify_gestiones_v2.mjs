@@ -5,7 +5,7 @@
 // Ojo: acá se reproduce a mano el revoke de es_lider_de que hace la 019 (ver más
 // abajo). Sin eso, el problema que arregla la 047 no se ve.
 // Necesita PGlite instalado en una carpeta aparte (no se versiona):
-//   npm install @electric-sql/pglite@0.2.17   (en esa carpeta)
+//   npm install @electric-sql/pglite@0.5.15   (en esa carpeta)
 //   PGLITE=<esa carpeta>/node_modules/@electric-sql/pglite node supabase/_verify_gestiones_v2.mjs
 import { readFileSync } from 'fs';
 import { join, resolve, dirname } from 'path';
