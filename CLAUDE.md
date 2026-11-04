@@ -16,7 +16,7 @@ Además tiene: login con roles, guardado de datos en la nube, buscador de promoc
 
 ## 2. Cómo está armado
 
-No hay `package.json` ni gestor de paquetes. La única herramienta de armado es `_build.mjs`, que se corre directo con Node: `node _build.mjs`.
+**Migración a React + TypeScript en curso:** se trabaja **sólo en la rama `refactor/react`**, y están **prohibidos el `push` y los commits a `main`** (también para subagentes; tampoco se usa `--no-verify`). El plan, los estándares y el manejo de estado están en `docs/PLAN_MIGRACION_REACT.md`, y los términos en `docs/GLOSARIO.md`. La app nueva vive en `web/`. El código nuevo y los commits van en inglés; la documentación y los textos de pantalla, en español. Hasta el corte, lo publicado sigue siendo lo que se describe abajo, que se arma con `node _build.mjs`.
 
 ### Lo que se edita (frontend: todo corre en el navegador)
 
@@ -212,7 +212,7 @@ No hay `package.json` ni gestor de paquetes. La única herramienta de armado es 
 4. Si hay una migración nueva, aplicarla con `supabase/_runsql.mjs <archivo.sql>` (necesita `SB_TOKEN`) y verificarla con los `_verify_*.sql`.
 5. `git add -A && git commit && git push origin main` → GitHub Pages se actualiza solo. **Pedir confirmación al usuario antes de subir.**
 
-**Commits:** siguen Conventional Commits (`tipo(alcance)!: descripción`, el texto en español); los valida el hook `.githooks/commit-msg`, que se activa una vez por clon con `git config core.hooksPath .githooks` (ver `README.md`).
+**Commits:** siguen Conventional Commits (`type(scope)!: description`), **en inglés**; el formato lo valida commitlint por un hook de lefthook, que se instala solo con `npm install` (ver `README.md`). En `refactor/react`, `npm run ci` corre todos los chequeos.
 
 **Probar**
 

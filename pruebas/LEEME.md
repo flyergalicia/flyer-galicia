@@ -10,7 +10,7 @@ Son las pruebas que se corren antes de cada subida para no romper lo que ya anda
    - Para ver todo lo que imprime cada una: `--detalle`.
 3. Al final dice cuántas pasaron. Si alguna falla, muestra qué comprobación falló.
 
-La primera vez hace falta Playwright con su Chromium: `npx -y playwright@latest install chromium`. Si está en otro lado, se indica con las variables de entorno `PLAYWRIGHT` (carpeta del paquete) y `CHROMIUM` (el ejecutable).
+La primera vez hace falta instalar Playwright, que está fijado en `package.json`, y su Chromium: `npm install` y `npx playwright install chromium`. Para usar otro, se indica con las variables de entorno `PLAYWRIGHT` y `CHROMIUM`.
 
 ## Qué hay acá
 

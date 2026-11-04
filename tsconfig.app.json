@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./web/src/*"]
+    }
+  },
+  "include": ["web/src", ".storybook/preview.ts"]
+}

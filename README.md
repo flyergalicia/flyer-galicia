@@ -4,7 +4,7 @@ Aplicación web de una sola pantalla para que asesores y oficiales de banco arme
 
 También incluye inicio de sesión con perfiles, buscador de promociones vigentes, comparación de promociones entre bancos, gestiones comerciales con tablero y panel de administración.
 
-No hay `package.json`, gestor de paquetes ni transpilación: el frontend es JavaScript plano y el armado es un único script de Node.
+**Migración en curso:** el frontend se está pasando a React y TypeScript en la rama `refactor/react`, con la app nueva en `web/`. Lo que está publicado sigue siendo el JavaScript plano armado por `_build.mjs`, hasta el corte. El plan está en [docs/PLAN_MIGRACION_REACT.md](docs/PLAN_MIGRACION_REACT.md) y los términos en [docs/GLOSARIO.md](docs/GLOSARIO.md).
 
 ## Cómo está armada
 
@@ -27,24 +27,41 @@ La interfaz y el estado de pantalla van en el frontend. Las credenciales privile
 
 - [Node.js](https://nodejs.org/) 26, la LTS activa. La versión exacta está en `.nvmrc`; con [nvm](https://github.com/nvm-sh/nvm), `nvm install` la instala y `nvm use` la activa.
 - Git.
-- Para las pruebas con navegador: Playwright y Chromium, que se instalan una sola vez:
-
-```bash
-npx -y playwright@latest install chromium
-```
 
 ## Primeros pasos
 
-Desde la carpeta del proyecto, activá la validación de commits (se hace una vez por clon):
+Instalá las dependencias y el navegador de las pruebas (se hace una vez). `npm install` también activa los hooks de git:
 
 ```bash
-git config core.hooksPath .githooks
+nvm use
 ```
 
-Armá la aplicación:
+```bash
+npm install
+```
 
 ```bash
-node _build.mjs
+npx playwright install chromium
+```
+
+### App nueva (`web/`)
+
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Levanta la app en <http://127.0.0.1:5173/> |
+| `npm run build` | Genera `dist/` |
+| `npm run preview` | Sirve `dist/` en <http://127.0.0.1:8766/> |
+| `npm run storybook` | Abre el catálogo de componentes |
+| `npm run ci` | Corre **todos** los chequeos: es lo que tiene que pasar antes de un commit de etapa |
+
+`npm run dev` **no se conecta a ningún proyecto de Supabase** si no existe `web/.env.local` (hay un ejemplo en `web/.env.example`). Es a propósito: con credenciales reales, la copia local trabaja sobre los datos reales y puede disparar mails. Si hace falta, usá sólo cuentas de prueba.
+
+### App publicada
+
+Armala:
+
+```bash
+npm run legacy:build
 ```
 
 Para abrirla, servila por `http://localhost` con cualquier servidor estático. Por `file://` no funciona, porque la política de seguridad de la página no lo permite.
@@ -55,7 +72,7 @@ python3 -m http.server 8000
 
 Después entrá a <http://localhost:8000/>.
 
-La aplicación necesita una sesión real y **no hay un entorno de prueba aparte**: si iniciás sesión desde una copia local, trabajás sobre los datos reales. Para probar sin tocar nada, usá las pruebas automáticas, que corren contra una nube simulada.
+La aplicación necesita una sesión real y **no hay un entorno de prueba aparte**: si iniciás sesión desde una copia local, trabajás sobre los datos reales.
 
 ## Armar
 
@@ -78,12 +95,6 @@ node pruebas/correr.mjs u06 t39
 ```
 
 Con `--detalle` se ve todo lo que imprime cada prueba.
-
-**En Mac hay que indicar el navegador** con la variable `CHROMIUM`, porque el ejecutor no busca en la carpeta donde Playwright lo instala en ese sistema:
-
-```bash
-CHROMIUM="$(find ~/Library/Caches/ms-playwright -type f -path '*/Contents/MacOS/Google Chrome for Testing' | sort | tail -n 1)" node pruebas/correr.mjs
-```
 
 Hay dos tipos de prueba: `t…_*.cjs` abren la aplicación en un navegador automático y `u…_*.mjs` prueban lógica suelta sin navegador. Toda funcionalidad nueva suma su prueba. Los detalles están en [`pruebas/LEEME.md`](pruebas/LEEME.md).
 
@@ -121,30 +132,34 @@ Los genera `node _build.mjs` y se pisan en cada armado:
 
 ## Convención de commits
 
-Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/). El texto puede ir en español:
+Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) y **se escriben en inglés**:
 
 ```text
-<tipo>[(alcance)][!]: <descripción>
+<type>[(scope)][!]: <description>
 
-[cuerpo opcional]
+[optional body]
 ```
-
-- **Tipos:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
-- **Alcance:** opcional, entre paréntesis.
-- **`!`:** marca un cambio incompatible.
-- **Cuerpo:** si lo hay, va separado de la primera línea por una línea en blanco.
 
 Por ejemplo:
 
 ```text
-feat(promos): agrega el filtro por provincia
-fix: corrige el nombre del archivo descargado
-refactor(padrón)!: renombra las columnas de topes
+feat(promotions): add the province filter
+fix: correct the downloaded file name
+refactor(company-registry)!: rename the cap columns
 ```
 
-La validación está en el hook versionado [`.githooks/commit-msg`](.githooks/commit-msg), un script de Node sin dependencias. Se activa una vez por clon, con el comando de [Primeros pasos](#primeros-pasos). La configuración vale para todos los worktrees del clon; en una rama que todavía no tenga la carpeta `.githooks`, no se valida nada.
+El formato lo valida commitlint en el hook `commit-msg`. El idioma no se puede validar de forma automática: es una regla del proyecto.
 
-El hook deja pasar los mensajes que arma Git solo: merge, revert y los de `git commit --fixup` o `--squash`. Los commits anteriores a esta convención quedan como están. La prueba del hook es `pruebas/u06_commit_msg.mjs`.
+## Hooks de git
+
+Los maneja [lefthook](https://lefthook.dev/) (`lefthook.yml`) y se instalan solos con `npm install`.
+
+| Hook | Qué hace |
+|---|---|
+| `pre-commit` | Frena si la rama es `main`; formatea, corre el lint y el typecheck |
+| `commit-msg` | Valida el mensaje con commitlint |
+| `pre-merge-commit` | Frena si la rama es `main` |
+| `pre-push` | **Rechaza todo `push`** mientras dure la migración |
 
 ## Más documentación
 

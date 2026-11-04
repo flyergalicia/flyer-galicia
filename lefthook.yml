@@ -1,0 +1,48 @@
+# Git hooks. Installed automatically by `npm install` through the `prepare` script.
+pre-commit:
+  piped: true
+  commands:
+    1_block_main:
+      run: test "$(git branch --show-current)" != "main"
+      fail_text: Committing to main is forbidden during the React migration.
+    2_format:
+      glob: "*.{ts,tsx,css,json,yml,yaml}"
+      exclude:
+        - "auth.js"
+        - "gestiones.js"
+        - "benchmark.js"
+        - "package-lock.json"
+        - "pruebas/**"
+        - "supabase/**"
+        - ".claude/**"
+      run: npx --no-install oxfmt {staged_files}
+      stage_fixed: true
+    3_lint:
+      glob: "*.{ts,tsx}"
+      exclude:
+        - "pruebas/**"
+        - "supabase/**"
+      run: npm run --silent lint -- {staged_files}
+    4_typecheck:
+      glob: "*.{ts,tsx}"
+      exclude:
+        - "pruebas/**"
+        - "supabase/**"
+      run: npm run --silent typecheck
+
+pre-merge-commit:
+  commands:
+    block_main:
+      run: test "$(git branch --show-current)" != "main"
+      fail_text: Merging into main is forbidden during the React migration.
+
+commit-msg:
+  commands:
+    commitlint:
+      run: npx --no-install commitlint --edit {1}
+
+pre-push:
+  commands:
+    block_push:
+      run: "false"
+      fail_text: Pushing is forbidden during the React migration.

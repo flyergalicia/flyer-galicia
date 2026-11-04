@@ -1,0 +1,51 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "jsx-a11y", "import", "unicorn", "oxc", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "ignorePatterns": [
+    "auth.js",
+    "gestiones.js",
+    "benchmark.js",
+    "_build.mjs",
+    "_source.html",
+    "index.html",
+    "index_export.html",
+    "version.json",
+    "libs/**",
+    "pruebas/**",
+    "supabase/**",
+    "dist/**",
+    "coverage/**",
+    "storybook-static/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".claude/**"
+  ],
+  "rules": {
+    "complexity": ["error", { "max": 15 }],
+    "typescript/no-explicit-any": "error",
+    "import/no-cycle": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/only-export-components": ["error", { "allowConstantExport": true }]
+  },
+  "overrides": [
+    {
+      "files": ["*.stories.tsx", "*.test.tsx", "*.config.ts", ".storybook/**"],
+      "rules": {
+        "react/only-export-components": "off",
+        "import/no-unassigned-import": "off"
+      }
+    }
+  ]
+}

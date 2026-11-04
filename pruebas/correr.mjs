@@ -5,13 +5,12 @@
 // Cada prueba corre en su propio proceso (la nube simulada guarda estado y no
 // se tiene que mezclar entre pruebas). Antes de correrlas hay que armar con
 // `node _build.mjs`: se prueba index.html, no _source.html.
-import { readdirSync, existsSync, statSync } from 'fs';
+import { readdirSync, existsSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { createServer } from 'http';
 import { readFile } from 'fs/promises';
-import { homedir } from 'os';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const PROYECTO = resolve(AQUI, '..');
@@ -20,31 +19,14 @@ const args = process.argv.slice(2);
 const detalle = args.includes('--detalle');
 const filtros = args.filter((a) => !a.startsWith('--'));
 
-// ── Playwright y Chromium: de la variable PLAYWRIGHT, o de la caché de npx ──
+// ── Playwright y Chromium: los del proyecto (package.json), o los que indiquen las variables ──
 function buscarPlaywright() {
   if (process.env.PLAYWRIGHT && existsSync(process.env.PLAYWRIGHT)) return process.env.PLAYWRIGHT;
-  const bases = [join(process.env.LOCALAPPDATA || '', 'npm-cache', '_npx'), join(homedir(), '.npm', '_npx')];
-  let mejor = null, fecha = 0;
-  for (const b of bases) {
-    if (!existsSync(b)) continue;
-    for (const d of readdirSync(b)) {
-      const p = join(b, d, 'node_modules', 'playwright');
-      if (existsSync(join(p, 'package.json'))) { const t = statSync(p).mtimeMs; if (t > fecha) { fecha = t; mejor = p; } }
-    }
-  }
-  return mejor;
+  const local = join(PROYECTO, 'node_modules', 'playwright');
+  return existsSync(join(local, 'package.json')) ? local : null;
 }
 function buscarChromium() {
-  if (process.env.CHROMIUM && existsSync(process.env.CHROMIUM)) return process.env.CHROMIUM;
-  const b = process.env.PLAYWRIGHT_BROWSERS_PATH || join(process.env.LOCALAPPDATA || join(homedir(), '.cache'), 'ms-playwright');
-  if (!existsSync(b)) return null;
-  const cands = readdirSync(b).filter((d) => /^chromium-\d+$/.test(d)).sort((x, y) => +y.split('-')[1] - +x.split('-')[1]);
-  for (const d of cands) {
-    for (const exe of ['chrome-win64/chrome.exe', 'chrome-win/chrome.exe', 'chrome-linux/chrome', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium']) {
-      if (existsSync(join(b, d, exe))) return join(b, d, exe);
-    }
-  }
-  return null;
+  return process.env.CHROMIUM && existsSync(process.env.CHROMIUM) ? process.env.CHROMIUM : null;
 }
 
 // ── Reloj de las pruebas ──
@@ -102,7 +84,7 @@ function servir() {
 }
 
 const PW = buscarPlaywright(), CH = buscarChromium();
-if (!PW) { console.log('No encontré Playwright. Instalalo una vez con:  npx -y playwright@latest install chromium\n(o indicá dónde está con la variable PLAYWRIGHT).'); process.exit(1); }
+if (!PW) { console.log('No encontré Playwright. Instalalo una vez con:  npm install && npx playwright install chromium\n(o indicá dónde está con la variable PLAYWRIGHT).'); process.exit(1); }
 // t…_*.cjs = con navegador; u…_*.mjs = sin navegador (lógica suelta, por ejemplo de las Edge Functions)
 const todas = readdirSync(AQUI).filter((f) => /^t\d+_.*\.cjs$/.test(f) || /^u\d+_.*\.mjs$/.test(f)).sort();
 const elegidas = filtros.length ? todas.filter((f) => filtros.some((x) => f.startsWith(x))) : todas;

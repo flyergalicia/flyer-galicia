@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "ignorePatterns": [
+    "auth.js",
+    "gestiones.js",
+    "benchmark.js",
+    "_build.mjs",
+    "_source.html",
+    "_newcss.txt",
+    "index.html",
+    "index_export.html",
+    "version.json",
+    "package-lock.json",
+    "README.md",
+    "CLAUDE.md",
+    "libs/**",
+    "pruebas/**",
+    "supabase/**",
+    "docs/**",
+    "dist/**",
+    "coverage/**",
+    "storybook-static/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".claude/**"
+  ]
+}
