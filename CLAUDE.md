@@ -209,6 +209,8 @@ No hay `package.json` ni gestor de paquetes. La única herramienta de armado es 
 4. Si hay una migración nueva, aplicarla con `supabase/_runsql.mjs <archivo.sql>` (necesita `SB_TOKEN`) y verificarla con los `_verify_*.sql`.
 5. `git add -A && git commit && git push origin main` → GitHub Pages se actualiza solo. **Pedir confirmación al usuario antes de subir.**
 
+**Commits:** siguen Conventional Commits (`tipo(alcance)!: descripción`, el texto en español); los valida el hook `.githooks/commit-msg`, que se activa una vez por clon con `git config core.hooksPath .githooks` (ver `README.md`).
+
 **Probar**
 
 - Abrir `index.html` por `http://localhost` (**no** por `file://`: la política de seguridad no lo permite) con cualquier servidor estático.

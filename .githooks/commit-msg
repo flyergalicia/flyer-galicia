@@ -1,0 +1,8 @@
+#!/bin/sh
+# Valida el mensaje del commit (Conventional Commits). Se activa una vez por clon
+# con:  git config core.hooksPath .githooks
+if ! command -v node >/dev/null 2>&1; then
+  echo "commit-msg: no encontré Node.js y hace falta para validar el mensaje del commit." >&2
+  exit 1
+fi
+exec node "$(dirname "$0")/commit-msg.mjs" "$1"
