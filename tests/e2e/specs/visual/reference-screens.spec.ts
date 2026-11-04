@@ -22,6 +22,8 @@ interface ScreenCase {
   noFlyer?: boolean;
   /** Where it opens with filters on top: one more image, scrolled to what the screen is for. */
   contentOn?: readonly AppearanceCase["name"][];
+  /** The React version already has this screen, whole: its slice marks it when it arrives. */
+  inReact?: boolean;
 }
 
 interface AppearanceCase extends Appearance {
@@ -47,7 +49,7 @@ const BENCHMARK_VIEWS: readonly ScreenCase[] = (
 ).map(([screen, contentOn]) => ({ name: screen, screen, user: ADMIN, contentOn }));
 
 const SCREENS: readonly ScreenCase[] = [
-  { name: "login", screen: "login", noFlyer: true },
+  { name: "login", screen: "login", noFlyer: true, inReact: true },
   { name: "flyer-editor-advisor", screen: "flyer-editor" },
   { name: "flyer-editor-admin", screen: "flyer-editor", user: ADMIN },
   { name: "preview-window", screen: "preview-window" },
@@ -129,7 +131,8 @@ async function shoot(app: OpenedApp, screen: ScreenCase, appearance: AppearanceC
 }
 
 function defineCase(screen: ScreenCase, appearance: AppearanceCase): void {
-  test(`${screen.name}: ${appearance.name}`, { tag: "@visual" }, async ({ cloud, openApp }) => {
+  const tag = screen.inReact ? ["@visual", "@react"] : ["@visual"];
+  test(`${screen.name}: ${appearance.name}`, { tag }, async ({ cloud, openApp }) => {
     seedReferenceData(cloud);
     if (screen.user === REFERENCE_HUNTER) cloud.users.hunter = REFERENCE_HUNTER;
     await shoot(await openApp(optionsFor(screen, appearance)), screen, appearance);

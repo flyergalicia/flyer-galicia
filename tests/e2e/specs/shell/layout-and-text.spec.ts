@@ -68,6 +68,39 @@ test.describe("on a computer", () => {
     expect.soft(await flyerEditor.latestNotice()).toBe("Dos");
   });
 
+  test(
+    "two notices of real actions: one on screen, the last one",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.setPermissions("asesor", { notas: true });
+      const { session, flyerEditor, page } = await openApp();
+      await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+      await session.openNotes();
+
+      await page.getByRole("button", { name: /Copiar/ }).click();
+      await expect.poll(() => flyerEditor.latestNotice()).toBe("Nota copiada");
+      await page.getByRole("button", { name: /Eliminar/ }).click();
+      await session.waitForConfirmation();
+      await session.answerConfirmation(true);
+
+      await expect.poll(() => flyerEditor.latestNotice()).toBe("Nota eliminada");
+      expect.soft(await session.noticesOnScreen()).toBe(1);
+    },
+  );
+
+  test(
+    "the screen takes what the header leaves, and the page itself does not scroll",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { session } = await openApp();
+
+      const fit = await session.documentFit();
+
+      expect.soft(fit.documentScrolls).toBe(false);
+      expect.soft(fit.editorHeight).toBe(fit.windowHeight - fit.headerHeight);
+    },
+  );
+
   test("Cargando goes away as soon as the option arrives", async ({ cloud, openApp }) => {
     cloud.addFlyerOption({ option: 6, name: "Otra", image: "flyer_t6.jpg?v=1", legal: "Legal 6" });
     cloud.setPermissions("asesor", { opcion_6: true });
@@ -90,14 +123,29 @@ test.describe("on a computer", () => {
       .toBeGreaterThan(CONTRAST_TOLERANCE);
   });
 
-  test("a single font family, with no trace of the first version", async ({ openApp }) => {
-    const { session } = await openApp();
+  test(
+    "a single font family, with no trace of the first version",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { session } = await openApp();
 
-    const families = await session.fontFamiliesOnScreen();
-    expect.soft(families.join(" | "), "no Syne").not.toMatch(/Syne/);
-    expect.soft(families.join(" | "), "no DM Sans").not.toMatch(/DM Sans/);
-    expect.soft(families.join(" | "), "the one of the app").toMatch(/Figtree/);
+      const families = await session.fontFamiliesOnScreen();
+      expect.soft(families.join(" | "), "no Syne").not.toMatch(/Syne/);
+      expect.soft(families.join(" | "), "no DM Sans").not.toMatch(/DM Sans/);
+      expect.soft(families.join(" | "), "the one of the app").toMatch(/Figtree/);
+    },
+  );
+});
+
+test("what was chosen is on the page when it opens", { tag: "@react" }, async ({ openApp }) => {
+  const { session, page } = await openApp({
+    signedOut: true,
+    waitUntilReady: false,
+    localStorage: { fg_theme: "dark", fg_palette: "t-cielo" },
   });
+
+  await expect.poll(() => session.isDarkMode()).toBe(true);
+  await expect(page.locator("html")).toHaveClass(/t-cielo/);
 });
 
 test.describe("reading", () => {
@@ -137,7 +185,7 @@ test.describe("reading", () => {
 });
 
 test.describe("on a phone", () => {
-  test("the header keeps the logo and the whole name", async ({ openApp }) => {
+  test("the header keeps the logo and the whole name", { tag: "@react" }, async ({ openApp }) => {
     const { session } = await openApp({ touch: true, viewport: PHONE });
 
     const look = await session.headerLook();
@@ -145,6 +193,20 @@ test.describe("on a phone", () => {
     expect.soft(look.title).toMatch(/Flyer/);
     expect.soft(look.fitsTheWindow).toBe(true);
   });
+
+  test(
+    "the header fits between a phone and a computer too",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { session } = await openApp({ viewport: { width: 700, height: 800 } });
+
+      const look = await session.headerLook();
+      expect.soft(look.logoWidth, "the small logo, for the person to fit beside it").toBe(30);
+      expect.soft(look.title).toMatch(/Flyer/);
+      expect.soft(look.titleFits, "the tabs are not squeezed").toBe(true);
+      expect.soft(look.fitsTheWindow).toBe(true);
+    },
+  );
 
   test("the fixed bar goes away and its buttons return to the form", async ({ openApp }) => {
     const { session } = await openApp({ touch: true, viewport: PHONE });

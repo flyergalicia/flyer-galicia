@@ -43,3 +43,13 @@ export function writeContractFromParts(): number {
   writeFileSync(CONTRACT_FILE, `${JSON.stringify(entries, null, 2)}\n`);
   return entries.length;
 }
+
+/** What the current app recorded: the only thing the rewrite may ask for. */
+export function readContract(): ContractEntry[] {
+  return JSON.parse(readFileSync(CONTRACT_FILE, "utf8")) as ContractEntry[];
+}
+
+export function outsideTheContract(entries: readonly ContractEntry[]): ContractEntry[] {
+  const known = new Set(readContract().map((entry) => JSON.stringify(entry)));
+  return entries.filter((entry) => !known.has(JSON.stringify(entry)));
+}

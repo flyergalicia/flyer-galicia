@@ -9,7 +9,10 @@ type ToastProps = {
 /** The short message at the bottom. It does not take the focus or stop any press. */
 export function Toast({ visible, children }: ToastProps) {
   return (
-    <output className={visible ? `${styles.toast} ${styles.toastOn}` : styles.toast}>
+    <output
+      data-visible={visible}
+      className={visible ? `${styles.toast} ${styles.toastOn}` : styles.toast}
+    >
       {children}
     </output>
   );

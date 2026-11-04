@@ -38,6 +38,26 @@ test(
   },
 );
 
+test("the page starts talking to the backend before it needs to", { tag: "@react" }, () => {
+  const html = indexHtml();
+  const preconnect = html.search(
+    /<link rel="preconnect" href="https:[^"]+supabase\.co" crossorigin/,
+  );
+
+  expect(preconnect).toBeGreaterThan(-1);
+  expect(preconnect).toBeLessThan(html.indexOf("<script"));
+});
+
+test("the look is known before the first paint", { tag: "@react" }, () => {
+  const html = indexHtml();
+  const look = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+  const policy = html.match(/Content-Security-Policy" content="([^"]+)"/)?.[1] ?? "";
+
+  expect(look).toContain("fg_theme");
+  expect(look).toContain("fg_palette");
+  expect(policy, "and the policy lets only that one run").toContain("'sha256-");
+});
+
 const EXPORT_LIBRARIES = /jspdf|exceljs|jszip|xlsx|pdfjs/i;
 
 function assetFiles(): string[] {

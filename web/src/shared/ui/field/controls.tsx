@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { InputHTMLAttributes, Ref, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { type FieldContextValue, useOptionalField } from "./field-context.ts";
 import styles from "./Field.module.css";
 
@@ -37,7 +37,8 @@ function fieldAttributes(field: FieldContextValue | null, id: string | undefined
   };
 }
 
-type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & ControlOptions;
+type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> &
+  ControlOptions & { readonly ref?: Ref<HTMLInputElement> };
 
 export function Input({
   controlSize,

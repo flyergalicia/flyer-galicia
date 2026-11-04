@@ -239,6 +239,12 @@ html.dark {
   --text-note: 0.76rem;
   --text-dialog: 0.95rem;
   --text-title: 1rem;
+  --text-tab: 0.86rem;
+  --text-close: 1.4rem;
+  --text-welcome: 1.5rem;
+  --text-brand: 1.3rem;
+  --text-hero: 1.7rem;
+  --text-herosmall: 1.15rem;
   --text-stat: 1.55rem;
   --weight-regular: 400;
   --weight-medium: 500;
@@ -357,6 +363,23 @@ html.dark {
   --field-warning-tx: #8a6100;
 
   --toast-bg: var(--navy);
+  --version-notice-bg: #f5921e;
+  --version-notice-tx: #111;
+  --avatar-grad: linear-gradient(135deg, #ff8a50, var(--accent));
+  --search-line: rgba(128, 128, 128, 0.35);
+  --search-bg: rgba(128, 128, 128, 0.12);
+  --search-hover-bg: rgba(128, 128, 128, 0.22);
+  --search-key-bg: rgba(128, 128, 128, 0.2);
+  --account-window-ov: rgba(0, 0, 0, 0.55);
+  --account-footer-bg: var(--field);
+  --close-hover-bg: var(--paper);
+  --close-hover-tx: var(--ink);
+  --note-move-bg: var(--paper);
+  --note-move-tx: var(--ink);
+  --note-move-line: var(--border);
+  --note-hover-bg: var(--paper);
+  --login-card-line: var(--border);
+  --switcher-role-bg: var(--paper);
   --skeleton-bg: #ececec;
   --skeleton-shine: rgba(255, 255, 255, 0.65);
   --switch-off: var(--border);
@@ -397,6 +420,15 @@ html.dark {
 }
 
 html.dark {
+  --account-footer-bg: #1b1e23;
+  --close-hover-bg: #2a2f36;
+  --close-hover-tx: #e9eaec;
+  --note-move-bg: #2a2f36;
+  --note-move-tx: #e9eaec;
+  --note-move-line: #3a4049;
+  --note-hover-bg: #2a2f36;
+  --login-card-line: #333840;
+  --switcher-role-bg: transparent;
   --danger: #ff8a80;
   --danger-soft: #3a1c1c;
 

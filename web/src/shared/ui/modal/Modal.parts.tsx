@@ -12,7 +12,9 @@ import { Icon, type IconName } from "../icon/Icon.tsx";
 import { useDialog } from "./use-dialog.ts";
 import styles from "./Modal.module.css";
 
-export type ModalSize = "narrow" | "regular" | "wide";
+export type ModalSize = "narrow" | "regular" | "medium" | "wide";
+/** "account": the windows of one's own account and of the users of the panel. */
+export type ModalLook = "window" | "account";
 
 type ModalContextValue = {
   readonly titleId: string;
@@ -30,10 +32,11 @@ function useModal(part: string): ModalContextValue {
 type ModalProps = {
   readonly onClose: () => void;
   readonly size?: ModalSize;
+  readonly look?: ModalLook;
   readonly children: ReactNode;
 };
 
-export function ModalRoot({ onClose, size = "regular", children }: ModalProps) {
+export function ModalRoot({ onClose, size = "regular", look = "window", children }: ModalProps) {
   const titleId = useId();
   const panel = useRef<HTMLDialogElement>(null);
   useDialog(panel, onClose);
@@ -49,7 +52,11 @@ export function ModalRoot({ onClose, size = "regular", children }: ModalProps) {
   return createPortal(
     <ModalContext.Provider value={context}>
       {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- the mouse way of closing what Escape closes */}
-      <div className={styles.overlay} onMouseDown={onMouseDown} onClick={onClick}>
+      <div
+        className={look === "account" ? `${styles.overlay} ${styles.account}` : styles.overlay}
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+      >
         <dialog
           ref={panel}
           open

@@ -5,7 +5,7 @@ import { expect, test } from "../../support/test.ts";
 const PROFILE = "**/rest/v1/profiles*";
 const RETRY_AFTER_MS = 12_000;
 
-test.describe("with no session", () => {
+test.describe("with no session", { tag: "@react" }, () => {
   test("the form is what shows, and the app stays hidden behind it", async ({ openApp }) => {
     const { session } = await openApp({ signedOut: true, waitUntilReady: false });
 
@@ -92,7 +92,7 @@ test.describe("with no session", () => {
   });
 });
 
-test.describe("having forgotten the password", () => {
+test.describe("having forgotten the password", { tag: "@react" }, () => {
   const ASKED = { email: "ana.perez@bancogalicia.com.ar", password: "ClaveNueva123" };
 
   test("it checks the fields before going to the server", async ({ cloud, openApp }) => {
@@ -146,7 +146,7 @@ test.describe("having forgotten the password", () => {
   });
 });
 
-test.describe("changing the password from the name menu", () => {
+test.describe("changing the password from the name menu", { tag: "@react" }, () => {
   const CURRENT = "ClaveActual123";
   const NEW = "ClaveNueva456";
 
@@ -227,7 +227,7 @@ test.describe("changing the password from the name menu", () => {
   });
 });
 
-test.describe("with a saved session", () => {
+test.describe("with a saved session", { tag: "@react" }, () => {
   test("it says it is entering and never shows the form", async ({ openApp }) => {
     const hold = gate();
     const app = await openApp({
@@ -330,19 +330,20 @@ test.describe("with a saved session", () => {
 });
 
 test.describe("the first thing on screen", () => {
-  test("is the first tab this profile sees, whatever order the administrator left", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.bucketJson["_titulos.json"] = { orden: ["estudio", "promos", "flyer"] };
-    cloud.setPermissions("asesor", { promos_buscar: true, estudio: false });
+  test(
+    "is the first tab this profile sees, whatever order the administrator left",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.bucketJson["_titulos.json"] = { orden: ["estudio", "promos", "flyer"] };
+      cloud.setPermissions("asesor", { promos_buscar: true, estudio: false });
 
-    const { session } = await openApp({ waitUntilReady: false });
+      const { session } = await openApp({ waitUntilReady: false });
 
-    await session.waitUntilSignedIn();
-    await expect.poll(() => session.activeHeaderTab()).toBe("Promociones");
-    await expect.poll(() => session.isShowing("promotions")).toBe(true);
-  });
+      await session.waitUntilSignedIn();
+      await expect.poll(() => session.activeHeaderTab()).toBe("Promociones");
+      await expect.poll(() => session.isShowing("promotions")).toBe(true);
+    },
+  );
 
   test("no flyer is painted until the one this profile opens in arrives", async ({ openApp }) => {
     const hold = gate();
@@ -438,7 +439,7 @@ test.describe("the first thing on screen", () => {
   });
 });
 
-test.describe("a new version", () => {
+test.describe("a new version", { tag: "@react" }, () => {
   test("is offered with a notice when the published one is different", async ({ openApp }) => {
     const app = await openApp();
     await app.page.route("**/version.json*", async (route) => {

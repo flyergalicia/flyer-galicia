@@ -92,6 +92,12 @@ const PATHS = {
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </>
   ),
+  "search-glass": (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </>
+  ),
   sun: (
     <>
       <circle cx="12" cy="12" r="4" />

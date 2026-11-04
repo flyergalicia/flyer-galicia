@@ -26,7 +26,6 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 
 ## Lo que falta en React
 
-- `preconnect` a Supabase y Figtree por `<link>` con `preconnect`: la salida de Vite todavía no los tiene porque no hay cliente ni fuentes. Se suman con `shared/supabase` y `shared/ui` (filas 195 y 198).
 - Las técnicas de rendimiento (filas 197, 205 a 209) son tareas de las etapas 2 y 3: no se pueden medir de forma estable sin dar falsas alarmas.
 - Las pruebas nuevas corren hoy contra la versión actual. Cada método nuevo de los drivers necesita su versión en `driver/react/` cuando llegue su slice.
 
@@ -61,7 +60,7 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 25 | asesores guardados: en la nube | prueba nueva | La lista viene de la nube y se guarda con `asesores_replace`. Vive en: `flyer-editor/officers-card` `company-registry/database-screen`. |
 | 26 | buscador de pantallas: Cmd/Ctrl+K y boton en el header | cubierto | Todo el comportamiento del buscador. Vive en: `search/screen-search`. |
 | 27 | layout hidden | prueba nueva | Sin sesión, el armador está escondido. Vive en: `session/entry`. |
-| 28 | version: meta build-v + chequeo en auth.js | prueba nueva | Cartel de versión nueva sólo si difiere. En React: `build/smoke` cubre `version.json` y el slice de shell debe portar el cartel. Vive en: `session/entry`. |
+| 28 | version: meta build-v + chequeo en auth.js | prueba nueva | Cartel de versión nueva sólo si difiere. En React: `build/smoke` cubre `version.json`, y el cartel es de `app/shell/NewVersionNotice`. Vive en: `session/entry`. |
 | 29 | login-ov | prueba nueva | Sin sesión aparece el formulario. Vive en: `session/entry`. |
 | 30 | admin-panel | cubierto | Cada prueba del panel lo abre. Vive en: `admin/usage-board` `admin/panel-and-faculties`. |
 | 31 | calcSC | cubierto | `calcSC` es la escala de la vista previa: se ejerce al hacer zoom. Vive en: `flyer-editor/preview-zoom`. |
@@ -228,10 +227,10 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 192 | pegar: telefono por grupos de digitos | prueba nueva | CUIT, fecha y separadores no se confunden. Vive en: `flyer-editor/paste-officer`. |
 | 193 | perf: sin el armador muerto del template | armado (retirado) | Retirado: es el código muerto de `_source.html`, que React no tiene. |
 | 194 | perf: favicon fuera del head | armado | «the page itself stays light» pide el favicon por `link`. React lo hace desde `web/index.html`. Vive en: `build/build-output`. |
-| 195 | perf: fuentes por <link> + preconnect | armado | «fonts never come by @import». Falta en la etapa 2: pedir Figtree por `<link>` con `preconnect` (hoy React no pide fuentes). Vive en: `build/build-output`. |
+| 195 | perf: fuentes por <link> + preconnect | armado | «fonts never come by @import». Figtree se pide por `<link>` con `preconnect` desde `web/index.html`. Vive en: `build/build-output`. |
 | 196 | perf: redraw coalescido por frame | regla de código | Se mide: una ráfaga de cambios dibuja como uno. En React: `requestDraw` de `createFlyerPreview` agrupa por frame (`shared/flyer-engine/preview.test.tsx`). Vive en: `flyer-editor/drawing-economy`. |
 | 197 | perf: legal con cache de medidas y de word-wrap | regla de código | Técnica de rendimiento. Vive en: `shared/flyer-engine/draw-legal.test.tsx` (no vuelve a medir ni a partir un texto conocido); `flyer-engine/golden-output` fija el resultado. |
-| 198 | perf: preconnect a Supabase (antes de los scripts) | armado | Falta en la etapa 2: la salida de Vite todavía no hace `preconnect` a Supabase (aún no hay cliente). Sumar al plugin y a `build-output` cuando exista `shared/supabase`. |
+| 198 | perf: preconnect a Supabase (antes de los scripts) | armado | «the page starts talking to the backend before it needs to»: lo pone `scripts/vite/backend-preconnect.ts`. Vive en: `build/build-output`. |
 | 199 | perf: configuracion del bucket pedida junta al entrar (_bucketJson) | regla de código | Regla `no-restricted-globals` para `fetch` en `web/src` fuera de `shared/supabase` y `shared/lib` (agregada). Tarea de la etapa 2: `bucketJson`. Hoy se mide: cada archivo se pide una vez al entrar. Vive en: `session/entry`. |
 | 200 | perf: facultades y opciones sin descargas repetidas | prueba nueva | Una sola descarga de `_facultades.json` y `_opciones.json`. Vive en: `session/entry`. |
 | 201 | perf: legal de la opcion en paralelo con sus datos | prueba nueva | El legal no espera a los datos de la opción. Vive en: `session/entry`. |

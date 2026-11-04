@@ -26,6 +26,10 @@ import { createLegacyScreensDriver } from "./legacy/screens.ts";
 import { createLegacySearchDriver } from "./legacy/search.ts";
 import { createLegacySessionDriver } from "./legacy/session.ts";
 import { createLegacyStudioDriver } from "./legacy/studio.ts";
+import { createReactFlyerEditorDriver } from "./react/flyer-editor.ts";
+import { partialDriver } from "./react/pending.ts";
+import { createReactScreensDriver } from "./react/screens.ts";
+import { createReactSessionDriver } from "./react/session.ts";
 import { type HunterDriver } from "./hunter.ts";
 import { createLegacyHunterDriver } from "./legacy/hunter.ts";
 import { type LogoEditorDriver } from "./logo-editor.ts";
@@ -65,10 +69,35 @@ export interface AppDriver {
   readonly screens: ScreensDriver;
 }
 
+/** The domains arrive with their slice: until then, using one says that it is missing. */
+function createReactAppDriver(page: Page): AppDriver {
+  const session = createReactSessionDriver(page);
+  return {
+    page,
+    session,
+    flyerEditor: createReactFlyerEditorDriver(page),
+    flyerOutput: partialDriver("flyerOutput"),
+    officers: partialDriver("officers"),
+    flyerDrawing: partialDriver("flyerDrawing"),
+    calibrator: partialDriver("calibrator"),
+    hunter: partialDriver("hunter"),
+    logoEditor: partialDriver("logoEditor"),
+    logoStrip: partialDriver("logoStrip"),
+    flyerSections: partialDriver("flyerSections"),
+    savedBrands: partialDriver("savedBrands"),
+    promotions: partialDriver("promotions"),
+    companyRegistry: partialDriver("companyRegistry"),
+    studio: partialDriver("studio"),
+    commercialActions: partialDriver("commercialActions"),
+    benchmark: partialDriver("benchmark"),
+    admin: partialDriver("admin"),
+    search: partialDriver("search"),
+    screens: createReactScreensDriver(page, session),
+  };
+}
+
 export function createAppDriver(page: Page, target: AppTarget): AppDriver {
-  if (target === "react") {
-    throw new Error("No React driver yet: they arrive with each slice (see driver/react).");
-  }
+  if (target === "react") return createReactAppDriver(page);
   const domains = {
     session: createLegacySessionDriver(page),
     flyerEditor: createLegacyFlyerEditorDriver(page),

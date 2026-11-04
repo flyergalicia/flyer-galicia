@@ -586,7 +586,13 @@ export const PROBE_CASES: readonly LookCase[] = [
     place: "none",
     noImage: true,
   },
-  { story: "Feedback/ToastShown", legacy: "#toast", ignore: ["opacity"], noImage: true },
+  // The one the app uses is #toast-el: #toast is left over in the page and nothing shows it.
+  {
+    story: "Feedback/ToastShown",
+    legacy: "#toast-el",
+    ignore: ["opacity", "transform"],
+    noImage: true,
+  },
   {
     story: "Feedback/Spinning",
     legacy: "[data-probe] .lv-boot-spin",

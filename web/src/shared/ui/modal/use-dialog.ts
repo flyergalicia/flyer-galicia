@@ -21,6 +21,9 @@ function keepFocusInside(event: KeyboardEvent, panel: HTMLElement): void {
   }
 }
 
+/** The windows open now, the last one on top: only that one listens to the keyboard. */
+const openWindows: HTMLElement[] = [];
+
 /**
  * What every window does: takes the focus and gives it back when it closes, keeps Tab inside,
  * and closes with Escape. In capture, so that Escape does not also reach what is behind it.
@@ -37,7 +40,9 @@ export function useDialog(panel: RefObject<HTMLElement | null>, onClose: () => v
     const { activeElement } = element.ownerDocument;
     const previous = activeElement instanceof HTMLElement ? activeElement : null;
     element.focus();
+    openWindows.push(element);
     const onKey = (event: KeyboardEvent) => {
+      if (openWindows.at(-1) !== element) return;
       if (event.key === "Escape") {
         event.stopPropagation();
         close.current();
@@ -48,6 +53,7 @@ export function useDialog(panel: RefObject<HTMLElement | null>, onClose: () => v
     window.addEventListener("keydown", onKey, true);
     return () => {
       window.removeEventListener("keydown", onKey, true);
+      openWindows.splice(openWindows.indexOf(element), 1);
       previous?.focus();
     };
   }, [panel]);

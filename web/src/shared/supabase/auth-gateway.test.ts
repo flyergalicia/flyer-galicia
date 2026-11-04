@@ -21,6 +21,12 @@ const signedInAnswer: Answer = ({ path }) =>
 const CREDENTIALS = { email: "ana@bancogalicia.com.ar", password: "secreto123" };
 
 describe("AuthGateway", () => {
+  it("knows whether a session is kept, without reading it", () => {
+    const { backend } = backendAnswering(signedInAnswer);
+
+    expect(backend.auth.hasStoredSession()).toBe(false);
+  });
+
   it("signs in with a POST to /auth/v1/token and gives the session", async () => {
     const { backend, network } = backendAnswering(signedInAnswer);
 

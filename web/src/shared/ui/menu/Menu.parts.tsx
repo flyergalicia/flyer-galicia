@@ -66,11 +66,13 @@ export function MenuRoot({ defaultOpen = false, children }: MenuProps) {
 
 type TriggerProps = {
   readonly label: string;
-  readonly className?: string;
+  readonly className?: string | undefined;
+  /** The hint that shows when the mouse rests on it. */
+  readonly title?: string | undefined;
   readonly children: ReactNode;
 };
 
-export function MenuTrigger({ label, className, children }: TriggerProps) {
+export function MenuTrigger({ label, className, title, children }: TriggerProps) {
   const { menuId, open, setOpen } = useMenu("Trigger");
   return (
     <button
@@ -80,6 +82,7 @@ export function MenuTrigger({ label, className, children }: TriggerProps) {
       aria-expanded={open}
       aria-controls={menuId}
       className={className}
+      title={title}
       onClick={() => {
         setOpen(!open);
       }}

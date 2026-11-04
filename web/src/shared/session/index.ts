@@ -1,4 +1,10 @@
 export {
+  COMMERCIAL_FLAG_QUERY_KEY,
+  commercialActionsOn,
+  type CommercialFlagValue,
+  useCommercialActionsFlag,
+} from "./commercial-flag.ts";
+export {
   can,
   defaultPermission,
   effectiveRole,
@@ -13,6 +19,7 @@ export {
   type PermissionSubject,
 } from "./permissions.ts";
 export { type Profile, REJECTION_MESSAGES, type RejectionReason } from "./profile.ts";
+export { ROLE_LABELS, roleLabel, type RoleTone, roleTone } from "./role-labels.ts";
 export {
   PERMISSIONS_QUERY_KEY,
   type PermissionsLoadStatus,
@@ -24,5 +31,5 @@ export {
   useSession,
   useSessionActions,
 } from "./session-context.ts";
-export type { SessionView } from "./session-machine.ts";
+export { SLOW_AFTER_MS, type SessionView } from "./session-machine.ts";
 export { SessionProvider } from "./SessionProvider.tsx";

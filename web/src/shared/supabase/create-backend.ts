@@ -24,6 +24,12 @@ export interface Backend {
 
 const browserFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
 
+/** Where supabase-js keeps the session by default. */
+function authStorageKey(url: string): string {
+  const reference = new URL(url).hostname.replace(/\..*$/, "");
+  return `sb-${reference}-auth-token`;
+}
+
 /**
  * The only Supabase client of the app. No `storageKey` on purpose: the default one is
  * `sb-<ref>-auth-token`, and changing it would close everyone's session.
@@ -34,7 +40,7 @@ export function createBackend({
   fetch: send = browserFetch,
 }: BackendOptions): Backend {
   const db = createClient<Database>(url, anonKey, { global: { fetch: send } });
-  const auth = createAuthGateway(db);
+  const auth = createAuthGateway(db, authStorageKey(url));
   return {
     db,
     auth,

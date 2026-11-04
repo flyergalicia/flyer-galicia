@@ -12,7 +12,18 @@
     />
     <link rel="stylesheet" href="/src/shared/ui/tokens/tokens.css" />
     <link rel="stylesheet" href="/src/shared/ui/tokens/base.css" />
-    <title>Flyer Galicia</title>
+    <title>Flyer Galicia 5.5</title>
+    <!-- The look is known before the first paint: without this, dark mode opens in a flash of light. -->
+    <script>
+      try {
+        var root = document.documentElement;
+        var palette = localStorage.getItem("fg_palette");
+        if (localStorage.getItem("fg_theme") === "dark") root.classList.add("dark");
+        root.classList.add(/^t-(marfil|marino|grafito|cielo)$/.test(palette || "") ? palette : "t-marfil");
+      } catch (error) {
+        document.documentElement.classList.add("t-marfil");
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

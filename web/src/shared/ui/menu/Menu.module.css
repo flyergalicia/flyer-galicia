@@ -98,3 +98,9 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+
+@media (max-width: 900px) {
+  .list {
+    max-width: calc(100vw - 24px);
+  }
+}

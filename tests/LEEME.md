@@ -114,6 +114,7 @@ Hay que regrabarlas sólo si cambia un caso de `golden/flyer-output.spec.ts` o l
 
 ## Casos especiales
 
+- Toda prueba contra React falla si la app pide algo que no está en `fixtures/network-contract.json`: lo controla `support/test.ts`.
 - `pdf-bands` compara PDF de verdad, que no se versionan. Se saltea si no se indican: `FG_PDFS="a.pdf;b.pdf"`.
 - `tests/unit/benchmark/normalize.test.ts` consulta MODO en vivo sólo con `FLYER_LIVE_TESTS=1`, porque depende de internet y de lo que publique MODO ese día.
 - Cada prueba arranca en una fecha fija (`FIXED_NOW`, en `e2e/support/clock.ts`) porque el catálogo de `fixtures/data` es una foto y sus promos vencen. Si se renueva el catálogo, hay que mover esa fecha.

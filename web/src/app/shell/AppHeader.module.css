@@ -1,0 +1,449 @@
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 14px;
+  height: 62px;
+  padding: 8px 16px;
+  border-top: 3px solid var(--hd-top);
+  border-bottom: 1px solid var(--hd-line);
+  background: var(--hd-bg);
+  color: var(--hd-tx);
+}
+
+.logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tabsCanMove .tab {
+  touch-action: none;
+}
+
+.tabsReordering {
+  cursor: grabbing;
+}
+
+.tabsReordering .tab:not(.tabLifted) {
+  opacity: 0.5;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  margin: 0 2px;
+  padding: 7px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.tab:hover {
+  background: var(--hd-hover);
+}
+
+.tabActive,
+.tabActive:hover {
+  border-color: var(--tab-on-bg);
+  background: var(--tab-on-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.tabTitle {
+  color: var(--hd-mut);
+  font-size: var(--text-tab);
+  font-weight: var(--weight-bold);
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.tab:hover .tabTitle {
+  color: var(--hd-tx);
+}
+
+.tabActive .tabTitle,
+.tabActive:hover .tabTitle {
+  color: var(--tab-on-tx);
+  font-weight: var(--weight-heavy);
+}
+
+@keyframes holding {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.tabHeld::after {
+  position: absolute;
+  right: 10px;
+  bottom: 2px;
+  left: 10px;
+  z-index: 3;
+  height: 2px;
+  border-radius: 2px;
+  background: currentcolor;
+  content: "";
+  opacity: 0.75;
+  transform-origin: left;
+  animation: holding 4s linear forwards;
+}
+
+.tabLifted {
+  z-index: 4;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  outline: 2px dashed currentcolor;
+  outline-offset: -3px;
+  cursor: grabbing;
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.tabBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--hd-btn-bg);
+  color: #fff;
+  font-size: var(--text-label);
+  font-style: normal;
+  font-weight: var(--weight-heavy);
+  letter-spacing: 0;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.rename {
+  width: 140px;
+  max-width: 70vw;
+  padding: 1px 6px;
+  border: 1px solid currentcolor;
+  border-radius: 5px;
+  outline: none;
+  background: var(--search-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.searchButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 6px 0 9px;
+  border: 1px solid var(--search-line);
+  border-radius: 8px;
+  background: var(--search-bg);
+  color: var(--hd-tx);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.searchButton:hover {
+  background: var(--search-hover-bg);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.9;
+}
+
+.searchButton b {
+  font-weight: var(--weight-medium);
+}
+
+.searchButton kbd {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: var(--search-key-bg);
+  font-family: var(--font-family);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+}
+
+.userButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px 3px 3px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: var(--hd-tx);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.userButton:hover {
+  border-color: var(--hd-line);
+  background: var(--hd-hover);
+}
+
+.avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--avatar-grad);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
+}
+
+.userName {
+  color: var(--hd-mut);
+  font-size: var(--text-sm);
+}
+
+/* Smaller than any letter: it is a drawing, not a text. */
+.caret {
+  flex-shrink: 0;
+  width: 4.656px;
+  height: 4.656px;
+  fill: var(--hd-mut);
+  opacity: 0.7;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-ring);
+  }
+
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.userNotice {
+  position: absolute;
+  top: -4px;
+  left: 21px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--text-label);
+  font-weight: var(--weight-heavy);
+  line-height: 1;
+  pointer-events: none;
+  animation: pulse 2.2s ease-out infinite;
+}
+
+.adminButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--hd-btn-line);
+  border-radius: var(--radius-pill);
+  background: var(--hd-btn-bg);
+  color: var(--hd-tx);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.adminButton:hover {
+  border-color: var(--hd-btn-line);
+  background: var(--hd-btn-hover);
+}
+
+.adminCount {
+  margin-left: 2px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
+}
+
+@media (max-width: 1180px) {
+  .searchButton {
+    padding: 0 8px;
+  }
+
+  .searchButton b,
+  .searchButton kbd {
+    display: none;
+  }
+}
+
+/* Two rows: the logo with the person above, and the tabs below all along the width. */
+@media (max-width: 900px) {
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 150;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    height: auto;
+    min-height: 0;
+  }
+
+  .logo {
+    order: 0;
+    width: 30px;
+    height: 30px;
+  }
+
+  .right {
+    order: 1;
+    flex: 1 0 calc(100% - 42px);
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 0;
+    padding-bottom: 6px;
+  }
+
+  .tabs {
+    order: 2;
+    flex: 1 0 100%;
+    gap: 0 10px;
+    min-width: 0;
+  }
+
+  .tab,
+  .tab:hover {
+    flex: 1 1 0;
+    margin: 0 0 -3px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 7px 4px 6px;
+    border-width: 0 0 2px;
+    border-style: solid;
+    border-color: transparent;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    opacity: 0.55;
+    text-align: center;
+    transition: opacity 0.15s;
+  }
+
+  .tab:hover {
+    opacity: 0.85;
+  }
+
+  .tabActive,
+  .tabActive:hover {
+    border-color: var(--accent);
+    background: none;
+    box-shadow: none;
+    opacity: 1;
+  }
+
+  .tabTitle,
+  .tab:hover .tabTitle,
+  .tabActive .tabTitle,
+  .tabActive:hover .tabTitle {
+    overflow: hidden;
+    max-width: 100%;
+    color: inherit;
+    font-size: var(--text-md);
+    font-weight: var(--weight-heavy);
+    text-overflow: ellipsis;
+  }
+
+  .adminButton {
+    padding: 6px 8px;
+  }
+
+  .userButton {
+    min-width: 0;
+    max-width: 100%;
+    padding: 4px 6px;
+    font-size: var(--text-xs);
+  }
+
+  .userName {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .right {
+    flex-basis: calc(100% - 40px);
+  }
+
+  .tab,
+  .tab:hover {
+    padding: 5px 2px;
+  }
+
+  .tabTitle,
+  .tab:hover .tabTitle,
+  .tabActive .tabTitle,
+  .tabActive:hover .tabTitle {
+    overflow: visible;
+    font-size: var(--text-xs);
+    line-height: 1.15;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}

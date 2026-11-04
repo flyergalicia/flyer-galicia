@@ -1,6 +1,10 @@
 import { expect, test as base } from "@playwright/test";
 import { restartClock } from "./clock.ts";
-import { appendContractPart, isRecordingContract } from "./cloud/contract-store.ts";
+import {
+  appendContractPart,
+  isRecordingContract,
+  outsideTheContract,
+} from "./cloud/contract-store.ts";
 import { type Cloud, createCloud } from "./cloud/index.ts";
 import { type StorybookOption, type TargetOption } from "./target.ts";
 import { launchApp, type LaunchedApp, type OpenAppOptions, type OpenedApp } from "./open-app.ts";
@@ -32,11 +36,16 @@ export const test = base.extend<HarnessFixtures & TargetOption & StorybookOption
     },
     { auto: true },
   ],
-  cloud: async ({ clockOffset: _clockOffset }, use, testInfo) => {
+  cloud: async ({ clockOffset: _clockOffset, target }, use, testInfo) => {
     const cloud = createCloud();
     await use(cloud);
     if (isRecordingContract()) {
       appendContractPart(testInfo.workerIndex, cloud.contractEntries());
+    }
+    if (target === "react") {
+      expect
+        .soft(outsideTheContract(cloud.contractEntries()), "asked for what the app never asked")
+        .toEqual([]);
     }
   },
   openApp: async ({ browser, cloud, target, baseURL, clockOffset }, use, testInfo) => {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Modal } from "./Modal.ts";
 
 function Example({ onClose }: { readonly onClose: () => void }) {
@@ -123,6 +124,46 @@ describe("Modal", () => {
     await userEvent.keyboard("{Escape}");
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledOnce();
+  });
+
+  it("has the look of the windows of one's own account", async () => {
+    const screen = await render(
+      <Modal look="account" size="medium" onClose={vi.fn<() => void>()}>
+        <Modal.Header>Mi cuenta</Modal.Header>
+      </Modal>,
+    );
+    const panel = screen.getByRole("dialog", { name: "Mi cuenta" }).element();
+    expect(panel.parentElement?.className).toMatch(/account/);
+    expect(panel.className).toMatch(/medium/);
+  });
+
+  it("with one window on top of another, only the one on top hears Escape", async () => {
+    const under = vi.fn<() => void>();
+    const over = vi.fn<() => void>();
+    const screen = await render(
+      <Modal onClose={under}>
+        <Modal.Header>Debajo</Modal.Header>
+      </Modal>,
+    );
+    await screen.rerender(
+      <Modal onClose={under}>
+        <Modal.Header>Debajo</Modal.Header>
+        <ConfirmDialog
+          title="Encima"
+          confirmLabel="Sí"
+          onConfirm={vi.fn<() => void>()}
+          onCancel={over}
+        >
+          Seguro
+        </ConfirmDialog>
+      </Modal>,
+    );
+    await expect.element(screen.getByRole("alertdialog")).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(over).toHaveBeenCalledOnce();
+    expect(under).not.toHaveBeenCalled();
   });
 
   it("refuses a part outside a Modal, with a clear message", async () => {

@@ -1,6 +1,9 @@
 // Protects the keyboard of the main screen, the windows of the name menu and the tutorial.
 import { expect, test } from "../../support/test.ts";
 
+// Long enough for the app to have saved the new order, if it were going to.
+const WAIT_FOR_A_SAVE_MS = 500;
+
 test.describe("the keyboard", () => {
   test("the tabs of the panel move with the arrows", async ({ openApp }) => {
     const { session } = await openApp();
@@ -63,17 +66,21 @@ test.describe("the keyboard", () => {
 });
 
 test.describe("the name menu", () => {
-  test("whoever is not an administrator changes the password in a window", async ({ openApp }) => {
-    const { session } = await openApp();
+  test(
+    "whoever is not an administrator changes the password in a window",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { session } = await openApp();
 
-    await session.openPasswordWindow();
+      await session.openPasswordWindow();
 
-    expect.soft(await session.passwordWindowOpen()).toBe(true);
-    await session.closePasswordWindow();
-    expect.soft(await session.passwordWindowOpen()).toBe(false);
-  });
+      expect.soft(await session.passwordWindowOpen()).toBe(true);
+      await session.closePasswordWindow();
+      expect.soft(await session.passwordWindowOpen()).toBe(false);
+    },
+  );
 
-  test("the notes come with their faculty", async ({ cloud, openApp }) => {
+  test("the notes come with their faculty", { tag: "@react" }, async ({ cloud, openApp }) => {
     cloud.setPermissions("asesor", { notas: true });
     const { session } = await openApp();
 
@@ -108,7 +115,7 @@ test.describe("the name menu", () => {
   });
 });
 
-test.describe("the tabs of the header", () => {
+test.describe("the tabs of the header", { tag: "@react" }, () => {
   test("an administrator holds one and drags it: everybody gets the new order", async ({
     cloud,
     openApp,
@@ -136,11 +143,31 @@ test.describe("the tabs of the header", () => {
   test("whoever is not an administrator cannot move them", async ({ cloud, openApp }) => {
     test.slow();
     cloud.setPermissions("asesor", { promos_buscar: true });
-    const { session } = await openApp();
+    const { session, page } = await openApp();
     const before = await session.headerTabs();
 
     await session.dragHeaderTab("Promociones", "Flyer Galicia");
+    await page.waitForTimeout(WAIT_FOR_A_SAVE_MS);
 
     expect.soft(await session.headerTabs()).toEqual(before);
+    expect.soft(cloud.uploads.map(({ name }) => name)).not.toContain("_titulos.json");
+  });
+
+  test("each one comes with its permission", { tag: "@react" }, async ({ cloud, openApp }) => {
+    cloud.setPermissions("asesor", { promos_buscar: false, estudio: false, benchmark: false });
+    const without = await openApp();
+    await without.session.waitUntilSignedIn();
+    expect.soft((await without.session.headerTabs()).join(" ")).toMatch(/Flyer Galicia/);
+    expect.soft((await without.session.headerTabs()).join(" ")).not.toMatch(/Promociones/);
+    expect.soft((await without.session.headerTabs()).join(" ")).not.toMatch(/Estudio/);
+    expect.soft((await without.session.headerTabs()).join(" ")).not.toMatch(/Benchmark/);
+
+    cloud.setPermissions("asesor", { promos_buscar: true, estudio: true, benchmark: true });
+    const withThem = await openApp();
+    await withThem.session.waitUntilSignedIn();
+    const tabs = (await withThem.session.headerTabs()).join(" ");
+    expect.soft(tabs).toMatch(/Promociones/);
+    expect.soft(tabs).toMatch(/Estudio/);
+    expect.soft(tabs).toMatch(/Benchmark/);
   });
 });

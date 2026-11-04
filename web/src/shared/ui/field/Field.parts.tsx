@@ -5,7 +5,7 @@ import styles from "./Field.module.css";
 type FieldProps = {
   /** "invalid" marks it and shows its message; it does not stop anyone from going on. */
   readonly status?: FieldStatus;
-  readonly className?: string;
+  readonly className?: string | undefined;
   readonly children: ReactNode;
 };
 

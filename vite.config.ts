@@ -1,5 +1,6 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
+import { backendPreconnect } from "./scripts/vite/backend-preconnect.ts";
 import { contentSecurityPolicy } from "./scripts/vite/content-security-policy.ts";
 import { sourceAlias } from "./scripts/vite/source-alias.ts";
 import { versionManifest } from "./scripts/vite/version-manifest.ts";
@@ -12,7 +13,12 @@ export default defineConfig(({ mode }) => {
   return {
     root: WEB_ROOT,
     base: "./",
-    plugins: [react(), contentSecurityPolicy(supabaseOrigin), versionManifest()],
+    plugins: [
+      react(),
+      contentSecurityPolicy(supabaseOrigin),
+      backendPreconnect(supabaseOrigin),
+      versionManifest(),
+    ],
     resolve: { alias: sourceAlias },
     server: { host: "127.0.0.1", port: 5173, strictPort: true },
     preview: { host: "127.0.0.1", port: 8766, strictPort: true },

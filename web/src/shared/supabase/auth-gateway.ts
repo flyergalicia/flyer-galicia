@@ -28,6 +28,8 @@ export interface AuthGateway {
   readonly signOut: (scope?: SignOutScope) => Promise<Result<void, AuthFailure>>;
   /** A session that is simply not there is a value: `null`, not a failure. */
   readonly getSession: () => Promise<Result<Session | null, AuthFailure>>;
+  /** Whether this browser keeps a session, without reading it: it says what to show first. */
+  readonly hasStoredSession: () => boolean;
   readonly updatePassword: (password: string) => Promise<Result<User, AuthFailure>>;
   /** Redeems the one-time permission that the action `entrar_como` of auth-admin hands out. */
   readonly verifyOneTimeToken: (
@@ -60,7 +62,18 @@ async function guarded<V>(
   }
 }
 
-export function createAuthGateway(client: SupabaseClient<Database>): AuthGateway {
+function isStored(storageKey: string): boolean {
+  try {
+    return localStorage.getItem(storageKey) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function createAuthGateway(
+  client: SupabaseClient<Database>,
+  storageKey: string,
+): AuthGateway {
   const listeners = new Set<AuthListener>();
   let stopListening: (() => void) | null = null;
 
@@ -80,6 +93,7 @@ export function createAuthGateway(client: SupabaseClient<Database>): AuthGateway
         const { data, error } = await client.auth.getSession();
         return error ? answerFailure(error) : success(data.session);
       }),
+    hasStoredSession: () => isStored(storageKey),
     updatePassword: (password) =>
       guarded(async () => {
         const { data, error } = await client.auth.updateUser({ password });

@@ -1,0 +1,92 @@
+import { type Page } from "@playwright/test";
+import { type Appearance, type ReferenceScreen, type ScreensDriver } from "../screens.ts";
+import { type SessionDriver } from "../session.ts";
+
+const WAIT_MS = 25_000;
+const STABLE_MS = 400;
+const STABLE_LIMIT_MS = 10_000;
+const THEME_KEY = "fg_theme";
+const PALETTE_KEY = "fg_palette";
+
+/** Waits for what the screen paints by itself: fonts, images, notices and late answers. */
+async function waitToSettle(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    // A lazy image out of sight never finishes loading: it is not on the screenshot either.
+    const onScreen = Array.from(document.images).filter(
+      (image) => image.loading !== "lazy" && image.src !== "",
+    );
+    await Promise.all(onScreen.map((image) => image.decode().catch(() => undefined)));
+  });
+  await page
+    .getByRole("status")
+    .and(page.locator('[data-visible="true"]'))
+    .waitFor({ state: "detached", timeout: WAIT_MS });
+  const read = () => page.evaluate(() => document.body.innerHTML);
+  const deadline = performance.now() + STABLE_LIMIT_MS;
+  let before = await read();
+  while (performance.now() < deadline) {
+    await page.waitForTimeout(STABLE_MS);
+    const now = await read();
+    if (now === before) return;
+    before = now;
+  }
+}
+
+/** Inside, as a person does. In the entry there is no menu: what it would find saved. */
+async function applyAppearance(
+  page: Page,
+  session: SessionDriver,
+  { dark, palette }: Appearance,
+): Promise<void> {
+  if (await page.getByRole("banner").isVisible()) {
+    await session.openUserMenu();
+    const menu = page.getByRole("menu", { name: "Tu cuenta" });
+    if ((await session.isDarkMode()) !== dark) {
+      await menu.getByRole("menuitem", { name: /^Modo (oscuro|claro)$/ }).click();
+    }
+    await menu.getByRole("button", { name: new RegExp(`^${palette}$`, "i") }).click();
+    await session.closeUserMenu();
+    return;
+  }
+  await page.evaluate(
+    ({ isDark, name, themeKey, paletteKey }) => {
+      const root = document.documentElement;
+      root.classList.toggle("dark", isDark);
+      for (const other of root.className.match(/\bt-\w+/g) ?? []) root.classList.remove(other);
+      root.classList.add(name);
+      localStorage.setItem(themeKey, isDark ? "dark" : "light");
+      localStorage.setItem(paletteKey, name);
+    },
+    { isDark: dark, name: `t-${palette}`, themeKey: THEME_KEY, paletteKey: PALETTE_KEY },
+  );
+}
+
+function openers(page: Page, session: SessionDriver) {
+  const ready: Partial<Record<ReferenceScreen, () => Promise<void>>> = {
+    login: () =>
+      page.getByRole("heading", { name: "Flyer Galicia", level: 1 }).waitFor({ timeout: WAIT_MS }),
+    "user-menu": () => session.openUserMenu(),
+  };
+  return ready;
+}
+
+export function createReactScreensDriver(page: Page, session: SessionDriver): ScreensDriver {
+  const open = openers(page, session);
+  return {
+    open: async (screen) => {
+      const opener = open[screen];
+      if (!opener) {
+        throw new Error(
+          `The screen "${screen}" has no React driver yet: it arrives with its slice.`,
+        );
+      }
+      await opener();
+      await waitToSettle(page);
+    },
+    showContent: async (screen) => {
+      throw new Error(`The screen "${screen}" has no content to scroll to in React yet.`);
+    },
+    setAppearance: (appearance) => applyAppearance(page, session, appearance),
+  };
+}
