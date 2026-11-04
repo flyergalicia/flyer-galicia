@@ -97,6 +97,7 @@ Límites de las capturas:
 - Toleran hasta 0,1 % de píxeles distintos, porque las letras cambian un poco de una corrida a otra. Un cambio de pocas letras puede pasar: eso lo cuidan las pruebas de funcionamiento. El flyer impreso se compara píxel por píxel, sin tolerancia.
 - Muestran lo que entra en la ventana, más una imagen del contenido en las pantallas que abren con filtros arriba.
 - Valen sólo para macOS, y por eso no corren en CI. En otro sistema hay que generarlas ahí.
+- No dependen de que haya un mouse conectado. Con un mouse, macOS le da al navegador barras de desplazamiento clásicas, que mueven lo que se ve (un flyer centrado, el ancho de un desplegable) aunque Playwright las esconda. Por eso el navegador de las pruebas arranca siempre con las superpuestas: `support/browser/overlay-scrollbars.ts`. Lo vigila `visual/overlay-scrollbars.spec.ts`.
 - El proyecto `design-system` compara recortes de esas mismas capturas: no tiene referencias propias. Si cambia una captura a propósito, él se entera solo.
 
 ## El motor del flyer contra la referencia

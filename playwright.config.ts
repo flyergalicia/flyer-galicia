@@ -1,5 +1,6 @@
 import { argv, env } from "node:process";
 import { defineConfig, devices } from "@playwright/test";
+import { overlayScrollbarsLaunch } from "./tests/e2e/support/browser/overlay-scrollbars.ts";
 import { type StorybookOption, type TargetOption } from "./tests/e2e/support/target.ts";
 
 const LEGACY_PORT = Number(env.FLYER_LEGACY_PORT ?? 8767);
@@ -70,6 +71,7 @@ export default defineConfig<TargetOption & StorybookOption>({
   },
   use: {
     trace: "retain-on-failure",
+    launchOptions: overlayScrollbarsLaunch(),
   },
   projects: [
     {
