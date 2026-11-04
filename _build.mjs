@@ -200,6 +200,8 @@ html = html.replace(
   // _applyFacultades según el interruptor (app_flags) y Facultades.
   '<div class="header-text app-tab" id="apptab-gestiones" style="display:none" onclick="switchApp(\'gestiones\')"><h1>Gestiones</h1><span>COMERCIAL</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
+  // Buscador de pantallas: el mismo que Cmd+K / Ctrl+K (fgCmdK en auth.js), a la vista y para el celular.
+  '<button type="button" id="hdr-cmdk" class="hdr-cmdk" onclick="fgCmdK()" title="Buscar una pantalla o funci\u00f3n" aria-label="Buscar una pantalla o funci\u00f3n">' + _svgIco('<circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>') + '<b>Buscar</b><kbd id="hdr-cmdk-k">Ctrl K</kbd></button>' +
   '<div class="hdr-user-menu">' +
     '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span class="hdr-msg" id="hdr-msg" style="display:none"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
     '<div class="hdr-dropdown" id="hdr-dropdown">' +
@@ -1056,6 +1058,7 @@ const checks = {
   // Los asesores guardados viven en la tabla asesores_guardados (migracion 010):
   // viajan con la cuenta. El localStorage quedo solo como cache/respaldo.
   'asesores guardados: en la nube': _authSrc.includes("_sb.from('asesores_guardados')") && _authSrc.includes("_sb.rpc('asesores_replace'") && _authSrc.includes('function _asSyncKey('),
+  'buscador de pantallas: Cmd/Ctrl+K y boton en el header': html.includes('id="hdr-cmdk"') && _authSrc.includes('function fgCmdK(') && _authSrc.includes('function _cmdEntradas(') && newCSS.includes('.cmdk-fondo{'),
   'layout hidden': html.includes('id="layout" style="display:none"'),
   'version: meta build-v + chequeo en auth.js': html.includes('<meta name="build-v" content="'+BUILD_V+'">') && _authSrc.includes("fetch('version.json?t=") && _authSrc.includes("meta[name=build-v]"),
   'login-ov': html.includes('id="login-ov"'),

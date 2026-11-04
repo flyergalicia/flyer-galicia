@@ -20328,6 +20328,12 @@ function _benAbrir(){
   _lib(['ben']).then(function(){window.benInit();})
     .catch(function(){showToast('No se pudo cargar el Benchmark. Revisá la conexión e intentá de nuevo.');});
 }
+// Solapas de Gestiones de cada perfil. Vive acá porque el buscador las lista antes de bajar gestiones.js.
+function _gesTabsDe(r){
+  if(r==='hunter')return [['agenda','Mi agenda'],['lista','Mis gestiones'],['tablero','Tablero']];
+  if(r==='lider')return [['agenda','Agenda del equipo'],['tablero','Tablero del equipo'],['lista','Gestiones del equipo']];
+  return [['empresas','Mis empresas'],['agenda','Agenda'],['lista','Gestiones'],['tablero','Tablero']];
+}
 function _gesAbrir(fn,arg){
   _lib(['ges']).then(function(){window[fn](arg);})
     .catch(function(){showToast('No se pudo cargar Gestiones. Revisá la conexión e intentá de nuevo.');});
@@ -20479,3 +20485,242 @@ function _cpIr(id){
     },function(){_CP.yendo=false;showToast('No se pudo cambiar de cuenta.');});
   });
 }
+
+// ── BUSCADOR DE PANTALLAS (Cmd+K en Mac, Ctrl+K en Windows) ──────────────────────
+// Salta a cualquier pantalla o función sin recorrer menús. Lee lo que ve cada perfil
+// de donde ya está decidido (las solapas del header, el menú del nombre, _facOpts,
+// _bdPanes, _AP_GROUPS): una facultad nueva o un nombre cambiado aparecen solos. Sumar
+// una entrada es un add() en _cmdEntradas. Es sólo un atajo: cada una llama a lo mismo
+// que el botón que reemplaza, con sus mismos candados.
+var _CMD={ov:null,L:[],rows:[],sel:0,volver:null};
+var _CMD_REC='fg_cmdk_rec',_CMD_REC_MAX=5;
+// Palabras con las que también se encuentra cada solapa.
+var _CMD_CLAVES={flyer:'armador inicio',rubros:'armador combustible supermercado',sueldo:'armador cashback',
+  estudio:'disenos publicar',promos:'promociones marcas beneficios buscador',benchmark:'competencia bancos comparar',
+  hunter:'empresa cuit',gestiones:'visitas prospectos altas agenda tablero'};
+var _CMD_CLAVES_ADMIN={usuarios:'altas cuentas perfiles',registros:'flyers generados',uso:'estadisticas metricas',
+  facultades:'permisos perfiles',auditoria:'acciones log',varios:'padron excel',padronotros:'padron',padronlog:'padron historial',
+  subir:'flyer pdf imagen calibrar',legales:'legal texto',opciones:'solapas flyers',vigiladas:'promociones vencidas'};
+function _cmdNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
+function _cmdSeVe(el){return !!el&&el.getClientRects().length>0;}
+function _cmdMostrado(id){var el=document.getElementById(id);return !!el&&el.style.display!=='none';}
+function _cmdTecla(){return /Mac|iPhone|iPad/.test(navigator.platform||'')?'⌘K':'Ctrl K';}
+// Con la sesión adentro: en el login el atajo sigue siendo el del navegador.
+function _cmdSesion(){return _cmdMostrado('hdr-right')&&!_cmdSeVe(document.getElementById('login-ov'));}
+// Una ventana abierta puede tener algo a medio hacer, y salir de abajo la dejaría
+// tapando otra pantalla: primero se cierra. Base de datos y el panel admin sí se
+// pueden dejar: son pantallas, y _cmdIr las cierra con su aviso de cambios sin guardar.
+function _cmdBloqueo(){
+  if(_fgEnTanda())return 'Esperá a que termine de generar el ZIP.';
+  var v=document.querySelectorAll('[id$="-ov"],[id$="-modal"],[id$="-conf"],#fg-askopt,.fg-cf-ov,.ges-ov,.ben-ov,.modal-overlay.show');
+  for(var i=0;i<v.length;i++){
+    if(v[i].id==='login-ov'||v[i].id==='pad-mine-ov')continue;
+    if(_cmdSeVe(v[i]))return 'Cerrá la ventana abierta para usar el buscador.';
+  }
+  return '';
+}
+// Lo de un módulo que se baja aparte: si falla la descarga, ya avisa quien lo abrió.
+function _cmdConLib(lib,fn){_lib([lib]).then(fn).catch(function(e){console.error('buscador:',e);});}
+function _cmdEntradas(){
+  var L=[];
+  function add(grupo,id,titulo,ir,o){
+    o=o||{};
+    L.push({grupo:grupo,id:id,titulo:titulo,ir:ir,actual:!!o.actual,quieto:!!o.quieto,admin:!!o.admin,bd:!!o.bd,sinRec:!!o.sinRec,
+      n:_cmdNorm(titulo),hay:_cmdNorm(titulo+' '+grupo+' '+(o.claves||''))});
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.app-tab'),function(t){
+    if(t.style.display==='none')return;
+    var v=t.id.replace('apptab-',''),h=t.querySelector('h1');
+    add('Pantallas','app:'+v,h?h.textContent:v,function(){switchApp(v);},{claves:_CMD_CLAVES[v],actual:t.classList.contains('active')});
+  });
+  if(!_esHunter()&&!_esLider()){
+    var opts=_facOpts(),enArm=document.body.classList.contains('en-armador');
+    if(opts.length>1)opts.forEach(function(o){
+      var sol=_optSolapa(o);
+      add('Flyers','opt:'+o,_optLabel(o),function(){switchApp(sol);switchFlyerOption(o);},{claves:_solapaLabel(sol),actual:enArm&&o===_optN(_fgOpt)});
+    });
+    var armIr=function(tab,luego){return function(){switchApp(_optSolapa(_fgOpt));switchTab(tab);if(luego)luego();};};
+    add('Armador','tab:individual','Individual',armIr('individual'),{claves:'un flyer formulario'});
+    add('Armador','tab:masivo','Masivo',armIr('masivo'),{claves:'excel zip varios'});
+    add('Armador','tab:historial','Historial',armIr('historial'),{claves:'anteriores descargados'});
+    add('Armador','fn:logos','Cambiar logos',armIr('individual',function(){fgLogosModo(true);}),{claves:'marcas franja recortar insertar'});
+    add('Armador','fn:otros','Otros',armIr('individual',function(){fgToggleOtros(true);}),{claves:'png descargar sede'});
+  }
+  if(_cmdMostrado('apptab-promos')){
+    [['buscar','Buscar','pegar marcas validar'],['activas','Activas','vigentes provincia rubro']].forEach(function(t){
+      add('Promociones','pro:'+t[0],t[1],function(){switchApp('promos');switchPromoTab(t[0]);},{claves:t[2]});
+    });
+  }
+  if(_cmdMostrado('apptab-gestiones')){
+    _gesTabsDe(_rolVigente()).forEach(function(t){
+      add('Gestiones','ges:'+t[0],t[1],function(){switchApp('gestiones');_cmdConLib('ges',function(){gesIr(t[0]);});});
+    });
+  }
+  if(_cmdMostrado('apptab-benchmark')){
+    [['rubro','Resumen por rubro'],['marca','Cara a cara por marca'],['semana','Semana'],['comercio','Por comercio'],['versus','Galicia vs otro banco'],['tarjetas','Tarjetas y salas VIP']].forEach(function(t){
+      add('Benchmark','ben:'+t[0],t[1],function(){switchApp('benchmark');_cmdConLib('ben',function(){benVista(t[0]);});});
+    });
+  }
+  if(_cmdMostrado('hdr-dd-padron')){
+    _bdPanes().forEach(function(p){
+      add('Base de datos','bd:'+p.id,p.lbl,function(){if(document.getElementById('pad-mine-ov'))_bdShow(p.id);else openMiPadron(p.id);},{bd:true,claves:'padron excel'});
+    });
+  }
+  if(_adminNow()){
+    [['admin','Admin'],['data','Data'],['config','Config']].forEach(function(g){
+      _AP_GROUPS[g[0]].forEach(function(t){
+        var el=document.querySelector('.stab[data-tab="'+t+'"]');if(!el)return;
+        add(g[1],'adm:'+t,el.textContent,function(){openAdminPanel();switchAdminTab(null,t);},{admin:true,claves:'panel '+(_CMD_CLAVES_ADMIN[t]||'')});
+      });
+    });
+  }
+  var oscuro=document.documentElement.classList.contains('dark');
+  add('Cuenta','fn:tema',oscuro?'Modo claro':'Modo oscuro',toggleTheme,{quieto:true,claves:'tema color noche dia'});
+  if(_cmdMostrado('hdr-dd-notes'))add('Cuenta','fn:notas','Bloc de notas',openNotes);
+  if(_cmdMostrado('hdr-dd-hunprop'))add('Cuenta','fn:propuestas','Mis propuestas',openMisCambios);
+  if(_cmdMostrado('hdr-dd-pass'))add('Cuenta','fn:clave','Cambiar mi clave',openMyPassModal,{claves:'contrasena password'});
+  if(_cmdMostrado('hdr-dd-tour'))add('Cuenta','fn:tutorial','Ver tutorial',function(){_tourStart();},{claves:'ayuda'});
+  add('Cuenta','fn:salir','Salir',doLogout,{sinRec:true,claves:'cerrar sesion logout'});
+  return L;
+}
+function _cmdRecientes(){
+  try{var r=JSON.parse(localStorage.getItem(_CMD_REC)||'[]');return Array.isArray(r)?r:[];}catch(e){return [];}
+}
+function _cmdRecordar(id){
+  try{localStorage.setItem(_CMD_REC,JSON.stringify([id].concat(_cmdRecientes().filter(function(x){return x!==id;})).slice(0,_CMD_REC_MAX)));}catch(e){}
+}
+// Sin nada escrito: lo último usado y después todo, por grupo. Escribiendo: todas las
+// palabras tienen que aparecer y primero lo que empieza igual en el título. Si no hay
+// nada (un error de tipeo), las letras en orden dentro del título ("prmo" = Promociones).
+function _cmdFiltrar(L,texto){
+  var q=_cmdNorm(texto).trim();
+  if(!q){
+    var ids=_cmdRecientes(),rec=[];
+    ids.forEach(function(id){L.forEach(function(r){if(r.id===id)rec.push({r:r,grupo:'Recientes'});});});
+    return rec.concat(L.filter(function(r){return ids.indexOf(r.id)<0;}).map(function(r){return {r:r,grupo:r.grupo};}));
+  }
+  var pal=q.split(/\s+/),hits=[];
+  L.forEach(function(r,i){
+    if(!pal.every(function(p){return r.hay.indexOf(p)>=0;}))return;
+    var pos=r.n.indexOf(q),pts=pos===0?(r.n===q?120:100):pos>0?(r.n.charAt(pos-1)===' '?80:60):30;
+    hits.push({r:r,pts:pts,i:i});
+  });
+  if(!hits.length){
+    var sin=q.replace(/\s+/g,'');
+    L.forEach(function(r,i){
+      var j=0;for(var c=0;c<r.n.length&&j<sin.length;c++)if(r.n.charAt(c)===sin.charAt(j))j++;
+      if(j===sin.length)hits.push({r:r,pts:r.n.length*-1,i:i});
+    });
+  }
+  hits.sort(function(a,b){return (b.pts-a.pts)||(a.i-b.i);});
+  return hits.map(function(h){return {r:h.r,plano:true};});
+}
+function _cmdTituloHtml(r,texto){
+  var q=_cmdNorm(texto).trim(),pos=q?r.n.indexOf(q):-1;
+  if(pos<0||r.n.length!==r.titulo.length)return _escHtml(r.titulo);
+  return _escHtml(r.titulo.slice(0,pos))+'<mark>'+_escHtml(r.titulo.slice(pos,pos+q.length))+'</mark>'+_escHtml(r.titulo.slice(pos+q.length));
+}
+function _cmdPintar(){
+  var box=document.getElementById('cmdk-l'),inp=document.getElementById('cmdk-q');if(!box||!inp)return;
+  var texto=inp.value,g=null,h='';
+  _CMD.rows=_cmdFiltrar(_CMD.L,texto);
+  _CMD.sel=0;
+  _CMD.rows.forEach(function(x,i){
+    if(!x.plano&&x.grupo!==g){g=x.grupo;h+='<div class="cmdk-sec" role="presentation">'+_escHtml(g)+'</div>';}
+    h+='<div class="cmdk-it" role="option" id="cmdk-o'+i+'" data-i="'+i+'" aria-selected="false"><span class="cmdk-tx">'+_cmdTituloHtml(x.r,texto)+'</span>'+
+      (x.r.actual?'<span class="cmdk-act">Estás acá</span>':'')+
+      (x.plano?'<span class="cmdk-hint">'+_escHtml(x.r.grupo)+'</span>':'')+'</div>';
+  });
+  box.innerHTML=h||'<div class="cmdk-nada">No encontré nada con «'+_escHtml(texto.trim())+'»</div>';
+  box.scrollTop=0;
+  _cmdMarcar(0);
+}
+function _cmdMarcar(i,sinMover){
+  var inp=document.getElementById('cmdk-q'),box=document.getElementById('cmdk-l');if(!inp||!box)return;
+  var viejo=box.querySelector('.cmdk-it.on');
+  if(viejo){viejo.classList.remove('on');viejo.setAttribute('aria-selected','false');}
+  if(!_CMD.rows.length){inp.removeAttribute('aria-activedescendant');return;}
+  _CMD.sel=(i+_CMD.rows.length)%_CMD.rows.length;
+  var el=document.getElementById('cmdk-o'+_CMD.sel);if(!el)return;
+  el.classList.add('on');el.setAttribute('aria-selected','true');
+  inp.setAttribute('aria-activedescendant',el.id);
+  if(sinMover)return;
+  if(_CMD.sel===0)box.scrollTop=0;else el.scrollIntoView({block:'nearest'}); // arriba de todo, para que se vea el título del grupo
+}
+function _cmdCerrar(devolverFoco){
+  if(!_CMD.ov)return;
+  _CMD.ov.remove();_CMD.ov=null;_CMD.rows=[];_CMD.L=[];
+  var v=_CMD.volver;_CMD.volver=null;
+  if(devolverFoco&&v&&v.focus&&document.contains(v)){try{v.focus();}catch(e){}}
+}
+function _cmdIr(x){
+  if(!x)return;
+  var r=x.r;
+  _cmdCerrar(false);
+  if(!r.sinRec)_cmdRecordar(r.id);
+  function seguir(){
+    try{r.ir();}catch(e){console.error('buscador:',e);showToast('No se pudo abrir «'+r.titulo+'».');}
+  }
+  if(r.quieto){seguir();return;}
+  closeUserMenu();
+  var panel=document.getElementById('admin-panel');
+  if(!r.admin&&panel&&panel.classList.contains('open'))closeAdminPanel();
+  if(r.bd||!document.getElementById('pad-mine-ov')){seguir();return;}
+  // Base de datos abierta: con cambios sin guardar pregunta y sigue si le dicen que sí.
+  if(_bdLeaveOk(function(){closeMiPadron(true);seguir();})){closeMiPadron(true);seguir();}
+}
+function fgCmdK(){
+  if(_CMD.ov){_cmdCerrar(true);return;}
+  if(!_cmdSesion())return;
+  var bq=_cmdBloqueo();
+  if(bq){showToast(bq);return;}
+  closeUserMenu();closePadronPop();closeAsPop();_provCerrar();_fgOptMasCerrar();
+  _CMD.volver=document.activeElement;
+  _CMD.L=_cmdEntradas();
+  var fondo=document.createElement('div');fondo.id='cmdk-fondo';fondo.className='cmdk-fondo';
+  fondo.innerHTML='<div class="cmdk" role="dialog" aria-modal="true" aria-label="Buscador de pantallas">'+
+    '<div class="cmdk-top"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>'+
+    '<input id="cmdk-q" type="text" role="combobox" aria-expanded="true" aria-controls="cmdk-l" aria-autocomplete="list" aria-label="Buscar una pantalla o función" placeholder="Buscar una pantalla o función…" autocomplete="off" autocapitalize="off" spellcheck="false"></div>'+
+    '<div class="cmdk-l" id="cmdk-l" role="listbox" aria-label="Resultados"></div>'+
+    '<div class="cmdk-pie"><span><kbd>↑</kbd><kbd>↓</kbd> moverse</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div></div>';
+  document.body.appendChild(fondo);
+  _CMD.ov=fondo;
+  fondo.addEventListener('mousedown',function(e){
+    if(e.target===fondo){e.preventDefault();_cmdCerrar(true);return;}
+    if(e.target.id!=='cmdk-q')e.preventDefault(); // el foco se queda en el campo
+  });
+  var box=fondo.querySelector('#cmdk-l'),inp=fondo.querySelector('#cmdk-q');
+  // mousemove y no mouseover: la lista corriéndose abajo del mouse quieto no cambia lo marcado
+  box.addEventListener('mousemove',function(e){
+    var it=e.target.closest&&e.target.closest('.cmdk-it');
+    if(it&&+it.dataset.i!==_CMD.sel)_cmdMarcar(+it.dataset.i,true);
+  });
+  box.addEventListener('click',function(e){
+    var it=e.target.closest&&e.target.closest('.cmdk-it');
+    if(it)_cmdIr(_CMD.rows[+it.dataset.i]);
+  });
+  inp.addEventListener('input',_cmdPintar);
+  _cmdPintar();
+  inp.focus();
+}
+// En window y en captura, antes que cualquier otra tecla de la app. Abierto, las teclas
+// son de la paleta: ni las letras de Cambiar logos ni otro Escape reaccionan por debajo.
+window.addEventListener('keydown',function(e){
+  if((e.metaKey||e.ctrlKey)&&!e.altKey&&!e.shiftKey&&String(e.key||'').toLowerCase()==='k'){
+    if(!_cmdSesion())return;
+    e.preventDefault();e.stopImmediatePropagation();
+    if(!e.repeat)fgCmdK();
+    return;
+  }
+  if(!_CMD.ov)return;
+  e.stopImmediatePropagation();
+  if(e.isComposing)return;
+  if(e.key==='ArrowDown'){e.preventDefault();_cmdMarcar(_CMD.sel+1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();_cmdMarcar(_CMD.sel-1);}
+  else if(e.key==='Enter'){e.preventDefault();_cmdIr(_CMD.rows[_CMD.sel]);}
+  else if(e.key==='Escape'){e.preventDefault();_cmdCerrar(true);}
+  else if(e.key==='Tab')e.preventDefault(); // el foco no se va a la pantalla de abajo
+},true);
+document.addEventListener('DOMContentLoaded',function(){
+  var k=document.getElementById('hdr-cmdk-k');if(k)k.textContent=_cmdTecla();
+});
