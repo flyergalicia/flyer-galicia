@@ -107,6 +107,8 @@ function gesNom(id){
   var p=GES.personas&&GES.personas[id];
   return p?p.nombre:'Usuario dado de baja';
 }
+// "Tu empresa" o "Empresa de Laura": sin decir "Empresa de Vos".
+function gesEmpDe(id){return id===gesYo()?'Tu empresa':'Empresa de '+gesE(gesNom(id));}
 function gesPuedeEditar(g){var y=gesYo();return !!g&&(g.hunter_id===y||g.creada_por===y||gesEsAdmin());}
 function gesPuedeBorrar(g){return !!g&&(g.creada_por===gesYo()||gesEsAdmin());}
 // ¿Es un hunter de mi equipo? (el líder lo ve en lider_id de cada persona)
@@ -351,7 +353,8 @@ function gesListaRender(){
       (gesRol()==='hunter'?'':gesListaFiltroHunter())+
       '<span class="ges-fdes">Del <input type="date" class="ges-inp" id="ges-fd1" aria-label="Desde" value="'+_escAttr(GES.fD1)+'" onchange="GES.fD1=this.value;gesListaPintar()">'+
         ' al <input type="date" class="ges-inp" id="ges-fd2" aria-label="Hasta" value="'+_escAttr(GES.fD2)+'" onchange="GES.fD2=this.value;gesListaPintar()"></span>'+
-      (gesListaHayFiltro()?'<button type="button" class="ges-link" onclick="gesListaLimpiar()">Limpiar filtros</button>':'')+
+      // Siempre está: gesListaPintar sólo lo muestra o lo esconde, sin repintar la barra.
+      '<button type="button" class="ges-link" id="ges-flimpiar" onclick="gesListaLimpiar()"'+(gesListaHayFiltro()?'':' style="display:none"')+'>Limpiar filtros</button>'+
       (gesRol()==='hunter'?'<button type="button" class="btn bg" onclick="switchApp(\'hunter\')">+ Registrar desde Buscar flyer</button>':'')+
       gesLeerTodasBtn(l)+
       '</div>';
@@ -399,7 +402,8 @@ function gesListaFiltroHunter(){
 // Re-pinta sólo la lista (no el buscador, para no perder el foco al tipear).
 function gesListaPintar(){
   var host=document.getElementById('ges-list');if(!host||!GES.lista){gesListaRender();return;}
-  var vis=gesListaFiltrar(GES.lista);
+  var vis=gesListaFiltrar(GES.lista),lim=document.getElementById('ges-flimpiar');
+  if(lim)lim.style.display=gesListaHayFiltro()?'':'none';
   host.innerHTML=vis.length?vis.slice(0,300).map(gesFila).join(''):'<div class="ges-vacio">Nada coincide con el filtro.</div>';
 }
 // "Hunter: Sofía" o "Hunter: por asignar (Laura)".
@@ -415,7 +419,7 @@ function gesCuandoTxt(g){
 }
 function gesFila(g){
   var r=gesRol(),quien;
-  if(r==='hunter')quien=g.origen==='derivada'?'Te la derivó '+gesE(gesNom(g.creada_por)):'Empresa de '+gesE(gesNom(g.dueno_id));
+  if(r==='hunter')quien=g.origen==='derivada'?'Te la derivó '+gesE(gesNom(g.creada_por)):gesEmpDe(g.dueno_id);
   else quien='Hunter: '+gesHunterTxt(g)+' &middot; Oficial: '+gesE(gesNom(g.dueno_id));
   var nums='';
   if(g.tipo==='datos')nums='<span class="ges-row-n"><b>'+gesN(g.n_pros)+'</b> de '+gesN(g.n_datos)+' contactados &middot; <b class="ges-ok">'+gesN(g.n_altas)+'</b> '+(+g.n_altas===1?'alta':'altas')+'</span>';
@@ -1553,7 +1557,7 @@ function gesAgBandas(){
 // Una persona de "Para contactar": abre su acción y la deja marcada en la lista.
 function gesContactarItem(p,empresas,hoy){
   var atras=gesDias(p.proximo,hoy);
-  return '<button type="button" class="ges-band-i" onclick="gesAbrirDet(\''+p.gestion_id+'\',false,false,\''+p.id+'\')">'+
+  return '<button type="button" class="ges-band-i" onclick="gesCerrar();gesAbrirDet(\''+p.gestion_id+'\',false,false,\''+p.id+'\')">'+
     '<span><b>'+gesE(p.nombre)+'</b><span class="ges-mini">'+gesE(empresas[p.gestion_id]||'')+
       (p.contacto?' &middot; '+gesE(p.contacto):'')+
       (atras>0?' &middot; <span class="ges-pisa">desde el '+gesE(gesFecha(p.proximo))+'</span>':'')+'</span></span>'+
@@ -1846,7 +1850,7 @@ function gesAgEmpBuscar(){
 function gesAgEmpElegir(i){
   var e=GES._agEmps&&GES._agEmps[i];if(!e)return;
   GES._agEmp=e;var inp=document.getElementById('gf-emp');if(inp)inp.value=e.empresa;
-  var h=document.getElementById('gf-emp-res');if(h)h.innerHTML='<span class="ges-chip ges-c-ok">Empresa de '+gesE(gesNom(e.dueno_id))+(gesCuitTxt(e.cuits)?' &middot; '+gesE(gesCuitTxt(e.cuits)):'')+'</span>';
+  var h=document.getElementById('gf-emp-res');if(h)h.innerHTML='<span class="ges-chip ges-c-ok">'+gesEmpDe(e.dueno_id)+(gesCuitTxt(e.cuits)?' &middot; '+gesE(gesCuitTxt(e.cuits)):'')+'</span>';
 }
 function gesAgendarOk(){
   var e=GES._agEmp;if(!e){showToast('Elegí la empresa de la lista.');return;}
@@ -2049,14 +2053,17 @@ function gesAgPasteRevisar(){
   host.innerHTML='<span class="ges-mini">Revisando&hellip;</span>';
   var nombres={};rows.forEach(function(r){if(r.ok)nombres[_padNorm(r.empresaTxt)]=r.empresaTxt;});
   Promise.all(Object.keys(nombres).map(function(k){
+    // Una falla no es "no está en la base": queda en null y se avisa aparte.
     return _sb.rpc('gestiones_empresas',{p_q:nombres[k],p_limit:20}).then(function(res){
+      if(res&&res.error)return [k,null];
       return [k,((res&&res.data)||[]).filter(function(e){return _padNorm(e.empresa)===k;})];
-    });
+    },function(){return [k,null];});
   })).then(function(par){
     if(t!==GES._agPasteTurno)return;
     var m={};par.forEach(function(p){m[p[0]]=p[1];});
     rows.forEach(function(r){
       if(!r.ok)return;
+      if(m[_padNorm(r.empresaTxt)]===null){r.ok=false;r.sinRed=true;r.motivo='No se pudo revisar la empresa. Probá de nuevo';return;}
       var c=m[_padNorm(r.empresaTxt)]||[],mias=c.filter(function(e){return e.dueno_id===gesYo();});
       if(!c.length){r.ok=false;r.motivo='la empresa no está en la base';return;}
       var e=c.length===1?c[0]:(mias.length?mias[0]:null);
@@ -2090,7 +2097,8 @@ function gesAgPastePintar(){
   var rows=GES._agPaste||[],ok=rows.filter(function(r){return r.ok;}),mal=rows.filter(function(r){return !r.ok;}),pis=ok.filter(function(r){return r.aviso;});
   host.innerHTML='<div class="ges-paste-res"><span class="ges-chip ges-c-ok">'+ok.length+' listas</span>'+
       (pis.length?'<span class="ges-chip ges-c-warn">'+pis.length+' se pisan con otra (se agregan igual)</span>':'')+
-      (mal.length?'<span class="ges-chip ges-c-bad">'+mal.length+' con problemas (no se agregan)</span>':'')+'</div>'+
+      (mal.length?'<span class="ges-chip ges-c-bad">'+mal.length+' con problemas (no se agregan)</span>':'')+
+      (rows.some(function(r){return r.sinRed;})?'<button type="button" class="ges-link" onclick="gesAgPasteRevisar()">Probar de nuevo</button>':'')+'</div>'+
     '<div class="ges-tw"><table class="ges-tbl"><thead><tr><th>Fecha</th><th>Horario</th><th>Empresa</th><th>Hunter</th><th>Lugar</th><th></th></tr></thead><tbody>'+
     rows.slice(0,60).map(function(r){
       return '<tr><td class="ges-num">'+(r.fecha?gesE(gesFecha(r.fecha)):'—')+'</td><td class="ges-num">'+gesE(gesHorario(r)||'—')+'</td>'+

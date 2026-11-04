@@ -860,19 +860,21 @@ function _libQue(libs){
   if(libs.indexOf('jspdf')>=0)return 'el PDF';
   return 'el Excel';
 }
-function _libWrap(fnName,libs){
+// tanda: mientras espera su librería ya cuenta como en curso (_fgEnTanda): Limpiar la dejaría sin filas.
+var _libTandas=0;
+function _libWrap(fnName,libs,tanda){
   var orig=window[fnName];if(typeof orig!=='function'||orig._libWrapped)return;
   var w=function(){
     var self=this,args=arguments;
     if(libs.every(_libReady))return orig.apply(self,args);
     if(w._pend)return; // ya se está trayendo: un segundo clic no encola otra tanda (salían dos ZIP)
-    w._pend=true;
+    w._pend=true;if(tanda)_libTandas++;
     showToast('Preparando '+_libQue(libs)+'…');
     _lib(libs).then(function(){
-      w._pend=false;
+      w._pend=false;if(tanda)_libTandas--;
       try{orig.apply(self,args);}catch(e){console.error(fnName+':',e);showToast('Algo salió mal. Probá de nuevo.');}
     },function(){
-      w._pend=false;
+      w._pend=false;if(tanda)_libTandas--;
       // si venía de elegir un archivo, se vacía el campo: volver a elegir el mismo tiene que andar
       try{var a0=args[0],el=a0&&(a0.target||a0);if(el&&el.type==='file')el.value='';}catch(e){}
       showToast('No se pudo preparar '+_libQue(libs)+'. Revisá la conexión y probá de nuevo.');
@@ -883,8 +885,8 @@ function _libWrap(fnName,libs){
 function _libInit(){
   if(!_LIBS.jspdf)return; // sin meta: las libs están en el <head>, nada que envolver
   _libWrap('savePDF',['jspdf']);                 // PDF individual, modal e historial
-  _libWrap('genAll',['jspdf','jszip']);          // masivo
-  _libWrap('_pgGenerarRows',['jspdf','jszip']);  // padrón / segmento
+  _libWrap('genAll',['jspdf','jszip'],true);          // masivo
+  _libWrap('_pgGenerarRows',['jspdf','jszip'],true);  // padrón / segmento
   _libWrap('dlTemplate',['xlsx']);
   _libWrap('loadExcel',['xlsx']);
   _libWrap('importAsesores',['xlsx']);
@@ -4498,7 +4500,7 @@ function deleteUser(btn,uid){
     _callFn('delete_user',{uid:uid},function(err){
       if(err){btn.disabled=false;btn.innerHTML=_h;showToast('Error: '+err);return;}
       showToast('Usuario eliminado');
-      loadUsers();loadStats();
+      loadUsers();loadStats();_refreshPendingBadge();
     });
   });
 }
@@ -8815,7 +8817,7 @@ function _fgBajarBlob(blob,nombre){
 var _masBusy=false;
 // ¿Hay una tanda en marcha (Masivo o Generar flyers)? Mientras corre no se cambia de Excel,
 // no se limpia ni se cambia de opción: la tanda las va cambiando sola.
-function _fgEnTanda(){return _masBusy||(typeof _pgBusy!=='undefined'&&_pgBusy);}
+function _fgEnTanda(){return _masBusy||_libTandas>0||(typeof _pgBusy!=='undefined'&&_pgBusy);}
 function fgClearExcel(){
   if(_fgEnTanda()){showToast('Esperá a que termine de generar el ZIP.');return;}
   window.excelData=[];

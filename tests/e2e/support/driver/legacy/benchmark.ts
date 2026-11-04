@@ -25,7 +25,7 @@ const VIEW_NAMES: Readonly<Record<string, BenchmarkView>> = {
   versus: "versus",
   tarjetas: "cards",
 };
-export const VIEW_TABS: Readonly<Record<BenchmarkView, string | RegExp>> = {
+const VIEW_TABS: Readonly<Record<BenchmarkView, string | RegExp>> = {
   rubro: "Resumen por rubro",
   brand: "Cara a cara por marca",
   week: "Semana",
@@ -240,6 +240,24 @@ export function createLegacyBenchmarkDriver(page: Page): BenchmarkDriver {
     headline: async () => (await page.locator(".ben-resumen").first().textContent()) ?? "",
     screenText: () => root.evaluate((element) => (element.textContent ?? "").replace(/\s+/g, " ")),
     tabs: () => page.locator(".ben-tab").allTextContents(),
+    pageWidths: () =>
+      page.evaluate(() => {
+        const panel = document.querySelector("#ben-root")?.closest(".ben-view");
+        const boxes = Array.from(document.querySelectorAll(".ben-scroll"));
+        const widest = boxes.toSorted((one, other) => other.scrollWidth - one.scrollWidth)[0];
+        return {
+          page: document.documentElement.scrollWidth,
+          panel: panel?.scrollWidth ?? 0,
+          tabs: Math.max(
+            ...Array.from(
+              document.querySelectorAll(".ben-tab"),
+              (tab) => tab.getBoundingClientRect().right,
+            ),
+          ),
+          table: widest?.scrollWidth ?? 0,
+          tableBox: widest?.clientWidth ?? 0,
+        };
+      }),
     buttons: () => page.locator(`${ROOT} button`).allTextContents(),
     tableCount: () => page.locator(`${ROOT} table.ben-t`).count(),
     tableCells: () => page.locator(`${MAIN_TABLE_ROWS} td`).allTextContents(),

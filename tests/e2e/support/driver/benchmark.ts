@@ -99,6 +99,18 @@ export interface BenchmarkWorkbook {
 }
 
 /** What specs can do on Benchmark. */
+export interface BenchmarkPageWidths {
+  /** How wide the page is, with whatever pushes it. */
+  page: number;
+  /** How wide the panel of Benchmark is, with whatever pushes it. */
+  panel: number;
+  /** Where the last tab ends. */
+  tabs: number;
+  /** The widest table on screen and the box it slides in; 0 without tables. */
+  table: number;
+  tableBox: number;
+}
+
 export interface BenchmarkDriver {
   /** Whether this user can get to Benchmark, and how much of it the browser already has. */
   access(): Promise<BenchmarkAccess>;
@@ -140,6 +152,8 @@ export interface BenchmarkDriver {
   /** Everything Benchmark shows, with its spaces normalized. */
   screenText(): Promise<string>;
   tabs(): Promise<string[]>;
+  /** Widths once the screen is drawn, to tell whether the page scrolls sideways. */
+  pageWidths(): Promise<BenchmarkPageWidths>;
   buttons(): Promise<string[]>;
   tableCount(): Promise<number>;
   /** The text of every cell of the tables. */

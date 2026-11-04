@@ -157,6 +157,8 @@ export function createAgendaAssign(page: Page): AgendaAssignDriver {
       await page.locator("#ga-prev .ges-paste-res").waitFor({ timeout: WAIT_MS });
       return page.evaluate(readAgendaReview);
     },
+    retryAgendaReview: () =>
+      page.locator("#ga-prev").getByRole("button", { name: "Probar de nuevo" }).click(),
     addPastedAgenda: () => page.locator("#ga-ok").click(),
   };
 }

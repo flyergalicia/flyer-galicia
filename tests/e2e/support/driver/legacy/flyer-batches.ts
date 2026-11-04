@@ -257,6 +257,10 @@ export function createFlyerBatches(
   | "generateBatch"
   | "generateBatchTwiceInARow"
   | "generateBatchAndInterfere"
+  | "pressGenerateBatch"
+  | "pressClearBatch"
+  | "batchIsRunning"
+  | "waitForBatchZip"
   | "tryBatchWithoutFlyer"
   | "redownloadFromHistory"
 > {
@@ -268,6 +272,25 @@ export function createFlyerBatches(
     generateBatch: (options) => generateBatch(page, options),
     generateBatchTwiceInARow: (rows) => generateBatchTwiceInARow(page, rows),
     generateBatchAndInterfere: () => generateBatchAndInterfere(page),
+    pressGenerateBatch: async () => {
+      await startCapturingZips(page);
+      await page.locator("#btn-gen").click();
+    },
+    pressClearBatch: async () => {
+      await page.locator("#excel-info").getByRole("button", { name: "Limpiar" }).click();
+      const rowsLeft = await page.evaluate(() => excelData.length);
+      return { notice: await toastText(page), rowsLeft };
+    },
+    batchIsRunning: () => page.evaluate(() => _fgEnTanda()),
+    waitForBatchZip: async (timeout) => {
+      const came = await waitForCapturedZip(page, timeout).then(
+        () => true,
+        () => false,
+      );
+      const { files } = await readCapturedZip(page);
+      await stopCapturingZips(page);
+      return came ? files : [];
+    },
     tryBatchWithoutFlyer: (rows) => tryBatchWithoutFlyer(page, rows),
     redownloadFromHistory: (option) => redownloadFromHistory(page, option),
   };

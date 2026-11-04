@@ -14,6 +14,15 @@ const BATCH = [
   { cells: { empresa: "B", config: "BAU", asesor1_nombre: "Y" } },
 ];
 
+const LIBRARY_DELAY_MS = 1_500;
+const BATCH_ZIP_MS = 30_000;
+const SHEET = [
+  ["empresa", "nombre", "config"],
+  ["ACME SA", "Ana Perez", "BAU"],
+  ["BETA SRL", "Beto Gomez", "BAU"],
+];
+const isPdf = (name: string) => name.endsWith(".pdf");
+
 const delay = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -161,6 +170,58 @@ test.describe("downloading a flyer", () => {
       )
       .toBe(1);
     expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  });
+
+  test("Limpiar while the libraries come down does not leave the batch empty", async ({
+    openApp,
+  }) => {
+    const app = await openApp();
+    const { flyerEditor, page } = app;
+    await flyerEditor.loadDownloadLibrary("pdf");
+    await flyerEditor.forgetDownloadLibrary("zip");
+    await flyerEditor.chooseEditorTab("Masivo");
+    await flyerEditor.uploadExcelSheet(SHEET);
+    await slowDown(page, ZIP_LIBRARY, LIBRARY_DELAY_MS);
+
+    await flyerEditor.pressGenerateBatch();
+    expect.soft(await flyerEditor.batchIsRunning(), "waiting for it counts as running").toBe(true);
+    const cleared = await flyerEditor.pressClearBatch();
+    expect.soft(cleared.notice, "Limpiar waits, as during the batch").toMatch(/Esper/);
+    expect.soft(cleared.rowsLeft, "and the lines stay").toBe(SHEET.length - 1);
+
+    const files = await flyerEditor.waitForBatchZip(BATCH_ZIP_MS);
+    expect.soft(files.filter(isPdf), "the batch comes out with its lines").toHaveLength(2);
+    await expect.poll(() => flyerEditor.batchIsRunning(), "and everything is free").toBe(false);
+    const after = await flyerEditor.pressClearBatch();
+    expect.soft(after.rowsLeft, "Limpiar works again").toBe(0);
+    expect.soft(app.pageErrors()).toEqual([]);
+  });
+
+  test("a library that does not arrive leaves the batch free to try again", async ({ openApp }) => {
+    const app = await openApp();
+    const { flyerEditor, page } = app;
+    await flyerEditor.loadDownloadLibrary("pdf");
+    await flyerEditor.forgetDownloadLibrary("zip");
+    await flyerEditor.chooseEditorTab("Masivo");
+    await flyerEditor.uploadExcelSheet(SHEET);
+    await page.route(ZIP_LIBRARY, (route) => route.abort());
+
+    await flyerEditor.pressGenerateBatch();
+    await expect
+      .poll(() => flyerEditor.latestNotice(), "it says so")
+      .toMatch(/No se pudo preparar el ZIP/);
+    expect.soft(await flyerEditor.batchIsRunning(), "nothing is running").toBe(false);
+    await expect
+      .soft(page.getByRole("button", { name: "Generar ZIP" }), "the button is not stuck")
+      .toBeEnabled();
+
+    await page.unroute(ZIP_LIBRARY);
+    await flyerEditor.pressGenerateBatch();
+    const files = await flyerEditor.waitForBatchZip(BATCH_ZIP_MS);
+    expect.soft(files.filter(isPdf), "a second press makes the batch").toHaveLength(2);
+    await expect.poll(() => flyerEditor.batchIsRunning()).toBe(false);
+    expect.soft((await flyerEditor.pressClearBatch()).rowsLeft, "Limpiar works").toBe(0);
+    expect.soft(app.pageErrors()).toEqual([]);
   });
 
   test("with the flyer not loaded it stops, explains why and works again after", async ({

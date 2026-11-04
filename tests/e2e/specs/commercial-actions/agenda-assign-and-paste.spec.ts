@@ -11,6 +11,7 @@ const COMPANY_RPC = "**/rest/v1/rpc/gestiones_empresas";
 const TEXTIL = "TEXTIL ARGENTA SA";
 const LOGISTICA = "LOGISTICA ANDINA SRL";
 const OTHER_OFFICER_COMPANY = "TRANSPORTES RIO SA";
+const COULD_NOT_REVIEW = "No se pudo revisar la empresa. Probá de nuevo";
 
 type OpenApp = (options?: OpenAppOptions) => Promise<OpenedApp>;
 
@@ -63,6 +64,7 @@ test.describe("Asignar from the agenda", () => {
 
     await actions.chooseCompanyFound(TEXTIL);
     expect.soft(await actions.companySearchResults(), "the chip").toMatch(/CUIT 30-90000511-3/);
+    expect.soft(await actions.companySearchResults(), "one's own company").toMatch(/^Tu empresa/);
     await actions.chooseHunter("Sofía Paz");
     await actions.setDate(DAY);
     await actions.setTimes("10:00", "12:00");
@@ -391,6 +393,90 @@ test.describe("Pegar desde Excel", () => {
       companies.push({ ...original, id: companies.length + 1, user_id: idOf(cloud, other) });
     }
   }
+
+  for (const [failure, fail] of [
+    ["the server answers with an error", { status: 500, json: { message: "se cortó" } }],
+    ["the connection drops", null],
+  ] as const) {
+    test(`when ${failure} it says it could not review, and a second try works`, async ({
+      cloud,
+      openApp,
+    }) => {
+      cloud.seedCommercialActions();
+      const tables = commercialTables(cloud);
+      const before = tables.actions.length;
+      const { commercialActions: actions, page } = await openAgenda(openApp, "officer");
+      await actions.openAgendaPaste();
+      let online = false;
+      await page.route(COMPANY_RPC, async (route) => {
+        if (online) await route.fallback();
+        else if (fail) await route.fulfill(fail);
+        else await route.abort();
+      });
+      const line = `${DAY}\t10 a 12\t${TEXTIL}\tSofía`;
+
+      await actions.pasteAgenda(line);
+      const failed = await actions.waitForAgendaReview();
+      expect.soft(failed.rows[0]?.status).toBe(COULD_NOT_REVIEW);
+      expect.soft(failed.summary, "it is not ready").toMatch(/0 listas/);
+      expect.soft(failed.addButton.locked, "and it cannot be added").toBe(true);
+      expect.soft(tables.actions.length).toBe(before);
+
+      online = true;
+      await actions.retryAgendaReview();
+      await expect
+        .poll(async () => (await actions.waitForAgendaReview()).rows[0]?.status, "the button")
+        .toBe("Lista");
+
+      online = false;
+      await actions.pasteAgenda(`${line} `);
+      await expect
+        .poll(async () => (await actions.waitForAgendaReview()).rows[0]?.status)
+        .toBe(COULD_NOT_REVIEW);
+      online = true;
+      await actions.pasteAgenda(line);
+      await expect
+        .poll(async () => (await actions.waitForAgendaReview()).rows[0]?.status, "writing again")
+        .toBe("Lista");
+      expect.soft((await actions.waitForAgendaReview()).addButton.locked).toBe(false);
+    });
+  }
+
+  test("only the line that could not be reviewed is told apart from one that is not there", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.seedCommercialActions();
+    const tables = commercialTables(cloud);
+    const before = tables.actions.length;
+    const { commercialActions: actions, page } = await openAgenda(openApp, "officer");
+    await actions.openAgendaPaste();
+    await page.route(COMPANY_RPC, async (route) => {
+      if (JSON.stringify(route.request().postDataJSON()).includes("TEXTIL")) {
+        await route.fulfill({ status: 500, json: { message: "se cortó" } });
+      } else {
+        await route.fallback();
+      }
+    });
+
+    await actions.pasteAgenda(
+      [
+        `${DAY}\t10 a 12\t${TEXTIL}\tSofía`,
+        `${DAY}\t14 a 15\t${LOGISTICA}\tSofía`,
+        `${NEXT_DAY}\t10 a 12\tEMPRESA QUE NO EXISTE SA\tSofía`,
+      ].join("\n"),
+    );
+
+    const { rows, addButton } = await actions.waitForAgendaReview();
+    expect
+      .soft(rows.map(({ status }) => status))
+      .toEqual([COULD_NOT_REVIEW, "Lista", "la empresa no está en la base"]);
+    expect.soft(addButton.text, "only the one reviewed goes").toBe("Agregar 1 a la agenda");
+
+    await actions.addPastedAgenda();
+    await expect.poll(() => tables.actions.length).toBe(before + 1);
+    expect.soft(tables.actions.at(-1)?.empresa).toBe(LOGISTICA);
+  });
 
   test("a company of two officers has to be loaded one by one", async ({ cloud, openApp }) => {
     cloud.seedCommercialActions();

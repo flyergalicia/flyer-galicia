@@ -140,21 +140,15 @@ Medido con oxlint al planificar: 118 funciones del frontend superan 15 (`auth.js
 
 ## Errores de la versión actual que encontraron las pruebas
 
-No se tocaron, porque la versión actual queda igual hasta el corte. Al pasar cada pantalla a React hay que decidir si se conservan o se corrigen, con el dueño. Las pruebas no fijan estos comportamientos, salvo donde se aclara.
+Los seis que había se corrigieron en la versión actual el 4-nov-2026, cada uno con su prueba, y React tiene que conservar ese comportamiento corregido: pegar desde Excel distingue una falla de una empresa que no está, el número del botón Admin baja al eliminar, "Tu empresa" en lugar de "Empresa de Vos", "Limpiar filtros" aparece con cualquier filtro, "Para contactar" se cierra al elegir una persona, "Limpiar" del Masivo espera mientras bajan las librerías y Benchmark no ensancha la página en el celular. Queda sin tocar lo que sigue: al pasar esa pantalla a React hay que decidir con el dueño si se conserva o se corrige. Las pruebas no fijan estos comportamientos.
 
-- **Pegar desde Excel, en la agenda de Gestiones:** si falla la revisión de empresas, cada fila dice que la empresa no está en la base, en lugar de "No se pudo revisar". Va contra la regla de no confundir una falla de red con un resultado vacío.
-- **Número del botón Admin:** al eliminar una cuenta pendiente no baja hasta recargar.
-- **Agenda de Gestiones:** un oficial que elige su propia empresa ve "Empresa de Vos".
-- **Lista de Gestiones:** "Limpiar filtros" no aparece después de elegir un filtro, y "Para contactar" queda abierta tapando la acción.
-- **Masivo:** "Limpiar" mientras bajan las librerías puede dejar la tanda sin hacer nada (deducido del código, no reproducido).
-- **Benchmark en un celular de 390 px:** "Resumen por rubro" ensancha la página y deja afuera las últimas solapas (no se probó en un teléfono real).
 - **Reglas que decía un chequeo del armado y la app no cumple:** sin rubro no siempre va la Opción 1 (elige el flyer general vigente con imagen), los vacíos van al final sólo en orden ascendente, "Guardar el actual" usa una ventana del navegador y la lupa no es sólo del admin (depende de la facultad `padron_buscar`).
 
 ## Límites conocidos
 
 - `ci.yml` no se puede ejecutar de verdad sin `push`: está validado sólo a través de `npm run ci`.
 - Las capturas de referencia toleran 0,1 % de píxeles distintos (un cambio de pocas letras puede pasar), muestran lo que entra en la ventana más 15 imágenes de contenido, esconden el flyer de fondo en las 8 pantallas que lo tapan, y sólo valen para macOS. El flyer impreso se compara píxel por píxel. Detalle en `tests/LEEME.md`.
-- Las pruebas y sus drivers todavía leen código viejo en algunos puntos, que hay que resolver en React: `_vigSumarEstudio`, el cambio de `baseImg`, `necesitaRevision`, el catálogo en memoria, `gesListaLimpiar` y `search.nameFirstFlyer`.
+- Las pruebas y sus drivers todavía leen código viejo en algunos puntos, que hay que resolver en React: `_vigSumarEstudio`, el cambio de `baseImg`, `necesitaRevision`, el catálogo en memoria y `search.nameFirstFlyer`.
 - Los chequeos de `_build.mjs` se clasificaron uno por uno en `docs/CHEQUEOS_BUILD.md`. Cada método nuevo de los drivers necesita su versión en `driver/react/` cuando llegue su slice.
 - En local no se comprueba la red del banco, las PC de sucursal ni Pages. La nube simulada imita RLS y Edge Functions, no las ejercita.
 - El corte final llega a todos a la vez: si se publica, volver atrás es restaurar la versión anterior en `main`.

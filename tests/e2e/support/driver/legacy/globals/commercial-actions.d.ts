@@ -46,7 +46,6 @@ declare var _sb: {
 
 declare function gesAbrirDet(id: string): void;
 declare function gesContactarTodas(): void;
-declare function gesListaLimpiar(): void;
 declare function gesMsgNuevos(force: boolean): Promise<unknown>;
 declare function _tourStart(chapter: string): void;
 declare function _tourNext(): void;

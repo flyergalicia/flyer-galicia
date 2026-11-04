@@ -9,7 +9,6 @@ import { type AdminDriver } from "../admin.ts";
 import { type SearchDriver } from "../search.ts";
 import { type SessionDriver } from "../session.ts";
 import { type StudioDriver } from "../studio.ts";
-import { VIEW_TABS } from "./benchmark.ts";
 
 const WAIT_MS = 25_000;
 const STABLE_MS = 400;
@@ -107,11 +106,10 @@ async function openPreviewWindow(page: Page): Promise<void> {
   await page.locator("#modal.show img[src^='data:']").waitFor({ timeout: WAIT_MS });
 }
 
-function benchmarkView(page: Page, benchmark: BenchmarkDriver, view: BenchmarkView) {
+function benchmarkView(benchmark: BenchmarkDriver, view: BenchmarkView) {
   return async () => {
     await benchmark.open();
-    // On a phone the summary makes the page wider than the screen and leaves these tabs out of it.
-    await page.getByRole("tab", { name: VIEW_TABS[view] }).dispatchEvent("click");
+    await benchmark.showView(view);
   };
 }
 
@@ -158,15 +156,15 @@ function openers(page: Page, drivers: ScreenDrivers): Record<ReferenceScreen, ()
     "commercial-actions-list": commercialTab(actions, "actions"),
     "commercial-actions-agenda": commercialTab(actions, "agenda"),
     "commercial-actions-dashboard": commercialTab(actions, "dashboard"),
-    "benchmark-summary": benchmarkView(page, benchmark, "rubro"),
-    "benchmark-brands": benchmarkView(page, benchmark, "brand"),
-    "benchmark-week": benchmarkView(page, benchmark, "week"),
+    "benchmark-summary": benchmarkView(benchmark, "rubro"),
+    "benchmark-brands": benchmarkView(benchmark, "brand"),
+    "benchmark-week": benchmarkView(benchmark, "week"),
     "benchmark-merchant": async () => {
-      await benchmarkView(page, benchmark, "merchant")();
+      await benchmarkView(benchmark, "merchant")();
       await benchmark.searchMerchant("Coto");
     },
-    "benchmark-versus": benchmarkView(page, benchmark, "versus"),
-    "benchmark-cards": benchmarkView(page, benchmark, "cards"),
+    "benchmark-versus": benchmarkView(benchmark, "versus"),
+    "benchmark-cards": benchmarkView(benchmark, "cards"),
     "admin-dashboard": () => openAdminSheet(page, admin, "dashboard"),
     "admin-users": () => openAdminSheet(page, admin, "usuarios"),
     "admin-permissions": () => openAdminSheet(page, admin, "facultades"),

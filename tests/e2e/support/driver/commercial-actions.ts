@@ -83,6 +83,8 @@ export interface AgendaAssignDriver {
   agendaPreviewText(): Promise<string>;
   /** Waits until the lines are reviewed against the database. */
   waitForAgendaReview(): Promise<AgendaPasteReview>;
+  /** Presses "Probar de nuevo", offered when a line could not be reviewed. */
+  retryAgendaReview(): Promise<void>;
   /** Presses "Agregar N a la agenda". */
   addPastedAgenda(): Promise<void>;
 }
@@ -223,6 +225,14 @@ export interface ActionListDriver {
   /** Chooses in the filter of types, by how it reads. */
   filterActionsByType(label: string): Promise<void>;
   filterActionsFrom(date: string): Promise<void>;
+  filterActionsUntil(date: string): Promise<void>;
+  /** Chooses in the filter of states, by how it reads. */
+  filterActionsByStatus(label: string): Promise<void>;
+  /** Chooses in the filter of hunters, by how it reads. */
+  filterActionsByHunter(label: string): Promise<void>;
+  /** "Limpiar filtros" can be seen. */
+  clearFiltersOffered(): Promise<boolean>;
+  /** Presses "Limpiar filtros". */
   clearActionFilters(): Promise<void>;
 }
 

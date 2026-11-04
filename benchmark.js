@@ -43,7 +43,7 @@
     '.ben-sub{margin:0 0 10px;font-size:.78rem;color:var(--gray);}',
     '.ben-resumen{font-size:.9rem;color:var(--ink);line-height:1.5;}',
     '.ben-resumen b{color:var(--ink);}',
-    '.ben-scroll{overflow-x:auto;}',
+    '.ben-scroll{overflow-x:auto;width:0;min-width:100%;}',
     'table.ben-t{border-collapse:collapse;width:100%;font-size:.8rem;}',
     'table.ben-t th,table.ben-t td{padding:7px 9px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;}',
     'table.ben-t th{font-size:.75rem;color:var(--gray);font-weight:700;white-space:nowrap;position:sticky;top:0;background:var(--card);}',
@@ -79,6 +79,8 @@
     '.ben-down{color:var(--danger,#B3261E);font-weight:700;}',
     '.ben-view{display:block;overflow:auto;height:calc(100vh - 62px - var(--simbar-h,0px));background:var(--paper,var(--light));}',
     '@media (max-width:900px){.ben-view{height:auto;overflow:visible;}.ben-root{padding:14px 14px 40px;}.ben-ref input{width:84px;}}',
+    // En el celular las barras se achican parejo (--f: su largo; --r: lo que queda para el nombre y el número).
+    '@media (max-width:640px){.ben-bar{width:0;min-width:100%;}.ben-bar i{flex-shrink:0;width:calc((100% - var(--r,140px))*var(--f,1)) !important;}}',
   ].join('\n');
   document.head.appendChild(st);
 })();
@@ -427,7 +429,7 @@ function benRubroHtml() {
   var max = Math.max.apply(null, BEN_BANCOS.map(function (b) { return lista.filter(function (r) { return r.banco === b[0]; }).length; })) || 1;
   var barras = BEN_BANCOS.map(function (b) {
     var n = lista.filter(function (r) { return r.banco === b[0]; }).length;
-    return '<div class="ben-bar' + (b[0] === 'galicia' ? ' gal' : '') + '"><span style="width:92px">' + b[1] + '</span><i style="width:' + Math.max(2, Math.round(n / max * 260)) + 'px"></i> ' + n + '</div>';
+    return '<div class="ben-bar' + (b[0] === 'galicia' ? ' gal' : '') + '"><span style="width:92px">' + b[1] + '</span><i style="width:' + Math.max(2, Math.round(n / max * 260)) + 'px;--f:' + (n / max).toFixed(3) + '"></i> ' + n + '</div>';
   }).join('');
   return '<div class="ben-card"><div class="ben-resumen">' + resumen + '</div><p class="ben-aviso">Gana el que más devuelve en la compra de referencia (verde). Ojo: de Macro y Santander se ve lo de MODO y lo cargado a mano; pueden tener más promos propias que no se ven acá. ' + benNotaOtros() + '</p></div>' + benCompartidasHtml() +
     '<div class="ben-card"><h3>Promos vigentes por banco</h3>' + barras + '</div>' +
@@ -654,7 +656,7 @@ function benTarjetasHtml() {
     L.map(function (t) {
       var n = t.pases_anio;
       return '<div class="ben-bar' + (t.banco === 'galicia' ? ' gal' : '') + '"><span style="width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + benE((BEN_NOM[t.banco] || t.banco) + ' ' + t.tarjeta + ' ' + t.paquete) + '">' + benE(BEN_NOM[t.banco] || t.banco) + ' · ' + benE(t.tarjeta) + (t.paquete ? ' (' + benE(t.paquete) + ')' : '') + '</span>' +
-        (n > 0 ? '<i style="width:' + Math.max(3, Math.round(n / max * 240)) + 'px"></i> ' + n : '<span class="ben-seg">sin dato</span>') + '</div>';
+        (n > 0 ? '<i style="width:' + Math.max(3, Math.round(n / max * 240)) + 'px;--f:' + (n / max).toFixed(3) + ';--r:190px"></i> ' + n : '<span class="ben-seg">sin dato</span>') + '</div>';
     }).join('') + '<p class="ben-aviso">Las bajas de pases ya anunciadas (por ejemplo Macro desde el 18/11/2026) figuran en «Cambios anunciados» y en el detalle de cada fila.</p></div>';
   var conf = { oficial: 'Página del banco', nota: 'Nota de prensa o blog', sin_dato: 'Sin dato firme' };
   h += '<div class="ben-card ben-scroll"><table class="ben-t"><thead><tr><th>Tarjeta</th><th>Salas VIP</th><th>Fast Pass y parking</th><th>Acompañantes y adicionales</th><th>Seguros</th><th>Millas y puntos</th><th>Costo</th><th>Fuente</th>' + (_admin ? '<th></th>' : '') + '</tr></thead><tbody>' +

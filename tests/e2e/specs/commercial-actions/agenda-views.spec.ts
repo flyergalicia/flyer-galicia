@@ -141,8 +141,9 @@ test("the hunter sees who to contact and can schedule their own things", async (
   expect.soft(highlighted, "touching one opens the action, with that person marked").not.toBe("");
   expect.soft(highlighted, "and the one marked is her").toMatch(/Ximena/);
 
-  // Touching a person does not close the list: it stays open over the action.
-  await actions.dismissDialog();
+  expect
+    .soft(await actions.waitForDialogToClose(), "the window leaves the action in sight")
+    .toBe(true);
   await actions.leaveAction();
   expect.soft(await actions.waitForNoHighlightedPerson(), "leaving takes the mark away").toBe(true);
 });

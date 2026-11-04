@@ -1,11 +1,13 @@
 // Replaces pruebas/t93_gestiones_v2.cjs: the list of actions and what is left unread.
-import { openAsTeamMember } from "../../support/commercial-team.ts";
+import { commercialTables, openAsTeamMember } from "../../support/commercial-team.ts";
 import { type ActionRow } from "../../support/driver/commercial-actions.ts";
 import { expect, test } from "../../support/test.ts";
 
 const WAITING_MS = 15_000;
 const textOfRows = (rows: readonly ActionRow[]) => rows.map(({ text }) => text).join("\n");
 const hasAlimentos = ({ text }: ActionRow) => text.includes("ALIMENTOS DEL SUR");
+const of = (rows: readonly ActionRow[], company: string) =>
+  rows.find(({ text }) => text.includes(company))?.text ?? "";
 
 test("the officer sees the CUIT, what waits on someone and how a data list goes", async ({
   cloud,
@@ -77,6 +79,73 @@ test("each action shows its type and the list filters by type and date", async (
   await actions.clearActionFilters();
   const cleared = await actions.waitForActionRows((rows) => rows.length === all.length);
   expect.soft(cleared.length, '"Limpiar filtros" shows them all again').toBe(all.length);
+});
+
+test('"Limpiar filtros" comes and goes with any filter, and nothing else moves', async ({
+  cloud,
+  openApp,
+}) => {
+  cloud.seedCommercialActions();
+  const { commercialActions: actions, page } = await openAsTeamMember(openApp, "officer");
+  await actions.goToTab("actions");
+  const all = await actions.waitForActionRows((rows) => rows.length > 0);
+  expect.soft(await actions.clearFiltersOffered(), "with no filter it is not there").toBe(false);
+
+  const filters: readonly [string, () => Promise<void>][] = [
+    ["the search", () => actions.searchActions("TEXTIL")],
+    ["the state", () => actions.filterActionsByStatus("Realizada")],
+    ["the type", () => actions.filterActionsByType("Feria")],
+    ["the hunter", () => actions.filterActionsByHunter("Sin asignar")],
+    ["the first date", () => actions.filterActionsFrom("2099-01-01")],
+    ["the last date", () => actions.filterActionsUntil("2000-01-01")],
+  ];
+  for (const [name, choose] of filters) {
+    await choose();
+    await expect.poll(() => actions.clearFiltersOffered(), `it shows after ${name}`).toBe(true);
+    await actions.clearActionFilters();
+    await expect.poll(() => actions.clearFiltersOffered(), `it leaves after ${name}`).toBe(false);
+    await actions.waitForActionRows((rows) => rows.length === all.length);
+  }
+
+  const search = page.getByPlaceholder("Buscar empresa, CUIT o persona");
+  await search.click();
+  await search.pressSequentially("TEX");
+  await expect.soft(search, "what is written stays").toHaveValue("TEX");
+  await expect.soft(search, "and so does the cursor").toBeFocused();
+  expect.soft(await actions.clearFiltersOffered()).toBe(true);
+  await search.press("Backspace");
+  await search.press("Backspace");
+  await search.press("Backspace");
+  await expect.soft(search).toBeFocused();
+  expect.soft(await actions.clearFiltersOffered(), "emptying it is no filter").toBe(false);
+
+  const type = page.getByLabel("Filtrar por tipo de acción");
+  await type.focus();
+  await actions.filterActionsByType("Feria");
+  await expect.soft(type, "the field chosen is not painted again").toBeFocused();
+  await expect.soft(type, "and keeps what was chosen").toHaveValue("feria");
+  expect.soft(await actions.clearFiltersOffered()).toBe(true);
+});
+
+test("a hunter reads whose company each action is", async ({ cloud, openApp }) => {
+  const { doneWithSignups } = cloud.seedCommercialActions();
+  const own = "EMPRESA PROPIA DEL HUNTER SA";
+  commercialTables(cloud).actions.push({
+    ...doneWithSignups,
+    id: "00000000-0000-4000-8000-0000000000f1",
+    empresa: own,
+    dueno_id: cloud.users.hunter?.id ?? "",
+  });
+  const { commercialActions: actions } = await openAsTeamMember(openApp, "hunter");
+
+  await actions.goToTab("actions");
+  const rows = await actions.waitForActionRows((found) => of(found, own) !== "");
+
+  expect.soft(of(rows, own), "one's own").toMatch(/Tu empresa/);
+  expect.soft(textOfRows(rows), "never in the third person").not.toMatch(/Empresa de Vos/);
+  expect
+    .soft(of(rows, doneWithSignups.empresa), "somebody else's has their name")
+    .toMatch(/Empresa de Mariana Costa/);
 });
 
 test("an action can be left unread, and all of them marked as read", async ({ cloud, openApp }) => {

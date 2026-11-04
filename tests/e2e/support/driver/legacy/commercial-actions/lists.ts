@@ -38,6 +38,7 @@ export function createActionList(page: Page): ActionListDriver {
         flagged: row.classList.contains("nueva"),
       })),
     );
+  const clearFilters = () => page.getByRole("button", { name: "Limpiar filtros" });
   return {
     actionRows: async () => {
       await page.locator("#ges-list").waitFor();
@@ -49,10 +50,14 @@ export function createActionList(page: Page): ActionListDriver {
       await page.locator("#ges-ftipo").selectOption({ label });
     },
     filterActionsFrom: (date) => page.locator("#ges-fd1").fill(date),
-    // "Limpiar filtros" only shows after the whole solapa repaints, not after choosing a filter.
-    clearActionFilters: () =>
-      page.evaluate(() => {
-        gesListaLimpiar();
-      }),
+    filterActionsUntil: (date) => page.locator("#ges-fd2").fill(date),
+    filterActionsByStatus: async (label) => {
+      await page.locator("#ges-fest").selectOption({ label });
+    },
+    filterActionsByHunter: async (label) => {
+      await page.locator("#ges-fhun").selectOption({ label });
+    },
+    clearFiltersOffered: () => clearFilters().isVisible(),
+    clearActionFilters: () => clearFilters().click(),
   };
 }

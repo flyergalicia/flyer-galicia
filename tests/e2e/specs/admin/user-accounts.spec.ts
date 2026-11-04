@@ -158,6 +158,31 @@ test.describe("the accounts of the panel", () => {
     expect.soft(app.dialogs(), "no window of the browser").toEqual([]);
   });
 
+  test("deleting an account that was waiting lowers the number of the button at once", async ({
+    openApp,
+  }) => {
+    const app = await openUsers(openApp);
+    await expect.poll(() => app.admin.pendingUsersBadge(), "two wait for a decision").toBe("2");
+
+    await app.admin.pressDeleteUser(PENDING);
+    await app.session.waitForConfirmation();
+    await app.session.answerConfirmation(true);
+    await expect.poll(() => rowOf(app, PENDING), "it leaves the list").toBeUndefined();
+    await expect.poll(() => app.admin.pendingUsersBadge(), "one left").toBe("1");
+
+    await app.admin.pressDeleteUser(ACTIVE);
+    await app.session.waitForConfirmation();
+    await app.session.answerConfirmation(true);
+    await expect.poll(() => rowOf(app, ACTIVE)).toBeUndefined();
+    await expect.poll(() => app.admin.pendingUsersBadge(), "one nobody waits for").toBe("1");
+
+    await app.admin.pressDeleteUser(RESETTING);
+    await app.session.waitForConfirmation();
+    await app.session.answerConfirmation(true);
+    await expect.poll(() => rowOf(app, RESETTING)).toBeUndefined();
+    await expect.poll(() => app.admin.pendingUsersBadge(), "none: the number leaves").toBe("");
+  });
+
   test("a delete the server refuses keeps the account and says why", async ({ cloud, openApp }) => {
     cloud.adminRefusal = { action: "delete_user", status: 403, message: "No se puede" };
     const app = await openUsers(openApp);

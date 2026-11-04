@@ -260,6 +260,14 @@ export interface FlyerEditorDriver {
   generateBatchTwiceInARow(rows: BatchRow[]): Promise<number>;
   /** Tries Limpiar and to change flyer in the middle of the batch. */
   generateBatchAndInterfere(): Promise<BatchInterference>;
+  /** Presses Generar with the batch loaded; what it makes stays in the page to be read. */
+  pressGenerateBatch(): Promise<void>;
+  /** Presses Limpiar of the batch, and returns what it says and the lines that stay. */
+  pressClearBatch(): Promise<{ notice: string; rowsLeft: number }>;
+  /** A batch counts as running: Limpiar and changing flyer wait for it. */
+  batchIsRunning(): Promise<boolean>;
+  /** Waits for the ZIP Generar made: the names of its files; empty if it never came out. */
+  waitForBatchZip(timeout: number): Promise<string[]>;
   /** Tries a batch while the flyer on screen did not load. */
   tryBatchWithoutFlyer(rows: BatchRow[]): Promise<{ zips: number; notice: string }>;
   /** Adds an old flyer of that option to the history and downloads it again from there. */
