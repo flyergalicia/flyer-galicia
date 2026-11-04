@@ -25,5 +25,5 @@ La primera vez hace falta Playwright con su Chromium: `npx -y playwright@latest 
 ## Ojo
 
 - Los logos de las promociones se bajan de galicia.ar: sin internet, algunas pruebas de logos fallan.
-- Algunas promos del catálogo de prueba se vencen con el tiempo; las pruebas eligen las vigentes, pero si un día todas vencen hay que renovar `datos/cat.json`.
+- `correr.mjs` arranca cada prueba en una fecha fija (`HOY_DE_PRUEBA`), en el navegador y en Node, porque `datos/cat.json` es una foto y sus promos vencen. Si se renueva el catálogo, hay que mover esa fecha a un día en que las promos estén vigentes. Las pruebas `u…` y la demo usan la fecha real.
 - Una prueba nueva va acá con el mismo formato: exporta `async (browser) => { … }` y usa `require('./nube.cjs')`.
