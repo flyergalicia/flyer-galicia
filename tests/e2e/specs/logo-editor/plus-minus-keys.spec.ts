@@ -10,7 +10,7 @@ const TEXT_PLACE = { x: 140, y: 2800, width: 300, height: 60 };
 const STRIP = { x: 140, y: 2650, width: 1000, height: 230 };
 
 test.describe("the + and − keys", () => {
-  test("resize what is chosen on the flyer", async ({ openApp }) => {
+  test("resize what is chosen on the flyer", { tag: "@react" }, async ({ openApp }) => {
     const app = await openApp();
     const percent = async (index: number) =>
       (await app.logoEditor.placements())[index]?.sizePercent;
@@ -58,17 +58,10 @@ test.describe("the + and − keys", () => {
       .soft((await app.logoEditor.placements())[2]?.fontSize, "a chosen text grows its letter")
       .toBeGreaterThan(textBefore);
 
-    // Nothing with the focus on a text field
+    // Nothing with the window of a logo open
     const sizes = async () =>
       (await app.logoEditor.placements()).map(({ sizePercent }) => sizePercent);
     const before = await sizes();
-    await app.logoEditor.focusCompanyField();
-    await press("+");
-    expect.soft(await sizes(), "with the focus on a text field it does nothing").toEqual(before);
-    await app.logoEditor.clearCompanyField();
-    await app.logoEditor.leaveFields();
-
-    // Nothing with the window of a logo open
     await app.logoEditor.doubleClickPlaced(1);
     await app.logoEditor.waitForPicker();
     await press("+");
@@ -76,7 +69,23 @@ test.describe("the + and − keys", () => {
     await picker(app.page).getByRole("button", { name: "Cerrar" }).click();
   });
 
-  test("resize what is chosen on Armar franja", async ({ openApp }) => {
+  test("do nothing with the focus on a text field", async ({ openApp }) => {
+    const app = await openApp();
+    const sizes = async () =>
+      (await app.logoEditor.placements()).map(({ sizePercent }) => sizePercent);
+    await app.logoEditor.enter();
+    await app.logoEditor.placeBrands(LOGOS);
+    await app.logoEditor.touchPlaced(0);
+    const before = await sizes();
+
+    await app.logoEditor.focusCompanyField();
+    await app.page.keyboard.press("+");
+    expect.soft(await sizes(), "with the focus on a text field it does nothing").toEqual(before);
+    await app.logoEditor.clearCompanyField();
+    await app.logoEditor.leaveFields();
+  });
+
+  test("resize what is chosen on Armar franja", { tag: "@react" }, async ({ openApp }) => {
     const app = await openApp();
     const press = (key: string) => app.page.keyboard.press(key);
     const firstSize = async () => (await app.logoStrip.state()).brands[0]?.size ?? 0;

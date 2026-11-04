@@ -85,7 +85,9 @@ describe("the screens", () => {
     const { screen } = await open();
 
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toHaveTextContent("Flyer Galicia");
     expect(document.querySelector('[data-screen="flyer-layout"]')).not.toBeNull();
     expect(document.querySelector('[data-screen="promotions"]')).toBeNull();
@@ -93,7 +95,9 @@ describe("the screens", () => {
     await screen.getByRole("tab", { name: "Promociones" }).click();
 
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toHaveTextContent("Promociones");
     await vi.waitFor(() => {
       expect(document.querySelector('[data-screen="promotions"]')?.hasAttribute("hidden")).toBe(
@@ -161,7 +165,9 @@ describe("the tabs each person has", () => {
     });
 
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toHaveTextContent("Buscar flyer");
     await expect
       .element(screen.getByRole("tab", { name: "Flyer Galicia" }))
@@ -172,7 +178,9 @@ describe("the tabs each person has", () => {
     const { screen } = await open({ profile: profileWith("lider"), commercialFlag: "on" });
 
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toHaveTextContent("Gestiones");
   });
 
@@ -499,7 +507,9 @@ describe("the administrator", () => {
 
     await expect.element(field).toBeVisible();
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toMatchTextContent(/^$|Promociones/);
   });
 

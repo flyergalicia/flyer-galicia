@@ -7,8 +7,9 @@ import {
 } from "@/shared/lib/promotions/catalog-query.ts";
 import { createInventedBackend } from "@/shared/supabase/testing/invented-backend.ts";
 import { jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
-import { promotionsProbe } from "./promotions-probe.ts";
-import { initialPromotionsState } from "./promotions-state.ts";
+import { type ChosenPlace, promotionsProbe } from "./promotions-probe.ts";
+
+const NO_PLACE: ChosenPlace = { province: "", locality: "", localityIds: null };
 
 const COTO: Promotion = {
   id: 1,
@@ -37,7 +38,7 @@ const UPCOMING: Promotion = {
   proximamente: true,
 };
 
-function probe(state = initialPromotionsState()) {
+function probe(state = NO_PLACE) {
   const queryClient = new QueryClient();
   const galicia = [COTO, COTO_DISCOUNT, EXPIRED, UPCOMING];
   const catalog: PromotionCatalog = {
@@ -70,7 +71,7 @@ describe("what a test can read", () => {
 
   it("what is chosen", () => {
     const state = {
-      ...initialPromotionsState(),
+      ...NO_PLACE,
       province: "MENDOZA",
       locality: "LUJAN",
     };

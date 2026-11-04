@@ -183,84 +183,69 @@ test(
   },
 );
 
-test("the window of a logo offers MODO with its tag, and placing it keeps it valid", async ({
-  openApp,
-}) => {
-  const app = await openApp({ user: "admin" });
-  await app.logoEditor.enter();
-  await app.promotions.waitForCatalog();
-  await app.promotions.openBrandPickerOver(MARKED_PLACE);
+test(
+  "the window of a logo offers MODO with its tag, and placing it keeps it valid",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.logoEditor.enter();
+    await app.promotions.waitForCatalog();
+    await app.promotions.openBrandPickerOver(MARKED_PLACE);
 
-  const modoTick = app.page.getByRole("checkbox", { name: "Incluir MODO" });
-  await expect.soft(modoTick, 'the window has the tick "Incluir MODO", on').toBeChecked();
+    const modoTick = app.page.getByRole("checkbox", { name: "Incluir MODO" });
+    await expect.soft(modoTick, 'the window has the tick "Incluir MODO", on').toBeChecked();
 
-  await app.promotions.searchInBrandPicker("ypf");
-  const card = (await app.promotions.brandCards()).find(({ title }) => title === "YPF");
-  expect.soft(card, "YPF shows up").toBeDefined();
-  expect.soft(card?.hasModoTag, "with the MODO tag").toBe(true);
-  expect.soft(card?.logoUrl, "and its logo from the bucket").toMatch(/flyers\/modo\/317\.png/);
-  expect
-    .soft(card?.noteOnHover, "the card shows the note of MODO: oil change, not fuel")
-    .toMatch(/cambio de aceite/);
+    await app.promotions.searchInBrandPicker("ypf");
+    const card = (await app.promotions.brandCards()).find(({ title }) => title === "YPF");
+    expect.soft(card, "YPF shows up").toBeDefined();
+    expect.soft(card?.hasModoTag, "with the MODO tag").toBe(true);
+    expect.soft(card?.logoUrl, "and its logo from the bucket").toMatch(/flyers\/modo\/317\.png/);
+    expect
+      .soft(card?.noteOnHover, "the card shows the note of MODO: oil change, not fuel")
+      .toMatch(/cambio de aceite/);
 
-  await app.promotions.chooseProvince("brandPicker", "MENDOZA");
-  expect
-    .soft(
-      await app.promotions.brandCards(),
-      "with a province chosen, YPF has no stores: not offered",
-    )
-    .toEqual([]);
-  await app.promotions.chooseProvince("brandPicker", "");
+    await app.promotions.chooseProvince("brandPicker", "MENDOZA");
+    expect
+      .soft(
+        await app.promotions.brandCards(),
+        "with a province chosen, YPF has no stores: not offered",
+      )
+      .toEqual([]);
+    await app.promotions.chooseProvince("brandPicker", "");
 
-  await app.promotions.searchInBrandPicker("wico");
-  expect
-    .soft(await app.promotions.brandCards(), "one of MODO without a logo is not offered")
-    .toEqual([]);
+    await app.promotions.searchInBrandPicker("wico");
+    expect
+      .soft(await app.promotions.brandCards(), "one of MODO without a logo is not offered")
+      .toEqual([]);
 
-  await app.promotions.chooseProvince("brandPicker", "CAPITAL FEDERAL");
-  await app.promotions.searchInBrandPicker("coto");
-  const coto = (await app.promotions.brandCards()).filter(({ title }) => /coto/i.test(title));
-  expect.soft(coto.length, "Coto is a single card").toBe(1);
-  expect.soft(coto[0]?.morePromosOnHover, "its detail includes the 30% of MODO").toMatch(/30%/);
-  expect.soft(coto[0]?.morePromosOnHover, "saying it is MODO").toMatch(/MODO/);
-  await app.promotions.chooseProvince("brandPicker", "");
+    await app.promotions.chooseProvince("brandPicker", "CAPITAL FEDERAL");
+    await app.promotions.searchInBrandPicker("coto");
+    const coto = (await app.promotions.brandCards()).filter(({ title }) => /coto/i.test(title));
+    expect.soft(coto.length, "Coto is a single card").toBe(1);
+    expect.soft(coto[0]?.morePromosOnHover, "its detail includes the 30% of MODO").toMatch(/30%/);
+    expect.soft(coto[0]?.morePromosOnHover, "saying it is MODO").toMatch(/MODO/);
+    await app.promotions.chooseProvince("brandPicker", "");
 
-  await app.promotions.searchInBrandPicker("ypf");
-  await modoTick.uncheck();
-  expect.soft(await app.promotions.brandCards(), "with the tick off, YPF disappears").toEqual([]);
-  expect.soft(await app.promotions.rememberedIncludeModo(), "and that is remembered").toBe(false);
-  await modoTick.check();
-  expect.soft((await app.promotions.brandCards()).length, "with the tick on, it is back").toBe(1);
+    await app.promotions.searchInBrandPicker("ypf");
+    await modoTick.uncheck();
+    expect.soft(await app.promotions.brandCards(), "with the tick off, YPF disappears").toEqual([]);
+    expect.soft(await app.promotions.rememberedIncludeModo(), "and that is remembered").toBe(false);
+    await modoTick.check();
+    expect.soft((await app.promotions.brandCards()).length, "with the tick on, it is back").toBe(1);
 
-  await app.promotions.pickBrand("YPF");
-  const placed = await app.promotions.placedOnFlyer();
-  expect
-    .soft(
-      placed.logos.map(({ logoFile }) => logoFile),
-      "choosing YPF places the logo of MODO",
-    )
-    .toContain("modo/317.png");
-  expect
-    .soft(await app.promotions.expiredLogosOnFlyer(), "and it does not read as expired")
-    .toEqual([]);
-
-  const watched = await app.promotions.openWatchedBrands();
-  expect
-    .soft(watched[0]?.status, "Marcas vigiladas: YPF, only on MODO, is current")
-    .toBe("Vigente");
-  await app.promotions.closeWatchedBrands();
-
-  await app.promotions.setIncludeModo(false);
-  expect
-    .soft(
-      await app.promotions.expiredLogosOnFlyer(),
-      "with the tick off, the logo of MODO on the flyer stays current",
-    )
-    .toEqual([]);
-  const watchedWithoutModo = await app.promotions.openWatchedBrands();
-  expect.soft(watchedWithoutModo[0]?.status, "and so it does on Marcas vigiladas").toBe("Vigente");
-  await app.promotions.setIncludeModo(true);
-});
+    await app.promotions.pickBrand("YPF");
+    const placed = await app.promotions.placedOnFlyer();
+    expect
+      .soft(
+        placed.logos.map(({ logoFile }) => logoFile),
+        "choosing YPF places the logo of MODO",
+      )
+      .toContain("modo/317.png");
+    expect
+      .soft(await app.promotions.expiredLogosOnFlyer(), "and it does not read as expired")
+      .toEqual([]);
+  },
+);
 
 test(
   "Activas filters MODO by province and locality, with its tag and link",
@@ -331,6 +316,32 @@ test(
     await expect.soft(modoTick, 'Buscar has the tick "Incluir MODO"').toBeVisible();
   },
 );
+
+test("a logo of MODO on the flyer stays current in Marcas vigiladas", async ({ openApp }) => {
+  const app = await openApp({ user: "admin" });
+  await app.logoEditor.enter();
+  await app.promotions.waitForCatalog();
+  await app.promotions.openBrandPickerOver(MARKED_PLACE);
+  await app.promotions.searchInBrandPicker("ypf");
+  await app.promotions.pickBrand("YPF");
+
+  const watched = await app.promotions.openWatchedBrands();
+  expect
+    .soft(watched[0]?.status, "Marcas vigiladas: YPF, only on MODO, is current")
+    .toBe("Vigente");
+  await app.promotions.closeWatchedBrands();
+
+  await app.promotions.setIncludeModo(false);
+  expect
+    .soft(
+      await app.promotions.expiredLogosOnFlyer(),
+      "with the tick off, the logo of MODO on the flyer stays current",
+    )
+    .toEqual([]);
+  const watchedWithoutModo = await app.promotions.openWatchedBrands();
+  expect.soft(watchedWithoutModo[0]?.status, "and so it does on Marcas vigiladas").toBe("Vigente");
+  await app.promotions.setIncludeModo(true);
+});
 
 test.describe("MODO writes the cities its own way", { tag: "@react" }, () => {
   const SAME_PLACE = [

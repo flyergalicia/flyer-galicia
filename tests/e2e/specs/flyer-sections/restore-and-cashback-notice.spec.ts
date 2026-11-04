@@ -11,9 +11,7 @@ const COMPANY_WITH_CASHBACK = {
 };
 const SETTLE_MS = 500;
 
-test("Restaurar lets the crop go and a company with cashback warns on a cropped flyer", async ({
-  openApp,
-}) => {
+test("Restaurar lets the crop go", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp({ user: "asesor" });
   const sections = app.flyerSections;
   const wholeHeight = (await sections.cropStatus()).artworkHeight;
@@ -33,6 +31,13 @@ test("Restaurar lets the crop go and a company with cashback warns on a cropped 
   expect
     .soft(await app.flyerEditor.activeCalibration(), "the calibration is the saved one")
     .toEqual(savedCalibration);
+  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+});
+
+test("a company with cashback warns on a cropped flyer", async ({ openApp }) => {
+  const app = await openApp({ user: "asesor" });
+  const sections = app.flyerSections;
+  const wholeHeight = (await sections.cropStatus()).artworkHeight;
 
   // 2) A company WITH cashback on a cropped flyer: notice, "Mostrar los importes"
   await sections.removeBand(CUT.y, CUT.height);

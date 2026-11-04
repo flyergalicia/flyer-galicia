@@ -26,7 +26,8 @@ const openWindows: HTMLElement[] = [];
 
 /**
  * What every window does: takes the focus and gives it back when it closes, keeps Tab inside,
- * and closes with Escape. In capture, so that Escape does not also reach what is behind it.
+ * and closes with Escape. In capture, so that Escape does not also reach what is behind it. On the
+ * document and not on the window: a list open inside (the one of the provinces) hears it first.
  */
 export function useDialog(panel: RefObject<HTMLElement | null>, onClose: () => void): void {
   const close = useRef(onClose);
@@ -50,9 +51,10 @@ export function useDialog(panel: RefObject<HTMLElement | null>, onClose: () => v
         keepFocusInside(event, element);
       }
     };
-    window.addEventListener("keydown", onKey, true);
+    const { ownerDocument } = element;
+    ownerDocument.addEventListener("keydown", onKey, true);
     return () => {
-      window.removeEventListener("keydown", onKey, true);
+      ownerDocument.removeEventListener("keydown", onKey, true);
       openWindows.splice(openWindows.indexOf(element), 1);
       previous?.focus();
     };

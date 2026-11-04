@@ -8,82 +8,96 @@ const HELP_FADES_MS = 7500;
 const OPEN_DESIGNS = "Borradores y diseños abiertos";
 
 test.describe("Cambiar logos", () => {
-  test("its help fades, except when it says what to do next", async ({ openApp }) => {
-    const app = await openApp();
-    const help = app.page.getByText(HELP);
-    await app.flyerEditor.setZoom(1.3);
-    await app.logoEditor.enter();
+  test(
+    "its help fades, except when it says what to do next",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      const help = app.page.getByText(HELP);
+      await app.flyerEditor.setZoom(1.3);
+      await app.logoEditor.enter();
 
-    await expect.soft(help, "when it turns on, the help shows").toBeVisible();
-    await expect.soft(help, "after 7 seconds the help goes").toBeHidden({ timeout: HELP_FADES_MS });
+      await expect.soft(help, "when it turns on, the help shows").toBeVisible();
+      await expect
+        .soft(help, "after 7 seconds the help goes")
+        .toBeHidden({ timeout: HELP_FADES_MS });
 
-    await button(app.page, "Armar franja").click();
-    await expect
-      .soft(
-        app.page.getByText("Arrastrá un recuadro alrededor de toda la franja"),
-        "while marking a strip the instruction stays",
-      )
-      .toBeVisible();
-  });
+      await button(app.page, "Armar franja").click();
+      await expect
+        .soft(
+          app.page.getByText("Arrastrá un recuadro alrededor de toda la franja"),
+          "while marking a strip the instruction stays",
+        )
+        .toBeVisible();
+    },
+  );
 
-  test("the window of a text puts it apart from the list of brands", async ({ openApp }) => {
-    const app = await openApp();
-    await app.flyerEditor.setZoom(1.3);
-    await app.logoEditor.enter();
+  test(
+    "the window of a text puts it apart from the list of brands",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      await app.flyerEditor.setZoom(1.3);
+      await app.logoEditor.enter();
 
-    await app.logoEditor.touch(DAYS_TEXT);
-    await app.logoEditor.waitForPicker();
-    const write = button(app.page, "Escribir un texto");
-    const putText = button(app.page, "Poner el texto");
-    const backToBrands = button(app.page, "← Elegir una marca");
-    await write.waitFor();
-    await expect.soft(putText, 'among the brands there is no "Poner el texto"').toBeHidden();
+      await app.logoEditor.touch(DAYS_TEXT);
+      await app.logoEditor.waitForPicker();
+      const write = button(app.page, "Escribir un texto");
+      const putText = button(app.page, "Poner el texto");
+      const backToBrands = button(app.page, "← Elegir una marca");
+      await write.waitFor();
+      await expect.soft(putText, 'among the brands there is no "Poner el texto"').toBeHidden();
 
-    await write.click();
-    await app.page.getByRole("textbox", { name: /^Texto/ }).fill("Lunes");
-    await expect.soft(putText, 'on the text: "Poner el texto"').toBeVisible();
-    await expect.soft(backToBrands, 'and "← Elegir una marca"').toBeVisible();
-    expect
-      .soft((await app.logoEditor.textForm()).chosenColor, "it keeps the color")
-      .toBe("Como estaba");
-    await expect
-      .soft(button(app.page, "Dejar el lugar vacío"), "it can still leave the place empty")
-      .toBeVisible();
-    await expect.soft(button(app.page, "Cancelar"), "or cancel").toBeVisible();
+      await write.click();
+      await app.page.getByRole("textbox", { name: /^Texto/ }).fill("Lunes");
+      await expect.soft(putText, 'on the text: "Poner el texto"').toBeVisible();
+      await expect.soft(backToBrands, 'and "← Elegir una marca"').toBeVisible();
+      expect
+        .soft((await app.logoEditor.textForm()).chosenColor, "it keeps the color")
+        .toBe("Como estaba");
+      await expect
+        .soft(button(app.page, "Dejar el lugar vacío"), "it can still leave the place empty")
+        .toBeVisible();
+      await expect.soft(button(app.page, "Cancelar"), "or cancel").toBeVisible();
 
-    await backToBrands.click();
-    expect
-      .soft(await app.logoEditor.brandListVisible(), '"← Elegir una marca" goes back to the list')
-      .toBe(true);
-    await expect.soft(putText, 'with no "Poner el texto"').toBeHidden();
-  });
+      await backToBrands.click();
+      expect
+        .soft(await app.logoEditor.brandListVisible(), '"← Elegir una marca" goes back to the list')
+        .toBe(true);
+      await expect.soft(putText, 'with no "Poner el texto"').toBeHidden();
+    },
+  );
 
-  test("the bar stays at the foot of the preview, in sight", async ({ openApp }) => {
-    const app = await openApp();
-    await app.flyerEditor.setZoom(1.3);
-    await app.logoEditor.enter();
+  test(
+    "the bar stays at the foot of the preview, in sight",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      await app.flyerEditor.setZoom(1.3);
+      await app.logoEditor.enter();
 
-    await app.logoEditor.touch(DAYS_TEXT);
-    await button(app.page, "Escribir un texto").click();
-    await app.page.getByRole("textbox", { name: /^Texto/ }).fill("Lunes");
-    await button(app.page, "Poner el texto").click();
-    await app.logoEditor.waitForPickerClosed();
+      await app.logoEditor.touch(DAYS_TEXT);
+      await button(app.page, "Escribir un texto").click();
+      await app.page.getByRole("textbox", { name: /^Texto/ }).fill("Lunes");
+      await button(app.page, "Poner el texto").click();
+      await app.logoEditor.waitForPickerClosed();
 
-    const bar = adjustBar(app.page);
-    const onScreen = await bar.boundingBox();
-    const preview = await app.logoEditor.previewOnScreen();
-    const barBottom = (onScreen?.y ?? 0) + (onScreen?.height ?? 0);
-    expect.soft(barBottom, "the bar ends inside the preview").toBeLessThanOrEqual(preview.bottom);
-    expect.soft(preview.bottom - barBottom, "right at its foot").toBeLessThan(60);
+      const bar = adjustBar(app.page);
+      const onScreen = await bar.boundingBox();
+      const preview = await app.logoEditor.previewOnScreen();
+      const barBottom = (onScreen?.y ?? 0) + (onScreen?.height ?? 0);
+      expect.soft(barBottom, "the bar ends inside the preview").toBeLessThanOrEqual(preview.bottom);
+      expect.soft(preview.bottom - barBottom, "right at its foot").toBeLessThan(60);
 
-    await app.logoEditor.scrollPreviewBy(900);
-    await expect.soft(bar, "going over the flyer, the bar stays in sight").toBeInViewport({
-      ratio: 1,
-    });
+      await app.logoEditor.scrollPreviewBy(900);
+      await expect.soft(bar, "going over the flyer, the bar stays in sight").toBeInViewport({
+        ratio: 1,
+      });
 
-    await bar.getByRole("button", { name: "Listo con este" }).click();
-    await expect.soft(bar, "the × of the bar lets the element go").toBeHidden();
-  });
+      await bar.getByRole("button", { name: "Listo con este" }).click();
+      await expect.soft(bar, "the × of the bar lets the element go").toBeHidden();
+    },
+  );
 
   test("a design of Estudio opens as a tab beside its flyer", async ({ cloud, openApp }) => {
     const now = new Date().toISOString();

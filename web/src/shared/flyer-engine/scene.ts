@@ -92,8 +92,16 @@ export async function cropScene(
   cuts: readonly Cut[],
   { loadSection }: CropOptions,
 ): Promise<CroppedScene> {
+  return cropSceneWith(scene, cuts, await sectionImages(cuts, loadSection));
+}
+
+/** The same with the images of the sections already in hand: what is missing leaves a gap. */
+export function cropSceneWith(
+  scene: FlyerScene,
+  cuts: readonly Cut[],
+  images: SectionImages,
+): CroppedScene {
   const { whole, singleCashback } = scene;
-  const images = await sectionImages(cuts, loadSection);
   const { width, height } = pictureSize(whole.art);
   return {
     scene: {

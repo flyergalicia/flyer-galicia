@@ -10,7 +10,7 @@ export {
   yieldToPaint,
 } from "./batch.ts";
 export { resolveCalibration } from "./calibration.ts";
-export { artFileName } from "./crop-art.ts";
+export { artFileName, type SectionImages } from "./crop-art.ts";
 export { drawFlyer } from "./draw-flyer.ts";
 export {
   type DownloadBlock,
@@ -26,7 +26,7 @@ export { createBenefitFontLoader } from "./fonts.ts";
 export { legalWithValues, splitBold, type TextSegment } from "./legal-text.ts";
 export { createLogoLibrary, type LogoLibrary, type LogoLibraryOptions } from "./logo-library.ts";
 export { cleanLogo } from "./logo-cleanup.ts";
-export { type LogoPaintTarget, paintLogoChanges } from "./logos.ts";
+export { logoCutLine, type LogoPaintTarget, paintLogoChanges } from "./logos.ts";
 export { extraHeightFor, officerLocationText, officersOf } from "./officers.ts";
 export {
   buildFileName,
@@ -48,6 +48,7 @@ export {
   type CropOptions,
   type CroppedScene,
   cropScene,
+  cropSceneWith,
   loadFlyerArtwork,
   loadPicture,
   sceneForStoredValues,

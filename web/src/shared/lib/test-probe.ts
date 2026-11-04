@@ -31,3 +31,12 @@ export function registerProbe(
     if (probes[name] === read) Reflect.deleteProperty(probes, name);
   };
 }
+
+/** The same for a reader that gives way to one that is already there, and knows more. */
+export function registerProbeIfMissing(
+  name: string,
+  read: ProbeReader,
+  host: ProbeHost = window,
+): () => void {
+  return host[PROBES]?.[name] ? () => undefined : registerProbe(name, read, host);
+}

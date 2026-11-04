@@ -2,6 +2,105 @@ import type { ReactNode } from "react";
 import styles from "./Icon.module.css";
 
 const PATHS = {
+  expand: (
+    <>
+      <polyline points="15 3 21 3 21 9" />
+      <polyline points="9 21 3 21 3 15" />
+      <line x1="21" y1="3" x2="14" y2="10" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </>
+  ),
+  undo: (
+    <>
+      <polyline points="9 14 4 9 9 4" />
+      <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+    </>
+  ),
+  redo: (
+    <>
+      <polyline points="15 14 20 9 15 4" />
+      <path d="M4 20v-7a4 4 0 0 1 4-4h12" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </>
+  ),
+  "align-top": (
+    <>
+      <line x1="4" y1="4" x2="20" y2="4" />
+      <rect x="6" y="7" width="4" height="12" />
+      <rect x="14" y="7" width="4" height="7" />
+    </>
+  ),
+  "align-middle": (
+    <>
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <rect x="6" y="5" width="4" height="14" />
+      <rect x="14" y="8" width="4" height="8" />
+    </>
+  ),
+  "align-bottom": (
+    <>
+      <line x1="4" y1="20" x2="20" y2="20" />
+      <rect x="6" y="5" width="4" height="12" />
+      <rect x="14" y="10" width="4" height="7" />
+    </>
+  ),
+  spread: (
+    <>
+      <rect x="3" y="7" width="4" height="10" />
+      <rect x="10" y="7" width="4" height="10" />
+      <rect x="17" y="7" width="4" height="10" />
+    </>
+  ),
+  "same-size": (
+    <>
+      <rect x="3" y="6" width="7" height="12" />
+      <rect x="14" y="6" width="7" height="12" />
+    </>
+  ),
+  duplicate: (
+    <>
+      <rect x="8" y="8" width="12" height="12" rx="2" />
+      <path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" />
+    </>
+  ),
+  trash: (
+    <>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4h6v2" />
+    </>
+  ),
+  move: (
+    <>
+      <polyline points="5 9 2 12 5 15" />
+      <polyline points="9 5 12 2 15 5" />
+      <polyline points="15 19 12 22 9 19" />
+      <polyline points="19 9 22 12 19 15" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <line x1="12" y1="2" x2="12" y2="22" />
+    </>
+  ),
+  type: (
+    <>
+      <polyline points="4 7 4 4 20 4 20 7" />
+      <line x1="9" y1="20" x2="15" y2="20" />
+      <line x1="12" y1="4" x2="12" y2="20" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="10" />

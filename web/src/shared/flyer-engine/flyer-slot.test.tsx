@@ -14,6 +14,16 @@ function selected(option: number, from: FlyerSlot = EMPTY_FLYER_SLOT): FlyerSlot
 }
 
 describe("the flyer on screen", () => {
+  it("takes a cut of the same flyer, and no other", () => {
+    const scene = testScene();
+    const slot = flyerSlotReducer(selected(1), { type: "loaded", option: 1, scene });
+    const cut = { ...scene, artKey: "cortado" };
+    expect(flyerSlotReducer(slot, { type: "cut", scene: cut }).scene).toBe(cut);
+    const another = { ...testScene(), whole: { ...scene.whole } };
+    expect(flyerSlotReducer(slot, { type: "cut", scene: another })).toBe(slot);
+    expect(flyerSlotReducer(EMPTY_FLYER_SLOT, { type: "cut", scene: cut })).toBe(EMPTY_FLYER_SLOT);
+  });
+
   it("starts with nothing to download", () => {
     expect(downloadBlock(EMPTY_FLYER_SLOT)).toBe("not-loaded");
     expect(readyScene(EMPTY_FLYER_SLOT)).toBeNull();

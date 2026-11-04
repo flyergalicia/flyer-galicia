@@ -37,7 +37,10 @@ const pendingView = (): Promise<LoadedView> => import("./PendingView.tsx");
 const FLYER_EDITOR_HOST = {
   hostId: "flyer-editor",
   screen: "flyer-layout",
-  load: pendingView,
+  load: () =>
+    import("@/slices/flyer-editor/index.ts").then(({ FlyerEditorView }) => ({
+      default: FlyerEditorView,
+    })),
   loadFailure: "No se pudo cargar el armador. Revisá la conexión e intentá de nuevo.",
 } as const;
 

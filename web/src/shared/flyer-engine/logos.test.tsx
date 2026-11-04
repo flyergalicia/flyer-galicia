@@ -131,6 +131,14 @@ describe("paintLogoChanges", () => {
     expect(calls).toEqual(["fillRect", "fillRect", "drawImage", "drawImage"]);
   });
 
+  it("a place left empty covers, and draws nothing with no box of its own", () => {
+    const recording = recordingContext();
+    const { tx: _tx, ty: _ty, tw: _tw, th: _th, ...empty } = change({ img: "" });
+    paintLogoChanges(target(recording.ctx), [empty], sourceWith());
+    expect(recording.boxes).toHaveLength(1);
+    expect(recording.images).toHaveLength(0);
+  });
+
   it("a logo that is not in memory is asked for, and leaves the original in its place", () => {
     const recording = recordingContext();
     const logos = sourceWith({});

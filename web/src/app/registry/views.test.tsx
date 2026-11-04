@@ -98,9 +98,10 @@ describe("what is not there yet", () => {
   });
 
   it("a pending screen draws nothing", async () => {
-    const { default: Pending } = await APP_VIEWS[0]!.load();
+    const studio = APP_VIEWS.find(({ id }) => id === "estudio")!;
+    const { default: Pending } = await studio.load();
 
-    const screen = await render(<Pending isActive tabId="flyer" />);
+    const screen = await render(<Pending isActive tabId="estudio" />);
 
     expect(screen.container.textContent).toBe("");
   });

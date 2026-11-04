@@ -41,12 +41,156 @@ export interface CompanyRegistryProbe {
   };
 }
 
+/** A change of Cambiar logos, with the keys it is stored with. */
+export interface ProbedChange {
+  tipo?: string;
+  img?: string;
+  t?: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  tx?: number;
+  ty?: number;
+  tw?: number;
+  th?: number;
+  ox?: number;
+  oy?: number;
+  ow?: number;
+  oh?: number;
+  bw?: number;
+  bh?: number;
+  fs?: number;
+  bfs?: number;
+  dup?: boolean;
+  texto?: string;
+  color?: string;
+  peso?: number;
+  franja?: string;
+  franjaBase?: boolean;
+}
+
+export interface StripProbe {
+  resuming: boolean;
+  brands: {
+    logo: string;
+    title: string;
+    size: number;
+    moved: { x: number; y: number };
+    suggested: boolean;
+  }[];
+  perRow: number;
+  sizeOfAll: number;
+  marked: number;
+  chosen: number[];
+  region: { x: number; y: number; width: number; height: number };
+  originalLogos: number;
+  drawing: {
+    x0: number;
+    y0: number;
+    width: number;
+    boxes: ({ tx: number; ty: number; tw: number; th: number } | null)[];
+  };
+  isSettled: boolean;
+}
+
+export interface LogoStripWindowProbe {
+  offers(): readonly { id: number | string; logo: string; title: string; isOnline: boolean }[];
+}
+
+export interface LogoEditorProbe {
+  catalogSize(): number;
+  placed(): readonly ProbedChange[];
+  all(): readonly ProbedChange[];
+  selection(): { main: number; chosen: number[]; flyerLogos: number };
+  isSettled(): boolean;
+  isDragging(): boolean;
+  isEditing(): boolean;
+  mode(): "none" | "strip" | "trim" | "insert";
+  clean(): boolean;
+  undoSteps(): string[];
+  openDesign(): string | null;
+  pickerTarget(): number;
+  pictureScale(): number;
+  toClient(x: number, y: number): { x: number; y: number } | null;
+  imageOf(key: string): HTMLCanvasElement | null;
+  detect(x: number, y: number): { x: number; y: number; w: number; h: number } | null;
+  hasDaysBelow(x: number, y: number): boolean;
+  strip(): StripProbe | null;
+  detectStrip(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): { logos: number; rows: number[]; perRow: number } | null;
+  catalogRows(): readonly (Record<string, unknown> & { imagen?: string | null })[];
+  selectionFacts(province: string): readonly {
+    logo: string;
+    suggested: boolean;
+    category: string;
+    brandKey: string;
+    promotionId: number | string;
+    hasLocalPromotion: boolean;
+    hasPromotionThereOrOnline: boolean;
+  }[];
+  topCategoryIn(province: string): string;
+  cuts(): readonly FlyerCut[];
+  section(): { u: string; sy: number; sh: number; sw: number } | null;
+  sectionImage(address: string): HTMLImageElement | null;
+  isBlankRow(where: "current" | "whole" | "section", row: number): boolean;
+  missingSections(): number;
+  openWork(): { id: string; name: string; isDraft: boolean } | null;
+  isOpening(): boolean;
+  draftsReviewed(): boolean;
+  draftsKey(): string;
+  isPlacing(): boolean;
+}
+
+export interface FlyerCut {
+  y: number;
+  h: number;
+  ins?: { u: string; sy: number; sh: number; sw?: number; pad?: number };
+}
+
+export interface FlyerWorkspaceProbe {
+  getState(): {
+    zoom: number;
+    scale: number;
+    draws: number;
+    slot: {
+      option: number | null;
+      loading: boolean;
+      failure: string | null;
+      scene: {
+        artKey: string;
+        art: HTMLImageElement | HTMLCanvasElement;
+        calibration: Record<string, unknown> & { empresa: { yc: number; off?: boolean } };
+        cuts: readonly FlyerCut[];
+        whole: { art: HTMLImageElement | HTMLCanvasElement; artKey: string };
+      } | null;
+    };
+  };
+  currentValues(): { logos?: readonly ProbedChange[] };
+  renderDownload(): HTMLCanvasElement | null;
+}
+
+export interface FlyerReadingsProbe {
+  legalWith(template: string): string;
+  /** Why it cannot be downloaded, in the words the person reads; "" if it can. */
+  blockText(): string;
+  optionCalibration(option: number): Record<string, unknown>;
+}
+
 declare global {
   interface Window {
     // Registered by each screen when it is opened.
     __flyerProbe?: {
       readonly promotions?: () => PromotionsProbe;
       readonly companyRegistry?: () => CompanyRegistryProbe;
+      readonly logoEditor?: () => LogoEditorProbe;
+      readonly logoStripWindow?: () => LogoStripWindowProbe;
+      readonly flyerWorkspace?: () => FlyerWorkspaceProbe;
+      readonly flyerReadings?: () => FlyerReadingsProbe;
     };
   }
 }

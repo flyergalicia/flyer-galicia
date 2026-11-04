@@ -1,4 +1,5 @@
 // The right side: the counters, the table and what can be done with it.
+import { usePromotionPicking } from "@/shared/lib/promotions/promotion-picking.ts";
 import { useMemo, useState } from "react";
 import { STATUS_LABEL } from "@/shared/domain/promotions/index.ts";
 import { useFlyerOptions } from "@/shared/lib/app-config/flyer-options-query.ts";
@@ -405,10 +406,15 @@ function StartDatesQuestion() {
 
 export function PromotionsResults() {
   const { rows, tab, filters, order } = usePromotionsState();
+  const picking = usePromotionPicking();
   const hasRows = rows !== null && rows.length > 0;
   const visible = useMemo(() => visibleRows(rows ?? [], filters, order), [rows, filters, order]);
   return (
-    <div className={styles.results} data-testid="promotions-results">
+    <div
+      className={picking ? `${styles.results} ${styles.resultsPicking}` : styles.results}
+      data-testid="promotions-results"
+    >
+      {picking?.bar}
       <div className={styles.resultsHead}>
         {hasRows && <StatusCounters rows={rows} />}
         {hasRows && <ResultsSearchBox />}

@@ -223,7 +223,10 @@ function PromotionRowCells({
   const { promotion, status, startDate } = row;
   const picking = usePromotionPicking();
   return (
-    <DataTable.Row excluded={row.excluded} className={styles.row}>
+    <DataTable.Row
+      excluded={row.excluded}
+      className={picking?.isChosen?.(row) ? `${styles.row} ${styles.rowChosen}` : styles.row}
+    >
       <DataTable.Cell className={styles.cellSelect}>
         {picking?.firstCell(row) ?? <ExcludeTick row={row} />}
       </DataTable.Cell>

@@ -18,7 +18,8 @@ export interface FlyerSlot {
 export type FlyerSlotEvent =
   | { readonly type: "selected"; readonly option: number }
   | { readonly type: "loaded"; readonly option: number; readonly scene: FlyerScene }
-  | { readonly type: "failed"; readonly option: number; readonly reason: ArtworkFailure };
+  | { readonly type: "failed"; readonly option: number; readonly reason: ArtworkFailure }
+  | { readonly type: "cut"; readonly scene: FlyerScene };
 
 export const EMPTY_FLYER_SLOT: FlyerSlot = {
   option: null,
@@ -30,6 +31,10 @@ export const EMPTY_FLYER_SLOT: FlyerSlot = {
 export function flyerSlotReducer(slot: FlyerSlot, event: FlyerSlotEvent): FlyerSlot {
   if (event.type === "selected") {
     return { ...slot, option: event.option, loading: true, failure: null };
+  }
+  // The picture and its calibration change together, and only over the same whole flyer.
+  if (event.type === "cut") {
+    return slot.scene?.whole === event.scene.whole ? { ...slot, scene: event.scene } : slot;
   }
   // What arrives late for another option does not step on the one on screen (invariant 6).
   if (event.option !== slot.option) return slot;

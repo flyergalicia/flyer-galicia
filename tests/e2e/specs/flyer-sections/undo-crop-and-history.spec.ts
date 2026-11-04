@@ -4,7 +4,7 @@ import { expect, test } from "../../support/test.ts";
 const CUT = { y: 669, height: 340 };
 const LOGO = { x: 600, y: 2690, width: 140, height: 60 };
 
-test("undo also undoes a crop and the history remembers crop and logos", async ({ openApp }) => {
+test("undo also undoes a crop", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp({ user: "asesor" });
   const sections = app.flyerSections;
   const status = () => sections.cropStatus();
@@ -49,6 +49,19 @@ test("undo also undoes a crop and the history remembers crop and logos", async (
 
   await sections.pressShortcut("Control+y");
   expect.soft(await logoTop(), "and redoes the last move").toBe(moved);
+  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+});
+
+test("the history remembers crop and logos", async ({ openApp }) => {
+  const app = await openApp({ user: "asesor" });
+  const sections = app.flyerSections;
+  const status = () => sections.cropStatus();
+  const wholeHeight = (await status()).artworkHeight;
+  await app.logoEditor.enter();
+  await app.logoEditor.waitForBrandCatalog();
+  await app.logoEditor.placeBrands([LOGO], { keepLastChosen: true });
+  await app.logoEditor.writeUndoStep();
+  await sections.removeBand(CUT.y, CUT.height);
 
   // The history
   const downloadHeight = await sections.downloadHeight();

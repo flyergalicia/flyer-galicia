@@ -25,6 +25,8 @@ type ProvinceSelectProps = {
   /** Without a list to choose from, what it says instead. */
   readonly disabledLabel?: string;
   readonly className?: string;
+  /** "native" leaves the arrow of the browser. */
+  readonly appearance?: "custom" | "native";
   readonly "data-testid"?: string;
   readonly "aria-label"?: string;
 };

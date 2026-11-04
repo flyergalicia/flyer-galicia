@@ -11,6 +11,7 @@ import {
 import { partialDriver } from "./pending.ts";
 
 const WAIT_MS = 15_000;
+const BOX_DRAG_STEPS = 4;
 const SEPARATOR = ";";
 const TAB_NAME: Readonly<Record<PromotionsTab, string>> = { search: "Buscar", active: "Activas" };
 const MIN_PROVINCES = 3;
@@ -48,15 +49,24 @@ function menuRow(page: Page, province: string): Locator {
   return menu(page).locator(`[data-value="${province}"]`);
 }
 
-/** Cambiar logos and Armar franja bring their own fields, with their slice. */
+/** The windows of brands share their filters, and only one of them is open at a time. */
 function provinceSelect(page: Page, field: ProvinceField): Locator {
-  if (field !== "promotions") throw new Error(`The field "${field}" arrives with logo-editor.`);
-  return page.getByTestId("promotions-province");
+  return page.getByTestId(field === "promotions" ? "promotions-province" : "brand-province");
 }
 
 function localitySelect(page: Page, field: ProvinceField): Locator {
-  if (field !== "promotions") throw new Error(`The field "${field}" arrives with logo-editor.`);
-  return page.getByTestId("promotions-locality");
+  return page.getByTestId(field === "promotions" ? "promotions-locality" : "brand-locality");
+}
+
+/** The province or locality the screen filters by: in the window, what it shows. */
+async function inUseOf(
+  page: Page,
+  field: ProvinceField,
+  read: "province" | "locality",
+  shown: string,
+) {
+  if (field !== "promotions") return shown;
+  return page.evaluate((what) => window["__flyerProbe"]?.promotions?.()[what]() ?? "", read);
 }
 
 async function readRows(page: Page): Promise<PromotionRowView[]> {
@@ -114,7 +124,7 @@ async function readProvinceField(page: Page, field: ProvinceField): Promise<Prov
       label: element.selectedOptions[0]?.textContent ?? "",
     }),
   );
-  const inUse = await page.evaluate(() => window["__flyerProbe"]?.promotions?.().province() ?? "");
+  const inUse = await inUseOf(page, field, "province", value);
   return {
     selected: value.split(SEPARATOR).filter(Boolean),
     label,
@@ -123,13 +133,17 @@ async function readProvinceField(page: Page, field: ProvinceField): Promise<Prov
 }
 
 async function readLocalityField(page: Page, field: ProvinceField): Promise<LocalityFieldView> {
-  const shown = await localitySelect(page, field).evaluate((element: HTMLSelectElement) => ({
+  const select = localitySelect(page, field);
+  if ((await select.count()) === 0)
+    return { hidden: true, disabled: false, placeholder: "", inUse: "" };
+  const shown = await select.evaluate((element: HTMLSelectElement) => ({
     hidden: element.hidden === true,
     disabled: element.disabled,
     placeholder: element.options[0]?.textContent ?? "",
+    value: element.value,
   }));
-  const inUse = await page.evaluate(() => window["__flyerProbe"]?.promotions?.().locality() ?? "");
-  return { ...shown, inUse };
+  const inUse = await inUseOf(page, field, "locality", shown.value);
+  return { hidden: shown.hidden, disabled: shown.disabled, placeholder: shown.placeholder, inUse };
 }
 
 function createTableActions(page: Page) {
@@ -237,6 +251,10 @@ function createProvinceActions(page: Page) {
     },
     chooseLocality: async (field: ProvinceField, locality: string) => {
       await localitySelect(page, field).selectOption(locality);
+      if (field !== "promotions") {
+        await page.locator('[data-testid="brand-list"]:not([data-searching])').waitFor();
+        return;
+      }
       await page.waitForFunction(
         () => window["__flyerProbe"]?.promotions?.().localityAnswered(),
         null,
@@ -340,6 +358,181 @@ function createCatalogQuestions(page: Page) {
   };
 }
 
+function brandWindow(page: Page): Locator {
+  return page.getByRole("dialog", { name: /Cambiar esto|Agregar acá|Reemplazar \d+ lugares/ });
+}
+
+async function bringToMiddle(page: Page, top: number): Promise<void> {
+  await page.evaluate((y) => {
+    const pane = document.querySelector('[data-testid="flyer-preview"]');
+    const point = window["__flyerProbe"]?.logoEditor?.().toClient(0, y);
+    if (!pane || !point) throw new Error("The preview is not on screen");
+    const box = pane.getBoundingClientRect();
+    pane.scrollTop += point.y - (box.top + box.height / 2);
+  }, top);
+}
+
+function flyerPoint(page: Page, x: number, y: number) {
+  return page.evaluate(
+    ({ left, top }) => window["__flyerProbe"]?.logoEditor?.().toClient(left, top) ?? null,
+    { left: x, top: y },
+  );
+}
+
+async function openWindowOver(
+  page: Page,
+  { x, y, width, height }: { x: number; y: number; width: number; height: number },
+): Promise<void> {
+  await bringToMiddle(page, y + height / 2);
+  const from = await flyerPoint(page, x, y);
+  const to = await flyerPoint(page, x + width, y + height);
+  if (!from || !to) throw new Error("The flyer is not on screen");
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: BOX_DRAG_STEPS });
+  await page.mouse.up();
+  await brandWindow(page).getByTestId("brand-card").first().waitFor({ timeout: WAIT_MS });
+}
+
+function stripWindow(page: Page): Locator {
+  return page.getByRole("dialog", { name: "Armar franja" });
+}
+
+function readCards(cards: Locator) {
+  return cards.evaluateAll((elements) =>
+    elements.map((card) => {
+      const more = card.querySelector('[data-testid="more-promotions"]');
+      return {
+        title: card.querySelector('[data-testid="brand-title"]')?.textContent ?? "",
+        detail: card.querySelector('[data-testid="brand-detail"]')?.textContent ?? "",
+        logoUrl: card.querySelector("img")?.getAttribute("src") ?? "",
+        hasPercentDot: Boolean(card.querySelector('[data-testid="percent-dot"]')),
+        hasModoTag: Boolean(card.querySelector('[data-testid="modo-tag"]')),
+        noteOnHover: card.querySelector('[data-testid="brand-note"]')?.getAttribute("title") ?? "",
+        morePromos: more?.textContent ?? "",
+        morePromosOnHover: more?.getAttribute("title") ?? "",
+      };
+    }),
+  );
+}
+
+function createStripWindow(page: Page) {
+  return {
+    openLogoStripOver: async ({
+      x,
+      y,
+      width,
+      height,
+    }: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }) => {
+      await page
+        .getByTestId("logo-editor-bar")
+        .getByRole("button", { name: "Armar franja", exact: true })
+        .click();
+      await bringToMiddle(page, y + height / 2);
+      const from = await flyerPoint(page, x, y);
+      const to = await flyerPoint(page, x + width, y + height);
+      if (!from || !to) throw new Error("The flyer is not on screen");
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      await page.mouse.move(to.x, to.y, { steps: BOX_DRAG_STEPS });
+      await page.mouse.up();
+      await stripWindow(page).getByTestId("brand-card").first().waitFor({ timeout: WAIT_MS });
+    },
+    closeLogoStrip: async () => {
+      await stripWindow(page).getByRole("button", { name: "Cancelar" }).click();
+      await stripWindow(page).waitFor({ state: "detached", timeout: WAIT_MS });
+    },
+    searchInLogoStrip: async (text: string) => {
+      await stripWindow(page).getByRole("searchbox", { name: "Buscar marca" }).fill(text);
+      await stripWindow(page)
+        .locator(`[data-testid="brand-list"][data-search="${text}"]`)
+        .waitFor({ timeout: WAIT_MS });
+    },
+    logoStripCards: () => readCards(stripWindow(page).getByTestId("brand-card")),
+    logoStripOfferIds: () =>
+      page.evaluate(() =>
+        (window["__flyerProbe"]?.logoStripWindow?.().offers() ?? []).map(({ id }) => String(id)),
+      ),
+  };
+}
+
+function createBrandWindow(page: Page) {
+  const cards = () => brandWindow(page).getByTestId("brand-card");
+  return {
+    openBrandPickerOver: (place: { x: number; y: number; width: number; height: number }) =>
+      openWindowOver(page, place),
+    openBrandPickerAt: async ({ x, y }: { x: number; y: number }) => {
+      await bringToMiddle(page, y);
+      const point = await flyerPoint(page, x, y);
+      if (!point) throw new Error("The flyer is not on screen");
+      await page.mouse.click(point.x, point.y);
+      await cards().first().waitFor({ timeout: WAIT_MS });
+    },
+    closeBrandPicker: async () => {
+      await brandWindow(page).getByRole("button", { name: "Cerrar" }).click();
+      await brandWindow(page).waitFor({ state: "detached", timeout: WAIT_MS });
+    },
+    searchInBrandPicker: async (text: string) => {
+      await brandWindow(page).getByRole("searchbox", { name: "Buscar marca" }).fill(text);
+      await brandWindow(page)
+        .locator(`[data-testid="brand-list"][data-search="${text}"]`)
+        .waitFor({ timeout: WAIT_MS });
+    },
+    brandCards: () => readCards(cards()),
+    pickBrand: async (title: string) => {
+      await cards()
+        .filter({ has: page.getByText(title, { exact: true }) })
+        .first()
+        .click();
+      await brandWindow(page).waitFor({ state: "detached", timeout: WAIT_MS });
+    },
+    hasDaysTextBelowLogoAt: async ({ x, y }: { x: number; y: number }) =>
+      page.evaluate(
+        (point) => Boolean(window["__flyerProbe"]?.logoEditor?.().hasDaysBelow(point.x, point.y)),
+        { x, y },
+      ),
+    percentDotOnFlyer: async () =>
+      (await page.getByTestId("logo-editor-layer").getByTestId("percent-dot").count()) > 0,
+    expiredLogosOnFlyer: () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-testid="logo-marker"][data-note="expired"]')].map(
+          (marker) => marker.getAttribute("data-title") ?? "",
+        ),
+      ),
+    placedOnFlyer: () =>
+      page.evaluate(() => {
+        const editor = window["__flyerProbe"]?.logoEditor?.();
+        const changes = editor?.placed() ?? [];
+        return {
+          logos: changes
+            .filter(({ img, tipo }) => img && tipo !== "txt")
+            .map(({ t = "", img = "", tx = 0, ty = 0, tw = 0, th = 0 }) => ({
+              title: t,
+              logoFile: img,
+              centerX: Math.round(tx + tw / 2),
+              bottom: Math.round(ty + th),
+            })),
+          texts: changes
+            .filter(({ tipo }) => tipo === "txt")
+            .map(({ texto = "", fs = 0, peso = 0, color = "", tx = 0, ty = 0, tw = 0 }) => ({
+              text: texto,
+              fontSize: fs,
+              weight: peso,
+              color,
+              centerX: Math.round(tx + tw / 2),
+              top: Math.round(ty),
+            })),
+          selectedTitle: changes[editor?.selection().main ?? -1]?.t ?? "",
+        };
+      }),
+  };
+}
+
 export function createReactPromotionsDriver(page: Page): PromotionsDriver {
   const headerTab = (name: string) =>
     page.getByRole("banner").getByRole("tab", { name, exact: false }).first();
@@ -351,12 +544,19 @@ export function createReactPromotionsDriver(page: Page): PromotionsDriver {
     tabs(page).getByRole("tab", { name: TAB_NAME[tab] }).click();
   const waitForCatalog = async () => {
     await page.waitForFunction(
-      () => (window["__flyerProbe"]?.promotions?.().catalog().length ?? 0) > 0,
+      () => {
+        const probe = window["__flyerProbe"];
+        return (
+          (probe?.promotions?.().catalog().length ?? probe?.logoEditor?.().catalogSize() ?? 0) > 0
+        );
+      },
       null,
       { timeout: WAIT_MS },
     );
   };
   return partialDriver<PromotionsDriver>("promotions", {
+    ...createBrandWindow(page),
+    ...createStripWindow(page),
     ...createTableActions(page),
     ...createPanelActions(page),
     ...createProvinceActions(page),

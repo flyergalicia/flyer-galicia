@@ -61,19 +61,21 @@ test(
   },
 );
 
-test("the list of brands says the days of the promotion and those of the flyer", async ({
-  openApp,
-}) => {
-  const app = await openApp({ user: "admin" });
-  await app.logoEditor.enter();
-  await app.promotions.openBrandPickerOver(MARKED_PLACE);
-  await app.promotions.searchInBrandPicker("coto");
-  const card = (await app.promotions.brandCards()).find(({ title }) => title === "Coto");
-  expect
-    .soft(card?.detail, "list of brands: its days and, as they differ, those of the flyer")
-    .toContain("Todos los días (en el flyer: Martes)");
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+test(
+  "the list of brands says the days of the promotion and those of the flyer",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.logoEditor.enter();
+    await app.promotions.openBrandPickerOver(MARKED_PLACE);
+    await app.promotions.searchInBrandPicker("coto");
+    const card = (await app.promotions.brandCards()).find(({ title }) => title === "Coto");
+    expect
+      .soft(card?.detail, "list of brands: its days and, as they differ, those of the flyer")
+      .toContain("Todos los días (en el flyer: Martes)");
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);
 
 test(
   "the days read exactly as Galicia publishes them",

@@ -93,8 +93,9 @@ describe("what drawing asks for", () => {
   it("a missing logo is brought, and whoever draws finds out", async () => {
     const { library, onArrival } = setup();
     library.requestMissing("a.png");
-    await flush();
-    expect(onArrival).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(onArrival).toHaveBeenCalledTimes(1);
+    });
     expect(library.imageFor("a.png", ART, TEST_ART_KEY)).not.toBeNull();
   });
 
@@ -124,8 +125,9 @@ describe("what drawing asks for", () => {
     fails = false;
     passTime(61_000);
     library.requestMissing("a.png");
-    await flush();
-    expect(onArrival).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(onArrival).toHaveBeenCalledTimes(1);
+    });
     library.requestMissing("a.png");
     await flush();
     expect(fetcher).toHaveBeenCalledTimes(2);

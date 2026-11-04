@@ -169,85 +169,89 @@ test(
   },
 );
 
-test("Armar franja and the window of a logo work with several provinces", async ({
-  cloud,
-  openApp,
-}) => {
-  addSupermarkets(cloud);
-  const app = await openApp({ user: "admin" });
-  const { promotions } = app;
-  await app.logoEditor.enter();
-  await promotions.waitForCatalog();
+test(
+  "Armar franja and the window of a logo work with several provinces",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    addSupermarkets(cloud);
+    const app = await openApp({ user: "admin" });
+    const { promotions } = app;
+    await app.logoEditor.enter();
+    await promotions.waitForCatalog();
 
-  await promotions.openLogoStripOver(MARKED_STRIP);
-  await promotions.openProvinceMenu("logoStrip");
-  await promotions.clickInProvinceMenu(NEUQUEN);
-  await promotions.openProvinceMenu("logoStrip");
-  await promotions.shiftClickInProvinceMenu(RIO_NEGRO);
-  await app.page.keyboard.press("Escape");
-  expect
-    .soft(await promotions.provinceMenuIsOpen(), "Escape closes the list of provinces")
-    .toBe(false);
-  await expect
-    .soft(app.page.getByText("Tu selección"), "and not the Armar franja window")
-    .toBeVisible();
+    await promotions.openLogoStripOver(MARKED_STRIP);
+    await promotions.openProvinceMenu("logoStrip");
+    await promotions.clickInProvinceMenu(NEUQUEN);
+    await promotions.openProvinceMenu("logoStrip");
+    await promotions.shiftClickInProvinceMenu(RIO_NEGRO);
+    await app.page.keyboard.press("Escape");
+    expect
+      .soft(await promotions.provinceMenuIsOpen(), "Escape closes the list of provinces")
+      .toBe(false);
+    await expect
+      .soft(app.page.getByText("Tu selección"), "and not the Armar franja window")
+      .toBeVisible();
 
-  const strip = await promotions.provinceField("logoStrip");
-  expect
-    .soft(strip.inUse, "Armar franja: Neuquén and Río Negro together")
-    .toEqual([NEUQUEN, RIO_NEGRO]);
-  const offered = await promotions.logoStripOfferIds();
-  const inEither = await promotions.promotionIdsIn([NEUQUEN, RIO_NEGRO]);
-  expect.soft(offered.length, "Armar franja offers brands").toBeGreaterThan(0);
-  expect
-    .soft(
-      offered.filter((id) => !inEither.includes(id)),
-      "all of them from either province",
-    )
-    .toEqual([]);
-  expect
-    .soft((await promotions.localityField("logoStrip")).hidden, "with several, no Localidad")
-    .toBe(true);
+    const strip = await promotions.provinceField("logoStrip");
+    expect
+      .soft(strip.inUse, "Armar franja: Neuquén and Río Negro together")
+      .toEqual([NEUQUEN, RIO_NEGRO]);
+    const offered = await promotions.logoStripOfferIds();
+    const inEither = await promotions.promotionIdsIn([NEUQUEN, RIO_NEGRO]);
+    expect.soft(offered.length, "Armar franja offers brands").toBeGreaterThan(0);
+    expect
+      .soft(
+        offered.filter((id) => !inEither.includes(id)),
+        "all of them from either province",
+      )
+      .toEqual([]);
+    expect
+      .soft((await promotions.localityField("logoStrip")).hidden, "with several, no Localidad")
+      .toBe(true);
 
-  const dotOfCard = async (title: string): Promise<boolean | undefined> => {
-    await promotions.searchInLogoStrip(title);
-    const cards = await promotions.logoStripCards();
-    return cards.find((card) => card.title === title)?.hasPercentDot;
-  };
-  expect
-    .soft(
-      await dotOfCard(SUPER_WITH_DISCOUNT_THERE),
-      "the dot of a supermarket looks at the two provinces: a discount in the second one counts",
-    )
-    .toBe(true);
-  expect
-    .soft(await dotOfCard(SUPER_WITH_DISCOUNT_ELSEWHERE), "and a discount out of the two does not")
-    .toBe(false);
-  await promotions.closeLogoStrip();
+    const dotOfCard = async (title: string): Promise<boolean | undefined> => {
+      await promotions.searchInLogoStrip(title);
+      const cards = await promotions.logoStripCards();
+      return cards.find((card) => card.title === title)?.hasPercentDot;
+    };
+    expect
+      .soft(
+        await dotOfCard(SUPER_WITH_DISCOUNT_THERE),
+        "the dot of a supermarket looks at the two provinces: a discount in the second one counts",
+      )
+      .toBe(true);
+    expect
+      .soft(
+        await dotOfCard(SUPER_WITH_DISCOUNT_ELSEWHERE),
+        "and a discount out of the two does not",
+      )
+      .toBe(false);
+    await promotions.closeLogoStrip();
 
-  await promotions.openBrandPickerOver(MARKED_PLACE);
-  await promotions.openProvinceMenu("brandPicker");
-  await promotions.clickInProvinceMenu(NEUQUEN);
-  await promotions.openProvinceMenu("brandPicker");
-  await promotions.shiftClickInProvinceMenu(RIO_NEGRO);
-  await app.page.keyboard.press("Escape");
-  await promotions.closeBrandPicker();
+    await promotions.openBrandPickerOver(MARKED_PLACE);
+    await promotions.openProvinceMenu("brandPicker");
+    await promotions.clickInProvinceMenu(NEUQUEN);
+    await promotions.openProvinceMenu("brandPicker");
+    await promotions.shiftClickInProvinceMenu(RIO_NEGRO);
+    await app.page.keyboard.press("Escape");
+    await promotions.closeBrandPicker();
 
-  await promotions.openBrandPickerOver(MARKED_PLACE);
-  const remembered = await promotions.provinceField("brandPicker");
-  expect
-    .soft(remembered.selected, "the window of a logo opens with both")
-    .toEqual([NEUQUEN, RIO_NEGRO]);
-  expect.soft(remembered.label, "and its name").toMatch(/Neuqu.n y R.o Negro/);
+    await promotions.openBrandPickerOver(MARKED_PLACE);
+    const remembered = await promotions.provinceField("brandPicker");
+    expect
+      .soft(remembered.selected, "the window of a logo opens with both")
+      .toEqual([NEUQUEN, RIO_NEGRO]);
+    expect.soft(remembered.label, "and its name").toMatch(/Neuqu.n y R.o Negro/);
 
-  await promotions.openProvinceMenu("brandPicker");
-  await promotions.clickInProvinceMenu("MENDOZA");
-  expect
-    .soft(
-      (await promotions.provinceField("brandPicker")).inUse,
-      "a click without Shift replaces the two with one",
-    )
-    .toEqual(["MENDOZA"]);
-  await promotions.closeBrandPicker();
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+    await promotions.openProvinceMenu("brandPicker");
+    await promotions.clickInProvinceMenu("MENDOZA");
+    expect
+      .soft(
+        (await promotions.provinceField("brandPicker")).inUse,
+        "a click without Shift replaces the two with one",
+      )
+      .toEqual(["MENDOZA"]);
+    await promotions.closeBrandPicker();
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);

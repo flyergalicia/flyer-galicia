@@ -140,6 +140,16 @@ describe("Modal", () => {
     expect(second).toHaveBeenCalledOnce();
   });
 
+  it("has the look of the windows over the flyer", async () => {
+    const screen = await render(
+      <Modal look="dialog" size="wide" onClose={vi.fn<() => void>()}>
+        <Modal.Title>Armar franja</Modal.Title>
+      </Modal>,
+    );
+    const panel = screen.getByRole("dialog", { name: "Armar franja" }).element();
+    expect(panel.parentElement?.className).toMatch(/dialog/);
+  });
+
   it("has the look of the windows of one's own account", async () => {
     const screen = await render(
       <Modal look="account" size="medium" onClose={vi.fn<() => void>()}>
@@ -189,5 +199,17 @@ describe("Modal", () => {
       "Modal.Footer must be inside a Modal",
     );
     quiet.mockRestore();
+  });
+
+  it("takes a header of its own: its title names the window, and it takes a class", async () => {
+    const screen = await render(
+      <Modal onClose={() => undefined} className="propia">
+        <Modal.Title className="titulo">Cambiar esto</Modal.Title>
+      </Modal>,
+    );
+    const window = screen.getByRole("dialog", { name: "Cambiar esto" });
+    await expect.element(window).toBeVisible();
+    expect(window.element().classList.contains("propia")).toBe(true);
+    await expect.element(screen.getByText("Cambiar esto")).toHaveClass("titulo");
   });
 });

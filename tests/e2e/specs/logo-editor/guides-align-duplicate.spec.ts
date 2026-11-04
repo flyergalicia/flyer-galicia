@@ -33,7 +33,7 @@ function boxAt(all: readonly FlyerBox[], index: number): FlyerBox {
 }
 
 test.describe("Cambiar logos", () => {
-  test("dragging snaps to guides, unless Alt is held", async ({ openApp }) => {
+  test("dragging snaps to guides, unless Alt is held", { tag: "@react" }, async ({ openApp }) => {
     const app = await openApp();
     await app.flyerEditor.setZoom(1.3);
     await app.logoEditor.enter();
@@ -93,104 +93,128 @@ test.describe("Cambiar logos", () => {
       .toBeGreaterThan(0.5);
   });
 
-  test("three chosen logos can be aligned, spread and sized alike", async ({ openApp }) => {
-    const app = await openApp();
-    await app.flyerEditor.setZoom(1.3);
-    await app.logoEditor.enter();
-    await app.logoEditor.placeBrands(LOGOS);
+  test(
+    "three chosen logos can be aligned, spread and sized alike",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      await app.flyerEditor.setZoom(1.3);
+      await app.logoEditor.enter();
+      await app.logoEditor.placeBrands(LOGOS);
 
-    await app.logoEditor.touchPlaced(0);
-    await app.logoEditor.touchPlaced(1, { withShift: true });
-    await app.logoEditor.touchPlaced(2, { withShift: true });
-    const bar = adjustBar(app.page);
-    const spread = bar.getByRole("button", { name: "Repartir" });
-    const middle = bar.getByRole("button", { name: "Al medio" });
-    await expect.soft(middle, "with 3 chosen Alinear shows").toBeVisible();
-    await expect.soft(spread, "and Repartir").toBeVisible();
-    const { main } = await app.logoEditor.selection();
+      await app.logoEditor.touchPlaced(0);
+      await app.logoEditor.touchPlaced(1, { withShift: true });
+      await app.logoEditor.touchPlaced(2, { withShift: true });
+      const bar = adjustBar(app.page);
+      const spread = bar.getByRole("button", { name: "Repartir" });
+      const middle = bar.getByRole("button", { name: "Al medio" });
+      await expect.soft(middle, "with 3 chosen Alinear shows").toBeVisible();
+      await expect.soft(spread, "and Repartir").toBeVisible();
+      const { main } = await app.logoEditor.selection();
 
-    await middle.click();
-    await app.logoEditor.waitUntilSettled();
-    const aligned = await boxesOf(app);
-    const reference = middleY(boxAt(aligned, main));
-    for (const [index, box] of aligned.entries()) {
+      await middle.click();
+      await app.logoEditor.waitUntilSettled();
+      const aligned = await boxesOf(app);
+      const reference = middleY(boxAt(aligned, main));
+      for (const [index, box] of aligned.entries()) {
+        expect
+          .soft(
+            Math.abs(middleY(box) - reference),
+            `"Al medio" centers logo ${index} with the rest`,
+          )
+          .toBeLessThan(0.01);
+      }
+
+      await spread.click();
+      await app.logoEditor.waitUntilSettled();
+      const [left, center, right] = (await boxesOf(app)).toSorted((a, b) => a.x - b.x);
+      if (!left || !center || !right) throw new Error("Three logos were expected");
+      const firstGap = center.x - (left.x + left.width);
+      const secondGap = right.x - (center.x + center.width);
       expect
-        .soft(Math.abs(middleY(box) - reference), `"Al medio" centers logo ${index} with the rest`)
-        .toBeLessThan(0.01);
-    }
-
-    await spread.click();
-    await app.logoEditor.waitUntilSettled();
-    const [left, center, right] = (await boxesOf(app)).toSorted((a, b) => a.x - b.x);
-    if (!left || !center || !right) throw new Error("Three logos were expected");
-    const firstGap = center.x - (left.x + left.width);
-    const secondGap = right.x - (center.x + center.width);
-    expect
-      .soft(Math.abs(firstGap - secondGap), '"Repartir" leaves the same space between logos')
-      .toBeLessThan(1);
-
-    await bar.getByRole("button", { name: "Mismo tamaño" }).click();
-    await app.logoEditor.waitUntilSettled();
-    const sized = await boxesOf(app);
-    const height = boxAt(sized, main).height;
-    for (const [index, box] of sized.entries()) {
-      expect
-        .soft(Math.abs(box.height - height), `"Mismo tamaño" gives logo ${index} the same height`)
+        .soft(Math.abs(firstGap - secondGap), '"Repartir" leaves the same space between logos')
         .toBeLessThan(1);
-    }
 
-    await app.page.keyboard.press("Control+z");
-    await expect
-      .soft(button(app.page, "Rehacer"), 'Ctrl+Z undoes "Mismo tamaño" in one step')
-      .toHaveAttribute("title", /Tamaño/);
-  });
+      await bar.getByRole("button", { name: "Mismo tamaño" }).click();
+      await app.logoEditor.waitUntilSettled();
+      const sized = await boxesOf(app);
+      const height = boxAt(sized, main).height;
+      for (const [index, box] of sized.entries()) {
+        expect
+          .soft(Math.abs(box.height - height), `"Mismo tamaño" gives logo ${index} the same height`)
+          .toBeLessThan(1);
+      }
 
-  test("Ctrl+C / Ctrl+V and Duplicar copy, and Supr deletes", async ({ openApp }) => {
+      await app.page.keyboard.press("Control+z");
+      await expect
+        .soft(button(app.page, "Rehacer"), 'Ctrl+Z undoes "Mismo tamaño" in one step')
+        .toHaveAttribute("title", /Tamaño/);
+    },
+  );
+
+  test(
+    "Ctrl+C / Ctrl+V and Duplicar copy, and Supr deletes",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      await app.flyerEditor.setZoom(1.3);
+      await app.logoEditor.enter();
+      await app.logoEditor.placeBrands(LOGOS);
+      const emptyPlaces = async () =>
+        (await app.logoEditor.placements()).filter(
+          ({ kind, coversFlyer }) => kind === "empty" && coversFlyer,
+        ).length;
+
+      await app.logoEditor.touchPlaced(0);
+      const firstOnScreen = await app.logoEditor.placedOnScreen(0);
+      await app.page.keyboard.press("Control+c");
+      await app.page.keyboard.press("Control+v");
+      await app.logoEditor.waitUntilSettled();
+      const copied = await app.logoEditor.placements();
+      const copy = copied[3];
+      expect.soft(copied, "Ctrl+C / Ctrl+V create one more").toHaveLength(4);
+      expect.soft(copy?.isCopy, "it is a copy").toBe(true);
+      expect
+        .soft((copy?.box?.x ?? 0) - (copied[0]?.box?.x ?? 0), "moved 16 pixels")
+        .toBeCloseTo(16, 2);
+      expect.soft((copy?.box?.y ?? 0) - (copied[0]?.box?.y ?? 0), "both ways").toBeCloseTo(16, 2);
+      expect.soft(copy?.coversFlyer, "the copy covers nothing underneath").toBe(false);
+      expect.soft(await app.logoEditor.changesInDownload(), "and goes in the download").toBe(4);
+
+      await app.page.keyboard.press("Delete");
+      await app.logoEditor.waitUntilSettled();
+      expect.soft(await app.logoEditor.placements(), "Supr takes the copy out").toHaveLength(3);
+
+      // On a logo changed, Supr deletes: the place stays empty, the original does not come back
+      await app.page.mouse.click(firstOnScreen.x, firstOnScreen.y);
+      await app.page.keyboard.press("Delete");
+      await app.logoEditor.waitUntilSettled();
+      expect.soft(await app.logoEditor.placements(), "Supr on a change keeps it").toHaveLength(3);
+      expect.soft(await emptyPlaces(), "as an empty place").toBe(1);
+      await app.page.keyboard.press("Control+z");
+      expect.soft(await app.logoEditor.placements(), "Ctrl+Z gets it back").toHaveLength(3);
+      expect.soft(await emptyPlaces(), "with its logo").toBe(0);
+
+      // The Duplicar button
+      await app.logoEditor.touchPlaced(2);
+      await adjustBar(app.page).getByRole("button", { name: "Duplicar" }).click();
+      expect.soft(await app.logoEditor.placements(), "Duplicar creates the copy").toHaveLength(4);
+
+      // The clean preview hides the bar
+      await cleanPreviewButton(app.page).click();
+      await expect.soft(adjustBar(app.page), "Vista previa hides the bar").toBeHidden();
+    },
+  );
+
+  test("in a text field, Ctrl+V and Supr do not touch the logos", async ({ openApp }) => {
     const app = await openApp();
-    await app.flyerEditor.setZoom(1.3);
     await app.logoEditor.enter();
     await app.logoEditor.placeBrands(LOGOS);
-    const emptyPlaces = async () =>
-      (await app.logoEditor.placements()).filter(
-        ({ kind, coversFlyer }) => kind === "empty" && coversFlyer,
-      ).length;
-
-    await app.logoEditor.touchPlaced(0);
-    const firstOnScreen = await app.logoEditor.placedOnScreen(0);
+    await app.logoEditor.touchPlaced(2);
     await app.page.keyboard.press("Control+c");
     await app.page.keyboard.press("Control+v");
     await app.logoEditor.waitUntilSettled();
-    const copied = await app.logoEditor.placements();
-    const copy = copied[3];
-    expect.soft(copied, "Ctrl+C / Ctrl+V create one more").toHaveLength(4);
-    expect.soft(copy?.isCopy, "it is a copy").toBe(true);
-    expect
-      .soft((copy?.box?.x ?? 0) - (copied[0]?.box?.x ?? 0), "moved 16 pixels")
-      .toBeCloseTo(16, 2);
-    expect.soft((copy?.box?.y ?? 0) - (copied[0]?.box?.y ?? 0), "both ways").toBeCloseTo(16, 2);
-    expect.soft(copy?.coversFlyer, "the copy covers nothing underneath").toBe(false);
-    expect.soft(await app.logoEditor.changesInDownload(), "and goes in the download").toBe(4);
 
-    await app.page.keyboard.press("Delete");
-    await app.logoEditor.waitUntilSettled();
-    expect.soft(await app.logoEditor.placements(), "Supr takes the copy out").toHaveLength(3);
-
-    // On a logo changed, Supr deletes: the place stays empty, the original does not come back
-    await app.page.mouse.click(firstOnScreen.x, firstOnScreen.y);
-    await app.page.keyboard.press("Delete");
-    await app.logoEditor.waitUntilSettled();
-    expect.soft(await app.logoEditor.placements(), "Supr on a change keeps it").toHaveLength(3);
-    expect.soft(await emptyPlaces(), "as an empty place").toBe(1);
-    await app.page.keyboard.press("Control+z");
-    expect.soft(await app.logoEditor.placements(), "Ctrl+Z gets it back").toHaveLength(3);
-    expect.soft(await emptyPlaces(), "with its logo").toBe(0);
-
-    // The Duplicar button
-    await app.logoEditor.touchPlaced(2);
-    await adjustBar(app.page).getByRole("button", { name: "Duplicar" }).click();
-    expect.soft(await app.logoEditor.placements(), "Duplicar creates the copy").toHaveLength(4);
-
-    // In a text field, Ctrl+V and Supr do not touch the logos
     await app.logoEditor.focusCompanyField();
     await app.page.keyboard.type("ACME");
     await app.page.keyboard.press("Backspace");
@@ -199,9 +223,5 @@ test.describe("Cambiar logos", () => {
       .soft(await app.logoEditor.placements(), "writing, Supr / Ctrl+V do not touch the logos")
       .toHaveLength(4);
     expect.soft(await app.logoEditor.companyFieldValue(), "they act on the field").toMatch(/^ACM/);
-
-    // The clean preview hides the bar
-    await cleanPreviewButton(app.page).click();
-    await expect.soft(adjustBar(app.page), "Vista previa hides the bar").toBeHidden();
   });
 });

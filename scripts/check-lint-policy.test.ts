@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasComplexityDisable, specViolations } from "./check-lint-policy.ts";
+import { hasComplexityDisable, networkEscapes, specViolations } from "./check-lint-policy.ts";
 
 describe("hasComplexityDisable", () => {
   it.each([
@@ -37,5 +37,26 @@ describe("specViolations", () => {
       await expect(app.page.getByRole("button", { name: "Reintentar" })).toBeVisible();
     `;
     expect(specViolations(spec)).toEqual([]);
+  });
+});
+
+describe("networkEscapes", () => {
+  it.each([
+    ["route.fetch", "const response = await route.fetch();"],
+    ["route.continue", "await route.continue();"],
+    ["request context", "await page.request.get(address);"],
+    ["request context", "await context.request.post(address, { data });"],
+  ])("rejects %s in %s", (name, source) => {
+    expect(networkEscapes(source)).toContain(name);
+  });
+
+  it("accepts answering a route, or passing it on to the simulated cloud", () => {
+    const driver = `
+      await page.route(address, async (route) => {
+        if (route.request().method() === "GET") await route.fulfill({ json: [] });
+        else await route.fallback();
+      });
+    `;
+    expect(networkEscapes(driver)).toEqual([]);
   });
 });

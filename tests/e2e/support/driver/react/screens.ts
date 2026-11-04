@@ -1,5 +1,7 @@
 import { type Page } from "@playwright/test";
 import { type CompanyRegistryDriver } from "../company-registry.ts";
+import { type LogoEditorDriver } from "../logo-editor.ts";
+import { type LogoStripDriver } from "../logo-strip.ts";
 import { type PromotionsDriver } from "../promotions.ts";
 import { type Appearance, type ReferenceScreen, type ScreensDriver } from "../screens.ts";
 import { type SessionDriver } from "../session.ts";
@@ -9,6 +11,7 @@ const STABLE_MS = 400;
 const STABLE_LIMIT_MS = 10_000;
 const THEME_KEY = "fg_theme";
 const PALETTE_KEY = "fg_palette";
+const STRIP_REGION = { x: 140, y: 2650, width: 1000, height: 230 };
 
 /** Waits for what the screen paints by itself: fonts, images, notices and late answers. */
 async function waitToSettle(page: Page): Promise<void> {
@@ -64,11 +67,17 @@ async function applyAppearance(
   );
 }
 
+interface ScreenDrivers {
+  readonly session: SessionDriver;
+  readonly promotions: PromotionsDriver;
+  readonly companyRegistry: CompanyRegistryDriver;
+  readonly logoEditor: LogoEditorDriver;
+  readonly logoStrip: LogoStripDriver;
+}
+
 function openers(
   page: Page,
-  session: SessionDriver,
-  promotions: PromotionsDriver,
-  companyRegistry: CompanyRegistryDriver,
+  { session, promotions, companyRegistry, logoEditor, logoStrip }: ScreenDrivers,
 ) {
   const ready: Partial<Record<ReferenceScreen, () => Promise<void>>> = {
     login: () =>
@@ -91,6 +100,13 @@ function openers(
       await promotions.open("search");
       await promotions.searchBrands(["Coto", "Farmacity", "Axion", "Marca inexistente"]);
     },
+    "logo-strip-window": async () => {
+      await logoEditor.enter();
+      await logoEditor.waitForBrandCatalog();
+      await logoStrip.open(STRIP_REGION);
+      // The mouse that marked the strip does not stay over a button of the window.
+      await page.mouse.move(0, 0);
+    },
   };
   return ready;
 }
@@ -103,13 +119,9 @@ const CONTENT_OF: Partial<Record<ReferenceScreen, string>> = {
 // What stays above the scrolled content: the header of the app is sticky on a phone.
 const STICKY_HEADER_PX = 90;
 
-export function createReactScreensDriver(
-  page: Page,
-  session: SessionDriver,
-  promotions: PromotionsDriver,
-  companyRegistry: CompanyRegistryDriver,
-): ScreensDriver {
-  const open = openers(page, session, promotions, companyRegistry);
+export function createReactScreensDriver(page: Page, drivers: ScreenDrivers): ScreensDriver {
+  const { session } = drivers;
+  const open = openers(page, drivers);
   return {
     open: async (screen) => {
       const opener = open[screen];

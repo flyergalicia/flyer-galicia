@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { registerProbe } from "./test-probe.ts";
+import { registerProbe, registerProbeIfMissing } from "./test-probe.ts";
 
 const PROBES = "__flyerProbe";
 
@@ -38,5 +38,24 @@ describe("the probe", () => {
     const stopSecond = registerProbe("session", () => 3, host);
     stopSecond();
     expect(host[PROBES]?.session).toBeUndefined();
+  });
+});
+
+function firstReader(): string {
+  return "first";
+}
+
+function secondReader(): string {
+  return "second";
+}
+
+describe("a reader that gives way", () => {
+  it("does not take the place of one that is there, and takes it if there is none", () => {
+    const host = { navigator: { webdriver: true } };
+    registerProbeIfMissing("name", firstReader, host);
+    const stop = registerProbeIfMissing("name", secondReader, host);
+    expect(Reflect.get(host, "__flyerProbe")).toEqual({ name: firstReader });
+    stop();
+    expect(Reflect.get(host, "__flyerProbe")).toEqual({ name: firstReader });
   });
 });

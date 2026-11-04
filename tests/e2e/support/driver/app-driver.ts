@@ -27,9 +27,14 @@ import { createLegacySearchDriver } from "./legacy/search.ts";
 import { createLegacySessionDriver } from "./legacy/session.ts";
 import { createLegacyStudioDriver } from "./legacy/studio.ts";
 import { createReactCompanyRegistryDriver } from "./react/company-registry.ts";
+import { createReactFlyerDrawingDriver } from "./react/flyer-drawing.ts";
 import { createReactFlyerEditorDriver } from "./react/flyer-editor.ts";
+import { createReactFlyerSectionsDriver } from "./react/flyer-sections.ts";
+import { createReactLogoEditorDriver } from "./react/logo-editor.ts";
+import { createReactLogoStripDriver } from "./react/logo-strip.ts";
 import { partialDriver } from "./react/pending.ts";
 import { createReactPromotionsDriver } from "./react/promotions.ts";
+import { createReactSavedBrandsDriver } from "./react/saved-brands.ts";
 import { createReactScreensDriver } from "./react/screens.ts";
 import { createReactSessionDriver } from "./react/session.ts";
 import { type HunterDriver } from "./hunter.ts";
@@ -76,19 +81,21 @@ function createReactAppDriver(page: Page): AppDriver {
   const session = createReactSessionDriver(page);
   const promotions = createReactPromotionsDriver(page);
   const companyRegistry = createReactCompanyRegistryDriver(page);
+  const logoEditor = createReactLogoEditorDriver(page);
+  const logoStrip = createReactLogoStripDriver(page);
   return {
     page,
     session,
     flyerEditor: createReactFlyerEditorDriver(page),
     flyerOutput: partialDriver("flyerOutput"),
     officers: partialDriver("officers"),
-    flyerDrawing: partialDriver("flyerDrawing"),
+    flyerDrawing: createReactFlyerDrawingDriver(page),
     calibrator: partialDriver("calibrator"),
     hunter: partialDriver("hunter"),
-    logoEditor: partialDriver("logoEditor"),
-    logoStrip: partialDriver("logoStrip"),
-    flyerSections: partialDriver("flyerSections"),
-    savedBrands: partialDriver("savedBrands"),
+    logoEditor,
+    logoStrip,
+    flyerSections: createReactFlyerSectionsDriver(page),
+    savedBrands: createReactSavedBrandsDriver(page),
     promotions,
     companyRegistry,
     studio: partialDriver("studio"),
@@ -96,7 +103,13 @@ function createReactAppDriver(page: Page): AppDriver {
     benchmark: partialDriver("benchmark"),
     admin: partialDriver("admin"),
     search: partialDriver("search"),
-    screens: createReactScreensDriver(page, session, promotions, companyRegistry),
+    screens: createReactScreensDriver(page, {
+      session,
+      promotions,
+      companyRegistry,
+      logoEditor,
+      logoStrip,
+    }),
   };
 }
 

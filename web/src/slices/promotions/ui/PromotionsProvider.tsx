@@ -9,22 +9,47 @@ import {
   usePromotionCatalog,
 } from "@/shared/lib/promotions/catalog-query.ts";
 import { useIncludeModo, useSetIncludeModo } from "@/shared/lib/promotions/include-modo-context.ts";
+import {
+  type AskedFilters,
+  usePromotionFiltersPort,
+} from "@/shared/lib/promotions/promotion-filters.ts";
 import { usePromotionLogoSource } from "@/shared/lib/promotions/logo-file.ts";
+import { promotionsProbe } from "@/shared/lib/promotions/promotions-probe.ts";
 import { registerProbe } from "@/shared/lib/test-probe.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { useBackend } from "@/shared/supabase/index.ts";
-import { createPromotionsActions } from "../model/promotions-actions.ts";
+import { createPromotionsActions, type PromotionsActions } from "../model/promotions-actions.ts";
 import { PromotionsActionsContext, PromotionsStateContext } from "../model/promotions-context.ts";
 import {
   initialPromotionsState,
   type PromotionsAction,
   promotionsReducer,
+  type PromotionsState,
 } from "../model/promotions-state.ts";
-import { promotionsProbe } from "../model/promotions-probe.ts";
 
 interface PromotionsProviderProps {
   readonly isActive: boolean;
   readonly children: ReactNode;
+}
+
+function applyAskedFilters(
+  asked: AskedFilters,
+  dispatch: (action: PromotionsAction) => void,
+  listActive: (noProvinceNotice?: string) => Promise<void>,
+) {
+  const { province, locality, category, hideOnline, onePerBrand, onlyPercent } = asked;
+  if (province !== undefined) dispatch({ type: "province", value: province });
+  if (locality !== undefined) dispatch({ type: "locality", value: locality });
+  if (category !== undefined) dispatch({ type: "category", value: category });
+  dispatch({
+    type: "filters",
+    change: {
+      ...(hideOnline === undefined ? {} : { hideOnline }),
+      ...(onePerBrand === undefined ? {} : { oneRowPerBrand: onePerBrand }),
+      ...(onlyPercent === undefined ? {} : { onlyPercent }),
+    },
+  });
+  if (asked.listActive) void listActive(asked.noProvinceNotice);
 }
 
 /** The state, always current for what happens after a wait. */
@@ -63,6 +88,34 @@ function useModoChoice() {
     [setIncludeModo],
   );
   return { includeModo, choice };
+}
+
+/** The windows of brands start from what is chosen here, and ask from there to choose something. */
+function useSharedFilters(
+  { province, locality, category, filters }: PromotionsState,
+  dispatch: (action: PromotionsAction) => void,
+  { listActive }: Pick<PromotionsActions, "listActive">,
+) {
+  const port = usePromotionFiltersPort();
+  const { hideOnline, oneRowPerBrand, onlyPercent } = filters;
+  useEffect(() => {
+    port.publish({
+      province,
+      locality,
+      category,
+      hideOnline,
+      onePerBrand: oneRowPerBrand,
+      onlyPercent,
+    });
+  }, [category, hideOnline, locality, onlyPercent, oneRowPerBrand, port, province]);
+  useEffect(() => {
+    const attend = () => {
+      const asked = port.takeAsked();
+      if (asked) applyAskedFilters(asked, dispatch, listActive);
+    };
+    attend();
+    return port.onAsked(attend);
+  }, [dispatch, listActive, port]);
 }
 
 export function PromotionsProvider({ isActive, children }: PromotionsProviderProps) {
@@ -112,6 +165,8 @@ export function PromotionsProvider({ isActive, children }: PromotionsProviderPro
     () => registerProbe("promotions", () => promotionsProbe(backend, queryClient, choice, read)),
     [backend, queryClient, choice, read],
   );
+
+  useSharedFilters(state, dispatch, actions);
 
   // The tick is one wherever it shows: if another screen changes it, the table follows.
   useEffect(() => {

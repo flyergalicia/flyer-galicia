@@ -3,6 +3,7 @@ import { bottomAnchoredRaw } from "./geometry.ts";
 import {
   type DrawPass,
   type FlyerArt,
+  type FlyerScene,
   type FlyerValues,
   type LogoChange,
   type LogoSource,
@@ -24,12 +25,18 @@ export interface LogoPaintTarget {
   readonly extra: number;
 }
 
+/** Where it is drawn. Whatever has something to draw has this box. */
+function drawnBox({ tx = 0, ty = 0, tw = 0, th = 0 }: LogoChange) {
+  return { tx, ty, tw, th };
+}
+
 function drawText({ ctx, scale }: LogoPaintTarget, change: LogoChange, offset: number): void {
   const size = (change.fs ?? 0) * scale;
   const lines = (change.texto ?? "").split("\n");
   const lineHeight = size * TEXT_LINE_HEIGHT;
-  const x = (change.tx + change.tw / 2) * scale;
-  const y = (change.ty + offset + change.th / 2) * scale;
+  const { tx, ty, tw, th } = drawnBox(change);
+  const x = (tx + tw / 2) * scale;
+  const y = (ty + offset + th / 2) * scale;
   ctx.font = `${String(change.peso || DEFAULT_TEXT_WEIGHT)} ${String(size)}px ${TEXT_FAMILY}`;
   ctx.fillStyle = change.color || DEFAULT_TEXT_COLOR;
   ctx.textAlign = "center";
@@ -88,20 +95,28 @@ export function paintLogoChanges(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   for (const { change, image } of ready) {
-    const offset = change.ty + change.th / 2 >= cutAt ? extra : 0;
+    const { tx, ty, tw, th } = drawnBox(change);
+    const offset = ty + th / 2 >= cutAt ? extra : 0;
     if (change.tipo === "txt") {
       logos.requestTextFont();
       drawText(target, change, offset);
     } else if (image) {
       ctx.drawImage(
         image,
-        Math.round(change.tx * scale),
-        Math.round((change.ty + offset) * scale),
-        Math.max(1, Math.round(change.tw * scale)),
-        Math.max(1, Math.round(change.th * scale)),
+        Math.round(tx * scale),
+        Math.round((ty + offset) * scale),
+        Math.max(1, Math.round(tw * scale)),
+        Math.max(1, Math.round(th * scale)),
       );
     }
   }
+}
+
+/** From this height of the picture down, what is on it goes down the extra height. */
+export function logoCutLine(scene: FlyerScene, extra: number): number {
+  return extra > 0
+    ? Math.round(bottomAnchoredRaw(scene, scene.calibration.contacto.ey, 1))
+    : Number.POSITIVE_INFINITY;
 }
 
 /** Over the art and under everything else, only on the picture they were made on (invariant 21). */
@@ -112,8 +127,7 @@ export function drawLogoChanges(
 ): void {
   const changes = values.logos;
   if (!changes?.length || values.logosSrc !== scene.artKey) return;
-  const cutAt =
-    extra > 0 ? Math.round(bottomAnchoredRaw(scene, scene.calibration.contacto.ey, 1)) : Infinity;
+  const cutAt = logoCutLine(scene, extra);
   paintLogoChanges(
     { ctx, scale, art: scene.art, artKey: scene.artKey, cutAt, extra },
     changes,

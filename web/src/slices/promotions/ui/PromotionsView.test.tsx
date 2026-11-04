@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { Promotion } from "@/shared/domain/promotions/index.ts";
 import { useSetIncludeModo } from "@/shared/lib/promotions/include-modo-context.ts";
+import { usePromotionFiltersPort } from "@/shared/lib/promotions/promotion-filters.ts";
 import {
   type PromotionPicking,
   PromotionPickingContext,
@@ -84,6 +86,49 @@ function Outside() {
     >
       Desde otra pantalla
     </button>
+  );
+}
+
+function AsksFromTheWindow() {
+  const port = usePromotionFiltersPort();
+  const [read, setRead] = useState("");
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          port.ask({
+            province: "MENDOZA",
+            locality: "",
+            category: "Indumentaria",
+            hideOnline: true,
+            onePerBrand: true,
+            onlyPercent: false,
+            listActive: true,
+          });
+        }}
+      >
+        Pedir
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          port.ask({ hideOnline: false });
+        }}
+      >
+        Pedir poco
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const { province, category, hideOnline, onePerBrand, onlyPercent } = port.read();
+          setRead([province, category, hideOnline, onePerBrand, onlyPercent].join("|"));
+        }}
+      >
+        Leer
+      </button>
+      <p data-testid="chosen-there">{read}</p>
+    </>
   );
 }
 
@@ -1134,10 +1179,15 @@ describe("the table", () => {
 
   it("a logo that does not load says so, and the row stays", async () => {
     const screen = await searched();
-    const logo = screen.getByTestId("promotions-results").element().querySelector("img");
-    if (!logo) throw new Error("No logo");
-    logo.dispatchEvent(new Event("error"));
-    await expect.element(screen.getByTitle("No se pudo cargar el logo")).toBeInTheDocument();
+    // Nothing answers for it here: it may have failed by itself by now.
+    screen
+      .getByTestId("promotions-results")
+      .element()
+      .querySelector("img")
+      ?.dispatchEvent(new Event("error"));
+    await expect
+      .element(screen.getByTitle("No se pudo cargar el logo").first())
+      .toBeInTheDocument();
     await expect.element(screen.getByTitle("Sin coincidencia").first()).toBeInTheDocument();
   });
 });
@@ -1419,5 +1469,43 @@ describe("watching the brands found", () => {
       .element(notice(screen))
       .toMatchTextContent(/No se pudo guardar: No se pudo leer la lista/);
     expect(harness.network.to("/storage/v1/object/flyers/_vigilar.json", "POST")).toEqual([]);
+  });
+
+  it("a window of brands asks it to choose, and reads what it chose", async () => {
+    const { catalog } = {
+      catalog: [promotion("Lejos", { provincias: ["SALTA"] }), promotion("Cerca")],
+    };
+    const harness = createAppHarness({
+      tables: {
+        promos_galicia_cache: asAnswer(catalog),
+        promos_modo_cache: asAnswer([]),
+        promos_galicia_meta: () =>
+          jsonResponse({ last_sync_at: "2026-10-30T12:00:00Z", total: 2, ubicaciones: LOCATIONS }),
+      },
+      functions: { "promos-galicia": () => jsonResponse({ data: { ids: [] } }) },
+    });
+    harness.storeSession();
+    const screen = await render(
+      harness.wrap(
+        <>
+          <AsksFromTheWindow />
+          <InsideOnly />
+        </>,
+      ),
+    );
+    await waitForCatalog(screen);
+    await screen.getByRole("button", { name: "Pedir" }).click();
+    await vi.waitFor(() => {
+      expect(titles(screen)).toEqual(["Cerca"]);
+    });
+    await screen.getByRole("button", { name: "Leer" }).click();
+    await expect
+      .element(screen.getByTestId("chosen-there"))
+      .toHaveTextContent("MENDOZA|Indumentaria|true|true|false");
+    await screen.getByRole("button", { name: "Pedir poco" }).click();
+    await screen.getByRole("button", { name: "Leer" }).click();
+    await expect
+      .element(screen.getByTestId("chosen-there"))
+      .toHaveTextContent("MENDOZA|Indumentaria|false|true|false");
   });
 });

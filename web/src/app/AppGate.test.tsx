@@ -42,7 +42,9 @@ describe("the door of the app", () => {
 
     await expect.element(screen.getByRole("banner")).toBeVisible();
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toHaveTextContent("Promociones");
   });
 
@@ -75,7 +77,9 @@ describe("the door of the app", () => {
 
     await expect.element(screen.getByRole("banner")).toBeVisible();
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toHaveTextContent("Flyer Galicia");
   });
 
@@ -86,7 +90,9 @@ describe("the door of the app", () => {
 
     await expect.element(screen.getByRole("banner")).toBeVisible();
     await expect
-      .element(screen.getByRole("tab", { selected: true }))
+      .element(
+        screen.getByRole("tablist", { name: "Pantallas" }).getByRole("tab", { selected: true }),
+      )
       .toHaveTextContent("Flyer Galicia");
   });
 

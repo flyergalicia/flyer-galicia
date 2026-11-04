@@ -9,20 +9,24 @@ const CASES = [
 ] as const;
 
 for (const { brands, rows, why } of CASES) {
-  test(`${String(brands)} brands go in ${String(rows)} rows: ${why}`, async ({ openApp }) => {
-    const app = await openApp();
-    const strip = app.logoStrip;
-    await app.logoEditor.enter();
-    await strip.open(LOGOS_STRIP, { province: "" });
+  test(
+    `${String(brands)} brands go in ${String(rows)} rows: ${why}`,
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      const strip = app.logoStrip;
+      await app.logoEditor.enter();
+      await strip.open(LOGOS_STRIP, { province: "" });
 
-    await strip.tickNext(brands);
-    await strip.waitForPreviewLogos();
+      await strip.tickNext(brands);
+      await strip.waitForPreviewLogos();
 
-    const { boxes } = await strip.previewPlacement();
-    const drawn = boxes.filter((box) => box !== null);
-    expect.soft(drawn.length, "all of them are placed").toBe(brands);
-    // In the order of the selection: each row starts again from the left.
-    const startsOfRow = drawn.filter((box, at) => at > 0 && box.x < (drawn[at - 1]?.x ?? 0));
-    expect.soft(startsOfRow.length + 1, "in those rows").toBe(rows);
-  });
+      const { boxes } = await strip.previewPlacement();
+      const drawn = boxes.filter((box) => box !== null);
+      expect.soft(drawn.length, "all of them are placed").toBe(brands);
+      // In the order of the selection: each row starts again from the left.
+      const startsOfRow = drawn.filter((box, at) => at > 0 && box.x < (drawn[at - 1]?.x ?? 0));
+      expect.soft(startsOfRow.length + 1, "in those rows").toBe(rows);
+    },
+  );
 }

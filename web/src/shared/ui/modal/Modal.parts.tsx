@@ -13,8 +13,11 @@ import { useDialog } from "./use-dialog.ts";
 import styles from "./Modal.module.css";
 
 export type ModalSize = "narrow" | "regular" | "medium" | "wide";
-/** "account": the windows of one's own account and of the users of the panel. */
-export type ModalLook = "window" | "account";
+/**
+ * "account": the windows of one's own account and of the users of the panel.
+ * "dialog": those over the flyer, with what is behind them dimmed and out of focus.
+ */
+export type ModalLook = "window" | "account" | "dialog";
 
 type ModalContextValue = {
   readonly titleId: string;
@@ -35,6 +38,7 @@ type ModalProps = {
   readonly look?: ModalLook;
   /** A window with work in progress only closes with its X or with Escape. */
   readonly closeOnBackdrop?: boolean;
+  readonly className?: string | undefined;
   readonly children: ReactNode;
 };
 
@@ -43,6 +47,7 @@ export function ModalRoot({
   size = "regular",
   look = "window",
   closeOnBackdrop = true,
+  className,
   children,
 }: ModalProps) {
   const titleId = useId();
@@ -63,7 +68,7 @@ export function ModalRoot({
     <ModalContext.Provider value={context}>
       {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- the mouse way of closing what Escape closes */}
       <div
-        className={look === "account" ? `${styles.overlay} ${styles.account}` : styles.overlay}
+        className={look === "window" ? styles.overlay : `${styles.overlay} ${styles[look]}`}
         onMouseDown={onMouseDown}
         onClick={onClick}
       >
@@ -73,7 +78,7 @@ export function ModalRoot({
           aria-modal="true"
           aria-labelledby={titleId}
           tabIndex={-1}
-          className={`${styles.panel} ${styles[size]}`}
+          className={`${styles.panel} ${styles[size]}${className ? ` ${className}` : ""}`}
         >
           {children}
         </dialog>
@@ -99,6 +104,22 @@ export function ModalHeader({ icon, children }: ModalHeaderProps) {
       <button type="button" className={styles.close} aria-label="Cerrar" onClick={close}>
         {"\u2715"}
       </button>
+    </div>
+  );
+}
+
+/** For a window with a header of its own: what names it. */
+export function ModalTitle({
+  className,
+  children,
+}: {
+  readonly className?: string | undefined;
+  readonly children: ReactNode;
+}) {
+  const { titleId } = useModal("Title");
+  return (
+    <div id={titleId} className={className}>
+      {children}
     </div>
   );
 }

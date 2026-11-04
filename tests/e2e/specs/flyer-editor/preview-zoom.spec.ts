@@ -4,27 +4,35 @@ import { expect, test } from "../../support/test.ts";
 const MAX_ZOOM = 1.3;
 
 test.describe("the preview beside the form", () => {
-  test("the wheel alone does not zoom; with Ctrl it does, up to 130 %", async ({ openApp }) => {
-    const { flyerDrawing } = await openApp();
-    const start = await flyerDrawing.preview();
+  test(
+    "the wheel alone does not zoom; with Ctrl it does, up to 130 %",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { flyerDrawing } = await openApp();
+      const start = await flyerDrawing.preview();
 
-    await flyerDrawing.wheelOverPreview({ ctrl: false, times: 2, direction: "in" });
-    expect.soft((await flyerDrawing.preview()).zoom, "the wheel recorre").toBe(start.zoom);
+      await flyerDrawing.wheelOverPreview({ ctrl: false, times: 2, direction: "in" });
+      expect.soft((await flyerDrawing.preview()).zoom, "the wheel recorre").toBe(start.zoom);
 
-    await flyerDrawing.wheelOverPreview({ ctrl: true, times: 1, direction: "out" });
-    expect.soft((await flyerDrawing.preview()).zoom, "Ctrl zooms").toBeLessThan(start.zoom);
+      await flyerDrawing.wheelOverPreview({ ctrl: true, times: 1, direction: "out" });
+      expect.soft((await flyerDrawing.preview()).zoom, "Ctrl zooms").toBeLessThan(start.zoom);
 
-    await flyerDrawing.wheelOverPreview({ ctrl: true, times: 8, direction: "in" });
-    expect.soft((await flyerDrawing.preview()).zoom, "and it stops").toBeCloseTo(MAX_ZOOM, 5);
-  });
+      await flyerDrawing.wheelOverPreview({ ctrl: true, times: 8, direction: "in" });
+      expect.soft((await flyerDrawing.preview()).zoom, "and it stops").toBeCloseTo(MAX_ZOOM, 5);
+    },
+  );
 
-  test("zooming keeps under the mouse what was under the mouse", async ({ openApp }) => {
-    const { flyerDrawing } = await openApp();
-    const before = await flyerDrawing.pointUnderMouseAfterZoom();
+  test(
+    "zooming keeps under the mouse what was under the mouse",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { flyerDrawing } = await openApp();
+      const before = await flyerDrawing.pointUnderMouseAfterZoom();
 
-    expect.soft(Math.abs(before.after.x - before.before.x), "across").toBeLessThan(0.03);
-    expect.soft(Math.abs(before.after.y - before.before.y), "down").toBeLessThan(0.03);
-  });
+      expect.soft(Math.abs(before.after.x - before.before.x), "across").toBeLessThan(0.03);
+      expect.soft(Math.abs(before.after.y - before.before.y), "down").toBeLessThan(0.03);
+    },
+  );
 });
 
 test.describe("the window of Vista previa", () => {

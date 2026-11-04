@@ -492,3 +492,17 @@
     display: none;
   }
 }
+
+.rowChosen td {
+  background: var(--promotions-picked-row);
+}
+
+.resultsPicking {
+  scroll-padding-top: 90px;
+}
+
+@media (max-width: 900px) {
+  .resultsPicking {
+    padding-bottom: 130px !important;
+  }
+}

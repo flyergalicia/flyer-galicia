@@ -75,48 +75,52 @@ test("the printed days of a logo are found, separate or stuck to it", async ({ o
   expect.soft(stuck.daysText?.top, "and the text stays under the logo").toBeGreaterThanOrEqual(140);
 });
 
-test("placing a supermarket brings its days, unless the tick is off", async ({ openApp }) => {
-  const app = await openApp();
-  await app.logoEditor.enter();
-  await app.promotions.waitForCatalog();
+test(
+  "placing a supermarket brings its days, unless the tick is off",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp();
+    await app.logoEditor.enter();
+    await app.promotions.waitForCatalog();
 
-  const withDays = (await app.promotions.catalog()).filter(
-    ({ category, days, hasLogo }) => category === SUPERMARKETS && days && hasLogo,
-  );
-  expect.soft(withDays.length, "the catalog has supermarkets with days").toBeGreaterThan(0);
-  const title = withDays[0]?.title ?? "";
-  const days = await app.promotions.supermarketDaysOnFlyer({ title });
+    const withDays = (await app.promotions.catalog()).filter(
+      ({ category, days, hasLogo }) => category === SUPERMARKETS && days && hasLogo,
+    );
+    expect.soft(withDays.length, "the catalog has supermarkets with days").toBeGreaterThan(0);
+    const title = withDays[0]?.title ?? "";
+    const days = await app.promotions.supermarketDaysOnFlyer({ title });
 
-  await app.promotions.openBrandPickerOver(MARKED_PLACE);
-  await expect
-    .soft(
-      app.page.getByRole("checkbox", { name: DAYS_TICK }),
-      "the window of a logo brings the days tick on",
-    )
-    .toBeChecked();
-  await app.promotions.searchInBrandPicker(title);
-  await app.promotions.pickBrand(title);
+    await app.promotions.openBrandPickerOver(MARKED_PLACE);
+    await expect
+      .soft(
+        app.page.getByRole("checkbox", { name: DAYS_TICK }),
+        "the window of a logo brings the days tick on",
+      )
+      .toBeChecked();
+    await app.promotions.searchInBrandPicker(title);
+    await app.promotions.pickBrand(title);
 
-  const placed = await app.promotions.placedOnFlyer();
-  expect
-    .soft(
-      placed.texts.map(({ text }) => text),
-      "the logo gets its days as a text",
-    )
-    .toEqual([days]);
-  expect
-    .soft((await app.logoEditor.changes()).length, "placing it leaves the logo and its days")
-    .toBe(2);
-  expect.soft(placed.selectedTitle, "the logo stays selected").toBe(title);
+    const placed = await app.promotions.placedOnFlyer();
+    expect
+      .soft(
+        placed.texts.map(({ text }) => text),
+        "the logo gets its days as a text",
+      )
+      .toEqual([days]);
+    expect
+      .soft((await app.logoEditor.changes()).length, "placing it leaves the logo and its days")
+      .toBe(2);
+    expect.soft(placed.selectedTitle, "the logo stays selected").toBe(title);
 
-  await app.flyerEditor.restoreDefaults();
-  await app.promotions.openBrandPickerOver(MARKED_PLACE);
-  await app.page.getByRole("checkbox", { name: DAYS_TICK }).uncheck();
-  await app.promotions.searchInBrandPicker(title);
-  await app.promotions.pickBrand(title);
+    await app.flyerEditor.restoreDefaults();
+    await app.promotions.openBrandPickerOver(MARKED_PLACE);
+    await app.page.getByRole("checkbox", { name: DAYS_TICK }).uncheck();
+    await app.promotions.searchInBrandPicker(title);
+    await app.promotions.pickBrand(title);
 
-  expect
-    .soft((await app.promotions.placedOnFlyer()).texts, "without the tick, only the logo")
-    .toEqual([]);
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+    expect
+      .soft((await app.promotions.placedOnFlyer()).texts, "without the tick, only the logo")
+      .toEqual([]);
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);

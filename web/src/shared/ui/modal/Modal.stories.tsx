@@ -32,3 +32,14 @@ export const Regular: Story = { args: { size: "regular" } };
 export const Medium: Story = { args: { size: "medium" } };
 export const Wide: Story = { args: { size: "wide" } };
 export const Account: Story = { args: { size: "narrow", look: "account" } };
+export const OverTheFlyer: Story = { args: { size: "wide", look: "dialog" } };
+
+/** A window with a header of its own: the title is what names it. */
+export const OwnHeader: StoryObj<typeof Modal> = {
+  render: () => (
+    <Modal size="medium" onClose={() => undefined}>
+      <Modal.Title>Cambiar esto</Modal.Title>
+      <Modal.Body>Lo que hay en la ventana.</Modal.Body>
+    </Modal>
+  ),
+};

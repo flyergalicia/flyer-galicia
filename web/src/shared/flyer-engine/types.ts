@@ -195,10 +195,11 @@ export interface LogoChange {
   w: number;
   h: number;
   bg: string;
-  tx: number;
-  ty: number;
-  tw: number;
-  th: number;
+  /** A place left empty draws nothing, and has none of these. */
+  tx?: number;
+  ty?: number;
+  tw?: number;
+  th?: number;
   img?: string;
   tipo?: string;
   texto?: string;

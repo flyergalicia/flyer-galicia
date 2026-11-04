@@ -15,7 +15,7 @@ const CASES = [
 for (const { brands, width, height } of CASES) {
   const name = `${String(brands)} brands on a ${String(width)}x${String(height)} screen`;
 
-  test(`${name} fit in the window and in the strip`, async ({ openApp }) => {
+  test(`${name} fit in the window and in the strip`, { tag: "@react" }, async ({ openApp }) => {
     const app = await openApp({ viewport: { width, height } });
     const strip = app.logoStrip;
     await app.logoEditor.enter();

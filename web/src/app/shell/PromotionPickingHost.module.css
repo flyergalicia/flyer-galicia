@@ -1,0 +1,91 @@
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--sh-2);
+}
+
+.text {
+  flex: 1 1 280px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: var(--text-menu);
+  line-height: 1.4;
+}
+
+.titles {
+  color: var(--ink-2);
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.add {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid var(--accent-line);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--accent-2);
+  font-size: var(--text-input);
+  font-weight: var(--weight-heavy);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.add:hover {
+  border-color: var(--accent);
+}
+
+.add[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--logo-on-accent);
+}
+
+.add:disabled {
+  border-color: var(--border);
+  color: var(--gray);
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+@media (max-width: 900px) {
+  .bar {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    z-index: 60;
+    margin: 0;
+    padding: 10px 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  }
+
+  .text {
+    flex-basis: 100%;
+    font-size: var(--text-xs);
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions button {
+    flex: 1;
+  }
+}

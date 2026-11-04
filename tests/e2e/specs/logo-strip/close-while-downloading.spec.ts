@@ -5,32 +5,36 @@ const LOGOS_STRIP = { x: 140, y: 2650, width: 1000, height: 230 };
 const BRANDS = ["farmacia del pueblo", "puppis"];
 const PROMOTION_LOGOS = "https://www.galicia.ar/**";
 
-test("closing the window while the logos download applies nothing", async ({ openApp }) => {
-  const app = await openApp();
-  const strip = app.logoStrip;
-  await app.logoEditor.enter();
-  await strip.open(LOGOS_STRIP);
+test(
+  "closing the window while the logos download applies nothing",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp();
+    const strip = app.logoStrip;
+    await app.logoEditor.enter();
+    await strip.open(LOGOS_STRIP);
 
-  // The logos do not arrive until the window has been closed.
-  const whenClosed: (() => void)[] = [];
-  const windowClosed = new Promise<void>((resolve) => {
-    whenClosed.push(resolve);
-  });
-  await app.page.route(PROMOTION_LOGOS, async (route) => {
-    await windowClosed;
-    await route.fallback();
-  });
+    // The logos do not arrive until the window has been closed.
+    const whenClosed: (() => void)[] = [];
+    const windowClosed = new Promise<void>((resolve) => {
+      whenClosed.push(resolve);
+    });
+    await app.page.route(PROMOTION_LOGOS, async (route) => {
+      await windowClosed;
+      await route.fallback();
+    });
 
-  for (const brand of BRANDS) await strip.tickBySearch(brand);
-  await strip.pressPut();
-  await strip.cancel();
-  for (const release of whenClosed) release();
-  await app.page.waitForTimeout(1500);
+    for (const brand of BRANDS) await strip.tickBySearch(brand);
+    await strip.pressPut();
+    await strip.cancel();
+    for (const release of whenClosed) release();
+    await app.page.waitForTimeout(1500);
 
-  expect.soft(await strip.changes(), "nothing was applied").toEqual([]);
-});
+    expect.soft(await strip.changes(), "nothing was applied").toEqual([]);
+  },
+);
 
-test('pressing "Poner" twice leaves a single strip', async ({ openApp }) => {
+test('pressing "Poner" twice leaves a single strip', { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp();
   const strip = app.logoStrip;
   await app.logoEditor.enter();

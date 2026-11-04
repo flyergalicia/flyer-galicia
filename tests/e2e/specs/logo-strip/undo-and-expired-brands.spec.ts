@@ -9,7 +9,7 @@ const PLACES = [
 ];
 const RED = /217, 45, 32/;
 
-test("the window of the strip can undo and redo", async ({ openApp }) => {
+test("the window of the strip can undo and redo", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp();
   const strip = app.logoStrip;
   const { keyboard } = app.page;
@@ -60,37 +60,41 @@ test("the window of the strip can undo and redo", async ({ openApp }) => {
   await strip.close();
 });
 
-test("a brand whose promotion expired is marked in red while editing", async ({ openApp }) => {
-  const app = await openApp();
-  const strip = app.logoStrip;
-  await app.logoEditor.enter();
-  await strip.waitForCatalog();
+test(
+  "a brand whose promotion expired is marked in red while editing",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp();
+    const strip = app.logoStrip;
+    await app.logoEditor.enter();
+    await strip.waitForCatalog();
 
-  const [allExpired, expiredWithUpcoming, valid] = await strip.placeBrandsOn(PLACES);
-  if (!allExpired || !expiredWithUpcoming || !valid) throw new Error("Brands were not placed");
-  await strip.releaseLogos();
-  expect
-    .soft(
-      (await strip.flyerMarks()).filter(({ expired }) => expired),
-      "with all of them valid nothing is marked",
-    )
-    .toEqual([]);
+    const [allExpired, expiredWithUpcoming, valid] = await strip.placeBrandsOn(PLACES);
+    if (!allExpired || !expiredWithUpcoming || !valid) throw new Error("Brands were not placed");
+    await strip.releaseLogos();
+    expect
+      .soft(
+        (await strip.flyerMarks()).filter(({ expired }) => expired),
+        "with all of them valid nothing is marked",
+      )
+      .toEqual([]);
 
-  await strip.changeBrandValidity([
-    { logo: allExpired, expiresInDays: -3 },
-    { logo: expiredWithUpcoming, expiresInDays: -3, upcomingEndingInDays: 40 },
-    { logo: valid, expiresInDays: 20 },
-  ]);
+    await strip.changeBrandValidity([
+      { logo: allExpired, expiresInDays: -3 },
+      { logo: expiredWithUpcoming, expiresInDays: -3, upcomingEndingInDays: 40 },
+      { logo: valid, expiresInDays: 20 },
+    ]);
 
-  const marks = await strip.flyerMarks();
-  expect.soft(marks[0]?.expired, "the brand with its promotion expired is marked").toBe(true);
-  expect.soft(marks[1]?.expired, "not if another one of that brand is upcoming").toBe(false);
-  expect.soft(marks[2]?.expired, "a valid one is not marked").toBe(false);
-  expect.soft(marks[0]?.label, 'the label says "Vencida"').toMatch(/Vencida/);
-  expect.soft(marks[0]?.borderColor, "the border is red").toMatch(RED);
-  expect.soft(await strip.lastNotice(), "a notice says so").toMatch(/1 marca vencida/);
+    const marks = await strip.flyerMarks();
+    expect.soft(marks[0]?.expired, "the brand with its promotion expired is marked").toBe(true);
+    expect.soft(marks[1]?.expired, "not if another one of that brand is upcoming").toBe(false);
+    expect.soft(marks[2]?.expired, "a valid one is not marked").toBe(false);
+    expect.soft(marks[0]?.label, 'the label says "Vencida"').toMatch(/Vencida/);
+    expect.soft(marks[0]?.borderColor, "the border is red").toMatch(RED);
+    expect.soft(await strip.lastNotice(), "a notice says so").toMatch(/1 marca vencida/);
 
-  await strip.setCleanView(true);
-  expect.soft(await strip.marksLayerVisible(), "the clean view shows no mark").toBe(false);
-  await strip.setCleanView(false);
-});
+    await strip.setCleanView(true);
+    expect.soft(await strip.marksLayerVisible(), "the clean view shows no mark").toBe(false);
+    await strip.setCleanView(false);
+  },
+);

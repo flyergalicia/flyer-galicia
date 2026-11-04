@@ -65,11 +65,45 @@ async function waitUntilSignedIn(page: Page): Promise<void> {
   await header(page).waitFor({ timeout: ENTRY_TIMEOUT_MS });
 }
 
-async function open(page: Page, { waitUntilReady }: OpenSessionOptions): Promise<void> {
+const FLYER_SETTLED_MS = 25_000;
+/** The option that has a flyer in the simulated cloud. */
+const DEFAULT_OPTION = 9;
+
+/**
+ * Whoever lands on the flyer editor is ready when it knows what to show: its flyer, or that it could
+ * not arrive. Administrators land on an option of their own; everybody else, on the first they may
+ * use. Whoever lands elsewhere has no flyer to wait for.
+ */
+async function waitForFlyer(page: Page, role: string, startOption: number | undefined) {
+  const screen = page.locator('[data-screen="flyer-layout"]');
+  if (!(await screen.isVisible())) return;
+  const isSettled = () =>
+    page.waitForFunction(
+      () => {
+        const slot = window["__flyerProbe"]?.flyerWorkspace?.().getState().slot;
+        return Boolean(slot) && slot?.option !== null && !slot?.loading;
+      },
+      null,
+      { timeout: FLYER_SETTLED_MS },
+    );
+  await isSettled();
+  if (role !== "admin" && startOption === undefined) return;
+  const option = page
+    .getByTestId("flyer-options")
+    .locator(`button[data-option="${String(startOption ?? DEFAULT_OPTION)}"]`);
+  if ((await option.count()) === 0) return;
+  await option.click();
+  await isSettled();
+}
+
+async function open(
+  page: Page,
+  { role, startOption, waitUntilReady }: OpenSessionOptions,
+): Promise<void> {
   await page.goto("./");
-  // There is no flyer yet: ready means that the person is inside and the header shows. When
-  // flyer-editor arrives, it waits here for the flyer too, and it honors `startOption`.
-  if (waitUntilReady) await waitUntilSignedIn(page);
+  if (!waitUntilReady) return;
+  await waitUntilSignedIn(page);
+  await waitForFlyer(page, role, startOption);
 }
 
 async function openUserMenu(page: Page): Promise<void> {
@@ -403,6 +437,19 @@ export function createReactSessionDriver(page: Page): SessionDriver {
       };
     },
     waitUntilSignedIn: () => waitUntilSignedIn(page),
+    logoEditorOpens: async () => {
+      const toggle = page
+        .getByTestId("logo-editor-bar")
+        .getByRole("button", { name: /^(Cambiar logos|Listo)$/ });
+      await toggle.click();
+      const opened = await page.evaluate(
+        () => window["__flyerProbe"]?.logoEditor?.().isEditing() ?? false,
+      );
+      if (opened) await toggle.click();
+      return opened;
+    },
+    previewPainted: () =>
+      page.evaluate(() => (window["__flyerProbe"]?.flyerWorkspace?.().getState().draws ?? 0) > 0),
     accountSwitcher: () => accountSwitcher(page),
     switchToAccount: async (name) => {
       await openUserMenu(page);

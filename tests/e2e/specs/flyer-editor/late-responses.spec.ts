@@ -21,23 +21,27 @@ async function slowDown(page: Page, url: string, shouldWait: (route: Route) => b
 }
 
 test.describe("answers that arrive late", () => {
-  test("closing the picker while the logo downloads does not apply it", async ({ openApp }) => {
-    const app = await openApp();
-    await app.logoEditor.enter();
-    await app.logoEditor.waitForBrandCatalog();
-    await slowDown(app.page, LOGO_HOST, () => true);
+  test(
+    "closing the picker while the logo downloads does not apply it",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      await app.logoEditor.enter();
+      await app.logoEditor.waitForBrandCatalog();
+      await slowDown(app.page, LOGO_HOST, () => true);
 
-    await app.logoEditor.openPickerForArea(FREE_AREA);
-    await app.logoEditor.waitForBrandList();
-    await app.logoEditor.pressFirstBrand();
-    await app.page.waitForTimeout(100);
-    await app.page.keyboard.press("Escape");
-    await app.page.waitForTimeout(3_000);
+      await app.logoEditor.openPickerForArea(FREE_AREA);
+      await app.logoEditor.waitForBrandList();
+      await app.logoEditor.pressFirstBrand();
+      await app.page.waitForTimeout(100);
+      await app.page.keyboard.press("Escape");
+      await app.page.waitForTimeout(3_000);
 
-    expect
-      .soft(await app.logoEditor.placements(), "closing the picker: nothing is applied")
-      .toEqual([]);
-  });
+      expect
+        .soft(await app.logoEditor.placements(), "closing the picker: nothing is applied")
+        .toEqual([]);
+    },
+  );
 
   test("a logo that no longer exists is asked for once, not on every redraw", async ({
     openApp,

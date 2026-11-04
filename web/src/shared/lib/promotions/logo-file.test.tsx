@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
-import { fetchLogoFile, usePromotionLogoSource } from "./logo-file.ts";
+import {
+  fetchLogoBlob,
+  fetchLogoFile,
+  promotionLogoAddress,
+  usePromotionLogoSource,
+} from "./logo-file.ts";
 
 function Sources() {
   const source = usePromotionLogoSource();
@@ -40,5 +45,18 @@ describe("the logos", () => {
 
     answers.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     expect(await fetchLogoFile("https://logos.invalid/c.png")).toBeNull();
+  });
+});
+
+describe("the file of a logo", () => {
+  it("comes from where it lives, and what does not arrive is not a logo", async () => {
+    expect(promotionLogoAddress("modo/1.png", { publicUrl: (file) => `bucket/${file}` })).toBe(
+      "bucket/modo/1.png",
+    );
+    const fetching = vi.spyOn(globalThis, "fetch");
+    fetching.mockResolvedValueOnce(new Response("x"));
+    expect((await fetchLogoBlob("a.png")).size).toBe(1);
+    fetching.mockResolvedValueOnce(new Response("", { status: 404 }));
+    await expect(fetchLogoBlob("a.png")).rejects.toThrow("HTTP 404");
   });
 });

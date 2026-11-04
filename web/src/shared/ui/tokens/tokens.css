@@ -225,10 +225,60 @@ html.dark {
   --danger: #b3261e;
   --danger-soft: #fde3e3;
 
+  /* The preview of the flyer, and Cambiar logos over it. */
+  --preview-live: #22c55e;
+  --preview-live-ring: rgba(34, 197, 94, 0.2);
+  --flyer-paper: #fff;
+  --load-problem-button: #fff;
+  --logo-on-accent: #fff;
+  --logo-marker-faint: rgba(242, 97, 34, 0.4);
+  --logo-group-soft: rgba(242, 97, 34, 0.08);
+  --logo-flash-ring: rgba(242, 97, 34, 0.55);
+  --logo-flash-bg: rgba(242, 97, 34, 0.18);
+  --logo-guide: #f26122;
+  --logo-guide-near: rgba(242, 97, 34, 0.55);
+  --logo-expired: #d92d20;
+  --logo-expired-soft: rgba(217, 45, 32, 0.07);
+  --logo-province: #ca8a04;
+  --logo-province-note: #a16207;
+  --logo-province-soft: rgba(234, 179, 8, 0.08);
+  --logo-trim: #dc2626;
+  --logo-trim-soft: rgba(220, 38, 38, 0.16);
+  --logo-trim-line: #f3b4b4;
+  --logo-insert: #2563eb;
+  --logo-insert-soft: rgba(37, 99, 235, 0.14);
+  --logo-insert-line: #93b4f5;
+  --logo-insert-shadow: rgba(15, 17, 20, 0.28);
+  --section-view-bg: #f6f6f4;
+  --placement-mark-soft: rgba(242, 97, 34, 0.1);
+  --placement-mark-faint: rgba(242, 97, 34, 0.05);
+  --placement-mark-ring: rgba(242, 97, 34, 0.18);
+  --placement-mark-ring-far: rgba(242, 97, 34, 0.08);
+  --placement-done: #16a34a;
+  --placement-done-text: #15803d;
+  --placement-done-soft: rgba(22, 163, 74, 0.1);
+  --placement-done-line: rgba(22, 163, 74, 0.35);
+  --placement-doubt: #eab308;
+  --placement-warn: #a16207;
+  --placement-expired: #b42318;
+  --logo-percent-dot: #e11d2e;
+  --logo-warning-bg: #fff4e5;
+  --logo-warning-tx: #7a4a00;
+  --logo-modo: #1e6b47;
+  --logo-note: #9a4b00;
+  --logo-color-ring: rgba(0, 0, 0, 0.18);
+  --logo-suggest-line: #e5c07b;
+  --logo-suggest-tx: #8a5a00;
+  --logo-suggest-hover: #fff6dd;
+  --logo-chosen-soft: var(--accent-soft);
+  --promotions-picked-row: var(--accent-soft);
+
   /* Letters. Nothing below 12px, except labels in capitals: 11px. */
   --font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --text-label: 0.6875rem;
+  --text-placement: 22px;
+  --text-finish: 20px;
   --text-xs: 0.75rem;
   --text-sm: 0.78rem;
   --text-md: 0.8rem;
@@ -238,6 +288,9 @@ html.dark {
   --text-panel: 0.7rem;
   --text-note: 0.76rem;
   --text-menu: 0.8125rem;
+  --text-logos: 0.9375rem;
+  --text-zoom: 1.1rem;
+  --text-input: 0.875rem;
   --text-phone: 1rem;
   --text-dialog: 0.95rem;
   --text-title: 1rem;
@@ -483,6 +536,18 @@ html.dark {
   --switcher-role-bg: transparent;
   --danger: #ff8a80;
   --danger-soft: #3a1c1c;
+
+  --load-problem-button: #3a1f1f;
+  --logo-suggest-tx: #f0c674;
+  --logo-chosen-soft: rgba(242, 97, 34, 0.12);
+  --promotions-picked-row: rgba(242, 97, 34, 0.14);
+  --placement-warn: #facc15;
+  --placement-expired: #ff8a80;
+  --logo-warning-bg: #3a2e1a;
+  --logo-warning-tx: #ffd08a;
+  --logo-modo: #8fd6b0;
+  --logo-note: #f0b46b;
+  --logo-color-ring: rgba(255, 255, 255, 0.4);
 
   --raised: #22262c;
   --raised-line: #333840;

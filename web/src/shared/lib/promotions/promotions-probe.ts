@@ -12,14 +12,20 @@ import {
   type PromotionZone,
   supermarketIndexOf,
 } from "@/shared/domain/promotions/index.ts";
+import type { Backend } from "@/shared/supabase/index.ts";
 import {
   type PromotionCatalog,
   PROMOTION_CATALOG_QUERY_KEY,
   shownPromotions,
-} from "@/shared/lib/promotions/catalog-query.ts";
-import { idsOfLocality } from "@/shared/lib/promotions/promotions-edge.ts";
-import type { Backend } from "@/shared/supabase/index.ts";
-import type { PromotionsState } from "./promotions-state.ts";
+} from "./catalog-query.ts";
+import { idsOfLocality } from "./promotions-edge.ts";
+
+/** What is chosen now, wherever that is chosen. */
+export interface ChosenPlace {
+  readonly province: string;
+  readonly locality: string;
+  readonly localityIds: readonly (string | number)[] | null;
+}
 
 interface PromotionQuery {
   readonly title: string;
@@ -45,7 +51,7 @@ export function promotionsProbe(
   backend: Backend,
   queryClient: QueryClient,
   modo: { readonly read: () => boolean },
-  read: () => PromotionsState,
+  read: () => ChosenPlace,
 ) {
   const catalog = () =>
     shownPromotions(

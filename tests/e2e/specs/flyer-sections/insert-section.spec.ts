@@ -1,7 +1,7 @@
 // Replaces pruebas/t88_insertar_seccion.cjs.
 import { designData, sourcesFile } from "../../support/cloud/designs.ts";
-import { bucketUrl, fixtureFile } from "../../support/cloud/index.ts";
-import { meanDifference } from "../../support/settled.ts";
+import { bucketUrl, type Cloud, fixtureFile } from "../../support/cloud/index.ts";
+import { meanDifference, settled } from "../../support/settled.ts";
 import { expect, test } from "../../support/test.ts";
 
 const SOURCE_IMAGE = "fuente_1.jpg";
@@ -10,13 +10,10 @@ const PLACE_Y = 2400;
 const MARK = { from: 700, to: 1020 };
 const SNAP_MARGIN = 100;
 const GAP_MARGIN = 160;
-const SECOND_CUT = { y: 700, height: 200 };
+const SECOND_CUT = { y: 669, height: 340 };
 const PROPOSED = "Gastronomía Córdoba";
 
-test("a section copied from another flyer goes in, travels to Estudio and is proposed", async ({
-  cloud,
-  openApp,
-}) => {
+function publishSource(cloud: Cloud): void {
   cloud.bucketBinaries[SOURCE_IMAGE] = fixtureFile("op9.jpg");
   cloud.bucketJson["_fuentes.json"] = {
     lista: [
@@ -32,129 +29,220 @@ test("a section copied from another flyer goes in, travels to Estudio and is pro
       },
     ],
   };
+}
+
+test(
+  "a section copied from another flyer goes in",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    publishSource(cloud);
+    const app = await openApp({ user: "asesor" });
+    const sections = app.flyerSections;
+    const wholeHeight = (await sections.cropStatus()).artworkHeight;
+    const wholeDownload = await sections.downloadHeight();
+    const above = await sections.downloadBandSample(560, 120);
+    const foot = await sections.downloadBandSample(wholeDownload - 300, 250);
+    await app.logoEditor.enter();
+    expect.soft(await sections.insertButtonVisible(), '"Insertar" is beside Recortar').toBe(true);
+
+    const section = await test.step("the section is marked in the window", async () => {
+      // The window: the only flyer is chosen by itself; the section is marked
+      await sections.openInsertPicker();
+      expect
+        .soft(await sections.copyEnabled(), '"Copiar esta sección" waits for a mark')
+        .toBe(false);
+      await sections.markSectionToCopy(MARK.from, MARK.to);
+      expect.soft(await sections.copyEnabled(), "on letting go it can be copied").toBe(true);
+      expect.soft(await sections.sectionMarkVisible(), "with the band marked").toBe(true);
+      await sections.copyMarkedSection();
+      const copying = await sections.insertStatus();
+      expect.soft(copying.placing, "it goes on to placing").toBe(true);
+      expect.soft(copying.pickerOpen, "the window closes").toBe(false);
+      expect.soft(copying.buttonLabel, "and the button can cancel").toBe("Cancelar inserción");
+      const copied = copying.section ?? { y: 0, height: 0, width: 0 };
+      expect
+        .soft(Math.abs(copied.y - MARK.from), "it copies from near the mark")
+        .toBeLessThanOrEqual(SNAP_MARGIN);
+      expect
+        .soft(Math.abs(copied.y + copied.height - MARK.to), "until near its end")
+        .toBeLessThanOrEqual(SNAP_MARGIN);
+      expect
+        .soft(
+          await sections.copiedSectionFitsItsBlock(),
+          "the exact block, without its blank margins",
+        )
+        .toBe(true);
+      return copied;
+    });
+
+    const placed = await test.step("it is placed where the line is", async () => {
+      // Placing: the line follows the mouse; a click inserts
+      await sections.hoverForPlacement(PLACE_Y);
+      expect.soft(await sections.placementLineVisible(), 'the line "Va acá" appears').toBe(true);
+      await sections.clickToPlace(PLACE_Y);
+      const inserted = await sections.cropStatus();
+      const cut = inserted.cuts[0];
+      const height = cut?.height ?? 0;
+      const padding = cut?.inserted?.padding ?? 0;
+      const y = cut?.y ?? 0;
+      expect.soft(inserted.active, "it is on").toBe(true);
+      expect.soft(cut?.inserted, "as an inserted section").toBeTruthy();
+      expect.soft(inserted.artworkHeight, "the image grows that much").toBe(wholeHeight + height);
+      expect
+        .soft(height, "the section plus the space above and below")
+        .toBe(section.height + 2 * padding);
+      expect.soft(padding, "with space on it").toBeGreaterThan(5);
+      const space = await sections.spaceAroundFirstInsertion();
+      expect
+        .soft(Math.abs(space.above - space.below), "the space above and below is even")
+        .toBeLessThanOrEqual(3);
+      expect
+        .soft(Math.abs(y - PLACE_Y), "it enters at the closest gap to the mouse")
+        .toBeLessThanOrEqual(GAP_MARGIN);
+      expect.soft(await sections.isGapInWholeFlyer(y), "without splitting a card").toBe(true);
+      return { y, height, padding, sourceY: cut?.inserted?.y ?? 0 };
+    });
+
+    await test.step("placing ends and the rest of the flyer moves down", async () => {
+      const { height, padding, y: cutY, sourceY } = placed;
+      const status = await sections.insertStatus();
+      expect.soft(status.placing, "placing ends").toBe(false);
+      expect.soft(status.lineOnPage, "and the line goes away").toBe(false);
+      const grownDownload = await sections.downloadHeight();
+      expect.soft(grownDownload, "the download grows that much").toBe(wholeDownload + height);
+      expect
+        .soft(
+          meanDifference(above, await sections.downloadBandSample(560, 120)),
+          "what is above stays the same",
+        )
+        .toBeLessThan(1);
+      expect
+        .soft(
+          meanDifference(foot, await sections.downloadBandSample(grownDownload - 300, 250)),
+          "officers and legal text go down together: the foot is identical",
+        )
+        .toBeLessThan(1);
+      // The section is the one of the other flyer (here it is the same file): the middle is identical.
+      const middleRows = Math.max(10, height - 2 * padding - 40);
+      expect
+        .soft(
+          meanDifference(
+            await sections.downloadBandSample(cutY + padding + 20, middleRows),
+            await sections.sourceSectionSample(sourceY + 20, middleRows),
+          ),
+          "the section looks as in its flyer",
+        )
+        .toBeLessThan(2);
+      expect
+        .soft(await sections.cropSign(), 'the sign says "Insertado: 1 sección"')
+        .toContain("Insertado: 1 sección");
+    });
+
+    await test.step("it can be undone and redone", async () => {
+      // Deshacer / Rehacer
+      await sections.pressUndo();
+      expect
+        .soft((await sections.cropStatus()).artworkHeight, "Deshacer takes it out")
+        .toBe(wholeHeight);
+      await sections.pressRedo();
+      expect
+        .soft((await sections.cropStatus()).artworkHeight, "Rehacer puts it back")
+        .toBe(wholeHeight + placed.height);
+    });
+
+    await test.step("it lives with a crop", async () => {
+      // Cropping after inserting: both steps live together
+      await sections.removeBand(SECOND_CUT.y, SECOND_CUT.height);
+      expect
+        .soft((await sections.cropStatus()).artworkHeight, "insert and crop on one flyer")
+        .toBe(wholeHeight + placed.height - SECOND_CUT.height);
+      expect.soft(await sections.cropSign(), "the sign tells both").toContain("Recortado: 1 parte");
+    });
+
+    await test.step("what was copied is offered again", async () => {
+      // "Copiadas hace poco"
+      await sections.pressShortcut("i");
+      await sections.waitForRecentSection();
+      await sections.pickRecentSection();
+      expect
+        .soft((await sections.insertStatus()).placing, "touching a recent one goes to place it")
+        .toBe(true);
+      await sections.pressShortcut("i");
+      const cancelled = await sections.insertStatus();
+      expect.soft(cancelled.placing, "the key I again cancels").toBe(false);
+      expect.soft(cancelled.lineOnPage, "with no line left").toBe(false);
+      await sections.pressShortcut("r");
+      expect
+        .soft(await sections.isMarkingCrop(), "the other letters still work (R = Recortar)")
+        .toBe(true);
+      await sections.pressShortcut("r");
+    });
+
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);
+
+test(
+  "a recovered draft with a section brings its image before opening",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    publishSource(cloud);
+    const app = await openApp({ user: "asesor" });
+    const sections = app.flyerSections;
+    const wholeHeight = (await sections.cropStatus()).artworkHeight;
+    await app.logoEditor.enter();
+    await sections.waitForDraftsReviewed();
+    await sections.openInsertPicker();
+    await sections.markSectionToCopy(MARK.from, MARK.to);
+    await sections.copyMarkedSection();
+    await sections.hoverForPlacement(PLACE_Y);
+    await sections.clickToPlace(PLACE_Y);
+    const grown = (await sections.cropStatus()).artworkHeight;
+    await settled(async () => (await sections.savedDrafts()).drafts.length === 1);
+    const stored = await sections.savedDrafts();
+    await app.close();
+
+    const back = await openApp({
+      user: "asesor",
+      localStorage: { [stored.key]: stored.value ?? "" },
+    });
+    await back.page
+      .getByRole("dialog", { name: /Borradores de la última vez/ })
+      .getByRole("button", { name: "Recuperar" })
+      .click();
+    expect
+      .soft((await back.flyerSections.cropStatus()).artworkHeight, "the original stays whole")
+      .toBe(wholeHeight);
+    await back.flyerSections.selectOpenTab(0);
+    expect
+      .soft((await back.flyerSections.cropStatus()).artworkHeight, "the draft has its section")
+      .toBe(grown);
+    expect
+      .soft(await back.flyerSections.sectionsMissingImage(), "its image came down first")
+      .toBe(0);
+    expect.soft(back.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);
+
+test("a section travels to Estudio, and a flyer is proposed and approved", async ({
+  cloud,
+  openApp,
+}) => {
+  publishSource(cloud);
   const findProposal = () => cloud.designs.find(({ tipo }) => tipo === "fuente");
   const app = await openApp({ user: "asesor" });
   const sections = app.flyerSections;
   await app.flyerEditor.fillCompanyName("ACME S.A.");
   await app.page.waitForTimeout(300);
   const wholeHeight = (await sections.cropStatus()).artworkHeight;
-  const wholeDownload = await sections.downloadHeight();
-  const above = await sections.downloadBandSample(560, 120);
-  const foot = await sections.downloadBandSample(wholeDownload - 300, 250);
   await app.logoEditor.enter();
-  expect.soft(await sections.insertButtonVisible(), '"Insertar" is beside Recortar').toBe(true);
-
-  const section = await test.step("the section is marked in the window", async () => {
-    // The window: the only flyer is chosen by itself; the section is marked
-    await sections.openInsertPicker();
-    expect.soft(await sections.copyEnabled(), '"Copiar esta sección" waits for a mark').toBe(false);
-    await sections.markSectionToCopy(MARK.from, MARK.to);
-    expect.soft(await sections.copyEnabled(), "on letting go it can be copied").toBe(true);
-    expect.soft(await sections.sectionMarkVisible(), "with the band marked").toBe(true);
-    await sections.copyMarkedSection();
-    const copying = await sections.insertStatus();
-    expect.soft(copying.placing, "it goes on to placing").toBe(true);
-    expect.soft(copying.pickerOpen, "the window closes").toBe(false);
-    expect.soft(copying.buttonLabel, "and the button can cancel").toBe("Cancelar inserción");
-    const copied = copying.section ?? { y: 0, height: 0, width: 0 };
-    expect
-      .soft(Math.abs(copied.y - MARK.from), "it copies from near the mark")
-      .toBeLessThanOrEqual(SNAP_MARGIN);
-    expect
-      .soft(Math.abs(copied.y + copied.height - MARK.to), "until near its end")
-      .toBeLessThanOrEqual(SNAP_MARGIN);
-    expect
-      .soft(
-        await sections.copiedSectionFitsItsBlock(),
-        "the exact block, without its blank margins",
-      )
-      .toBe(true);
-    return copied;
-  });
-
-  const placed = await test.step("it is placed where the line is", async () => {
-    // Placing: the line follows the mouse; a click inserts
-    await sections.hoverForPlacement(PLACE_Y);
-    expect.soft(await sections.placementLineVisible(), 'the line "Va acá" appears').toBe(true);
-    await sections.clickToPlace(PLACE_Y);
-    const inserted = await sections.cropStatus();
-    const cut = inserted.cuts[0];
-    const height = cut?.height ?? 0;
-    const padding = cut?.inserted?.padding ?? 0;
-    const y = cut?.y ?? 0;
-    expect.soft(inserted.active, "it is on").toBe(true);
-    expect.soft(cut?.inserted, "as an inserted section").toBeTruthy();
-    expect.soft(inserted.artworkHeight, "the image grows that much").toBe(wholeHeight + height);
-    expect
-      .soft(height, "the section plus the space above and below")
-      .toBe(section.height + 2 * padding);
-    expect.soft(padding, "with space on it").toBeGreaterThan(5);
-    const space = await sections.spaceAroundFirstInsertion();
-    expect
-      .soft(Math.abs(space.above - space.below), "the space above and below is even")
-      .toBeLessThanOrEqual(3);
-    expect
-      .soft(Math.abs(y - PLACE_Y), "it enters at the closest gap to the mouse")
-      .toBeLessThanOrEqual(GAP_MARGIN);
-    expect.soft(await sections.isGapInWholeFlyer(y), "without splitting a card").toBe(true);
-    return { y, height, padding, sourceY: cut?.inserted?.y ?? 0 };
-  });
-
-  await test.step("placing ends and the rest of the flyer moves down", async () => {
-    const { height, padding, y: cutY, sourceY } = placed;
-    const status = await sections.insertStatus();
-    expect.soft(status.placing, "placing ends").toBe(false);
-    expect.soft(status.lineOnPage, "and the line goes away").toBe(false);
-    const grownDownload = await sections.downloadHeight();
-    expect.soft(grownDownload, "the download grows that much").toBe(wholeDownload + height);
-    expect
-      .soft(
-        meanDifference(above, await sections.downloadBandSample(560, 120)),
-        "what is above stays the same",
-      )
-      .toBeLessThan(1);
-    expect
-      .soft(
-        meanDifference(foot, await sections.downloadBandSample(grownDownload - 300, 250)),
-        "officers and legal text go down together: the foot is identical",
-      )
-      .toBeLessThan(1);
-    // The section is the one of the other flyer (here it is the same file): the middle is identical.
-    const middleRows = Math.max(10, height - 2 * padding - 40);
-    expect
-      .soft(
-        meanDifference(
-          await sections.downloadBandSample(cutY + padding + 20, middleRows),
-          await sections.sourceSectionSample(sourceY + 20, middleRows),
-        ),
-        "the section looks as in its flyer",
-      )
-      .toBeLessThan(2);
-    expect
-      .soft(await sections.cropSign(), 'the sign says "Insertado: 1 sección"')
-      .toContain("Insertado: 1 sección");
-  });
-
-  await test.step("it can be undone and redone", async () => {
-    // Deshacer / Rehacer
-    await sections.pressUndo();
-    expect
-      .soft((await sections.cropStatus()).artworkHeight, "Deshacer takes it out")
-      .toBe(wholeHeight);
-    await sections.pressRedo();
-    expect
-      .soft((await sections.cropStatus()).artworkHeight, "Rehacer puts it back")
-      .toBe(wholeHeight + placed.height);
-  });
-
-  await test.step("it lives with a crop", async () => {
-    // Cropping after inserting: both steps live together
-    await sections.removeBand(SECOND_CUT.y, SECOND_CUT.height);
-    expect
-      .soft((await sections.cropStatus()).artworkHeight, "insert and crop on one flyer")
-      .toBe(wholeHeight + placed.height - SECOND_CUT.height);
-    expect.soft(await sections.cropSign(), "the sign tells both").toContain("Recortado: 1 parte");
-  });
+  await sections.openInsertPicker();
+  await sections.markSectionToCopy(MARK.from, MARK.to);
+  await sections.copyMarkedSection();
+  await sections.hoverForPlacement(PLACE_Y);
+  await sections.clickToPlace(PLACE_Y);
+  const placed = { height: (await sections.cropStatus()).cuts[0]?.height ?? 0 };
+  await sections.removeBand(SECOND_CUT.y, SECOND_CUT.height);
 
   await test.step("Estudio keeps it and brings its image", async () => {
     // Estudio: it is saved and, opened with the image not in memory, downloaded by itself
@@ -174,25 +262,6 @@ test("a section copied from another flyer goes in, travels to Estudio and is pro
       .soft(reopened.artworkHeight, "with the section")
       .toBe(wholeHeight + placed.height - SECOND_CUT.height);
     expect.soft(await sections.sectionsMissingImage(), "its image came down first").toBe(0);
-  });
-
-  await test.step("what was copied is offered again", async () => {
-    // "Copiadas hace poco"
-    await sections.pressShortcut("i");
-    await sections.waitForRecentSection();
-    await sections.pickRecentSection();
-    expect
-      .soft((await sections.insertStatus()).placing, "touching a recent one goes to place it")
-      .toBe(true);
-    await sections.pressShortcut("i");
-    const cancelled = await sections.insertStatus();
-    expect.soft(cancelled.placing, "the key I again cancels").toBe(false);
-    expect.soft(cancelled.lineOnPage, "with no line left").toBe(false);
-    await sections.pressShortcut("r");
-    expect
-      .soft(await sections.isMarkingCrop(), "the other letters still work (R = Recortar)")
-      .toBe(true);
-    await sections.pressShortcut("r");
   });
 
   await test.step("an advisor proposes a flyer", async () => {

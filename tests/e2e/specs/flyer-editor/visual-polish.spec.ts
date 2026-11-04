@@ -79,21 +79,25 @@ test("dark mode: the chosen flyer reads and Promociones logos stay on white", as
   expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
 });
 
-test("Cambiar logos does not open on a flyer that did not load", async ({ openApp }) => {
-  const app = await openApp({ user: "admin" });
-  const { flyerEditor, session } = app;
+test(
+  "Cambiar logos does not open on a flyer that did not load",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    const { flyerEditor, session } = app;
 
-  // Option 1 has no flyer.
-  await flyerEditor.selectOption(1);
-  await flyerEditor.waitForLoadProblem();
-  expect.soft(await session.logoEditorOpens(), "it does not open with the notice on").toBe(false);
+    // Option 1 has no flyer.
+    await flyerEditor.selectOption(1);
+    await flyerEditor.waitForLoadProblem();
+    expect.soft(await session.logoEditorOpens(), "it does not open with the notice on").toBe(false);
 
-  await flyerEditor.selectOption(9);
-  await flyerEditor.waitForOptionShown(9);
-  expect
-    .soft(await session.logoEditorOpens(), "with the flyer loaded it opens as always")
-    .toBe(true);
-});
+    await flyerEditor.selectOption(9);
+    await flyerEditor.waitForOptionShown(9);
+    expect
+      .soft(await session.logoEditorOpens(), "with the flyer loaded it opens as always")
+      .toBe(true);
+  },
+);
 
 test("Promociones → Activas shows what each gives, and cards on a phone", async ({ openApp }) => {
   const app = await openApp({ user: "admin" });

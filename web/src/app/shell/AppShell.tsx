@@ -16,6 +16,7 @@ import type { MenuRules } from "../registry/view-rules.ts";
 import { ADMIN_WINDOW, type MenuWindow, NOTICE_SOURCES, SEARCH_WINDOW } from "../registry/views.ts";
 import { AppHeader } from "./AppHeader.tsx";
 import { LoadBoundary } from "./LoadBoundary.tsx";
+import { PromotionPickingHost } from "./PromotionPickingHost.tsx";
 import { useWaitingNotices } from "./use-waiting-notices.tsx";
 import { ViewHost } from "./ViewHost.tsx";
 import styles from "./AppShell.module.css";
@@ -97,7 +98,9 @@ export function AppShell({
         onOpenSearch={showSearch}
         onOpenAdmin={showAdmin}
       />
-      <ViewHost activeId={activeId} />
+      <PromotionPickingHost activeId={activeId} goTo={setChosen}>
+        <ViewHost activeId={activeId} />
+      </PromotionPickingHost>
       {Window && (
         <LoadBoundary
           key={openWindow.id}

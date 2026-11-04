@@ -91,6 +91,13 @@
   border-top: 1px solid var(--window-line);
 }
 
+.dialog {
+  z-index: 200000;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+  background: var(--dialog-ov);
+}
+
 .account {
   z-index: 1200;
   padding: 0;

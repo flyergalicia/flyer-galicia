@@ -59,7 +59,7 @@ export interface PromotionsActions {
   readonly setLocality: (value: string) => void;
   readonly setCategory: (value: string) => void;
   readonly validate: () => Promise<void>;
-  readonly listActive: () => Promise<void>;
+  readonly listActive: (noProvinceNotice?: string) => Promise<void>;
   /** The main action of the tab, unless it is already working. */
   readonly runMainAction: () => void;
   /** MODO went in or out of what can be seen: what is on the table is made again. */
@@ -153,11 +153,11 @@ export function createPromotionsActions(deps: PromotionsDependencies): Promotion
     dispatch({ type: "locality", value: "" });
   };
 
-  const listActive = async (): Promise<void> => {
+  const listActive = async (noProvinceNotice?: string): Promise<void> => {
     const state = read();
     if (state.tab !== "active") switchTab("active");
     if (!state.province) {
-      toast.show("Elegí una provincia para ver sus promociones");
+      toast.show(noProvinceNotice ?? "Elegí una provincia para ver sus promociones");
       return;
     }
     if (shownNow().length === 0) {
