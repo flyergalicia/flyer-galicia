@@ -33,10 +33,18 @@ type ModalProps = {
   readonly onClose: () => void;
   readonly size?: ModalSize;
   readonly look?: ModalLook;
+  /** A window with work in progress only closes with its X or with Escape. */
+  readonly closeOnBackdrop?: boolean;
   readonly children: ReactNode;
 };
 
-export function ModalRoot({ onClose, size = "regular", look = "window", children }: ModalProps) {
+export function ModalRoot({
+  onClose,
+  size = "regular",
+  look = "window",
+  closeOnBackdrop = true,
+  children,
+}: ModalProps) {
   const titleId = useId();
   const panel = useRef<HTMLDialogElement>(null);
   useDialog(panel, onClose);
@@ -47,7 +55,9 @@ export function ModalRoot({ onClose, size = "regular", look = "window", children
     pressedBackdrop.current = event.target === event.currentTarget;
   };
   const onClick = (event: MouseEvent) => {
-    if (pressedBackdrop.current && event.target === event.currentTarget) onClose();
+    if (closeOnBackdrop && pressedBackdrop.current && event.target === event.currentTarget) {
+      onClose();
+    }
   };
   return createPortal(
     <ModalContext.Provider value={context}>

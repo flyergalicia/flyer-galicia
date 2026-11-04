@@ -27,13 +27,13 @@ export function ToastProvider({ children }: { readonly children: ReactNode }) {
 
   const actions = useMemo<ToastActions>(
     () => ({
-      show: (text) => {
+      show: (text, durationMs = TOAST_MS) => {
         current.current = text;
         setNotice({ text, visible: true });
         clearTimeout(timer.current);
         timer.current = setTimeout(() => {
           setNotice({ text, visible: false });
-        }, TOAST_MS);
+        }, durationMs);
       },
       hide: (text) => {
         if (current.current !== text) return;

@@ -1,4 +1,5 @@
 import { type Page } from "@playwright/test";
+import { type CompanyRegistryDriver } from "../company-registry.ts";
 import { type PromotionsDriver } from "../promotions.ts";
 import { type Appearance, type ReferenceScreen, type ScreensDriver } from "../screens.ts";
 import { type SessionDriver } from "../session.ts";
@@ -63,7 +64,12 @@ async function applyAppearance(
   );
 }
 
-function openers(page: Page, session: SessionDriver, promotions: PromotionsDriver) {
+function openers(
+  page: Page,
+  session: SessionDriver,
+  promotions: PromotionsDriver,
+  companyRegistry: CompanyRegistryDriver,
+) {
   const ready: Partial<Record<ReferenceScreen, () => Promise<void>>> = {
     login: () =>
       page.getByRole("heading", { name: "Flyer Galicia", level: 1 }).waitFor({ timeout: WAIT_MS }),
@@ -72,6 +78,14 @@ function openers(page: Page, session: SessionDriver, promotions: PromotionsDrive
       await promotions.open("active");
       await promotions.chooseProvince("promotions", "CAPITAL FEDERAL");
       await promotions.listActive();
+    },
+    "database-companies": async () => {
+      await companyRegistry.openRegistry();
+      await companyRegistry.chooseDatabaseTab("Mis empresas");
+    },
+    "database-advisors": async () => {
+      await companyRegistry.openRegistry();
+      await companyRegistry.chooseDatabaseTab("Mis asesores");
     },
     "promotions-search": async () => {
       await promotions.open("search");
@@ -93,8 +107,9 @@ export function createReactScreensDriver(
   page: Page,
   session: SessionDriver,
   promotions: PromotionsDriver,
+  companyRegistry: CompanyRegistryDriver,
 ): ScreensDriver {
-  const open = openers(page, session, promotions);
+  const open = openers(page, session, promotions, companyRegistry);
   return {
     open: async (screen) => {
       const opener = open[screen];

@@ -26,6 +26,7 @@ import { createLegacyScreensDriver } from "./legacy/screens.ts";
 import { createLegacySearchDriver } from "./legacy/search.ts";
 import { createLegacySessionDriver } from "./legacy/session.ts";
 import { createLegacyStudioDriver } from "./legacy/studio.ts";
+import { createReactCompanyRegistryDriver } from "./react/company-registry.ts";
 import { createReactFlyerEditorDriver } from "./react/flyer-editor.ts";
 import { partialDriver } from "./react/pending.ts";
 import { createReactPromotionsDriver } from "./react/promotions.ts";
@@ -74,6 +75,7 @@ export interface AppDriver {
 function createReactAppDriver(page: Page): AppDriver {
   const session = createReactSessionDriver(page);
   const promotions = createReactPromotionsDriver(page);
+  const companyRegistry = createReactCompanyRegistryDriver(page);
   return {
     page,
     session,
@@ -88,13 +90,13 @@ function createReactAppDriver(page: Page): AppDriver {
     flyerSections: partialDriver("flyerSections"),
     savedBrands: partialDriver("savedBrands"),
     promotions,
-    companyRegistry: partialDriver("companyRegistry"),
+    companyRegistry,
     studio: partialDriver("studio"),
     commercialActions: partialDriver("commercialActions"),
     benchmark: partialDriver("benchmark"),
     admin: partialDriver("admin"),
     search: partialDriver("search"),
-    screens: createReactScreensDriver(page, session, promotions),
+    screens: createReactScreensDriver(page, session, promotions, companyRegistry),
   };
 }
 

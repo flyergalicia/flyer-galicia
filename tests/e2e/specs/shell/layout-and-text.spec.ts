@@ -166,21 +166,30 @@ test.describe("reading", () => {
     });
   }
 
-  test('no screen says "padrón": for the user it is "empresas"', async ({ cloud, openApp }) => {
+  test(
+    'no screen says "padrón": for the user it is "empresas"',
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.setPermissions("asesor", { padron_buscar: true, asesores_guardados: true });
+      const app = await openApp();
+      expect.soft(await app.session.visibleText()).not.toMatch(/padr[oó]n/i);
+
+      await app.companyRegistry.openRegistry();
+      expect.soft(await app.session.visibleText(), "Base de datos").not.toMatch(/padr[oó]n/i);
+      await app.companyRegistry.closeRegistry();
+
+      const sheet = await app.companyRegistry.templateName();
+      expect.soft(sheet, "and neither the name of what it downloads").not.toMatch(/padr[oó]n/i);
+    },
+  );
+
+  test('the search does not say "padrón" either', async ({ cloud, openApp }) => {
     cloud.setPermissions("asesor", { padron_buscar: true, asesores_guardados: true });
     const app = await openApp();
-    expect.soft(await app.session.visibleText()).not.toMatch(/padr[oó]n/i);
-
-    await app.companyRegistry.openRegistry();
-    expect.soft(await app.session.visibleText(), "Base de datos").not.toMatch(/padr[oó]n/i);
-    await app.companyRegistry.closeRegistry();
 
     await app.companyRegistry.openSearch();
     expect.soft(await app.session.visibleText(), "the search").not.toMatch(/padr[oó]n/i);
     await app.companyRegistry.closeSearch();
-
-    const sheet = await app.companyRegistry.templateName();
-    expect.soft(sheet, "and neither the name of what it downloads").not.toMatch(/padr[oó]n/i);
   });
 });
 

@@ -92,6 +92,30 @@ test.describe("a substitute reaches the companies of the one who chose them", ()
     await companyRegistry.hideGenerator();
   });
 
+  test(
+    "Generar flyers and what is saved are only one's own",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      setUpSubstitute(cloud);
+      const { companyRegistry } = await openApp({ user: "admin" });
+      await companyRegistry.openRegistry();
+      await companyRegistry.waitForCompaniesLoaded(OWN_COMPANIES.length);
+
+      await companyRegistry.showGenerator();
+      expect.soft(await companyRegistry.generatorRowCount()).toBe(OWN_COMPANIES.length);
+      await companyRegistry.hideGenerator();
+
+      await companyRegistry.openInlineEditor();
+      await companyRegistry.saveInlineEditor();
+      expect
+        .soft(
+          cloud.companyReplaceRows[0]?.map(({ empresa }) => empresa),
+          "they never join one's own",
+        )
+        .toEqual(OWN_COMPANIES.map(({ empresa }) => empresa));
+    },
+  );
+
   test("a change on a company of the owner is requested, never saved", async ({
     cloud,
     openApp,
@@ -188,56 +212,59 @@ test.describe("a substitute reaches the companies of the one who chose them", ()
     await companyRegistry.closeSearch();
   });
 
-  test("the owner sees the request of the substitute with its cashback", async ({
-    cloud,
-    openApp,
-  }) => {
-    setUpSubstitute(cloud);
-    const app = await openApp({ user: "admin" });
-    const createdAt = new Date().toISOString();
-    cloud.companyProposals = [
-      {
-        id: "a1",
-        empresa: "DELTA FOODS SRL",
-        estado: "pendiente",
-        origen: "suplente",
-        creada_por: "x1",
-        creada_por_nombre: "Admin Prueba",
-        dueno_id: "yo",
-        created_at: createdAt,
-        asesores_antes: [{ nombre: OWNER_NAME, celular: "11 5555 0000", email: "" }],
-        asesores: [{ nombre: OWNER_NAME, celular: "11 5555 0000", email: "" }],
-        config_antes: "BAU",
-        config: "",
-        rubro_antes: null,
-        rubro: null,
-      },
-      {
-        id: "a2",
-        empresa: "OTRA SA",
-        estado: "pendiente",
-        origen: "hunter",
-        creada_por: "x2",
-        creada_por_nombre: "Hunter Uno",
-        dueno_id: "yo",
-        created_at: createdAt,
-        asesores_antes: [{ nombre: "Ana", celular: "", email: "" }],
-        asesores: [{ nombre: "Beto", celular: "", email: "" }],
-      },
-    ];
+  test(
+    "the owner sees the request of the substitute with its cashback",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      setUpSubstitute(cloud);
+      const app = await openApp({ user: "admin" });
+      const createdAt = new Date().toISOString();
+      cloud.companyProposals = [
+        {
+          id: "a1",
+          empresa: "DELTA FOODS SRL",
+          estado: "pendiente",
+          origen: "suplente",
+          creada_por: "x1",
+          creada_por_nombre: "Admin Prueba",
+          dueno_id: "yo",
+          created_at: createdAt,
+          asesores_antes: [{ nombre: OWNER_NAME, celular: "11 5555 0000", email: "" }],
+          asesores: [{ nombre: OWNER_NAME, celular: "11 5555 0000", email: "" }],
+          config_antes: "BAU",
+          config: "",
+          rubro_antes: null,
+          rubro: null,
+        },
+        {
+          id: "a2",
+          empresa: "OTRA SA",
+          estado: "pendiente",
+          origen: "hunter",
+          creada_por: "x2",
+          creada_por_nombre: "Hunter Uno",
+          dueno_id: "yo",
+          created_at: createdAt,
+          asesores_antes: [{ nombre: "Ana", celular: "", email: "" }],
+          asesores: [{ nombre: "Beto", celular: "", email: "" }],
+        },
+      ];
 
-    const proposals = await app.companyRegistry.pendingProposals();
+      const proposals = await app.companyRegistry.pendingProposals();
 
-    expect.soft(proposals, "the owner sees both requests").toHaveLength(2);
-    expect
-      .soft(proposals[0]?.text, 'the one of the substitute says "como suplente"')
-      .toMatch(/como suplente/);
-    expect
-      .soft(proposals[0]?.text, "it shows the cashback")
-      .toMatch(/Cashback: BAU → Sin cashback/);
-    expect.soft(proposals[0]?.canAskBack, "and has no Repreguntar").toBe(false);
-    expect.soft(proposals[1]?.canAskBack, "the one of the hunter keeps Repreguntar").toBe(true);
-    expect.soft(proposals[1]?.text, "and says who proposed it").toMatch(/Propuesto por Hunter Uno/);
-    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-  });
+      expect.soft(proposals, "the owner sees both requests").toHaveLength(2);
+      expect
+        .soft(proposals[0]?.text, 'the one of the substitute says "como suplente"')
+        .toMatch(/como suplente/);
+      expect
+        .soft(proposals[0]?.text, "it shows the cashback")
+        .toMatch(/Cashback: BAU → Sin cashback/);
+      expect.soft(proposals[0]?.canAskBack, "and has no Repreguntar").toBe(false);
+      expect.soft(proposals[1]?.canAskBack, "the one of the hunter keeps Repreguntar").toBe(true);
+      expect
+        .soft(proposals[1]?.text, "and says who proposed it")
+        .toMatch(/Propuesto por Hunter Uno/);
+      expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+    },
+  );
 });

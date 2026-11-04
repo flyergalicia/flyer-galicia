@@ -98,4 +98,35 @@ describe("the floating notice", () => {
     await expect(render(<Alone />)).rejects.toThrow(/ToastProvider/);
     vi.restoreAllMocks();
   });
+
+  it("a long notice asks for more time", async () => {
+    const LONG_MS = TOAST_MS * 2;
+    function Long() {
+      const { show } = useToast();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            show("Largo", LONG_MS);
+          }}
+        >
+          largo
+        </button>
+      );
+    }
+    const screen = await render(
+      <ToastProvider>
+        <Long />
+      </ToastProvider>,
+    );
+    vi.useFakeTimers();
+
+    await screen.getByRole("button", { name: "largo" }).click();
+    vi.advanceTimersByTime(TOAST_MS + 100);
+    await expect.element(screen.getByRole("status")).toHaveAttribute("data-visible", "true");
+
+    vi.advanceTimersByTime(TOAST_MS);
+    await expect.element(screen.getByRole("status")).toHaveAttribute("data-visible", "false");
+    vi.useRealTimers();
+  });
 });

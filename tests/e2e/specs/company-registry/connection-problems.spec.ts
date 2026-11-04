@@ -85,31 +85,34 @@ test.describe("a cut in the network is not an empty list", () => {
     await expectSessionIntact(app);
   });
 
-  test("Generar flyers says it could not connect, and Reintentar brings the companies", async ({
-    cloud,
-    openApp,
-  }) => {
-    const app = await openApp({ user: "admin" });
-    const { companyRegistry } = app;
-    companiesAvailable(cloud, false);
+  test(
+    "Generar flyers says it could not connect, and Reintentar brings the companies",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      const app = await openApp({ user: "admin" });
+      const { companyRegistry } = app;
+      companiesAvailable(cloud, false);
 
-    await companyRegistry.forgetCompanies();
-    await companyRegistry.showGeneratorAndLoad();
-    await companyRegistry.waitForConnectionProblem();
+      await companyRegistry.forgetCompanies();
+      await companyRegistry.showGeneratorAndLoad();
+      await companyRegistry.waitForConnectionProblem();
 
-    const text = await companyRegistry.generatorText();
-    expect.soft(text, 'Generar flyers: "No se pudo conectar"').toMatch(COULD_NOT_CONNECT);
-    expect.soft(text, 'Generar flyers: not "Todavía no cargaste"').not.toMatch(NOTHING_LOADED_YET);
+      const text = await companyRegistry.generatorText();
+      expect.soft(text, 'Generar flyers: "No se pudo conectar"').toMatch(COULD_NOT_CONNECT);
+      expect
+        .soft(text, 'Generar flyers: not "Todavía no cargaste"')
+        .not.toMatch(NOTHING_LOADED_YET);
 
-    companiesAvailable(cloud, true);
-    await companyRegistry.retryConnection();
-    await companyRegistry.waitForCompaniesLoaded(COMPANIES.length);
+      companiesAvailable(cloud, true);
+      await companyRegistry.retryConnection();
+      await companyRegistry.waitForCompaniesLoaded(COMPANIES.length);
 
-    expect
-      .soft(await companyRegistry.generatorRowCount(), "after Reintentar both companies appear")
-      .toBe(COMPANIES.length);
-    await expectSessionIntact(app);
-  });
+      expect
+        .soft(await companyRegistry.generatorRowCount(), "after Reintentar both companies appear")
+        .toBe(COMPANIES.length);
+      await expectSessionIntact(app);
+    },
+  );
 
   test("the Hunter list says it could not connect and does not keep it as empty", async ({
     cloud,

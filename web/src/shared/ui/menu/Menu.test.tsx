@@ -95,4 +95,27 @@ describe("Menu", () => {
     );
     quiet.mockRestore();
   });
+
+  it("an item carries how many things wait there, and with none it shows nothing", async () => {
+    const screen = await render(
+      <Menu defaultOpen>
+        <Menu.Trigger label="Tu cuenta">AP</Menu.Trigger>
+        <Menu.List label="Opciones">
+          <Menu.Item count={3} onSelect={noop}>
+            Con número
+          </Menu.Item>
+          <Menu.Item count={0} onSelect={noop}>
+            Sin número
+          </Menu.Item>
+        </Menu.List>
+      </Menu>,
+    );
+
+    await expect
+      .element(screen.getByRole("menuitem", { name: /^Con número/ }))
+      .toHaveTextContent("Con número3");
+    await expect
+      .element(screen.getByRole("menuitem", { name: "Sin número" }))
+      .toHaveTextContent("Sin número");
+  });
 });

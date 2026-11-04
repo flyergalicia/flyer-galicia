@@ -12,6 +12,8 @@ export interface ViewRules {
 
 export interface MenuRules extends ViewRules {
   readonly isAdminNow: boolean;
+  /** How many things a source of notices says are waiting. */
+  readonly waiting: (source: string) => number;
 }
 
 /** The tabs of the flyer editor that are not the main one exist if an option of them is on. */

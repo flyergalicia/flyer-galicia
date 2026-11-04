@@ -387,27 +387,28 @@ test.describe("the officer who owns the company", () => {
     ["Repreguntar", "padron_propuesta_consultar", /Consulta enviada/],
   ] as const;
   for (const [button, rpc, notice] of answers) {
-    test(`${button} goes through its request and does not rewrite the list`, async ({
-      cloud,
-      openApp,
-    }) => {
-      cloud.companies = [company("ACME SA", { user_id: PROPOSAL.dueno_id })];
-      cloud.companyProposals = [PROPOSAL];
-      cloud.setPermissions("asesor", { padron_buscar: true });
-      const app = await openApp();
-      const calls: string[] = [];
-      app.page.on("request", (request) => {
-        if (request.url().includes("/rpc/")) calls.push(new URL(request.url()).pathname);
-      });
+    test(
+      `${button} goes through its request and does not rewrite the list`,
+      { tag: "@react" },
+      async ({ cloud, openApp }) => {
+        cloud.companies = [company("ACME SA", { user_id: PROPOSAL.dueno_id })];
+        cloud.companyProposals = [PROPOSAL];
+        cloud.setPermissions("asesor", { padron_buscar: true });
+        const app = await openApp();
+        const calls: string[] = [];
+        app.page.on("request", (request) => {
+          if (request.url().includes("/rpc/")) calls.push(new URL(request.url()).pathname);
+        });
 
-      const cards = await app.companyRegistry.pendingProposals();
-      expect.soft(cards[0]?.canAskBack, "a hunter can be asked back").toBe(true);
-      expect.soft(cards[0]?.text).toMatch(/Propuesto por Hunter Prueba/);
-      await app.companyRegistry.answerProposal(button, "Una aclaración");
+        const cards = await app.companyRegistry.pendingProposals();
+        expect.soft(cards[0]?.canAskBack, "a hunter can be asked back").toBe(true);
+        expect.soft(cards[0]?.text).toMatch(/Propuesto por Hunter Prueba/);
+        await app.companyRegistry.answerProposal(button, "Una aclaración");
 
-      await expect.poll(() => calls.some((call) => call.endsWith(rpc))).toBe(true);
-      await expect.poll(() => app.flyerEditor.latestNotice()).toMatch(notice);
-      expect.soft(cloud.companyReplaceCalls).toBe(0);
-    });
+        await expect.poll(() => calls.some((call) => call.endsWith(rpc))).toBe(true);
+        await expect.poll(() => app.flyerEditor.latestNotice()).toMatch(notice);
+        expect.soft(cloud.companyReplaceCalls).toBe(0);
+      },
+    );
   }
 });

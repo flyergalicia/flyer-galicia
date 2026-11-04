@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { backendPreconnect } from "./scripts/vite/backend-preconnect.ts";
 import { contentSecurityPolicy } from "./scripts/vite/content-security-policy.ts";
+import { verifiedSheetLibraryIntegrity } from "./scripts/vite/sheet-library-integrity.ts";
 import { sourceAlias } from "./scripts/vite/source-alias.ts";
 import { versionManifest } from "./scripts/vite/version-manifest.ts";
 
@@ -13,6 +14,12 @@ export default defineConfig(({ mode }) => {
   return {
     root: WEB_ROOT,
     base: "./",
+    define: {
+      // In development the server may touch the file on its way: the hash is for what is published.
+      SHEET_LIBRARY_HASH: JSON.stringify(
+        mode === "production" ? verifiedSheetLibraryIntegrity() : "",
+      ),
+    },
     plugins: [
       react(),
       contentSecurityPolicy(supabaseOrigin),

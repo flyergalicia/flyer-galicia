@@ -17,9 +17,36 @@ export interface PromotionsProbe {
   modoShownInLocality(province: string, locality: string, cities: readonly string[]): boolean;
 }
 
+export interface CompanyRegistryProbe {
+  ownCompanyCount(): number;
+  companiesFailed(): boolean;
+  editorCategory(row: number): {
+    opcion?: number;
+    txt?: string;
+    importe?: string;
+    importe2?: string;
+  };
+  destinationOption(company: unknown): number;
+  sheetColumns(): readonly string[];
+  exportAndReadBack(companies: unknown): { cells: string[][]; unchanged: boolean[] };
+  capsOfSheetRow(cells: Record<string, string>): {
+    opcion?: number;
+    txt?: string;
+    importe?: string;
+    importe2?: string;
+  };
+  validateSheet(rows: readonly { cells: Record<string, string>; readerRow?: number }[]): {
+    firstCompanyCap: string;
+    problems: string[];
+  };
+}
+
 declare global {
   interface Window {
     // Registered by each screen when it is opened.
-    __flyerProbe?: { readonly promotions?: () => PromotionsProbe };
+    __flyerProbe?: {
+      readonly promotions?: () => PromotionsProbe;
+      readonly companyRegistry?: () => CompanyRegistryProbe;
+    };
   }
 }

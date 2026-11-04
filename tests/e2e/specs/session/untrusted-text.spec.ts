@@ -115,6 +115,22 @@ test.describe("text written by someone else", () => {
     await expectNothingRan(app);
   });
 
+  test(
+    "in a company is shown as text in Base de datos",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      hostileCompany(cloud);
+      cloud.setPermissions("asesor", { padron_buscar: true });
+      const app = await openApp();
+
+      await app.companyRegistry.openRegistry();
+
+      await expect.poll(() => app.session.visibleText()).toContain(SHOWN);
+      await app.companyRegistry.openInlineEditor();
+      await expectNothingRan(app);
+    },
+  );
+
   test("in an Excel is shown as text in its validation", async ({ openApp }) => {
     const app = await openApp();
 
@@ -127,24 +143,25 @@ test.describe("text written by someone else", () => {
     await expectNothingRan(app);
   });
 
-  test("in the sheet of Mis empresas is shown as text in its report", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.companies = [];
-    cloud.setPermissions("asesor", { padron_buscar: true });
-    const app = await openApp();
-    await app.companyRegistry.openRegistry();
+  test(
+    "in the sheet of Mis empresas is shown as text in its report",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.companies = [];
+      cloud.setPermissions("asesor", { padron_buscar: true });
+      const app = await openApp();
+      await app.companyRegistry.openRegistry();
 
-    await app.companyRegistry.uploadRegistrySheet([
-      ["empresa", "cuit", "config"],
-      ["ACME", "307", MARKUP],
-    ]);
+      await app.companyRegistry.uploadRegistrySheet([
+        ["empresa", "cuit", "config"],
+        ["ACME", "307", MARKUP],
+      ]);
 
-    const dialog = await app.companyRegistry.waitForUpdateDialog();
-    expect.soft(dialog.text).toContain(SHOWN);
-    await expectNothingRan(app);
-  });
+      const dialog = await app.companyRegistry.waitForUpdateDialog();
+      expect.soft(dialog.text).toContain(SHOWN);
+      await expectNothingRan(app);
+    },
+  );
 
   test("a flyer file with quotes in its name does not break its buttons", async ({
     cloud,

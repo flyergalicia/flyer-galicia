@@ -21,6 +21,7 @@ const SCREENS: Readonly<Partial<Record<AppScreen, string>>> = {
   promotions: "promotions",
   benchmark: "benchmark",
   "commercial-actions": "commercial-actions",
+  "my-database": "my-database",
 };
 
 function header(page: Page): Locator {
@@ -346,6 +347,32 @@ function createReading(page: Page) {
         return [...families];
       }),
     visibleText: () => page.locator("body").innerText(),
+    databaseHelp: async () => {
+      await openUserMenu(page);
+      await userMenu(page).getByRole("menuitem", { name: "Base de datos" }).click();
+      const database = page.locator('[data-screen="my-database"]');
+      await database.waitFor();
+      const help = await database.evaluate((element) => {
+        const sections = Array.from(element.querySelectorAll("details"));
+        const upload = Array.from(element.querySelectorAll("button")).find((button) =>
+          /Subir Excel/.test(button.textContent),
+        );
+        const title = element.closest("dialog")?.querySelector("h2");
+        return {
+          sections: sections.length,
+          allClosed: sections.every((section) => !section.open),
+          uploadButtonBelowTitle: upload
+            ? Math.round(upload.getBoundingClientRect().top) -
+              Math.round(title?.getBoundingClientRect().top ?? 0)
+            : null,
+        };
+      });
+      await page
+        .getByRole("dialog", { name: /Base de datos/ })
+        .getByLabel("Cerrar")
+        .click();
+      return help;
+    },
     browserStorage: () =>
       page.evaluate(() =>
         Object.fromEntries(

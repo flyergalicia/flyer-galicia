@@ -52,6 +52,20 @@ describe("Modal", () => {
     await expect.element(screen.getByRole("dialog", { name: "Base de datos" })).toBeVisible();
   });
 
+  it("one with work in progress does not close with a press on what is behind", async () => {
+    const onClose = vi.fn<() => void>();
+    const screen = await render(
+      <Modal onClose={onClose} closeOnBackdrop={false}>
+        <Modal.Header>Con trabajo</Modal.Header>
+      </Modal>,
+    );
+    const overlay = screen.getByRole("dialog").element().parentElement ?? document.body;
+
+    await userEvent.click(overlay, { position: { x: 2, y: 2 } });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("closes with its X, with Escape and with a press on what is behind", async () => {
     const onClose = vi.fn<() => void>();
     const screen = await render(<Example onClose={onClose} />);

@@ -131,6 +131,8 @@ type ItemProps = {
   readonly danger?: boolean;
   /** Keep the menu open after pressing it, as when changing the look. */
   readonly keepOpen?: boolean;
+  /** How many things wait there. Zero or nothing shows no number. */
+  readonly count?: number;
   readonly onSelect: () => void;
   readonly children: ReactNode;
 };
@@ -139,6 +141,7 @@ export function MenuItem({
   icon,
   danger = false,
   keepOpen = false,
+  count = 0,
   onSelect,
   children,
 }: ItemProps) {
@@ -155,6 +158,7 @@ export function MenuItem({
     >
       {icon && <Icon name={icon} size={16} className={styles.itemIcon} />}
       <span className={styles.itemText}>{children}</span>
+      {count > 0 && <span className={styles.itemCount}>{count}</span>}
     </button>
   );
 }

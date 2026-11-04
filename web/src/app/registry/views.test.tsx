@@ -11,6 +11,7 @@ function rules(allowed: readonly string[] = [], others: Partial<MenuRules> = {})
     isLeader: false,
     isAdminNow: false,
     commercialActionsOn: false,
+    waiting: () => 0,
     flyerOptions: sanitizeFlyerOptions([
       { n: 1 },
       { n: 2, solapa: "rubros" },

@@ -1,4 +1,4 @@
-import { type ComponentType, type ReactNode, useMemo, useState } from "react";
+import { type ComponentType, type ReactNode, useCallback, useMemo, useState } from "react";
 import type { NoticeSourceProps, WaitingNotice } from "@/shared/lib/view-props.ts";
 
 export interface HeaderNotice {
@@ -27,6 +27,8 @@ type Sources = Readonly<Record<string, ComponentType<NoticeSourceProps>>>;
 export function useWaitingNotices(sources: Sources): {
   readonly notice: HeaderNotice;
   readonly reporters: ReactNode;
+  /** What one of them says, for the number of the menu. */
+  readonly waiting: (source: string) => number;
 } {
   const [reported, setReported] = useState<Readonly<Record<string, WaitingNotice>>>({});
   const reporters = useMemo(
@@ -42,5 +44,6 @@ export function useWaitingNotices(sources: Sources): {
     [sources],
   );
   const notice = useMemo(() => headerNoticeOf(Object.values(reported)), [reported]);
-  return { notice, reporters };
+  const waiting = useCallback((source: string) => reported[source]?.count ?? 0, [reported]);
+  return { notice, reporters, waiting };
 }

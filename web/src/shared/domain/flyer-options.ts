@@ -141,3 +141,50 @@ export function optionsOfTab(options: readonly FlyerOption[], tab: FlyerTab): re
 export function isFlyerTabId(id: string): id is FlyerTab {
   return isFlyerTab(id);
 }
+
+/** An option that does not exist is option 1, which always does. */
+export function optionNumber(options: readonly FlyerOption[], value: unknown): number {
+  const number = Number(value);
+  return options.some(({ n }) => n === number) ? number : 1;
+}
+
+export function optionLabel(options: readonly FlyerOption[], value: unknown): string {
+  const number = optionNumber(options, value);
+  return options.find(({ n }) => n === number)?.nombre ?? `Opción ${String(number)}`;
+}
+
+export function optionTab(options: readonly FlyerOption[], value: unknown): FlyerTab {
+  const number = optionNumber(options, value);
+  return options.find(({ n }) => n === number)?.solapa ?? "flyer";
+}
+
+/**
+ * The flyer in force of an option: each campaign is a new option that says which one it replaces,
+ * and the companies keep the number of an old one. Going around in circles stops on the way.
+ */
+export function currentOption(options: readonly FlyerOption[], value: unknown): number {
+  let number = Number.parseInt(String(value), 10) || 0;
+  const seen = new Set<number>();
+  while (number && !seen.has(number)) {
+    seen.add(number);
+    const next = options.find(({ reemplaza, n }) => reemplaza === number && !seen.has(n));
+    if (!next) break;
+    number = next.n;
+  }
+  return number;
+}
+
+/** Among several, the one no other of the list replaces and, of those, the highest number. */
+export function currentAmong(
+  options: readonly FlyerOption[],
+  candidates: readonly number[],
+): number {
+  const replaces = (other: number) =>
+    optionNumber(options, options.find(({ n }) => n === other)?.reemplaza);
+  const alive = candidates.filter(
+    (candidate) =>
+      !candidates.some((other) => other !== candidate && replaces(other) === candidate),
+  );
+  const pool = alive.length > 0 ? alive : candidates;
+  return pool.length > 0 ? Math.max(...pool) : 0;
+}

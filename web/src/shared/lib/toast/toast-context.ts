@@ -1,8 +1,8 @@
 import { createContext, useContext } from "react";
 
 export interface ToastActions {
-  /** Shows the notice: there is one at a time, and the last one wins. */
-  readonly show: (text: string) => void;
+  /** Shows the notice: there is one at a time, and the last one wins. A long one asks for more time. */
+  readonly show: (text: string, durationMs?: number) => void;
   /** Takes it away only if it still says this: it cannot erase a newer notice. */
   readonly hide: (text: string) => void;
 }

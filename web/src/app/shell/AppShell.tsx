@@ -45,10 +45,10 @@ export function AppShell({
   noticeSources = NOTICE_SOURCES,
 }: AppShellProps) {
   const { can, isHunter, isLeader, isAdminNow } = usePermissions();
-  const { notice, reporters } = useWaitingNotices(noticeSources);
+  const { notice, reporters, waiting } = useWaitingNotices(noticeSources);
   const rules = useMemo<MenuRules>(
-    () => ({ can, isHunter, isLeader, isAdminNow, commercialActionsOn, flyerOptions }),
-    [can, isHunter, isLeader, isAdminNow, commercialActionsOn, flyerOptions],
+    () => ({ can, isHunter, isLeader, isAdminNow, commercialActionsOn, flyerOptions, waiting }),
+    [can, isHunter, isLeader, isAdminNow, commercialActionsOn, flyerOptions, waiting],
   );
   const [chosen, setChosen] = useState(() => firstView(rules, titles.order));
   const [openWindow, setOpenWindow] = useState<OpenWindow | null>(null);

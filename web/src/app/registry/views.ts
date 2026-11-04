@@ -4,6 +4,10 @@
 //     default: PromotionsView,
 //   })),
 import type { ComponentType } from "react";
+import {
+  MyProposalsSource,
+  PendingProposalsSource,
+} from "@/shared/lib/company-registry/proposal-notices.tsx";
 import type { TitleKey } from "@/shared/domain/screen-titles.ts";
 import type { MenuWindowProps, NoticeSourceProps, ViewProps } from "@/shared/lib/view-props.ts";
 import type { IconName } from "@/shared/ui/index.ts";
@@ -117,9 +121,14 @@ export interface MenuWindow {
   readonly icon: IconName;
   readonly visible: (rules: MenuRules) => boolean;
   readonly load: () => Promise<LoadedWindow>;
+  /** Whose number it carries, of `NOTICE_SOURCES`. */
+  readonly noticeSource?: string;
 }
 
 const pendingWindow = (): Promise<LoadedWindow> => import("./PendingWindow.tsx");
+
+const PROPOSALS_SOURCE = "proposals";
+const MY_PROPOSALS_SOURCE = "myProposals";
 
 /** What opens a window from the name menu, above the theme. */
 export const MENU_WINDOWS_ABOVE: readonly MenuWindow[] = [
@@ -142,20 +151,28 @@ export const MENU_WINDOWS_BELOW: readonly MenuWindow[] = [
     load: () => Promise.resolve({ default: NotesWindow }),
   },
   {
-    // company-registry: it also shows with proposals waiting, and carries their number.
+    // A substitute may have none of their own, and still has something to decide.
     id: "database",
     label: "Base de datos",
     icon: "database",
-    visible: ({ can }) => can("padron_buscar") || can("asesores_guardados"),
-    load: pendingWindow,
+    noticeSource: PROPOSALS_SOURCE,
+    visible: ({ can, waiting }) =>
+      can("padron_buscar") || can("asesores_guardados") || waiting(PROPOSALS_SOURCE) > 0,
+    load: () =>
+      import("@/slices/company-registry/index.ts").then(({ DatabaseWindow }) => ({
+        default: DatabaseWindow,
+      })),
   },
   {
-    // company-registry or hunter: the list of proposals of a hunter, with its number.
     id: "proposals",
     label: "Mis propuestas",
     icon: "document",
+    noticeSource: MY_PROPOSALS_SOURCE,
     visible: ({ isHunter, can }) => isHunter && can("proponer_oficiales"),
-    load: pendingWindow,
+    load: () =>
+      import("@/slices/company-registry/index.ts").then(({ MyProposalsWindow }) => ({
+        default: MyProposalsWindow,
+      })),
   },
   {
     // tour: it is there for everybody, and it starts on request.
@@ -183,4 +200,7 @@ export const ADMIN_WINDOW: Pick<MenuWindow, "id" | "load"> = {
  * Who tells what is waiting for the person (company-registry, studio, commercial-actions, hunter),
  * by the name it reports under.
  */
-export const NOTICE_SOURCES: Readonly<Record<string, ComponentType<NoticeSourceProps>>> = {};
+export const NOTICE_SOURCES: Readonly<Record<string, ComponentType<NoticeSourceProps>>> = {
+  [PROPOSALS_SOURCE]: PendingProposalsSource,
+  [MY_PROPOSALS_SOURCE]: MyProposalsSource,
+};

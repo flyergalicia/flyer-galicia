@@ -27,6 +27,7 @@ function WindowItems({
       <Menu.Item
         key={window.id}
         icon={window.icon}
+        count={window.noticeSource ? rules.waiting(window.noticeSource) : 0}
         onSelect={() => {
           onOpenWindow(window);
         }}

@@ -1,0 +1,262 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty {
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-s);
+  color: var(--gray);
+  font-size: var(--text-note);
+  text-align: center;
+}
+
+.card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--r-s);
+  background: var(--card);
+  box-shadow: var(--sh-1);
+}
+
+.cardPending {
+  border-left-color: var(--accent);
+}
+
+.cardQuestion {
+  border-left-color: var(--danger);
+}
+
+.cardApproved {
+  border-left-color: var(--registry-approved);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.company {
+  color: var(--ink);
+  font-size: var(--text-tab);
+  font-weight: var(--weight-heavy);
+}
+
+.meta {
+  margin-top: 2px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
+  white-space: nowrap;
+}
+
+.chipQuestion {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.chipApproved {
+  background: var(--registry-approved-bg);
+  color: var(--registry-approved);
+}
+
+.chipRejected {
+  background: var(--navy-soft);
+  color: var(--gray);
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.fromHunter,
+.fromOfficer {
+  padding: 7px 10px;
+  border-radius: var(--r-s);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.fromHunter {
+  margin-right: 28px;
+  background: var(--navy-soft);
+}
+
+.fromOfficer {
+  margin-left: 28px;
+  background: var(--accent-soft);
+}
+
+.messageHead {
+  margin-bottom: 2px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.messageText {
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.changes {
+  margin: 6px 0;
+  padding: 0;
+  font-size: var(--text-note);
+  line-height: 1.6;
+  list-style: none;
+}
+
+.changes li {
+  padding: 2px 0;
+  border: 0;
+}
+
+.hint {
+  margin: 6px 0 0;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.button {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-s);
+  background: var(--card);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--accent-line);
+}
+
+.ok,
+.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.ok:hover,
+.primary:hover {
+  background: var(--accent-2);
+}
+
+.no {
+  color: var(--danger);
+}
+
+.link {
+  border-color: transparent;
+  background: none;
+  color: var(--gray);
+  text-decoration: underline;
+}
+
+.actionBox {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.label {
+  display: block;
+  color: var(--gray);
+  font-size: var(--text-label);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.actionText {
+  display: block;
+  width: 100%;
+  margin: 5px 0 6px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-s);
+  outline: none;
+  background: var(--field);
+  color: var(--ink);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-regular);
+  letter-spacing: normal;
+  text-transform: none;
+  resize: vertical;
+}
+
+.actionText:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  background: var(--card);
+}
+
+.substitute {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-s);
+  background: var(--card);
+}
+
+.substitute > div {
+  flex: 1;
+  min-width: 220px;
+}
+
+.substituteTitle {
+  margin-bottom: 2px;
+  color: var(--ink);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heavy);
+}
+
+.substituteSelect {
+  width: auto;
+  min-width: 200px;
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-s);
+  background: var(--field);
+  color: var(--ink);
+  font-size: var(--text-xl);
+}
+
+.inWindow {
+  margin: 12px 18px 0;
+}

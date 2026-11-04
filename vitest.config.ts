@@ -9,6 +9,7 @@ const DEFAULT_COVERAGE = { functions: 90, lines: 85, branches: 80, perFile: true
 export default defineConfig({
   plugins: [react()],
   resolve: { alias: sourceAlias },
+  define: { SHEET_LIBRARY_HASH: '""' },
   test: {
     projects: [
       {
