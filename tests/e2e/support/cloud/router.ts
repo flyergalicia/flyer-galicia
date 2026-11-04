@@ -2,8 +2,32 @@ import { type BrowserContext, type Route } from "@playwright/test";
 import { handleCommercialActions } from "./commercial-actions/handlers.ts";
 import { describeRequest, type ContractEntry } from "./contract.ts";
 import { benchmarkCards, benchmarkManual, benchmarkTables } from "./handlers/benchmark.ts";
-import { authAdmin, benchmarkSync, promosGalicia } from "./handlers/edge-functions.ts";
-import { listFlyerLogs, listProfiles, readOwnProfile, updateProfile } from "./handlers/profiles.ts";
+import {
+  authAdmin,
+  benchmarkSync,
+  promosGalicia,
+  redeemSignIn,
+} from "./handlers/edge-functions.ts";
+import { changeOwnPassword, countProfiles } from "./handlers/accounts.ts";
+import {
+  answerProposal,
+  companiesTable,
+  listSubstituteCompanies,
+  proposalMessagesTable,
+  proposalsTable,
+  proposeSubstituteChange,
+  replaceCompanies,
+} from "./handlers/company-registry.ts";
+import {
+  listFlyerLogs,
+  listProfiles,
+  listSavedAdvisors,
+  readOwnProfile,
+  signInWithPassword,
+  signOut,
+  updateProfile,
+  writeFlyerLog,
+} from "./handlers/profiles.ts";
 import { listModoPromotions, listPromotions, readPromotionsMeta } from "./handlers/promotions.ts";
 import {
   deleteFiles,
@@ -18,6 +42,7 @@ import {
   type CloudReply,
   type CloudRequest,
   jsonReply,
+  pagedRows,
 } from "./http.ts";
 import { type CloudState } from "./state.ts";
 import { SUPABASE_URL, type CloudUser } from "./users.ts";
@@ -53,13 +78,22 @@ const ROUTES: readonly CloudRoute[] = [
   under(`${UPLOADS}/`, failSimulatedUpload),
   under(`${UPLOADS}/`, receiveUpload, "POST", "PUT"),
   exact(UPLOADS, deleteFiles, "DELETE"),
-  under("/storage/v1/", () => jsonReply([])),
+  under("/storage/v1/", ({ state }) => jsonReply(state.bucketFileList)),
   exact(`${REST}/profiles`, listProfiles, "GET"),
+  exact(`${REST}/profiles`, countProfiles, "HEAD"),
   exact(`${REST}/flyer_logs`, listFlyerLogs, "GET"),
+  exact(`${REST}/flyer_logs`, writeFlyerLog, "POST"),
   exact(`${REST}/profiles`, updateProfile, "PATCH"),
   exact(`${REST}/profiles`, readOwnProfile, "GET"),
+  exact(`${REST}/asesores_guardados`, listSavedAdvisors, "GET"),
+  exact(`${REST}/audit_log`, ({ state }) => jsonReply(state.auditRows)),
+  exact(`${REST}/padron_log`, (request) => pagedRows(request, request.state.companyLog)),
   exact(`${REST}/promos_galicia_meta`, readPromotionsMeta),
   exact(`${FUNCTIONS}/auth-admin`, authAdmin),
+  exact("/auth/v1/verify", redeemSignIn, "POST"),
+  exact("/auth/v1/token", signInWithPassword, "POST"),
+  exact("/auth/v1/logout", signOut, "POST"),
+  exact("/auth/v1/user", changeOwnPassword, "PUT"),
   exact(`${FUNCTIONS}/promos-galicia`, promosGalicia),
   exact(`${REST}/promos_galicia_cache`, listPromotions),
   exact(`${REST}/promos_modo_cache`, listModoPromotions),
@@ -73,6 +107,13 @@ const ROUTES: readonly CloudRoute[] = [
   exact(`${REST}/flyer_diseno_mensajes`, designMessagesTable),
   under(`${REST}/rpc/flyer_diseno_`, designFunctions),
   exact(`${REST}/flyer_disenos`, designsTable),
+  exact(`${REST}/padron_empresas`, companiesTable),
+  exact(`${REST}/padron_propuestas`, proposalsTable),
+  exact(`${REST}/padron_propuesta_mensajes`, proposalMessagesTable),
+  exact(`${REST}/rpc/padron_propuesta_responder`, answerProposal),
+  exact(`${REST}/rpc/padron_replace`, replaceCompanies),
+  exact(`${REST}/rpc/padron_suplencias`, listSubstituteCompanies),
+  exact(`${REST}/rpc/padron_suplencia_proponer`, proposeSubstituteChange),
 ];
 
 function defaultReply({ method }: CloudRequest): CloudReply {

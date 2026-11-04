@@ -17,7 +17,7 @@ También incluye inicio de sesión con perfiles, buscador de promociones vigente
 | Edge Functions | TypeScript (Deno) | `supabase/functions/auth-admin`, `promos-galicia`, `benchmark-sync` |
 | Estructura de la base y reglas de acceso | SQL (Postgres) | `supabase/migrations/` |
 | Envío de mails de aviso | Google Apps Script | `supabase/mail/apps-script.gs` |
-| Pruebas automáticas | Node.js + Playwright | `pruebas/` |
+| Pruebas automáticas | TypeScript, Playwright y Vitest | `tests/` |
 
 La aplicación se publica como sitio estático en GitHub Pages y usa Supabase para la base de datos, el inicio de sesión, el almacenamiento y las Edge Functions.
 
@@ -82,21 +82,25 @@ Después de editar `_source.html`, `_newcss.txt` o `auth.js` hay que volver a ar
 
 ## Probar
 
-Corré todas las pruebas, después de armar:
+Corré las pruebas de navegador, después de armar:
 
 ```bash
-node pruebas/correr.mjs
+npx playwright test --project=legacy
 ```
 
-O sólo algunas, indicando el comienzo del nombre:
+O sólo algunas, indicando parte de la ruta:
 
 ```bash
-node pruebas/correr.mjs u06 t39
+npx playwright test --project=legacy logo-strip/build-strip
 ```
 
-Con `--detalle` se ve todo lo que imprime cada prueba.
+Las que no usan navegador y las de componentes se corren aparte:
 
-Hay dos tipos de prueba: `t…_*.cjs` abren la aplicación en un navegador automático y `u…_*.mjs` prueban lógica suelta sin navegador. Toda funcionalidad nueva suma su prueba. Los detalles están en [`pruebas/LEEME.md`](pruebas/LEEME.md).
+```bash
+npm test
+```
+
+Las de navegador usan una nube simulada y no tocan Supabase. Toda funcionalidad nueva suma su prueba. Los detalles están en [`tests/LEEME.md`](tests/LEEME.md).
 
 ## Publicar
 
@@ -165,4 +169,5 @@ Los maneja [lefthook](https://lefthook.dev/) (`lefthook.yml`) y se instalan solo
 
 - [`CLAUDE.md`](CLAUDE.md): guía completa del proyecto, con decisiones tomadas, invariantes, servicios conectados y pendientes.
 - [`supabase/INVENTARIO_RPC.md`](supabase/INVENTARIO_RPC.md): funciones que expone la base, a quién y qué valida cada una.
-- [`pruebas/LEEME.md`](pruebas/LEEME.md): cómo funcionan las pruebas y la nube simulada.
+- [`tests/LEEME.md`](tests/LEEME.md): cómo funcionan las pruebas, la nube simulada y las referencias.
+- [`docs/CHEQUEOS_BUILD.md`](docs/CHEQUEOS_BUILD.md): dónde sigue cada chequeo de `_build.mjs` cuando desaparezca.

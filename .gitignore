@@ -30,3 +30,4 @@ storybook-static/
 playwright-report/
 test-results/
 web/.env.local
+.vitest/

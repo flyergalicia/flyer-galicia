@@ -12,7 +12,6 @@ pre-commit:
         - "gestiones.js"
         - "benchmark.js"
         - "package-lock.json"
-        - "pruebas/**"
         - "supabase/**"
         - "tests/fixtures/**"
         - ".claude/**"
@@ -21,13 +20,11 @@ pre-commit:
     3_lint:
       glob: "*.{ts,tsx}"
       exclude:
-        - "pruebas/**"
         - "supabase/**"
       run: npm run --silent lint -- {staged_files}
     4_typecheck:
       glob: "*.{ts,tsx}"
       exclude:
-        - "pruebas/**"
         - "supabase/**"
       run: npm run --silent typecheck
 

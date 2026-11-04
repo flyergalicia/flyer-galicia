@@ -21,7 +21,6 @@
     "index_export.html",
     "version.json",
     "libs/**",
-    "pruebas/**",
     "supabase/**",
     "dist/**",
     "coverage/**",
@@ -38,6 +37,7 @@
       }
     ],
     "typescript/no-explicit-any": "error",
+    "no-alert": "error",
     "import/no-cycle": "error",
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "error",
@@ -50,6 +50,24 @@
     ]
   },
   "overrides": [
+    {
+      "files": ["web/src/**"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "Network access goes through web/src/shared/supabase: one place that tells 'not found' from 'no network'."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["web/src/shared/supabase/**", "web/src/shared/lib/**"],
+      "rules": {
+        "no-restricted-globals": "off"
+      }
+    },
     {
       "files": ["*.stories.tsx", "*.test.tsx", "*.config.ts", ".storybook/**"],
       "rules": {

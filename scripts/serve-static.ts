@@ -2,10 +2,10 @@
 import { createServer, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
-import { argv, cwd, exit } from "node:process";
+import { argv, cwd, env, exit } from "node:process";
 
 const HOST = "127.0.0.1";
-const ROOT = resolve(cwd());
+const ROOT = resolve(env.FLYER_STATIC_ROOT ?? cwd());
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",

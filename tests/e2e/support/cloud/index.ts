@@ -13,7 +13,7 @@ import {
 } from "./state.ts";
 import { type CloudUser } from "./users.ts";
 
-export { bucketUrl } from "./seed-data.ts";
+export { bucketUrl, fixtureFile, localitiesOf, type PromotionRow } from "./seed-data.ts";
 export { AUTH_STORAGE_KEY, type CloudUser, storedSession } from "./users.ts";
 export type { DesignRow, Row } from "./state.ts";
 

@@ -17,6 +17,8 @@ export interface OpenAppOptions {
   localStorage?: Record<string, string>;
   /** Runs before navigating: routes installed here win over the simulated cloud. */
   beforeNavigation?: (page: Page) => Promise<void>;
+  /** Nobody has a session in this browser: the app stops at the login screen. */
+  signedOut?: boolean;
   /** False returns while the app is still entering, without waiting for a flyer. */
   waitUntilReady?: boolean;
   /** The flyer option to end up in. */
@@ -59,11 +61,11 @@ function resolveUser(cloud: Cloud, user: string | CloudUser = "asesor"): CloudUs
   return found;
 }
 
-function seedLocalStorage(session: [string, string, Record<string, string>]): void {
+function seedLocalStorage(session: [string, string | null, Record<string, string>]): void {
   const [key, value, extra] = session;
   try {
     localStorage.clear();
-    localStorage.setItem(key, value);
+    if (value !== null) localStorage.setItem(key, value);
     for (const [name, content] of Object.entries(extra)) localStorage.setItem(name, content);
   } catch {
     // Pages such as about:blank have no localStorage to seed.
@@ -98,9 +100,9 @@ export async function launchApp(inputs: LaunchInputs): Promise<LaunchedApp> {
   });
   await page.addInitScript(seedLocalStorage, [
     AUTH_STORAGE_KEY,
-    storedSession(user),
+    options.signedOut ? null : storedSession(user),
     options.localStorage ?? {},
-  ] satisfies [string, string, Record<string, string>]);
+  ] satisfies [string, string | null, Record<string, string>]);
   await options.beforeNavigation?.(page);
 
   const driver = createAppDriver(page, target);

@@ -88,6 +88,19 @@ export const promotionCatalog: readonly PromotionRow[] = readJson<{
 
 export const locations: readonly unknown[] = geography.ubic;
 
+/** The localities of a province, in the order the app lists them. */
+export function localitiesOf(province: string): string[] {
+  const found = (locations as readonly { nombre?: string; localidades?: string[] }[]).find(
+    ({ nombre }) => nombre === province,
+  );
+  return found?.localidades ?? [];
+}
+
+/** Bytes of a file of tests/fixtures/data. */
+export function fixtureFile(file: string): Buffer {
+  return readFileSync(DATA_DIR + file);
+}
+
 export const localityPromotionIds: readonly unknown[] = existsSync(`${DATA_DIR}loc_ids.json`)
   ? readJson<unknown[]>("loc_ids.json")
   : [];

@@ -1,0 +1,61 @@
+{
+  "measuredOn": "2026-11-04",
+  "note": "Peso: bytes de JavaScript y CSS que el navegador baja o lee al arrancar, también de CDN y lo incrustado en la página. Tiempo: desde navegar hasta que el flyer está listo, con la nube simulada y sin caché. El tiempo depende de la máquina y de la red: sólo vale para comparar en esta misma máquina.",
+  "machine": {
+    "system": "darwin arm64",
+    "cpu": "Apple M3 Max"
+  },
+  "browser": "156.0.8078.4",
+  "startup": {
+    "javascript": {
+      "raw": 1488395,
+      "gzip": 462380
+    },
+    "css": {
+      "raw": 189514,
+      "gzip": 42208
+    },
+    "files": [
+      {
+        "file": "auth.js",
+        "kind": "javascript",
+        "raw": 1255937,
+        "gzip": 402134
+      },
+      {
+        "file": "cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js",
+        "kind": "javascript",
+        "raw": 218252,
+        "gzip": 55763
+      },
+      {
+        "file": "index.html (inline)",
+        "kind": "css",
+        "raw": 185279,
+        "gzip": 41767
+      },
+      {
+        "file": "index.html (inline)",
+        "kind": "javascript",
+        "raw": 14206,
+        "gzip": 4483
+      },
+      {
+        "file": "fonts.googleapis.com/css2",
+        "kind": "css",
+        "raw": 4235,
+        "gzip": 441
+      }
+    ]
+  },
+  "flyerReady": {
+    "medianMs": 332,
+    "runsMs": [
+      340,
+      331,
+      333,
+      330,
+      332
+    ]
+  }
+}

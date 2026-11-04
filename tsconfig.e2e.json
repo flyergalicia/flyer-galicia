@@ -7,5 +7,5 @@
     "module": "nodenext",
     "types": ["node"]
   },
-  "include": ["tests"]
+  "include": ["tests", "scripts/demo-commercial-actions.ts", "scripts/measure-performance.ts"]
 }

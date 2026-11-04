@@ -44,8 +44,19 @@ export default defineConfig<TargetOption>({
   reporter: "list",
   globalSetup: "./tests/e2e/support/cloud/contract-setup.ts",
   globalTeardown: "./tests/e2e/support/cloud/contract-teardown.ts",
-  // Screenshot baselines depend on the platform, so CI does not compare them.
-  ...(isCi ? { grepInvert: /@visual/ } : {}),
+  // Screenshot and flyer baselines depend on the platform, so CI does not compare them.
+  ...(isCi ? { grepInvert: /@visual|@golden/ } : {}),
+  // No project in the path: the React app is compared against the images of the current app.
+  snapshotPathTemplate: "tests/fixtures/visual/{platform}/{arg}{ext}",
+  expect: {
+    toHaveScreenshot: {
+      // The threshold of each pixel stays at its default: below it, on macOS, a screen differs from
+      // itself by up to 0.3% of its pixels on the edges of letters from one run to another.
+      maxDiffPixelRatio: 0.001,
+      animations: "disabled",
+      caret: "hide",
+    },
+  },
   use: {
     trace: "retain-on-failure",
   },

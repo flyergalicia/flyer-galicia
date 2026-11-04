@@ -1,16 +1,17 @@
 import { type CloudHandler, databaseError, jsonReply, nowIso, pagedRows } from "../http.ts";
-import { locations, promotionCatalog } from "../seed-data.ts";
+import { locations } from "../seed-data.ts";
 
-export const readPromotionsMeta: CloudHandler = ({ wantsObject }) => {
+export const readPromotionsMeta: CloudHandler = ({ state, wantsObject }) => {
   const row = {
     last_sync_at: nowIso(),
-    total: promotionCatalog.length,
+    total: state.promotionCatalog.length,
     ubicaciones: locations,
   };
   return jsonReply(wantsObject ? row : [row]);
 };
 
-export const listPromotions: CloudHandler = (request) => pagedRows(request, promotionCatalog);
+export const listPromotions: CloudHandler = (request) =>
+  pagedRows(request, request.state.promotionCatalog);
 
 export const listModoPromotions: CloudHandler = (request) =>
   request.state.modoTableMissing
