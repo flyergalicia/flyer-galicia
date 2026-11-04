@@ -1,4 +1,5 @@
 import { type Page } from "@playwright/test";
+import { type PromotionsDriver } from "../promotions.ts";
 import { type Appearance, type ReferenceScreen, type ScreensDriver } from "../screens.ts";
 import { type SessionDriver } from "../session.ts";
 
@@ -62,17 +63,38 @@ async function applyAppearance(
   );
 }
 
-function openers(page: Page, session: SessionDriver) {
+function openers(page: Page, session: SessionDriver, promotions: PromotionsDriver) {
   const ready: Partial<Record<ReferenceScreen, () => Promise<void>>> = {
     login: () =>
       page.getByRole("heading", { name: "Flyer Galicia", level: 1 }).waitFor({ timeout: WAIT_MS }),
     "user-menu": () => session.openUserMenu(),
+    "promotions-active": async () => {
+      await promotions.open("active");
+      await promotions.chooseProvince("promotions", "CAPITAL FEDERAL");
+      await promotions.listActive();
+    },
+    "promotions-search": async () => {
+      await promotions.open("search");
+      await promotions.searchBrands(["Coto", "Farmacity", "Axion", "Marca inexistente"]);
+    },
   };
   return ready;
 }
 
-export function createReactScreensDriver(page: Page, session: SessionDriver): ScreensDriver {
-  const open = openers(page, session);
+/** Where the content of a place starts, for the screens that open with filters on top. */
+const CONTENT_OF: Partial<Record<ReferenceScreen, string>> = {
+  "promotions-active": "promotions-results",
+  "promotions-search": "promotions-results",
+};
+// What stays above the scrolled content: the header of the app is sticky on a phone.
+const STICKY_HEADER_PX = 90;
+
+export function createReactScreensDriver(
+  page: Page,
+  session: SessionDriver,
+  promotions: PromotionsDriver,
+): ScreensDriver {
+  const open = openers(page, session, promotions);
   return {
     open: async (screen) => {
       const opener = open[screen];
@@ -85,7 +107,14 @@ export function createReactScreensDriver(page: Page, session: SessionDriver): Sc
       await waitToSettle(page);
     },
     showContent: async (screen) => {
-      throw new Error(`The screen "${screen}" has no content to scroll to in React yet.`);
+      const content = CONTENT_OF[screen];
+      if (!content) {
+        throw new Error(`The screen "${screen}" has no content to scroll to in React yet.`);
+      }
+      await page.getByTestId(content).evaluate((element, header) => {
+        window.scrollTo(0, element.getBoundingClientRect().top + window.scrollY - header);
+      }, STICKY_HEADER_PX);
+      await waitToSettle(page);
     },
     setAppearance: (appearance) => applyAppearance(page, session, appearance),
   };

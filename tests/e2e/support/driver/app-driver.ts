@@ -28,6 +28,7 @@ import { createLegacySessionDriver } from "./legacy/session.ts";
 import { createLegacyStudioDriver } from "./legacy/studio.ts";
 import { createReactFlyerEditorDriver } from "./react/flyer-editor.ts";
 import { partialDriver } from "./react/pending.ts";
+import { createReactPromotionsDriver } from "./react/promotions.ts";
 import { createReactScreensDriver } from "./react/screens.ts";
 import { createReactSessionDriver } from "./react/session.ts";
 import { type HunterDriver } from "./hunter.ts";
@@ -72,6 +73,7 @@ export interface AppDriver {
 /** The domains arrive with their slice: until then, using one says that it is missing. */
 function createReactAppDriver(page: Page): AppDriver {
   const session = createReactSessionDriver(page);
+  const promotions = createReactPromotionsDriver(page);
   return {
     page,
     session,
@@ -85,14 +87,14 @@ function createReactAppDriver(page: Page): AppDriver {
     logoStrip: partialDriver("logoStrip"),
     flyerSections: partialDriver("flyerSections"),
     savedBrands: partialDriver("savedBrands"),
-    promotions: partialDriver("promotions"),
+    promotions,
     companyRegistry: partialDriver("companyRegistry"),
     studio: partialDriver("studio"),
     commercialActions: partialDriver("commercialActions"),
     benchmark: partialDriver("benchmark"),
     admin: partialDriver("admin"),
     search: partialDriver("search"),
-    screens: createReactScreensDriver(page, session),
+    screens: createReactScreensDriver(page, session, promotions),
   };
 }
 

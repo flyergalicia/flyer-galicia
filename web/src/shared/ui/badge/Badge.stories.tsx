@@ -31,3 +31,12 @@ export const Outside: Story = toneStory("outside", "Fuera de la provincia");
 export const Soon: Story = toneStory("soon", "Próximamente");
 export const Uppercase: Story = { args: { tone: "purple", uppercase: true, children: "Asesor" } };
 export const Chip: Story = { args: { tone: "valid", size: "chip", children: "Vigente: 751" } };
+export const ChipPressed: Story = {
+  args: {
+    tone: "expired",
+    size: "chip",
+    pressed: true,
+    onClick: () => undefined,
+    children: "Vencida: 2",
+  },
+};

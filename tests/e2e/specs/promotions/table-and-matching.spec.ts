@@ -4,6 +4,8 @@ import { gate } from "../../support/settled.ts";
 import { expect, test } from "../../support/test.ts";
 
 const PROVINCE = "BUENOS AIRES";
+// A read that gets no answer is repeated by itself for some 7 seconds before it counts as failed.
+const LATE_ANSWER_MS = 15_000;
 const BRAND_FILTER_HINT = "Filtrar...";
 const TODAY = new Date();
 const inDays = (days: number): string =>
@@ -27,7 +29,7 @@ function promotion(id: number, titulo: string, extra: Partial<PromotionRow> = {}
   };
 }
 
-test.describe("matching the pasted brands", () => {
+test.describe("matching the pasted brands", { tag: "@react" }, () => {
   const CATALOG = [
     promotion(1, "SushiClub"),
     promotion(2, "Golf Club"),
@@ -134,7 +136,55 @@ test.describe("matching the pasted brands", () => {
   });
 });
 
-test.describe("updating the catalog", () => {
+test.describe("a catalog that cannot be read", { tag: "@react" }, () => {
+  test("says so, it does not say there are no promotions", async ({ openApp, target }) => {
+    test.skip(target === "legacy", "The current app answers that the catalog is empty: see avance");
+    const app = await openApp({
+      user: "admin",
+      beforeNavigation: async (page) => {
+        await page.route(/\/rest\/v1\/promos_galicia_(cache|meta)/, (route) => route.abort());
+      },
+    });
+    await app.session.chooseHeaderTab("Promociones");
+
+    await expect
+      .poll(() => app.flyerEditor.latestNotice(), { timeout: LATE_ANSWER_MS })
+      .toMatch(/No se pudo leer el cat.logo/);
+    await app.promotions.pressValidate(["SushiClub"]);
+    await expect
+      .poll(() => app.promotions.validateIsLocked(), { timeout: LATE_ANSWER_MS })
+      .toBe(false);
+    expect
+      .soft(await app.flyerEditor.latestNotice(), "it is not an empty catalog")
+      .not.toMatch(/vac.o/);
+    expect.soft(await app.promotions.rows(), "and nothing was searched on nothing").toEqual([]);
+  });
+
+  test("and reading it again works when the network is back", async ({ cloud, openApp }) => {
+    cloud.promotionCatalog = [promotion(1, "SushiClub")];
+    let refused = true;
+    const app = await openApp({
+      user: "admin",
+      beforeNavigation: async (page) => {
+        await page.route("**/rest/v1/promos_galicia_cache*", async (route) => {
+          if (refused) await route.abort();
+          else await route.fallback();
+        });
+      },
+    });
+    await app.session.chooseHeaderTab("Promociones");
+    await expect
+      .poll(() => app.flyerEditor.latestNotice(), { timeout: LATE_ANSWER_MS })
+      .not.toBe("");
+    refused = false;
+
+    await app.promotions.pressValidate(["SushiClub"]);
+
+    await expect.poll(async () => (await app.promotions.rows())[0]?.title).toBe("SushiClub");
+  });
+});
+
+test.describe("updating the catalog", { tag: "@react" }, () => {
   const OLD = [promotion(1, "Marca Vieja")];
   const NEW = [promotion(1, "Marca Vieja"), promotion(2, "Marca Recien Llegada")];
 
@@ -264,7 +314,7 @@ test.describe("updating the catalog", () => {
   });
 });
 
-test.describe("the table", () => {
+test.describe("the table", { tag: "@react" }, () => {
   test("only the faculty shows Promociones", async ({ cloud, openApp }) => {
     cloud.setPermissions("asesor", { promos_buscar: false });
     const without = await openApp();
@@ -373,7 +423,7 @@ test.describe("the table", () => {
   });
 });
 
-test.describe("on Activas", () => {
+test.describe("on Activas", { tag: "@react" }, () => {
   test("what is new is tagged and can be filtered", async ({ cloud, openApp }) => {
     cloud.promotionCatalog = [
       promotion(1, "Reciente", { primera_vez: inDays(-2) }),

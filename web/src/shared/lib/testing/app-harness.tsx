@@ -33,6 +33,10 @@ export interface AppAnswers {
   readonly pendingAccounts?: number;
   /** What changing one's password answers. */
   readonly passwordChange?: Answer;
+  /** What other tables answer, by name. */
+  readonly tables?: Readonly<Record<string, Answer>>;
+  /** What other Edge Functions answer, by name. */
+  readonly functions?: Readonly<Record<string, Answer>>;
 }
 
 export const ADVISOR: Readonly<Record<string, unknown>> = {
@@ -68,6 +72,8 @@ function profileAnswer(
 
 function tableAnswer(request: RecordedRequest, answers: AppAnswers) {
   const { path, method } = request;
+  const table = answers.tables?.[path.replace("/rest/v1/", "")];
+  if (table) return table(request);
   if (path === "/rest/v1/profiles" && method === "GET") return profileAnswer(request, answers);
   if (path === "/rest/v1/profiles" && method === "HEAD") {
     return new Response(null, {
@@ -99,6 +105,9 @@ function cloudAnswer(answers: AppAnswers): Answer {
       return answers.admin?.(request) ?? jsonResponse({ ok: true });
     }
     if (path.startsWith("/rest/v1/rpc/")) return answers.rpc?.(request) ?? jsonResponse(null);
+    const edgeFunction = answers.functions?.[path.replace("/functions/v1/", "")];
+    if (edgeFunction) return edgeFunction(request);
+    if (path.startsWith("/functions/v1/")) return jsonResponse({ data: {} });
     return (
       fileAnswer(request, answers) ??
       tableAnswer(request, answers) ??

@@ -22,7 +22,7 @@ export type BucketImageFile =
   | `flyer_${number}_op${number}.jpg`
   | `flyer_t${number}.jpg`
   | `fuente_${number}.jpg`
-  | `modo/${string}.png`;
+  | `modo/${string}`;
 
 /** auth.js uploads these too, in paths no test of the contract goes through. */
 export type BucketUploadedAsset =

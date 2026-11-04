@@ -35,7 +35,34 @@ function Example({
   );
 }
 
+function KeptMounted() {
+  const [value, setValue] = useState("a");
+  return (
+    <Tabs value={value} onChange={setValue}>
+      <Tabs.List label="Pantallas">
+        <Tabs.Tab value="a">Uno</Tabs.Tab>
+        <Tabs.Tab value="b">Dos</Tabs.Tab>
+      </Tabs.List>
+      <Tabs.Panel value="a" keepMounted>
+        <input aria-label="Lo que se escribió" />
+      </Tabs.Panel>
+      <Tabs.Panel value="b">Lo de dos</Tabs.Panel>
+    </Tabs>
+  );
+}
+
 describe("Tabs", () => {
+  it("what is asked to stay stays in the page, hidden, while another tab shows", async () => {
+    const screen = await render(<KeptMounted />);
+    await screen.getByLabelText("Lo que se escribió").fill("Algo");
+
+    await screen.getByRole("tab", { name: "Dos" }).click();
+    await expect.element(screen.getByLabelText("Lo que se escribió")).not.toBeVisible();
+
+    await screen.getByRole("tab", { name: "Uno" }).click();
+    await expect.element(screen.getByLabelText("Lo que se escribió")).toHaveValue("Algo");
+  });
+
   it("shows only what belongs to the selected tab", async () => {
     const screen = await render(<Example />);
     await expect

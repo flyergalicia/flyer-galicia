@@ -72,7 +72,10 @@ export const APP_VIEWS: readonly AppView[] = [
     hostId: "promotions",
     screen: "promotions",
     visible: ({ can }) => can("promos_buscar"),
-    load: pendingView,
+    load: () =>
+      import("@/slices/promotions/index.ts").then(({ PromotionsView }) => ({
+        default: PromotionsView,
+      })),
     loadFailure: "No se pudo cargar Promociones. Revisá la conexión e intentá de nuevo.",
   },
   {

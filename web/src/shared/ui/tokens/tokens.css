@@ -237,6 +237,8 @@ html.dark {
   --text-xl: 0.9rem;
   --text-panel: 0.7rem;
   --text-note: 0.76rem;
+  --text-menu: 0.8125rem;
+  --text-phone: 1rem;
   --text-dialog: 0.95rem;
   --text-title: 1rem;
   --text-tab: 0.86rem;
@@ -417,6 +419,35 @@ html.dark {
   --menu-danger-bg: var(--danger-soft);
   --menu-danger-tx: var(--danger);
   --progress-bg: var(--border);
+
+  /* Promociones. */
+  --promo-box-bg: var(--paper);
+  --promo-box-line: var(--border);
+  --promo-filter-head-bg: var(--card);
+  --promo-filter-bg: var(--paper);
+  --promo-filter-line: var(--border);
+  --promo-control-bg: var(--card);
+  --promo-control-line: var(--border);
+  --promo-control-tx: #000;
+  --promo-match-bg: #fff;
+  --promo-match-tx: #000;
+  --promo-logo-bg: #fafafa;
+  --promo-logo-line: var(--border);
+  --promo-logo-failed: #c0392b;
+  --promo-online-bg: #e3eefb;
+  --promo-online-tx: #1f5a96;
+  --promo-new-bg: #fff0e6;
+  --promo-new-tx: #b94a0c;
+  --promo-new-line: #f7c9a8;
+  --promo-modo-bg: #e4f4ec;
+  --promo-modo-tx: #1e6b47;
+  --promo-modo-line: #b6dfc9;
+  --promo-more-bg: var(--paper);
+  --promo-more-line: var(--border);
+  --promo-more-tx: var(--gray);
+  --promo-note-tx: #9a4b00;
+  --promo-dot: #e11d2e;
+  --province-menu-bg: var(--card);
 }
 
 html.dark {
@@ -468,6 +499,30 @@ html.dark {
   --soft-muted-hover-bg: #2c2f36;
   --soft-muted-hover-tx: #bbb;
   --empty-bg: #1b1e23;
+
+  --promo-box-bg: #1b1e23;
+  --promo-box-line: #333840;
+  --promo-filter-head-bg: #22262c;
+  --promo-filter-bg: #1b1e23;
+  --promo-filter-line: #333840;
+  --promo-control-bg: #22262c;
+  --promo-control-line: #333840;
+  --promo-control-tx: #e9eaec;
+  --promo-logo-bg: #fff;
+  --promo-logo-line: #3a3f47;
+  --promo-online-bg: #1e3247;
+  --promo-online-tx: #8fc0ec;
+  --promo-new-bg: #3a2416;
+  --promo-new-tx: #f6a86f;
+  --promo-new-line: #5a3520;
+  --promo-modo-bg: #173226;
+  --promo-modo-tx: #8fd6b0;
+  --promo-modo-line: #24503b;
+  --promo-more-bg: #22262c;
+  --promo-more-line: #333840;
+  --promo-more-tx: #9aa0a8;
+  --promo-note-tx: #f0b46b;
+  --province-menu-bg: #24272d;
   --empty-line: #333840;
   --control-focus-line: var(--border);
   --control-lg-focus-bg: var(--field);

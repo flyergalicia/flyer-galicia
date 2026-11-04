@@ -112,6 +112,18 @@
 /* A summary that can be pressed to filter. */
 .chip {
   padding: 5px 12px;
+  border: none;
   white-space: normal;
   cursor: pointer;
+  transition:
+    box-shadow 0.15s,
+    transform 0.1s;
+}
+
+button.chip:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+button.chip[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--ink) inset;
 }

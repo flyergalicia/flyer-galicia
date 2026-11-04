@@ -3,6 +3,41 @@ import { render } from "vitest-browser-react";
 import { DataTable } from "./DataTable.ts";
 
 describe("DataTable", () => {
+  it("each part takes the look a screen gives it on a phone", async () => {
+    const screen = await render(
+      <DataTable caption="Promociones" className="tabla" scrollClassName="caja">
+        <DataTable.Head>
+          <tr>
+            <DataTable.Header className="titulo">Promoción</DataTable.Header>
+            <DataTable.Header className="orden" onSort={() => undefined}>
+              Estado
+            </DataTable.Header>
+          </tr>
+        </DataTable.Head>
+        <DataTable.Body>
+          <DataTable.Row className="fila">
+            <DataTable.Cell className="celda" data-part="promotion">
+              47 Street
+            </DataTable.Cell>
+          </DataTable.Row>
+        </DataTable.Body>
+      </DataTable>,
+    );
+    const table = screen.getByRole("table").element();
+    expect(table.classList).toContain("tabla");
+    expect(table.parentElement?.classList).toContain("caja");
+    expect(screen.getByRole("columnheader", { name: "Promoción" }).element().classList).toContain(
+      "titulo",
+    );
+    expect(screen.getByRole("columnheader", { name: /Estado/ }).element().classList).toContain(
+      "orden",
+    );
+    expect(screen.getByRole("row", { name: "47 Street" }).element().classList).toContain("fila");
+    const cell = screen.getByRole("cell").element();
+    expect(cell.classList).toContain("celda");
+    expect(cell.getAttribute("data-part")).toBe("promotion");
+  });
+
   it("is a table with its name and its parts", async () => {
     const screen = await render(
       <DataTable caption="Promociones">

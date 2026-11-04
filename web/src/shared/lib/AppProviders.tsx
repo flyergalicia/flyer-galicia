@@ -1,6 +1,7 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { PrimaryActionProvider } from "./primary-action/PrimaryActionProvider.tsx";
+import { IncludeModoProvider } from "./promotions/IncludeModoProvider.tsx";
 import { ToastProvider } from "./toast/ToastProvider.tsx";
 import { SessionProvider } from "@/shared/session/index.ts";
 import { type Backend, BackendProvider } from "@/shared/supabase/index.ts";
@@ -20,7 +21,9 @@ export function AppProviders({ backend, queryClient, children }: AppProvidersPro
         <QueryClientProvider client={queryClient}>
           <SessionProvider>
             <ToastProvider>
-              <PrimaryActionProvider>{children}</PrimaryActionProvider>
+              <PrimaryActionProvider>
+                <IncludeModoProvider>{children}</IncludeModoProvider>
+              </PrimaryActionProvider>
             </ToastProvider>
           </SessionProvider>
         </QueryClientProvider>

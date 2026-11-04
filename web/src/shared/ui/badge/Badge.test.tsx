@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { Badge } from "./Badge.tsx";
 
@@ -30,6 +30,37 @@ describe("Badge", () => {
     expect(chip.cursor).toBe("pointer");
     expect(chip.paddingLeft).toBe("12px");
     expect(badge.paddingLeft).toBe("9px");
+  });
+
+  it("with something to do, it is a button that says whether it is pressed", async () => {
+    const press = vi.fn<() => void>();
+    const screen = await render(
+      <>
+        <Badge
+          tone="valid"
+          size="chip"
+          title="Filtrar"
+          pressed
+          data-testid="counter"
+          onClick={press}
+        >
+          Vigente: 3
+        </Badge>
+        <Badge tone="none" size="chip" onClick={press}>
+          Otra: 1
+        </Badge>
+      </>,
+    );
+    const pressed = screen.getByRole("button", { name: "Vigente: 3" });
+    await expect.element(pressed).toHaveAttribute("aria-pressed", "true");
+    await expect.element(pressed).toHaveAttribute("title", "Filtrar");
+    await expect.element(screen.getByTestId("counter")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Otra: 1" }))
+      .toHaveAttribute("aria-pressed", "false");
+
+    await pressed.click();
+    expect(press).toHaveBeenCalledOnce();
   });
 
   it("a state of a promotion stays on one line", async () => {

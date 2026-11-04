@@ -1,5 +1,5 @@
 // Replaces pruebas/t85_pct_por_zona.cjs.
-import { localitiesOf } from "../../support/cloud/index.ts";
+import { type Cloud, localitiesOf } from "../../support/cloud/index.ts";
 import { expect, test } from "../../support/test.ts";
 
 const MARKED_PLACE = { x: 140, y: 2650, width: 300, height: 110 };
@@ -21,11 +21,8 @@ const SUPERMARKET = {
   fecha_desde: null,
 };
 
-test("the red dot, the tick and the flyer days look at the chosen zone", async ({
-  cloud,
-  openApp,
-}) => {
-  // A supermarket with installments in the locality and the 20% only elsewhere in the province.
+/** A supermarket with installments in the locality and the 20% only elsewhere in the province. */
+function addSupermarket(cloud: Cloud): void {
   cloud.promotionCatalog = [
     ...cloud.promotionCatalog,
     {
@@ -37,14 +34,17 @@ test("the red dot, the tick and the flyer days look at the chosen zone", async (
     { ...SUPERMARKET, id: DISCOUNT_ID, beneficio: "20% de ahorro.", dias: "Lunes" },
   ];
   cloud.extraLocalityPromotionIds.push(INSTALLMENTS_ID);
+}
 
+const LOCALITY = localitiesOf(PROVINCE).find((name) => /MARTIN DE LOS ANDES/.test(name));
+
+test("the flyer days look at the chosen zone", { tag: "@react" }, async ({ cloud, openApp }) => {
+  addSupermarket(cloud);
   const app = await openApp({ user: "admin" });
-  await app.logoEditor.enter();
-  await app.promotions.waitForCatalog();
+  await app.promotions.open("active");
 
-  const locality = localitiesOf(PROVINCE).find((name) => /MARTIN DE LOS ANDES/.test(name));
-  expect.soft(locality, "the locality of the test exists").toBeDefined();
-  const inLocality = { provinces: [PROVINCE], locality: locality ?? "" };
+  expect.soft(LOCALITY, "the locality of the test exists").toBeDefined();
+  const inLocality = { provinces: [PROVINCE], locality: LOCALITY ?? "" };
   const inProvince = { provinces: [PROVINCE] };
   const query = { title: TITLE, benefit: "cuotas" };
 
@@ -72,6 +72,17 @@ test("the red dot, the tick and the flyer days look at the chosen zone", async (
       "and no days for the flyer",
     )
     .toBe("");
+});
+
+test("the red dot and the tick of the windows look at the chosen zone", async ({
+  cloud,
+  openApp,
+}) => {
+  addSupermarket(cloud);
+  const app = await openApp({ user: "admin" });
+  await app.logoEditor.enter();
+  await app.promotions.waitForCatalog();
+  const locality = LOCALITY;
 
   const card = async () => (await app.promotions.brandCards()).find(({ title }) => title === TITLE);
 

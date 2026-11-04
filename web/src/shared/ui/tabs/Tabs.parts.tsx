@@ -138,15 +138,22 @@ export function TabsTab({ value, icon, count, dot = false, disabled = false, chi
 
 type PanelProps = {
   readonly value: string;
+  /** It stays in the page, hidden, while another tab shows: what it has is still there. */
+  readonly keepMounted?: boolean;
   readonly children: ReactNode;
 };
 
 /** What a tab shows. The others stay out of the page. */
-export function TabsPanel({ value, children }: PanelProps) {
+export function TabsPanel({ value, keepMounted = false, children }: PanelProps) {
   const { baseId, value: current } = useTabs("Panel");
-  if (current !== value) return null;
+  if (current !== value && !keepMounted) return null;
   return (
-    <div role="tabpanel" id={`${baseId}-panel-${value}`} aria-labelledby={`${baseId}-tab-${value}`}>
+    <div
+      role="tabpanel"
+      id={`${baseId}-panel-${value}`}
+      aria-labelledby={`${baseId}-tab-${value}`}
+      hidden={current !== value}
+    >
       {children}
     </div>
   );

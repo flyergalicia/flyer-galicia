@@ -115,63 +115,73 @@ test.beforeEach(({ cloud }) => {
   };
 });
 
-test("MODO joins the catalog without repeating Galicia, with the same supermarket rules", async ({
-  openApp,
-}) => {
-  const app = await openApp({ user: "admin" });
-  await app.logoEditor.enter();
-  await app.promotions.waitForCatalog();
+test(
+  "MODO joins the catalog without repeating Galicia, with the same supermarket rules",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.promotions.open("search");
 
-  expect
-    .soft(await app.promotions.includeModoIsOn(), 'the tick "Incluir MODO" starts on')
-    .toBe(true);
+    expect
+      .soft(await app.promotions.includeModoIsOn(), 'the tick "Incluir MODO" starts on')
+      .toBe(true);
 
-  const catalog = await app.promotions.catalog();
-  const modoIds = catalog.filter(({ origin }) => origin === "modo").map(({ sourceId }) => sourceId);
-  expect.soft(modoIds.length, "six are added from MODO").toBe(6);
-  expect
-    .soft(modoIds, "the Coto 25% on Tuesdays, already on Galicia, is not repeated")
-    .not.toContain("a2");
-  expect
-    .soft(
-      catalog.filter(
-        ({ title, benefit }) => title.toLowerCase() === "coto" && benefit.includes("25%"),
-      ).length,
-      "Coto 25%: the one of Galicia on Tuesdays and the one of MODO on Sundays",
-    )
-    .toBe(2);
-  expect.soft(modoIds, "a Coto 25% on another day is another promotion: added").toContain("a7");
-  expect
-    .soft(
-      catalog.some(({ origin, title }) => origin === "modo" && title === "YPF"),
-      "YPF, which Galicia does not have, joins",
-    )
-    .toBe(true);
+    const catalog = await app.promotions.catalog();
+    const modoIds = catalog
+      .filter(({ origin }) => origin === "modo")
+      .map(({ sourceId }) => sourceId);
+    expect.soft(modoIds.length, "six are added from MODO").toBe(6);
+    expect
+      .soft(modoIds, "the Coto 25% on Tuesdays, already on Galicia, is not repeated")
+      .not.toContain("a2");
+    expect
+      .soft(
+        catalog.filter(
+          ({ title, benefit }) => title.toLowerCase() === "coto" && benefit.includes("25%"),
+        ).length,
+        "Coto 25%: the one of Galicia on Tuesdays and the one of MODO on Sundays",
+      )
+      .toBe(2);
+    expect.soft(modoIds, "a Coto 25% on another day is another promotion: added").toContain("a7");
+    expect
+      .soft(
+        catalog.some(({ origin, title }) => origin === "modo" && title === "YPF"),
+        "YPF, which Galicia does not have, joins",
+      )
+      .toBe(true);
 
-  const inCapital = await app.promotions.supermarketDaysOnFlyer(COTO_DISCOUNT, {
-    provinces: ["CAPITAL FEDERAL"],
-  });
-  expect.soft(inCapital, "in Capital, the flyer days of Coto sum the % of MODO").toMatch(/martes/i);
-  expect.soft(inCapital, "both of them").toMatch(/jueves/i);
-  expect
-    .soft(
-      await app.promotions.supermarketDaysOnFlyer(COTO_DISCOUNT, { provinces: ["BUENOS AIRES"] }),
-      "in Buenos Aires the 30% of MODO, only for Capital, does not count",
-    )
-    .not.toMatch(/jueves/i);
+    const inCapital = await app.promotions.supermarketDaysOnFlyer(COTO_DISCOUNT, {
+      provinces: ["CAPITAL FEDERAL"],
+    });
+    expect
+      .soft(inCapital, "in Capital, the flyer days of Coto sum the % of MODO")
+      .toMatch(/martes/i);
+    expect.soft(inCapital, "both of them").toMatch(/jueves/i);
+    expect
+      .soft(
+        await app.promotions.supermarketDaysOnFlyer(COTO_DISCOUNT, { provinces: ["BUENOS AIRES"] }),
+        "in Buenos Aires the 30% of MODO, only for Capital, does not count",
+      )
+      .not.toMatch(/jueves/i);
 
-  const atomo = { title: ATOMO };
-  expect
-    .soft(await app.promotions.hasPercentDiscount(atomo), "a MODO supermarket with % earns the dot")
-    .toBe(true);
-  expect.soft(await app.promotions.supermarketDaysOnFlyer(atomo), "and its days").toBe("Miércoles");
-  expect
-    .soft(await app.promotions.appliesInProvince(atomo, "MENDOZA"), "its province filters it in")
-    .toBe(true);
-  expect
-    .soft(await app.promotions.appliesInProvince(atomo, "NEUQUEN"), "and other provinces out")
-    .toBe(false);
-});
+    const atomo = { title: ATOMO };
+    expect
+      .soft(
+        await app.promotions.hasPercentDiscount(atomo),
+        "a MODO supermarket with % earns the dot",
+      )
+      .toBe(true);
+    expect
+      .soft(await app.promotions.supermarketDaysOnFlyer(atomo), "and its days")
+      .toBe("Miércoles");
+    expect
+      .soft(await app.promotions.appliesInProvince(atomo, "MENDOZA"), "its province filters it in")
+      .toBe(true);
+    expect
+      .soft(await app.promotions.appliesInProvince(atomo, "NEUQUEN"), "and other provinces out")
+      .toBe(false);
+  },
+);
 
 test("the window of a logo offers MODO with its tag, and placing it keeps it valid", async ({
   openApp,
@@ -252,75 +262,77 @@ test("the window of a logo offers MODO with its tag, and placing it keeps it val
   await app.promotions.setIncludeModo(true);
 });
 
-test("Activas filters MODO by province and locality, with its tag and link", async ({
-  openApp,
-}) => {
-  const app = await openApp({ user: "admin" });
-  await app.promotions.open("active");
-  await app.promotions.chooseProvince("promotions", "MENDOZA");
-  await app.promotions.listActive();
+test(
+  "Activas filters MODO by province and locality, with its tag and link",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.promotions.open("active");
+    await app.promotions.chooseProvince("promotions", "MENDOZA");
+    await app.promotions.listActive();
 
-  const modoTick = app.page.getByRole("checkbox", { name: "Incluir MODO" });
-  await expect.soft(modoTick, 'Activas has the tick "Incluir MODO", on').toBeChecked();
+    const modoTick = app.page.getByRole("checkbox", { name: "Incluir MODO" });
+    await expect.soft(modoTick, 'Activas has the tick "Incluir MODO", on').toBeChecked();
 
-  const rows = await app.promotions.rows();
-  const atomo = rows.find(({ title }) => title === ATOMO);
-  expect.soft(atomo, "in Mendoza the supermarket of MODO shows up").toBeDefined();
-  expect.soft(atomo?.hasModoTag, "with its tag").toBe(true);
-  expect.soft(atomo?.linkText, 'and "Ver en MODO"').toBe("Ver en MODO");
-  expect
-    .soft(atomo?.linkUrl, "the link opens its page on MODO")
-    .toBe("https://www.modo.com.ar/promos/atomo");
-  expect
-    .soft(atomo?.logoUrl, "its logo comes from the bucket")
-    .toMatch(/\/storage\/v1\/object\/public\/flyers\/modo\/328\.png$/);
-  expect
-    .soft(
-      rows.find(({ hasModoTag, logoUrl }) => !hasModoTag && logoUrl)?.logoUrl,
-      "the logos of Galicia, from galicia.ar",
-    )
-    .toMatch(/galicia\.ar/);
-  expect.soft(atomo?.hasPercentDot, "with the red dot, as a supermarket of Galicia").toBe(true);
-  expect.soft(atomo?.days, "and its days").toBe("Miércoles");
-  expect
-    .soft(
-      rows.filter(({ title }) => title.startsWith("WICO")),
-      "with a province chosen, one of MODO without stores does not show up",
-    )
-    .toEqual([]);
-  expect
-    .soft(
-      rows.some(({ title }) => title === "Farmacia Online Prueba"),
-      "an online one does",
-    )
-    .toBe(true);
+    const rows = await app.promotions.rows();
+    const atomo = rows.find(({ title }) => title === ATOMO);
+    expect.soft(atomo, "in Mendoza the supermarket of MODO shows up").toBeDefined();
+    expect.soft(atomo?.hasModoTag, "with its tag").toBe(true);
+    expect.soft(atomo?.linkText, 'and "Ver en MODO"').toBe("Ver en MODO");
+    expect
+      .soft(atomo?.linkUrl, "the link opens its page on MODO")
+      .toBe("https://www.modo.com.ar/promos/atomo");
+    expect
+      .soft(atomo?.logoUrl, "its logo comes from the bucket")
+      .toMatch(/\/storage\/v1\/object\/public\/flyers\/modo\/328\.png$/);
+    expect
+      .soft(
+        rows.find(({ hasModoTag, logoUrl }) => !hasModoTag && logoUrl)?.logoUrl,
+        "the logos of Galicia, from galicia.ar",
+      )
+      .toMatch(/galicia\.ar/);
+    expect.soft(atomo?.hasPercentDot, "with the red dot, as a supermarket of Galicia").toBe(true);
+    expect.soft(atomo?.days, "and its days").toBe("Miércoles");
+    expect
+      .soft(
+        rows.filter(({ title }) => title.startsWith("WICO")),
+        "with a province chosen, one of MODO without stores does not show up",
+      )
+      .toEqual([]);
+    expect
+      .soft(
+        rows.some(({ title }) => title === "Farmacia Online Prueba"),
+        "an online one does",
+      )
+      .toBe(true);
 
-  const showsAtomo = async (): Promise<boolean> =>
-    (await app.promotions.rows()).some(({ title }) => title === ATOMO);
-  await app.promotions.chooseLocality("promotions", MENDOZA_FIRST);
-  expect
-    .soft(await showsAtomo(), "the locality filter uses the stores of MODO: yes here")
-    .toBe(true);
-  await app.promotions.chooseLocality("promotions", MENDOZA_SECOND);
-  expect.soft(await showsAtomo(), "and not there").toBe(false);
-  await app.promotions.chooseLocality("promotions", "");
+    const showsAtomo = async (): Promise<boolean> =>
+      (await app.promotions.rows()).some(({ title }) => title === ATOMO);
+    await app.promotions.chooseLocality("promotions", MENDOZA_FIRST);
+    expect
+      .soft(await showsAtomo(), "the locality filter uses the stores of MODO: yes here")
+      .toBe(true);
+    await app.promotions.chooseLocality("promotions", MENDOZA_SECOND);
+    expect.soft(await showsAtomo(), "and not there").toBe(false);
+    await app.promotions.chooseLocality("promotions", "");
 
-  await app.promotions.chooseProvince("promotions", "NEUQUEN");
-  expect
-    .soft(await showsAtomo(), "in Neuquén the supermarket of Mendoza does not show up")
-    .toBe(false);
-  const modoRows = async (): Promise<number> =>
-    (await app.promotions.rows()).filter(({ hasModoTag }) => hasModoTag).length;
-  await modoTick.uncheck();
-  expect.soft(await modoRows(), "the tick of Activas takes MODO out").toBe(0);
-  await modoTick.check();
-  expect.soft(await modoRows(), "and puts it back").toBeGreaterThan(0);
+    await app.promotions.chooseProvince("promotions", "NEUQUEN");
+    expect
+      .soft(await showsAtomo(), "in Neuquén the supermarket of Mendoza does not show up")
+      .toBe(false);
+    const modoRows = async (): Promise<number> =>
+      (await app.promotions.rows()).filter(({ hasModoTag }) => hasModoTag).length;
+    await modoTick.uncheck();
+    expect.soft(await modoRows(), "the tick of Activas takes MODO out").toBe(0);
+    await modoTick.check();
+    expect.soft(await modoRows(), "and puts it back").toBeGreaterThan(0);
 
-  await app.promotions.switchTab("search");
-  await expect.soft(modoTick, 'Buscar has the tick "Incluir MODO"').toBeVisible();
-});
+    await app.promotions.switchTab("search");
+    await expect.soft(modoTick, 'Buscar has the tick "Incluir MODO"').toBeVisible();
+  },
+);
 
-test.describe("MODO writes the cities its own way", () => {
+test.describe("MODO writes the cities its own way", { tag: "@react" }, () => {
   const SAME_PLACE = [
     { province: "TUCUMAN", locality: "SAN MIGUEL DE TUCUMAN", city: "TUCUMAN", name: "Tucumán" },
     { province: "BUENOS AIRES", locality: "LANUS OESTE", city: "LANUS", name: "Lanús" },
@@ -334,6 +346,7 @@ test.describe("MODO writes the cities its own way", () => {
 
   test("the same place matches, a different one does not", async ({ openApp }) => {
     const app = await openApp({ user: "admin" });
+    await app.promotions.open("search");
     const shown = ({ province, locality, city }: (typeof SAME_PLACE)[number]) =>
       app.promotions.modoPromotionShownInLocality({ province, locality, cities: [city] });
 
@@ -356,57 +369,64 @@ test.describe("MODO writes the cities its own way", () => {
   });
 });
 
-test("Buscar finds what is only on MODO and repeats nothing", async ({ openApp }) => {
-  const app = await openApp({ user: "admin" });
-  await app.promotions.open("search");
-  await app.promotions.searchBrands(["YPF", "Coto"]);
+test(
+  "Buscar finds what is only on MODO and repeats nothing",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.promotions.open("search");
+    await app.promotions.searchBrands(["YPF", "Coto"]);
 
-  const rows = await app.promotions.rows();
-  const ypf = rows.find(({ brand }) => brand === "YPF");
-  expect.soft(ypf?.title, "Buscar finds YPF").toBe("YPF");
-  expect.soft(ypf?.hasModoTag, "on MODO").toBe(true);
-  expect.soft(ypf?.status, "it is found").not.toMatch(/no encontrada/i);
-  expect
-    .soft(ypf?.note, "on the table, YPF carries the note below the benefit")
-    .toMatch(/exclusivamente en cambio de aceite/);
-  expect.soft(ypf?.where, 'without a province YPF says "Sin dato" on Dónde').toBe("Sin dato");
+    const rows = await app.promotions.rows();
+    const ypf = rows.find(({ brand }) => brand === "YPF");
+    expect.soft(ypf?.title, "Buscar finds YPF").toBe("YPF");
+    expect.soft(ypf?.hasModoTag, "on MODO").toBe(true);
+    expect.soft(ypf?.status, "it is found").not.toMatch(/no encontrada/i);
+    expect
+      .soft(ypf?.note, "on the table, YPF carries the note below the benefit")
+      .toMatch(/exclusivamente en cambio de aceite/);
+    expect.soft(ypf?.where, 'without a province YPF says "Sin dato" on Dónde').toBe("Sin dato");
 
-  const coto = rows.filter(({ brand }) => brand === "Coto");
-  expect
-    .soft(
-      coto.filter(({ benefit, days }) => benefit.includes("25%") && /martes/i.test(days)).length,
-      "Coto brings its 25% on Tuesdays just once",
-    )
-    .toBe(1);
-  expect
-    .soft(coto.filter(({ benefit }) => benefit.includes("30%")).length, "and also the 30% of MODO")
-    .toBe(1);
+    const coto = rows.filter(({ brand }) => brand === "Coto");
+    expect
+      .soft(
+        coto.filter(({ benefit, days }) => benefit.includes("25%") && /martes/i.test(days)).length,
+        "Coto brings its 25% on Tuesdays just once",
+      )
+      .toBe(1);
+    expect
+      .soft(
+        coto.filter(({ benefit }) => benefit.includes("30%")).length,
+        "and also the 30% of MODO",
+      )
+      .toBe(1);
 
-  await app.promotions.chooseProvince("promotions", "MENDOZA");
-  const inMendoza = (await app.promotions.rows()).find(({ brand }) => brand === "YPF");
-  expect
-    .soft(inMendoza?.status, "with a province chosen it is out of the province")
-    .toMatch(/fuera de la provincia/i);
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+    await app.promotions.chooseProvince("promotions", "MENDOZA");
+    const inMendoza = (await app.promotions.rows()).find(({ brand }) => brand === "YPF");
+    expect
+      .soft(inMendoza?.status, "with a province chosen it is out of the province")
+      .toMatch(/fuera de la provincia/i);
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);
 
-test("without the table of MODO, Promociones keeps working with Galicia", async ({
-  cloud,
-  openApp,
-}) => {
-  cloud.modoTableMissing = true;
+test(
+  "without the table of MODO, Promociones keeps working with Galicia",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    cloud.modoTableMissing = true;
 
-  const app = await openApp({ user: "admin" });
-  await app.logoEditor.enter();
-  await app.promotions.waitForCatalog();
+    const app = await openApp({ user: "admin" });
+    await app.promotions.open("search");
 
-  const catalog = await app.promotions.catalog();
-  expect.soft(catalog.length, "the catalog of Galicia is there").toBeGreaterThan(100);
-  expect
-    .soft(
-      catalog.filter(({ origin }) => origin === "modo"),
-      "and nothing from MODO",
-    )
-    .toEqual([]);
-  expect.soft(app.pageErrors(), "and no JavaScript errors").toEqual([]);
-});
+    const catalog = await app.promotions.catalog();
+    expect.soft(catalog.length, "the catalog of Galicia is there").toBeGreaterThan(100);
+    expect
+      .soft(
+        catalog.filter(({ origin }) => origin === "modo"),
+        "and nothing from MODO",
+      )
+      .toEqual([]);
+    expect.soft(app.pageErrors(), "and no JavaScript errors").toEqual([]);
+  },
+);

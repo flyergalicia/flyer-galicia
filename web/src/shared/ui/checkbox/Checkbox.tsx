@@ -5,9 +5,9 @@ type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & {
   readonly children: ReactNode;
 };
 
-export function Checkbox({ children, className, ...rest }: CheckboxProps) {
+export function Checkbox({ children, className, title, ...rest }: CheckboxProps) {
   return (
-    <label className={className ? `${styles.row} ${className}` : styles.row}>
+    <label className={className ? `${styles.row} ${className}` : styles.row} title={title}>
       <input {...rest} type="checkbox" className={styles.box} />
       {children}
     </label>

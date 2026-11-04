@@ -76,6 +76,7 @@ type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> &
   ControlOptions & {
     /** "custom" draws its own arrow; "native" leaves the one of the browser. */
     readonly appearance?: "custom" | "native";
+    readonly ref?: Ref<HTMLSelectElement>;
   };
 
 export function Select({

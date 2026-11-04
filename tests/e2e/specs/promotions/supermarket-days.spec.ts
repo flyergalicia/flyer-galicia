@@ -19,34 +19,38 @@ const TEST_ARTWORK = {
   ],
 };
 
-test("Activas shows the days of supermarkets and of no other category", async ({ openApp }) => {
-  const app = await openApp({ user: "admin" });
-  await app.promotions.open("active");
-  await app.promotions.chooseProvince("promotions", "BUENOS AIRES");
-  await app.promotions.listActive();
+test(
+  "Activas shows the days of supermarkets and of no other category",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.promotions.open("active");
+    await app.promotions.chooseProvince("promotions", "BUENOS AIRES");
+    await app.promotions.listActive();
 
-  const rows = await app.promotions.rows();
-  const supermarkets = rows.filter(({ category }) => category === SUPERMARKETS);
-  expect
-    .soft(
-      supermarkets.filter(({ days }) => days !== "").length,
-      "Activas shows the days of supermarkets",
-    )
-    .toBeGreaterThan(0);
-  const catalog = await app.promotions.catalog();
-  expect
-    .soft(
-      catalog.some(({ category, days }) => category !== SUPERMARKETS && days !== ""),
-      "other categories do publish days",
-    )
-    .toBe(true);
-  expect
-    .soft(
-      rows.filter(({ category, days }) => category !== SUPERMARKETS && days !== ""),
-      "but they do not show them",
-    )
-    .toEqual([]);
-});
+    const rows = await app.promotions.rows();
+    const supermarkets = rows.filter(({ category }) => category === SUPERMARKETS);
+    expect
+      .soft(
+        supermarkets.filter(({ days }) => days !== "").length,
+        "Activas shows the days of supermarkets",
+      )
+      .toBeGreaterThan(0);
+    const catalog = await app.promotions.catalog();
+    expect
+      .soft(
+        catalog.some(({ category, days }) => category !== SUPERMARKETS && days !== ""),
+        "other categories do publish days",
+      )
+      .toBe(true);
+    expect
+      .soft(
+        rows.filter(({ category, days }) => category !== SUPERMARKETS && days !== ""),
+        "but they do not show them",
+      )
+      .toEqual([]);
+  },
+);
 
 test("the printed days of a logo are found, separate or stuck to it", async ({ openApp }) => {
   const app = await openApp();

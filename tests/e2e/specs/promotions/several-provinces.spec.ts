@@ -1,5 +1,5 @@
 // Replaces pruebas/t90_varias_provincias.cjs.
-import { type PromotionRow } from "../../support/cloud/index.ts";
+import { type Cloud, type PromotionRow } from "../../support/cloud/index.ts";
 import { expect, test } from "../../support/test.ts";
 
 const MARKED_PLACE = { x: 140, y: 2650, width: 300, height: 110 };
@@ -27,89 +27,93 @@ function supermarket(
   };
 }
 
-test("on Activas one click chooses a province and Shift adds another", async ({ openApp }) => {
-  const app = await openApp({ user: "admin" });
-  const { promotions } = app;
-  await promotions.open("active");
+test(
+  "on Activas one click chooses a province and Shift adds another",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    const { promotions } = app;
+    await promotions.open("active");
 
-  await promotions.openProvinceMenu("promotions");
-  expect
-    .soft(await promotions.provinceMenuIsOpen(), "touching Provincia opens the app's own list")
-    .toBe(true);
+    await promotions.openProvinceMenu("promotions");
+    expect
+      .soft(await promotions.provinceMenuIsOpen(), "touching Provincia opens the app's own list")
+      .toBe(true);
 
-  await promotions.clickInProvinceMenu(BUENOS_AIRES);
-  const one = await promotions.provinceField("promotions");
-  expect.soft(one.selected, "one click chooses a province").toEqual([BUENOS_AIRES]);
-  expect.soft(one.inUse, "and filters by it").toEqual([BUENOS_AIRES]);
-  expect.soft(await promotions.provinceMenuIsOpen(), "and closes the list").toBe(false);
+    await promotions.clickInProvinceMenu(BUENOS_AIRES);
+    const one = await promotions.provinceField("promotions");
+    expect.soft(one.selected, "one click chooses a province").toEqual([BUENOS_AIRES]);
+    expect.soft(one.inUse, "and filters by it").toEqual([BUENOS_AIRES]);
+    expect.soft(await promotions.provinceMenuIsOpen(), "and closes the list").toBe(false);
 
-  await promotions.listActive();
-  const justOne = (await promotions.activeResultIds()).length;
+    await promotions.listActive();
+    const justOne = (await promotions.activeResultIds()).length;
 
-  await promotions.openProvinceMenu("promotions");
-  await promotions.shiftClickInProvinceMenu(CAPITAL);
-  const two = await promotions.provinceField("promotions");
-  expect.soft(two.selected, "Shift + click adds the second").toEqual([BUENOS_AIRES, CAPITAL]);
-  expect.soft(await promotions.provinceMenuIsOpen(), "and the list stays open").toBe(true);
-  expect
-    .soft(two.label, 'the control reads "Buenos Aires y Capital Federal"')
-    .toBe("Buenos Aires y Capital Federal");
-  expect
-    .soft(await promotions.provinceMenuTicked(), "both keep their tick on the list")
-    .toEqual([BUENOS_AIRES, CAPITAL]);
-  const locality = await promotions.localityField("promotions");
-  expect.soft(locality.disabled, "with several, Localidad is off").toBe(true);
-  expect.soft(locality.placeholder, "and it says why").toMatch(/varias/);
+    await promotions.openProvinceMenu("promotions");
+    await promotions.shiftClickInProvinceMenu(CAPITAL);
+    const two = await promotions.provinceField("promotions");
+    expect.soft(two.selected, "Shift + click adds the second").toEqual([BUENOS_AIRES, CAPITAL]);
+    expect.soft(await promotions.provinceMenuIsOpen(), "and the list stays open").toBe(true);
+    expect
+      .soft(two.label, 'the control reads "Buenos Aires y Capital Federal"')
+      .toBe("Buenos Aires y Capital Federal");
+    expect
+      .soft(await promotions.provinceMenuTicked(), "both keep their tick on the list")
+      .toEqual([BUENOS_AIRES, CAPITAL]);
+    const locality = await promotions.localityField("promotions");
+    expect.soft(locality.disabled, "with several, Localidad is off").toBe(true);
+    expect.soft(locality.placeholder, "and it says why").toMatch(/varias/);
 
-  await app.page.keyboard.press("Escape");
-  const found = await promotions.activeResultIds();
-  const expected = await promotions.promotionIdsIn([BUENOS_AIRES, CAPITAL]);
-  expect
-    .soft(found.toSorted(), "Activas shows the promotions of either of the two")
-    .toEqual(expected.toSorted());
-  expect
-    .soft(found.length, "with both there are at least as many as with one")
-    .toBeGreaterThanOrEqual(justOne);
+    await app.page.keyboard.press("Escape");
+    const found = await promotions.activeResultIds();
+    const expected = await promotions.promotionIdsIn([BUENOS_AIRES, CAPITAL]);
+    expect
+      .soft(found.toSorted(), "Activas shows the promotions of either of the two")
+      .toEqual(expected.toSorted());
+    expect
+      .soft(found.length, "with both there are at least as many as with one")
+      .toBeGreaterThanOrEqual(justOne);
 
-  await promotions.openProvinceMenu("promotions");
-  await promotions.removeInProvinceMenu(CAPITAL);
-  expect
-    .soft((await promotions.provinceField("promotions")).inUse, 'the "−" takes that one out')
-    .toEqual([BUENOS_AIRES]);
+    await promotions.openProvinceMenu("promotions");
+    await promotions.removeInProvinceMenu(CAPITAL);
+    expect
+      .soft((await promotions.provinceField("promotions")).inUse, 'the "−" takes that one out')
+      .toEqual([BUENOS_AIRES]);
 
-  await promotions.clickAllProvincesInProvinceMenu();
-  expect
-    .soft((await promotions.provinceField("promotions")).inUse, '"Todas las provincias" means all')
-    .toEqual([]);
-  expect.soft(await promotions.provinceMenuIsOpen(), "and the list closes").toBe(false);
+    await promotions.clickAllProvincesInProvinceMenu();
+    expect
+      .soft(
+        (await promotions.provinceField("promotions")).inUse,
+        '"Todas las provincias" means all',
+      )
+      .toEqual([]);
+    expect.soft(await promotions.provinceMenuIsOpen(), "and the list closes").toBe(false);
 
-  await promotions.openProvinceMenuWithKeyboard("promotions");
-  expect
-    .soft(await promotions.provinceMenuIsOpen(), "the keyboard (arrow down) also opens it")
-    .toBe(true);
-  await app.page.keyboard.press("Escape");
+    await promotions.openProvinceMenuWithKeyboard("promotions");
+    expect
+      .soft(await promotions.provinceMenuIsOpen(), "the keyboard (arrow down) also opens it")
+      .toBe(true);
+    await app.page.keyboard.press("Escape");
 
-  // The name with three, and with one again.
-  await promotions.openProvinceMenu("promotions");
-  await promotions.clickInProvinceMenu(BUENOS_AIRES);
-  await promotions.openProvinceMenu("promotions");
-  await promotions.shiftClickInProvinceMenu(CAPITAL);
-  await promotions.shiftClickInProvinceMenu("CORDOBA");
-  await app.page.keyboard.press("Escape");
-  expect
-    .soft((await promotions.provinceField("promotions")).label, 'names: "A, B y C"')
-    .toBe("Buenos Aires, Capital Federal y Cordoba");
-  await promotions.openProvinceMenu("promotions");
-  await promotions.clickInProvinceMenu("CORDOBA");
-  expect
-    .soft((await promotions.provinceField("promotions")).label, "and a single one as before")
-    .toBe("Cordoba");
-});
+    // The name with three, and with one again.
+    await promotions.openProvinceMenu("promotions");
+    await promotions.clickInProvinceMenu(BUENOS_AIRES);
+    await promotions.openProvinceMenu("promotions");
+    await promotions.shiftClickInProvinceMenu(CAPITAL);
+    await promotions.shiftClickInProvinceMenu("CORDOBA");
+    await app.page.keyboard.press("Escape");
+    expect
+      .soft((await promotions.provinceField("promotions")).label, 'names: "A, B y C"')
+      .toBe("Buenos Aires, Capital Federal y Cordoba");
+    await promotions.openProvinceMenu("promotions");
+    await promotions.clickInProvinceMenu("CORDOBA");
+    expect
+      .soft((await promotions.provinceField("promotions")).label, "and a single one as before")
+      .toBe("Cordoba");
+  },
+);
 
-test("Armar franja and the window of a logo work with several provinces", async ({
-  cloud,
-  openApp,
-}) => {
+function addSupermarkets(cloud: Cloud): void {
   cloud.promotionCatalog = [
     ...cloud.promotionCatalog,
     // Its discount is only in the second province chosen.
@@ -136,6 +140,40 @@ test("Armar franja and the window of a logo work with several provinces", async 
       beneficio: "20% de ahorro.",
     }),
   ];
+}
+
+test(
+  "the days of a supermarket look at all the provinces chosen",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    addSupermarkets(cloud);
+    const app = await openApp({ user: "admin" });
+    const { promotions } = app;
+    await promotions.open("active");
+
+    expect
+      .soft(
+        await promotions.supermarketDaysOnFlyer({ title: SUPER_WITH_DISCOUNT_THERE }, IN_THE_TWO),
+        "so do the days of a supermarket",
+      )
+      .toBe("Lunes");
+    expect
+      .soft(
+        await promotions.hasPercentDiscount(
+          { title: SUPER_WITH_DISCOUNT_THERE },
+          { provinces: [NEUQUEN] },
+        ),
+        "which does not happen with the first one alone",
+      )
+      .toBe(false);
+  },
+);
+
+test("Armar franja and the window of a logo work with several provinces", async ({
+  cloud,
+  openApp,
+}) => {
+  addSupermarkets(cloud);
   const app = await openApp({ user: "admin" });
   const { promotions } = app;
   await app.logoEditor.enter();
@@ -186,22 +224,6 @@ test("Armar franja and the window of a logo work with several provinces", async 
     .soft(await dotOfCard(SUPER_WITH_DISCOUNT_ELSEWHERE), "and a discount out of the two does not")
     .toBe(false);
   await promotions.closeLogoStrip();
-
-  expect
-    .soft(
-      await promotions.supermarketDaysOnFlyer({ title: SUPER_WITH_DISCOUNT_THERE }, IN_THE_TWO),
-      "so do the days of a supermarket",
-    )
-    .toBe("Lunes");
-  expect
-    .soft(
-      await promotions.hasPercentDiscount(
-        { title: SUPER_WITH_DISCOUNT_THERE },
-        { provinces: [NEUQUEN] },
-      ),
-      "which does not happen with the first one alone",
-    )
-    .toBe(false);
 
   await promotions.openBrandPickerOver(MARKED_PLACE);
   await promotions.openProvinceMenu("brandPicker");

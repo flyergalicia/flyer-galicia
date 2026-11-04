@@ -75,9 +75,7 @@ test("the windows of brands mark the supermarkets with a % discount", async ({ o
     .toBe(false);
 });
 
-test("Activas and Buscar mark and filter the same way, and Armar franja carries it", async ({
-  openApp,
-}) => {
+test("Activas and Buscar mark and filter the same way", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp({ user: "admin" });
   await app.promotions.open("active");
   await app.promotions.chooseProvince("promotions", "BUENOS AIRES");
@@ -123,10 +121,14 @@ test("Activas and Buscar mark and filter the same way, and Armar franja carries 
   await app.promotions.switchTab("search");
   await expect.soft(tick, "Buscar has the same tick, and it follows Activas").toBeChecked();
   await tick.uncheck();
+  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+});
 
-  await app.promotions.backToFlyer();
+test("Armar franja carries the tick to the full screen", async ({ openApp }) => {
+  const app = await openApp({ user: "admin" });
   await app.logoEditor.enter();
   await app.promotions.openLogoStripOver(MARKED_STRIP);
+  const tick = app.page.getByRole("checkbox", ONLY_PERCENT);
   await tick.check();
   await app.page.getByRole("button", { name: "Elegir en pantalla completa" }).click();
   await expect.soft(tick, "Armar franja: the tick travels to the full screen").toBeChecked();

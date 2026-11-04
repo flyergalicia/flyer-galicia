@@ -26,6 +26,76 @@ function watchListOf(file: unknown, option: number): WatchedEntry[] {
   return hasWatchLists(file) ? (file.opciones[String(option)] ?? []) : [];
 }
 
+test(
+  "the administrator saves what Buscar found, and the others do not see how",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const [first, second] = cloud.promotionCatalog.filter(
+      ({ imagen, fecha_hasta, proximamente }) => imagen && fecha_hasta && !proximamente,
+    );
+    const fromStudio = {
+      m: "Del diseño",
+      t: "Del diseño",
+      img: "de-estudio.png",
+      origen: "estudio",
+    };
+    cloud.bucketJson["_vigilar.json"] = {
+      opciones: {
+        [String(FLYER_OPTION)]: [
+          { m: "A mano", t: "A mano", img: "a-mano.png", origen: "manual" },
+          fromStudio,
+        ],
+      },
+    };
+    const brands = [first?.titulo ?? "", second?.titulo ?? "", "Marca Que No Existe"];
+
+    const advisor = await openApp();
+    await advisor.promotions.open("search");
+    await advisor.promotions.searchBrands(brands);
+    await expect
+      .soft(advisor.page.getByText("Vigilar estas marcas en"), "an advisor does not see it")
+      .toBeHidden();
+
+    const app = await openApp({ user: "admin" });
+    await app.promotions.open("search");
+    await app.promotions.searchBrands(brands);
+    await app.promotions.watchFoundBrandsOn(FLYER_OPTION);
+
+    const saved = watchListOf(cloud.bucketJson["_vigilar.json"], FLYER_OPTION);
+    expect
+      .soft(
+        saved.map(({ origen }) => origen),
+        "what was by hand is replaced, Estudio stays",
+      )
+      .toEqual(expect.arrayContaining(["manual", "estudio"]));
+    expect
+      .soft(
+        saved.some(({ m }) => m === "A mano"),
+        "the old manual one left",
+      )
+      .toBe(false);
+    expect
+      .soft(
+        saved.some(({ m }) => m === "Marca Que No Existe"),
+        "what was not found",
+      )
+      .toBe(false);
+    expect
+      .soft(
+        saved.some(({ img }) => img === first?.imagen),
+        "what was found",
+      )
+      .toBe(true);
+    expect
+      .soft(
+        saved.some(({ img }) => img === fromStudio.img),
+        "the one of Estudio",
+      )
+      .toBe(true);
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);
+
 test("watched brands are loaded from Buscar, show their status and grow from Estudio", async ({
   cloud,
   openApp,
