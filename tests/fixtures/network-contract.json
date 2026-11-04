@@ -1,0 +1,156 @@
+[
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_active.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_active<n>.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_cashback.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_facultades.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_legal.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_legal<n>.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_opciones.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_titulos.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "flyer_t<n>.jpg"
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "app_flags",
+    "select": [
+      "valor"
+    ],
+    "filters": [
+      "clave"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "compartido_at",
+      "compartido_por",
+      "estado",
+      "id",
+      "nombre"
+    ],
+    "filters": [
+      "tipo",
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_propuestas",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "estado"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "celular_asesor",
+      "email_asesor",
+      "es_prueba",
+      "facultades",
+      "flyer_fav",
+      "full_name",
+      "lider_id",
+      "nombre_asesor",
+      "role",
+      "status"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_galicia_cache",
+    "select": [
+      "beneficio",
+      "dias",
+      "fecha_desde",
+      "fecha_hasta",
+      "id",
+      "imagen",
+      "primera_vez",
+      "provincias",
+      "proximamente",
+      "subtitulo",
+      "tipo_promocion",
+      "titulo"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_galicia_meta",
+    "select": [
+      "last_sync_at",
+      "total",
+      "ubicaciones"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_modo_cache",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "profiles",
+    "select": [],
+    "filters": [
+      "id"
+    ]
+  }
+]

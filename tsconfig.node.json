@@ -6,5 +6,5 @@
     "module": "nodenext",
     "types": ["node"]
   },
-  "include": ["*.config.ts", "scripts", "tests", ".storybook/main.ts"]
+  "include": ["*.config.ts", "scripts", ".storybook/main.ts"]
 }

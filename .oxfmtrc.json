@@ -18,6 +18,7 @@
     "pruebas/**",
     "supabase/**",
     "docs/**",
+    "tests/fixtures/**",
     "dist/**",
     "coverage/**",
     "storybook-static/**",

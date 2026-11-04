@@ -14,6 +14,7 @@ pre-commit:
         - "package-lock.json"
         - "pruebas/**"
         - "supabase/**"
+        - "tests/fixtures/**"
         - ".claude/**"
       run: npx --no-install oxfmt {staged_files}
       stage_fixed: true

@@ -17,11 +17,12 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "contract:record": "FLYER_RECORD_CONTRACT=1 playwright test --project=legacy",
     "storybook": "storybook dev --port 6006",
     "storybook:build": "storybook build --output-dir storybook-static --quiet",
     "legacy:build": "node _build.mjs",
     "legacy:test": "node pruebas/correr.mjs",
-    "ci": "npm run lint:policy && npm run format:check && npm run lint && npm run lint:boundaries && npm run typecheck && npm test && npm run build && npm run test:e2e && npm run storybook:build && npm run legacy:build"
+    "ci": "npm run lint:policy && npm run format:check && npm run lint && npm run lint:boundaries && npm run typecheck && npm test && npm run build && npm run legacy:build && npm run test:e2e && npm run storybook:build"
   },
   "dependencies": {
     "react": "19.3.1",

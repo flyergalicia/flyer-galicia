@@ -48,6 +48,13 @@ export default {
       from: { path: "^web/src/" },
       to: { path: "^(scripts|tests)/" },
     },
+    {
+      name: "specs-do-not-know-the-version",
+      comment: "A spec talks to the AppDriver interface: only the driver knows the legacy app.",
+      severity: "error",
+      from: { path: "^tests/e2e/specs/" },
+      to: { path: "^tests/e2e/support/driver/(legacy|react)/" },
+    },
   ],
   options: {
     // dependency-cruiser cannot read TypeScript 7 yet, so it parses through swc.

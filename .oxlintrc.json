@@ -31,13 +31,23 @@
     ".claude/**"
   ],
   "rules": {
-    "complexity": ["error", { "max": 15 }],
+    "complexity": [
+      "error",
+      {
+        "max": 15
+      }
+    ],
     "typescript/no-explicit-any": "error",
     "import/no-cycle": "error",
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "error",
     "react/react-in-jsx-scope": "off",
-    "react/only-export-components": ["error", { "allowConstantExport": true }]
+    "react/only-export-components": [
+      "error",
+      {
+        "allowConstantExport": true
+      }
+    ]
   },
   "overrides": [
     {
@@ -45,6 +55,28 @@
       "rules": {
         "react/only-export-components": "off",
         "import/no-unassigned-import": "off"
+      }
+    },
+    {
+      "files": ["tests/**"],
+      "rules": {
+        "react/rules-of-hooks": "off",
+        "react/exhaustive-deps": "off",
+        "no-await-in-loop": "off"
+      }
+    },
+    {
+      "files": ["tests/e2e/support/driver/legacy/**"],
+      "rules": {
+        "no-underscore-dangle": "off"
+      }
+    },
+    {
+      "files": ["tests/e2e/support/cloud/**"],
+      "rules": {
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "oxc/no-map-spread": "off"
       }
     }
   ]
