@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+// The font of the design, the same one and from the same place as the current app. Nothing else
+// leaves the page: without web/.env.local it must not talk to any backend.
+const ALLOWED_ORIGINS = new Set(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]);
+
 test(
   "the published page renders under the Pages path without errors",
   { tag: "@react" },
@@ -12,7 +16,8 @@ test(
 
     const externalRequests: string[] = [];
     page.on("request", (request) => {
-      if (!request.url().startsWith(new URL(baseURL ?? "").origin)) {
+      const { origin } = new URL(request.url());
+      if (origin !== new URL(baseURL ?? "").origin && !ALLOWED_ORIGINS.has(origin)) {
         externalRequests.push(request.url());
       }
     });

@@ -1,0 +1,100 @@
+.root {
+  position: relative;
+}
+
+.list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1500;
+  min-width: 212px;
+  padding: 6px;
+  border: 1px solid var(--raised-line);
+  border-radius: 12px;
+  background: var(--raised-menu);
+  box-shadow: var(--sh-2);
+  color: var(--ink);
+  animation: appear 0.14s ease;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.head {
+  padding: 9px 11px 6px;
+}
+
+.name {
+  overflow: hidden;
+  margin-bottom: 5px;
+  color: var(--ink);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heavy);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 11px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.item:hover {
+  background: var(--menu-hover-bg);
+  color: var(--menu-hover-tx);
+}
+
+.danger:hover {
+  background: var(--menu-danger-bg);
+  color: var(--menu-danger-tx);
+}
+
+.itemIcon {
+  opacity: 0.7;
+  stroke-width: 1.9;
+}
+
+.danger .itemIcon {
+  opacity: 0.9;
+}
+
+.itemText {
+  white-space: nowrap;
+}
+
+.separator {
+  height: 1px;
+  border: none;
+  margin: 5px 8px;
+  background: var(--border);
+}
+
+.label {
+  padding: 8px 11px 2px;
+  color: var(--gray);
+  font-size: var(--text-label);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

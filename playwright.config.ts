@@ -1,9 +1,10 @@
 import { argv, env } from "node:process";
 import { defineConfig, devices } from "@playwright/test";
-import { type TargetOption } from "./tests/e2e/support/target.ts";
+import { type StorybookOption, type TargetOption } from "./tests/e2e/support/target.ts";
 
 const LEGACY_PORT = Number(env.FLYER_LEGACY_PORT ?? 8767);
 const PREVIEW_PORT = 8766;
+const STORYBOOK_PORT = 8768;
 // Same path GitHub Pages publishes the site under.
 const PUBLISHED_PATH = "/flyer-galicia/";
 const isCi = Boolean(env.CI);
@@ -19,6 +20,14 @@ const PREVIEW_SERVER = {
   reuseExistingServer: false,
 };
 
+// `npm run storybook:build` first: this serves what it left there.
+const STORYBOOK_SERVER = {
+  command: `node scripts/serve-static.ts --port ${STORYBOOK_PORT}`,
+  env: { FLYER_STATIC_ROOT: "storybook-static" },
+  url: `http://127.0.0.1:${STORYBOOK_PORT}/index.json`,
+  reuseExistingServer: false,
+};
+
 /** Asked with --project, only that project's server starts: `legacy` runs without a build. */
 function asksOnlyFor(project: string): boolean {
   const asked = argv.flatMap((argument, index) => {
@@ -31,10 +40,11 @@ function asksOnlyFor(project: string): boolean {
 function webServers() {
   if (asksOnlyFor("legacy")) return [LEGACY_SERVER];
   if (asksOnlyFor("react")) return [PREVIEW_SERVER];
-  return [LEGACY_SERVER, PREVIEW_SERVER];
+  if (asksOnlyFor("design-system")) return [LEGACY_SERVER, STORYBOOK_SERVER];
+  return [LEGACY_SERVER, PREVIEW_SERVER, STORYBOOK_SERVER];
 }
 
-export default defineConfig<TargetOption>({
+export default defineConfig<TargetOption & StorybookOption>({
   testDir: "tests/e2e/specs",
   fullyParallel: true,
   forbidOnly: isCi,
@@ -63,7 +73,7 @@ export default defineConfig<TargetOption>({
   projects: [
     {
       name: "legacy",
-      testIgnore: "**/specs/build/**",
+      testIgnore: ["**/specs/build/**", "**/specs/design-system/**"],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${LEGACY_PORT}/`,
@@ -72,11 +82,23 @@ export default defineConfig<TargetOption>({
     },
     {
       name: "react",
+      testIgnore: "**/specs/design-system/**",
       grep: /@react/,
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${PREVIEW_PORT}${PUBLISHED_PATH}`,
         target: "react",
+      },
+    },
+    {
+      // shared against the current app: the tokens, the look of each component and the network.
+      name: "design-system",
+      testMatch: "**/specs/design-system/**",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${LEGACY_PORT}/`,
+        target: "legacy",
+        storybookUrl: `http://127.0.0.1:${STORYBOOK_PORT}/`,
       },
     },
   ],

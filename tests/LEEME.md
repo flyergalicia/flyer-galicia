@@ -34,21 +34,33 @@ Todos los chequeos juntos, los mismos de `ci.yml`:
 npm run ci
 ```
 
+Lo común de la app nueva (`shared`) contra la versión actual. Necesita Storybook armado:
+
+```bash
+npm run storybook:build
+```
+
+```bash
+npx playwright test --project=design-system
+```
+
 La primera vez hay que instalar el navegador con `npx playwright install chromium`.
 
 ## Qué hay acá
 
-| Carpeta                              | Qué tiene                                                                                                                   |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `e2e/specs/`                         | Las pruebas de navegador, por dominio. Dicen qué hace el usuario y qué tiene que ver                                        |
-| `e2e/support/driver/`                | Cómo se hace cada cosa, con métodos nombrados por intención. `legacy/` maneja la versión actual; `react/` manejará la nueva |
-| `e2e/support/cloud/`                 | La nube simulada: tablas, bucket, funciones y reglas. Se crea una por prueba                                                |
-| `unit/`                              | Lógica suelta, sin navegador                                                                                                |
-| `fixtures/data/`, `fixtures/logos/`  | Lo que sirve la nube simulada: flyer, catálogo de promociones, geografía y logos                                            |
-| `fixtures/visual/`                   | Capturas de referencia de la versión actual                                                                                 |
-| `fixtures/golden/`                   | PNG y resumen de los PDF de referencia del flyer impreso                                                                    |
-| `fixtures/network-contract.json`     | Todo lo que la app le pide a la nube: tablas, funciones y acciones                                                          |
-| `fixtures/performance-baseline.json` | Peso y tiempos de la versión actual                                                                                         |
+| Carpeta                              | Qué tiene                                                                                                                          |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/specs/`                         | Las pruebas de navegador, por dominio. Dicen qué hace el usuario y qué tiene que ver                                               |
+| `e2e/support/driver/`                | Cómo se hace cada cosa, con métodos nombrados por intención. `legacy/` maneja la versión actual; `react/` manejará la nueva        |
+| `e2e/specs/design-system/`           | `shared` contra la versión actual: tokens, componentes, capturas, red y letra mínima. Se explica en `docs/PLAN_MIGRACION_REACT.md` |
+| `e2e/support/design-system/`         | Qué story tiene que igualar a qué parte de la app (`cases.ts`), y cómo se mide                                                     |
+| `e2e/support/cloud/`                 | La nube simulada: tablas, bucket, funciones y reglas. Se crea una por prueba                                                       |
+| `unit/`                              | Lógica suelta, sin navegador                                                                                                       |
+| `fixtures/data/`, `fixtures/logos/`  | Lo que sirve la nube simulada: flyer, catálogo de promociones, geografía y logos                                                   |
+| `fixtures/visual/`                   | Capturas de referencia de la versión actual                                                                                        |
+| `fixtures/golden/`                   | PNG y resumen de los PDF de referencia del flyer impreso                                                                           |
+| `fixtures/network-contract.json`     | Todo lo que la app le pide a la nube: tablas, funciones y acciones                                                                 |
+| `fixtures/performance-baseline.json` | Peso y tiempos de la versión actual                                                                                                |
 
 Los números viejos (`t79`, `u05`) que aparecen en `CLAUDE.md` se encuentran buscándolos: la primera línea de cada prueba nombra el archivo que reemplaza, y los archivos viejos siguen en la historia de git.
 
@@ -77,6 +89,7 @@ Límites de las capturas:
 - Toleran hasta 0,1 % de píxeles distintos, porque las letras cambian un poco de una corrida a otra. Un cambio de pocas letras puede pasar: eso lo cuidan las pruebas de funcionamiento. El flyer impreso se compara píxel por píxel, sin tolerancia.
 - Muestran lo que entra en la ventana, más una imagen del contenido en las pantallas que abren con filtros arriba.
 - Valen sólo para macOS, y por eso no corren en CI. En otro sistema hay que generarlas ahí.
+- El proyecto `design-system` compara recortes de esas mismas capturas: no tiene referencias propias. Si cambia una captura a propósito, él se entera solo.
 
 ## Casos especiales
 

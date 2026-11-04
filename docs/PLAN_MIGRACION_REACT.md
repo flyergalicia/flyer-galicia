@@ -121,6 +121,36 @@ Cada dato va en el primer nivel que le alcance:
 | 5 | Corte local con `npm run release`, que copia `dist/` a la raíz | Todo en verde y paridad con la referencia |
 | 6 | Limpieza del código viejo y documentación | Sin rastros del código viejo |
 
+## Etapa 2: cómo se compara `shared` con la referencia
+
+`shared` no arma pantallas enteras, así que las capturas de `tests/fixtures/visual/` no se pueden comparar de una contra una story. Se compara por partes, con el proyecto `design-system` de Playwright, en `tests/e2e/specs/design-system/`. Lo que cada story tiene que igualar está en una lista: `tests/e2e/support/design-system/cases.ts`.
+
+| Qué se compara | Contra qué | Cómo | Dónde corre |
+|---|---|---|---|
+| Los tokens | La app actual abierta | El valor de cada variable, en las 4 paletas, en claro y en oscuro. Una variable de la app que falte acá hace fallar la prueba | `tokens.spec.ts`, también en CI |
+| Lo que cada componente termina mostrando | El mismo elemento en la app actual abierta | 31 propiedades calculadas (colores, bordes, letra, espacios, sombras), en reposo y en los estados que se pueden tocar. En un celular, sólo en reposo | `component-look.spec.ts`, también en CI |
+| Los estados que ninguna captura muestra | El mismo HTML agregado a la app actual, para leer sus reglas | Igual que el anterior, sin imagen | `component-look.spec.ts` |
+| La imagen | Un recorte de la captura de referencia | Se abre la story con la misma ventana y el mismo tema, se la pone en el lugar que tiene en la app y sobre el mismo fondo, y se comparan los dos recortes píxel por píxel. También tiene que dar el mismo alto y, donde corresponde, el mismo ancho | `reference-images.spec.ts`, sólo macOS (`@visual`) |
+| La red | `tests/fixtures/network-contract.json` | Las 161 entradas pasan por la API pública de `shared`, contra la nube simulada, y lo que la nube anotó tiene que ser exactamente el contrato. La lista de lo que no se puede repetir está vacía, y una prueba lo controla | `network-contract.spec.ts`, también en CI |
+| La letra mínima | Las reglas de `CLAUDE.md` | Todas las stories, en claro y en oscuro: nada por debajo de 12 px, salvo mayúsculas y números de contador (11 px) | `story-rules.spec.ts` y `tests/unit/design-system/css-rules.test.ts` |
+
+La misma tolerancia de las capturas: el umbral por píxel por defecto y 0,1 % de píxeles distintos. En un botón chico eso no llega a un borde de letra, así que siempre se permiten 12 píxeles (con la máquina ocupada apareció una diferencia de 8; correr un badge un píxel cambia más de 100). Las lupas, los flyers y lo que pertenece a una pantalla se tapan en los dos recortes (`mask`), y lo mismo las esquinas de una ventana, porque muestran lo que tiene detrás.
+
+**Lo que esta etapa NO compara**, porque todavía no existe:
+
+- **Pantallas enteras.** Vuelven a compararse contra las capturas completas en la etapa 4, con el proyecto `react`, cuando cada slice las arme. El encabezado de la app y el login partido son de `auth` y shell: en `shared` sólo están sus piezas.
+- **Sólo con valores calculados, sin imagen**, porque no aparecen en ninguna captura: `ConfirmDialog`, `Toast`, `Spinner`, `Skeleton`, `EmptyState`, `Notice`, `ProgressBar`, `Textarea`, el campo marcado con error y los botones `secondary`, `green`, `soft-ok` y `soft-muted`. También los estados al pasar el mouse y con foco.
+- **Sólo con una prueba de uso, sin referencia:** tamaños sin equivalente exacto en la app (el `Button` `dialog` de una ventana) y `Modal` en tamaños `narrow` y `regular`.
+
+Todo el proyecto desaparece con la versión actual, en la etapa 6: compara contra ella.
+
+### Decisiones de la etapa
+
+- **Tokens** en `web/src/shared/ui/tokens/`. Conservan los nombres de la app actual, salvo `--azul` (`--blue`) y los alias viejos `--dark`, `--light` y `--red` (`--ink`, `--paper`, `--accent`). Los colores fijos que tenían los componentes pasaron a tokens, y las reglas de `html.dark` también: un módulo CSS no tiene colores ni tamaños de letra propios (lo controla `css-rules.test.ts`). Las paletas siguen siendo las clases `t-*` y `dark` en `<html>`, con las claves `fg_theme` y `fg_palette`.
+- **`shared/ui`:** `Button`, `Field` (con `Input`, `Select` y `Textarea`), `Checkbox`, `Switch`, `Tabs`, `Card`, `StatCard`, `Badge`, `Avatar`, `ListRow`, `Modal`, `ConfirmDialog`, `Menu`, `DataTable`, `Toast`, `Spinner`, `Skeleton`, `EmptyState`, `Notice`, `ProgressBar`, `SectionLabel`, `Icon`, `PalettePicker` y `ThemeProvider`. En los compuestos, las partes van en `X.parts.tsx` y el objeto armado en `X.ts`. Quedan para sus slices las piezas de una sola pantalla: `cfg-btn`, la barra de zoom, la barra fija de abajo y el encabezado.
+- **Rarezas de la app actual que se conservan** porque el aspecto no cambia: en oscuro, un campo con foco no cambia de borde; las tarjetas del panel admin tienen otra superficie (`--raised`) que las del armador (`--card`); en el celular el `Input` mediano va a 16 px y el `Input` grande y el `Select` no.
+- **Tipos de la base:** `npm run db:types` los genera de `supabase/migrations/`, sin red. La base de `profiles` y `flyer_logs` no tiene `create table` en ninguna migración: están declaradas a mano en el generador, y una prueba controla que esa lista no crezca.
+
 ## Pruebas y coverage
 
 **Coverage funcional:** se prueba el comportamiento por la API pública de cada componente (estados, interacciones y composiciones), en Vitest Browser Mode con Chromium. La lógica pura corre en Node. Las pruebas de navegador con Playwright cubren los flujos completos.
@@ -152,4 +182,6 @@ Los seis que había se corrigieron en la versión actual el 4-nov-2026, cada uno
 - Los chequeos de `_build.mjs` se clasificaron uno por uno en `docs/CHEQUEOS_BUILD.md`. Cada método nuevo de los drivers necesita su versión en `driver/react/` cuando llegue su slice.
 - En local no se comprueba la red del banco, las PC de sucursal ni Pages. La nube simulada imita RLS y Edge Functions, no las ejercita.
 - El corte final llega a todos a la vez: si se publica, volver atrás es restaurar la versión anterior en `main`.
+- **El contrato de red registra lo que recorren las pruebas, no todo lo que hace la app.** `auth.js` borra archivos del bucket (`storage.remove`) y sube `index_<hora>.html` y `_active*_img.*`, y nada de eso figura en el contrato: `shared/supabase` lo soporta igual, y tiene que volver a mirarse al pasar esas pantallas.
+- postgrest-js repite solo una lectura sin respuesta durante unos 7 s, también en la versión actual: un corte de red tarda eso en verse como falla.
 - dependency-cruiser todavía no soporta TypeScript 7. Lee el código con swc y muestra un aviso que se puede ignorar. Se comprobó con violaciones reales que detecta los cruces, también en `.tsx` y en imports de tipos.

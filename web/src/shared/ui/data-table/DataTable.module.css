@@ -1,0 +1,79 @@
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ink);
+  font-size: var(--text-xs);
+}
+
+.caption {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.header {
+  padding: 7px 8px;
+  border-bottom: 2px solid var(--table-head-line);
+  background: var(--table-head-bg);
+  color: var(--table-head-tx);
+  font-size: var(--text-label);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.6px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.sortable {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sortButton {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.sortButton:hover,
+[aria-sort="ascending"] .sortButton,
+[aria-sort="descending"] .sortButton {
+  color: var(--accent-2);
+}
+
+.mark {
+  font-size: 0.85em;
+}
+
+.markOff {
+  opacity: 0.25;
+}
+
+.sortButton:hover .markOff {
+  opacity: 0.6;
+}
+
+.cell {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--table-row-line);
+  vertical-align: middle;
+}
+
+.selected .cell {
+  background: var(--accent-soft);
+}
+
+.excluded {
+  opacity: 0.4;
+}

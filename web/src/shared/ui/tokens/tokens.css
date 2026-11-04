@@ -1,0 +1,460 @@
+/*
+ * Design tokens. The values come from the current app (_source.html and _newcss.txt) and the
+ * design-system project checks them against it: change them only on purpose.
+ * Each palette is a class on <html>, and .dark goes on top of any of them.
+ */
+:root {
+  --accent: #f26122;
+  --accent-2: #d9501a;
+  --accent-soft: #fde9df;
+  --accent-line: #f5b79a;
+  --accent-ring: rgba(242, 97, 34, 0.16);
+  --accent-sh: rgba(242, 97, 34, 0.26);
+  --accent-grad: linear-gradient(180deg, #ff7a3d 0%, #f26122 100%);
+  --accent-grad-h: linear-gradient(180deg, #ff7a3d 0%, #d9501a 100%);
+  --navy: #1f2328;
+  --navy-2: #3a3f47;
+  --navy-soft: #efeae1;
+  --paper: #f7f4ee;
+  --field: #fbf9f5;
+  --ink: #1f2328;
+  --ink-2: #4a4e55;
+  --card: #ffffff;
+  --border: #e6e0d6;
+  --gray: #6f6a62;
+  --blue: #1d4070;
+  --sh-1: 0 1px 2px rgba(60, 45, 20, 0.06), 0 1px 1px rgba(60, 45, 20, 0.03);
+  --sh-2: 0 8px 24px rgba(60, 45, 20, 0.1), 0 2px 6px rgba(60, 45, 20, 0.06);
+  --sh-3: 0 24px 48px rgba(60, 45, 20, 0.2), 0 3px 8px rgba(60, 45, 20, 0.1);
+  --r-s: 8px;
+  --r-m: 12px;
+  --r-l: 16px;
+  /* header */
+  --hd-bg: #ffffff;
+  --hd-tx: #1f2328;
+  --hd-mut: #6f6a62;
+  --hd-line: #e6e0d6;
+  --hd-top: #f26122;
+  --hd-hover: rgba(31, 35, 40, 0.06);
+  --tab-on-bg: #1f2328;
+  --tab-on-tx: #ffffff;
+  --hd-btn-bg: #ffffff;
+  --hd-btn-line: #e6e0d6;
+  --hd-btn-hover: #f7f4ee;
+  --hd-logo-bg: #ffffff;
+  /* vista previa */
+  --pv-a: #f1ece3;
+  --pv-b: #e6dfd3;
+  --pv-dot: rgba(60, 45, 20, 0.14);
+  /* login */
+  --lg-ov: #efeae1;
+  --lg-hero: linear-gradient(160deg, #fff4ec 0%, #f7e1d2 100%);
+  --lg-hero-tx: #1f2328;
+  --lg-hero-mut: #6f6a62;
+  --lg-tag-bg: rgba(31, 35, 40, 0.06);
+  --lg-tag-line: rgba(31, 35, 40, 0.12);
+  --lg-art-ink: #1f2328;
+  --lg-art-line: #e6e0d6;
+  --lg-word: #1f2328;
+}
+html.t-marino {
+  --accent: #f5921e;
+  --accent-2: #e07f0e;
+  --accent-soft: #fff1e3;
+  --accent-line: #f5c58a;
+  --accent-ring: rgba(245, 146, 30, 0.18);
+  --accent-sh: rgba(245, 146, 30, 0.28);
+  --accent-grad: linear-gradient(180deg, #ff9f33 0%, #f5921e 100%);
+  --accent-grad-h: linear-gradient(180deg, #ff9f33 0%, #e07f0e 100%);
+  --navy: #14213d;
+  --navy-2: #1d4070;
+  --navy-soft: #eaf0f9;
+  --paper: #f3f5f8;
+  --field: #f8fafc;
+  --ink: #1c1f26;
+  --ink-2: #3b4353;
+  --border: #e1e6ee;
+  --gray: #5e6675;
+  --sh-1: 0 1px 2px rgba(20, 33, 61, 0.05), 0 1px 1px rgba(20, 33, 61, 0.03);
+  --sh-2: 0 8px 24px rgba(20, 33, 61, 0.1), 0 2px 6px rgba(20, 33, 61, 0.06);
+  --sh-3: 0 24px 48px rgba(20, 33, 61, 0.2), 0 3px 8px rgba(20, 33, 61, 0.1);
+  --hd-bg: linear-gradient(90deg, #14213d 0%, #1d3563 100%);
+  --hd-tx: #ffffff;
+  --hd-mut: rgba(255, 255, 255, 0.72);
+  --hd-line: rgba(255, 255, 255, 0.08);
+  --hd-top: transparent;
+  --hd-hover: rgba(255, 255, 255, 0.08);
+  --tab-on-bg: #ffffff;
+  --tab-on-tx: #14213d;
+  --hd-btn-bg: rgba(255, 255, 255, 0.06);
+  --hd-btn-line: rgba(255, 255, 255, 0.22);
+  --hd-btn-hover: rgba(255, 255, 255, 0.14);
+  --pv-a: #eaf0f8;
+  --pv-b: #dce3ee;
+  --pv-dot: rgba(20, 33, 61, 0.09);
+  --lg-ov: radial-gradient(120% 100% at 100% 0%, #1b2e58 0%, #0f1730 45%, #0a0f1f 100%);
+  --lg-hero: radial-gradient(120% 90% at 0% 0%, #24407a 0%, #14213d 55%, #0e1730 100%);
+  --lg-hero-tx: #ffffff;
+  --lg-hero-mut: rgba(255, 255, 255, 0.72);
+  --lg-tag-bg: rgba(255, 255, 255, 0.1);
+  --lg-tag-line: rgba(255, 255, 255, 0.14);
+  --lg-art-ink: #1d4070;
+  --lg-art-line: #e7ebf2;
+  --lg-word: #ffffff;
+}
+html.t-grafito {
+  --accent: #ff6a13;
+  --accent-2: #e55a0a;
+  --accent-soft: #ffe9dc;
+  --accent-line: #ffb995;
+  --accent-ring: rgba(255, 106, 19, 0.16);
+  --accent-sh: rgba(255, 106, 19, 0.3);
+  --accent-grad: linear-gradient(180deg, #ff8340 0%, #ff6a13 100%);
+  --accent-grad-h: linear-gradient(180deg, #ff8340 0%, #e55a0a 100%);
+  --navy: #16181d;
+  --navy-2: #2e3a4f;
+  --navy-soft: #e4e7ec;
+  --paper: #f1f2f4;
+  --field: #f7f8fa;
+  --ink: #15171a;
+  --ink-2: #3a3f47;
+  --border: #dfe2e7;
+  --gray: #666b73;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.04);
+  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --sh-3: 0 24px 48px rgba(0, 0, 0, 0.26), 0 3px 8px rgba(0, 0, 0, 0.12);
+  --hd-bg: #16181d;
+  --hd-tx: #ffffff;
+  --hd-mut: rgba(255, 255, 255, 0.65);
+  --hd-line: rgba(255, 255, 255, 0.08);
+  --hd-top: transparent;
+  --hd-hover: rgba(255, 255, 255, 0.08);
+  --tab-on-bg: #ff6a13;
+  --tab-on-tx: #ffffff;
+  --hd-btn-bg: rgba(255, 255, 255, 0.06);
+  --hd-btn-line: rgba(255, 255, 255, 0.2);
+  --hd-btn-hover: rgba(255, 255, 255, 0.14);
+  --pv-a: #e9ebef;
+  --pv-b: #dcdfe5;
+  --pv-dot: rgba(0, 0, 0, 0.12);
+  --lg-ov: #0f1114;
+  --lg-hero: radial-gradient(120% 90% at 0% 0%, #2a2e36 0%, #16181d 60%, #0f1114 100%);
+  --lg-hero-tx: #ffffff;
+  --lg-hero-mut: rgba(255, 255, 255, 0.72);
+  --lg-tag-bg: rgba(255, 255, 255, 0.1);
+  --lg-tag-line: rgba(255, 255, 255, 0.14);
+  --lg-art-ink: #2e3a4f;
+  --lg-art-line: #e4e7ec;
+  --lg-word: #ffffff;
+}
+html.t-cielo {
+  --navy: #0f1b2d;
+  --navy-2: #2f6fed;
+  --navy-soft: #eaf1fa;
+  --paper: #f4f8fc;
+  --field: #f8fbfe;
+  --ink: #0f1b2d;
+  --ink-2: #34435a;
+  --border: #dce5f0;
+  --gray: #5b6b80;
+  --sh-1: 0 1px 2px rgba(15, 27, 45, 0.05), 0 1px 1px rgba(15, 27, 45, 0.03);
+  --sh-2: 0 8px 24px rgba(15, 27, 45, 0.1), 0 2px 6px rgba(15, 27, 45, 0.06);
+  --sh-3: 0 24px 48px rgba(15, 27, 45, 0.22), 0 3px 8px rgba(15, 27, 45, 0.1);
+  --hd-bg: #ffffff;
+  --hd-tx: #0f1b2d;
+  --hd-mut: #5b6b80;
+  --hd-line: #dce5f0;
+  --hd-top: #f26122;
+  --hd-hover: rgba(47, 111, 237, 0.07);
+  --tab-on-bg: #2f6fed;
+  --tab-on-tx: #ffffff;
+  --hd-btn-bg: #ffffff;
+  --hd-btn-line: #dce5f0;
+  --hd-btn-hover: #f4f8fc;
+  --pv-a: #eaf1fa;
+  --pv-b: #dce7f4;
+  --pv-dot: rgba(47, 111, 237, 0.16);
+  --lg-ov: #e9f0f9;
+  --lg-hero: linear-gradient(160deg, #2f6fed 0%, #1e4fb8 100%);
+  --lg-hero-tx: #ffffff;
+  --lg-hero-mut: rgba(255, 255, 255, 0.78);
+  --lg-tag-bg: rgba(255, 255, 255, 0.14);
+  --lg-tag-line: rgba(255, 255, 255, 0.2);
+  --lg-art-ink: #2f6fed;
+  --lg-art-line: #dce5f0;
+  --lg-word: #ffffff;
+}
+html.dark {
+  --accent-soft: #33240f;
+  --accent-line: #6b4a1e;
+  --navy-soft: #22262c;
+  --paper: #141517;
+  --field: #0f1012;
+  --ink: #eef1f6;
+  --ink-2: #c5ccd9;
+  --card: #1d1f23;
+  --border: #2e3136;
+  --gray: #a3acbd;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --sh-3: 0 24px 48px rgba(0, 0, 0, 0.6);
+  --hd-bg: #0f1114;
+  --hd-tx: #ffffff;
+  --hd-mut: rgba(255, 255, 255, 0.65);
+  --hd-line: rgba(255, 255, 255, 0.08);
+  --hd-hover: rgba(255, 255, 255, 0.08);
+  --tab-on-bg: #ffffff;
+  --tab-on-tx: #15171a;
+  --hd-btn-bg: rgba(255, 255, 255, 0.06);
+  --hd-btn-line: rgba(255, 255, 255, 0.2);
+  --hd-btn-hover: rgba(255, 255, 255, 0.14);
+  --pv-a: #1e2024;
+  --pv-b: #141517;
+  --pv-dot: rgba(255, 255, 255, 0.07);
+  --lg-ov: #0f1114;
+  --lg-hero: radial-gradient(120% 90% at 0% 0%, #2a2e36 0%, #16181d 60%, #0f1114 100%);
+  --lg-hero-tx: #ffffff;
+  --lg-hero-mut: rgba(255, 255, 255, 0.72);
+  --lg-tag-bg: rgba(255, 255, 255, 0.1);
+  --lg-tag-line: rgba(255, 255, 255, 0.14);
+  --lg-word: #ffffff;
+}
+
+:root {
+  --green: #1a9c50;
+  --danger: #b3261e;
+  --danger-soft: #fde3e3;
+
+  /* Letters. Nothing below 12px, except labels in capitals: 11px. */
+  --font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --text-label: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.78rem;
+  --text-md: 0.8rem;
+  --text-lg: 0.82rem;
+  --text-field: 0.83rem;
+  --text-xl: 0.9rem;
+  --text-panel: 0.7rem;
+  --text-note: 0.76rem;
+  --text-dialog: 0.95rem;
+  --text-title: 1rem;
+  --text-stat: 1.55rem;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-heavy: 800;
+
+  /* Spaces: the ones the screens of the current app use. */
+  --space-2xs: 2px;
+  --space-xs: 3px;
+  --space-s: 5px;
+  --space-m: 6px;
+  --space-l: 8px;
+  --space-xl: 10px;
+  --space-2xl: 11px;
+  --space-3xl: 12px;
+  --space-4xl: 14px;
+  --space-5xl: 16px;
+  --space-6xl: 18px;
+  --space-7xl: 22px;
+
+  --radius-full: 999px;
+  --radius-pill: 20px;
+  --radius-chip: 7px;
+  --radius-control: 10px;
+
+  /* Raised rows and cards of the admin panel keep their own dark surface. */
+  --raised: var(--card);
+  --raised-line: var(--border);
+  --raised-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  /* Windows. */
+  --window-bg: #fff;
+  --window-tx: var(--ink);
+  --window-line: var(--border);
+  --window-ov: rgba(0, 0, 0, 0.45);
+  --window-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+  --window-tab-bg: var(--paper);
+  --window-tab-line: var(--border);
+  --window-tab-tx: var(--gray);
+  --dialog-ov: rgba(15, 17, 20, 0.55);
+
+  /* Tabs in the shape of a pill. */
+  --pill-on-bg: var(--navy);
+  --pill-on-tx: #fff;
+
+  /* Tables. */
+  --table-head-bg: var(--paper);
+  --table-head-tx: var(--gray);
+  --table-head-line: var(--border);
+  --table-row-line: var(--border);
+
+  /* Rows of a menu. */
+  --menu-hover-tx: var(--accent-2);
+
+  /* Link buttons, on the login screen. */
+  --link: var(--navy-2);
+
+  /* Tones of badges and small buttons: they are the same in light and dark mode. */
+  --tone-green-bg: #e8f5e9;
+  --tone-green-tx: #2e7d32;
+  --tone-red-bg: #ffebee;
+  --tone-red-tx: #c62828;
+  --tone-blue-bg: #e3f2fd;
+  --tone-blue-tx: #1565c0;
+  --tone-purple-bg: #f3e5f5;
+  --tone-purple-tx: #6a1b9a;
+  --tone-gold-bg: #fdf0d5;
+  --tone-gold-tx: #9a6b00;
+  --tone-amber-bg: #fff8e0;
+  --tone-amber-tx: #c07000;
+  --tone-teal-bg: #e0f2f1;
+  --tone-teal-tx: #00695c;
+  --tone-violet-bg: #ede7f6;
+  --tone-violet-tx: #4527a0;
+  --tone-navy-bg: #e3f2fd;
+  --tone-navy-tx: #0d47a1;
+  --status-valid-bg: #e2f5e8;
+  --status-valid-tx: #1a7a3f;
+  --status-ending-bg: #fff2cc;
+  --status-ending-tx: #8a6300;
+  --status-expired-bg: #fde3e2;
+  --status-expired-tx: #a3241a;
+  --status-review-bg: #fff0e0;
+  --status-review-tx: #a35a00;
+  --status-none-bg: #ececec;
+  --status-none-tx: #666;
+  --status-outside-bg: #e9e6f8;
+  --status-outside-tx: #4a3ba0;
+  --status-soon-bg: #e0eefb;
+  --status-soon-tx: #1f5a96;
+
+  /* Small buttons. */
+  --soft-danger-bg: #fff0f0;
+  --soft-danger-tx: #c00;
+  --soft-ok-bg: #f0fff5;
+  --soft-neutral-bg: #f3f3f3;
+  --soft-neutral-tx: #666;
+
+  /* Messages. */
+  --notice-ok-bg: #f0fff5;
+  --notice-ok-line: #a3e6c0;
+  --notice-ok-tx: #157a3f;
+  --notice-warn-bg: #fff8e6;
+  --notice-warn-line: #ffd080;
+  --notice-warn-tx: #8a6000;
+  --notice-err-bg: #fff0f0;
+  --notice-err-line: #ffa0a0;
+  --notice-err-tx: #c00;
+
+  /* A field that is wrong. */
+  --field-invalid-line: #d9501a;
+  --field-invalid-bg: #fff5f0;
+  --field-invalid-tx: #b03a0a;
+  --field-warning-line: #c98a0a;
+  --field-warning-tx: #8a6100;
+
+  --toast-bg: var(--navy);
+  --skeleton-bg: #ececec;
+  --skeleton-shine: rgba(255, 255, 255, 0.65);
+  --switch-off: var(--border);
+  --switch-knob: #fff;
+
+  --check-tx: var(--gray);
+  --toggle-bg: var(--field);
+  --toggle-line: var(--border);
+  --toggle-hover-line: var(--accent);
+  --soft-muted-hover-bg: var(--soft-danger-tx);
+  --soft-muted-hover-tx: #fff;
+  --empty-bg: var(--field);
+  --empty-line: var(--border);
+  --control-focus-line: var(--accent);
+  --control-lg-focus-bg: var(--card);
+  --secondary-bg: var(--navy);
+  --ghost-line: var(--border);
+  --ghost-tx: var(--ink);
+  --ghost-hover-line: var(--ink-2);
+  --raised-hover-line: var(--ink-2);
+  --green-sh: rgba(26, 156, 80, 0.22);
+  --soft-edit-bg: var(--navy-soft);
+  --disabled-bg: #f5f5f5;
+  --disabled-tx: var(--gray);
+  --control-scheme: light;
+  --raised-tabs: var(--card);
+  --raised-menu: var(--card);
+  --underline-hover: var(--navy-soft);
+  --stat-blue-tx: var(--blue);
+  --stat-yellow-line: #e0a61b;
+  --confirm-danger: #b3261e;
+  --confirm-danger-hover: #951e18;
+  --stat-yellow-tx: #9a6a00;
+  --menu-hover-bg: var(--navy-soft);
+  --menu-danger-bg: var(--danger-soft);
+  --menu-danger-tx: var(--danger);
+  --progress-bg: var(--border);
+}
+
+html.dark {
+  --danger: #ff8a80;
+  --danger-soft: #3a1c1c;
+
+  --raised: #22262c;
+  --raised-line: #333840;
+  --window-bg: #23262c;
+  --window-tx: #e8e8e8;
+  --window-line: #3a3e46;
+  --window-tab-bg: #2a2f36;
+  --window-tab-line: #3a3e46;
+  --window-tab-tx: #c9ccd2;
+  --pill-on-bg: #fff;
+  --pill-on-tx: #15171a;
+  --table-head-bg: #1b1e23;
+  --table-head-tx: #9aa0a8;
+  --table-row-line: #333840;
+  --menu-hover-tx: #ff6b6b;
+  --link: #7fb2ff;
+  --status-outside-bg: #2e2a4d;
+  --status-outside-tx: #b9b0f0;
+  --status-soon-bg: #1e3247;
+  --status-soon-tx: #8fc0ec;
+  --tone-navy-bg: #13263d;
+  --tone-navy-tx: #90caf9;
+  --soft-neutral-bg: #2c2f36;
+  --soft-neutral-tx: #bbb;
+  --field-invalid-bg: #2a1a12;
+  --field-invalid-tx: #ff9a6b;
+  --field-warning-tx: #e5b75b;
+  --toast-bg: #2e3136;
+  --skeleton-bg: #2a2f36;
+
+  --check-tx: var(--ink-2);
+  --toggle-bg: #1b1e23;
+  --toggle-line: #333840;
+  --toggle-hover-line: #333840;
+  --soft-muted-hover-bg: #2c2f36;
+  --soft-muted-hover-tx: #bbb;
+  --empty-bg: #1b1e23;
+  --empty-line: #333840;
+  --control-focus-line: var(--border);
+  --control-lg-focus-bg: var(--field);
+  --secondary-bg: #2e3136;
+  --ghost-line: #3a4049;
+  --ghost-tx: #e9eaec;
+  --ghost-hover-line: #3a4049;
+  --raised-hover-line: #333840;
+  --soft-edit-bg: #22262c;
+  --disabled-bg: #15171a;
+  --disabled-tx: #777;
+  --control-scheme: dark;
+  --raised-tabs: #22262c;
+  --raised-menu: #22262c;
+  --underline-hover: #262b31;
+  --stat-blue-tx: #6fa3e0;
+  --stat-yellow-tx: #e5b75b;
+  --menu-hover-bg: #2a2f36;
+  --menu-danger-bg: #3a2326;
+  --menu-danger-tx: #ff6b6b;
+  --progress-bg: #2a2f36;
+}

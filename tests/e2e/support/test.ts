@@ -2,7 +2,7 @@ import { expect, test as base } from "@playwright/test";
 import { restartClock } from "./clock.ts";
 import { appendContractPart, isRecordingContract } from "./cloud/contract-store.ts";
 import { type Cloud, createCloud } from "./cloud/index.ts";
-import { type TargetOption } from "./target.ts";
+import { type StorybookOption, type TargetOption } from "./target.ts";
 import { launchApp, type LaunchedApp, type OpenAppOptions, type OpenedApp } from "./open-app.ts";
 
 interface HarnessFixtures {
@@ -22,8 +22,9 @@ function browserLog({ app }: LaunchedApp): string {
   ].join("\n");
 }
 
-export const test = base.extend<HarnessFixtures & TargetOption>({
+export const test = base.extend<HarnessFixtures & TargetOption & StorybookOption>({
   target: ["legacy", { option: true }],
+  storybookUrl: ["", { option: true }],
   clockOffset: [
     // oxlint-disable-next-line no-empty-pattern -- Playwright requires a destructuring pattern
     async ({}, use) => {

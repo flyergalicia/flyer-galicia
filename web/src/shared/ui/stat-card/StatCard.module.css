@@ -1,0 +1,72 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 13px 14px 12px;
+  border: 1px solid var(--raised-line);
+  border-radius: var(--r-m);
+  background: var(--raised);
+  box-shadow: var(--sh-1);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.card::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--stripe, var(--border));
+  content: "";
+}
+
+.label {
+  display: block;
+  min-height: 2.4em;
+  margin-bottom: 6px;
+  color: var(--tone, var(--gray));
+  font-size: var(--text-label);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.value {
+  display: block;
+  margin-top: 2px;
+  color: var(--value, var(--ink));
+  font-size: var(--text-stat);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.green {
+  --stripe: var(--green);
+  --value: var(--green);
+}
+
+.red {
+  --stripe: var(--accent);
+  --value: var(--accent-2);
+}
+
+.blue {
+  --stripe: var(--blue);
+  --value: var(--stat-blue-tx);
+}
+
+.yellow {
+  --stripe: var(--stat-yellow-line);
+  --tone: var(--stat-yellow-tx);
+  --value: var(--stat-yellow-tx);
+}

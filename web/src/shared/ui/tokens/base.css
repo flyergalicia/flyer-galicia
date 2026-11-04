@@ -1,0 +1,46 @@
+/* What every screen starts from. The same rules as the current app, without its old layers. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-family);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-family);
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+}
+
+:is(button, input, select, textarea, [role="tab"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

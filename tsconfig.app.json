@@ -12,5 +12,5 @@
       "@/*": ["./web/src/*"]
     }
   },
-  "include": ["web/src", ".storybook/preview.ts"]
+  "include": ["web/src", ".storybook/preview.tsx"]
 }
