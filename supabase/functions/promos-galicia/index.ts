@@ -20,7 +20,7 @@
 // verdad autoriza o rechaza).
 // Versión FIJA, la misma que usa la app (SUPABASE_JS_URL en _build.mjs): con "@2"
 // cada deploy tomaba la última 2.x que hubiera, sin que nadie la probara.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("ADMIN_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -664,7 +664,7 @@ async function modoCopiarLogo(m: { id: string; url: string }, yaEstan: Set<strin
 // parte falla y la promo queda "sin dato" como antes.
 let unpdf: any = null;
 async function modoPdfFilas(buf: Uint8Array): Promise<{ loc: string; prov: string }[]> {
-  if (!unpdf) unpdf = await import("https://esm.sh/unpdf@1.4.0");
+  if (!unpdf) unpdf = await import("https://esm.sh/unpdf@2.1.0");
   const pdf = await unpdf.getDocumentProxy(buf);
   // una lista cortada sería peor que "no se sabe" (ver el freno de los locales)
   if (pdf.numPages > 60) throw new Error("PDF de " + pdf.numPages + " páginas");

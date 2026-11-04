@@ -47,12 +47,34 @@ function buscarChromium() {
   return null;
 }
 
+// ── Reloj de las pruebas ──
+// datos/cat.json es una foto del catálogo de Galicia y sus promos vencen: con la
+// fecha real, las pruebas se rompen solas al pasar los meses. Por eso cada prueba
+// arranca siempre en este momento (y de ahí el tiempo corre normal), tanto en el
+// navegador como acá en Node, que arma fechas relativas para la nube simulada.
+// Al renovar cat.json, mover esta fecha a un día en que sus promos estén vigentes.
+const HOY_DE_PRUEBA = '2026-10-30T12:00:00-03:00';
+function moverReloj(desfase) {
+  const Real = globalThis.Date, ahora = () => Real.now() + desfase;
+  const Movido = new Proxy(Real, {
+    construct: (t, a, nt) => Reflect.construct(t, a.length ? a : [ahora()], nt),
+    apply: (t) => new t(ahora()).toString(),
+    get: (t, k) => (k === 'now' ? ahora : Reflect.get(t, k)),
+  });
+  Real.prototype.constructor = Movido;
+  globalThis.Date = Movido;
+}
+
 // ── Modo "una prueba" (lo llama el proceso principal) ──
 if (args[0] === '--una') {
   const { createRequire } = await import('module');
   const require = createRequire(import.meta.url);
   const pw = require(process.env.FG_PLAYWRIGHT);
   const browser = await pw.chromium.launch(process.env.FG_CHROMIUM ? { executablePath: process.env.FG_CHROMIUM } : {});
+  const desfase = new Date(HOY_DE_PRUEBA).getTime() - Date.now();
+  moverReloj(desfase);
+  const nuevoContexto = browser.newContext.bind(browser);
+  browser.newContext = async (o) => { const c = await nuevoContexto(o); await c.addInitScript(moverReloj, desfase); return c; };
   try { await require(join(AQUI, args[1]))(browser); }
   catch (e) { console.log('ERROR', (e && e.message || String(e)).split('\n')[0]); process.exitCode = 1; }
   finally { await browser.close(); }

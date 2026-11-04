@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <link rel="preconnect" href="https://cajyjnxjbobdpltflgnb.supabase.co" crossorigin>
-<meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js","integrity":"sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"},"xlsx":{"src":"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js","integrity":"sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js","integrity":"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=83131abe02","integrity":"sha384-qRYUCHH1XShx7Kx4J+dV7d4ZfJ5jtuRtFJmPvcl8u5zF7oODAS9NDoZs7Y9AY+o5"},"ben":{"src":"benchmark.js?v=aedea4a198","integrity":"sha384-6eA/wFp28AhE1YnA3epsUeUde1QQ/5P7wKswuLszH+SBXAxDMRfeBTz7HLr1w7zK"}}'>
-<meta name="build-v" content="e2ed204a36">
+<meta name="fg-libs" content='{"jspdf":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js","integrity":"sha384-qovJwSBbRDPP5cEjCp8S0UP66wrvnjaa60XMOGzTNanrThcrGfXfnZkvgY8N1KT3"},"xlsx":{"src":"https://flyergalicia.github.io/flyer-galicia/libs/xlsx-0.20.3.full.min.js","integrity":"sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT"},"jszip":{"src":"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.2/jszip.min.js","integrity":"sha384-DdGlNq+wVXAn83gXqwyeFHB7iyXy6L0rLrNzgDmhKWPjiJLg9vj6qosYmZmkMfQ+"},"exceljs":{"src":"https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","integrity":"sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz"},"ges":{"src":"gestiones.js?v=8ad1baa5a2","integrity":"sha384-o2BZbDJcDlj5YOEI6amsjnyq92/pVASYeVibW8g53nrsC2FJENMCO3RTnDyh9U/u"},"ben":{"src":"benchmark.js?v=aedea4a198","integrity":"sha384-6eA/wFp28AhE1YnA3epsUeUde1QQ/5P7wKswuLszH+SBXAxDMRfeBTz7HLr1w7zK"}}'>
+<meta name="build-v" content="44437b509f">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flyer Galicia 5.5</title>
 <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,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">
@@ -2202,8 +2202,34 @@ html.dark .prov-pop,html.dark .prov-pop .prov-ayuda{background:#24272d;}
 .um-env-chk input{width:16px;height:16px;margin:0;accent-color:var(--acc,#F26122)}
 .um-env-campos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 @media(max-width:600px){.um-env-campos{grid-template-columns:1fr}}
+/* ── Buscador de pantallas (Cmd+K / Ctrl+K) ── */
+.hdr-cmdk{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 9px;border:1px solid rgba(128,128,128,.35);border-radius:8px;background:rgba(128,128,128,.12);color:var(--hd-tx);font:500 .75rem/1 "Figtree",sans-serif;cursor:pointer;white-space:nowrap;}
+.hdr-cmdk:hover{background:rgba(128,128,128,.22);}
+.hdr-cmdk .dd-svg{width:14px;height:14px;flex-shrink:0;margin:0;}
+.hdr-cmdk b{font-weight:500;}
+.hdr-cmdk kbd{padding:2px 5px;border-radius:5px;background:rgba(128,128,128,.2);font:600 .6875rem/1.2 "Figtree",sans-serif;}
+@media (max-width:1180px){.hdr-cmdk{padding:0 8px;}.hdr-cmdk b,.hdr-cmdk kbd{display:none;}}
+.cmdk-fondo{position:fixed;inset:0;z-index:240000;display:flex;align-items:flex-start;justify-content:center;padding:12vh 16px 16px;box-sizing:border-box;background:rgba(15,17,20,.5);}
+.cmdk{display:flex;flex-direction:column;width:100%;max-width:580px;max-height:min(520px,76vh);max-height:min(520px,76dvh);overflow:hidden;background:var(--card,#fff);color:var(--dark);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.32);font-family:"Figtree",sans-serif;}
+.cmdk-top{display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.cmdk-top svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:var(--gray);stroke-width:2;stroke-linecap:round;}
+.cmdk-top input{flex:1;min-width:0;height:52px;padding:0;border:0;outline:0;box-shadow:none;background:transparent;color:var(--dark);font:400 1rem/1.3 "Figtree",sans-serif;}
+.cmdk-top input:focus,.cmdk-top input:focus-visible{outline:0 !important;border:0 !important;box-shadow:none !important;}
+.cmdk-top input::placeholder{color:var(--gray);}
+.cmdk-l{flex:1;min-height:0;overflow-y:auto;padding:6px;overscroll-behavior:contain;}
+.cmdk-sec{padding:10px 10px 4px;color:var(--gray);font-size:.6875rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;}
+.cmdk-it{display:flex;align-items:center;gap:10px;min-height:38px;padding:7px 10px;box-sizing:border-box;border-radius:8px;font-size:.875rem;line-height:1.3;cursor:pointer;scroll-margin:6px;}
+.cmdk-it.on{background:rgba(128,128,128,.15);box-shadow:inset 3px 0 0 var(--accent,#E8611A);}
+.cmdk-tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cmdk-tx mark{background:none;color:inherit;font-weight:700;}
+.cmdk-act{flex-shrink:0;color:var(--accent-2,var(--accent,#C8500F));font-size:.75rem;font-weight:600;}
+.cmdk-hint{flex-shrink:0;color:var(--gray);font-size:.75rem;}
+.cmdk-nada{padding:28px 16px;color:var(--gray);font-size:.875rem;text-align:center;overflow-wrap:anywhere;}
+.cmdk-pie{display:flex;gap:14px;padding:8px 16px;border-top:1px solid var(--border);color:var(--gray);font-size:.75rem;flex-shrink:0;}
+.cmdk-pie kbd{display:inline-block;min-width:12px;margin-right:3px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;font:600 .6875rem/1.3 "Figtree",sans-serif;text-align:center;}
+@media (max-width:600px){.cmdk-fondo{padding:8px;}.cmdk{max-height:70vh;max-height:70dvh;}.cmdk-it{min-height:44px;}.cmdk-pie{display:none;}}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script><script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script><script>
 var SUPA_URL='https://cajyjnxjbobdpltflgnb.supabase.co';
 var SUPA_ANON='sb_publishable_M62msRVQkNbl0zk91r0zUw_q-gUDnJi';
 // La service_role key YA NO está en el cliente. Las operaciones privilegiadas
@@ -9879,36 +9905,45 @@ var _FG_TARGET_W=1240;
 function _finishRaster(cvs,cb){
   cvs.toBlob(function(b){cb(b,cvs);},'image/jpeg',0.92);
 }
+// pdf.js va en jsDelivr (cdnjs tarda en sumar versiones) y en su armado "legacy": el
+// común sólo anda en navegadores muy recientes y las PC de sucursal pueden no estarlo.
+var _FG_PDFJS='https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/';
+// Desde pdf.js 5, JPEG 2000 y fax/JBIG2 se decodifican con WebAssembly. Los pide el
+// worker por mensaje y los baja esta fábrica, con su hash (fetch del worker no lo verifica).
+// Sin wasmUrl no hay otro camino: si un archivo no llega, esa imagen no se dibuja.
+var _FG_PDF_WASM={
+  'openjpeg.wasm':'sha384-zUaz4HmvfKEHP9lus9TOMat1FFL0UcpbPw5V11mhoW2ma/L1IDw03o1QQqv7AkF2',
+  'jbig2.wasm':'sha384-iaCfit7ahDwR6i0sUBtQtjqoUs/cixFPu1hRkl4j14vBZ9WWoGkJhy0wQ9N9P5ED'
+};
+function _FgPdfBinarios(){}
+_FgPdfBinarios.prototype.fetch=function(q){
+  var sri=q&&q.kind==='wasmUrl'&&_FG_PDF_WASM[q.filename];
+  if(!sri)return Promise.reject(new Error('pdf.js pidió '+(q&&q.filename)));
+  return fetch(_FG_PDFJS+'wasm/'+q.filename,{integrity:sri,mode:'cors'})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
+    .then(function(b){return new Uint8Array(b);});
+};
 function _fgLoadPdfJs(cb){
-  if(window.pdfjsLib&&window.pdfjsLib.getDocument){cb();return;}
+  if(window.pdfjsLib&&window.pdfjsLib.getDocument&&window.pdfjsLib.GlobalWorkerOptions.workerSrc){cb();return;}
   // Integridad (SRI) fijada a la versión exacta, igual que los scripts del <head>:
   // si el CDN devolviera otro contenido, el navegador no lo ejecuta.
   var s=document.createElement('script');
-  s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-  s.integrity='sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+  s.type='module'; // pdf.js ya no viene como script común; al ejecutarse deja window.pdfjsLib
+  s.src=_FG_PDFJS+'legacy/build/pdf.min.mjs';
+  s.integrity='sha384-8Nzt4NtLKsO5Ksqwrdc+JzLh0297H8590bi0lcBPKcMRxReio/DNZsRsiBMZydqe';
   s.crossOrigin='anonymous';
   s.onload=function(){
-    var wsrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    var wsri='sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
-    function fallback(){
-      try{
-        // Worker cross-origin robusto: blob mismo-origen que importa el worker real (cdnjs manda CORS).
-        var blob=new Blob(['importScripts('+JSON.stringify(wsrc)+');'],{type:'application/javascript'});
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
-      }catch(e){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=wsrc;}catch(_){}}
-      cb();
-    }
-    // importScripts no soporta integrity, pero fetch sí: se baja el worker con su
-    // hash verificado y se lo sirve desde un blob. Si algo falla, el camino de antes.
-    try{
-      fetch(wsrc,{integrity:wsri,mode:'cors'})
-        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
-        .then(function(code){
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([code],{type:'application/javascript'}));
-          cb();
-        })
-        .catch(function(e){console.warn('pdf.js worker con SRI falló, uso importScripts:',e);fallback();});
-    }catch(e){fallback();}
+    var wsrc=_FG_PDFJS+'legacy/build/pdf.worker.min.mjs';
+    var wsri='sha384-h2OX4gf3I6e1sZFfB/7wpAKzqaygzUba1e7GWT5x1gZqWrNDRIrSERQHlEFPSfu+';
+    // Un Worker no admite integrity, pero fetch sí: se baja con su hash verificado y se
+    // lo sirve desde un blob. Si falla no hay otro camino, sería correr código sin verificar.
+    fetch(wsrc,{integrity:wsri,mode:'cors'})
+      .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+      .then(function(code){
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
+        cb();
+      })
+      .catch(function(e){console.warn('pdf.js worker:',e);showToast('No se pudo cargar el lector de PDF');});
   };
   s.onerror=function(){showToast('No se pudo cargar el lector de PDF');};
   document.head.appendChild(s);
@@ -9962,7 +9997,7 @@ function _rasterizeFlyer(file,cb){
           var doc=null;
           // al terminar se suelta el PDF (antes quedaba en memoria, con sus imágenes decodificadas)
           var soltar=function(){try{if(doc)doc.destroy();}catch(x){}doc=null;};
-          window.pdfjsLib.getDocument({data:data}).promise.then(function(pdf){doc=pdf;return pdf.getPage(1);})
+          window.pdfjsLib.getDocument({data:data,useWorkerFetch:false,BinaryDataFactory:_FgPdfBinarios}).promise.then(function(pdf){doc=pdf;return pdf.getPage(1);})
           .then(function(page){
             _renderPageBanded(page,function(cvs,err){
               try{page.cleanup();}catch(x){}
@@ -22534,6 +22569,12 @@ function _benAbrir(){
   _lib(['ben']).then(function(){window.benInit();})
     .catch(function(){showToast('No se pudo cargar el Benchmark. Revisá la conexión e intentá de nuevo.');});
 }
+// Solapas de Gestiones de cada perfil. Vive acá porque el buscador las lista antes de bajar gestiones.js.
+function _gesTabsDe(r){
+  if(r==='hunter')return [['agenda','Mi agenda'],['lista','Mis gestiones'],['tablero','Tablero']];
+  if(r==='lider')return [['agenda','Agenda del equipo'],['tablero','Tablero del equipo'],['lista','Gestiones del equipo']];
+  return [['empresas','Mis empresas'],['agenda','Agenda'],['lista','Gestiones'],['tablero','Tablero']];
+}
 function _gesAbrir(fn,arg){
   _lib(['ges']).then(function(){window[fn](arg);})
     .catch(function(){showToast('No se pudo cargar Gestiones. Revisá la conexión e intentá de nuevo.');});
@@ -22685,6 +22726,245 @@ function _cpIr(id){
     },function(){_CP.yendo=false;showToast('No se pudo cambiar de cuenta.');});
   });
 }
+
+// ── BUSCADOR DE PANTALLAS (Cmd+K en Mac, Ctrl+K en Windows) ──────────────────────
+// Salta a cualquier pantalla o función sin recorrer menús. Lee lo que ve cada perfil
+// de donde ya está decidido (las solapas del header, el menú del nombre, _facOpts,
+// _bdPanes, _AP_GROUPS): una facultad nueva o un nombre cambiado aparecen solos. Sumar
+// una entrada es un add() en _cmdEntradas. Es sólo un atajo: cada una llama a lo mismo
+// que el botón que reemplaza, con sus mismos candados.
+var _CMD={ov:null,L:[],rows:[],sel:0,volver:null};
+var _CMD_REC='fg_cmdk_rec',_CMD_REC_MAX=5;
+// Palabras con las que también se encuentra cada solapa.
+var _CMD_CLAVES={flyer:'armador inicio',rubros:'armador combustible supermercado',sueldo:'armador cashback',
+  estudio:'disenos publicar',promos:'promociones marcas beneficios buscador',benchmark:'competencia bancos comparar',
+  hunter:'empresa cuit',gestiones:'visitas prospectos altas agenda tablero'};
+var _CMD_CLAVES_ADMIN={usuarios:'altas cuentas perfiles',registros:'flyers generados',uso:'estadisticas metricas',
+  facultades:'permisos perfiles',auditoria:'acciones log',varios:'padron excel',padronotros:'padron',padronlog:'padron historial',
+  subir:'flyer pdf imagen calibrar',legales:'legal texto',opciones:'solapas flyers',vigiladas:'promociones vencidas'};
+function _cmdNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
+function _cmdSeVe(el){return !!el&&el.getClientRects().length>0;}
+function _cmdMostrado(id){var el=document.getElementById(id);return !!el&&el.style.display!=='none';}
+function _cmdTecla(){return /Mac|iPhone|iPad/.test(navigator.platform||'')?'⌘K':'Ctrl K';}
+// Con la sesión adentro: en el login el atajo sigue siendo el del navegador.
+function _cmdSesion(){return _cmdMostrado('hdr-right')&&!_cmdSeVe(document.getElementById('login-ov'));}
+// Una ventana abierta puede tener algo a medio hacer, y salir de abajo la dejaría
+// tapando otra pantalla: primero se cierra. Base de datos y el panel admin sí se
+// pueden dejar: son pantallas, y _cmdIr las cierra con su aviso de cambios sin guardar.
+function _cmdBloqueo(){
+  if(_fgEnTanda())return 'Esperá a que termine de generar el ZIP.';
+  var v=document.querySelectorAll('[id$="-ov"],[id$="-modal"],[id$="-conf"],#fg-askopt,.fg-cf-ov,.ges-ov,.ben-ov,.modal-overlay.show');
+  for(var i=0;i<v.length;i++){
+    if(v[i].id==='login-ov'||v[i].id==='pad-mine-ov')continue;
+    if(_cmdSeVe(v[i]))return 'Cerrá la ventana abierta para usar el buscador.';
+  }
+  return '';
+}
+// Lo de un módulo que se baja aparte: si falla la descarga, ya avisa quien lo abrió.
+function _cmdConLib(lib,fn){_lib([lib]).then(fn).catch(function(e){console.error('buscador:',e);});}
+function _cmdEntradas(){
+  var L=[];
+  function add(grupo,id,titulo,ir,o){
+    o=o||{};
+    L.push({grupo:grupo,id:id,titulo:titulo,ir:ir,actual:!!o.actual,quieto:!!o.quieto,admin:!!o.admin,bd:!!o.bd,sinRec:!!o.sinRec,
+      n:_cmdNorm(titulo),hay:_cmdNorm(titulo+' '+grupo+' '+(o.claves||''))});
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.app-tab'),function(t){
+    if(t.style.display==='none')return;
+    var v=t.id.replace('apptab-',''),h=t.querySelector('h1');
+    add('Pantallas','app:'+v,h?h.textContent:v,function(){switchApp(v);},{claves:_CMD_CLAVES[v],actual:t.classList.contains('active')});
+  });
+  if(!_esHunter()&&!_esLider()){
+    var opts=_facOpts(),enArm=document.body.classList.contains('en-armador');
+    if(opts.length>1)opts.forEach(function(o){
+      var sol=_optSolapa(o);
+      add('Flyers','opt:'+o,_optLabel(o),function(){switchApp(sol);switchFlyerOption(o);},{claves:_solapaLabel(sol),actual:enArm&&o===_optN(_fgOpt)});
+    });
+    var armIr=function(tab,luego){return function(){switchApp(_optSolapa(_fgOpt));switchTab(tab);if(luego)luego();};};
+    add('Armador','tab:individual','Individual',armIr('individual'),{claves:'un flyer formulario'});
+    add('Armador','tab:masivo','Masivo',armIr('masivo'),{claves:'excel zip varios'});
+    add('Armador','tab:historial','Historial',armIr('historial'),{claves:'anteriores descargados'});
+    add('Armador','fn:logos','Cambiar logos',armIr('individual',function(){fgLogosModo(true);}),{claves:'marcas franja recortar insertar'});
+    add('Armador','fn:otros','Otros',armIr('individual',function(){fgToggleOtros(true);}),{claves:'png descargar sede'});
+  }
+  if(_cmdMostrado('apptab-promos')){
+    [['buscar','Buscar','pegar marcas validar'],['activas','Activas','vigentes provincia rubro']].forEach(function(t){
+      add('Promociones','pro:'+t[0],t[1],function(){switchApp('promos');switchPromoTab(t[0]);},{claves:t[2]});
+    });
+  }
+  if(_cmdMostrado('apptab-gestiones')){
+    _gesTabsDe(_rolVigente()).forEach(function(t){
+      add('Gestiones','ges:'+t[0],t[1],function(){switchApp('gestiones');_cmdConLib('ges',function(){gesIr(t[0]);});});
+    });
+  }
+  if(_cmdMostrado('apptab-benchmark')){
+    [['rubro','Resumen por rubro'],['marca','Cara a cara por marca'],['semana','Semana'],['comercio','Por comercio'],['versus','Galicia vs otro banco'],['tarjetas','Tarjetas y salas VIP']].forEach(function(t){
+      add('Benchmark','ben:'+t[0],t[1],function(){switchApp('benchmark');_cmdConLib('ben',function(){benVista(t[0]);});});
+    });
+  }
+  if(_cmdMostrado('hdr-dd-padron')){
+    _bdPanes().forEach(function(p){
+      add('Base de datos','bd:'+p.id,p.lbl,function(){if(document.getElementById('pad-mine-ov'))_bdShow(p.id);else openMiPadron(p.id);},{bd:true,claves:'padron excel'});
+    });
+  }
+  if(_adminNow()){
+    [['admin','Admin'],['data','Data'],['config','Config']].forEach(function(g){
+      _AP_GROUPS[g[0]].forEach(function(t){
+        var el=document.querySelector('.stab[data-tab="'+t+'"]');if(!el)return;
+        add(g[1],'adm:'+t,el.textContent,function(){openAdminPanel();switchAdminTab(null,t);},{admin:true,claves:'panel '+(_CMD_CLAVES_ADMIN[t]||'')});
+      });
+    });
+  }
+  var oscuro=document.documentElement.classList.contains('dark');
+  add('Cuenta','fn:tema',oscuro?'Modo claro':'Modo oscuro',toggleTheme,{quieto:true,claves:'tema color noche dia'});
+  if(_cmdMostrado('hdr-dd-notes'))add('Cuenta','fn:notas','Bloc de notas',openNotes);
+  if(_cmdMostrado('hdr-dd-hunprop'))add('Cuenta','fn:propuestas','Mis propuestas',openMisCambios);
+  if(_cmdMostrado('hdr-dd-pass'))add('Cuenta','fn:clave','Cambiar mi clave',openMyPassModal,{claves:'contrasena password'});
+  if(_cmdMostrado('hdr-dd-tour'))add('Cuenta','fn:tutorial','Ver tutorial',function(){_tourStart();},{claves:'ayuda'});
+  add('Cuenta','fn:salir','Salir',doLogout,{sinRec:true,claves:'cerrar sesion logout'});
+  return L;
+}
+function _cmdRecientes(){
+  try{var r=JSON.parse(localStorage.getItem(_CMD_REC)||'[]');return Array.isArray(r)?r:[];}catch(e){return [];}
+}
+function _cmdRecordar(id){
+  try{localStorage.setItem(_CMD_REC,JSON.stringify([id].concat(_cmdRecientes().filter(function(x){return x!==id;})).slice(0,_CMD_REC_MAX)));}catch(e){}
+}
+// Sin nada escrito: lo último usado y después todo, por grupo. Escribiendo: todas las
+// palabras tienen que aparecer y primero lo que empieza igual en el título. Si no hay
+// nada (un error de tipeo), las letras en orden dentro del título ("prmo" = Promociones).
+function _cmdFiltrar(L,texto){
+  var q=_cmdNorm(texto).trim();
+  if(!q){
+    var ids=_cmdRecientes(),rec=[];
+    ids.forEach(function(id){L.forEach(function(r){if(r.id===id)rec.push({r:r,grupo:'Recientes'});});});
+    return rec.concat(L.filter(function(r){return ids.indexOf(r.id)<0;}).map(function(r){return {r:r,grupo:r.grupo};}));
+  }
+  var pal=q.split(/\s+/),hits=[];
+  L.forEach(function(r,i){
+    if(!pal.every(function(p){return r.hay.indexOf(p)>=0;}))return;
+    var pos=r.n.indexOf(q),pts=pos===0?(r.n===q?120:100):pos>0?(r.n.charAt(pos-1)===' '?80:60):30;
+    hits.push({r:r,pts:pts,i:i});
+  });
+  if(!hits.length){
+    var sin=q.replace(/\s+/g,'');
+    L.forEach(function(r,i){
+      var j=0;for(var c=0;c<r.n.length&&j<sin.length;c++)if(r.n.charAt(c)===sin.charAt(j))j++;
+      if(j===sin.length)hits.push({r:r,pts:r.n.length*-1,i:i});
+    });
+  }
+  hits.sort(function(a,b){return (b.pts-a.pts)||(a.i-b.i);});
+  return hits.map(function(h){return {r:h.r,plano:true};});
+}
+function _cmdTituloHtml(r,texto){
+  var q=_cmdNorm(texto).trim(),pos=q?r.n.indexOf(q):-1;
+  if(pos<0||r.n.length!==r.titulo.length)return _escHtml(r.titulo);
+  return _escHtml(r.titulo.slice(0,pos))+'<mark>'+_escHtml(r.titulo.slice(pos,pos+q.length))+'</mark>'+_escHtml(r.titulo.slice(pos+q.length));
+}
+function _cmdPintar(){
+  var box=document.getElementById('cmdk-l'),inp=document.getElementById('cmdk-q');if(!box||!inp)return;
+  var texto=inp.value,g=null,h='';
+  _CMD.rows=_cmdFiltrar(_CMD.L,texto);
+  _CMD.sel=0;
+  _CMD.rows.forEach(function(x,i){
+    if(!x.plano&&x.grupo!==g){g=x.grupo;h+='<div class="cmdk-sec" role="presentation">'+_escHtml(g)+'</div>';}
+    h+='<div class="cmdk-it" role="option" id="cmdk-o'+i+'" data-i="'+i+'" aria-selected="false"><span class="cmdk-tx">'+_cmdTituloHtml(x.r,texto)+'</span>'+
+      (x.r.actual?'<span class="cmdk-act">Estás acá</span>':'')+
+      (x.plano?'<span class="cmdk-hint">'+_escHtml(x.r.grupo)+'</span>':'')+'</div>';
+  });
+  box.innerHTML=h||'<div class="cmdk-nada">No encontré nada con «'+_escHtml(texto.trim())+'»</div>';
+  box.scrollTop=0;
+  _cmdMarcar(0);
+}
+function _cmdMarcar(i,sinMover){
+  var inp=document.getElementById('cmdk-q'),box=document.getElementById('cmdk-l');if(!inp||!box)return;
+  var viejo=box.querySelector('.cmdk-it.on');
+  if(viejo){viejo.classList.remove('on');viejo.setAttribute('aria-selected','false');}
+  if(!_CMD.rows.length){inp.removeAttribute('aria-activedescendant');return;}
+  _CMD.sel=(i+_CMD.rows.length)%_CMD.rows.length;
+  var el=document.getElementById('cmdk-o'+_CMD.sel);if(!el)return;
+  el.classList.add('on');el.setAttribute('aria-selected','true');
+  inp.setAttribute('aria-activedescendant',el.id);
+  if(sinMover)return;
+  if(_CMD.sel===0)box.scrollTop=0;else el.scrollIntoView({block:'nearest'}); // arriba de todo, para que se vea el título del grupo
+}
+function _cmdCerrar(devolverFoco){
+  if(!_CMD.ov)return;
+  _CMD.ov.remove();_CMD.ov=null;_CMD.rows=[];_CMD.L=[];
+  var v=_CMD.volver;_CMD.volver=null;
+  if(devolverFoco&&v&&v.focus&&document.contains(v)){try{v.focus();}catch(e){}}
+}
+function _cmdIr(x){
+  if(!x)return;
+  var r=x.r;
+  _cmdCerrar(false);
+  if(!r.sinRec)_cmdRecordar(r.id);
+  function seguir(){
+    try{r.ir();}catch(e){console.error('buscador:',e);showToast('No se pudo abrir «'+r.titulo+'».');}
+  }
+  if(r.quieto){seguir();return;}
+  closeUserMenu();
+  var panel=document.getElementById('admin-panel');
+  if(!r.admin&&panel&&panel.classList.contains('open'))closeAdminPanel();
+  if(r.bd||!document.getElementById('pad-mine-ov')){seguir();return;}
+  // Base de datos abierta: con cambios sin guardar pregunta y sigue si le dicen que sí.
+  if(_bdLeaveOk(function(){closeMiPadron(true);seguir();})){closeMiPadron(true);seguir();}
+}
+function fgCmdK(){
+  if(_CMD.ov){_cmdCerrar(true);return;}
+  if(!_cmdSesion())return;
+  var bq=_cmdBloqueo();
+  if(bq){showToast(bq);return;}
+  closeUserMenu();closePadronPop();closeAsPop();_provCerrar();_fgOptMasCerrar();
+  _CMD.volver=document.activeElement;
+  _CMD.L=_cmdEntradas();
+  var fondo=document.createElement('div');fondo.id='cmdk-fondo';fondo.className='cmdk-fondo';
+  fondo.innerHTML='<div class="cmdk" role="dialog" aria-modal="true" aria-label="Buscador de pantallas">'+
+    '<div class="cmdk-top"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>'+
+    '<input id="cmdk-q" type="text" role="combobox" aria-expanded="true" aria-controls="cmdk-l" aria-autocomplete="list" aria-label="Buscar una pantalla o función" placeholder="Buscar una pantalla o función…" autocomplete="off" autocapitalize="off" spellcheck="false"></div>'+
+    '<div class="cmdk-l" id="cmdk-l" role="listbox" aria-label="Resultados"></div>'+
+    '<div class="cmdk-pie"><span><kbd>↑</kbd><kbd>↓</kbd> moverse</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></div></div>';
+  document.body.appendChild(fondo);
+  _CMD.ov=fondo;
+  fondo.addEventListener('mousedown',function(e){
+    if(e.target===fondo){e.preventDefault();_cmdCerrar(true);return;}
+    if(e.target.id!=='cmdk-q')e.preventDefault(); // el foco se queda en el campo
+  });
+  var box=fondo.querySelector('#cmdk-l'),inp=fondo.querySelector('#cmdk-q');
+  // mousemove y no mouseover: la lista corriéndose abajo del mouse quieto no cambia lo marcado
+  box.addEventListener('mousemove',function(e){
+    var it=e.target.closest&&e.target.closest('.cmdk-it');
+    if(it&&+it.dataset.i!==_CMD.sel)_cmdMarcar(+it.dataset.i,true);
+  });
+  box.addEventListener('click',function(e){
+    var it=e.target.closest&&e.target.closest('.cmdk-it');
+    if(it)_cmdIr(_CMD.rows[+it.dataset.i]);
+  });
+  inp.addEventListener('input',_cmdPintar);
+  _cmdPintar();
+  inp.focus();
+}
+// En window y en captura, antes que cualquier otra tecla de la app. Abierto, las teclas
+// son de la paleta: ni las letras de Cambiar logos ni otro Escape reaccionan por debajo.
+window.addEventListener('keydown',function(e){
+  if((e.metaKey||e.ctrlKey)&&!e.altKey&&!e.shiftKey&&String(e.key||'').toLowerCase()==='k'){
+    if(!_cmdSesion())return;
+    e.preventDefault();e.stopImmediatePropagation();
+    if(!e.repeat)fgCmdK();
+    return;
+  }
+  if(!_CMD.ov)return;
+  e.stopImmediatePropagation();
+  if(e.isComposing)return;
+  if(e.key==='ArrowDown'){e.preventDefault();_cmdMarcar(_CMD.sel+1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();_cmdMarcar(_CMD.sel-1);}
+  else if(e.key==='Enter'){e.preventDefault();_cmdIr(_CMD.rows[_CMD.sel]);}
+  else if(e.key==='Escape'){e.preventDefault();_cmdCerrar(true);}
+  else if(e.key==='Tab')e.preventDefault(); // el foco no se va a la pantalla de abajo
+},true);
+document.addEventListener('DOMContentLoaded',function(){
+  var k=document.getElementById('hdr-cmdk-k');if(k)k.textContent=_cmdTecla();
+});
 
 </script>
 <script>
@@ -22911,12 +23191,7 @@ function gesLista(force){
 }
 
 // ── Entrada: la vista "Gestiones" ───────────────────────────────────────────
-function gesTabs(){
-  var r=gesRol();
-  if(r==='hunter')return [['agenda','Mi agenda'],['lista','Mis gestiones'],['tablero','Tablero']];
-  if(r==='lider')return [['agenda','Agenda del equipo'],['tablero','Tablero del equipo'],['lista','Gestiones del equipo']];
-  return [['empresas','Mis empresas'],['agenda','Agenda'],['lista','Gestiones'],['tablero','Tablero']];
-}
+function gesTabs(){return _gesTabsDe(gesRol());}
 function gesInit(tab){
   if(typeof _gesOn==='function'&&!_gesOn()){
     var root=document.getElementById('ges-root');
@@ -26157,7 +26432,7 @@ function benActualizar() {
   </div>
  </div>
 </div>
-<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#F26122"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp('flyer')"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-rubros" style="display:none" onclick="switchApp('rubros')"><h1>Flyer Rubros</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-sueldo" style="display:none" onclick="switchApp('sueldo')"><h1>Flyer Sueldo</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-estudio" style="display:none" onclick="switchApp('estudio')"><h1>Estudio</h1><span>DISEÑOS</span></div><div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp('promos')"><h1>Promociones</h1><span>BUSCADOR</span></div><div class="header-text app-tab" id="apptab-benchmark" style="display:none" onclick="switchApp('benchmark')"><h1>Benchmark</h1><span>COMPETENCIA</span></div><div class="header-text app-tab" id="apptab-hunter" style="display:none" onclick="switchApp('hunter')"><h1>Buscar flyer</h1><span>HUNTER</span></div><div class="header-text app-tab" id="apptab-gestiones" style="display:none" onclick="switchApp('gestiones')"><h1>Gestiones</h1><span>COMERCIAL</span></div><div class="header-right" id="hdr-right" style="display:none"><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span class="hdr-msg" id="hdr-msg" style="display:none"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Modo oscuro</span></button><div class="hdr-dd-lbl">Tema</div><div class="hdr-dd-pal" id="hdr-dd-pal"><button type="button" data-p="t-marfil" onclick="setPalette('t-marfil')"><i style="background:#F7F4EE"></i>Marfil</button><button type="button" data-p="t-marino" onclick="setPalette('t-marino')"><i style="background:#14213D"></i>Marino</button><button type="button" data-p="t-grafito" onclick="setPalette('t-grafito')"><i style="background:#16181D"></i>Grafito</button><button type="button" data-p="t-cielo" onclick="setPalette('t-cielo')"><i style="background:#2F6FED"></i>Cielo</button></div><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Bloc de notas</span></button><button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg><span>Base de datos</span><span id="bd-badge"></span></button><button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Mis propuestas</span><span id="hunprop-badge"></span></button><button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Ver tutorial</span></button><div id="hdr-dd-prueba" style="display:none"></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Admin</button></div></header>
+<header><svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Galicia"><path d="M6 6H48a44 44 0 0 1 0 88H6z" fill="#F26122"/><g fill="#fff"><circle cx="40" cy="23" r="4.3"/><rect x="37.8" y="26.5" width="4.4" height="6.5" rx="1"/><rect x="26" y="31.5" width="28" height="5.2" rx="2.6"/><polygon points="34.6,37 45.4,37 40,84"/></g></svg><div class="header-text app-tab active" id="apptab-flyer" onclick="switchApp('flyer')"><h1>Flyer Galicia 5.5</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-rubros" style="display:none" onclick="switchApp('rubros')"><h1>Flyer Rubros</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-sueldo" style="display:none" onclick="switchApp('sueldo')"><h1>Flyer Sueldo</h1><span>ARMADOR</span></div><div class="header-text app-tab" id="apptab-estudio" style="display:none" onclick="switchApp('estudio')"><h1>Estudio</h1><span>DISEÑOS</span></div><div class="header-text app-tab" id="apptab-promos" style="display:none" onclick="switchApp('promos')"><h1>Promociones</h1><span>BUSCADOR</span></div><div class="header-text app-tab" id="apptab-benchmark" style="display:none" onclick="switchApp('benchmark')"><h1>Benchmark</h1><span>COMPETENCIA</span></div><div class="header-text app-tab" id="apptab-hunter" style="display:none" onclick="switchApp('hunter')"><h1>Buscar flyer</h1><span>HUNTER</span></div><div class="header-text app-tab" id="apptab-gestiones" style="display:none" onclick="switchApp('gestiones')"><h1>Gestiones</h1><span>COMERCIAL</span></div><div class="header-right" id="hdr-right" style="display:none"><button type="button" id="hdr-cmdk" class="hdr-cmdk" onclick="fgCmdK()" title="Buscar una pantalla o función" aria-label="Buscar una pantalla o función"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg><b>Buscar</b><kbd id="hdr-cmdk-k">Ctrl K</kbd></button><div class="hdr-user-menu"><button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span class="hdr-msg" id="hdr-msg" style="display:none"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button><div class="hdr-dropdown" id="hdr-dropdown"><div class="hdr-dd-head"><div class="hdr-dd-name" id="hdr-dd-name"></div><div id="hdr-dd-role"></div></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item" id="hdr-dd-pass" onclick="openMyPassModal();closeUserMenu()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Cambiar mi clave</span></button><button class="hdr-dd-item" id="hdr-dd-theme" onclick="toggleTheme()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Modo oscuro</span></button><div class="hdr-dd-lbl">Tema</div><div class="hdr-dd-pal" id="hdr-dd-pal"><button type="button" data-p="t-marfil" onclick="setPalette('t-marfil')"><i style="background:#F7F4EE"></i>Marfil</button><button type="button" data-p="t-marino" onclick="setPalette('t-marino')"><i style="background:#14213D"></i>Marino</button><button type="button" data-p="t-grafito" onclick="setPalette('t-grafito')"><i style="background:#16181D"></i>Grafito</button><button type="button" data-p="t-cielo" onclick="setPalette('t-cielo')"><i style="background:#2F6FED"></i>Cielo</button></div><button class="hdr-dd-item" id="hdr-dd-notes" onclick="openNotes();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Bloc de notas</span></button><button class="hdr-dd-item" id="hdr-dd-padron" onclick="openMiPadron();closeUserMenu()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg><span>Base de datos</span><span id="bd-badge"></span></button><button class="hdr-dd-item" id="hdr-dd-hunprop" onclick="closeUserMenu();openMisCambios()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Mis propuestas</span><span id="hunprop-badge"></span></button><button class="hdr-dd-item" id="hdr-dd-tour" onclick="closeUserMenu();_tourStart()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Ver tutorial</span></button><div id="hdr-dd-prueba" style="display:none"></div><div class="hdr-dd-sep"></div><button class="hdr-dd-item danger" onclick="doLogout()"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span></button></div></div><button id="hdr-admin-btn" class="btn-hdr btn-hdr-admin" onclick="openAdminPanel()" style="display:none"><svg class="dd-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Admin</button></div></header>
 
 <div class="modal-overlay" id="modal">
   <div class="modal">

@@ -221,12 +221,7 @@ function gesLista(force){
 }
 
 // ── Entrada: la vista "Gestiones" ───────────────────────────────────────────
-function gesTabs(){
-  var r=gesRol();
-  if(r==='hunter')return [['agenda','Mi agenda'],['lista','Mis gestiones'],['tablero','Tablero']];
-  if(r==='lider')return [['agenda','Agenda del equipo'],['tablero','Tablero del equipo'],['lista','Gestiones del equipo']];
-  return [['empresas','Mis empresas'],['agenda','Agenda'],['lista','Gestiones'],['tablero','Tablero']];
-}
+function gesTabs(){return _gesTabsDe(gesRol());}
 function gesInit(tab){
   if(typeof _gesOn==='function'&&!_gesOn()){
     var root=document.getElementById('ges-root');

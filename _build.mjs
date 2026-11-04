@@ -78,7 +78,7 @@ const SUPA_ORIGIN = 'https://cajyjnxjbobdpltflgnb.supabase.co';
 const SB_SESSION_KEY = 'sb-' + new URL(SUPA_ORIGIN).hostname.split('.')[0] + '-auth-token';
 // Versión FIJA de supabase-js (antes era "@2" flotante: cualquier release nueva
 // del CDN entraba sola a producción y no se podía verificar su integridad).
-const SUPABASE_JS_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
+const SUPABASE_JS_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js';
 html = html.replace(
   '</head>',
   `<script src="${SUPABASE_JS_URL}"></script><script src="auth.js"></script></head>`
@@ -92,13 +92,20 @@ html = html.replace(
 // Al subir la versión de una librería hay que actualizar la URL y su hash acá.
 // El build se aplica sobre _source.html (que el usuario regenera seguido), así
 // que los atributos se inyectan en el build en vez de escribirse a mano allá.
+// SheetJS (xlsx) se sirve desde el propio sitio: npm y cdnjs se quedaron en la 0.18.5,
+// con avisos de seguridad al leer archivos, y las versiones corregidas sólo se publican
+// en cdn.sheetjs.com. Así no se suma un origen externo a la CSP (ni a los que tiene que
+// dejar pasar la red del banco). Al subir de versión: bajar el archivo de ahí, a libs/
+// con otro nombre, y actualizar XLSX_LOCAL y su hash.
+const XLSX_LOCAL = 'libs/xlsx-0.20.3.full.min.js';
 const SRI = {
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js': 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw',
-  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js': 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js': 'sha384-qovJwSBbRDPP5cEjCp8S0UP66wrvnjaa60XMOGzTNanrThcrGfXfnZkvgY8N1KT3',
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.2/jszip.min.js': 'sha384-DdGlNq+wVXAn83gXqwyeFHB7iyXy6L0rLrNzgDmhKWPjiJLg9vj6qosYmZmkMfQ+',
   'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js': 'sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz',
-  [SUPABASE_JS_URL]: 'sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP',
+  [SUPABASE_JS_URL]: 'sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK',
+  [XLSX_LOCAL]: 'sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT',
 };
+if ('sha384-' + createHash('sha384').update(readFileSync(XLSX_LOCAL)).digest('base64') !== SRI[XLSX_LOCAL]) throw new Error(XLSX_LOCAL + ' no coincide con su hash SRI');
 const _scriptsSinSri = [];
 html = html.replace(/<script src="(https:\/\/[^"]+)"><\/script>/g, (tag, url) => {
   const h = SRI[url];
@@ -113,9 +120,9 @@ html = html.replace(/<script src="(https:\/\/[^"]+)"><\/script>/g, (tag, url) =>
 // primera vez que hacen falta (_lib en auth.js), con el MISMO hash SRI. Aplica a
 // index.html y a index_export.html. supabase-js y auth.js siguen en el <head>.
 const LAZY_LIBS = {
-  jspdf:   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  xlsx:    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  jszip:   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  jspdf:   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js',
+  xlsx:    XLSX_LOCAL,
+  jszip:   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.2/jszip.min.js',
   exceljs: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
 };
 const _lazyMeta = {};
@@ -144,13 +151,13 @@ html = html.replace('<meta name="viewport"', `<meta name="fg-libs" content='${JS
 // listas cerradas (nada puede mandar datos a un dominio ajeno), object-src
 // 'none' y base-uri 'self'. Sólo va en index.html: index_export.html se abre
 // desde file:// o desde el bucket y no tiene que quedar atado a estos orígenes.
-// Nota esperable: pdf.js prueba `new Function` al rasterizar y cae a su ruta
-// sin eval; el "Refused to evaluate" en consola es inofensivo.
+// 'wasm-unsafe-eval' deja compilar WebAssembly y nada más (no abre eval de JavaScript):
+// pdf.js 6 lo usa para JPEG 2000, fax y JBIG2; sin eso, esas imágenes de un PDF no salen.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:",
   "worker-src blob:",
-  "connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdnjs.cloudflare.com",
+  "connect-src 'self' https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar https://cdn.jsdelivr.net",
   "img-src 'self' data: blob: https://cajyjnxjbobdpltflgnb.supabase.co https://www.galicia.ar",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com data:",
@@ -200,6 +207,8 @@ html = html.replace(
   // _applyFacultades según el interruptor (app_flags) y Facultades.
   '<div class="header-text app-tab" id="apptab-gestiones" style="display:none" onclick="switchApp(\'gestiones\')"><h1>Gestiones</h1><span>COMERCIAL</span></div>' +
   '<div class="header-right" id="hdr-right" style="display:none">' +
+  // Buscador de pantallas: el mismo que Cmd+K / Ctrl+K (fgCmdK en auth.js), a la vista y para el celular.
+  '<button type="button" id="hdr-cmdk" class="hdr-cmdk" onclick="fgCmdK()" title="Buscar una pantalla o funci\u00f3n" aria-label="Buscar una pantalla o funci\u00f3n">' + _svgIco('<circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>') + '<b>Buscar</b><kbd id="hdr-cmdk-k">Ctrl K</kbd></button>' +
   '<div class="hdr-user-menu">' +
     '<button class="hdr-user-btn" onclick="toggleUserMenu(event)"><span class="hdr-avatar" id="hdr-avatar"></span><span class="hdr-msg" id="hdr-msg" style="display:none"></span><span id="hdr-user"></span><span class="hdr-caret">&#9662;</span></button>' +
     '<div class="hdr-dropdown" id="hdr-dropdown">' +
@@ -972,7 +981,9 @@ const exportHtml = html
   // '$'+importe del cartel de Rubros) se interpretan como patrones de replace y
   // duplican el resto del HTML (el export pasó de 2,2 a 4,1 MB sin que nadie lo note).
   .replace(AUTH_TAG, () => '<script>\n' + _authSrc + '\n</script>\n<script>\n' + _gesSrc + '\n</script>\n<script>\n' + _benSrc + '\n</script>')
-  .replace(CSP_META + '\n', '');
+  .replace(CSP_META + '\n', '')
+  // se abre desde file:// o desde el bucket: la librería propia va con su dirección completa
+  .replace(`"src":"${XLSX_LOCAL}"`, () => `"src":"https://flyergalicia.github.io/flyer-galicia/${XLSX_LOCAL}"`);
 const _htmlLenConImagen = html.length;
 // ── IMAGEN BASE FUERA DE index.html ─────────────────────────────────────────
 // El template trae el flyer de ejemplo incrustado en base64 (~1,75 MB, más que
@@ -1034,6 +1045,7 @@ const checks = {
   // ── Seguridad del front (SRI + CSP) ──
   'SRI: todos los scripts CDN con integrity': _cdnTags.length >= 1 && _cdnTags.every(t => /integrity="sha384-[A-Za-z0-9+/=]+"/.test(t) && t.includes('crossorigin="anonymous"')) && _scriptsSinSri.length === 0,
   'libs de exportacion bajo demanda (fuera del head, con SRI en la meta)': Object.values(LAZY_LIBS).every(u => !html.includes(`<script src="${u}"`)) && html.includes(`<meta name="fg-libs" content='`) && Object.values(_lazyMeta).every(l => /^sha384-/.test(l.integrity)) && _authSrc.includes("meta[name=fg-libs]") && _authSrc.includes('function _libWrap(') && ['savePDF', 'genAll', 'dlTemplate', 'loadExcel', 'importAsesores', 'importPadron', 'exportRegistros', 'exportPadronLog', 'exportFlyerLogsExcel', 'descargarExcelPromos', '_padXlsx', '_asXlsx', '_pgGenerarRows'].every(f => _authSrc.includes(`_libWrap('${f}'`)),
+  'CSP: pdf.js baja sus archivos y compila WASM, sin eval': CSP.includes("'wasm-unsafe-eval'") && !CSP.includes("'unsafe-eval'") && /connect-src[^;]*https:\/\/cdn\.jsdelivr\.net/.test(CSP) && _authSrc.includes("_FG_PDFJS='https://cdn.jsdelivr.net/") && _authSrc.includes('fetch(_FG_PDFJS+\'wasm/\'+q.filename,{integrity:sri'),
   'SRI: pdf.js dinamico con integrity': _authSrc.includes("s.integrity='sha384-") && _authSrc.includes('fetch(wsrc,{integrity:wsri'),
   'CSP: en index.html, no en export': html.includes(CSP_META) && html.indexOf(CSP_META) < html.indexOf('<script src=') && !exportHtml.includes('Content-Security-Policy'),
   'export: auth.js inlineado': !exportHtml.includes('auth.js?v=') && !_authSrc.includes('</script>'),
@@ -1056,6 +1068,7 @@ const checks = {
   // Los asesores guardados viven en la tabla asesores_guardados (migracion 010):
   // viajan con la cuenta. El localStorage quedo solo como cache/respaldo.
   'asesores guardados: en la nube': _authSrc.includes("_sb.from('asesores_guardados')") && _authSrc.includes("_sb.rpc('asesores_replace'") && _authSrc.includes('function _asSyncKey('),
+  'buscador de pantallas: Cmd/Ctrl+K y boton en el header': html.includes('id="hdr-cmdk"') && _authSrc.includes('function fgCmdK(') && _authSrc.includes('function _cmdEntradas(') && newCSS.includes('.cmdk-fondo{'),
   'layout hidden': html.includes('id="layout" style="display:none"'),
   'version: meta build-v + chequeo en auth.js': html.includes('<meta name="build-v" content="'+BUILD_V+'">') && _authSrc.includes("fetch('version.json?t=") && _authSrc.includes("meta[name=build-v]"),
   'login-ov': html.includes('id="login-ov"'),
