@@ -40,6 +40,7 @@ import { createReactPromotionsDriver } from "./react/promotions.ts";
 import { createReactSavedBrandsDriver } from "./react/saved-brands.ts";
 import { createReactScreensDriver } from "./react/screens.ts";
 import { createReactSessionDriver } from "./react/session.ts";
+import { createReactStudioDriver } from "./react/studio.ts";
 import { type HunterDriver } from "./hunter.ts";
 import { createLegacyHunterDriver } from "./legacy/hunter.ts";
 import { type LogoEditorDriver } from "./logo-editor.ts";
@@ -86,6 +87,7 @@ function createReactAppDriver(page: Page): AppDriver {
   const companyRegistry = createReactCompanyRegistryDriver(page);
   const logoEditor = createReactLogoEditorDriver(page);
   const logoStrip = createReactLogoStripDriver(page);
+  const studio = createReactStudioDriver(page);
   return {
     page,
     session,
@@ -101,7 +103,7 @@ function createReactAppDriver(page: Page): AppDriver {
     savedBrands: createReactSavedBrandsDriver(page),
     promotions,
     companyRegistry,
-    studio: partialDriver("studio"),
+    studio,
     commercialActions: partialDriver("commercialActions"),
     benchmark: partialDriver("benchmark"),
     admin: partialDriver("admin"),
@@ -112,6 +114,7 @@ function createReactAppDriver(page: Page): AppDriver {
       companyRegistry,
       logoEditor,
       logoStrip,
+      studio,
     }),
   };
 }

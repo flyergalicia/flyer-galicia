@@ -224,106 +224,107 @@ test(
   },
 );
 
-test("a section travels to Estudio, and a flyer is proposed and approved", async ({
-  cloud,
-  openApp,
-}) => {
-  publishSource(cloud);
-  const findProposal = () => cloud.designs.find(({ tipo }) => tipo === "fuente");
-  const app = await openApp({ user: "asesor" });
-  const sections = app.flyerSections;
-  await app.flyerEditor.fillCompanyName("ACME S.A.");
-  await app.page.waitForTimeout(300);
-  const wholeHeight = (await sections.cropStatus()).artworkHeight;
-  await app.logoEditor.enter();
-  await sections.openInsertPicker();
-  await sections.markSectionToCopy(MARK.from, MARK.to);
-  await sections.copyMarkedSection();
-  await sections.hoverForPlacement(PLACE_Y);
-  await sections.clickToPlace(PLACE_Y);
-  const placed = { height: (await sections.cropStatus()).cuts[0]?.height ?? 0 };
-  await sections.removeBand(SECOND_CUT.y, SECOND_CUT.height);
+test(
+  "a section travels to Estudio, and a flyer is proposed and approved",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    publishSource(cloud);
+    const findProposal = () => cloud.designs.find(({ tipo }) => tipo === "fuente");
+    const app = await openApp({ user: "asesor" });
+    const sections = app.flyerSections;
+    await app.flyerEditor.fillCompanyName("ACME S.A.");
+    await app.page.waitForTimeout(300);
+    const wholeHeight = (await sections.cropStatus()).artworkHeight;
+    await app.logoEditor.enter();
+    await sections.openInsertPicker();
+    await sections.markSectionToCopy(MARK.from, MARK.to);
+    await sections.copyMarkedSection();
+    await sections.hoverForPlacement(PLACE_Y);
+    await sections.clickToPlace(PLACE_Y);
+    const placed = { height: (await sections.cropStatus()).cuts[0]?.height ?? 0 };
+    await sections.removeBand(SECOND_CUT.y, SECOND_CUT.height);
 
-  await test.step("Estudio keeps it and brings its image", async () => {
-    // Estudio: it is saved and, opened with the image not in memory, downloaded by itself
-    await app.studio.save({ name: "Con Galerías" });
-    const design = cloud.designs.findLast(({ tipo }) => tipo === "diseno");
-    const steps = designData(design).recortes;
-    expect.soft(steps, "the design keeps both steps").toHaveLength(2);
-    expect.soft(steps[0]?.ins?.u, "and which flyer the section is from").toBe(SOURCE_URL);
-    await sections.reenterCurrentOption();
-    await sections.forgetSectionImages();
-    await app.studio.open();
-    await app.studio.waitForCards();
-    await app.studio.use();
-    const reopened = await sections.cropStatus();
-    expect.soft(reopened.active, '"Usar" opens the design').toBe(true);
-    expect
-      .soft(reopened.artworkHeight, "with the section")
-      .toBe(wholeHeight + placed.height - SECOND_CUT.height);
-    expect.soft(await sections.sectionsMissingImage(), "its image came down first").toBe(0);
-  });
+    await test.step("Estudio keeps it and brings its image", async () => {
+      // Estudio: it is saved and, opened with the image not in memory, downloaded by itself
+      await app.studio.save({ name: "Con Galerías" });
+      const design = cloud.designs.findLast(({ tipo }) => tipo === "diseno");
+      const steps = designData(design).recortes;
+      expect.soft(steps, "the design keeps both steps").toHaveLength(2);
+      expect.soft(steps[0]?.ins?.u, "and which flyer the section is from").toBe(SOURCE_URL);
+      await sections.reenterCurrentOption();
+      await sections.forgetSectionImages();
+      await app.studio.open();
+      await app.studio.waitForCards();
+      await app.studio.use();
+      const reopened = await sections.cropStatus();
+      expect.soft(reopened.active, '"Usar" opens the design').toBe(true);
+      expect
+        .soft(reopened.artworkHeight, "with the section")
+        .toBe(wholeHeight + placed.height - SECOND_CUT.height);
+      expect.soft(await sections.sectionsMissingImage(), "its image came down first").toBe(0);
+    });
 
-  await test.step("an advisor proposes a flyer", async () => {
-    // Proposing a flyer from Estudio
-    await app.studio.open();
-    await app.studio.waitForSourcesButton();
-    expect
-      .soft(await app.studio.sourcesButtonLabel(), 'an advisor sees "Proponer un flyer"')
-      .toContain("Proponer");
-    await app.studio.proposeSource(
-      { name: "op9.jpg", mimeType: "image/jpeg", buffer: fixtureFile("op9.jpg") },
-      PROPOSED,
-    );
-    const proposal = findProposal();
-    expect.soft(proposal?.estado, "the proposal arrives as a request").toBe("pedido");
-    expect.soft(designData(proposal).img, "with the image").toMatch(/^data:image\/jpeg;base64,/);
-    expect.soft(String(proposal?.miniatura).length, "and its thumbnail").toBeGreaterThan(500);
-    expect.soft(await sections.sourcesInDepot(), "until approved it is not in the depot").toBe(1);
-    expect.soft(app.pageErrors(), "no JavaScript errors for the advisor").toEqual([]);
-    await app.close();
-  });
+    await test.step("an advisor proposes a flyer", async () => {
+      // Proposing a flyer from Estudio
+      await app.studio.open();
+      await app.studio.waitForSourcesButton();
+      expect
+        .soft(await app.studio.sourcesButtonLabel(), 'an advisor sees "Proponer un flyer"')
+        .toContain("Proponer");
+      await app.studio.proposeSource(
+        { name: "op9.jpg", mimeType: "image/jpeg", buffer: fixtureFile("op9.jpg") },
+        PROPOSED,
+      );
+      const proposal = findProposal();
+      expect.soft(proposal?.estado, "the proposal arrives as a request").toBe("pedido");
+      expect.soft(designData(proposal).img, "with the image").toMatch(/^data:image\/jpeg;base64,/);
+      expect.soft(String(proposal?.miniatura).length, "and its thumbnail").toBeGreaterThan(500);
+      expect.soft(await sections.sourcesInDepot(), "until approved it is not in the depot").toBe(1);
+      expect.soft(app.pageErrors(), "no JavaScript errors for the advisor").toEqual([]);
+      await app.close();
+    });
 
-  // The administrator approves
-  const admin = await openApp({ user: "admin" });
-  await test.step("the administrator approves the proposal", async () => {
-    await admin.studio.open();
-    await admin.studio.waitForSourceToApprove();
-    expect
-      .soft(await admin.studio.sourcesButtonLabel(), 'the administrator sees "Subir"')
-      .toContain("Subir");
-    expect.soft(await admin.studio.tabBadge(), "the proposal counts on the tab").toBe("1");
-    await admin.studio.approveFirstSource();
-    const sources = sourcesFile(cloud);
-    const added = sources.at(-1);
-    expect.soft(sources, "on approving it enters the depot").toHaveLength(2);
-    expect.soft(added?.nombre, "with its name").toBe(PROPOSED);
-    expect.soft(added?.de, "and who proposed it").toBe("Asesor Prueba");
-    expect
-      .soft(
-        cloud.bucketBinaries[added?.img.split("/").pop() ?? ""],
-        "the image goes up to the bucket",
-      )
-      .toBeDefined();
-    expect.soft(findProposal()?.estado, "the proposal is approved").toBe("publicado");
-    expect.soft(designData(findProposal()).img, "without the heavy copy").toBeFalsy();
-    expect.soft(await admin.studio.tabBadge(), "and the number goes away").toBe("");
-  });
+    // The administrator approves
+    const admin = await openApp({ user: "admin" });
+    await test.step("the administrator approves the proposal", async () => {
+      await admin.studio.open();
+      await admin.studio.waitForSourceToApprove();
+      expect
+        .soft(await admin.studio.sourcesButtonLabel(), 'the administrator sees "Subir"')
+        .toContain("Subir");
+      expect.soft(await admin.studio.tabBadge(), "the proposal counts on the tab").toBe("1");
+      await admin.studio.approveFirstSource();
+      const sources = sourcesFile(cloud);
+      const added = sources.at(-1);
+      expect.soft(sources, "on approving it enters the depot").toHaveLength(2);
+      expect.soft(added?.nombre, "with its name").toBe(PROPOSED);
+      expect.soft(added?.de, "and who proposed it").toBe("Asesor Prueba");
+      expect
+        .soft(
+          cloud.bucketBinaries[added?.img.split("/").pop() ?? ""],
+          "the image goes up to the bucket",
+        )
+        .toBeDefined();
+      expect.soft(findProposal()?.estado, "the proposal is approved").toBe("publicado");
+      expect.soft(designData(findProposal()).img, "without the heavy copy").toBeFalsy();
+      expect.soft(await admin.studio.tabBadge(), "and the number goes away").toBe("");
+    });
 
-  await test.step("a list that could not be read is not taken as empty", async () => {
-    // A list that could not be read (403) is not taken as empty: the depot is not overwritten
-    const before = JSON.stringify(sourcesFile(cloud));
-    expect
-      .soft(await admin.studio.saveSourcesWhenListIsForbidden(), "with a 403 nothing is saved")
-      .not.toBe("saved");
-    expect.soft(JSON.stringify(sourcesFile(cloud)), "and the list stays").toBe(before);
-  });
+    await test.step("a list that could not be read is not taken as empty", async () => {
+      // A list that could not be read (403) is not taken as empty: the depot is not overwritten
+      const before = JSON.stringify(sourcesFile(cloud));
+      expect
+        .soft(await admin.studio.saveSourcesWhenListIsForbidden(), "with a 403 nothing is saved")
+        .not.toBe("saved");
+      expect.soft(JSON.stringify(sourcesFile(cloud)), "and the list stays").toBe(before);
+    });
 
-  await test.step("removing it from the list keeps the image", async () => {
-    // Removing it from the list keeps the image, for the designs that use it
-    await admin.studio.removeSource("f1");
-    expect.soft(sourcesFile(cloud), "Quitar takes it off the list").toHaveLength(1);
-    expect.soft(cloud.bucketBinaries[SOURCE_IMAGE], "without erasing the image").toBeDefined();
-    expect.soft(admin.pageErrors(), "no JavaScript errors for the administrator").toEqual([]);
-  });
-});
+    await test.step("removing it from the list keeps the image", async () => {
+      // Removing it from the list keeps the image, for the designs that use it
+      await admin.studio.removeSource("f1");
+      expect.soft(sourcesFile(cloud), "Quitar takes it off the list").toHaveLength(1);
+      expect.soft(cloud.bucketBinaries[SOURCE_IMAGE], "without erasing the image").toBeDefined();
+      expect.soft(admin.pageErrors(), "no JavaScript errors for the administrator").toEqual([]);
+    });
+  },
+);

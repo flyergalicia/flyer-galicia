@@ -564,6 +564,11 @@ export function createReactSessionDriver(page: Page): SessionDriver {
     ...createReading(page),
     ...createFlyerLook(page),
     open: (options) => open(page, options),
+    reload: async (option = DEFAULT_OPTION) => {
+      await page.reload();
+      await waitUntilSignedIn(page);
+      await waitForFlyer(page, "admin", option);
+    },
     status: async () => {
       const isInside = await header(page).isVisible();
       const entry = await entryView(page);

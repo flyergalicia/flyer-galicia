@@ -6,6 +6,7 @@ import { type LogoStripDriver } from "../logo-strip.ts";
 import { type PromotionsDriver } from "../promotions.ts";
 import { type Appearance, type ReferenceScreen, type ScreensDriver } from "../screens.ts";
 import { type SessionDriver } from "../session.ts";
+import { type StudioDriver } from "../studio.ts";
 
 const WAIT_MS = 25_000;
 const STABLE_MS = 400;
@@ -79,6 +80,7 @@ interface ScreenDrivers {
   readonly companyRegistry: CompanyRegistryDriver;
   readonly logoEditor: LogoEditorDriver;
   readonly logoStrip: LogoStripDriver;
+  readonly studio: StudioDriver;
 }
 
 /** Windows over the flyer: what they show is the point, and its photo alone weighs half an image. */
@@ -101,7 +103,7 @@ async function hideFlyer(page: Page): Promise<void> {
 
 function openers(
   page: Page,
-  { session, promotions, companyRegistry, logoEditor, logoStrip }: ScreenDrivers,
+  { session, promotions, companyRegistry, logoEditor, logoStrip, studio }: ScreenDrivers,
 ) {
   const ready: Partial<Record<ReferenceScreen, () => Promise<void>>> = {
     login: () =>
@@ -115,6 +117,7 @@ function openers(
         .waitFor({ timeout: WAIT_MS });
       await page.mouse.move(0, 0);
     },
+    studio: () => studio.open(),
     "logo-editor": async () => {
       await logoEditor.enter();
       await logoEditor.waitForBrandCatalog();

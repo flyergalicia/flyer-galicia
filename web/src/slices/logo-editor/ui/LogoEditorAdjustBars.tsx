@@ -5,6 +5,7 @@ import type { LogoEditor } from "../model/editor-store.ts";
 import { DraftsRecovery } from "./DraftsRecovery.tsx";
 import { LogoPicker } from "./LogoPicker.tsx";
 import { PlacementBar } from "./PlacementBar.tsx";
+import { SaveDesignWindow } from "./SaveDesignWindow.tsx";
 import { SavedSetsWindows } from "./SavedSetsWindows.tsx";
 import { SectionPicker } from "./SectionPicker.tsx";
 import { InsertConfirm, TrimConfirm } from "./SectionsOnFlyer.tsx";
@@ -317,6 +318,7 @@ export function LogoEditorAdjustBars() {
   const picker = useLogoEditorValue((state) => state.picker);
   const strip = useLogoEditorValue((state) => state.strip);
   const sectionPicker = useLogoEditorValue((state) => state.sectionPicker);
+  const savingDesign = useLogoEditorValue((state) => state.savingDesign);
   const isPlacing = useLogoEditorValue((state) => state.placement !== null);
   return (
     <>
@@ -330,6 +332,7 @@ export function LogoEditorAdjustBars() {
       {strip && <StripWindow key={strip.id} session={strip} />}
       {sectionPicker && <SectionPicker />}
       <SavedSetsWindows />
+      {savingDesign && <SaveDesignWindow />}
     </>
   );
 }

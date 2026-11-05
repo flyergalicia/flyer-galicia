@@ -163,68 +163,77 @@ test(
   },
 );
 
-test("a crop travels to Estudio and the administrator publishes it", async ({ cloud, openApp }) => {
-  const app = await openApp({ user: "asesor" });
-  const sections = app.flyerSections;
-  await app.flyerEditor.fillCompanyName("ACME S.A.");
-  await app.page.waitForTimeout(300);
-  const wholeHeight = (await sections.cropStatus()).artworkHeight;
-  await app.logoEditor.enter();
-  await app.logoEditor.waitForBrandCatalog();
+test(
+  "a crop travels to Estudio and the administrator publishes it",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const app = await openApp({ user: "asesor" });
+    const sections = app.flyerSections;
+    await app.flyerEditor.fillCompanyName("ACME S.A.");
+    await app.page.waitForTimeout(300);
+    const wholeHeight = (await sections.cropStatus()).artworkHeight;
+    await app.logoEditor.enter();
+    await app.logoEditor.waitForBrandCatalog();
 
-  const design = await test.step("it is saved in Estudio with the crop", async () => {
-    // Estudio: saving with the crop and the legal text, opening it as a design
-    await app.logoEditor.removeAllChanges();
-    await sections.removeBand(NEW_CROP.y, NEW_CROP.height);
-    await sections.setLegal(LEGAL);
-    await app.studio.save({ name: "Sin cashback ACME" });
-    const saved = cloud.designs.at(-1);
-    const data = designData(saved);
-    expect.soft(data.recortes, "the design is saved with the crop").toHaveLength(1);
-    expect.soft(data.legal, "and the legal text").toBe(LEGAL);
-    expect.soft(String(saved?.miniatura).length, "it has a thumbnail").toBeGreaterThan(1000);
-    await sections.reenterCurrentOption();
-    await app.studio.open();
-    await app.studio.waitForCards();
-    await app.studio.use();
-    const opened = await sections.cropStatus();
-    expect.soft(opened.active, '"Usar" opens the design cropped').toBe(true);
-    expect.soft(opened.artworkHeight, "at its height").toBe(wholeHeight - NEW_CROP.height);
-    expect.soft(opened.amountsHidden, "without amounts").toBe(true);
-    expect.soft(await sections.legal(), "and with its legal text").toBe(LEGAL);
-    await sections.selectFlyerTab();
-    const original = await sections.cropStatus();
-    expect.soft(original.active, "going back to the original tab shows no crop").toBe(false);
-    expect.soft(original.artworkHeight, "and the flyer whole").toBe(wholeHeight);
-    expect.soft(app.pageErrors(), "no JavaScript errors for the advisor").toEqual([]);
-    await app.close();
-    return saved;
-  });
+    const design = await test.step("it is saved in Estudio with the crop", async () => {
+      // Estudio: saving with the crop and the legal text, opening it as a design
+      await app.logoEditor.removeAllChanges();
+      await sections.removeBand(NEW_CROP.y, NEW_CROP.height);
+      await sections.setLegal(LEGAL);
+      await app.studio.save({ name: "Sin cashback ACME" });
+      const saved = cloud.designs.at(-1);
+      const data = designData(saved);
+      expect.soft(data.recortes, "the design is saved with the crop").toHaveLength(1);
+      expect.soft(data.legal, "and the legal text").toBe(LEGAL);
+      expect.soft(String(saved?.miniatura).length, "it has a thumbnail").toBeGreaterThan(1000);
+      await sections.reenterCurrentOption();
+      await app.studio.open();
+      await app.studio.waitForCards();
+      await app.studio.use();
+      const opened = await sections.cropStatus();
+      expect.soft(opened.active, '"Usar" opens the design cropped').toBe(true);
+      expect.soft(opened.artworkHeight, "at its height").toBe(wholeHeight - NEW_CROP.height);
+      expect.soft(opened.amountsHidden, "without amounts").toBe(true);
+      expect.soft(await sections.legal(), "and with its legal text").toBe(LEGAL);
+      await sections.selectFlyerTab();
+      const original = await sections.cropStatus();
+      expect.soft(original.active, "going back to the original tab shows no crop").toBe(false);
+      expect.soft(original.artworkHeight, "and the flyer whole").toBe(wholeHeight);
+      expect.soft(app.pageErrors(), "no JavaScript errors for the advisor").toEqual([]);
+      await app.close();
+      return saved;
+    });
 
-  await test.step("the administrator publishes it", async () => {
-    // Publishing, by the administrator
-    if (design) {
-      design.estado = "pedido";
-      design.pedido_at = new Date().toISOString();
-    }
-    const admin = await openApp({ user: "admin" });
-    await admin.studio.open();
-    await admin.studio.showFilter("requests");
-    await admin.studio.waitForCards();
-    await admin.studio.approve("Sin cashback");
-    const option = publishedOptions(cloud).at(-1) ?? 0;
-    const active = activeFile(cloud, option);
-    expect
-      .soft(active?.cfg, "the new option is born without amounts")
-      .toHaveProperty("montos.off", true);
-    expect
-      .soft(active?.cfg, "and remembers which flyer it came from")
-      .toHaveProperty("recDe", OPTION);
-    expect.soft(legalFile(cloud, option)?.text, "it has the legal text of the design").toBe(LEGAL);
-    const image = cloud.bucketBinaries[active?.name ?? ""] ?? Buffer.alloc(0);
-    expect
-      .soft((await admin.flyerSections.imageSize(image)).height, "its image comes already cropped")
-      .toBe(wholeHeight - NEW_CROP.height);
-    expect.soft(admin.pageErrors(), "no JavaScript errors for the administrator").toEqual([]);
-  });
-});
+    await test.step("the administrator publishes it", async () => {
+      // Publishing, by the administrator
+      if (design) {
+        design.estado = "pedido";
+        design.pedido_at = new Date().toISOString();
+      }
+      const admin = await openApp({ user: "admin" });
+      await admin.studio.open();
+      await admin.studio.showFilter("requests");
+      await admin.studio.waitForCards();
+      await admin.studio.approve("Sin cashback");
+      const option = publishedOptions(cloud).at(-1) ?? 0;
+      const active = activeFile(cloud, option);
+      expect
+        .soft(active?.cfg, "the new option is born without amounts")
+        .toHaveProperty("montos.off", true);
+      expect
+        .soft(active?.cfg, "and remembers which flyer it came from")
+        .toHaveProperty("recDe", OPTION);
+      expect
+        .soft(legalFile(cloud, option)?.text, "it has the legal text of the design")
+        .toBe(LEGAL);
+      const image = cloud.bucketBinaries[active?.name ?? ""] ?? Buffer.alloc(0);
+      expect
+        .soft(
+          (await admin.flyerSections.imageSize(image)).height,
+          "its image comes already cropped",
+        )
+        .toBe(wholeHeight - NEW_CROP.height);
+      expect.soft(admin.pageErrors(), "no JavaScript errors for the administrator").toEqual([]);
+    });
+  },
+);

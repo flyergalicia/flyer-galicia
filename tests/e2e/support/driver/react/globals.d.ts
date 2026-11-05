@@ -158,7 +158,12 @@ export interface LogoEditorProbe {
   isBlankRow(where: "current" | "whole" | "section", row: number): boolean;
   missingSections(): number;
   openWork(): { id: string; name: string; isDraft: boolean } | null;
+  work(id: string): { id: string; name: string; isDraft: boolean } | null;
   isOpening(): boolean;
+  canUseOption(option: number): boolean;
+  profileHasOption(option: number): boolean;
+  openWorkUploads(): readonly string[];
+  offeredUploads(): readonly string[];
   draftsReviewed(): boolean;
   draftsKey(): string;
   isPlacing(): boolean;
@@ -272,6 +277,11 @@ declare global {
       readonly flyerKnowledge?: () => FlyerKnowledgeProbe;
       readonly hunterScreen?: () => HunterScreenProbe;
       readonly hunterPreview?: () => HunterPreviewProbe;
+      readonly studioNotices?: () => { questions: number; shared: number };
+      readonly pdfReader?: () => { version: string };
+      readonly pdfConversion?: () => {
+        withBands(file: File, bandHeight: number): Promise<HTMLCanvasElement | null>;
+      };
     };
   }
 }

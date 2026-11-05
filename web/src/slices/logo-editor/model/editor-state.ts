@@ -91,6 +91,8 @@ export interface LogoEditorState {
   /** The drafts of last time, offered back. */
   readonly recoverable: readonly StoredDraft[] | null;
   readonly savedSets: SavedSetsWindow;
+  /** The window of Guardar en Estudio. */
+  readonly savingDesign: boolean;
   readonly placement: PlacementView | null;
 }
 
@@ -104,6 +106,10 @@ export interface EditorEnvironment {
   readonly personId?: () => string;
   /** The flyers this person can use. */
   readonly canUseOption?: (option: number) => boolean;
+  /** The screen of Estudio, on the place where flyers are proposed. */
+  readonly goToStudioSources?: () => void;
+  /** An administrator looking at the app as another profile. */
+  readonly isPreviewingProfile?: () => boolean;
   readonly optionLabel?: (option: number) => string;
   /** The promotions on screen in Promociones, and all of them. */
   readonly catalog?: () => {
@@ -125,6 +131,8 @@ export interface EditorCore {
   readonly cuts: () => readonly Cut[];
   readonly coordinates: () => FlyerCoordinates | null;
   readonly replaceList: (list: readonly PlacedChange[], next?: Partial<LogoEditorState>) => void;
+  /** What a download carries is what the list says now. */
+  readonly publish: () => void;
   /** Everything that changes the list ends here. */
   readonly settle: () => void;
   /** After a cut: it draws, and it is a step of Deshacer at once. */

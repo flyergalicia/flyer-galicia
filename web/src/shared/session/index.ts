@@ -13,6 +13,7 @@ export {
   isLeader,
   MANAGED_ROLES,
   mergePermissions,
+  savedRolesIn,
   PERMISSION_KEYS,
   type PermissionKey,
   type PermissionMatrix,

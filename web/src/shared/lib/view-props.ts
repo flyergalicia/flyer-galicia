@@ -25,6 +25,8 @@ export interface WaitingNotice {
   readonly hint: string;
   /** The tab that carries the number too. */
   readonly tabId?: string;
+  /** It counts only on the tab: it is not on the envelope of the name. */
+  readonly onlyOnTab?: boolean;
 }
 
 /**

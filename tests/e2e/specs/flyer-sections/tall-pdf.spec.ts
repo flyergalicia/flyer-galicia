@@ -16,20 +16,24 @@ function stripePoints(): Record<string, { x: number; y: number }> {
   return points;
 }
 
-test("a PDF taller than a band comes out whole, each part in its place", async ({ openApp }) => {
-  const { flyerSections } = await openApp({ user: "admin" });
+test(
+  "a PDF taller than a band comes out whole, each part in its place",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const { flyerSections } = await openApp({ user: "admin" });
 
-  const reading = await flyerSections.convertPdf(buildStripedPdf(TALL_POINTS), {
-    points: stripePoints(),
-    inkRegion: NO_REGION,
-  });
+    const reading = await flyerSections.convertPdf(buildStripedPdf(TALL_POINTS), {
+      points: stripePoints(),
+      inkRegion: NO_REGION,
+    });
 
-  expect.soft(reading?.height, "its whole height").toBe(PIXELS);
-  for (const [top, color] of Object.entries(reading?.colors ?? {})) {
-    const isRed = (Number(top) / STRIPE_PX) % 2 === 0;
-    expect.soft(color, `the stripe at ${top} px`).toEqual(isRed ? [255, 0, 0] : [0, 0, 255]);
-  }
-});
+    expect.soft(reading?.height, "its whole height").toBe(PIXELS);
+    for (const [top, color] of Object.entries(reading?.colors ?? {})) {
+      const isRed = (Number(top) / STRIPE_PX) % 2 === 0;
+      expect.soft(color, `the stripe at ${top} px`).toEqual(isRed ? [255, 0, 0] : [0, 0, 255]);
+    }
+  },
+);
 
 test("a PDF too long to convert says so, instead of freezing the computer", async ({ openApp }) => {
   const app = await openApp({ user: "admin" });

@@ -11,6 +11,7 @@ function rules(allowed: readonly string[] = [], others: Partial<MenuRules> = {})
     isLeader: false,
     isAdminNow: false,
     commercialActionsOn: false,
+    hasSharedDesign: false,
     waiting: () => 0,
     flyerOptions: sanitizeFlyerOptions([
       { n: 1 },
@@ -97,11 +98,18 @@ describe("what is not there yet", () => {
     expect(windows.every(({ default: window }) => typeof window === "function")).toBe(true);
   });
 
-  it("a pending screen draws nothing", async () => {
-    const studio = APP_VIEWS.find(({ id }) => id === "estudio")!;
-    const { default: Pending } = await studio.load();
+  it("Estudio comes with its faculty or with a copy shared with this person", () => {
+    expect(seenBy(rules())).not.toContain("estudio");
+    expect(seenBy(rules([], { hasSharedDesign: true }))).toContain("estudio");
+    expect(seenBy(rules([], { hasSharedDesign: true, isHunter: true }))).not.toContain("estudio");
+    expect(seenBy(rules([], { hasSharedDesign: true, isLeader: true }))).not.toContain("estudio");
+  });
 
-    const screen = await render(<Pending isActive tabId="estudio" />);
+  it("a pending screen draws nothing", async () => {
+    const benchmark = APP_VIEWS.find(({ id }) => id === "benchmark")!;
+    const { default: Pending } = await benchmark.load();
+
+    const screen = await render(<Pending isActive tabId="benchmark" />);
 
     expect(screen.container.textContent).toBe("");
   });

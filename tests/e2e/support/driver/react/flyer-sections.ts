@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { type Locator, type Page } from "@playwright/test";
 import {
+  type BandHeightComparison,
   type BulkOutcome,
   type BulkRow,
   type CompanyRecord,
@@ -8,6 +9,8 @@ import {
   type FlyerSectionsDriver,
   type FlyerTab,
   type InsertStatus,
+  type PdfImageReading,
+  type PdfProbes,
   type SavedDrafts,
 } from "../flyer-sections.ts";
 import { bucketUrl } from "../../cloud/index.ts";
@@ -20,6 +23,8 @@ import { partialDriver } from "./pending.ts";
 const SHOWN_TIMEOUT_MS = 15_000;
 const DOWNLOAD_TIMEOUT_MS = 20_000;
 const SECOND_DOWNLOAD_WINDOW_MS = 500;
+const RACE_SETTLE_MS = 1200;
+const PDF_CONVERSION_TIMEOUT_MS = 40_000;
 const DRAG_STEPS = 4;
 
 function editorBar(page: Page): Locator {
@@ -531,6 +536,32 @@ function tabsDriver(page: Page): Partial<FlyerSectionsDriver> {
         .getByRole("button", { name: "Cerrar" })
         .click(),
     newDraft: () => newDraft(page),
+    /** Two touches in a row, before the first one finished opening. */
+    openDesignThenAnother: async (first, second) => {
+      await page.evaluate(
+        (ids) => {
+          for (const id of ids) {
+            document.querySelector<HTMLButtonElement>(`[data-work="${id}"] button`)?.click();
+          }
+        },
+        [first, second],
+      );
+      await page.waitForTimeout(RACE_SETTLE_MS);
+    },
+    openDesignThenFlyer: async (design, option) => {
+      await page.evaluate(
+        ({ id, flyer }) => {
+          document.querySelector<HTMLButtonElement>(`[data-work="${id}"] button`)?.click();
+          document
+            .querySelector<HTMLButtonElement>(
+              `[data-testid="flyer-options"] button[data-option="${String(flyer)}"]`,
+            )
+            ?.click();
+        },
+        { id: design, flyer: option },
+      );
+      await page.waitForTimeout(RACE_SETTLE_MS);
+    },
     openWork: () =>
       page.evaluate(() => {
         const editor = window["__flyerProbe"]?.logoEditor?.();
@@ -589,6 +620,12 @@ function insertDriver(page: Page): Partial<FlyerSectionsDriver> {
         y,
       ),
     sourceSectionSample: (y, height) => sourceSectionSample(page, y, height),
+    /** Only reloading takes them out of memory, for a person. */
+    forgetSectionImages: async () => {
+      await page.reload();
+      await page.getByRole("banner").waitFor({ timeout: SHOWN_TIMEOUT_MS });
+    },
+    sourcesInDepot: () => page.getByTestId("source").count(),
     sectionsMissingImage: () =>
       page.evaluate(() => {
         const editor = window["__flyerProbe"]?.logoEditor?.();
@@ -672,6 +709,145 @@ async function turnOffAmounts(page: Page): Promise<void> {
   await page.getByRole("banner").waitFor({ timeout: SHOWN_TIMEOUT_MS });
   await goToOption(page, option);
   await waitForOptionShown(page, option);
+}
+
+function samplePdf(pdf: Buffer, name: string) {
+  return { name, mimeType: "application/pdf", buffer: pdf };
+}
+
+/** What a person does: Estudio → Subir un flyer. The canvas is seen on its way to the JPEG. */
+async function chooseFlyerFile(page: Page, pdf: Buffer, name: string): Promise<void> {
+  await page
+    .getByRole("banner")
+    .getByRole("tab", { name: /^Estudio/ })
+    .click();
+  await page.evaluate(() => {
+    const realToBlob: typeof HTMLCanvasElement.prototype.toBlob = Reflect.get(
+      HTMLCanvasElement.prototype,
+      "toBlob",
+    );
+    Reflect.set(window, "__converted", null);
+    HTMLCanvasElement.prototype.toBlob = function toBlob(callback, type, quality) {
+      Reflect.set(window, "__converted", this);
+      HTMLCanvasElement.prototype.toBlob = realToBlob;
+      realToBlob.call(this, callback, type, quality);
+    };
+  });
+  await page.getByTestId("sources-file").setInputFiles(samplePdf(pdf, name));
+}
+
+async function convertPdf(
+  page: Page,
+  pdf: Buffer,
+  probes: PdfProbes,
+): Promise<PdfImageReading | null> {
+  await chooseFlyerFile(page, pdf, "muestra.pdf");
+  const nameField = page.getByTestId("text-window-field");
+  const arrived = await nameField
+    .waitFor({ timeout: PDF_CONVERSION_TIMEOUT_MS })
+    .then(() => true)
+    .catch(() => false);
+  if (!arrived) return null;
+  const reading = await page.evaluate((wanted) => {
+    const canvas: unknown = Reflect.get(window, "__converted");
+    if (!(canvas instanceof HTMLCanvasElement)) return null;
+    const graphics = canvas.getContext("2d");
+    if (!graphics) return null;
+    const colors: PdfImageReading["colors"] = {};
+    for (const [name, { x, y }] of Object.entries(wanted.points)) {
+      const [red = 0, green = 0, blue = 0] = graphics.getImageData(x, y, 1, 1).data;
+      colors[name] = [red, green, blue];
+    }
+    const { x, y, width, height } = wanted.inkRegion;
+    const ink = graphics.getImageData(x, y, width, height).data;
+    let darkPixels = 0;
+    for (let index = 0; index < ink.length; index += 4) {
+      if ((ink[index] ?? 255) < 80) darkPixels += 1;
+    }
+    return { width: canvas.width, height: canvas.height, colors, darkPixels };
+  }, probes);
+  await page.keyboard.press("Escape");
+  await nameField.waitFor({ state: "detached" });
+  return reading;
+}
+
+function compareBandHeights(
+  page: Page,
+  { pdf, name, heights }: { pdf: Buffer; name: string; heights: [number, number] },
+): Promise<BandHeightComparison> {
+  return page.evaluate(
+    async ({ content, fileName, bands }) => {
+      const bytes = Uint8Array.from(atob(content), (letter) => letter.charCodeAt(0));
+      const file = new File([bytes], fileName, { type: "application/pdf" });
+      const convert = async (band: number) => {
+        const start = performance.now();
+        const canvas = await window["__flyerProbe"]?.pdfConversion?.().withBands(file, band);
+        return { canvas, milliseconds: Math.round(performance.now() - start) };
+      };
+      const first = await convert(bands[0]);
+      const second = await convert(bands[1]);
+      const graphicsA = first.canvas?.getContext("2d");
+      const graphicsB = second.canvas?.getContext("2d");
+      if (!first.canvas || !second.canvas || !graphicsA || !graphicsB) {
+        return {
+          failed: true,
+          heightA: 0,
+          heightB: 0,
+          millisecondsA: 0,
+          millisecondsB: 0,
+          meanDifference: 0,
+          differentRows: 0,
+        };
+      }
+      const { width, height } = first.canvas;
+      const a = graphicsA.getImageData(0, 0, width, height).data;
+      const b = graphicsB.getImageData(0, 0, width, height).data;
+      let total = 0;
+      let differentRows = 0;
+      for (let row = 0; row < height; row += 1) {
+        let rowTotal = 0;
+        for (let x = row * width * 4; x < (row + 1) * width * 4; x += 4) {
+          rowTotal += Math.abs((a[x] ?? 0) - (b[x] ?? 0));
+        }
+        total += rowTotal;
+        if (rowTotal / width > 2) differentRows += 1;
+      }
+      return {
+        failed: false,
+        heightA: height,
+        heightB: second.canvas.height,
+        millisecondsA: first.milliseconds,
+        millisecondsB: second.milliseconds,
+        meanDifference: total / (width * height),
+        differentRows,
+      };
+    },
+    { content: pdf.toString("base64"), fileName: name, bands: heights },
+  );
+}
+
+function pdfDriver(page: Page) {
+  return {
+    convertPdf: (pdf: Buffer, probes: PdfProbes) => convertPdf(page, pdf, probes),
+    tryConvertPdf: async (pdf: Buffer, waitMs: number) => {
+      await chooseFlyerFile(page, pdf, "m.pdf");
+      await page.waitForTimeout(waitMs);
+      return (await page.getByTestId("text-window-field").count()) > 0;
+    },
+    pdfReaderVersion: () =>
+      page.evaluate(() => window["__flyerProbe"]?.pdfReader?.().version ?? ""),
+    securityPolicy: async () =>
+      (await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content")) ??
+      "",
+    compareBandHeights: async (pdf: Buffer, name: string, heights: [number, number]) => {
+      await page
+        .getByRole("banner")
+        .getByRole("tab", { name: /^Estudio/ })
+        .click();
+      await page.getByTestId("sources-file").waitFor({ state: "attached" });
+      return compareBandHeights(page, { pdf, name, heights });
+    },
+  };
 }
 
 function formDriver(page: Page) {
@@ -797,6 +973,7 @@ export function createReactFlyerSectionsDriver(page: Page): FlyerSectionsDriver 
   return partialDriver<FlyerSectionsDriver>("flyerSections", {
     ...formDriver(page),
     ...historyDriver(page),
+    ...pdfDriver(page),
     ...cropDriver(page),
     ...tabsDriver(page),
     ...insertDriver(page),

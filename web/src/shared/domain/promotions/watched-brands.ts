@@ -59,3 +59,40 @@ export function withBrandsFound(
   }
   return { ...file, opciones: { ...file.opciones, [String(option)]: list } };
 }
+
+/** One change of a design, as far as watching its brands goes. */
+export interface DesignBrand {
+  readonly tipo?: string | undefined;
+  readonly img?: string | undefined;
+  readonly t?: string | undefined;
+}
+
+function isCatalogLogo({ tipo, img }: DesignBrand): boolean {
+  return tipo !== "txt" && Boolean(img) && !img?.startsWith("pc:") && !img?.startsWith("orig:");
+}
+
+/**
+ * Publishing a design: the option it is born as watches what its base watched by hand, and the logos of
+ * Promociones of the design, once each. The logos of the PC and those of the flyer itself are not
+ * brands of the catalog. Null: there is nothing to watch.
+ */
+export function withDesignBrands(
+  file: WatchedBrandsFile,
+  base: number,
+  created: number,
+  changes: readonly DesignBrand[],
+): WatchedBrandsFile | null {
+  const list = (file.opciones[String(base)] ?? []).filter(({ origen }) => origen !== STUDIO_ORIGIN);
+  const seen = new Set(list.flatMap(({ img }) => (img ? [img] : [])));
+  const all = [...list];
+  for (const change of changes) {
+    const img = change.img ?? "";
+    if (isCatalogLogo(change) && !seen.has(img)) {
+      seen.add(img);
+      all.push({ m: change.t ?? "", t: change.t ?? "", img, origen: STUDIO_ORIGIN });
+    }
+  }
+  return all.length > 0
+    ? { ...file, opciones: { ...file.opciones, [String(created)]: all } }
+    : null;
+}

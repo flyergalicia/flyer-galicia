@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { watchedBrandsIn, withBrandsFound } from "./watched-brands.ts";
+import { watchedBrandsIn, withBrandsFound, withDesignBrands } from "./watched-brands.ts";
 
 describe("the file of watched brands", () => {
   it("is read tolerantly", () => {
@@ -46,5 +46,52 @@ describe("the file of watched brands", () => {
       "Sin logo de Estudio",
     ]);
     expect(withBrandsFound({ opciones: {} }, 2, []).opciones[2]).toEqual([]);
+  });
+});
+
+describe("publishing a design", () => {
+  const CHANGES = [
+    { img: "marca.png", t: "Marca" },
+    { img: "marca.png", t: "Otra vez" },
+    { tipo: "txt", t: "Un texto" },
+    { img: "pc:1:a.png", t: "Subido" },
+    { img: "orig:1,2,3,4", t: "Del flyer" },
+    { img: "sin-titulo.png" },
+  ];
+
+  it("watches the logos of the catalog of the design, once each", () => {
+    const file = withDesignBrands({ opciones: {} }, 9, 10, CHANGES);
+    expect(file?.opciones["10"]).toEqual([
+      { m: "Marca", t: "Marca", img: "marca.png", origen: "estudio" },
+      { m: "", t: "", img: "sin-titulo.png", origen: "estudio" },
+    ]);
+  });
+
+  it("inherits what its base watches by hand, not what came from another design", () => {
+    const file = withDesignBrands(
+      {
+        opciones: {
+          9: [
+            { m: "A mano", img: "marca.png", origen: "manual" },
+            { m: "Sin logo", origen: "manual" },
+            { m: "De otro", img: "otro.png", origen: "estudio" },
+          ],
+        },
+      },
+      9,
+      10,
+      [{ img: "marca.png", t: "Marca" }],
+    );
+    expect(file?.opciones["10"]).toEqual([
+      { m: "A mano", img: "marca.png", origen: "manual" },
+      { m: "Sin logo", origen: "manual" },
+    ]);
+    expect(file?.opciones["9"]).toHaveLength(3);
+  });
+
+  it("with nothing to watch there is nothing to save", () => {
+    expect(
+      withDesignBrands({ opciones: {} }, 9, 10, [{ tipo: "txt" }, { img: "" }, {}]),
+    ).toBeNull();
   });
 });

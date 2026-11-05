@@ -19,10 +19,19 @@ import {
 } from "@/shared/lib/flyer-workspace/index.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { usePermissions } from "@/shared/session/index.ts";
+import { useLogoEditorValue } from "@/slices/logo-editor/index.ts";
 import { useFlyerForm } from "./form-context.ts";
 
 function tabOf(tabId: string): FlyerTab {
   return isFlyerTabId(tabId) ? tabId : "flyer";
+}
+
+/** The flyers under the copies shared with this person that are open, in order and once each. */
+function useSharedFlyers(): readonly number[] {
+  const joined = useLogoEditorValue((state) =>
+    [...new Set(state.works.filter(({ shared }) => shared).map(({ option }) => option))].join(),
+  );
+  return useMemo(() => (joined ? joined.split(",").map(Number) : []), [joined]);
 }
 
 function loadingText(label: string): string {
@@ -50,6 +59,17 @@ export function useFlyerOnScreen(
   });
 
   const allowed = useMemo(() => allowedOptions(options, tab, can), [options, tab, can]);
+  const sharedFlyers = useSharedFlyers();
+  const worksOf = useMemo(
+    () => [
+      ...allowed,
+      ...sharedFlyers.filter(
+        (option) => tabOfOption(options, option) === tab && !allowed.includes(option),
+      ),
+    ],
+    [allowed, options, sharedFlyers, tab],
+  );
+  const tabBefore = useRef(tab);
 
   const go = useCallback(
     (option: number, announce: boolean) => {
@@ -74,9 +94,15 @@ export function useFlyerOnScreen(
 
   // A person who loses an option goes to the first one left; the same on changing tab.
   useEffect(() => {
+    const tabChanged = tabBefore.current !== tab;
+    tabBefore.current = tab;
     if (!isActive) return;
     if (onScreen !== null && tabOfOption(options, onScreen) === tab && allowed.includes(onScreen)) {
       return;
+    }
+    // A copy that was shared stays on its flyer until it is closed, or another tab is chosen.
+    if (onScreen !== null && sharedFlyers.includes(onScreen)) {
+      if (!tabChanged || tabOfOption(options, onScreen) === tab) return;
     }
     if (allowed.length === 0) {
       // A tab with nothing of this person: where they have something, if they have it.
@@ -87,7 +113,7 @@ export function useFlyerOnScreen(
       }
     }
     void go(firstOptionOf(allowed, lastOfTab.current.get(tab)), onScreen !== null);
-  }, [allowed, can, go, goToTab, isActive, onScreen, options, tab]);
+  }, [allowed, can, go, goToTab, isActive, onScreen, options, sharedFlyers, tab]);
 
   useEffect(() => {
     form.setContext({ configs, names, tab });
@@ -109,5 +135,5 @@ export function useFlyerOnScreen(
 
   const choose = useCallback((option: number) => go(option, true), [go]);
 
-  return { allowed, choose, options, retry, onScreen, tab };
+  return { allowed, worksOf, choose, options, retry, onScreen, tab };
 }

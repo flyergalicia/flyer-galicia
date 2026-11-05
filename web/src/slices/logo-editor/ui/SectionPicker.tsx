@@ -32,15 +32,35 @@ interface Chosen {
 }
 
 function NoSources() {
-  const { can, isAdminNow } = usePermissions();
+  const editor = useLogoEditorActions();
+  const { can, isAdminNow, isHunter, isLeader } = usePermissions();
+  const canSeeStudio = !isHunter && !isLeader && can("estudio");
   let text = "Pedile al administrador que suba uno.";
   if (isAdminNow) text = "Subí uno desde Estudio → Flyers para copiar.";
-  else if (can("estudio")) {
+  else if (canSeeStudio) {
     text =
       "Podés proponer uno desde Estudio → Flyers para copiar; se ve acá cuando el administrador lo aprueba.";
   }
-  // "Ir a Estudio" arrives with that screen, which is what lets one upload or propose a flyer.
-  return <div className={styles.nothing}>{text}</div>;
+  return (
+    <div className={styles.nothing}>
+      {text}
+      {canSeeStudio && (
+        <>
+          <br />
+          <Button
+            variant="secondary"
+            size="dialog"
+            onClick={() => {
+              editor.closeSectionPicker();
+              editor.goToStudioSources();
+            }}
+          >
+            Ir a Estudio
+          </Button>
+        </>
+      )}
+    </div>
+  );
 }
 
 interface SheetProps {

@@ -10,6 +10,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: sourceAlias },
   define: { SHEET_LIBRARY_HASH: '""' },
+  // Discovered in the middle of a run, the server would prepare it again under the feet of the tests.
+  optimizeDeps: { include: ["pdfjs-dist/legacy/build/pdf.mjs"] },
   test: {
     projects: [
       {

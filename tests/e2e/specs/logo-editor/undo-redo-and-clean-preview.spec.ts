@@ -134,7 +134,7 @@ test("a strip is one step of Deshacer", { tag: "@react" }, async ({ openApp }) =
   expect.soft(await snapshot(), "Ctrl+Y brings it back").toBe(withStrip);
 });
 
-test("undoing everything does not let a design go", async ({ openApp }) => {
+test("undoing everything does not let a design go", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp();
   await app.logoEditor.enter();
 

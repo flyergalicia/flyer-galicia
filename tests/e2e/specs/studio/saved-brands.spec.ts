@@ -402,19 +402,49 @@ test(
   },
 );
 
-test("the list of designs of Estudio leaves a saved set out", async ({ cloud, openApp }) => {
-  const app = await openApp({ user: "admin" });
-  const brands = app.savedBrands;
-  await app.logoEditor.enter();
-  await app.logoEditor.waitForBrandCatalog();
-  await brands.buildStrip(STRIP_BOX, 3);
-  await brands.finishChanges();
-  await brands.openSaveWindow();
-  await brands.saveAs(SET_NAME);
-  expect.soft(cloud.designs.at(-1)?.tipo, "it is saved as a combination").toBe("combinacion");
-  await app.studio.reloadList();
-  expect
-    .soft(await app.studio.listedDesigns(), "the list of designs of Estudio leaves it out")
-    .not.toContain(SET_NAME);
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+test(
+  "the list of designs of Estudio leaves a saved set out",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const app = await openApp({ user: "admin" });
+    const brands = app.savedBrands;
+    await app.logoEditor.enter();
+    await app.logoEditor.waitForBrandCatalog();
+    await brands.buildStrip(STRIP_BOX, 3);
+    await brands.finishChanges();
+    await brands.openSaveWindow();
+    await brands.saveAs(SET_NAME);
+    expect.soft(cloud.designs.at(-1)?.tipo, "it is saved as a combination").toBe("combinacion");
+    await app.studio.reloadList();
+    expect
+      .soft(await app.studio.listedDesigns(), "the list of designs of Estudio leaves it out")
+      .not.toContain(SET_NAME);
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);
+
+test(
+  "a saved set is applied from Estudio on the flyer on screen",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const app = await openApp({ user: "admin" });
+    const brands = app.savedBrands;
+    await app.logoEditor.enter();
+    await app.logoEditor.waitForBrandCatalog();
+    await brands.buildStrip(STRIP_BOX, 3);
+    await brands.finishChanges();
+    await brands.openSaveWindow();
+    await brands.saveAs(SET_NAME);
+    expect.soft(cloud.designs.at(-1)?.tipo, "it is saved").toBe("combinacion");
+
+    await app.studio.open();
+    await app.page.getByRole("button", { name: "Aplicar en el flyer" }).first().click();
+    await expect
+      .soft(
+        app.page.getByRole("button", { name: "Dejar así" }),
+        "it goes to the flyer and shows it",
+      )
+      .toBeVisible();
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);

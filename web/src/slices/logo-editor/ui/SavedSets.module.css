@@ -105,6 +105,12 @@
   opacity: 0.7;
 }
 
+@media (max-width: 520px) {
+  .rowImage {
+    width: 84px;
+  }
+}
+
 .rowText {
   display: flex;
   flex: 1;
@@ -137,10 +143,12 @@
 
 .rowActions button {
   padding: 6px 12px;
+  font-size: var(--text-lg);
 }
 
 .label {
   margin-top: 8px;
+  margin-bottom: 3px;
   color: var(--ink);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
@@ -164,7 +172,6 @@
 }
 
 .field:focus {
-  border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
@@ -491,4 +498,28 @@
   .spinner {
     animation-duration: 2.4s;
   }
+}
+
+.designWindow {
+  width: min(440px, 100%);
+}
+
+@media (max-width: 480px) {
+  .designWindow {
+    padding: 16px 14px 12px;
+  }
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: var(--text-xs);
+}
+
+.text[data-warning] {
+  color: var(--danger);
+  font-weight: var(--weight-semibold);
 }

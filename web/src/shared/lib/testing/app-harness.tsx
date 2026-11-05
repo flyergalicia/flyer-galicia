@@ -37,6 +37,8 @@ export interface AppAnswers {
   readonly tables?: Readonly<Record<string, Answer>>;
   /** What other Edge Functions answer, by name. */
   readonly functions?: Readonly<Record<string, Answer>>;
+  /** Looks at every request first: an answer here wins, and null lets it go on. */
+  readonly intercept?: (request: RecordedRequest) => Response | null | Promise<Response | null>;
 }
 
 export const ADVISOR: Readonly<Record<string, unknown>> = {
@@ -99,7 +101,7 @@ function authAnswer(request: RecordedRequest, answers: AppAnswers) {
 }
 
 function cloudAnswer(answers: AppAnswers): Answer {
-  return (request) => {
+  const inOrder: Answer = (request) => {
     const { path } = request;
     if (path.startsWith("/functions/v1/auth-admin")) {
       return answers.admin?.(request) ?? jsonResponse({ ok: true });
@@ -115,6 +117,9 @@ function cloudAnswer(answers: AppAnswers): Answer {
       new Response(null, { status: 204 })
     );
   };
+  const { intercept } = answers;
+  if (!intercept) return inOrder;
+  return async (request) => (await intercept(request)) ?? inOrder(request);
 }
 
 export interface AppHarness extends InventedBackend {

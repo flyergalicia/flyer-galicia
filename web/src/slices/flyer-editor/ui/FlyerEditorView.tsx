@@ -24,6 +24,7 @@ import {
   LogoEditorBar,
   LogoEditorLayer,
   LogoEditorProvider,
+  useAttachDesignWorks,
   useLogoEditorActions,
 } from "@/slices/logo-editor/index.ts";
 import { useFlyerForm } from "../model/form-context.ts";
@@ -81,6 +82,21 @@ function useReportOptionOnScreen(): void {
   }, [option, report]);
 }
 
+/** A design opened with an empty form brings the name of its company. */
+function useWorkCompany(): void {
+  const form = useFlyerForm();
+  const logoEditor = useLogoEditorActions();
+  useEffect(
+    () =>
+      logoEditor.works.onOpened(({ company }) => {
+        if (company && !form.getState().empresa.trim()) {
+          form.update((state) => ({ ...state, empresa: company }));
+        }
+      }),
+    [form, logoEditor],
+  );
+}
+
 /** The batches of this editor: the ZIP of the companies, and what Base de datos asks of it. */
 function useBatches(choose: (option: number) => Promise<LoadedOption>) {
   const workspace = useFlyerWorkspace();
@@ -124,8 +140,19 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
   const hasNoAmounts = useFlyerHasNoAmounts();
   const isPhone = useIsPhone();
   const [panel, setPanel] = useState<EditorTab>("individual");
-  const { allowed, choose, options, retry, tab } = useFlyerOnScreen(tabId, isActive, goToTab);
+  const { allowed, choose, options, retry, tab, worksOf } = useFlyerOnScreen(
+    tabId,
+    isActive,
+    goToTab,
+  );
   useReportOptionOnScreen();
+  useAttachDesignWorks({
+    goToTab,
+    chooseFlyer: (option) => {
+      if (logoEditor.works.chooseFlyer(option)) void choose(option);
+    },
+  });
+  useWorkCompany();
   const readForm = useReadForm();
   const onNote = useCallback(
     (note: string) => {
@@ -174,6 +201,7 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
         <FlyerOptionBar
           options={options}
           allowed={allowed}
+          worksOf={worksOf}
           onChoose={(option) => {
             if (workspace.batch.isRunning()) show(BATCH_RUNNING_NOTICE);
             else if (logoEditor.works.chooseFlyer(option)) void choose(option);
@@ -281,9 +309,10 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
 
 /** The flyer editor: the form, the flyer it draws, and Masivo and Historial in their panels. */
 export function FlyerEditorView(props: ViewProps) {
+  const { goToTab = NOBODY } = props;
   return (
     <FlyerWorkspaceProvider>
-      <LogoEditorProvider>
+      <LogoEditorProvider goToTab={goToTab}>
         <FlyerFormProvider>
           <Editor {...props} />
         </FlyerFormProvider>

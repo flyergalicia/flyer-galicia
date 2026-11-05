@@ -99,41 +99,45 @@ test.describe("Cambiar logos", () => {
     },
   );
 
-  test("a design of Estudio opens as a tab beside its flyer", async ({ cloud, openApp }) => {
-    const now = new Date().toISOString();
-    cloud.designs.push({
-      id: "d950-0000-4000-8000-000000000000",
-      user_id: cloud.users.asesor?.id ?? "",
-      autor: "Asesor Prueba",
-      nombre: "MVP 4.0",
-      empresa: "",
-      opcion: 9,
-      base_name: "",
-      datos: { v: 1, cambios: [], subidos: {} },
-      miniatura: "",
-      estado: "privado",
-      tipo: "diseno",
-      nota_admin: "",
-      opcion_publicada: null,
-      pedido_at: null,
-      revisado_at: null,
-      compartido_de: null,
-      created_at: now,
-      updated_at: now,
-    });
-    const app = await openApp();
+  test(
+    "a design of Estudio opens as a tab beside its flyer",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      const now = new Date().toISOString();
+      cloud.designs.push({
+        id: "d950-0000-4000-8000-000000000000",
+        user_id: cloud.users.asesor?.id ?? "",
+        autor: "Asesor Prueba",
+        nombre: "MVP 4.0",
+        empresa: "",
+        opcion: 9,
+        base_name: "",
+        datos: { v: 1, cambios: [], subidos: {} },
+        miniatura: "",
+        estado: "privado",
+        tipo: "diseno",
+        nota_admin: "",
+        opcion_publicada: null,
+        pedido_at: null,
+        revisado_at: null,
+        compartido_de: null,
+        created_at: now,
+        updated_at: now,
+      });
+      const app = await openApp();
 
-    await app.page.getByRole("heading", { name: "Estudio", exact: true }).click();
-    await button(app.page, "Usar").click();
-    const tab = app.page.getByRole("group", { name: OPEN_DESIGNS }).getByText("MVP 4.0");
-    await expect.soft(tab, "the design opens as a tab").toBeVisible();
-    expect
-      .soft(await app.logoEditor.openDesignTabs(), "the one in use")
-      .toEqual([{ name: "MVP 4.0", active: true }]);
+      await app.studio.open();
+      await button(app.page, "Usar").click();
+      const tab = app.page.getByRole("group", { name: OPEN_DESIGNS }).getByText("MVP 4.0");
+      await expect.soft(tab, "the design opens as a tab").toBeVisible();
+      expect
+        .soft(await app.logoEditor.openDesignTabs(), "the one in use")
+        .toEqual([{ name: "MVP 4.0", active: true }]);
 
-    await app.logoEditor.pressFlyerTab("Combustible");
-    expect
-      .soft(await app.logoEditor.openDesignTabs(), "going back to the flyer keeps it open")
-      .toEqual([{ name: "MVP 4.0", active: false }]);
-  });
+      await app.logoEditor.pressFlyerTab("Combustible");
+      expect
+        .soft(await app.logoEditor.openDesignTabs(), "going back to the flyer keeps it open")
+        .toEqual([{ name: "MVP 4.0", active: false }]);
+    },
+  );
 });

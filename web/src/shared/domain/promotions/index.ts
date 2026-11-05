@@ -79,4 +79,5 @@ export {
   type WatchedBrandsFile,
   watchedBrandsIn,
   withBrandsFound,
+  withDesignBrands,
 } from "./watched-brands.ts";

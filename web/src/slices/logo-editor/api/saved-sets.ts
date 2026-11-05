@@ -84,6 +84,21 @@ export async function deleteSavedSet({ db }: Pick<Backend, "db">, id: string): P
   if (error) throw new SavedSetsError(error);
 }
 
+/** Only Estudio renames one. */
+export async function renameSavedSet(
+  { db }: Pick<Backend, "db">,
+  id: string,
+  nombre: string,
+): Promise<void> {
+  const { error } = await db
+    .from("flyer_disenos")
+    .update({ nombre })
+    .eq("id", id)
+    .select(COLUMNS)
+    .single();
+  if (error) throw new SavedSetsError(error);
+}
+
 /** A set stored by an earlier version may lack what came later. */
 type StoredContent = Omit<SavedSetData, "grupos" | "subidos"> & Partial<SavedSetData>;
 

@@ -1,6 +1,6 @@
 // "Marcas guardadas": the list, with what each one holds, and the window to save those of this flyer.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { optionLabel } from "@/shared/domain/flyer-options.ts";
 import {
   catalogHasGeography,
@@ -68,14 +68,13 @@ function shortDate(iso: string | null): string {
     : date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function SetRow({
+/** One saved set: what it holds and whose it is. The buttons are of who shows it. */
+export function SavedSetRowView({
   row,
-  onApply,
-  onDelete,
+  children,
 }: {
   readonly row: SavedSetRow;
-  readonly onApply: () => void;
-  readonly onDelete: () => void;
+  readonly children: ReactNode;
 }) {
   const { options } = useFlyerOptions();
   const isMine = row.user_id === useMyId();
@@ -108,15 +107,29 @@ function SetRow({
           </span>
         )}
       </div>
-      <div className={styles.rowActions}>
-        <Button size="dialog" onClick={onApply}>
-          Aplicar
-        </Button>
-        <Button variant="ghost" size="dialog" onClick={onDelete}>
-          Borrar
-        </Button>
-      </div>
+      <div className={styles.rowActions}>{children}</div>
     </div>
+  );
+}
+
+function SetRow({
+  row,
+  onApply,
+  onDelete,
+}: {
+  readonly row: SavedSetRow;
+  readonly onApply: () => void;
+  readonly onDelete: () => void;
+}) {
+  return (
+    <SavedSetRowView row={row}>
+      <Button size="dialog" onClick={onApply}>
+        Aplicar
+      </Button>
+      <Button variant="ghost" size="dialog" onClick={onDelete}>
+        Borrar
+      </Button>
+    </SavedSetRowView>
   );
 }
 

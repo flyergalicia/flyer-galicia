@@ -16,6 +16,7 @@ function rules(allowed: readonly string[] = [], others: Partial<ViewRules> = {})
     isLeader: false,
     commercialActionsOn: false,
     flyerOptions: OPTIONS,
+    hasSharedDesign: false,
     ...others,
   };
 }

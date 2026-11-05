@@ -250,6 +250,26 @@ describe("Insertar", () => {
     expect(theEditor().getState().sectionPicker).toBe(false);
   });
 
+  it("with nothing there it leads to Estudio, if this person has it", async () => {
+    await openEditor({ files: {} });
+    await enter();
+    key("i");
+    await page.getByRole("button", { name: "Ir a Estudio" }).click();
+    expect(theEditor().getState().sectionPicker).toBe(false);
+  });
+
+  it("without the faculty it only says who to ask", async () => {
+    await openEditor({
+      files: { "_facultades.json": { roles: { asesor: { opcion_9: true } } } },
+    });
+    await enter();
+    key("i");
+    await expect.element(page.getByText("Pedile al administrador que suba uno.")).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Ir a Estudio" }))
+      .not.toBeInTheDocument();
+  });
+
   it("a list that could not be read is not an empty one, and can be read again", async () => {
     const { harness } = await openEditor({ droppedFiles: ["_fuentes.json"] });
     await enter();

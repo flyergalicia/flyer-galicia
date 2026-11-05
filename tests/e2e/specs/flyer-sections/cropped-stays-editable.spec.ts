@@ -50,7 +50,7 @@ test(
   },
 );
 
-test("on a cropped flyer Guardar en Estudio appears", async ({ openApp }) => {
+test("on a cropped flyer Guardar en Estudio appears", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp({ user: "admin" });
   await app.logoEditor.enter();
   await app.flyerSections.removeBand(700, 320);

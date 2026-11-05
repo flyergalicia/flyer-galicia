@@ -2,8 +2,9 @@
 // itself: the original stays clean. They come and go with their own cuts, logos and legal text, and
 // each opening has a number: only the last one can be applied (touching another tab before it finished
 // loading used to leave the first one applied, and the download came out with it).
-import type { LogoChange } from "@/shared/flyer-engine/index.ts";
+import { artFileName, type LogoChange } from "@/shared/flyer-engine/index.ts";
 import type { LoadedOption } from "@/shared/lib/flyer-workspace/index.ts";
+import type { StoredDesign } from "@/shared/lib/studio/design-desk.ts";
 import { placedChanges } from "./change.ts";
 import {
   draftsKey,
@@ -13,7 +14,7 @@ import {
   writeStoredDrafts,
 } from "./draft-storage.ts";
 import type { EditorCore, EditorEnvironment } from "./editor-state.ts";
-import { blankDraft, freeDraftName, type OpenWork } from "./open-work.ts";
+import { blankDraft, designWork, freeDraftName, type OpenWork } from "./open-work.ts";
 import type { SectionActions } from "./section-actions.ts";
 import { LONG_NOTICE_MS } from "./section-actions.ts";
 import { missingUploads, missingUploadsText, restoreUploads, uploadsOf } from "./uploads.ts";
@@ -41,6 +42,35 @@ function toStored(work: OpenWork): StoredDraft {
   };
 }
 
+/** What Guardar en Estudio answered, with what it had on screen when it was pressed. */
+export interface SavedDesign {
+  readonly id: string;
+  readonly name: string;
+  readonly company: string;
+  readonly status: string;
+  readonly option: number;
+  readonly changes: OpenWork["changes"];
+  readonly uploads: OpenWork["uploads"];
+  readonly cuts: OpenWork["cuts"];
+  readonly legal: string;
+}
+
+/** A design that was saved on a flyer that is on screen: what is open becomes that design. */
+function fromSaved({ id, name, company, status, option, ...content }: SavedDesign): OpenWork {
+  return {
+    id,
+    option,
+    name,
+    company,
+    status,
+    temp: false,
+    mine: true,
+    shared: false,
+    warnChanged: false,
+    ...content,
+  };
+}
+
 function lostUploadsText(lost: number): string {
   if (!lost) return "";
   return lost === 1
@@ -54,7 +84,16 @@ export function createOpenWorks(
   env: EditorEnvironment,
 ) {
   const { workspace, notify } = core;
-  const canUse = env.canUseOption ?? (() => true);
+  const openedListeners = new Set<(work: OpenWork) => void>();
+  const profileCan = env.canUseOption ?? (() => true);
+  const isPreviewing = env.isPreviewingProfile ?? (() => false);
+  /**
+   * Sharing is permission for THAT design: the flyer under a copy can be used while it is open, even
+   * if the profile does not have it. The preview of a profile shows what that profile sees.
+   */
+  const hasSharedOpen = (option: number) =>
+    !isPreviewing() && core.getState().works.some((work) => work.shared && work.option === option);
+  const canUse = (option: number) => profileCan(option) || hasSharedOpen(option);
   const personId = env.personId ?? (() => "");
   const selectOption =
     env.selectOption ??
@@ -210,8 +249,15 @@ export function createOpenWorks(
     core.startHistoryHere();
     isBusy = false;
     core.settle();
+    for (const listener of openedListeners) listener(work);
     const missing = missingUploads(work.changes, work.uploads, workspace.logos);
     if (missing.length > 0) notify(missingUploadsText(missing), LONG_NOTICE_MS);
+    if (work.warnChanged) {
+      update(work.id, { warnChanged: false });
+      notify(
+        `Ojo: el flyer «${env.optionLabel?.(work.option) ?? ""}» cambió desde que se guardó este diseño. Revisá que todo haya quedado en su lugar.`,
+      );
+    }
   };
 
   const open = async (id: string) => {
@@ -227,6 +273,8 @@ export function createOpenWorks(
     core.set({ activeWork: null, list: [], selected: -1, group: [], places: [] });
     isBusy = true;
     sections.forgetCuts();
+    // If something else is chosen before it opens, what comes out is not what was on screen before.
+    core.publish();
     // If the opening does not end (the load failed, something else was chosen), nothing stays stuck.
     setTimeout(() => {
       if (mine === turn && core.getState().activeWork !== id) isBusy = false;
@@ -276,8 +324,15 @@ export function createOpenWorks(
       ? core.active().length > 0 || core.cuts().length > 0
       : work.changes.length > 0 || work.cuts.length > 0;
 
+  const add = (work: OpenWork) => {
+    const others = core.getState().works.filter(({ id }) => id !== work.id);
+    if (core.getState().activeWork === work.id) core.set({ activeWork: null });
+    core.set({ works: [...others, work] });
+  };
+
   return {
     activeWork,
+    canUse,
     isOpening: () => isBusy,
     isReviewed: () => isReviewed,
     storageKey: () => draftsKey(personId()),
@@ -303,13 +358,55 @@ export function createOpenWorks(
     letGoDesign: () => {
       core.set({ activeWork: null });
     },
-    /** Armed from a work that exists, for Estudio to open a design the same way. */
-    add: (work: OpenWork) => {
-      const others = core.getState().works.filter(({ id }) => id !== work.id);
-      if (core.getState().activeWork === work.id) core.set({ activeWork: null });
-      core.set({ works: [...others, work] });
-    },
+    add,
     open,
+    /** Whoever needs to do something when a work is on screen: the form takes its company. */
+    onOpened: (listener: (work: OpenWork) => void) => {
+      openedListeners.add(listener);
+      return () => {
+        openedListeners.delete(listener);
+      };
+    },
+    /**
+     * "Usar": it does not step on the flyer, it opens beside it, always with what is saved. It has a
+     * number from the moment it was asked for: if something else is chosen meanwhile, it does not open.
+     */
+    openDesign: async (
+      load: () => Promise<StoredDesign>,
+      goToItsTab: (option: number) => void = () => undefined,
+    ) => {
+      turn += 1;
+      const mine = turn;
+      const design = await load();
+      if (mine !== turn) return;
+      const scene = workspace.optionScene(design.option);
+      const flyerChanged = Boolean(
+        design.baseName && scene && design.baseName !== artFileName(scene.whole.artKey),
+      );
+      add(designWork(design, flyerChanged));
+      goToItsTab(design.option);
+      await open(design.id);
+    },
+    /** A design was deleted in Estudio. */
+    closeDesign: (id: string) => {
+      closeNow(id);
+    },
+    /** The design that was just saved takes the place of what is open, with its name. */
+    saved: (design: SavedDesign) => {
+      const work = activeWork();
+      const next = fromSaved(design);
+      if (work?.id === design.id) {
+        update(work.id, { ...next, shared: work.shared });
+        core.set({ activeWork: design.id });
+      } else if (work?.temp) {
+        const works = core.getState().works.map((other) => (other.id === work.id ? next : other));
+        core.set({ works, activeWork: design.id });
+      } else {
+        add(next);
+        core.set({ activeWork: design.id });
+      }
+      saveSoon();
+    },
     newDraft: () => {
       const option = optionOnScreen();
       if (option === null) return;

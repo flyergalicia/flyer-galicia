@@ -8,6 +8,7 @@ import {
   MyProposalsSource,
   PendingProposalsSource,
 } from "@/shared/lib/company-registry/proposal-notices.tsx";
+import { StudioNoticeSource } from "@/shared/lib/studio/StudioNoticeSource.tsx";
 import type { TitleKey } from "@/shared/domain/screen-titles.ts";
 import type { MenuWindowProps, NoticeSourceProps, ViewProps } from "@/shared/lib/view-props.ts";
 import type { IconName } from "@/shared/ui/index.ts";
@@ -70,9 +71,10 @@ export const APP_VIEWS: readonly AppView[] = [
     title: { key: "estudio" },
     hostId: "studio",
     screen: "studio",
-    // The studio slice adds who received a shared design without having the permission.
-    visible: (rules) => buildsFlyers(rules) && rules.can("estudio"),
-    load: pendingView,
+    // Whoever received a shared design sees it with that alone: they can use it, not save nor ask.
+    visible: (rules) => buildsFlyers(rules) && (rules.can("estudio") || rules.hasSharedDesign),
+    load: () =>
+      import("@/slices/studio/index.ts").then(({ StudioView }) => ({ default: StudioView })),
     loadFailure: "No se pudo cargar Estudio. Revisá la conexión e intentá de nuevo.",
   },
   {
@@ -135,6 +137,7 @@ const pendingWindow = (): Promise<LoadedWindow> => import("./PendingWindow.tsx")
 
 const PROPOSALS_SOURCE = "proposals";
 const MY_PROPOSALS_SOURCE = "myProposals";
+const STUDIO_SOURCE = "studio";
 
 /** What opens a window from the name menu, above the theme. */
 export const MENU_WINDOWS_ABOVE: readonly MenuWindow[] = [
@@ -209,4 +212,5 @@ export const ADMIN_WINDOW: Pick<MenuWindow, "id" | "load"> = {
 export const NOTICE_SOURCES: Readonly<Record<string, ComponentType<NoticeSourceProps>>> = {
   [PROPOSALS_SOURCE]: PendingProposalsSource,
   [MY_PROPOSALS_SOURCE]: MyProposalsSource,
+  [STUDIO_SOURCE]: StudioNoticeSource,
 };

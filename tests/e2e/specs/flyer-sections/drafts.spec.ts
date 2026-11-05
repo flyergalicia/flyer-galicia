@@ -143,39 +143,43 @@ test(
   },
 );
 
-test("Estudio takes a draft, and closing another one asks first", async ({ openApp }) => {
-  const app = await openApp({ user: "asesor" });
-  const sections = app.flyerSections;
-  const tabs = async () =>
-    (await sections.tabs()).map(({ label, active }) => (active ? `*${label}` : label));
-  await app.logoEditor.enter();
-  await app.logoEditor.waitForBrandCatalog();
-  await sections.removeBand(CUT.y, CUT.height);
-  await app.page.waitForTimeout(300);
-  await app.logoEditor.placeBrands([LOGO_ONE]);
-  await app.page.waitForTimeout(600);
-  await sections.newDraft();
-  await app.logoEditor.placeBrands([LOGO_TWO]);
-  await app.page.waitForTimeout(600);
-  await sections.selectOpenTab(0);
+test(
+  "Estudio takes a draft, and closing another one asks first",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "asesor" });
+    const sections = app.flyerSections;
+    const tabs = async () =>
+      (await sections.tabs()).map(({ label, active }) => (active ? `*${label}` : label));
+    await app.logoEditor.enter();
+    await app.logoEditor.waitForBrandCatalog();
+    await sections.removeBand(CUT.y, CUT.height);
+    await app.page.waitForTimeout(300);
+    await app.logoEditor.placeBrands([LOGO_ONE]);
+    await app.page.waitForTimeout(600);
+    await sections.newDraft();
+    await app.logoEditor.placeBrands([LOGO_TWO]);
+    await app.page.waitForTimeout(600);
+    await sections.selectOpenTab(0);
 
-  // 7) Saving in Estudio from the draft
-  const dialog = await app.studio.openSaveDialog();
-  expect.soft(dialog.offersChoice, "from a draft it always saves as a new design").toBe(false);
-  await app.studio.confirmSave({ name: "Sin cashback (prueba)" });
-  const saved = await tabs();
-  expect
-    .soft(saved, "the tab takes the name of the saved design")
-    .toContain("*Sin cashback (prueba)");
-  expect.soft(saved.join(), 'and "Borrador 1" is gone').not.toMatch(/Borrador 1/);
-  expect.soft((await sections.openWork())?.isDraft, "it stops being a draft").toBe(false);
+    // 7) Saving in Estudio from the draft
+    const dialog = await app.studio.openSaveDialog();
+    expect.soft(dialog.offersChoice, "from a draft it always saves as a new design").toBe(false);
+    await app.studio.confirmSave({ name: "Sin cashback (prueba)" });
+    const saved = await tabs();
+    expect
+      .soft(saved, "the tab takes the name of the saved design")
+      .toContain("*Sin cashback (prueba)");
+    expect.soft(saved.join(), 'and "Borrador 1" is gone').not.toMatch(/Borrador 1/);
+    expect.soft((await sections.openWork())?.isDraft, "it stops being a draft").toBe(false);
 
-  // 8) Closing "Borrador 2" with changes asks first
-  await sections.closeFirstDraftTab();
-  expect
-    .soft(await app.session.waitForConfirmation(), "closing a draft with changes asks first")
-    .toMatch(/se pierden/i);
-  await app.session.answerConfirmation(true);
-  expect.soft((await tabs()).join(), "confirming closes it").not.toMatch(/Borrador 2/);
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+    // 8) Closing "Borrador 2" with changes asks first
+    await sections.closeFirstDraftTab();
+    expect
+      .soft(await app.session.waitForConfirmation(), "closing a draft with changes asks first")
+      .toMatch(/se pierden/i);
+    await app.session.answerConfirmation(true);
+    expect.soft((await tabs()).join(), "confirming closes it").not.toMatch(/Borrador 2/);
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);

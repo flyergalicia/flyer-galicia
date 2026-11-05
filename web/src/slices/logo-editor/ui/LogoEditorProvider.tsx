@@ -69,19 +69,20 @@ function useEnvironment(): Omit<EditorEnvironment, "workspace" | "notify"> {
   const workspace = useFlyerWorkspace();
   const queryClient = useQueryClient();
   const { options } = useFlyerOptions();
-  const { can } = usePermissions();
+  const { can, simulatedRole } = usePermissions();
   const session = useSession();
   const includeModo = useIncludeModo();
-  const now = useRef({ options, can, session, includeModo });
+  const now = useRef({ options, can, simulatedRole, session, includeModo });
   useEffect(() => {
-    now.current = { options, can, session, includeModo };
-  }, [can, includeModo, options, session]);
+    now.current = { options, can, simulatedRole, session, includeModo };
+  }, [can, includeModo, options, session, simulatedRole]);
   const [environment] = useState(() => ({
     selectOption: (option: number) =>
       workspace.selectOption(option, drawsSingleCashback(tabOfOption(now.current.options, option))),
     personId: () => (now.current.session.status === "signed-in" ? now.current.session.user.id : ""),
     canUseOption: (option: number) =>
       now.current.options.some(({ n }) => n === option) && now.current.can(`opcion_${option}`),
+    isPreviewingProfile: () => Boolean(now.current.simulatedRole),
     optionLabel: (option: number) => optionLabel(now.current.options, option),
     catalog: () => {
       const catalog = queryClient.getQueryData<PromotionCatalog>(PROMOTION_CATALOG_QUERY_KEY);
@@ -103,7 +104,24 @@ function useDraftsOffer(editor: LogoEditor) {
   useEffect(() => editor.works.stop, [editor]);
 }
 
-export function LogoEditorProvider({ children }: { readonly children: ReactNode }) {
+const STUDIO_SCROLL_WAIT_MS = 400;
+
+/** To the place of Estudio where flyers to copy are proposed, once its screen is there. */
+function goToStudioSources(goToTab: (tabId: string) => void): void {
+  goToTab("estudio");
+  setTimeout(() => {
+    document.querySelector('[data-testid="flyers-to-copy"]')?.scrollIntoView({ block: "start" });
+  }, STUDIO_SCROLL_WAIT_MS);
+}
+
+export function LogoEditorProvider({
+  goToTab,
+  children,
+}: {
+  /** Taking the person to another tab: only the app knows how. */
+  readonly goToTab?: (tabId: string) => void;
+  readonly children: ReactNode;
+}) {
   const workspace = useFlyerWorkspace();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -112,6 +130,9 @@ export function LogoEditorProvider({ children }: { readonly children: ReactNode 
     createLogoEditor({
       ...environment,
       workspace,
+      goToStudioSources: () => {
+        if (goToTab) goToStudioSources(goToTab);
+      },
       notify: (text, durationMs) => {
         toast.show(text, durationMs);
       },

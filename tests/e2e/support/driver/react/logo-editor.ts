@@ -16,6 +16,7 @@ import type { ProbedChange } from "./globals.d.ts";
 import { partialDriver } from "./pending.ts";
 
 const PICKER_TIMEOUT_MS = 15_000;
+const SHOWN_TIMEOUT_MS = 15_000;
 const CATALOG_TIMEOUT_MS = 15_000;
 const QUIET_MOMENT_MS = 400;
 const BOX_DRAG_STEPS = 4;
@@ -634,7 +635,7 @@ export function createReactLogoEditorDriver(page: Page): LogoEditorDriver {
     },
     placeText: (box, text) => placeText(page, box, text),
     pressFlyerTab: (name) =>
-      page.getByTestId("flyer-options").getByRole("button", { name }).click(),
+      page.getByTestId("flyer-options").getByRole("button", { name, exact: true }).click(),
     cancelDragOnPlaced: async (index) => {
       const { x, y } = await placedOnScreen(page, index);
       await page.getByTestId("flyer-canvas").evaluate(
@@ -682,6 +683,49 @@ export function createReactLogoEditorDriver(page: Page): LogoEditorDriver {
       await touchFlyer(page, at);
       await page.getByTestId("logo-file").setInputFiles(file);
       await waitForPickerClosed(page);
+    },
+    removeAllChanges: async () => {
+      const button = page
+        .getByTestId("logo-editor-bar")
+        .getByRole("button", { name: /^Volver (el cambio|los \d+ cambios) al original$/ });
+      if ((await button.count()) > 0) await button.click();
+      await waitUntilSettled(page);
+    },
+    openDesignTabs: () =>
+      page.getByTestId("open-work").evaluateAll((tabs) =>
+        tabs.map((tab) => ({
+          name: (tab.textContent ?? "").replace("×", "").trim(),
+          active: tab.getAttribute("data-active") === "true",
+        })),
+      ),
+    /** Touching it and moving the slider of its size, as a person does. */
+    resizeFirstChange: async (percent) => {
+      await probe(page).bringIntoView(await placedCenter(page, 0));
+      const target = await placedOnScreen(page, 0);
+      await page.mouse.click(target.x, target.y);
+      await page.getByRole("slider", { name: "Tamaño del logo" }).fill(String(percent));
+      await waitUntilSettled(page);
+    },
+    /** With the arrows and Shift, 10 pixels at a time; a person cannot move one without touching it. */
+    shiftFirstChange: async (pixels) => {
+      const isEditing = await page.evaluate(() =>
+        Boolean(window["__flyerProbe"]?.logoEditor?.().isEditing()),
+      );
+      if (!isEditing) await page.getByRole("button", { name: "Cambiar logos" }).click();
+      await probe(page).bringIntoView(await placedCenter(page, 0));
+      const target = await placedOnScreen(page, 0);
+      await page.mouse.click(target.x, target.y);
+      for (let moved = 0; moved < pixels; moved += 10)
+        await page.keyboard.press("Shift+ArrowRight");
+      await waitUntilSettled(page);
+    },
+    /** Saving it in Estudio is how a design gets to be the one that is open. */
+    treatAsOpenDesign: async (name) => {
+      await page.getByTestId("save-design").click();
+      await page.getByLabel("Nombre del diseño").fill(name);
+      const window = page.getByRole("dialog", { name: "Guardar en Estudio" });
+      await window.getByRole("button", { name: "Guardar", exact: true }).click();
+      await window.waitFor({ state: "detached", timeout: SHOWN_TIMEOUT_MS });
     },
   });
 }

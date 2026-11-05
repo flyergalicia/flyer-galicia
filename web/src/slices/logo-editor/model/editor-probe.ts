@@ -157,7 +157,16 @@ export function logoEditorProbe(
       const work = editor.works.activeWork();
       return work ? { id: work.id, name: work.name, isDraft: work.temp } : null;
     },
+    work: (id: string) => {
+      const work = editor.getState().works.find((one) => one.id === id);
+      return work ? { id: work.id, name: work.name, isDraft: work.temp } : null;
+    },
     isOpening: () => editor.works.isOpening(),
+    canUseOption: (option: number) => editor.works.canUse(option),
+    profileHasOption: (option: number) => editor.profileHasOption(option),
+    openWorkUploads: () => Object.keys(editor.works.activeWork()?.uploads ?? {}),
+    offeredUploads: () =>
+      editor.getState().recoverable?.flatMap(({ subidos }) => Object.keys(subidos ?? {})) ?? [],
     draftsReviewed: () => editor.works.isReviewed(),
     draftsKey: () => editor.works.storageKey(),
     isPlacing: () => editor.getState().placement !== null,

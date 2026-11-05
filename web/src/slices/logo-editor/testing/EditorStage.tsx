@@ -7,7 +7,7 @@ import {
   type PromotionPicker,
   PromotionPickerContext,
 } from "@/shared/lib/promotions/promotion-picking.ts";
-import { usePermissions, useSession } from "@/shared/session/index.ts";
+import { usePermissions, useSession, useSessionActions } from "@/shared/session/index.ts";
 import { useLogoEditorActions } from "../model/editor-context.ts";
 import { LogoEditorAdjustBars } from "../ui/LogoEditorAdjustBars.tsx";
 import { LogoEditorBar } from "../ui/LogoEditorBar.tsx";
@@ -23,10 +23,12 @@ const SCALE_ROOM = 800;
 function Hands() {
   const editor = useLogoEditorActions();
   const filters = usePromotionFiltersPort();
+  const session = useSessionActions();
   useEffect(() => {
     handles.editor = editor;
     handles.filters = filters;
-  }, [editor, filters]);
+    handles.session = session;
+  }, [editor, filters, session]);
   return null;
 }
 

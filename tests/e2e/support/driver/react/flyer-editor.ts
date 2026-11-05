@@ -649,8 +649,38 @@ function createOptionBar(page: Page) {
   };
 }
 
+function createDesignSaving(page: Page) {
+  const read = (id: string | null) =>
+    page.evaluate((wanted) => {
+      const editor = window["__flyerProbe"]?.logoEditor?.();
+      const open = editor?.openWork() ?? null;
+      const work = wanted === null ? open : (editor?.work(wanted) ?? null);
+      return {
+        id: open?.id ?? null,
+        temporary: Boolean(work?.isDraft),
+        name: work?.name ?? null,
+        designName: editor?.openDesign() ?? null,
+      };
+    }, id);
+  return {
+    startSavingDesign: async (name: string) => {
+      await page.getByTestId("save-design").click();
+      await page.getByLabel("Nombre del diseño").fill(name);
+      await page
+        .getByRole("dialog", { name: "Guardar en Estudio" })
+        .getByRole("button", { name: "Guardar", exact: true })
+        .click();
+    },
+    newDraft: () =>
+      page.getByTestId("logo-editor-bar").getByRole("button", { name: "+ Nuevo borrador" }).click(),
+    openDraft: () => read(null),
+    draftById: (id: string) => read(id),
+  };
+}
+
 export function createReactFlyerEditorDriver(page: Page): FlyerEditorDriver {
   return partialDriver<FlyerEditorDriver>("flyerEditor", {
+    ...createDesignSaving(page),
     ...createFormFields(page),
     ...createDownloads(page),
     ...createSharing(page),

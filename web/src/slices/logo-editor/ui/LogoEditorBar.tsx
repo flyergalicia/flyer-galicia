@@ -149,6 +149,31 @@ function BackToOriginalButton() {
   );
 }
 
+/** With something to save and the faculty of Estudio. A design of one's own takes its changes. */
+function SaveDesignButton() {
+  const editor = useLogoEditorActions();
+  const { can, isHunter, isLeader } = usePermissions();
+  useLogoEditorValue((state) => state.list);
+  useLogoEditorValue((state) => state.art);
+  useLogoEditorValue((state) => state.activeWork);
+  useLogoEditorValue((state) => state.history);
+  if (isHunter || isLeader || !can("estudio")) return null;
+  if (editor.active().length === 0 && editor.cuts().length === 0) return null;
+  const work = editor.works.activeWork();
+  const isOwnDesign = work && !work.temp && work.mine && work.status !== "publicado";
+  return (
+    <button
+      type="button"
+      className={`${styles.pill} ${styles.saveDesign}`}
+      title="Guardar este diseño para volver a usarlo o pedir que se publique"
+      data-testid="save-design"
+      onClick={editor.openSaveDesign}
+    >
+      {isOwnDesign ? "Guardar cambios" : "Guardar en Estudio"}
+    </button>
+  );
+}
+
 function EditingButtons() {
   const editor = useLogoEditorActions();
   const { can, isHunter, isLeader } = usePermissions();
@@ -199,7 +224,7 @@ function EditingButtons() {
       />
       <BackToOriginalButton />
       <WorkChip />
-      {/* "Guardar en Estudio" goes here, and arrives with that screen. */}
+      <SaveDesignButton />
     </>
   );
 }

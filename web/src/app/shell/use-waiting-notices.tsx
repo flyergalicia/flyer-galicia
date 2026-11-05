@@ -10,13 +10,14 @@ export interface HeaderNotice {
 /** Everything that is waiting, on the name of the person and on the tabs. */
 export function headerNoticeOf(notices: readonly WaitingNotice[]): HeaderNotice {
   const waiting = notices.filter(({ count }) => count > 0);
+  const onName = waiting.filter(({ onlyOnTab }) => !onlyOnTab);
   const tabBadges: Record<string, number> = {};
   for (const { count, tabId } of waiting) {
     if (tabId !== undefined) tabBadges[tabId] = count;
   }
   return {
-    count: waiting.reduce((total, { count }) => total + count, 0),
-    hint: waiting.length > 0 ? `Tenés ${waiting.map(({ hint }) => hint).join(" y ")}` : "",
+    count: onName.reduce((total, { count }) => total + count, 0),
+    hint: onName.length > 0 ? `Tenés ${onName.map(({ hint }) => hint).join(" y ")}` : "",
     tabBadges,
   };
 }

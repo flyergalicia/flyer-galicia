@@ -19,6 +19,8 @@ import styles from "./FlyerEditorView.module.css";
 interface FlyerOptionBarProps {
   readonly options: readonly FlyerOption[];
   readonly allowed: readonly number[];
+  /** The flyers whose drafts and designs show here: also that of a shared copy. */
+  readonly worksOf: readonly number[];
   readonly onChoose: (option: number) => void;
 }
 
@@ -192,7 +194,7 @@ function useBarProbe(options: readonly FlyerOption[]): void {
 }
 
 /** The flyers of this tab. It shows only with more than one to choose from. */
-export function FlyerOptionBar({ options, allowed, onChoose }: FlyerOptionBarProps) {
+export function FlyerOptionBar({ options, allowed, worksOf, onChoose }: FlyerOptionBarProps) {
   const { favorites, toggle } = useFavoriteFlyers();
   useBarProbe(options);
   const works = useLogoEditorValue((state) => state.works);
@@ -207,7 +209,7 @@ export function FlyerOptionBar({ options, allowed, onChoose }: FlyerOptionBarPro
     inSight,
   );
   // With a draft or a design open it shows even with one flyer: it is the way back to the original.
-  const hasWorks = works.some(({ option }) => allowed.includes(option));
+  const hasWorks = works.some(({ option }) => worksOf.includes(option));
   if (allowed.length < 2 && !hasWorks) return null;
   const toggleList = () => {
     setIsListOpen((isOpen) => !isOpen);
@@ -258,7 +260,7 @@ export function FlyerOptionBar({ options, allowed, onChoose }: FlyerOptionBarPro
         )}
         {parts && <OthersButton options={options} others={parts.others} onToggle={toggleList} />}
       </div>
-      <OpenWorksRow allowed={allowed} />
+      <OpenWorksRow allowed={worksOf} />
       {parts && isListOpen && (
         <OtherFlyers
           bar={root}

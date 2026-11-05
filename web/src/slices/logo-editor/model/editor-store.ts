@@ -104,6 +104,7 @@ const INITIAL: LogoEditorState = {
   closingWork: null,
   recoverable: null,
   savedSets: null,
+  savingDesign: false,
   placement: null,
 };
 
@@ -550,6 +551,7 @@ export function createLogoEditor(env: EditorEnvironment) {
     cuts,
     coordinates: () => coordinates,
     replaceList,
+    publish,
     settle,
     settleCut,
     noteStepNow,
@@ -694,6 +696,17 @@ export function createLogoEditor(env: EditorEnvironment) {
     },
     closeSavedSets: () => {
       set({ savedSets: null });
+    },
+    workspaceOption: () => workspace.getState().slot.option ?? 1,
+    profileHasOption: (option: number) => env.canUseOption?.(option) ?? true,
+    goToStudioSources: () => {
+      env.goToStudioSources?.();
+    },
+    openSaveDesign: () => {
+      set({ savingDesign: true });
+    },
+    closeSaveDesign: () => {
+      set({ savingDesign: false });
     },
 
     // Touching the flyer.

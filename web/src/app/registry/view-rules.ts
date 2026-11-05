@@ -8,6 +8,8 @@ export interface ViewRules {
   readonly isLeader: boolean;
   readonly commercialActionsOn: boolean;
   readonly flyerOptions: readonly FlyerOption[];
+  /** The administrator shared a design with this person: that alone brings Estudio. */
+  readonly hasSharedDesign: boolean;
 }
 
 export interface MenuRules extends ViewRules {

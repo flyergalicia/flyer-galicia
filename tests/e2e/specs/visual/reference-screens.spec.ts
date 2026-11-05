@@ -57,7 +57,7 @@ const SCREENS: readonly ScreenCase[] = [
   { name: "logo-strip-window", screen: "logo-strip-window", inReact: true },
   { name: "promotions-active", screen: "promotions-active", contentOn: PHONE_ONLY, inReact: true },
   { name: "promotions-search", screen: "promotions-search", contentOn: PHONE_ONLY, inReact: true },
-  { name: "studio", screen: "studio" },
+  { name: "studio", screen: "studio", inReact: true },
   { name: "database-companies", screen: "database-companies", inReact: true },
   { name: "database-advisors", screen: "database-advisors", inReact: true },
   { name: "hunter", screen: "hunter", user: REFERENCE_HUNTER, noFlyer: true, inReact: true },

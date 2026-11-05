@@ -10,6 +10,8 @@ import {
 import { type FlyerOption, isFlyerTabId } from "@/shared/domain/flyer-options.ts";
 import type { ScreenTitles } from "@/shared/domain/screen-titles.ts";
 import { FlyerGenerationHost } from "@/shared/lib/company-registry/FlyerGenerationHost.tsx";
+import { DesignDeskHost } from "@/shared/lib/studio/DesignDeskHost.tsx";
+import { sharedCount, useStudioNotices } from "@/shared/lib/studio/studio-notices-query.ts";
 import type { MenuWindowProps } from "@/shared/lib/view-props.ts";
 import { type SessionValue, usePermissions } from "@/shared/session/index.ts";
 import { firstView, resolveView } from "../registry/resolve-view.ts";
@@ -53,11 +55,32 @@ export function AppShell({
   commercialActionsOn,
   noticeSources = NOTICE_SOURCES,
 }: AppShellProps) {
-  const { can, isHunter, isLeader, isAdminNow } = usePermissions();
+  const { can, isHunter, isLeader, isAdminNow, simulatedRole } = usePermissions();
   const { notice, reporters, waiting } = useWaitingNotices(noticeSources);
+  // The preview of a profile shows what that profile sees: what was shared with me does not count.
+  const studioNotices = useStudioNotices();
+  const hasSharedDesign = !simulatedRole && sharedCount(studioNotices) > 0;
   const rules = useMemo<MenuRules>(
-    () => ({ can, isHunter, isLeader, isAdminNow, commercialActionsOn, flyerOptions, waiting }),
-    [can, isHunter, isLeader, isAdminNow, commercialActionsOn, flyerOptions, waiting],
+    () => ({
+      can,
+      isHunter,
+      isLeader,
+      isAdminNow,
+      commercialActionsOn,
+      flyerOptions,
+      hasSharedDesign,
+      waiting,
+    }),
+    [
+      can,
+      isHunter,
+      isLeader,
+      isAdminNow,
+      commercialActionsOn,
+      flyerOptions,
+      hasSharedDesign,
+      waiting,
+    ],
   );
   const [chosen, setChosen] = useState(() => firstView(rules, titles.order));
   const [openWindow, setOpenWindow] = useState<OpenWindow | null>(null);
@@ -103,42 +126,44 @@ export function AppShell({
 
   return (
     <FlyerGenerationHost onNeedEditor={onNeedEditor}>
-      <div className={styles.shell}>
-        {reporters}
-        <AppHeader
-          activeId={activeId}
-          titles={titles}
-          rules={rules}
-          name={displayName}
-          role={role}
-          isAdmin={isAdmin}
-          isTestAccount={profile.es_prueba}
-          notice={notice}
-          onSelectView={setChosen}
-          onOpenWindow={showWindow}
-          onOpenSearch={showSearch}
-          onOpenAdmin={showAdmin}
-        />
-        <PromotionPickingHost activeId={activeId} goTo={setChosen}>
-          <ViewHost
+      <DesignDeskHost onNeedEditor={onNeedEditor}>
+        <div className={styles.shell}>
+          {reporters}
+          <AppHeader
             activeId={activeId}
-            alsoOpen={needsEditor ? FLYER_EDITOR_HOST_ID : undefined}
-            goToTab={setChosen}
-            openMenuWindow={openMenuWindow}
+            titles={titles}
+            rules={rules}
+            name={displayName}
+            role={role}
+            isAdmin={isAdmin}
+            isTestAccount={profile.es_prueba}
+            notice={notice}
+            onSelectView={setChosen}
+            onOpenWindow={showWindow}
+            onOpenSearch={showSearch}
+            onOpenAdmin={showAdmin}
           />
-        </PromotionPickingHost>
-        {Window && (
-          <LoadBoundary
-            key={openWindow.id}
-            message="No se pudo abrir. Revisá la conexión e intentá de nuevo."
-            onRetry={closeWindow}
-          >
-            <Suspense fallback={null}>
-              <Window onClose={closeWindow} />
-            </Suspense>
-          </LoadBoundary>
-        )}
-      </div>
+          <PromotionPickingHost activeId={activeId} goTo={setChosen}>
+            <ViewHost
+              activeId={activeId}
+              alsoOpen={needsEditor ? FLYER_EDITOR_HOST_ID : undefined}
+              goToTab={setChosen}
+              openMenuWindow={openMenuWindow}
+            />
+          </PromotionPickingHost>
+          {Window && (
+            <LoadBoundary
+              key={openWindow.id}
+              message="No se pudo abrir. Revisá la conexión e intentá de nuevo."
+              onRetry={closeWindow}
+            >
+              <Suspense fallback={null}>
+                <Window onClose={closeWindow} />
+              </Suspense>
+            </LoadBoundary>
+          )}
+        </div>
+      </DesignDeskHost>
     </FlyerGenerationHost>
   );
 }
