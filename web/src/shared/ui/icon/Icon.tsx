@@ -3,6 +3,20 @@ import styles from "./Icon.module.css";
 
 const PATHS = {
   bolt: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+  chart: (
+    <>
+      <path d="M3 3v18h18" />
+      <path d="M18.7 8l-5.3 5.3-4-4L3 15.6" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </>
+  ),
   close: (
     <>
       <line x1="18" y1="6" x2="6" y2="18" />

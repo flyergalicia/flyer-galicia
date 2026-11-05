@@ -56,30 +56,31 @@ test("Cambios en las empresas exports all its rows", async ({ cloud, openApp }) 
   expect.soft(sheet.rows.length).toBe(MANY);
 });
 
-test("the Hunter reaches the companies after the first page of the database", async ({
-  cloud,
-  openApp,
-}) => {
-  const hunter: CloudUser = {
-    id: "00000000-0000-4000-8000-0000000000cc",
-    email: "hunter.prueba@bancogalicia.com.ar",
-    name: "Hunter Prueba",
-    role: "hunter",
-  };
-  cloud.setPermissions("hunter", { opcion_9: true });
-  cloud.companies = Array.from({ length: MANY }, (_, at) => ({
-    id: `e${String(at)}`,
-    empresa: at === MANY - 1 ? "LA ULTIMA SA" : `EMPRESA ${String(at)}`,
-    cuits: [],
-    config: "BAU",
-    asesores: [],
-    rubro: {},
-  }));
-  const app = await openApp({ user: hunter, waitUntilReady: false });
-  await app.session.waitUntilSignedIn();
-  await app.hunter.waitForList();
+test(
+  "the Hunter reaches the companies after the first page of the database",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const hunter: CloudUser = {
+      id: "00000000-0000-4000-8000-0000000000cc",
+      email: "hunter.prueba@bancogalicia.com.ar",
+      name: "Hunter Prueba",
+      role: "hunter",
+    };
+    cloud.setPermissions("hunter", { opcion_9: true });
+    cloud.companies = Array.from({ length: MANY }, (_, at) => ({
+      id: `e${String(at)}`,
+      empresa: at === MANY - 1 ? "LA ULTIMA SA" : `EMPRESA ${String(at)}`,
+      cuits: [],
+      config: "BAU",
+      asesores: [],
+      rubro: {},
+    }));
+    const app = await openApp({ user: hunter, waitUntilReady: false });
+    await app.session.waitUntilSignedIn();
+    await app.hunter.waitForList();
 
-  expect.soft(await app.hunter.status()).toMatch(new RegExp(String(MANY)));
-  await app.hunter.search("LA ULTIMA");
-  expect.soft((await app.hunter.rows()).map(({ company }) => company)).toEqual(["LA ULTIMA SA"]);
-});
+    expect.soft(await app.hunter.status()).toMatch(new RegExp(String(MANY)));
+    await app.hunter.search("LA ULTIMA");
+    expect.soft((await app.hunter.rows()).map(({ company }) => company)).toEqual(["LA ULTIMA SA"]);
+  },
+);

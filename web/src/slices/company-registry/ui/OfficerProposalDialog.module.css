@@ -1,5 +1,5 @@
 .slots {
-  margin: 4px 18px 10px;
+  margin: 4px 0 10px;
 }
 
 .slot {
@@ -17,6 +17,9 @@
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.slotHead b {
   color: var(--ink);
   font-size: var(--text-xs);
 }
@@ -28,18 +31,18 @@
 }
 
 .slotAction {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  padding: 9px 15px;
+  border: none;
+  border-radius: 8px;
   background: var(--card);
   color: var(--ink-2);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
 }
 
 .slotAction:hover {
-  border-color: var(--accent-line);
   background: var(--accent-soft);
   color: var(--accent-2);
 }
@@ -50,23 +53,65 @@
   gap: 6px;
 }
 
-.field,
+.field {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1.5px solid var(--decision-field-line);
+  border-radius: 8px;
+  outline: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--text-lg);
+}
+
+.field:focus {
+  border-color: var(--decision-focus);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
 .pasteBox,
 .note {
   width: 100%;
-  min-width: 0;
+  min-height: 120px;
   padding: 11px 12px;
   border: 1px solid var(--border);
   border-radius: var(--r-s);
   outline: none;
   background: var(--field);
   color: var(--ink);
+  font-family: inherit;
   font-size: var(--text-xl);
+  line-height: 1.5;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+
+.pasteBox:focus,
+.note:focus {
+  border-color: var(--control-focus-line);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  background: var(--card);
+}
+
+/* The ring is the mark of the focus: the outline of the base styles would draw a second one. */
+.field.field:focus,
+.pasteBox.pasteBox:focus,
+.note.note:focus {
+  outline: none;
 }
 
 .pasteBox {
   margin: 0 0 6px;
   font-size: var(--text-note);
+  resize: vertical;
+}
+
+.note {
+  margin-bottom: 12px;
   resize: vertical;
 }
 
@@ -77,7 +122,7 @@
 }
 
 .summary {
-  margin: 10px 18px;
+  margin: 10px 0;
   padding: 10px 12px;
   border: 1px solid var(--accent-line);
   border-radius: var(--r-s);

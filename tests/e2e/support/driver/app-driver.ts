@@ -32,6 +32,7 @@ import { createReactFlyerEditorDriver } from "./react/flyer-editor.ts";
 import { createReactFlyerOutputDriver } from "./react/flyer-output.ts";
 import { createReactOfficersDriver } from "./react/officers.ts";
 import { createReactFlyerSectionsDriver } from "./react/flyer-sections.ts";
+import { createReactHunterDriver } from "./react/hunter.ts";
 import { createReactLogoEditorDriver } from "./react/logo-editor.ts";
 import { createReactLogoStripDriver } from "./react/logo-strip.ts";
 import { partialDriver } from "./react/pending.ts";
@@ -93,7 +94,7 @@ function createReactAppDriver(page: Page): AppDriver {
     officers: createReactOfficersDriver(page),
     flyerDrawing: createReactFlyerDrawingDriver(page),
     calibrator: partialDriver("calibrator"),
-    hunter: partialDriver("hunter"),
+    hunter: createReactHunterDriver(page),
     logoEditor,
     logoStrip,
     flyerSections: createReactFlyerSectionsDriver(page),

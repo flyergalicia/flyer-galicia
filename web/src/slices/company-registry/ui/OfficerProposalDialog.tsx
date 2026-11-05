@@ -113,12 +113,16 @@ function OfficerSlot({
   const [pasteResult, setPasteResult] = useState("");
   const [savedFrom, setSavedFrom] = useState<DOMRect | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pasteBox = useRef<HTMLTextAreaElement>(null);
   useEffect(
     () => () => {
       clearTimeout(timer.current);
     },
     [],
   );
+  useEffect(() => {
+    if (pasting) pasteBox.current?.focus();
+  }, [pasting]);
 
   const writeName = (nombre: string) => {
     onChange((before) => ({
@@ -214,6 +218,7 @@ function OfficerSlot({
       {pasting && (
         <div>
           <textarea
+            ref={pasteBox}
             className={styles.pasteBox}
             rows={2}
             placeholder="Pegá el nombre, celular y/o mail"
@@ -369,7 +374,7 @@ export function OfficerProposalDialog({
           }}
         />
       </DecisionDialog.Field>
-      <div className={styles.summary}>
+      <div className={`${styles.summary} ${proposals.inWindow}`}>
         {changes.length > 0 ? (
           <>
             <div className={styles.summaryTitle}>Vas a proponer</div>

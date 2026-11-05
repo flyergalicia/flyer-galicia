@@ -18,7 +18,7 @@
   padding: 0;
   overflow: auto;
   border: none;
-  border-radius: var(--r-l);
+  border-radius: 14px;
   outline: none;
   background: var(--window-bg);
   box-shadow: var(--window-shadow);
@@ -92,7 +92,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 9px 11px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--decision-field-line);
   border-radius: 8px;
   outline: none;
   background: none;
@@ -145,7 +145,7 @@
 
 .yes {
   border-radius: 9px;
-  background: var(--accent-grad);
+  background: var(--accent);
   color: #fff;
 }
 

@@ -21,6 +21,10 @@
   text-align: right;
 }
 
+.countCell {
+  text-align: right;
+}
+
 .folderHead {
   padding: 4px 8px;
   text-align: left;

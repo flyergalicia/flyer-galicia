@@ -1,6 +1,6 @@
 // Replaces pruebas/t71_reintentar_red.cjs.
-import { type Cloud } from "../../support/cloud/index.ts";
-import { type OpenedApp } from "../../support/open-app.ts";
+import { type Cloud, type CloudUser } from "../../support/cloud/index.ts";
+import { type OpenAppOptions, type OpenedApp } from "../../support/open-app.ts";
 import { expect, test } from "../../support/test.ts";
 
 const COMPANIES = [
@@ -19,6 +19,12 @@ const COMPANIES = [
     ],
   },
 ];
+const HUNTER: CloudUser = {
+  id: "00000000-0000-4000-8000-0000000000cc",
+  email: "hunter.prueba@bancogalicia.com.ar",
+  name: "Hunter Prueba",
+  role: "hunter",
+};
 const COULD_NOT_CONNECT = /No se pudo conectar/;
 const NOTHING_LOADED_YET = /Todav[ií]a no cargaste/;
 
@@ -27,6 +33,17 @@ async function expectSessionIntact(app: OpenedApp): Promise<void> {
   expect.soft(status.signedIn, "the session stays open").toBe(true);
   expect.soft(status.loginScreenVisible, "no login screen").toBe(false);
   expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+}
+
+async function openAsHunter(
+  cloud: Cloud,
+  openApp: (options?: OpenAppOptions) => Promise<OpenedApp>,
+): Promise<OpenedApp> {
+  cloud.setPermissions("hunter", { opcion_9: true });
+  const app = await openApp({ user: HUNTER, waitUntilReady: false });
+  await app.session.waitUntilSignedIn();
+  await app.hunter.waitForList();
+  return app;
 }
 
 function companiesAvailable(cloud: Cloud, available: boolean): void {
@@ -119,39 +136,40 @@ test.describe("a cut in the network is not an empty list", () => {
     },
   );
 
-  test("the Hunter list says it could not connect and does not keep it as empty", async ({
-    cloud,
-    openApp,
-  }) => {
-    const app = await openApp({ user: "admin" });
-    const { companyRegistry } = app;
-    companiesAvailable(cloud, false);
+  test(
+    "the Hunter list says it could not connect and does not keep it as empty",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      const app = await openAsHunter(cloud, openApp);
+      const { companyRegistry } = app;
+      companiesAvailable(cloud, false);
 
-    await companyRegistry.loadHunterList();
-    await companyRegistry.waitForHunterConnectionProblem();
+      await companyRegistry.loadHunterList();
+      await companyRegistry.waitForHunterConnectionProblem();
 
-    const failed = await companyRegistry.hunterList();
-    expect.soft(failed.text, "Hunter: a connection notice").toMatch(COULD_NOT_CONNECT);
-    expect
-      .soft(failed.text, 'Hunter: not "no hay ninguna empresa"')
-      .not.toMatch(/Todav[ií]a no hay ninguna empresa/);
-    expect.soft(failed.loadedCompanies, "Hunter: the failure is not kept as a list").toBeNull();
+      const failed = await companyRegistry.hunterList();
+      expect.soft(failed.text, "Hunter: a connection notice").toMatch(COULD_NOT_CONNECT);
+      expect
+        .soft(failed.text, 'Hunter: not "no hay ninguna empresa"')
+        .not.toMatch(/Todav[ií]a no hay ninguna empresa/);
+      expect.soft(failed.loadedCompanies, "Hunter: the failure is not kept as a list").toBeNull();
 
-    companiesAvailable(cloud, true);
-    await companyRegistry.retryHunterList();
-    await companyRegistry.waitForHunterCompanies(COMPANIES.length);
+      companiesAvailable(cloud, true);
+      await companyRegistry.retryHunterList();
+      await companyRegistry.waitForHunterCompanies(COMPANIES.length);
 
-    const loaded = await companyRegistry.hunterList();
-    expect.soft(loaded.failed, "Hunter: after Reintentar there is no failure").toBe(false);
-    expect.soft(loaded.emptyNotices, "Hunter: and the companies appear").toBe(0);
-    await expectSessionIntact(app);
-  });
+      const loaded = await companyRegistry.hunterList();
+      expect.soft(loaded.failed, "Hunter: after Reintentar there is no failure").toBe(false);
+      expect.soft(loaded.emptyNotices, "Hunter: and the companies appear").toBe(0);
+      await expectSessionIntact(app);
+    },
+  );
 
   test(
     "an option that could not be asked is not written down as having no flyer",
     { tag: "@react" },
     async ({ cloud, openApp }) => {
-      const app = await openApp({ user: "admin" });
+      const app = await openAsHunter(cloud, openApp);
       const { companyRegistry } = app;
       const dropped = cloud.dropBucketFile("_active9.json");
 

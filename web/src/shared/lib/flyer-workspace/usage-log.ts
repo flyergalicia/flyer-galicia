@@ -1,7 +1,7 @@
 // What is left in `flyer_logs` every time a flyer comes out (Admin → Uso and Registros read it). Its
 // real columns are few: what has no column travels as JSON in `flyer_type`.
 import { officersOf } from "@/shared/flyer-engine/officers.ts";
-import type { FlyerValues } from "@/shared/flyer-engine/types.ts";
+import type { FlyerScene, FlyerValues } from "@/shared/flyer-engine/types.ts";
 import type { Backend } from "@/shared/supabase/index.ts";
 
 export type FlyerUseFormat = "pdf" | "png" | "compartir";
@@ -14,6 +14,13 @@ const PLAIN_FIELDS = [
   }),
 ];
 const BRANCH_PLACES = [1, 2, 3, 4, 5, 6, 7, 8].map((number) => `ubic${String(number)}`);
+const SECOND_CAP_MARKER = "{importe2}";
+
+/** The sign of the benefit of this flyer prints a second cap. */
+export function usesSecondCapOn(scene: Pick<FlyerScene, "calibration"> | null): boolean {
+  const lines = scene?.calibration.benef.lineas ?? [];
+  return lines.some(({ t }) => t.includes(SECOND_CAP_MARKER));
+}
 
 export interface FlyerUse {
   readonly values: FlyerValues;

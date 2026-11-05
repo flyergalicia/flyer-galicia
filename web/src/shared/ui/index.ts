@@ -31,3 +31,4 @@ export { PalettePicker } from "./theme/PalettePicker.tsx";
 export { type Palette, PALETTES } from "./theme/theme-model.ts";
 export { ThemeProvider } from "./theme/ThemeProvider.tsx";
 export { useTheme, useThemeActions } from "./theme/theme-context.ts";
+export { ZoomControls } from "./zoom-controls/ZoomControls.tsx";

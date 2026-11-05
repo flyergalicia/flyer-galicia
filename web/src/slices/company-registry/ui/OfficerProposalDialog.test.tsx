@@ -108,6 +108,12 @@ describe("proposing a change of officers", () => {
 });
 
 describe("pasting", () => {
+  it("opens with the cursor where the text goes", async () => {
+    open();
+    await slot(0).getByRole("button", { name: /Pegar/ }).click();
+    await expect.element(page.getByLabelText("Pegar los datos del oficial 1")).toHaveFocus();
+  });
+
   it("completes what it recognizes and says so", async () => {
     open({}, []);
     await slot(0).getByRole("button", { name: /Pegar/ }).click();

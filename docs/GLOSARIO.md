@@ -22,6 +22,8 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Generar flyers | `companyBatch` | El ZIP de varias empresas de la lista, cada una en su flyer |
 | Todo el segmento | `segment` | Las empresas de la lista que salen con el flyer en pantalla, desde la tarjeta de Masivo |
 | Tanda | `batch` | Muchos flyers de una, en un ZIP: Masivo, Generar flyers y el del Hunter |
+| Buscar flyer, Flyer por empresa | `hunter` | La pantalla del perfil Hunter: busca una empresa y baja su flyer |
+| Descarga múltiple | `tickedCompanies` | Las empresas que el Hunter tilda para bajarlas en un ZIP |
 | Padrón, Mis empresas | `company-registry` | Base de empresas de cada usuario |
 | Oficial, asesor | `officer` | Persona del banco que figura en el flyer |
 | Tope | `cap` | Monto máximo de cashback |

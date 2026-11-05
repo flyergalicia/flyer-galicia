@@ -257,6 +257,24 @@
   font-size: var(--text-xl);
 }
 
-.inWindow {
-  margin: 12px 18px 0;
+/* Inside a window the lists and the buttons are those of the window. */
+.inWindow .changes {
+  margin: 12px 18px;
+  padding: 0 0 0 4px;
+}
+
+.inWindow .changes li {
+  padding: 5px 0 5px 12px;
+  border-left: 2px solid rgba(198, 40, 40, 0.35);
+  font-size: var(--text-note);
+  line-height: 1.55;
+}
+
+.inWindow .button {
+  padding: 9px 15px;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }

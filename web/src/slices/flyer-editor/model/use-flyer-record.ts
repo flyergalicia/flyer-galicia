@@ -2,13 +2,15 @@
 import { useCallback } from "react";
 import type { FlyerValues } from "@/shared/flyer-engine/index.ts";
 import { useFlyerWorkspace } from "@/shared/lib/flyer-workspace/index.ts";
-import { type FlyerUseFormat, logFlyerUse } from "@/shared/lib/flyer-workspace/usage-log.ts";
+import {
+  type FlyerUseFormat,
+  logFlyerUse,
+  usesSecondCapOn,
+} from "@/shared/lib/flyer-workspace/usage-log.ts";
 import { useSession } from "@/shared/session/index.ts";
 import { useBackend } from "@/shared/supabase/index.ts";
 import { useFlyerForm } from "./form-context.ts";
 import { useFlyerHistory } from "./history-context.ts";
-
-const SECOND_CAP_MARKER = "{importe2}";
 
 export interface FlyerOut {
   readonly values: FlyerValues;
@@ -36,13 +38,12 @@ export function useFlyerRecord(afterDownload?: () => void) {
         option: slot.option ?? 1,
       });
       if (userId) {
-        const lines = slot.scene?.calibration.benef.lineas ?? [];
         void logFlyerUse(db, userId, {
           values,
           fileName,
           format,
           option: slot.option,
-          usesSecondCap: lines.some(({ t }) => t.includes(SECOND_CAP_MARKER)),
+          usesSecondCap: usesSecondCapOn(slot.scene),
         });
       }
       afterDownload?.();

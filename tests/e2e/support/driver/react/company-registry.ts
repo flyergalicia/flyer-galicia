@@ -23,6 +23,7 @@ import {
   waitForCompanies,
 } from "./company-list.ts";
 import { reloadKeepingOption } from "./flyer-editor.ts";
+import { hunterRows } from "./hunter.ts";
 import { partialDriver } from "./pending.ts";
 
 const LOAD_TIMEOUT_MS = 8_000;
@@ -254,18 +255,6 @@ function createGenerator(page: Page) {
       await page.getByTestId("generator-row").first().waitFor();
     },
     generateFlyers: (companies: CompanyRecord[]) => generateCompanies(page, companies),
-    // Which options have a flyer is asked some seconds after entering: a new page asks again.
-    checkHunterFlyers: async () => {
-      await page.reload();
-      await page.getByRole("banner").waitFor({ timeout: FLYERS_CHECK_TIMEOUT_MS });
-      await page.waitForFunction(() => window["__flyerProbe"]?.flyerKnowledge?.().done, null, {
-        timeout: FLYERS_CHECK_TIMEOUT_MS,
-      });
-      return page.evaluate(() => {
-        const knowledge = window["__flyerProbe"]?.flyerKnowledge?.();
-        return { failed: knowledge?.failed ?? false, hasFlyer: knowledge?.hasFlyer ?? {} };
-      });
-    },
     tickInGenerator: async (rows: number[]) => {
       const first = page.getByTestId("generator-row").first();
       await first.evaluate((row) => {
@@ -604,8 +593,59 @@ function createBringing(page: Page) {
 }
 
 /** What can be reached today. Administrador brings what is left: see etapa4-avance. */
+/** The list of the screen of the Hunter: whoever opens the page has to be one. */
+function createHunterList(page: Page) {
+  const list = page.getByTestId("hunter-list");
+  const retry = list.getByRole("button", { name: /Reintentar/ });
+  const hunterScreen = page.locator('[data-screen="hunter-screen"]');
+  const readAgain = async () => {
+    await page.reload();
+    await hunterScreen.waitFor({ timeout: FLYERS_CHECK_TIMEOUT_MS });
+  };
+  const flyersChecked = () =>
+    page.waitForFunction(() => window["__flyerProbe"]?.hunterScreen?.().flyersSettled, null, {
+      timeout: FLYERS_CHECK_TIMEOUT_MS,
+    });
+  return {
+    // It reads the list on entering: a new page reads it again.
+    loadHunterList: readAgain,
+    waitForHunterConnectionProblem: () => retry.waitFor({ timeout: LOAD_TIMEOUT_MS }),
+    hunterList: async () => {
+      const probe = await page.evaluate(() => window["__flyerProbe"]?.hunterScreen?.());
+      return {
+        text: await list.innerText(),
+        loadedCompanies: probe?.loadedCompanies ?? null,
+        failed: probe?.companiesFailed ?? false,
+        emptyNotices: await page.getByTestId("hunter-notice").count(),
+      };
+    },
+    retryHunterList: () => retry.click(),
+    waitForHunterCompanies: async (count: number) => {
+      await page.waitForFunction(
+        (wanted) => window["__flyerProbe"]?.hunterScreen?.().loadedCompanies === wanted,
+        count,
+        { timeout: LOAD_TIMEOUT_MS },
+      );
+      await hunterRows(page).first().waitFor({ timeout: LOAD_TIMEOUT_MS });
+    },
+    // Reintentar if it says it could not, or a new page: both ask for what is not known.
+    checkHunterFlyers: async () => {
+      if ((await retry.count()) > 0) {
+        await retry.click();
+        await retry.waitFor({ state: "detached", timeout: FLYERS_CHECK_TIMEOUT_MS });
+      } else await readAgain();
+      await flyersChecked();
+      return page.evaluate(() => {
+        const probe = window["__flyerProbe"]?.hunterScreen?.();
+        return { failed: probe?.flyersFailed ?? false, hasFlyer: probe?.hasFlyer ?? {} };
+      });
+    },
+  };
+}
+
 export function createReactCompanyRegistryDriver(page: Page): CompanyRegistryDriver {
   return partialDriver<CompanyRegistryDriver>("companyRegistry", {
+    ...createHunterList(page),
     ...createBringing(page),
     ...createLoading(page),
     ...createSearch(page),

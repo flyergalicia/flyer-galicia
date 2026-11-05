@@ -1,5 +1,6 @@
 import { type Page } from "@playwright/test";
 import { type CompanyRegistryDriver } from "../company-registry.ts";
+import { hunterRows } from "./hunter.ts";
 import { type LogoEditorDriver } from "../logo-editor.ts";
 import { type LogoStripDriver } from "../logo-strip.ts";
 import { type PromotionsDriver } from "../promotions.ts";
@@ -134,6 +135,11 @@ function openers(
     "promotions-search": async () => {
       await promotions.open("search");
       await promotions.searchBrands(["Coto", "Farmacity", "Axion", "Marca inexistente"]);
+    },
+    hunter: async () => {
+      await session.waitUntilSignedIn();
+      await page.getByRole("banner").getByRole("tab", { name: "Buscar flyer" }).click();
+      await hunterRows(page).first().waitFor({ timeout: WAIT_MS });
     },
     "logo-strip-window": async () => {
       await logoEditor.enter();

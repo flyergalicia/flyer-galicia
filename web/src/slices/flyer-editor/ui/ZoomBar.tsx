@@ -5,9 +5,10 @@ import {
   ZOOM_MIN,
   ZOOM_STEP,
 } from "@/shared/lib/flyer-workspace/index.ts";
+import { ZoomControls } from "@/shared/ui/index.ts";
 import styles from "./FlyerEditorView.module.css";
 
-/** The zoom of the preview with buttons: at the middle of the flyer, not where the mouse is. */
+/** The zoom of the preview with buttons. */
 export function ZoomBar() {
   const workspace = useFlyerWorkspace();
   const zoom = useWorkspaceValue((state) => state.zoom);
@@ -16,41 +17,18 @@ export function ZoomBar() {
     workspace.requestDraw();
   };
   return (
-    <div className={styles.zoomBar}>
-      <button
-        type="button"
-        title="Alejar"
-        aria-label="Alejar"
-        onClick={() => {
-          zoomTo(Math.max(zoom / ZOOM_STEP, ZOOM_MIN));
-        }}
-      >
-        −
-      </button>
-      <span className={styles.zoomPercent} data-testid="zoom-percent">
-        {Math.round(zoom * 100)}%
-      </span>
-      <button
-        type="button"
-        title="Acercar"
-        aria-label="Acercar"
-        onClick={() => {
-          zoomTo(Math.min(zoom * ZOOM_STEP, ZOOM_MAX));
-        }}
-      >
-        +
-      </button>
-      <button
-        type="button"
-        className={styles.zoomReset}
-        title="Restablecer zoom"
-        aria-label="Restablecer zoom"
-        onClick={() => {
-          zoomTo(1);
-        }}
-      >
-        ⟲
-      </button>
-    </div>
+    <ZoomControls
+      className={styles.zoomBar}
+      percent={Math.round(zoom * 100)}
+      onOut={() => {
+        zoomTo(Math.max(zoom / ZOOM_STEP, ZOOM_MIN));
+      }}
+      onIn={() => {
+        zoomTo(Math.min(zoom * ZOOM_STEP, ZOOM_MAX));
+      }}
+      onReset={() => {
+        zoomTo(1);
+      }}
+    />
   );
 }

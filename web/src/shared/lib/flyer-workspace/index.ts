@@ -11,6 +11,7 @@ export { BATCH_RUNNING_NOTICE, type BatchLock, createBatchLock } from "./batch-l
 export { useBatchLibraries } from "./batch-libraries.ts";
 export { sceneOnScreen } from "./company-batch/company-batch.ts";
 export { type CompanyBatch, useCompanyBatch } from "./company-batch/use-company-batch.tsx";
+export { useGoToOption } from "./use-go-to-option.ts";
 export { activeFile, legalFile } from "./option-files.ts";
 export { createSectionLibrary, type SectionLibrary } from "./section-library.ts";
 export { optionHasFlyer } from "./option-active.ts";

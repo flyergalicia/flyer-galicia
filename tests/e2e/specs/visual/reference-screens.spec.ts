@@ -60,7 +60,7 @@ const SCREENS: readonly ScreenCase[] = [
   { name: "studio", screen: "studio" },
   { name: "database-companies", screen: "database-companies", inReact: true },
   { name: "database-advisors", screen: "database-advisors", inReact: true },
-  { name: "hunter", screen: "hunter", user: REFERENCE_HUNTER, noFlyer: true },
+  { name: "hunter", screen: "hunter", user: REFERENCE_HUNTER, noFlyer: true, inReact: true },
   {
     name: "commercial-actions-list",
     screen: "commercial-actions-list",

@@ -58,7 +58,7 @@ export function CompanyBatchReportDialog({
           {perOption.map(({ label, count, folder }) => (
             <tr key={label}>
               <td>{label}</td>
-              <td className={styles.count}>
+              <td className={styles.countCell}>
                 <strong>{count}</strong>
               </td>
               <td className={styles.folder}>{folder}/</td>

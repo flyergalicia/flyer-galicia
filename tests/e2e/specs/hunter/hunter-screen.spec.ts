@@ -36,7 +36,7 @@ async function openHunter(openApp: (o?: object) => Promise<OpenedApp>): Promise<
   return app;
 }
 
-test.describe("the Hunter", () => {
+test.describe("the Hunter", { tag: "@react" }, () => {
   test("has one tab, and the lock of its profile beats the matrix", async ({ cloud, openApp }) => {
     setUp(cloud, [company("ACME SA")], {
       padron_buscar: true,
@@ -159,6 +159,39 @@ test.describe("the Hunter", () => {
     expect.soft(words, "and its cap").toMatch(/\$30\.000/);
   });
 
+  test("its own cap goes on the flyer, and with none the one of the template", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.addFlyerOption({
+      option: 8,
+      name: "Combustible",
+      image: FLYER,
+      legal: "L",
+      tab: "rubros",
+    });
+    setUp(
+      cloud,
+      [
+        company("CON TOPE SA", { rubro: { opcion: 8, importe: "41000" } }),
+        company("SIN TOPE SA", { rubro: { opcion: 8 } }),
+      ],
+      { opcion_8: true },
+    );
+    const app = await openHunter(openApp);
+
+    const rows = await app.hunter.rows();
+    expect
+      .soft(rows.find(({ company: name }) => name === "SIN TOPE SA")?.warnings)
+      .toMatch(/sin tope cargado: sale \$24\.000/);
+    await app.hunter.choose("CON TOPE SA");
+    await app.hunter.waitForPreview();
+    expect.soft((await app.hunter.drawnTexts()).join(" ")).toMatch(/\$41\.000/);
+    await app.hunter.choose("SIN TOPE SA");
+    await app.hunter.waitForPreview();
+    expect.soft((await app.hunter.drawnTexts()).join(" ")).toMatch(/\$24\.000/);
+  });
+
   test("an option with no flyer is never used", async ({ cloud, openApp }) => {
     cloud.addFlyerOption({ option: 12, name: "Sin arte", image: null, legal: "L" });
     setUp(cloud, [company("ACME SA")], { opcion_9: false, opcion_12: true });
@@ -241,7 +274,7 @@ test.describe("the Hunter", () => {
   });
 });
 
-test.describe("the answer of the Hunter to a question about a proposal", () => {
+test.describe("the answer of the Hunter to a question about a proposal", { tag: "@react" }, () => {
   const QUESTION_ID = "p9";
   const BEFORE = [OFFICER];
   const PROPOSED = [{ nombre: "Carla Nueva", celular: "11 7777 8888", email: "" }];

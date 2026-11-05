@@ -30,6 +30,13 @@
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
+/* The ring is the mark of the focus: the outline of the base styles would draw a second one. A search
+   field keeps that outline, as it has it today. */
+.control[type="text"]:focus,
+.textarea.textarea:focus {
+  outline: none;
+}
+
 .lg:focus {
   background-color: var(--control-lg-focus-bg);
 }

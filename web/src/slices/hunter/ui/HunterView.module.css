@@ -1,0 +1,529 @@
+.screen {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+
+.panel {
+  overflow-y: auto;
+  padding: 16px 16px 28px;
+  border-right: 1px solid var(--border);
+  background: var(--paper);
+}
+
+.title {
+  margin-bottom: 10px;
+  color: var(--gray);
+  font-size: var(--text-panel);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.help {
+  margin: -4px 0 12px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.status {
+  min-height: 1em;
+  margin: 10px 0 8px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--r-s);
+  background: var(--card);
+  box-shadow: var(--sh-1);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.row:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.row[data-selected="true"] {
+  border-color: var(--accent);
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* It is listed all the same, for the Hunter to know it is loaded: the warning says why it cannot be. */
+.row[data-can-draw="false"] {
+  opacity: 0.72;
+}
+
+.tickPlace {
+  display: flex;
+  align-items: center;
+  margin-right: 2px;
+  margin-bottom: 3px;
+}
+
+.tick {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.rowBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.company {
+  color: var(--ink);
+  font-size: var(--text-company);
+  font-weight: var(--weight-bold);
+  line-height: 1.25;
+}
+
+.subtitle {
+  margin-top: 2px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.officers {
+  margin-top: 3px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.flyerTag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--navy-soft);
+  color: var(--navy);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.row[data-can-draw="false"] .flyerTag {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.warnings {
+  margin-top: 5px;
+  color: var(--decision-warn);
+  font-size: var(--text-xs);
+}
+
+.proposalTag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  font-size: var(--text-xs);
+}
+
+.proposalQuestion {
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: var(--weight-bold);
+}
+
+.proposeButton {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  background: none;
+  color: var(--accent-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.proposeButton:hover {
+  border-color: var(--accent);
+}
+
+.notice {
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* The bar of Descarga múltiple. */
+.multipleBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-s);
+  background: var(--accent-soft);
+  font-size: var(--text-xs);
+}
+
+.multipleBar[hidden] {
+  display: none;
+}
+
+.tickAll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tickCount {
+  color: var(--gray);
+  white-space: nowrap;
+}
+
+.progress {
+  flex: 1;
+  min-width: 80px;
+  height: 6px;
+  overflow: hidden;
+  border: none;
+  border-radius: 4px;
+  appearance: none;
+  background: var(--border);
+}
+
+.progress::-webkit-progress-bar {
+  background: var(--border);
+}
+
+.progress::-webkit-progress-value {
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+.progressText {
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.multipleBar .zipButton {
+  padding: 7px 14px;
+  font-size: var(--text-xs);
+}
+
+.cancelMultiple {
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* The ticked ones: on top and always in sight, even if the search shows others. */
+.ticked {
+  max-height: 34vh;
+  margin-bottom: 10px;
+  overflow: auto;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-s);
+  background: var(--card);
+  box-shadow: var(--sh-1);
+}
+
+.tickedHead {
+  position: sticky;
+  top: 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heavy);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tickedRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px 7px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tickedRow:last-child {
+  border-bottom: 0;
+}
+
+.tickedBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tickedCompany {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tickedDetail {
+  overflow: hidden;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.untick {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.untick:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* The right column: the button stays on top while going over the flyer. */
+.preview {
+  display: flex;
+  flex-direction: column;
+  align-items: safe center;
+  padding: 20px;
+  overflow: auto;
+  background: var(--paper);
+}
+
+.preview[data-panning] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.head {
+  position: sticky;
+  top: -20px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 12px 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--preview-label-bg);
+  box-shadow: var(--sh-1);
+  color: var(--preview-label-tx);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+
+.label::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--preview-live);
+  box-shadow: 0 0 0 3px var(--preview-live-ring);
+  content: "";
+}
+
+.head .zoom {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 6px;
+}
+
+.downloadButton {
+  flex-shrink: 0;
+}
+
+.others {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.othersToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-s);
+  background: var(--card);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.othersToggle:hover {
+  border-color: var(--accent-line);
+}
+
+.othersCaret {
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+.othersToggle[aria-expanded="true"] .othersCaret {
+  transform: rotate(180deg);
+}
+
+.othersMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 230px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-m);
+  background: var(--card);
+  box-shadow: var(--sh-2);
+}
+
+.othersMenu[hidden] {
+  display: none;
+}
+
+.othersItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: var(--r-s);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.othersItem:hover {
+  background: var(--accent-soft);
+}
+
+.othersIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.message {
+  margin: auto 0;
+  padding: 24px;
+  color: var(--gray);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.picture {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 14px;
+  border-radius: var(--r-s);
+  box-shadow: var(--sh-2);
+}
+
+.picture[hidden] {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .screen {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .panel {
+    overflow: visible;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .preview {
+    height: auto;
+    overflow: visible;
+  }
+
+  .head {
+    position: static;
+    flex-wrap: wrap;
+  }
+
+  .label {
+    margin: 0 0 8px;
+  }
+
+  .othersMenu {
+    right: auto;
+    left: 0;
+  }
+}

@@ -17,6 +17,20 @@ export interface PromotionsProbe {
   modoShownInLocality(province: string, locality: string, cities: readonly string[]): boolean;
 }
 
+export interface HunterScreenProbe {
+  /** Null: nothing was loaded. */
+  loadedCompanies: number | null;
+  companiesFailed: boolean;
+  flyersFailed: boolean;
+  flyersSettled: boolean;
+  hasFlyer: Record<string, boolean>;
+}
+
+export interface HunterPreviewProbe {
+  /** What the flyer on the preview was drawn with. */
+  values: Record<string, unknown> | null;
+}
+
 export interface CompanyListProbe {
   ownCompanyCount(): number;
   companiesFailed(): boolean;
@@ -256,6 +270,8 @@ declare global {
       readonly flyerBar?: () => FlyerBarProbe;
       readonly flyerBatch?: () => FlyerBatchProbe;
       readonly flyerKnowledge?: () => FlyerKnowledgeProbe;
+      readonly hunterScreen?: () => HunterScreenProbe;
+      readonly hunterPreview?: () => HunterPreviewProbe;
     };
   }
 }

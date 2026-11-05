@@ -102,7 +102,8 @@ export const APP_VIEWS: readonly AppView[] = [
     hostId: "hunter",
     screen: "hunter-screen",
     visible: ({ isHunter }) => isHunter,
-    load: pendingView,
+    load: () =>
+      import("@/slices/hunter/index.ts").then(({ HunterView }) => ({ default: HunterView })),
     loadFailure: "No se pudo cargar la pantalla. Revisá la conexión e intentá de nuevo.",
   },
   {

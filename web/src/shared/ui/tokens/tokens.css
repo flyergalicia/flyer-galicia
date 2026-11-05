@@ -228,6 +228,10 @@ html.dark {
   /* The preview of the flyer, and Cambiar logos over it. */
   --preview-live: #22c55e;
   --preview-live-ring: rgba(34, 197, 94, 0.2);
+  --zoom-button-bg: transparent;
+  --zoom-button-tx: var(--ink-2);
+  --zoom-button-hover-bg: var(--navy-soft);
+  --zoom-button-hover-tx: var(--ink);
   --flyer-paper: #fff;
   --load-problem-button: #fff;
   --logo-on-accent: #fff;
@@ -325,6 +329,7 @@ html.dark {
   --text-md: 0.8rem;
   --text-lg: 0.82rem;
   --text-field: 0.83rem;
+  --text-company: 0.84rem;
   --text-xl: 0.9rem;
   --text-panel: 0.7rem;
   --text-note: 0.76rem;
@@ -390,6 +395,7 @@ html.dark {
   --dialog-ov: rgba(15, 17, 20, 0.55);
   --decision-ov: rgba(0, 0, 0, 0.42);
   --decision-focus: var(--accent);
+  --decision-field-line: var(--border);
   --decision-warn: #b06000;
 
   /* Base de datos. */
@@ -612,6 +618,10 @@ html.dark {
   --option-on-tx: #f3f4f6;
   --preview-label-bg: rgba(34, 38, 44, 0.82);
   --preview-label-tx: #e9eaec;
+  --zoom-button-bg: #22262c;
+  --zoom-button-tx: #e9eaec;
+  --zoom-button-hover-bg: #22262c;
+  --zoom-button-hover-tx: #e9eaec;
   --officer-block-bg: rgba(242, 97, 34, 0.06);
   --officer-block-line: #5a3a3a;
   --advisors-bg: #22262c;
@@ -649,6 +659,8 @@ html.dark {
   --registry-owner-tx: #f3c96b;
   --registry-popup-bg: #23262c;
   --registry-popup-line: #3a3e46;
+  --decision-field-line: #3a3e46;
+  --decision-focus: #3a3e46;
   --pill-on-bg: #fff;
   --pill-on-tx: #15171a;
   --table-head-bg: #1b1e23;
