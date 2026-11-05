@@ -21,6 +21,7 @@ const UNREAD_KEY = ["commercial-actions", "unread"] as const;
 const COMPANIES_KEY = ["commercial-actions", "my-companies"] as const;
 const DETAIL_KEY = ["commercial-actions", "detail"] as const;
 const THREAD_KEY = ["commercial-actions", "thread"] as const;
+export const AGENDA_KEY = ["commercial-actions", "agenda"] as const;
 
 const NO_ACTIONS: readonly ListedAction[] = [];
 const NO_UNREAD: UnreadByAction = new Map();
@@ -103,10 +104,15 @@ export function threadKey(id: string) {
   return [...THREAD_KEY, id] as const;
 }
 
-/** After saving: the list and the numbers are old. */
+export function invalidateAgenda(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: AGENDA_KEY });
+}
+
+/** After saving: the list, the agenda and the numbers are old. */
 export function invalidateActionList(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: LIST_KEY });
   void queryClient.invalidateQueries({ queryKey: UNREAD_KEY });
+  invalidateAgenda(queryClient);
 }
 
 export function invalidateUnread(queryClient: QueryClient): void {

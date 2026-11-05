@@ -1,0 +1,335 @@
+/* The dashboard. */
+.check.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  color: var(--ink);
+  font-size: var(--text-note);
+}
+
+.excel {
+  margin-left: auto;
+}
+
+.warning {
+  border-color: var(--ges-warn);
+  background: var(--ges-warn-soft);
+}
+
+.explanation {
+  margin: -4px 0 14px;
+  line-height: 1.5;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.twoLast {
+  margin-top: 14px;
+}
+
+.three {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.headLater {
+  margin-top: 16px;
+}
+
+.title {
+  color: var(--ink);
+  font-size: var(--text-tab);
+  font-weight: var(--weight-heavy);
+}
+
+.key {
+  display: flex;
+  gap: 12px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.key i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.keyPeople {
+  background: var(--ges-b1);
+}
+
+.keySignups {
+  background: var(--accent);
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chartLine {
+  stroke: var(--ges-grid);
+  stroke-width: 1;
+}
+
+.chartAxis {
+  fill: var(--gray);
+  font-size: var(--text-chart);
+}
+
+.chartValue {
+  fill: var(--ink);
+  font-size: var(--text-chart);
+  font-weight: var(--weight-bold);
+}
+
+.chartPeople {
+  fill: var(--ges-b1);
+}
+
+.chartSignups {
+  fill: var(--accent);
+}
+
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.funnelRow {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: var(--text-note);
+}
+
+.funnelBar {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  min-width: 30px;
+  padding-left: 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-heavy);
+  white-space: nowrap;
+}
+
+.funnelProspects {
+  background: var(--accent-2, var(--accent));
+}
+
+.funnelSignups {
+  background: var(--ges-ok);
+}
+
+.funnelShare {
+  color: var(--gray);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.packagesLine {
+  margin-bottom: 8px;
+}
+
+.packagesLine b {
+  color: var(--ink);
+}
+
+.compact.compact th {
+  padding: 7px 6px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.compact.compact td {
+  padding: 6px;
+}
+
+.compactBar {
+  min-width: 24px;
+}
+
+.compactBarLine {
+  gap: 6px;
+}
+
+.compactBarLine span {
+  min-width: 30px;
+}
+
+/* The period by quarter. */
+.quarters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 14px;
+  margin: -4px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-m);
+  background: var(--card);
+}
+
+.year {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 3px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.quarterList {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.quarter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.quarterHead {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.quarterButton {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-2, var(--ink));
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-heavy);
+  cursor: pointer;
+}
+
+.quarterHead .quarterButton {
+  border: 0;
+  border-radius: 0;
+}
+
+.quarterButton span {
+  margin-left: 2px;
+  color: var(--gray);
+  font-weight: var(--weight-semibold);
+}
+
+.quarterPart {
+  background: var(--accent-soft);
+}
+
+.quarterOn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.quarterOn span {
+  color: #fff;
+}
+
+.quarterArrow {
+  padding: 0 10px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+  color: var(--gray);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.quarterArrow:hover {
+  color: var(--accent);
+}
+
+.quarterMonths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 6px;
+}
+
+.quarterMonths .quarterButton {
+  padding: 5px 11px;
+  font-weight: var(--weight-bold);
+}
+
+.quartersHelp {
+  align-self: flex-end;
+}
+
+@media (max-width: 1000px) {
+  .two,
+  .three {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .quarterList {
+    flex-direction: column;
+  }
+
+  .quartersHelp {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .compact.compact th:nth-child(5):nth-last-child(2),
+  .compact.compact td:nth-child(5):nth-last-child(2) {
+    display: none;
+  }
+
+  .compactBar {
+    display: none;
+  }
+
+  .compact.compact th,
+  .compact.compact td {
+    padding: 6px 4px;
+  }
+}

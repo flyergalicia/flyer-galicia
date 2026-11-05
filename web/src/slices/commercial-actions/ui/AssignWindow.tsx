@@ -13,6 +13,7 @@ import { huntersOf, nameOf, type Who } from "../model/who.ts";
 import { ActionWindow } from "./ActionWindow.tsx";
 import { Availability } from "./Availability.tsx";
 import { HunterOptions, TimesField } from "./form-parts.tsx";
+import { HunterWeek } from "./HunterWeek.tsx";
 import { TaxId } from "./parts.tsx";
 import styles from "./CommercialActions.module.css";
 
@@ -194,7 +195,19 @@ export function AssignWindow({ who, action, onClose, onSaved }: AssignWindowProp
           exclude={action.id}
           onChooseHunter={setHunter}
         />
-        {/* The week of the hunter goes here: gesAgPanel, with the agenda. */}
+        <HunterWeek
+          who={who}
+          hunterField={hunter}
+          hunter={null}
+          date={date}
+          isDataList={isDataList}
+          exclude={action.id}
+          onTouch={(day, start, end) => {
+            setDate(day);
+            setFrom(start);
+            setTo(end);
+          }}
+        />
       </div>
       <div className={styles.windowFoot}>
         <Button variant="ghost" data-testid="window-dismiss" onClick={onClose}>

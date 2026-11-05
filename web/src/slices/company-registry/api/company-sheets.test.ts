@@ -24,11 +24,12 @@ function fakeApi() {
       book_append_sheet: (_book, sheet, name) => {
         sheets.push({ lines: content.get(sheet) ?? [], name, widths: sheet["!cols"] });
       },
-      aoa_to_sheet: (lines) => {
+      aoa_to_sheet: (lines: SheetCells) => {
         const sheet = {};
         content.set(sheet, lines);
         return sheet;
       },
+      json_to_sheet: () => ({}),
       sheet_to_json: () => [],
     },
   };

@@ -6,10 +6,21 @@ import type { ActionRow, NewAction } from "../api/rows.ts";
 import { addDays, dateLabel, timeOf, today } from "./formatting.ts";
 import { ACTION_TYPES, MAX_TIMES } from "./labels.ts";
 
-export type FormMode = "registrar" | "derivar" | "editar";
+export type FormMode = "registrar" | "derivar" | "asignar" | "agendar" | "editar";
+
+/** Whoever forwards or assigns chooses the hunter, and the action stays planned. */
+export function isAssigning(mode: FormMode): boolean {
+  return mode === "derivar" || mode === "asignar";
+}
 
 /** What the hunter field says for "Que la asigne el líder". */
 export const TO_LEADER = "__lider";
+
+/** With a hunter and a date there is a day to look at. A data list has no time to take care of. */
+export function canAskDay(hunter: string, date: string, isDataList: boolean): boolean {
+  return Boolean(hunter) && hunter !== TO_LEADER && Boolean(date) && !isDataList;
+}
+
 const MAX_INTEGER = 1_000_000;
 const MIN_TIMES = 2;
 const MAX_DAYS = 365;
@@ -66,7 +77,7 @@ export function initialForm(action: ActionFormDefaults = {}): ActionFormState {
 export function typesFor(mode: FormMode, tipo: string): Readonly<Record<string, string>> {
   const { datos, ...others } = ACTION_TYPES;
   if (mode === "editar" && tipo === "datos") return { datos: datos ?? "" };
-  return mode === "derivar" ? ACTION_TYPES : others;
+  return isAssigning(mode) || mode === "agendar" ? ACTION_TYPES : others;
 }
 
 function integerOf(text: string): number | null {
@@ -131,7 +142,8 @@ function scheduleOf(form: ActionFormState, isDataList: boolean) {
 }
 
 function modeValues(form: ActionFormState, mode: FormMode) {
-  if (mode === "derivar") {
+  if (mode === "agendar") return { estado: "planificada" };
+  if (isAssigning(mode)) {
     const isToLeader = form.hunter === TO_LEADER;
     return {
       estado: "planificada",

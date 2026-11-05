@@ -1,10 +1,17 @@
 // The form common to registering, forwarding and editing.
-import { useRef } from "react";
-import { type ActionFormState, type FormMode, TO_LEADER, typesFor } from "../model/action-form.ts";
+import { useRef, useState } from "react";
+import {
+  type ActionFormState,
+  type FormMode,
+  isAssigning,
+  TO_LEADER,
+  typesFor,
+} from "../model/action-form.ts";
 import { ACTION_STATES, DATA_LIST_STATES, FREQUENCIES, MODALITIES } from "../model/labels.ts";
 import { canSendToLeader, huntersOf, leaderChoices, type Who } from "../model/who.ts";
 import { Availability } from "./Availability.tsx";
 import { HunterOptions, Optional, Pills, TimesField } from "./form-parts.tsx";
+import { HunterWeek } from "./HunterWeek.tsx";
 import { PeopleOfList } from "./PeopleOfList.tsx";
 import styles from "./CommercialActions.module.css";
 
@@ -113,6 +120,7 @@ function RepeatField({
 
 function HunterFields({
   form,
+  mode,
   onChange,
   who,
   myLeader,
@@ -121,6 +129,8 @@ function HunterFields({
   readonly myLeader: string | null;
 }) {
   const leaders = leaderChoices(who, myLeader);
+  // With a hunter already chosen on opening there is nothing to prompt for.
+  const [withPrompt] = useState(!form.hunter);
   return (
     <>
       <label className={styles.formField}>
@@ -134,8 +144,8 @@ function HunterFields({
           }}
         >
           <HunterOptions
-            hunters={huntersOf(who, false)}
-            withPrompt
+            hunters={huntersOf(who, mode === "asignar")}
+            withPrompt={withPrompt}
             toLeader={canSendToLeader(who)}
             failed={who.peopleFailed}
           />
@@ -227,7 +237,9 @@ function ResultFields({
 
 function notePlaceholder(isDataList: boolean, mode: FormMode): string {
   if (isDataList) return "Qué ofrecerles, con quién hablar en la empresa";
-  return mode === "derivar" ? "Con quién hablar, qué flyer llevar" : "Cómo fue, próximos pasos";
+  return isAssigning(mode) || mode === "agendar"
+    ? "Con quién hablar, qué flyer llevar"
+    : "Cómo fue, próximos pasos";
 }
 
 interface ActionFormProps extends FormPartProps {
@@ -240,13 +252,11 @@ interface ActionFormProps extends FormPartProps {
   readonly exclude?: string | null;
 }
 
-function ScheduleFields({ form, onChange }: Omit<FormPartProps, "mode">) {
+function ScheduleFields({ form, mode, onChange }: FormPartProps) {
   return (
     <>
       <div className={styles.formField} data-section="hor">
-        <span>
-          Horario <Optional />
-        </span>
+        <span>Horario {isAssigning(mode) ? null : <Optional />}</span>
         <TimesField
           from={form.desde}
           to={form.hasta}
@@ -274,6 +284,36 @@ function ScheduleFields({ form, onChange }: Omit<FormPartProps, "mode">) {
   );
 }
 
+/** Whoever gives it to a hunter chooses who; whoever did it says how it went. */
+function ModeFields({
+  form,
+  mode,
+  onChange,
+  who,
+  myLeader,
+}: FormPartProps & { readonly who: Who; readonly myLeader: string | null }) {
+  const assigns = isAssigning(mode);
+  const isDataList = form.tipo === "datos";
+  if (!assigns && mode !== "agendar") {
+    return <ResultFields form={form} mode={mode} onChange={onChange} isDataList={isDataList} />;
+  }
+  return (
+    <>
+      {assigns && (
+        <HunterFields form={form} mode={mode} onChange={onChange} who={who} myLeader={myLeader} />
+      )}
+      {isDataList && (
+        <PeopleOfList
+          text={form.personas}
+          onChange={(personas) => {
+            onChange({ personas });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 export function ActionForm({
   form,
   mode,
@@ -285,7 +325,7 @@ export function ActionForm({
   exclude = null,
 }: ActionFormProps) {
   const isDataList = form.tipo === "datos";
-  const assigns = mode === "derivar";
+  const assigns = isAssigning(mode);
   return (
     <div className={styles.form}>
       <div className={`${styles.formField}${assigns ? ` ${styles.full}` : ""}`}>
@@ -342,23 +382,9 @@ export function ActionForm({
           />
         </label>
       ) : (
-        <ScheduleFields form={form} onChange={onChange} />
+        <ScheduleFields form={form} mode={mode} onChange={onChange} />
       )}
-      {assigns ? (
-        <>
-          <HunterFields form={form} mode={mode} onChange={onChange} who={who} myLeader={myLeader} />
-          {isDataList && (
-            <PeopleOfList
-              text={form.personas}
-              onChange={(personas) => {
-                onChange({ personas });
-              }}
-            />
-          )}
-        </>
-      ) : (
-        <ResultFields form={form} mode={mode} onChange={onChange} isDataList={isDataList} />
-      )}
+      <ModeFields form={form} mode={mode} onChange={onChange} who={who} myLeader={myLeader} />
       <Availability
         who={who}
         hunterField={assigns ? form.hunter : null}
@@ -372,7 +398,17 @@ export function ActionForm({
           onChange({ hunter });
         }}
       />
-      {/* The week of the hunter goes here: gesAgPanel, with the agenda. */}
+      <HunterWeek
+        who={who}
+        hunterField={assigns ? form.hunter : null}
+        hunter={hunterOfDay}
+        date={form.fecha}
+        isDataList={isDataList}
+        exclude={exclude}
+        onTouch={(fecha, desde, hasta) => {
+          onChange({ fecha, desde, hasta });
+        }}
+      />
       <label className={`${styles.full} ${styles.formField}`}>
         <span>Nota</span>
         <textarea

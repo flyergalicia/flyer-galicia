@@ -7,7 +7,7 @@ const SCREENS = [
   { width: 1024, height: 768 },
 ];
 
-test.describe("the week of the hunter chosen while assigning", () => {
+test.describe("the week of the hunter chosen while assigning", { tag: "@react" }, () => {
   for (const viewport of SCREENS) {
     test(`fits the window at ${String(viewport.width)} px`, async ({ cloud, openApp }) => {
       cloud.seedCommercialActions();

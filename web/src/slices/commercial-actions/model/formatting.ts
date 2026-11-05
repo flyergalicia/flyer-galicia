@@ -1,6 +1,19 @@
 // How dates, times and numbers read on these screens.
 
-const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+export const MONTHS = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
 const TIME_PARTS = /^(\d{1,2}):(\d{2})/;
 const MINUTES_PER_HOUR = 60;
 const TWO_DIGITS = 2;
@@ -15,6 +28,10 @@ export function isoDate(date: Date): string {
 
 export function today(): string {
   return isoDate(new Date());
+}
+
+export function thisYear(): number {
+  return new Date().getFullYear();
 }
 
 /** "5 mar", with the year only if it is not this one. */

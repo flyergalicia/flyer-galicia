@@ -17,6 +17,13 @@ export interface PromotionsProbe {
   modoShownInLocality(province: string, locality: string, cities: readonly string[]): boolean;
 }
 
+export interface CommercialDashboardProbe {
+  actions: number;
+  unassigned: number;
+  hunterIds: (string | null)[];
+  countedOfficerIds: (string | null)[];
+}
+
 export interface HunterScreenProbe {
   /** Null: nothing was loaded. */
   loadedCompanies: number | null;
@@ -276,6 +283,7 @@ declare global {
       readonly flyerBatch?: () => FlyerBatchProbe;
       readonly flyerKnowledge?: () => FlyerKnowledgeProbe;
       readonly hunterScreen?: () => HunterScreenProbe;
+      readonly commercialDashboard?: () => CommercialDashboardProbe | null;
       readonly hunterPreview?: () => HunterPreviewProbe;
       readonly studioNotices?: () => { questions: number; shared: number };
       readonly pdfReader?: () => { version: string };

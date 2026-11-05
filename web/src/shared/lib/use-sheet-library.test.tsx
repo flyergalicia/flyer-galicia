@@ -14,6 +14,7 @@ const API: SheetApi = {
     book_new: vi.fn<SheetApi["utils"]["book_new"]>(),
     book_append_sheet: vi.fn<SheetApi["utils"]["book_append_sheet"]>(),
     aoa_to_sheet: vi.fn<SheetApi["utils"]["aoa_to_sheet"]>(),
+    json_to_sheet: vi.fn<SheetApi["utils"]["json_to_sheet"]>(),
     sheet_to_json: vi.fn<SheetApi["utils"]["sheet_to_json"]>(),
   },
 };

@@ -132,6 +132,14 @@ function openers(
       await commercialActions.open();
       await commercialActions.goToTab("actions");
     },
+    "commercial-actions-agenda": async () => {
+      await commercialActions.open();
+      await commercialActions.goToTab("agenda");
+    },
+    "commercial-actions-dashboard": async () => {
+      await commercialActions.open();
+      await commercialActions.goToTab("dashboard");
+    },
     "logo-editor": async () => {
       await logoEditor.enter();
       await logoEditor.waitForBrandCatalog();
@@ -173,6 +181,7 @@ function openers(
 const CONTENT_OF: Partial<Record<ReferenceScreen, string>> = {
   "promotions-active": "promotions-results",
   "promotions-search": "promotions-results",
+  "commercial-actions-dashboard": "dashboard-content",
 };
 // What stays above the scrolled content: the header of the app is sticky on a phone.
 const STICKY_HEADER_PX = 90;
@@ -197,8 +206,10 @@ export function createReactScreensDriver(page: Page, drivers: ScreenDrivers): Sc
       if (!content) {
         throw new Error(`The screen "${screen}" has no content to scroll to in React yet.`);
       }
-      await page.getByTestId(content).evaluate((element, header) => {
-        window.scrollTo(0, element.getBoundingClientRect().top + window.scrollY - header);
+      await page.getByTestId(content).evaluate((element, margin) => {
+        if (!(element instanceof HTMLElement)) return;
+        element.style.scrollMarginTop = `${String(margin)}px`;
+        element.scrollIntoView({ behavior: "instant", block: "start" });
       }, STICKY_HEADER_PX);
       await waitToSettle(page);
     },

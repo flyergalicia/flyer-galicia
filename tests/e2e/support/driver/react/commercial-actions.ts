@@ -14,12 +14,17 @@ import {
   type PersonOfAction,
   type PersonOutcome,
 } from "../commercial-actions.ts";
+import {
+  createAgendaAssignDriver,
+  createAgendaDriver,
+  createDashboardDriver,
+  createFormOfAgenda,
+  settle,
+} from "./commercial-agenda.ts";
 import { partialDriver } from "./pending.ts";
 
 const WAIT_MS = 15_000;
 const POLL_MS = 100;
-const SETTLED_MS = 250;
-const SETTLE_LIMIT_MS = 8000;
 const ENTRY_TIMEOUT_MS = 30_000;
 const LEADER_WILL_ASSIGN = "__lider";
 
@@ -360,19 +365,6 @@ function createList(page: Page): ActionListDriver {
   };
 }
 
-/** The screen paints by itself when an answer arrives, even after what was being awaited. */
-async function settle(page: Page): Promise<void> {
-  const read = () => screen(page).evaluate((body) => body.innerHTML);
-  const deadline = performance.now() + SETTLE_LIMIT_MS;
-  let before = await read();
-  while (performance.now() < deadline) {
-    await page.waitForTimeout(SETTLED_MS);
-    const now = await read();
-    if (now === before && !/Cargando…/.test(now)) return;
-    before = now;
-  }
-}
-
 function sidewaysOverflow(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const found: string[] = [];
@@ -380,10 +372,18 @@ function sidewaysOverflow(page: Page): Promise<string[]> {
     if (documentElement.scrollWidth > window.innerWidth + 1) {
       found.push(`page ${String(documentElement.scrollWidth)}>${String(window.innerWidth)}`);
     }
+    // On a phone, the calendar by hours slides on purpose: seven days do not fit in 390 px.
+    const isPhone = window.innerWidth <= 700;
+    const isPhoneCalendar = (element: Element) =>
+      isPhone && element.getAttribute("data-slides") === "calendar";
     const root = document.querySelector('[data-screen="commercial-actions"]');
     for (const element of root?.querySelectorAll("*") ?? []) {
       const overflows = element.scrollWidth > element.clientWidth + 1 && element.clientWidth > 0;
-      if (overflows && /auto|scroll/.test(getComputedStyle(element).overflowX)) {
+      if (
+        overflows &&
+        !isPhoneCalendar(element) &&
+        /auto|scroll/.test(getComputedStyle(element).overflowX)
+      ) {
         const name = element.className || element.tagName;
         found.push(`${name} ${String(element.scrollWidth)}>${String(element.clientWidth)}`);
       }
@@ -395,6 +395,10 @@ function sidewaysOverflow(page: Page): Promise<string[]> {
 export function createReactCommercialActionsDriver(page: Page): CommercialActionsDriver {
   return partialDriver<CommercialActionsDriver>("commercialActions", {
     ...createForm(page),
+    ...createFormOfAgenda(page),
+    ...createAgendaAssignDriver(page),
+    ...createAgendaDriver(page),
+    ...createDashboardDriver(page),
     ...createDialog(page),
     ...createDetail(page),
     ...createBehindTheScreen(page),

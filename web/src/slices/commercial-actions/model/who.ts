@@ -89,7 +89,10 @@ export function canForce(who: Who, hunter: string | null): boolean {
  * Changing the hunter: the administrator, the officer who forwarded it while it is not done, and the
  * leader (who assigns it or who has that hunter). The hunter never.
  */
-export function canReassign(who: Who, action: ActionRow): boolean {
+export function canReassign(
+  who: Who,
+  action: Pick<ActionRow, "estado" | "origen" | "creada_por" | "lider_id" | "hunter_id">,
+): boolean {
   if (who.isAdmin) return true;
   if (action.estado === "realizada") return false;
   if (action.origen === "derivada" && action.creada_por === who.me) return true;
@@ -98,6 +101,14 @@ export function canReassign(who: Who, action: ActionRow): boolean {
 
 function byName(people: CommercialPeople) {
   return (a: string, b: string) => (people[a]?.nombre ?? "").localeCompare(people[b]?.nombre ?? "");
+}
+
+/**
+ * Only an officer asks for the hidden occupation: the leader and the administrator already see what
+ * their people have, and the database does not answer a hunter.
+ */
+export function asksHiddenOccupancy({ isAdmin, role }: Who): boolean {
+  return !isAdmin && role !== "hunter" && role !== "lider";
 }
 
 export function leadersOf({ people }: Who): readonly string[] {

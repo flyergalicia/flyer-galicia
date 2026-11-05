@@ -8,6 +8,8 @@ import { createLibraryLoader, type LibraryLoader } from "./library-loader.ts";
 declare const SHEET_LIBRARY_HASH: string;
 
 export type SheetCells = readonly (readonly string[])[];
+/** A sheet that also has numbers, to be added up on the spreadsheet. */
+export type SheetValues = readonly (readonly (string | number)[])[];
 export type ReadSheetRow = Readonly<Record<string, unknown>>;
 
 interface WorkSheet {
@@ -25,7 +27,8 @@ export interface SheetApi {
   readonly utils: {
     book_new(): WorkBook;
     book_append_sheet(book: WorkBook, sheet: WorkSheet, name: string): void;
-    aoa_to_sheet(lines: SheetCells): WorkSheet;
+    aoa_to_sheet(lines: SheetValues): WorkSheet;
+    json_to_sheet(rows: readonly Readonly<Record<string, unknown>>[]): WorkSheet;
     sheet_to_json(
       sheet: WorkSheet,
       options: { readonly defval: string; readonly raw: false },

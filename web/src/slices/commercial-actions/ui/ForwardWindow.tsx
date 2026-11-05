@@ -14,6 +14,7 @@ import {
   readForm,
   repetitionProblem,
 } from "../model/action-form.ts";
+import { assignedText } from "../model/assigned-text.ts";
 import { failureText } from "../model/failure-text.ts";
 import { timeProblem } from "../model/formatting.ts";
 import type { CompanyLine } from "../model/my-companies.ts";
@@ -22,31 +23,11 @@ import { type PendingList, useListSaving, useSeriesCreation } from "../model/use
 import { invalidateActionList } from "../model/use-actions-data.ts";
 import { useOverlapCheck } from "../model/use-overlap-check.ts";
 import { useQuestions } from "../model/use-questions.tsx";
-import { leaderChoices, nameOf, type Who } from "../model/who.ts";
+import { leaderChoices, type Who } from "../model/who.ts";
 import { ActionForm } from "./ActionForm.tsx";
 import { ActionWindow } from "./ActionWindow.tsx";
 import { TaxId } from "./parts.tsx";
 import styles from "./CommercialActions.module.css";
-
-function doneText(
-  who: Who,
-  values: ActionFormValues,
-  created: number,
-  people: readonly PastedPerson[] | null,
-): string {
-  const { hunter_id: hunter, lider_id: leader } = values;
-  const start = hunter
-    ? `Derivada a ${nameOf(who, hunter)}`
-    : `Queda para que la asigne ${nameOf(who, leader)}`;
-  const list = people?.length
-    ? `, con ${String(people.length)}${people.length === 1 ? " persona para contactar" : " personas para contactar"}`
-    : "";
-  const dates = created > 0 ? `, con las ${String(created + 1)} fechas planificadas` : "";
-  const end = hunter
-    ? " Le aparece en su agenda y en la marca de su avatar."
-    : ' Le aparece en su bandeja "Por asignar".';
-  return `${start}${list}${dates}.${end}`;
-}
 
 function firstProblem(values: ActionFormValues, people: readonly PastedPerson[] | null) {
   const problem = assignmentProblem(values) ?? repetitionProblem(values) ?? timeProblem(values);
@@ -95,7 +76,7 @@ export function ForwardWindow({
       return;
     }
     onClose();
-    show(doneText(who, values, series.created, people));
+    show(assignedText(who, values, series.created, people));
   };
 
   const confirm = async () => {

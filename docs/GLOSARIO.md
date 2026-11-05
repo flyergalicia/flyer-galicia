@@ -44,6 +44,13 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Alta | `signup` | Prospecto que abrió un paquete |
 | Paquete | `accountPackage` | Producto del banco que capta el hunter |
 | Líder | `leader` | Quien tiene un equipo de hunters |
+| Agenda | `agenda` | El calendario de Gestiones: Semana, Día, Día del equipo y Mes |
+| Día del equipo | `teamDay` | Una fila por hunter y una columna por hora, para ver quién tiene lugar |
+| Ocupado (tapado) | `hidden` / `occupied` | Horario de un hunter con una empresa que quien mira no puede ver |
+| Bandejas | `trays` | Lo que va arriba de la agenda: Para contactar, Por asignar, Piden que se la pasen a otro, Bases para trabajar |
+| Para contactar | `toContact` | Personas con fecha de próximo contacto vencida o de hoy |
+| Tablero | `dashboard` | Los números de Gestiones en un período |
+| Oficial Payroll | `officer` (en el tablero) | El oficial dueño de la empresa |
 | Facultades | `permissions` | Lo que puede hacer cada perfil |
 | Perfil | `role` | Admin, VIP, asesor, Hunter, Líder, Prospect |
 

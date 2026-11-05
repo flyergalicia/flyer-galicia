@@ -73,6 +73,7 @@ const SCREENS: readonly ScreenCase[] = [
     screen: "commercial-actions-agenda",
     user: OFFICER,
     noFlyer: true,
+    inReact: true,
   },
   {
     name: "commercial-actions-dashboard",
@@ -80,6 +81,7 @@ const SCREENS: readonly ScreenCase[] = [
     user: OFFICER,
     noFlyer: true,
     contentOn: PHONE_AND_DESKTOP,
+    inReact: true,
   },
   ...BENCHMARK_VIEWS,
   { name: "admin-dashboard", screen: "admin-dashboard", user: ADMIN },

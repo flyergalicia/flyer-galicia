@@ -203,6 +203,24 @@ textarea.input:focus {
 }
 
 /* Twice: it has to win over the size of the button, whatever order the styles arrive in. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 3px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
 .small.small {
   padding: 6px 12px;
   font-size: var(--text-xs);

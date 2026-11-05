@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useBackend } from "@/shared/supabase/index.ts";
 import { readDayOccupancy, readHunterDay } from "../api/actions.ts";
 import type { TakenTime } from "../api/rows.ts";
-import { TO_LEADER } from "../model/action-form.ts";
+import { canAskDay } from "../model/action-form.ts";
 import { overlaps } from "../model/formatting.ts";
 import { HUNTER_DAY_KEY, takenText } from "../model/use-overlap-check.ts";
 import { canForce, huntersOf, nameOf, type Who } from "../model/who.ts";
@@ -114,10 +114,6 @@ function NothingThatDay({ who, hunter }: { readonly who: Who; readonly hunter: s
   return hunter === who.me
     ? "Ese día no tenés nada agendado."
     : `${nameOf(who, hunter)} no tiene nada agendado ese día.`;
-}
-
-function canAskDay(hunter: string, date: string, isDataList: boolean): boolean {
-  return Boolean(hunter) && hunter !== TO_LEADER && Boolean(date) && !isDataList;
 }
 
 export function Availability(props: AvailabilityProps) {

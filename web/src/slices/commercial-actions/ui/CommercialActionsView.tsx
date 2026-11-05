@@ -1,5 +1,5 @@
 // The tab Gestiones. Who sees what and who writes what is decided by the database: here it is only
-// drawn. The solapas of the agenda and of the dashboard are not here yet.
+// drawn.
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useActionRequests } from "@/shared/lib/commercial-actions/commercial-desk.ts";
@@ -7,19 +7,36 @@ import { useCommercialNotices } from "@/shared/lib/commercial-actions/commercial
 import type { ViewProps } from "@/shared/lib/view-props.ts";
 import { Button } from "@/shared/ui/index.ts";
 import { type ListFilters, NO_FILTERS } from "../model/action-list.ts";
+import { type AgendaPlace, NO_PLACE, savedView } from "../model/agenda-place.ts";
+import { type DashboardFilters, initialDashboardFilters } from "../model/dashboard.ts";
 import type { CompanyLine } from "../model/my-companies.ts";
 import type { PendingList } from "../model/use-action-saving.ts";
-import { invalidateActionList, invalidateUnread } from "../model/use-actions-data.ts";
+import {
+  invalidateActionList,
+  invalidateAgenda,
+  invalidateUnread,
+} from "../model/use-actions-data.ts";
 import { useWho } from "../model/use-who.ts";
 import { type InnerTab, subtitleOf, tabsOf, type Who } from "../model/who.ts";
 import { ActionDetail, type DetailTarget } from "./ActionDetail.tsx";
 import { ActionsList } from "./ActionsList.tsx";
+import { AgendaTab } from "./AgendaTab.tsx";
 import { CompaniesTab } from "./CompaniesTab.tsx";
+import { DashboardTab } from "./DashboardTab.tsx";
 import { ForwardWindow } from "./ForwardWindow.tsx";
 import { Chip } from "./parts.tsx";
 import styles from "./CommercialActions.module.css";
 
 const SEE_ALL_KEY = "fg_ges_vertodo";
+const AGENDA_VIEW_KEY = "fg_ges_agver";
+
+function readAgendaPlace() {
+  try {
+    return { ...NO_PLACE, view: savedView(localStorage.getItem(AGENDA_VIEW_KEY)) };
+  } catch {
+    return NO_PLACE;
+  }
+}
 
 function readSeeAll(): boolean {
   try {
@@ -149,6 +166,79 @@ function tabToShow(role: string, chosen: InnerTab | null): InnerTab {
   return tabs[0]?.[0] ?? "lista";
 }
 
+interface SolapaProps {
+  readonly tab: InnerTab;
+  readonly who: Who;
+  readonly myLeader: string | null;
+  readonly onlyMine: boolean;
+  readonly canSeeTrials: boolean;
+  readonly filters: ListFilters;
+  readonly onFilters: (filters: ListFilters) => void;
+  readonly companySearch: string;
+  readonly companyFilter: string;
+  readonly onCompanySearch: (search: string) => void;
+  readonly onCompanyFilter: (filter: string) => void;
+  readonly onForward: (company: CompanyLine) => void;
+  readonly agendaPlace: AgendaPlace;
+  readonly onAgendaPlace: (place: AgendaPlace) => void;
+  readonly dashboardFilters: DashboardFilters;
+  readonly onDashboardFilters: (filters: DashboardFilters) => void;
+  readonly onOpen: (id: string) => void;
+  readonly onOpenHere: (target: DetailTarget) => void;
+  readonly onOpenOnList: (id: string, pending: PendingList | null) => void;
+  readonly onRegister: () => void;
+}
+
+function SolapaOf(props: SolapaProps) {
+  const { tab, who, myLeader, onlyMine, canSeeTrials } = props;
+  if (tab === "lista") {
+    return (
+      <ActionsList
+        who={who}
+        onlyMine={onlyMine}
+        filters={props.filters}
+        onFilters={props.onFilters}
+        onOpen={props.onOpen}
+        onRegister={props.onRegister}
+      />
+    );
+  }
+  if (tab === "empresas") {
+    return (
+      <CompaniesTab
+        who={who}
+        onlyMine={onlyMine}
+        search={props.companySearch}
+        filter={props.companyFilter}
+        onSearch={props.onCompanySearch}
+        onFilter={props.onCompanyFilter}
+        onForward={props.onForward}
+      />
+    );
+  }
+  if (tab === "agenda") {
+    return (
+      <AgendaTab
+        who={who}
+        myLeader={myLeader}
+        place={props.agendaPlace}
+        onPlace={props.onAgendaPlace}
+        onOpen={props.onOpenHere}
+        onOpenAction={props.onOpenOnList}
+      />
+    );
+  }
+  return (
+    <DashboardTab
+      who={who}
+      onlyMine={onlyMine}
+      canSeeTrials={canSeeTrials}
+      filters={props.dashboardFilters}
+      onFilters={props.onDashboardFilters}
+    />
+  );
+}
+
 export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
   const who = useWho();
   const { isTestAccount, myLeader, me, role, isAdmin, people } = who;
@@ -164,6 +254,9 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
   const [companySearch, setCompanySearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("todas");
   const [forwarding, setForwarding] = useState<CompanyLine | null>(null);
+  const [agendaPlace, setAgendaPlace] = useState(readAgendaPlace);
+  const [dashboardFilters, setDashboardFilters] = useState(initialDashboardFilters);
+  const queryClient = useQueryClient();
   const { seesAll, onlyMine, toggle } = useSeeAll(stableWho);
   const { notices } = useCommercialNotices();
   useListFollowsNotices(notices.length, isActive && !target && isListOrAgenda(tab));
@@ -173,9 +266,15 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
     setTarget(next);
     window.scrollTo(0, 0);
   };
-  const open = (id: string) => {
-    setTarget({ id });
+  const openHere = (next: DetailTarget) => {
+    setTarget(next);
     window.scrollTo(0, 0);
+  };
+  const open = (id: string) => {
+    openHere({ id });
+  };
+  const openOnList = (id: string, pending: PendingList | null) => {
+    openTarget({ id, ...(pending ? { pendingList: pending.text } : {}) });
   };
   useActionRequests(({ id, complete }) => {
     openTarget({ id, complete });
@@ -213,7 +312,7 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
           </div>
         )}
         <div data-testid="commercial-screen">
-          {target && (
+          {target ? (
             <ActionDetail
               key={target.id}
               who={stableWho}
@@ -222,6 +321,7 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
               target={target}
               onBack={() => {
                 setTarget(null);
+                invalidateAgenda(queryClient);
               }}
               onBackToList={() => {
                 setChosen("lista");
@@ -229,31 +329,32 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
               }}
               onOpen={open}
             />
-          )}
-          {!target && tab === "lista" && (
-            <ActionsList
+          ) : (
+            <SolapaOf
+              tab={tab}
               who={stableWho}
+              myLeader={myLeader}
               onlyMine={onlyMine}
+              canSeeTrials={isAdmin || isTestAccount}
               filters={filters}
               onFilters={setFilters}
+              companySearch={companySearch}
+              companyFilter={companyFilter}
+              onCompanySearch={setCompanySearch}
+              onCompanyFilter={setCompanyFilter}
+              onForward={setForwarding}
+              agendaPlace={agendaPlace}
+              onAgendaPlace={setAgendaPlace}
+              dashboardFilters={dashboardFilters}
+              onDashboardFilters={setDashboardFilters}
               onOpen={open}
+              onOpenHere={openHere}
+              onOpenOnList={openOnList}
               onRegister={() => {
                 goToTab?.("hunter");
               }}
             />
           )}
-          {!target && tab === "empresas" && (
-            <CompaniesTab
-              who={stableWho}
-              onlyMine={onlyMine}
-              search={companySearch}
-              filter={companyFilter}
-              onSearch={setCompanySearch}
-              onFilter={setCompanyFilter}
-              onForward={setForwarding}
-            />
-          )}
-          {/* The agenda and the dashboard arrive with the second part: `gesAgenda`, `gesTablero`. */}
         </div>
         {forwarding && (
           <ForwardWindow
@@ -263,9 +364,9 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
             onClose={() => {
               setForwarding(null);
             }}
-            onOpenAction={(id, pending: PendingList | null) => {
+            onOpenAction={(id, pending) => {
               setForwarding(null);
-              openTarget({ id, ...(pending ? { pendingList: pending.text } : {}) });
+              openOnList(id, pending);
             }}
           />
         )}

@@ -101,21 +101,24 @@ test(
   },
 );
 
-// Part 2: the agenda.
-test("the agenda counts all the people of a huge data list", async ({ cloud, openApp }) => {
-  cloud.seedCommercialActions();
-  const { commercialActions: actions } = await openAsTeamMember(openApp, "officer");
+test(
+  "the agenda counts all the people of a huge data list",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    cloud.seedCommercialActions();
+    const { commercialActions: actions } = await openAsTeamMember(openApp, "officer");
 
-  await forwardADataListAndReadItWhole(cloud, actions);
+    await forwardADataListAndReadItWhole(cloud, actions);
 
-  await actions.goToTab("agenda");
-  expect
-    .soft(
-      await actions.waitForScreenText(/de 1103 contactados/),
-      "the agenda counts the 1103 people of the list",
-    )
-    .toMatch(/de 1103 contactados/);
-});
+    await actions.goToTab("agenda");
+    expect
+      .soft(
+        await actions.waitForScreenText(/de 1103 contactados/),
+        "the agenda counts the 1103 people of the list",
+      )
+      .toMatch(/de 1103 contactados/);
+  },
+);
 
 test(
   "when the list cannot be saved it stays pasted on the action to try again",

@@ -43,10 +43,10 @@ describe("the solapas", () => {
       .toBeVisible();
   });
 
-  it("a hunter enters on the agenda, which shows nothing yet", async () => {
+  it("a hunter enters on the agenda", async () => {
     await openCommercial({ role: "hunter" });
     await expect.element(tab("Mi agenda")).toHaveAttribute("aria-selected", "true");
-    await expect.element(page.getByTestId("commercial-screen")).toHaveTextContent("");
+    await expect.element(page.getByTestId("agenda")).toBeVisible();
     await expect.element(page.getByText(/Tu agenda con día y horario/)).toBeVisible();
   });
 

@@ -36,15 +36,17 @@ export function hasFilters(filters: ListFilters): boolean {
 
 export type UnreadByAction = ReadonlyMap<string, UnreadMessages>;
 
-export function isNewForHunter({ me }: Who, action: ListedAction): boolean {
+type WhatIsSeen = Pick<ListedAction, "hunter_id" | "dueno_id" | "visto_hunter" | "visto_dueno">;
+
+export function isNewForHunter({ me }: Who, action: WhatIsSeen): boolean {
   return action.hunter_id === me && !action.visto_hunter;
 }
 
-export function isNewForOwner({ me }: Who, action: ListedAction): boolean {
+export function isNewForOwner({ me }: Who, action: WhatIsSeen): boolean {
   return action.dueno_id === me && !action.visto_dueno;
 }
 
-export function isNew(who: Who, action: ListedAction): boolean {
+export function isNew(who: Who, action: WhatIsSeen): boolean {
   return isNewForHunter(who, action) || isNewForOwner(who, action);
 }
 
