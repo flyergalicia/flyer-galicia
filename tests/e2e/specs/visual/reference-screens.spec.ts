@@ -66,6 +66,7 @@ const SCREENS: readonly ScreenCase[] = [
     screen: "commercial-actions-list",
     user: OFFICER,
     noFlyer: true,
+    inReact: true,
   },
   {
     name: "commercial-actions-agenda",

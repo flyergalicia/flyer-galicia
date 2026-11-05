@@ -364,6 +364,9 @@ html.dark {
   --text-stat: 1.55rem;
   --text-studio: 1.35rem;
   --text-section: 18px;
+  --text-actions: 1.12rem;
+  --text-window: 1.02rem;
+  --text-figure: 1.5rem;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -602,9 +605,30 @@ html.dark {
   --promo-note-tx: #9a4b00;
   --promo-dot: #e11d2e;
   --province-menu-bg: var(--card);
+
+  /* Gestiones. */
+  --ges-ok: #2e7d32;
+  --ges-ok-soft: #e6f3e7;
+  --ges-info: #1d4070;
+  --ges-info-soft: #e8eef7;
+  --ges-warn: #9a5b00;
+  --ges-warn-soft: #fff2dc;
+  --ges-b1: #f5b79a;
+  --ges-grid: #ede7dc;
+  --ges-window-ov: rgba(20, 18, 15, 0.45);
+  --register-action-bg: #efefef;
+  --register-action-tx: #000;
 }
 
 html.dark {
+  --ges-ok: #7bc47f;
+  --ges-ok-soft: #1c2e1e;
+  --ges-info: #8fb3e8;
+  --ges-info-soft: #1c2636;
+  --ges-warn: #f0b35a;
+  --ges-warn-soft: #33281a;
+  --ges-b1: #7a3e22;
+  --ges-grid: #2a2e34;
   --account-footer-bg: #1b1e23;
   --close-hover-bg: #2a2f36;
   --close-hover-tx: #e9eaec;

@@ -1,4 +1,5 @@
 import { type Page } from "@playwright/test";
+import { type CommercialActionsDriver } from "../commercial-actions.ts";
 import { type CompanyRegistryDriver } from "../company-registry.ts";
 import { hunterRows } from "./hunter.ts";
 import { type LogoEditorDriver } from "../logo-editor.ts";
@@ -81,6 +82,7 @@ interface ScreenDrivers {
   readonly logoEditor: LogoEditorDriver;
   readonly logoStrip: LogoStripDriver;
   readonly studio: StudioDriver;
+  readonly commercialActions: CommercialActionsDriver;
 }
 
 /** Windows over the flyer: what they show is the point, and its photo alone weighs half an image. */
@@ -103,7 +105,15 @@ async function hideFlyer(page: Page): Promise<void> {
 
 function openers(
   page: Page,
-  { session, promotions, companyRegistry, logoEditor, logoStrip, studio }: ScreenDrivers,
+  {
+    session,
+    promotions,
+    companyRegistry,
+    logoEditor,
+    logoStrip,
+    studio,
+    commercialActions,
+  }: ScreenDrivers,
 ) {
   const ready: Partial<Record<ReferenceScreen, () => Promise<void>>> = {
     login: () =>
@@ -118,6 +128,10 @@ function openers(
       await page.mouse.move(0, 0);
     },
     studio: () => studio.open(),
+    "commercial-actions-list": async () => {
+      await commercialActions.open();
+      await commercialActions.goToTab("actions");
+    },
     "logo-editor": async () => {
       await logoEditor.enter();
       await logoEditor.waitForBrandCatalog();

@@ -1,19 +1,25 @@
 // Replaces pruebas/t93_gestiones_v2.cjs: three people at once on the same cloud, the way an
 // action goes around the team. Each step finds what the one before it left.
 import { dayFromToday, PEOPLE, today } from "../../support/cloud/commercial-actions/model.ts";
+import { type Cloud } from "../../support/cloud/index.ts";
 import { commercialTables, openAsTeamMember } from "../../support/commercial-team.ts";
+import { type CommercialActionsDriver } from "../../support/driver/commercial-actions.ts";
 import { expect, test } from "../../support/test.ts";
 
 const WAITING_MS = 15_000;
 
-test("an action goes from the officer to the hunter and the leader, and reaches the numbers", async ({
-  cloud,
-  openApp,
-}) => {
-  const seeded = cloud.seedCommercialActions();
+type Seeded = ReturnType<Cloud["seedCommercialActions"]>;
+type OpenApp = Parameters<typeof openAsTeamMember>[0];
+
+/** From the officer to the hunter: what does not need the agenda nor the dashboard. */
+async function fromTheOfficerToTheHunter(
+  cloud: Cloud,
+  openApp: OpenApp,
+  seeded: Seeded,
+): Promise<{ readonly officer: CommercialActionsDriver }> {
   const tables = commercialTables(cloud);
   const actionById = (id: string) => tables.actions.find((action) => action.id === id);
-  const { forwardedWithQuestion, cannotAttend, doneWithSignups } = seeded;
+  const { forwardedWithQuestion, doneWithSignups } = seeded;
   const { commercialActions: officer } = await openAsTeamMember(openApp, "officer");
 
   await test.step("the officer reads the question of the hunter and answers", async () => {
@@ -152,6 +158,27 @@ test("an action goes from the officer to the hunter and the leader, and reaches 
       )
       .toMatch(/marcó el alta de Walter/);
   });
+  return { officer };
+}
+
+test(
+  "an action goes from the officer to the hunter, with its conversation and its people",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    await fromTheOfficerToTheHunter(cloud, openApp, cloud.seedCommercialActions());
+  },
+);
+
+// Part 2: the trays of the agenda and the dashboard.
+test("an action goes from the officer to the hunter and the leader, and reaches the numbers", async ({
+  cloud,
+  openApp,
+}) => {
+  const seeded = cloud.seedCommercialActions();
+  const tables = commercialTables(cloud);
+  const actionById = (id: string) => tables.actions.find((action) => action.id === id);
+  const { forwardedWithQuestion, cannotAttend } = seeded;
+  const { officer } = await fromTheOfficerToTheHunter(cloud, openApp, seeded);
 
   const leaderApp = await openAsTeamMember(openApp, "leader");
   const { commercialActions: leader, page: leaderPage } = leaderApp;

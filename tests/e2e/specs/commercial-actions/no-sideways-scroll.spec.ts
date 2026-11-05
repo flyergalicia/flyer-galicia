@@ -14,33 +14,52 @@ const SCREENS = [
 const PHONE_BELOW_WIDTH = 800;
 
 const TABS_OF: readonly (readonly [PersonKey, readonly CommercialTab[]])[] = [
-  ["officer", ["companies", "agenda", "actions", "dashboard"]],
-  ["hunter", ["agenda", "actions", "dashboard"]],
-  ["leader", ["agenda", "dashboard", "actions"]],
+  ["officer", ["companies", "actions"]],
+  ["hunter", ["actions"]],
+  ["leader", ["actions"]],
 ];
 
-test.describe("no solapa of Gestiones scrolls sideways", () => {
-  for (const [person, tabs] of TABS_OF) {
-    for (const { width, height } of SCREENS) {
-      test(`${person} at ${String(width)} px`, async ({ cloud, openApp }) => {
-        cloud.seedCommercialActions();
-        const app = await openAsTeamMember(openApp, person, {
-          viewport: { width, height },
-          touch: width < PHONE_BELOW_WIDTH,
-        });
+// Part 2: these solapas arrive with the agenda and the dashboard.
+const OTHER_TABS_OF: readonly (readonly [PersonKey, readonly CommercialTab[]])[] = [
+  ["officer", ["agenda", "dashboard"]],
+  ["hunter", ["agenda", "dashboard"]],
+  ["leader", ["agenda", "dashboard"]],
+];
 
-        for (const tab of tabs) {
-          await app.commercialActions.goToTab(tab);
-          expect
-            .soft(await app.commercialActions.sidewaysOverflow(), `${person}, ${tab}`)
-            .toEqual([]);
-        }
-      });
+function checkEachScreen(
+  people: readonly (readonly [PersonKey, readonly CommercialTab[]])[],
+  details: { tag?: string },
+): void {
+  for (const [person, tabs] of people) {
+    for (const { width, height } of SCREENS) {
+      test(
+        `${person} at ${String(width)} px: ${tabs.join(", ")}`,
+        details,
+        async ({ cloud, openApp }) => {
+          cloud.seedCommercialActions();
+          const app = await openAsTeamMember(openApp, person, {
+            viewport: { width, height },
+            touch: width < PHONE_BELOW_WIDTH,
+          });
+
+          for (const tab of tabs) {
+            await app.commercialActions.goToTab(tab);
+            expect
+              .soft(await app.commercialActions.sidewaysOverflow(), `${person}, ${tab}`)
+              .toEqual([]);
+          }
+        },
+      );
     }
   }
+}
+
+test.describe("no solapa of Gestiones scrolls sideways", () => {
+  checkEachScreen(TABS_OF, { tag: "@react" });
+  checkEachScreen(OTHER_TABS_OF, {});
 });
 
-test.describe("the filters of Mis empresas", () => {
+test.describe("the filters of Mis empresas", { tag: "@react" }, () => {
   test("tell forwarded companies from the others, and say how many each has", async ({
     cloud,
     openApp,

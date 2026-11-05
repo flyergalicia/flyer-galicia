@@ -17,8 +17,9 @@ export type ModalSize = "narrow" | "regular" | "medium" | "wide";
  * "account": the windows of one's own account and of the users of the panel.
  * "dialog": those over the flyer, with what is behind them dimmed and out of focus.
  * "viewer": the one that shows a whole flyer, over a dark background and from edge to edge.
+ * "sheet": those of Gestiones, with a light veil and no border of their own.
  */
-export type ModalLook = "window" | "account" | "dialog" | "viewer";
+export type ModalLook = "window" | "account" | "dialog" | "viewer" | "sheet";
 
 type ModalContextValue = {
   readonly titleId: string;

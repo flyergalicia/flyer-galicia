@@ -26,6 +26,7 @@ import { createLegacyScreensDriver } from "./legacy/screens.ts";
 import { createLegacySearchDriver } from "./legacy/search.ts";
 import { createLegacySessionDriver } from "./legacy/session.ts";
 import { createLegacyStudioDriver } from "./legacy/studio.ts";
+import { createReactCommercialActionsDriver } from "./react/commercial-actions.ts";
 import { createReactCompanyRegistryDriver } from "./react/company-registry.ts";
 import { createReactFlyerDrawingDriver } from "./react/flyer-drawing.ts";
 import { createReactFlyerEditorDriver } from "./react/flyer-editor.ts";
@@ -88,6 +89,7 @@ function createReactAppDriver(page: Page): AppDriver {
   const logoEditor = createReactLogoEditorDriver(page);
   const logoStrip = createReactLogoStripDriver(page);
   const studio = createReactStudioDriver(page);
+  const commercialActions = createReactCommercialActionsDriver(page);
   return {
     page,
     session,
@@ -104,7 +106,7 @@ function createReactAppDriver(page: Page): AppDriver {
     promotions,
     companyRegistry,
     studio,
-    commercialActions: partialDriver("commercialActions"),
+    commercialActions,
     benchmark: partialDriver("benchmark"),
     admin: partialDriver("admin"),
     search: partialDriver("search"),
@@ -115,6 +117,7 @@ function createReactAppDriver(page: Page): AppDriver {
       logoEditor,
       logoStrip,
       studio,
+      commercialActions,
     }),
   };
 }

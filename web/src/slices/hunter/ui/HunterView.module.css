@@ -394,6 +394,14 @@
   flex-shrink: 0;
 }
 
+/* It has no look of its own on the current app: what a button of the system brings. */
+.registerButton {
+  gap: 6px;
+  border: none;
+  background: var(--register-action-bg);
+  color: var(--register-action-tx);
+}
+
 .others {
   position: relative;
   flex-shrink: 0;

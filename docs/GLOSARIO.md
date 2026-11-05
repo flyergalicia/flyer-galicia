@@ -35,6 +35,11 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Estudio | `studio` | Diseños guardados y su publicación |
 | Flyers para copiar | `sourceFlyer` | Depósito de flyers de donde se copia una sección |
 | Gestiones | `commercial-actions` | Visitas, ferias y altas con su tablero |
+| Gestión, acción | `action` | Una visita, feria, posición comercial o base de datos, en la tabla `gestiones` |
+| Derivar | `forward` | El oficial le pasa una acción a un hunter o al líder |
+| Base de datos (de una acción) | `dataList` | Una lista de personas para contactar. No es la "Base de datos" del menú del nombre |
+| Que la asigne el líder, por asignar | `toLeader` | Una acción derivada que todavía no tiene hunter |
+| No puedo ir | `cannotAttend` | El hunter avisa que hay que pasársela a otro |
 | Prospecto | `prospect` | Persona contactada en una gestión |
 | Alta | `signup` | Prospecto que abrió un paquete |
 | Paquete | `accountPackage` | Producto del banco que capta el hunter |

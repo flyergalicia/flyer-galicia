@@ -8,6 +8,7 @@ import {
   MyProposalsSource,
   PendingProposalsSource,
 } from "@/shared/lib/company-registry/proposal-notices.tsx";
+import { CommercialNoticeSource } from "@/shared/lib/commercial-actions/CommercialNoticeSource.tsx";
 import { StudioNoticeSource } from "@/shared/lib/studio/StudioNoticeSource.tsx";
 import type { TitleKey } from "@/shared/domain/screen-titles.ts";
 import type { MenuWindowProps, NoticeSourceProps, ViewProps } from "@/shared/lib/view-props.ts";
@@ -114,7 +115,10 @@ export const APP_VIEWS: readonly AppView[] = [
     hostId: "commercial-actions",
     screen: "commercial-actions",
     visible: ({ commercialActionsOn }) => commercialActionsOn,
-    load: pendingView,
+    load: () =>
+      import("@/slices/commercial-actions/index.ts").then(({ CommercialActionsView }) => ({
+        default: CommercialActionsView,
+      })),
     loadFailure: "No se pudo cargar Gestiones. Revisá la conexión e intentá de nuevo.",
   },
 ];
@@ -138,6 +142,7 @@ const pendingWindow = (): Promise<LoadedWindow> => import("./PendingWindow.tsx")
 const PROPOSALS_SOURCE = "proposals";
 const MY_PROPOSALS_SOURCE = "myProposals";
 const STUDIO_SOURCE = "studio";
+const COMMERCIAL_SOURCE = "commercial";
 
 /** What opens a window from the name menu, above the theme. */
 export const MENU_WINDOWS_ABOVE: readonly MenuWindow[] = [
@@ -213,4 +218,12 @@ export const NOTICE_SOURCES: Readonly<Record<string, ComponentType<NoticeSourceP
   [PROPOSALS_SOURCE]: PendingProposalsSource,
   [MY_PROPOSALS_SOURCE]: MyProposalsSource,
   [STUDIO_SOURCE]: StudioNoticeSource,
+  [COMMERCIAL_SOURCE]: CommercialNoticeSource,
 };
+
+/** "Registrar gestión" of the screen of the Hunter: its window comes with the code of Gestiones. */
+export function loadRegisterWindow() {
+  return import("@/slices/commercial-actions/index.ts").then(
+    ({ RegisterActionWindow }) => RegisterActionWindow,
+  );
+}

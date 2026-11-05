@@ -30,6 +30,7 @@ import {
 import { useFlyerForm } from "../model/form-context.ts";
 import { categoryForReview, officersForReview, restoredForm } from "../model/form-state.ts";
 import { useCompanyBringing } from "../model/use-company-bringing.ts";
+import { useCompanyRequest } from "../model/use-company-request.ts";
 import { useFlyerDownload } from "../model/use-flyer-download.ts";
 import { useFlyerOnScreen } from "../model/use-flyer-on-screen.ts";
 import { useFlyerRules } from "../model/use-flyer-rules.ts";
@@ -162,6 +163,7 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
   );
   const review = useCompanyReview({ readForm, onNote });
   const bringing = useCompanyBringing({ review, choose, goToTab });
+  useCompanyRequest(bringing.bring);
   const hooks = {
     checkBefore: bringing.checkBeforeDownload,
     afterDownload: review.reviewAfterDownload,

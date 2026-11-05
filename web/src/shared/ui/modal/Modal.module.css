@@ -104,6 +104,12 @@
   background: var(--viewer-ov);
 }
 
+.sheet {
+  z-index: 10000;
+  padding: 16px;
+  background: var(--ges-window-ov);
+}
+
 .account {
   z-index: 1200;
   padding: 0;

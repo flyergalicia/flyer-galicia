@@ -1,5 +1,9 @@
 // Test support: the screen of the Hunter over a simulated cloud.
 import { render } from "vitest-browser-react";
+import {
+  type CommercialDesk,
+  CommercialDeskContext,
+} from "@/shared/lib/commercial-actions/commercial-desk.ts";
 import { LOGO_A, paintedFlyer } from "@/shared/lib/flyer-workspace/testing/painted-flyer.ts";
 import { ADVISOR, type AppAnswers, createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
 import { type Answer, jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
@@ -48,6 +52,8 @@ export function flyerFiles() {
 }
 
 export interface HunterCloud extends AppAnswers {
+  /** Who the screen talks to about Gestiones. */
+  readonly desk?: CommercialDesk;
   readonly companies?: readonly Row[] | Answer;
   readonly proposals?: readonly Row[] | Answer;
   readonly permissions?: Readonly<Record<string, boolean>>;
@@ -80,9 +86,18 @@ export function hunterHarness(cloud: HunterCloud = {}) {
   return { harness, bucketFiles };
 }
 
-export async function openHunter(cloud: HunterCloud = {}, isActive = true) {
+export async function openHunter({ desk, ...cloud }: HunterCloud = {}, isActive = true) {
   const { harness, bucketFiles } = hunterHarness(cloud);
-  const view = (active: boolean) => harness.wrap(<HunterStage isActive={active} />);
+  const view = (active: boolean) =>
+    harness.wrap(
+      desk ? (
+        <CommercialDeskContext.Provider value={desk}>
+          <HunterStage isActive={active} />
+        </CommercialDeskContext.Provider>
+      ) : (
+        <HunterStage isActive={active} />
+      ),
+    );
   const screen = await render(view(isActive));
   return {
     screen,

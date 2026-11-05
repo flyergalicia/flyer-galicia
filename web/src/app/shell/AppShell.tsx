@@ -25,6 +25,7 @@ import {
   SEARCH_WINDOW,
 } from "../registry/views.ts";
 import { AppHeader } from "./AppHeader.tsx";
+import { CommercialDeskHost } from "./CommercialDeskHost.tsx";
 import { LoadBoundary } from "./LoadBoundary.tsx";
 import { PromotionPickingHost } from "./PromotionPickingHost.tsx";
 import { useWaitingNotices } from "./use-waiting-notices.tsx";
@@ -127,42 +128,44 @@ export function AppShell({
   return (
     <FlyerGenerationHost onNeedEditor={onNeedEditor}>
       <DesignDeskHost onNeedEditor={onNeedEditor}>
-        <div className={styles.shell}>
-          {reporters}
-          <AppHeader
-            activeId={activeId}
-            titles={titles}
-            rules={rules}
-            name={displayName}
-            role={role}
-            isAdmin={isAdmin}
-            isTestAccount={profile.es_prueba}
-            notice={notice}
-            onSelectView={setChosen}
-            onOpenWindow={showWindow}
-            onOpenSearch={showSearch}
-            onOpenAdmin={showAdmin}
-          />
-          <PromotionPickingHost activeId={activeId} goTo={setChosen}>
-            <ViewHost
+        <CommercialDeskHost goTo={setChosen}>
+          <div className={styles.shell}>
+            {reporters}
+            <AppHeader
               activeId={activeId}
-              alsoOpen={needsEditor ? FLYER_EDITOR_HOST_ID : undefined}
-              goToTab={setChosen}
-              openMenuWindow={openMenuWindow}
+              titles={titles}
+              rules={rules}
+              name={displayName}
+              role={role}
+              isAdmin={isAdmin}
+              isTestAccount={profile.es_prueba}
+              notice={notice}
+              onSelectView={setChosen}
+              onOpenWindow={showWindow}
+              onOpenSearch={showSearch}
+              onOpenAdmin={showAdmin}
             />
-          </PromotionPickingHost>
-          {Window && (
-            <LoadBoundary
-              key={openWindow.id}
-              message="No se pudo abrir. Revisá la conexión e intentá de nuevo."
-              onRetry={closeWindow}
-            >
-              <Suspense fallback={null}>
-                <Window onClose={closeWindow} />
-              </Suspense>
-            </LoadBoundary>
-          )}
-        </div>
+            <PromotionPickingHost activeId={activeId} goTo={setChosen}>
+              <ViewHost
+                activeId={activeId}
+                alsoOpen={needsEditor ? FLYER_EDITOR_HOST_ID : undefined}
+                goToTab={setChosen}
+                openMenuWindow={openMenuWindow}
+              />
+            </PromotionPickingHost>
+            {Window && (
+              <LoadBoundary
+                key={openWindow.id}
+                message="No se pudo abrir. Revisá la conexión e intentá de nuevo."
+                onRetry={closeWindow}
+              >
+                <Suspense fallback={null}>
+                  <Window onClose={closeWindow} />
+                </Suspense>
+              </LoadBoundary>
+            )}
+          </div>
+        </CommercialDeskHost>
       </DesignDeskHost>
     </FlyerGenerationHost>
   );

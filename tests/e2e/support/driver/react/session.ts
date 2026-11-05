@@ -618,6 +618,9 @@ export function createReactSessionDriver(page: Page): SessionDriver {
       }
       return page.locator(`[data-screen="${place}"]`).isVisible();
     },
+    waitForCommercialActions: async () => {
+      await headerTab(page, "Gestiones").waitFor({ timeout: ENTRY_TIMEOUT_MS });
+    },
     isDarkMode: () => page.evaluate(() => document.documentElement.classList.contains("dark")),
     toggleDarkMode: async () => {
       await openUserMenu(page);

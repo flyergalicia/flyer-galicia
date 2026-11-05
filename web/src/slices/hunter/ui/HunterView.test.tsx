@@ -3,6 +3,10 @@ import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { saveFlyerPdf } from "@/shared/flyer-engine/index.ts";
+import {
+  createCommercialDesk,
+  type RegisterableCompany,
+} from "@/shared/lib/commercial-actions/commercial-desk.ts";
 import { failure, success } from "@/shared/supabase/index.ts";
 import {
   deferred,
@@ -921,5 +925,147 @@ describe("proposing officers", () => {
     await vi.waitFor(() => {
       expect(harness.network.to("/rest/v1/padron_propuestas").length).toBeGreaterThan(before);
     });
+  });
+});
+
+const registerButton = () => page.getByTestId("hunter-register");
+
+function deskAround() {
+  const goTo = vi.fn<(tabId: string) => void>();
+  const register = vi.fn<(company: RegisterableCompany) => void>();
+  return { goTo, register, desk: createCommercialDesk({ goTo, onRegister: register }) };
+}
+
+describe("Gestiones on this screen", () => {
+  const WITH_COMMERCIAL = { opcion_9: true, gestiones: true };
+
+  it("with Gestiones off there is no button, and Alt+G does nothing", async () => {
+    const { desk, register } = deskAround();
+    await openHunter({ companies: [company("ACME SA")], desk, permissions: WITH_COMMERCIAL });
+    await choose("ACME SA");
+    await expect.element(downloadButton()).toBeEnabled();
+    await expect.element(registerButton()).not.toBeInTheDocument();
+    await userEvent.keyboard("{Alt>}g{/Alt}");
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it("with Gestiones on it registers the company chosen", async () => {
+    const { desk, register } = deskAround();
+    await openHunter({
+      companies: [company("ACME SA")],
+      desk,
+      commercialFlag: "on",
+      permissions: WITH_COMMERCIAL,
+    });
+    await expect.element(registerButton()).toBeVisible();
+    await expect
+      .element(registerButton())
+      .toHaveAttribute("title", "Registrar gestión de la empresa elegida (Alt+G)");
+
+    await registerButton().click();
+    await expect.element(notice()).toHaveTextContent("Elegí primero una empresa de la lista.");
+    expect(register).not.toHaveBeenCalled();
+
+    await choose("ACME SA");
+    await registerButton().click();
+    expect(register.mock.calls[0]?.[0]).toMatchObject({ empresa: "ACME SA", user_id: OWNER });
+  });
+
+  it("Alt+G does the same, only with the screen on top and no window open", async () => {
+    const { desk, register } = deskAround();
+    const { show } = await openHunter({
+      companies: [company("ACME SA")],
+      desk,
+      commercialFlag: "on",
+      permissions: WITH_COMMERCIAL,
+    });
+    await choose("ACME SA");
+    await expect.element(registerButton()).toBeVisible();
+
+    await userEvent.keyboard("{Alt>}g{/Alt}");
+    expect(register).toHaveBeenCalledOnce();
+
+    await userEvent.keyboard("{Control>}{Alt>}g{/Alt}{/Control}");
+    expect(register).toHaveBeenCalledOnce();
+
+    await show(false);
+    await userEvent.keyboard("{Alt>}g{/Alt}");
+    expect(register).toHaveBeenCalledOnce();
+  });
+
+  it("Alt+G does nothing with a window on top", async () => {
+    const { desk, register } = deskAround();
+    await openHunter({
+      companies: [company("ACME SA")],
+      desk,
+      commercialFlag: "on",
+      permissions: WITH_COMMERCIAL,
+    });
+    await choose("ACME SA");
+    await expect.element(registerButton()).toBeVisible();
+    const somethingOnTop = document.createElement("div");
+    somethingOnTop.setAttribute("aria-modal", "true");
+    document.body.append(somethingOnTop);
+
+    await userEvent.keyboard("{Alt>}g{/Alt}");
+    expect(register).not.toHaveBeenCalled();
+
+    somethingOnTop.remove();
+    await userEvent.keyboard("{Alt>}g{/Alt}");
+    expect(register).toHaveBeenCalledOnce();
+  });
+
+  it("does not take a company with no officer", async () => {
+    const { desk, register } = deskAround();
+    await openHunter({
+      companies: [company("ACME SA", { user_id: null })],
+      desk,
+      commercialFlag: "on",
+      permissions: WITH_COMMERCIAL,
+    });
+    await choose("ACME SA");
+    await registerButton().click();
+    await expect
+      .element(notice())
+      .toHaveTextContent("No se pudo identificar al oficial de esa empresa. Volvé a buscarla.");
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it('"Ver su flyer" leaves the company written and chooses the first one', async () => {
+    const { desk } = deskAround();
+    await openHunter({ companies: [company("ACME SA"), company("BETA SA")], desk });
+    await expect.element(row("BETA SA")).toBeVisible();
+
+    desk.showFlyer("hunter", { company: " BETA SA ", taxIds: null });
+
+    await expect.element(search()).toHaveValue("BETA SA");
+    await expect.element(downloadButton()).toBeEnabled();
+  });
+
+  it("if it arrives before the list, it waits for it", async () => {
+    const { desk } = deskAround();
+    desk.showFlyer("hunter", { company: "BETA SA", taxIds: null });
+    await openHunter({ companies: [company("BETA SA")], desk });
+    await expect.element(search()).toHaveValue("BETA SA");
+    await expect.element(downloadButton()).toBeEnabled();
+  });
+
+  it("if it is not there, it says so", async () => {
+    const { desk } = deskAround();
+    await openHunter({ companies: [company("ACME SA")], desk });
+    await expect.element(row("ACME SA")).toBeVisible();
+    desk.showFlyer("hunter", { company: "NINGUNA", taxIds: null });
+    await expect
+      .element(notice())
+      .toHaveTextContent("No encontré «NINGUNA» en las empresas que podés bajar.");
+  });
+
+  it("if the companies could not be read, it does not say it is not there", async () => {
+    const { desk } = deskAround();
+    await openHunter({ companies: CUT, desk });
+    await expect.element(retry()).toBeVisible();
+    desk.showFlyer("hunter", { company: "NINGUNA", taxIds: null });
+    await expect.element(search()).toHaveValue("NINGUNA");
+    await expect.element(page.getByText(/No encontré/)).not.toBeInTheDocument();
   });
 });

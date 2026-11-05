@@ -34,6 +34,7 @@ export const Wide: Story = { args: { size: "wide" } };
 export const Account: Story = { args: { size: "narrow", look: "account" } };
 export const OverTheFlyer: Story = { args: { size: "wide", look: "dialog" } };
 export const ShowingAFlyer: Story = { args: { size: "wide", look: "viewer" } };
+export const OfCommercialActions: Story = { args: { size: "regular", look: "sheet" } };
 
 /** A window with a header of its own: the title is what names it. */
 export const OwnHeader: StoryObj<typeof Modal> = {

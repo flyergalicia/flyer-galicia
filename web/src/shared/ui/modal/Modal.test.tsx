@@ -150,6 +150,17 @@ describe("Modal", () => {
     expect(panel.parentElement?.className).toMatch(/dialog/);
   });
 
+  it("has the look of the windows of Gestiones", async () => {
+    const screen = await render(
+      <Modal look="sheet" onClose={vi.fn<() => void>()}>
+        <Modal.Title>Una ventana</Modal.Title>
+      </Modal>,
+    );
+    await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
+    const overlay = document.querySelector("dialog")?.parentElement;
+    expect(overlay ? getComputedStyle(overlay).zIndex : "").toBe("10000");
+  });
+
   it("has the look of the windows of one's own account", async () => {
     const screen = await render(
       <Modal look="account" size="medium" onClose={vi.fn<() => void>()}>

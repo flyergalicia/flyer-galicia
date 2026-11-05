@@ -2,8 +2,12 @@
 // its officers, its cashback, its caps and the legal text that goes with that flyer. Nothing is built
 // here: it reuses what makes the ZIP, and who sees what is decided by the database.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCommercialDesk,
+  useFlyerRequests,
+} from "@/shared/lib/commercial-actions/commercial-desk.ts";
 import { optionNumber, optionTab } from "@/shared/domain/flyer-options.ts";
-import type { Company } from "@/shared/domain/company-registry/index.ts";
+import { type Company, searchCompanies } from "@/shared/domain/company-registry/index.ts";
 import { titleOf } from "@/shared/domain/screen-titles.ts";
 import { useScreenTitles } from "@/shared/lib/app-config/screen-titles-query.ts";
 import type { CompanyBatchProgress } from "@/shared/lib/flyer-workspace/company-batch/company-batch.ts";
@@ -17,8 +21,9 @@ import {
 import { usePrimaryAction } from "@/shared/lib/primary-action/primary-action-context.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import type { ViewProps } from "@/shared/lib/view-props.ts";
-import { usePermissions } from "@/shared/session/index.ts";
-import { Field, Input } from "@/shared/ui/index.ts";
+import { hasOpenWindow } from "@/shared/lib/primary-action/has-open-window.ts";
+import { useCommercialActionsFlag, usePermissions } from "@/shared/session/index.ts";
+import { Button, Field, Input } from "@/shared/ui/index.ts";
 import { DEFAULT_CAP, flyerOfCompany } from "../model/company-flyer-rules.ts";
 import { listStatus } from "../model/list-status.ts";
 import type { PictureZoom } from "../model/picture-zoom.ts";
@@ -88,6 +93,81 @@ function hasOwner(company: Company): company is Company & { readonly user_id: st
   return Boolean(company.user_id);
 }
 
+/** Alt+G. Not Ctrl+G, which on some browsers searches the web; `code` because of Option+G on a Mac. */
+function isRegisterKey(event: KeyboardEvent): boolean {
+  if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return false;
+  return event.code === "KeyG" || event.key === "g" || event.key === "G";
+}
+
+/** "Registrar gestión": it is there when Gestiones is on for this person. */
+function useRegisterAction(isActive: boolean, company: Company | null) {
+  const { show } = useToast();
+  const desk = useCommercialDesk();
+  const { on } = useCommercialActionsFlag();
+  const register = () => {
+    if (!company) show("Elegí primero una empresa de la lista.");
+    else if (hasOwner(company)) desk?.register(company);
+    else show("No se pudo identificar al oficial de esa empresa. Volvé a buscarla.");
+  };
+  const latest = useRef(register);
+  useEffect(() => {
+    latest.current = register;
+  });
+  useEffect(() => {
+    if (!isActive || !on) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (!isRegisterKey(event) || hasOpenWindow()) return;
+      event.preventDefault();
+      latest.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [isActive, on]);
+  return on ? register : null;
+}
+
+function RegisterButton({ onRegister }: { readonly onRegister: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      icon="pencil"
+      className={styles.registerButton}
+      title="Registrar gestión de la empresa elegida (Alt+G)"
+      aria-keyshortcuts="Alt+G"
+      data-testid="hunter-register"
+      onClick={onRegister}
+    >
+      Registrar gestión
+    </Button>
+  );
+}
+
+/**
+ * "Ver su flyer" of an action of Gestiones: the company stays written and the first one is chosen. If
+ * the companies could not be read the list says so: it is not that it was not found.
+ */
+function useFlyerRequest(list: HunterList, chooseAt: (company: Company, position: number) => void) {
+  const { show } = useToast();
+  const { setQuery, companiesLoading, problem, all } = list;
+  const wanted = useRef<string | null>(null);
+  useFlyerRequests("hunter", ({ company }) => {
+    wanted.current = company.trim();
+    setQuery(wanted.current);
+  });
+  useEffect(() => {
+    const name = wanted.current;
+    if (name === null || companiesLoading) return;
+    wanted.current = null;
+    const [first] = searchCompanies(name, all, MAX_LISTED);
+    if (first) chooseAt(first, 0);
+    else if (problem !== "companies") {
+      show(`No encontré «${name}» en las empresas que podés bajar.`);
+    }
+  });
+}
+
 function HunterScreen({ isActive }: ViewProps) {
   const { titles } = useScreenTitles();
   const { show } = useToast();
@@ -127,6 +207,8 @@ function HunterScreen({ isActive }: ViewProps) {
     },
     [show],
   );
+  useFlyerRequest(list, chooseAt);
+  const register = useRegisterAction(isActive, hits[selected] ?? null);
   const downloadTicked = () => {
     void batch.generate({
       companies: multiple.list,
@@ -217,6 +299,7 @@ function HunterScreen({ isActive }: ViewProps) {
           void preview.download();
         }}
         onMultiple={multiple.toggle}
+        action={register && <RegisterButton onRegister={register} />}
       />
       {proposing && (
         <ProposalWindow
