@@ -369,6 +369,8 @@ html.dark {
   --text-figure: 1.5rem;
   --text-range: 0.92rem;
   --text-day: 0.95rem;
+  --text-benchmark: 1.25rem;
+  --text-editor: 1.17rem;
   --text-chart: 10px;
   --weight-regular: 400;
   --weight-medium: 500;
@@ -619,11 +621,30 @@ html.dark {
   --ges-b1: #f5b79a;
   --ges-grid: #ede7dc;
   --ges-window-ov: rgba(20, 18, 15, 0.45);
-  --register-action-bg: #efefef;
-  --register-action-tx: #000;
+  /* A button with no look of its own on the current app: what a button of the system brings. */
+  --system-button-bg: #efefef;
+  --system-button-tx: #000;
+  --register-action-bg: var(--system-button-bg);
+  --register-action-tx: var(--system-button-tx);
+
+  /* Benchmark. */
+  --bench-win-line: #2e7d32;
+  --bench-win-tx: #2e7d32;
+  --bench-pill-on-bg: var(--navy);
+  --bench-pill-on-tx: #fff;
+  --bench-best-row: rgba(242, 97, 34, 0.08);
+  /* A text field with the focus: in dark mode its border does not light up, only its ring. */
+  --bench-focus-line: var(--accent);
+  /* Labels go gray; in dark mode the rule of every label of the current app makes them lighter. */
+  --bench-label-tx: var(--gray);
 }
 
 html.dark {
+  --bench-win-tx: #7bc47f;
+  --bench-pill-on-bg: #eef1f6;
+  --bench-pill-on-tx: #15171a;
+  --bench-focus-line: var(--border);
+  --bench-label-tx: var(--ink-2);
   --ges-ok: #7bc47f;
   --ges-ok-soft: #1c2e1e;
   --ges-info: #8fb3e8;

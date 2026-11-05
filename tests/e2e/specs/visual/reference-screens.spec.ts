@@ -46,7 +46,7 @@ const BENCHMARK_VIEWS: readonly ScreenCase[] = (
     ["benchmark-versus", PHONE_AND_DESKTOP],
     ["benchmark-cards", PHONE_AND_DESKTOP],
   ] as const
-).map(([screen, contentOn]) => ({ name: screen, screen, user: ADMIN, contentOn }));
+).map(([screen, contentOn]) => ({ name: screen, screen, user: ADMIN, contentOn, inReact: true }));
 
 const SCREENS: readonly ScreenCase[] = [
   { name: "login", screen: "login", noFlyer: true, inReact: true },

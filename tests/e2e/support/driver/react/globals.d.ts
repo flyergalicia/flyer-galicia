@@ -1,4 +1,10 @@
 // What the React app lets a test read: see web/src/shared/lib/test-probe.ts.
+import {
+  type BenchmarkOffer,
+  type BenchmarkOfferQuery,
+  type BenchmarkPresentation,
+  type BenchmarkPromotion,
+} from "../benchmark.ts";
 import { type CatalogPromotion, type PromotionQuery, type PromotionZone } from "../promotions.ts";
 
 export interface PromotionsProbe {
@@ -267,6 +273,17 @@ export interface FlyerKnowledgeProbe {
   isGenerating(): boolean;
 }
 
+export interface BenchmarkProbe {
+  promotions(): BenchmarkPromotion[];
+  bestOffer(query: BenchmarkOfferQuery): BenchmarkOffer | null;
+  mostInstallments(bank: string): number | null;
+  present(row: Record<string, unknown>): BenchmarkPresentation;
+}
+
+export interface PermissionsProbe {
+  startsAllowed(role: string, key: string): boolean;
+}
+
 declare global {
   interface Window {
     // Registered by each screen when it is opened.
@@ -287,6 +304,8 @@ declare global {
       readonly hunterPreview?: () => HunterPreviewProbe;
       readonly studioNotices?: () => { questions: number; shared: number };
       readonly pdfReader?: () => { version: string };
+      readonly benchmark?: () => BenchmarkProbe;
+      readonly permissions?: () => PermissionsProbe;
       readonly pdfConversion?: () => {
         withBands(file: File, bandHeight: number): Promise<HTMLCanvasElement | null>;
       };

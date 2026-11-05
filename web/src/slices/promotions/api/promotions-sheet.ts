@@ -17,6 +17,7 @@ import {
 } from "@/shared/domain/promotions/index.ts";
 import { createLibraryLoader, type LibraryLoader } from "@/shared/lib/library-loader.ts";
 import { fetchLogoFile } from "@/shared/lib/promotions/logo-file.ts";
+import { saveFile, SHEET_TYPE } from "@/shared/lib/save-file.ts";
 import type ExcelJS from "exceljs";
 import type { ResultRow } from "../model/result-rows.ts";
 
@@ -25,8 +26,6 @@ const MAX_ROWS_WITH_LOGOS = 150;
 const LOGOS_AT_ONCE = 6;
 const LOGO_SIZE = 26;
 const ROW_HEIGHT = 32;
-const NEW_TAB_REVOKE_MS = 4000;
-const SHEET_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const LINK_COLOR = "FF1155CC";
 const NO_FILL = "FFFFFFFF";
 
@@ -212,19 +211,6 @@ function fileNameOf(isActiveTab: boolean, province: string): string {
   return `${isActiveTab ? "promociones_activas" : "promociones_galicia"}${place}_${today}.xlsx`;
 }
 
-function saveFile(content: ArrayBuffer, name: string): void {
-  const address = URL.createObjectURL(new Blob([content], { type: SHEET_TYPE }));
-  const link = document.createElement("a");
-  link.href = address;
-  link.download = name;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => {
-    URL.revokeObjectURL(address);
-  }, NEW_TAB_REVOKE_MS);
-}
-
 /** It weighs almost a mega: it comes down the first time somebody asks for a sheet. */
 const EXCEL_LIBRARY = createLibraryLoader<ExcelLibrary>(() =>
   import("exceljs").then(({ default: library }) => library),
@@ -255,7 +241,7 @@ async function writeSheet(library: ExcelLibrary, request: SheetRequest): Promise
   const content = await workbook.xlsx.writeBuffer();
   const said = logosNotice(rows.length, logos);
   if (said) notice(said);
-  saveFile(content, fileNameOf(isActiveTab, province));
+  saveFile(content, fileNameOf(isActiveTab, province), SHEET_TYPE);
 }
 
 let waitingForLibrary = false;

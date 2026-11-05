@@ -1,4 +1,5 @@
 import { type Page } from "@playwright/test";
+import { type BenchmarkDriver, type BenchmarkView } from "../benchmark.ts";
 import { type CommercialActionsDriver } from "../commercial-actions.ts";
 import { type CompanyRegistryDriver } from "../company-registry.ts";
 import { hunterRows } from "./hunter.ts";
@@ -83,6 +84,7 @@ interface ScreenDrivers {
   readonly logoStrip: LogoStripDriver;
   readonly studio: StudioDriver;
   readonly commercialActions: CommercialActionsDriver;
+  readonly benchmark: BenchmarkDriver;
 }
 
 /** Windows over the flyer: what they show is the point, and its photo alone weighs half an image. */
@@ -113,8 +115,13 @@ function openers(
     logoStrip,
     studio,
     commercialActions,
+    benchmark,
   }: ScreenDrivers,
 ) {
+  const benchmarkView = (view: BenchmarkView) => async () => {
+    await benchmark.open();
+    await benchmark.showView(view);
+  };
   const ready: Partial<Record<ReferenceScreen, () => Promise<void>>> = {
     login: () =>
       page.getByRole("heading", { name: "Flyer Galicia", level: 1 }).waitFor({ timeout: WAIT_MS }),
@@ -166,6 +173,15 @@ function openers(
       await page.getByRole("banner").getByRole("tab", { name: "Buscar flyer" }).click();
       await hunterRows(page).first().waitFor({ timeout: WAIT_MS });
     },
+    "benchmark-summary": benchmarkView("rubro"),
+    "benchmark-brands": benchmarkView("brand"),
+    "benchmark-week": benchmarkView("week"),
+    "benchmark-merchant": async () => {
+      await benchmarkView("merchant")();
+      await benchmark.searchMerchant("Coto");
+    },
+    "benchmark-versus": benchmarkView("versus"),
+    "benchmark-cards": benchmarkView("cards"),
     "logo-strip-window": async () => {
       await logoEditor.enter();
       await logoEditor.waitForBrandCatalog();
@@ -182,6 +198,12 @@ const CONTENT_OF: Partial<Record<ReferenceScreen, string>> = {
   "promotions-active": "promotions-results",
   "promotions-search": "promotions-results",
   "commercial-actions-dashboard": "dashboard-content",
+  "benchmark-summary": "benchmark-tabs",
+  "benchmark-brands": "benchmark-tabs",
+  "benchmark-week": "benchmark-tabs",
+  "benchmark-merchant": "benchmark-tabs",
+  "benchmark-versus": "benchmark-tabs",
+  "benchmark-cards": "benchmark-tabs",
 };
 // What stays above the scrolled content: the header of the app is sticky on a phone.
 const STICKY_HEADER_PX = 90;

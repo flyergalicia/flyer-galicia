@@ -151,6 +151,20 @@ describe("the screens", () => {
   });
 });
 
+describe("what a test may read", () => {
+  it("what a profile starts with when the administrator has not touched it", async () => {
+    await open();
+    const probe = window["__flyerProbe"]?.["permissions"];
+    expect(typeof probe).toBe("function");
+    const read: unknown = probe?.();
+    const startsAllowed: unknown =
+      typeof read === "object" && read !== null ? Reflect.get(read, "startsAllowed") : null;
+    if (typeof startsAllowed !== "function") throw new Error("No permissions probe");
+    expect(startsAllowed("vip", "notas")).toBe(true);
+    expect(startsAllowed("asesor", "benchmark")).toBe(false);
+  });
+});
+
 describe("the tabs each person has", () => {
   it("without the permission, the tab is not there", async () => {
     const { screen } = await open({ files: { "_facultades.json": permissions({}) } });

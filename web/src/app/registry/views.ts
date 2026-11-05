@@ -34,8 +34,6 @@ export interface AppView {
   readonly loadFailure: string;
 }
 
-const pendingView = (): Promise<LoadedView> => import("./PendingView.tsx");
-
 export const FLYER_EDITOR_HOST_ID = "flyer-editor";
 
 const FLYER_EDITOR_HOST = {
@@ -96,7 +94,10 @@ export const APP_VIEWS: readonly AppView[] = [
     hostId: "benchmark",
     screen: "benchmark",
     visible: ({ can }) => can("benchmark"),
-    load: pendingView,
+    load: () =>
+      import("@/slices/benchmark/index.ts").then(({ BenchmarkView }) => ({
+        default: BenchmarkView,
+      })),
     loadFailure: "No se pudo cargar el Benchmark. Revisá la conexión e intentá de nuevo.",
   },
   {

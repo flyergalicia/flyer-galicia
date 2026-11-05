@@ -105,15 +105,6 @@ describe("what is not there yet", () => {
     expect(seenBy(rules([], { hasSharedDesign: true, isLeader: true }))).not.toContain("estudio");
   });
 
-  it("a pending screen draws nothing", async () => {
-    const benchmark = APP_VIEWS.find(({ id }) => id === "benchmark")!;
-    const { default: Pending } = await benchmark.load();
-
-    const screen = await render(<Pending isActive tabId="benchmark" />);
-
-    expect(screen.container.textContent).toBe("");
-  });
-
   it("a pending window closes by itself", async () => {
     const tour = ALL_WINDOWS.find(({ id }) => id === "tour")!;
     const { default: Pending } = await tour.load();

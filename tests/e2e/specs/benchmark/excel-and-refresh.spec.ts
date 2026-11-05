@@ -8,7 +8,7 @@ test.beforeEach(({ cloud }) => {
   seedCards(cloud);
 });
 
-test("the Excel carries the same numbers as the screen", async ({ openApp }) => {
+test("the Excel carries the same numbers as the screen", { tag: "@react" }, async ({ openApp }) => {
   const { benchmark, page } = await openApp({ user: "admin" });
   await benchmark.open();
 
@@ -39,56 +39,58 @@ test("the Excel carries the same numbers as the screen", async ({ openApp }) => 
     .toBeVisible();
 });
 
-test("Actualizar ahora asks bank by bank, then websites, catalog and places", async ({
-  cloud,
-  openApp,
-}) => {
-  const { benchmark } = await openApp({ user: "admin" });
-  await benchmark.open();
+test(
+  "Actualizar ahora asks bank by bank, then websites, catalog and places",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const { benchmark } = await openApp({ user: "admin" });
+    await benchmark.open();
 
-  await benchmark.refreshNow();
+    await benchmark.refreshNow();
 
-  expect
-    .soft(
-      cloud.benchmarkCalls.map(({ action, banco }) =>
-        typeof banco === "string" ? `${String(action)}:${banco}` : action,
-      ),
-      "MODO bank by bank, the websites of BBVA and Supervielle, Galicia and at last the places",
-    )
-    .toEqual([
-      "sync:galicia",
-      "sync:bbva",
-      "sync:macro",
-      "sync:supervielle",
-      "sync:santander",
-      "sync:icbc",
-      "bbva",
-      "supervielle",
-      "galicia",
-      "marcas",
-    ]);
-});
+    expect
+      .soft(
+        cloud.benchmarkCalls.map(({ action, banco }) =>
+          typeof banco === "string" ? `${String(action)}:${banco}` : action,
+        ),
+        "MODO bank by bank, the websites of BBVA and Supervielle, Galicia and at last the places",
+      )
+      .toEqual([
+        "sync:galicia",
+        "sync:bbva",
+        "sync:macro",
+        "sync:supervielle",
+        "sync:santander",
+        "sync:icbc",
+        "bbva",
+        "supervielle",
+        "galicia",
+        "marcas",
+      ]);
+  },
+);
 
-test("without the tables it says so and offers Reintentar; without data it says how to get it", async ({
-  cloud,
-  openApp,
-}) => {
-  const { benchmark } = await openApp({ user: "admin" });
-  await benchmark.open();
+test(
+  "without the tables it says so and offers Reintentar; without data it says how to get it",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const { benchmark } = await openApp({ user: "admin" });
+    await benchmark.open();
 
-  cloud.benchmarkTablesMissing = true;
-  await benchmark.reload();
-  const missing = await benchmark.screenText();
-  expect
-    .soft(missing, "without the tables the screen asks for the migration")
-    .toMatch(/migración 039/);
-  expect.soft(missing, "and offers Reintentar").toMatch(/Reintentar/);
+    cloud.benchmarkTablesMissing = true;
+    await benchmark.reload();
+    const missing = await benchmark.screenText();
+    expect
+      .soft(missing, "without the tables the screen asks for the migration")
+      .toMatch(/migración 039/);
+    expect.soft(missing, "and offers Reintentar").toMatch(/Reintentar/);
 
-  cloud.benchmarkTablesMissing = false;
-  cloud.benchmarkPromotions = [];
-  cloud.benchmarkManual = [];
-  await benchmark.reload();
-  expect
-    .soft(await benchmark.screenText(), "without data it says there are none yet")
-    .toMatch(/Todavía no hay promos/);
-});
+    cloud.benchmarkTablesMissing = false;
+    cloud.benchmarkPromotions = [];
+    cloud.benchmarkManual = [];
+    await benchmark.reload();
+    expect
+      .soft(await benchmark.screenText(), "without data it says there are none yet")
+      .toMatch(/Todavía no hay promos/);
+  },
+);

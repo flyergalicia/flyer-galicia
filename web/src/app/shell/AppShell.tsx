@@ -12,8 +12,9 @@ import type { ScreenTitles } from "@/shared/domain/screen-titles.ts";
 import { FlyerGenerationHost } from "@/shared/lib/company-registry/FlyerGenerationHost.tsx";
 import { DesignDeskHost } from "@/shared/lib/studio/DesignDeskHost.tsx";
 import { sharedCount, useStudioNotices } from "@/shared/lib/studio/studio-notices-query.ts";
+import { registerProbe } from "@/shared/lib/test-probe.ts";
 import type { MenuWindowProps } from "@/shared/lib/view-props.ts";
-import { type SessionValue, usePermissions } from "@/shared/session/index.ts";
+import { defaultPermission, type SessionValue, usePermissions } from "@/shared/session/index.ts";
 import { firstView, resolveView } from "../registry/resolve-view.ts";
 import type { MenuRules } from "../registry/view-rules.ts";
 import {
@@ -88,6 +89,15 @@ export function AppShell({
   const [needsEditor, setNeedsEditor] = useState(false);
   const activeId = resolveView(chosen, rules);
   const isOnFlyerEditor = isFlyerTabId(activeId);
+
+  // What a profile starts with when the administrator has not touched it: a test reads it here.
+  useEffect(
+    () =>
+      registerProbe("permissions", () => ({
+        startsAllowed: (role: string, key: string) => defaultPermission(role, key),
+      })),
+    [],
+  );
 
   useEffect(() => {
     // What the toast and the fixed pieces of the flyer editor listen to, on a phone.

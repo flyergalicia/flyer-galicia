@@ -51,6 +51,13 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Para contactar | `toContact` | Personas con fecha de próximo contacto vencida o de hoy |
 | Tablero | `dashboard` | Los números de Gestiones en un período |
 | Oficial Payroll | `officer` (en el tablero) | El oficial dueño de la empresa |
+| Benchmark | `benchmark` | Galicia contra la competencia, promo por promo |
+| Compra de referencia | `referencePurchase` | El monto por rubro con el que se calcula cuánto devuelve cada promo |
+| Lo que devuelve | `returned` | El menor entre compra de referencia × % y el tope |
+| Compartidas de MODO | `sharedPromotion` | Promos de MODO que valen con cualquier banco: no cuentan para ganar |
+| Cargadas a mano | `handLoadedPromotion` | Promos de Macro, Santander o de un paquete que carga el administrador |
+| Etiqueta de fuente | `sourceLabel` | De dónde sale cada banco y cuándo se leyó |
+| Tarjetas y salas VIP | `premiumCard` | Tarjetas premium con sus pases a salas VIP, cargadas a mano |
 | Facultades | `permissions` | Lo que puede hacer cada perfil |
 | Perfil | `role` | Admin, VIP, asesor, Hunter, Líder, Prospect |
 
