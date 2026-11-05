@@ -1,89 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { ZOOM_MAX } from "@/shared/lib/flyer-workspace/index.ts";
-import { ADVISOR, type AppAnswers, createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
-import { useSession, usePermissions } from "@/shared/session/index.ts";
+import type { AppAnswers } from "@/shared/lib/testing/app-harness.tsx";
 import {
   LOGO_A,
   LOGO_B,
   paintedFlyer,
   workspaceOnScreen,
 } from "@/shared/lib/flyer-workspace/testing/painted-flyer.ts";
-import { PromotionPickerContext } from "@/shared/lib/promotions/promotion-picking.ts";
+import { jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
 import { attachPreviewGestures, ZOOM_TIP } from "../model/preview-gestures.ts";
-import { FlyerEditorView } from "./FlyerEditorView.tsx";
+import { flyerFiles, flyerShown, open, ALLOWED } from "../testing/editor-on-screen.tsx";
 
-const OPTIONS = {
-  opts: [
-    { n: 9, nombre: "Combustible", solapa: "flyer", orden: 0, color: "#ff0000" },
-    { n: 7, nombre: "Sueldo Uno", solapa: "sueldo" },
-    { n: 8, nombre: "Rubro Uno", solapa: "rubros" },
-    { n: 6, nombre: "Otro Flyer", solapa: "flyer", orden: 1 },
-  ],
+const ACME = {
+  empresa: "ACME SA",
+  cuits: ["30711111111"],
+  config: "Config 2",
+  asesores: [{ nombre: "Ana Perez", celular: "11 1", email: "" }],
 };
-const ALLOWED = { opcion_9: true, opcion_7: true, opcion_8: true, opcion_6: true, opcion_1: false };
-
-const NO_PICKER = {
-  pickOneBrand: () => undefined,
-  pickManyBrands: () => undefined,
-  stopPicking: () => undefined,
-};
-
-function Inside({ tabId, isActive }: { readonly tabId: string; readonly isActive: boolean }) {
-  const session = useSession();
-  const { loadStatus } = usePermissions();
-  if (session.status !== "signed-in" || loadStatus === "loading") return null;
-  return <FlyerEditorView tabId={tabId} isActive={isActive} />;
-}
-
-function flyerFiles() {
-  const image = paintedFlyer([LOGO_A, LOGO_B]);
-  return {
-    "_opciones.json": OPTIONS,
-    "_facultades.json": { roles: { asesor: ALLOWED } },
-    "_active9.json": { imageUrl: image, cfg: {} },
-    "_legal9.json": { text: "Legal de la nueve" },
-    "_active6.json": { imageUrl: null },
-    "_legal6.json": { text: "Legal de la seis" },
-    "_active7.json": { imageUrl: image, cfg: {} },
-    "_legal7.json": { text: "" },
-    "_active8.json": { imageUrl: image, cfg: {} },
-    "_legal8.json": { text: "Legal" },
-  };
-}
+const OF_FUEL = { ...ACME, empresa: "NAFTA SA", rubro: { opcion: 8 } };
 
 const theWorkspace = workspaceOnScreen;
 
-async function open(answers: AppAnswers = {}, tabId = "flyer", isActive = true) {
-  const harness = createAppHarness({ profile: ADVISOR, files: flyerFiles(), ...answers });
-  harness.storeSession();
-  const view = (id: string, active: boolean) =>
-    harness.wrap(
-      <PromotionPickerContext.Provider value={NO_PICKER}>
-        <Inside tabId={id} isActive={active} />
-      </PromotionPickerContext.Provider>,
-    );
-  const screen = await render(view(tabId, isActive));
-  return {
-    screen,
-    harness,
-    show: (id: string, active = true) => screen.rerender(view(id, active)),
-  };
-}
-
-function flyerShown() {
-  return vi.waitFor(
-    () => {
-      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="flyer-canvas"]');
-      expect(canvas?.height).toBeGreaterThan(100);
-      const { slot, draws } = theWorkspace().getState();
-      expect(slot.loading).toBe(false);
-      expect(slot.option).not.toBeNull();
-      expect(draws).toBeGreaterThan(0);
-    },
-    { timeout: 10_000 },
-  );
+async function pressPng() {
+  await page.getByRole("button", { name: "Otros" }).click();
+  await page.getByRole("button", { name: "Descargar como imagen (PNG)" }).click();
 }
 
 beforeEach(async () => {
@@ -93,6 +34,206 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+function withList(rows: readonly object[], others: AppAnswers = {}): AppAnswers {
+  return {
+    ...others,
+    files: {
+      ...flyerFiles(),
+      "_facultades.json": { roles: { asesor: { ...ALLOWED, padron_buscar: true } } },
+      ...others.files,
+    },
+    tables: { padron_empresas: () => jsonResponse(rows), ...others.tables },
+  };
+}
+
+async function bring(name: string) {
+  await page.getByRole("button", { name: "Buscar en mis empresas (razón social o CUIT)" }).click();
+  await page.getByTestId("company-option").getByText(name).click();
+}
+
+const formValues = () => theWorkspace().getState().form;
+
+describe("the form", () => {
+  it("what is written goes to the flyer, and Restaurar takes it all away", async () => {
+    await open();
+    await flyerShown();
+    await page.getByPlaceholder("Nombre de la empresa").fill("ACME");
+    expect(formValues().empresa).toBe("ACME");
+    await page.getByRole("button", { name: "Restaurar" }).click();
+    await expect.element(page.getByPlaceholder("Nombre de la empresa")).toHaveValue("");
+    expect(formValues().empresa).toBe("");
+  });
+
+  it("the tab decides what the form draws", async () => {
+    const { show } = await open();
+    await flyerShown();
+    expect(formValues().benef).toBe(false);
+    await show("rubros");
+    await vi.waitFor(() => {
+      expect(formValues().benef).toBe(true);
+    });
+    await expect.element(page.getByTestId("benefit-fields")).toBeInTheDocument();
+  });
+
+  it("a flyer of the bar is one press away", async () => {
+    await open();
+    await flyerShown();
+    await page.getByRole("button", { name: "Otro Flyer" }).click();
+    await vi.waitFor(() => {
+      expect(theWorkspace().getState().slot.option).toBe(6);
+    });
+  });
+
+  it("a company from the search fills it, and the changes are asked about after the download", async () => {
+    await open(withList([ACME]));
+    await flyerShown();
+    await bring("ACME SA");
+    await expect.element(page.getByPlaceholder("Nombre de la empresa")).toHaveValue("ACME SA");
+    expect(formValues().nombre).toBe("Ana Perez");
+
+    await page.getByTestId("officer-block-1").getByLabelText("Nombre").fill("Otra Persona");
+    await page.getByRole("button", { name: "Descargar PDF" }).click();
+    await expect
+      .element(
+        page
+          .getByRole("dialog")
+          .getByText(/Otra Persona/)
+          .first(),
+      )
+      .toBeInTheDocument();
+    await page.getByRole("button", { name: "Actualizar empresa" }).click();
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("the switch and the cashback also count for what is asked after the download", async () => {
+    await open(withList([ACME]));
+    await flyerShown();
+    await bring("ACME SA");
+    await page.getByRole("switch", { name: "Mostrar en el flyer" }).click();
+    await page.getByRole("button", { name: "Descargar PDF" }).click();
+    await expect.element(page.getByRole("dialog").getByText(/se quita/)).toBeInTheDocument();
+  });
+
+  it("the wrong flyer says so on bringing the company, and going there keeps what was loaded", async () => {
+    const shell: { show?: (tab: string) => unknown } = {};
+    const { show } = await open(withList([OF_FUEL]), "flyer", true, {
+      goToTab: (tab) => {
+        shell.show?.(tab);
+      },
+    });
+    shell.show = show;
+    await flyerShown();
+    await bring("NAFTA SA");
+    await expect.element(page.getByText("📋 Beneficio por rubro")).toBeInTheDocument();
+    await page.getByRole("button", { name: "Ir a Rubro Uno" }).click();
+    await vi.waitFor(() => {
+      expect(theWorkspace().getState().slot.option).toBe(8);
+    });
+    expect(formValues().empresa).toBe("NAFTA SA");
+  });
+
+  it("a company with cashback on a cropped flyer can show the amounts again", async () => {
+    await open(
+      withList([ACME], {
+        files: {
+          "_active9.json": {
+            imageUrl: paintedFlyer([LOGO_A]),
+            cfg: { montos: { off: true }, recDe: 6 },
+          },
+          "_active6.json": { imageUrl: paintedFlyer([LOGO_B]), cfg: {} },
+          "_facultades.json": { roles: { asesor: { ...ALLOWED, padron_buscar: true } } },
+        },
+      }),
+    );
+    await flyerShown();
+    await bring("ACME SA");
+    await page.getByRole("button", { name: "Mostrar los importes" }).click();
+    await expect
+      .element(page.getByRole("status"))
+      .toMatchTextContent(/el flyer vuelve a mostrar los importes de ACME SA/);
+    await vi.waitFor(() => {
+      expect(theWorkspace().getState().slot.option).toBe(6);
+    });
+  });
+
+  it("with nobody to take it to another tab, it stays where it was", async () => {
+    await open(withList([OF_FUEL]));
+    await flyerShown();
+    await bring("NAFTA SA");
+    await page.getByRole("button", { name: "Ir a Rubro Uno" }).click();
+    await vi.waitFor(() => {
+      expect(theWorkspace().getState().slot.option).toBe(9);
+    });
+  });
+
+  it("a company without cashback that is downloaded with one is asked about", async () => {
+    await open(withList([{ ...ACME, config: "SIN" }]));
+    await flyerShown();
+    await bring("ACME SA");
+    await expect.element(page.getByRole("dialog")).toMatchTextContent(/ACME SA está marcada/);
+    await page.getByRole("button", { name: "Entendido" }).click();
+    await page.getByRole("button", { name: "Descargar PDF" }).click();
+    await expect.element(page.getByRole("status")).toHaveTextContent("PDF descargado!");
+    expect(page.getByRole("dialog").query()).toBeNull();
+    await page.getByRole("button", { name: "Config 2" }).click();
+    await page.getByRole("button", { name: "Descargar PDF" }).click();
+    await expect.element(page.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("on a phone the pill goes along, and it is gone on another screen", async () => {
+    await page.viewport(390, 800);
+    const { show } = await open();
+    await flyerShown();
+    await expect.element(page.getByTestId("phone-pill")).toBeInTheDocument();
+    await show("flyer", false);
+    await expect.element(page.getByTestId("phone-pill")).not.toBeInTheDocument();
+    await show("flyer", true);
+    await page.getByRole("button", { name: "Descargar PDF" }).last().click();
+    await expect.element(page.getByRole("status")).toHaveTextContent("PDF descargado!");
+  });
+
+  it("from the company search it can open the list of companies", async () => {
+    const openMenuWindow = vi.fn<(id: string) => void>();
+    await open(withList([ACME]), "flyer", true, { openMenuWindow });
+    await flyerShown();
+    await page
+      .getByRole("button", { name: "Buscar en mis empresas (razón social o CUIT)" })
+      .click();
+    await page.getByRole("button", { name: "✎ Administrar" }).click();
+    expect(openMenuWindow).toHaveBeenCalledWith("database");
+  });
+
+  it("the preview draws exactly what is downloaded, filled or empty (invariant 16)", async () => {
+    await open();
+    await flyerShown();
+    const written = vi.spyOn(CanvasRenderingContext2D.prototype, "fillText");
+    const textsOf = (draw: () => unknown) => {
+      written.mockClear();
+      draw();
+      return written.mock.calls.map(([text]) => text);
+    };
+    const workspace = theWorkspace();
+    const empty = textsOf(workspace.drawNow);
+    expect(empty).toEqual(textsOf(workspace.renderDownload));
+    expect(empty.join(" ")).not.toMatch(/Nombre de la empresa|Nombre Apellido|Asesor/);
+
+    await page.getByPlaceholder("Nombre de la empresa").fill("ACME");
+    await page.getByTestId("officer-block-1").getByLabelText("Nombre").fill("Ana Perez");
+    const filled = textsOf(workspace.drawNow);
+    expect(filled).toEqual(textsOf(workspace.renderDownload));
+    expect(filled.join(" ")).toMatch(/ACME/);
+    expect(filled.join(" ")).toMatch(/Ana Perez/);
+  });
+
+  it("a test can read what the form says", async () => {
+    await open();
+    await flyerShown();
+    await page.getByPlaceholder("Nombre de la empresa").fill("ACME");
+    const read: unknown = window["__flyerProbe"]?.["flyerForm"]?.();
+    expect(read).toMatchObject({ empresa: "ACME" });
+  });
 });
 
 describe("the flyer editor", () => {
@@ -206,7 +347,7 @@ describe("the flyer editor", () => {
     ) {
       clicks.push(this.download);
     });
-    await page.getByRole("button", { name: "Descargar como imagen" }).click();
+    await pressPng();
     await expect.element(page.getByRole("status")).toHaveTextContent("PNG descargado!");
     expect(clicks).toEqual(["Flyer.png"]);
   });
@@ -217,7 +358,7 @@ describe("the flyer editor", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(() => {
       throw new Error("Too big");
     });
-    await page.getByRole("button", { name: "Descargar como imagen" }).click();
+    await pressPng();
     await expect
       .element(page.getByRole("status"))
       .toMatchTextContent(/No se pudo generar la imagen/);
@@ -260,7 +401,8 @@ describe("the flyer editor", () => {
     ) {
       clicks.push(this.download);
     });
-    const button = page.getByRole("button", { name: "Descargar como imagen" }).element();
+    await page.getByRole("button", { name: "Otros" }).click();
+    const button = page.getByRole("button", { name: "Descargar como imagen (PNG)" }).element();
     if (button instanceof HTMLElement) {
       button.click();
       button.click();

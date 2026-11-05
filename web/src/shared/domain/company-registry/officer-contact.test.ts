@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseContact } from "./officer-contact.ts";
+import { mailProblem, parseContact, phoneProblem } from "./officer-contact.ts";
 
 describe("the phone of a pasted text", () => {
   const cases: readonly (readonly [string, string])[] = [
@@ -148,5 +148,55 @@ describe("the name of a pasted text", () => {
     expect(parseContact("Ana Perez Lopez Diaz ana.perez@bancogalicia.com.ar").nombre).toBe(
       "Ana Perez",
     );
+  });
+});
+
+describe("the mail of a pasted text", () => {
+  it("comes only with its at sign", () => {
+    expect(parseContact("Ana Perez\nana.perez.bancogalicia.com.ar").email).toBe("");
+    expect(parseContact("Ana Perez\nwww.galicia.ar").email).toBe("");
+    expect(parseContact("Ana Perez\nana.perez@bancogalicia.com.ar").email).toBe(
+      "ana.perez@bancogalicia.com.ar",
+    );
+  });
+});
+
+describe("what is said of a phone", () => {
+  it("nothing when it is empty or right", () => {
+    expect(phoneProblem("  ")).toBeNull();
+    expect(phoneProblem("11 3617 9603")).toBeNull();
+    expect(phoneProblem("+54 9 11 3617-9603")).toBeNull();
+  });
+
+  it("that digits are missing", () => {
+    expect(phoneProblem("11 36")).toEqual({
+      kind: "invalid",
+      message:
+        "Faltan números: un celular tiene 10 dígitos con el código de área (ej.: 11 3617 9603).",
+    });
+  });
+
+  it("that it does not look Argentine", () => {
+    expect(phoneProblem("123456789")?.message).toMatch(/No parece un celular argentino/);
+  });
+});
+
+describe("what is said of a mail", () => {
+  it("nothing when it is empty or of the bank", () => {
+    expect(mailProblem(" ")).toBeNull();
+    expect(mailProblem("ana@bancogalicia.com.ar")).toBeNull();
+    expect(mailProblem("ANA@BANCOGALICIA.COM.AR")).toBeNull();
+  });
+
+  it("that it is not a mail", () => {
+    expect(mailProblem("ana@")?.kind).toBe("invalid");
+    expect(mailProblem("sin arroba.com")?.kind).toBe("invalid");
+  });
+
+  it("warns about another domain, without stopping", () => {
+    expect(mailProblem("ana@gmail.com")).toEqual({
+      kind: "warning",
+      message: "Ojo: no es un mail @bancogalicia.com.ar.",
+    });
   });
 });

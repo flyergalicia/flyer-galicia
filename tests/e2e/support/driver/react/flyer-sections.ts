@@ -1,11 +1,20 @@
+import { readFile } from "node:fs/promises";
 import { type Locator, type Page } from "@playwright/test";
 import {
+  type BulkOutcome,
+  type BulkRow,
+  type CompanyRecord,
   type CropStatus,
   type FlyerSectionsDriver,
   type FlyerTab,
   type InsertStatus,
   type SavedDrafts,
 } from "../flyer-sections.ts";
+import { bucketUrl } from "../../cloud/index.ts";
+import { closeRegistryIfOpen } from "./company-list.ts";
+import { createReactCompanyRegistryDriver } from "./company-registry.ts";
+import { createReactFlyerBatches } from "./flyer-batches.ts";
+import { goToOption, waitForOptionShown } from "./flyer-editor.ts";
 import { partialDriver } from "./pending.ts";
 
 const SHOWN_TIMEOUT_MS = 15_000;
@@ -127,8 +136,7 @@ function readCropStatus(page: Page): Promise<CropStatus> {
       })),
       artworkHeight: scene?.art.height ?? 0,
       amountsHidden: panel?.dataset["noAmounts"] === "true",
-      // The card of the form hangs from this same mark: see FlyerEditorView.
-      amountsCardHidden: panel?.dataset["noAmounts"] === "true",
+      amountsCardHidden: Boolean(panel?.querySelector('[data-testid="no-amounts"]')),
     };
   });
 }
@@ -627,11 +635,191 @@ async function downloadBlockWithFailedFlyer(page: Page): Promise<string> {
   return (await notice.innerText()).replace(/\s+/g, " ").trim();
 }
 
+const COMPANY_SETTLE_MS = 400;
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" };
+
+function decisionDialog(page: Page): Locator {
+  return page.getByTestId("decision-dialog");
+}
+
+/** What a person has for this: whoever enters after the administrator published that flyer. */
+async function turnOffAmounts(page: Page): Promise<void> {
+  const option = await page.evaluate(
+    () => window["__flyerProbe"]?.flyerWorkspace?.().getState().slot.option ?? 1,
+  );
+  const file = option === 1 ? "_active.json" : `_active${String(option)}.json`;
+  const address = bucketUrl(file);
+  const published = await page.evaluate(async (url) => {
+    const answer = await fetch(url);
+    const parsed: Record<string, unknown> = await answer.json();
+    return parsed;
+  }, address);
+  const calibration = published["cfg"];
+  await page.route(`**/${file}*`, (route) =>
+    route.fulfill({
+      json: {
+        ...published,
+        cfg: {
+          ...(typeof calibration === "object" ? calibration : {}),
+          montos: { off: true },
+          cashback: { off: true },
+        },
+      },
+      headers: CORS,
+    }),
+  );
+  await page.reload();
+  await page.getByRole("banner").waitFor({ timeout: SHOWN_TIMEOUT_MS });
+  await goToOption(page, option);
+  await waitForOptionShown(page, option);
+}
+
+function formDriver(page: Page) {
+  const registry = createReactCompanyRegistryDriver(page);
+  return {
+    setLegal: (text: string) => page.getByTestId("legal-text").fill(text),
+    legal: () => page.getByTestId("legal-text").inputValue(),
+    firstAmount: () =>
+      page.evaluate(
+        () => window["__flyerProbe"]?.flyerReadings?.().legalWith("{eminentblack}") ?? "",
+      ),
+    bringCompany: async (company: CompanyRecord) => {
+      await registry.applyCompany({
+        name: company.empresa,
+        cashback: company.config,
+        officers: company.asesores.map(({ nombre, celular, email }) =>
+          email === undefined
+            ? { name: nombre, phone: celular }
+            : { name: nombre, phone: celular, email },
+        ),
+      });
+      await page.waitForTimeout(COMPANY_SETTLE_MS);
+    },
+    companyNotices: async () => {
+      const confirmation = page.getByRole("alertdialog");
+      const notice = decisionDialog(page);
+      return {
+        confirmation: (await confirmation.count()) > 0 ? await confirmation.textContent() : null,
+        updateNotice: (await notice.count()) > 0 ? await notice.textContent() : null,
+      };
+    },
+    closeCompanyUpdateNotice: async () => {
+      const notice = decisionDialog(page);
+      if ((await notice.count()) === 0) return;
+      await notice.locator("[data-decision]").last().click();
+    },
+    turnOffAmountsWithoutOriginal: () => turnOffAmounts(page),
+  };
+}
+
+/** The image inside a PDF of a flyer has the height of the flyer, in pixels. */
+function heightInPdf(bytes: Buffer): number {
+  const [, height] = /\/Height (\d+)/.exec(bytes.toString("latin1")) ?? [];
+  return Number(height);
+}
+
+async function historyTab(page: Page, name: "Historial" | "Individual"): Promise<void> {
+  await page.getByRole("tablist", { name: "Modo de armado" }).getByRole("tab", { name }).click();
+}
+
+function historyDriver(page: Page) {
+  return {
+    // A person gets it there the only way there is: the flyer comes out.
+    keepInHistory: async () => {
+      const before = await page.evaluate(
+        () => window["__flyerProbe"]?.flyerHistory?.().length ?? 0,
+      );
+      await Promise.all([page.waitForEvent("download"), page.getByTestId("download-pdf").click()]);
+      await page.waitForFunction(
+        (count) => (window["__flyerProbe"]?.flyerHistory?.().length ?? 0) > count,
+        before,
+        { timeout: SHOWN_TIMEOUT_MS },
+      );
+    },
+    newestHistoryEntry: () =>
+      page.evaluate(() => {
+        const { v: values } = window["__flyerProbe"]?.flyerHistory?.()[0] ?? {};
+        return {
+          cuts: values?.recortes?.length ?? 0,
+          hasBase: Boolean(values?.recBase),
+          logos: values?.logos?.length ?? 0,
+        };
+      }),
+    redownloadHeightFromHistory: async () => {
+      await historyTab(page, "Historial");
+      const [download] = await Promise.all([
+        page.waitForEvent("download", { timeout: DOWNLOAD_TIMEOUT_MS }),
+        page.getByTestId("history-row").first().getByRole("button", { name: "PDF" }).click(),
+      ]);
+      const height = heightInPdf(await readFile(await download.path()));
+      await historyTab(page, "Individual");
+      return height;
+    },
+    loadFromHistory: async () => {
+      await historyTab(page, "Historial");
+      await page.getByTestId("history-row").first().getByRole("button", { name: "Editar" }).click();
+      await page.waitForFunction(
+        () => {
+          const editor = window["__flyerProbe"]?.logoEditor?.();
+          return Boolean(editor?.openWork()) && !editor?.isOpening();
+        },
+        null,
+        { timeout: SHOWN_TIMEOUT_MS },
+      );
+    },
+  };
+}
+
+/** Masivo over those lines, all the way to the ZIP on disk. */
+async function generateBulk(page: Page, rows: readonly BulkRow[]): Promise<BulkOutcome> {
+  const batches = createReactFlyerBatches(page);
+  await batches.uploadExcelSheet([
+    ["empresa", "config", "asesor1_nombre"],
+    ...rows.map(({ empresa, config, asesor1_nombre: officer }) => [empresa, config, officer]),
+  ]);
+  const download = page.waitForEvent("download", { timeout: DOWNLOAD_TIMEOUT_MS * 3 });
+  await page.getByTestId("batch-generate").click();
+  const zip = await download;
+  await page.waitForFunction(() => !window["__flyerProbe"]?.flyerBatch?.().isRunning());
+  return page.evaluate(
+    (zipName) => ({
+      generated: (window["__flyerProbe"]?.flyerBatch?.().drawn() ?? []).map(
+        ({ company, option, hasAmounts }) => ({ company, option, hasAmounts }),
+      ),
+      zipName,
+      finalOption: window["__flyerProbe"]?.flyerWorkspace?.().getState().slot.option ?? 0,
+    }),
+    zip.suggestedFilename(),
+  );
+}
+
 export function createReactFlyerSectionsDriver(page: Page): FlyerSectionsDriver {
   return partialDriver<FlyerSectionsDriver>("flyerSections", {
+    ...formDriver(page),
+    ...historyDriver(page),
     ...cropDriver(page),
     ...tabsDriver(page),
     ...insertDriver(page),
     downloadBlockWithFailedFlyer: () => downloadBlockWithFailedFlyer(page),
+    noCashbackLink: (option: number) =>
+      page.evaluate((n) => {
+        const probe = window["__flyerProbe"]?.flyerBatch?.();
+        const variant = probe?.versionOf(n) ?? 0;
+        return {
+          listed: probe?.listedAsVersionOf(variant) ?? null,
+          variant,
+          base: probe?.baseOf(variant) ?? 0,
+        };
+      }, option),
+    optionForCompany: async (company: CompanyRecord) => {
+      const registry = createReactCompanyRegistryDriver(page);
+      const option = await registry.destinationOption({
+        name: company.empresa,
+        cashback: company.config,
+      });
+      await closeRegistryIfOpen(page);
+      return option;
+    },
+    generateBulk: (rows) => generateBulk(page, rows),
   });
 }

@@ -52,6 +52,11 @@ async function applyAppearance(
     }
     await menu.getByRole("button", { name: new RegExp(`^${palette}$`, "i") }).click();
     await session.closeUserMenu();
+    // The mouse does not stay over the menu, and whoever changes the theme did not move the page.
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+    });
     return;
   }
   await page.evaluate(
@@ -75,6 +80,24 @@ interface ScreenDrivers {
   readonly logoStrip: LogoStripDriver;
 }
 
+/** Windows over the flyer: what they show is the point, and its photo alone weighs half an image. */
+const WINDOWS_OVER_THE_FLYER: ReadonlySet<ReferenceScreen> = new Set([
+  "database-companies",
+  "database-advisors",
+  "user-menu",
+]);
+
+/**
+ * With the window busy, a click that has to try again moves the page to reach its button, which a
+ * person does not do: the window opens over the page as it was.
+ */
+async function hideFlyer(page: Page): Promise<void> {
+  await page.getByTestId("flyer-canvas").evaluate((canvas) => {
+    if (canvas instanceof HTMLElement) canvas.style.visibility = "hidden";
+    window.scrollTo(0, 0);
+  });
+}
+
 function openers(
   page: Page,
   { session, promotions, companyRegistry, logoEditor, logoStrip }: ScreenDrivers,
@@ -83,6 +106,18 @@ function openers(
     login: () =>
       page.getByRole("heading", { name: "Flyer Galicia", level: 1 }).waitFor({ timeout: WAIT_MS }),
     "user-menu": () => session.openUserMenu(),
+    "flyer-editor": async () => undefined,
+    "preview-window": async () => {
+      await page.getByRole("button", { name: "Vista previa", exact: true }).first().click();
+      await page
+        .locator('[data-testid="preview-window-picture"][src^="data:"]')
+        .waitFor({ timeout: WAIT_MS });
+      await page.mouse.move(0, 0);
+    },
+    "logo-editor": async () => {
+      await logoEditor.enter();
+      await logoEditor.waitForBrandCatalog();
+    },
     "promotions-active": async () => {
       await promotions.open("active");
       await promotions.chooseProvince("promotions", "CAPITAL FEDERAL");
@@ -132,6 +167,7 @@ export function createReactScreensDriver(page: Page, drivers: ScreenDrivers): Sc
       }
       await opener();
       await waitToSettle(page);
+      if (WINDOWS_OVER_THE_FLYER.has(screen)) await hideFlyer(page);
     },
     showContent: async (screen) => {
       const content = CONTENT_OF[screen];

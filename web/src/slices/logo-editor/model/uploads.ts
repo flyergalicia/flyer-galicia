@@ -79,8 +79,17 @@ export async function restoreUploads(
   );
 }
 
-function logoName(key: string): string {
+export function uploadedLogoName(key: string): string {
   return key.split(":").slice(2).join(":") || "logo";
+}
+
+/** The keys of the logos uploaded from the PC of a list of changes, once each. */
+export function uploadedLogosIn(list: readonly Pick<PlacedChange, "tipo" | "img">[]): string[] {
+  return [
+    ...new Set(
+      list.flatMap(({ tipo, img }) => (tipo !== "txt" && img && isUploaded(img) ? [img] : [])),
+    ),
+  ];
 }
 
 /** The uploaded logos of a list that are nowhere: not in memory, nor in what it brings. */
@@ -89,15 +98,12 @@ export function missingUploads(
   uploads: UploadMap,
   logos: Pick<LogoLibrary, "missingUploads">,
 ): readonly string[] {
-  const keys = list.flatMap(({ tipo, img }) =>
-    tipo !== "txt" && img && isUploaded(img) ? [img] : [],
-  );
-  return logos.missingUploads(keys).filter((key) => !uploads[key]);
+  return logos.missingUploads(uploadedLogosIn(list)).filter((key) => !uploads[key]);
 }
 
 export function missingUploadsText(keys: readonly string[]): string {
   const [first = ""] = keys;
   return keys.length === 1
-    ? `Falta el logo subido de la PC «${logoName(first)}»: se perdió al recargar la página y en su lugar se ve el logo original. Volvé a subirlo con «Cambiar logos».`
+    ? `Falta el logo subido de la PC «${uploadedLogoName(first)}»: se perdió al recargar la página y en su lugar se ve el logo original. Volvé a subirlo con «Cambiar logos».`
     : `Faltan ${String(keys.length)} logos subidos de la PC (se perdieron al recargar la página): en esos lugares se ve el logo original. Volvé a subirlos con «Cambiar logos».`;
 }

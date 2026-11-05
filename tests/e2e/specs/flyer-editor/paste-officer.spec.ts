@@ -8,7 +8,7 @@ async function openWithPaste(cloud: Cloud, openApp: (o?: object) => Promise<Open
   return openApp();
 }
 
-test.describe("pasting the data of an officer", () => {
+test.describe("pasting the data of an officer", { tag: "@react" }, () => {
   test("a signature gives name, phone and mail, with every digit as it came", async ({
     cloud,
     openApp,
@@ -59,6 +59,19 @@ test.describe("pasting the data of an officer", () => {
     expect.soft((await officers.read(1)).email, "no arroba in the text, no mail").toBe("");
     expect.soft(outcome.recognized.email).toBe(false);
     expect.soft(outcome.text).toMatch(/no ven.a en el texto/);
+  });
+
+  test("what looks like a mail without its at sign is not a mail", async ({ cloud, openApp }) => {
+    const { officers } = await openWithPaste(cloud, openApp);
+    await officers.pressPaste(1);
+
+    const outcome = await officers.pasteText(
+      1,
+      "Oficial: Ana Perez\nana.perez.bancogalicia.com.ar\n11 4444 5555",
+    );
+
+    expect.soft((await officers.read(1)).email).toBe("");
+    expect.soft(outcome.recognized.email).toBe(false);
   });
 
   test("an employee code mixed with letters does not reach the name or the phone", async ({
@@ -173,6 +186,8 @@ test.describe("pasting the data of an officer", () => {
     cloud,
     openApp,
   }) => {
+    // Bringing a company takes the search, which comes with its own faculty.
+    cloud.setPermissions("asesor", { padron_buscar: true });
     const { officers, companyRegistry } = await openWithPaste(cloud, openApp);
     await officers.pressPaste(1);
     expect.soft(await officers.pasteBoxOpen(1)).toBe(true);

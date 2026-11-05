@@ -95,6 +95,11 @@ export async function cropScene(
   return cropSceneWith(scene, cuts, await sectionImages(cuts, loadSection));
 }
 
+/** What says which picture a flyer with those cuts is: logos are only drawn over the one they were made on. */
+export function artKeyWithCuts(wholeArtKey: string, cuts: readonly Cut[]): string {
+  return cuts.length > 0 ? `${wholeArtKey}#rec=${cutsSignature(cuts)}` : wholeArtKey;
+}
+
 /** The same with the images of the sections already in hand: what is missing leaves a gap. */
 export function cropSceneWith(
   scene: FlyerScene,
@@ -106,7 +111,7 @@ export function cropSceneWith(
   return {
     scene: {
       art: applyCuts(whole.art, cuts, images),
-      artKey: cuts.length > 0 ? `${whole.artKey}#rec=${cutsSignature(cuts)}` : whole.artKey,
+      artKey: artKeyWithCuts(whole.artKey, cuts),
       calibration:
         cuts.length > 0
           ? cropCalibration(whole.rawCalibration, cuts, width, height)

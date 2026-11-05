@@ -19,6 +19,7 @@ import {
   renderFullResolution,
   storedCropOf,
 } from "@/shared/flyer-engine/index.ts";
+import { type BatchLock, createBatchLock } from "./batch-lock.ts";
 import type { LoadedOption, OptionLoader } from "./option-loader.ts";
 import { createSectionLibrary, type SectionLibrary } from "./section-library.ts";
 
@@ -49,6 +50,8 @@ export interface WorkspaceState {
 export interface FlyerWorkspace {
   readonly logos: LogoLibrary;
   readonly sections: SectionLibrary;
+  /** A batch running: meanwhile the flyer is not changed by hand. */
+  readonly batch: BatchLock;
   readonly getState: () => WorkspaceState;
   readonly subscribe: (listener: () => void) => () => void;
   /** Goes to an option. What it returns says when what was asked for arrived or failed. */
@@ -62,10 +65,14 @@ export interface FlyerWorkspace {
    * (invariant 27): whoever opens something stored brings them first with `sections.bring`.
    */
   readonly setCuts: (cuts: readonly Cut[]) => void;
-  /** The legal text on screen, when a draft or a design has its own. */
+  /** The legal text on screen: what the person writes, or what a draft or a design has. */
   readonly setLegal: (text: string) => void;
-  /** The legal text the option has saved. */
+  /** The legal text of the option on screen: what was edited in this session, or the saved one. */
   readonly optionLegal: () => string;
+  /** What the option on screen has saved, with no edits; undefined if it is not known. */
+  readonly savedLegal: () => string | undefined;
+  /** The option has a flyer; undefined while nobody knows. */
+  readonly hasFlyer: (option: number) => boolean | undefined;
   /** The scene of an option as it was loaded, whole; null if it is not known. */
   readonly optionScene: (option: number) => FlyerScene | null;
   /** Goes back to the saved legal text of the option. */
@@ -122,6 +129,11 @@ export function createFlyerWorkspace({
   const listeners = new Set<() => void>();
   const settled = new Map<number, LoadedOption>();
   const running = new Map<number, Promise<LoadedOption>>();
+  /** What each option has saved, and what was edited of it in this session. */
+  const savedLegals = new Map<number, string>();
+  const editedLegals = new Map<number, string>();
+  /** Whose legal text is on the field: nobody's while another one is on its way. */
+  let legalOwner: number | null = null;
 
   const change = (next: Partial<WorkspaceState>) => {
     state = { ...state, ...next };
@@ -140,6 +152,21 @@ export function createFlyerWorkspace({
     return Math.min(SCALE_MAX, usable / scene.art.width) * zoom;
   };
 
+  const legalOf = (option: number) => editedLegals.get(option) ?? savedLegals.get(option);
+
+  /**
+   * What is on the field stays with the option it belongs to, and only if it differs from the saved
+   * one. Whose it is comes from the owner and not from the option on screen: with two clicks during
+   * a load, the old legal text was kept as an edit of the new one.
+   */
+  const keepEditedLegal = () => {
+    if (legalOwner === null) return;
+    const saved = savedLegals.get(legalOwner);
+    if (saved === undefined) return;
+    if (state.legal === saved) editedLegals.delete(legalOwner);
+    else editedLegals.set(legalOwner, state.legal);
+  };
+
   const apply = (option: number, loaded: LoadedOption) => {
     const event = loaded.scene
       ? ({ type: "loaded", option, scene: loaded.scene } as const)
@@ -147,9 +174,11 @@ export function createFlyerWorkspace({
     const slot = flyerSlotReducer(state.slot, event);
     // What arrives late for another option does not step on the one on screen (invariant 6).
     if (slot === state.slot) return;
+    if (loaded.legal !== null) savedLegals.set(option, loaded.legal);
+    legalOwner = option;
     change({
       slot,
-      legal: loaded.legal ?? "",
+      legal: legalOf(option) ?? "",
       scale: scaleFor(state.zoom, slot),
     });
     requestDraw();
@@ -170,10 +199,11 @@ export function createFlyerWorkspace({
   };
 
   const selectOption: FlyerWorkspace["selectOption"] = (option, singleCashback) => {
-    const known = settled.get(option);
+    keepEditedLegal();
+    legalOwner = settled.has(option) ? option : null;
     change({
       slot: flyerSlotReducer(state.slot, { type: "selected", option }),
-      legal: known?.legal ?? "",
+      legal: (legalOwner === null ? undefined : legalOf(option)) ?? "",
     });
     const loading = load(option, singleCashback);
     void loading.then((loaded) => {
@@ -193,6 +223,7 @@ export function createFlyerWorkspace({
   return {
     logos,
     sections,
+    batch: createBatchLock(),
     getState: () => state,
     subscribe: (listener) => {
       listeners.add(listener);
@@ -226,12 +257,22 @@ export function createFlyerWorkspace({
     },
     optionLegal: () => {
       const { option } = state.slot;
-      return (option === null ? null : settled.get(option)?.legal) ?? "";
+      return (option === null ? undefined : legalOf(option)) ?? "";
+    },
+    savedLegal: () => {
+      const { option } = state.slot;
+      return option === null ? undefined : savedLegals.get(option);
+    },
+    hasFlyer: (option) => {
+      const known = settled.get(option);
+      return known ? Boolean(known.scene) : undefined;
     },
     optionScene: (option) => settled.get(option)?.scene ?? null,
     restoreForm: (form) => {
-      const known = state.slot.option === null ? undefined : settled.get(state.slot.option);
-      change({ form, legal: known?.legal ?? state.legal });
+      const { option } = state.slot;
+      if (option !== null) editedLegals.delete(option);
+      const saved = option === null ? undefined : savedLegals.get(option);
+      change({ form, legal: saved ?? state.legal });
       requestDraw();
     },
     setZoom: (zoom) => {

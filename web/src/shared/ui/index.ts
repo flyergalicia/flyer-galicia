@@ -22,6 +22,7 @@ export { Modal } from "./modal/Modal.ts";
 export type { ModalLook, ModalSize } from "./modal/Modal.parts.tsx";
 export { GaliciaLogo } from "./logo/GaliciaLogo.tsx";
 export { SectionLabel } from "./section-label/SectionLabel.tsx";
+export { type ShortcutTip, useShortcutTip } from "./shortcut-tip/use-shortcut-tip.tsx";
 export { StatCard, type StatCardTone } from "./stat-card/StatCard.tsx";
 export { Switch } from "./switch/Switch.tsx";
 export { Tabs } from "./tabs/Tabs.ts";

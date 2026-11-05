@@ -5,10 +5,11 @@ import {
   type ArtworkFailure,
   type FlyerScene,
   loadFlyerArtwork,
-  type RawCalibration,
 } from "@/shared/flyer-engine/index.ts";
 import type { Bucket } from "@/shared/supabase/index.ts";
-import { activeFile, legalFile } from "./option-files.ts";
+import { FIRST_OPTION_DEFAULT_LEGAL } from "./default-legal.ts";
+import { readActive } from "./option-active.ts";
+import { legalFile } from "./option-files.ts";
 
 export interface LoadedOption {
   readonly scene: FlyerScene | null;
@@ -26,31 +27,18 @@ function field(value: unknown, key: string): unknown {
   return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
 }
 
-function isCalibration(value: unknown): value is RawCalibration {
-  return typeof value === "object" && value !== null;
-}
-
-async function readActive(bucket: Bucket, option: number) {
-  const file = await bucket.readJson(activeFile(option));
-  if (file.ok) {
-    const imageUrl = field(file.value, "imageUrl");
-    const calibration = field(file.value, "cfg");
-    return {
-      failed: false,
-      imageUrl: typeof imageUrl === "string" && imageUrl ? imageUrl : null,
-      calibration: isCalibration(calibration) ? calibration : null,
-    };
-  }
-  return { failed: file.error.kind !== "not-found", imageUrl: null, calibration: null };
+/** Saved empty on purpose is empty; never saved, option 1 keeps the text it always had. */
+function neverSavedLegal(option: number): string {
+  return option === 1 ? FIRST_OPTION_DEFAULT_LEGAL : "";
 }
 
 async function readLegal(bucket: Bucket, option: number) {
   const file = await bucket.readJson(legalFile(option));
   if (file.ok) {
     const text = field(file.value, "text");
-    return { failed: false, text: typeof text === "string" ? text : "" };
+    return { failed: false, text: typeof text === "string" ? text : neverSavedLegal(option) };
   }
-  return { failed: file.error.kind === "unreachable", text: "" };
+  return { failed: file.error.kind === "unreachable", text: neverSavedLegal(option) };
 }
 
 /** Nothing here throws: what could not arrive is said in the answer. */

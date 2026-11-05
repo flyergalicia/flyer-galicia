@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   companySubtitle,
   digitsOf,
@@ -18,13 +19,16 @@ import {
   type SearchableCompany,
   searchCompanies,
 } from "@/shared/domain/company-registry/index.ts";
+import { registerProbe } from "@/shared/lib/test-probe.ts";
 import { usePermissions } from "@/shared/session/index.ts";
 import { Button, Input } from "@/shared/ui/index.ts";
+import { companyListProbe } from "../model/registry-probe.ts";
 import { useRegistryContext } from "../model/registry-rules.ts";
 import {
   useCompanies,
   useSearchableCompanies,
   useSubstituteCompanies,
+  useUserId,
 } from "../model/use-companies.ts";
 import styles from "./CompanyField.module.css";
 
@@ -325,6 +329,12 @@ export function CompanyField({
   const { can } = usePermissions();
   const canSearch = can("padron_buscar");
   const { failed, reload, loading } = useCompanies();
+  const queryClient = useQueryClient();
+  const userId = useUserId();
+  useEffect(
+    () => registerProbe("companyList", () => companyListProbe(queryClient, userId)),
+    [queryClient, userId],
+  );
   const searchable = useSearchableCompanies();
   const { cashbackNames } = useRegistryContext();
   const [searching, setSearching] = useState(false);

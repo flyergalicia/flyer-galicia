@@ -99,15 +99,55 @@ test(
   },
 );
 
-test("inside a draft, the company search erases nothing and Estudio takes it", async ({
-  openApp,
-}) => {
+test(
+  "inside a draft, the company search erases nothing",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    // Bringing a company takes the search, which comes with its own faculty.
+    cloud.setPermissions("asesor", { padron_buscar: true });
+    const app = await openApp({ user: "asesor" });
+    const sections = app.flyerSections;
+    const artworkHeight = async () => (await sections.cropStatus()).artworkHeight;
+    const wholeHeight = await artworkHeight();
+    await app.logoEditor.enter();
+    await app.logoEditor.waitForBrandCatalog();
+    await sections.removeBand(CUT.y, CUT.height);
+    await app.page.waitForTimeout(300);
+    await app.logoEditor.placeBrands([LOGO_ONE]);
+    await app.page.waitForTimeout(600);
+    await sections.newDraft();
+    await app.logoEditor.placeBrands([LOGO_TWO]);
+    await app.page.waitForTimeout(600);
+    await sections.selectOpenTab(0);
+
+    // 4) The company search inside the draft erases nothing
+    await sections.bringCompany(COMPANY);
+    expect.soft((await sections.cropStatus()).active, "the search keeps the crop").toBe(true);
+    expect.soft((await sections.openWork())?.changes, "and the logos").toBe(1);
+    expect
+      .soft(await app.flyerEditor.companyName(), "and brings the company")
+      .toBe(COMPANY.empresa);
+    await sections.closeCompanyUpdateNotice();
+
+    // 5) Restaurar inside the draft
+    await app.flyerEditor.restoreDefaults();
+    await app.page.waitForTimeout(500);
+    expect.soft(await artworkHeight(), "Restaurar leaves the original clean").toBe(wholeHeight);
+    expect.soft((await sections.openWorkReading()).openId, "with no draft open").toBeNull();
+    expect.soft(await app.flyerEditor.companyName(), "and the form empty").toBe("");
+    await sections.selectOpenTab(0);
+    expect
+      .soft(await artworkHeight(), "the draft still has its crop")
+      .toBe(wholeHeight - CUT.height);
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);
+
+test("Estudio takes a draft, and closing another one asks first", async ({ openApp }) => {
   const app = await openApp({ user: "asesor" });
   const sections = app.flyerSections;
   const tabs = async () =>
     (await sections.tabs()).map(({ label, active }) => (active ? `*${label}` : label));
-  const artworkHeight = async () => (await sections.cropStatus()).artworkHeight;
-  const wholeHeight = await artworkHeight();
   await app.logoEditor.enter();
   await app.logoEditor.waitForBrandCatalog();
   await sections.removeBand(CUT.y, CUT.height);
@@ -118,22 +158,6 @@ test("inside a draft, the company search erases nothing and Estudio takes it", a
   await app.logoEditor.placeBrands([LOGO_TWO]);
   await app.page.waitForTimeout(600);
   await sections.selectOpenTab(0);
-
-  // 4) The company search inside the draft erases nothing
-  await sections.bringCompany(COMPANY);
-  expect.soft((await sections.cropStatus()).active, "the search keeps the crop").toBe(true);
-  expect.soft((await sections.openWork())?.changes, "and the logos").toBe(1);
-  expect.soft(await app.flyerEditor.companyName(), "and brings the company").toBe(COMPANY.empresa);
-  await sections.closeCompanyUpdateNotice();
-
-  // 5) Restaurar inside the draft
-  await app.flyerEditor.restoreDefaults();
-  await app.page.waitForTimeout(500);
-  expect.soft(await artworkHeight(), "Restaurar leaves the original clean").toBe(wholeHeight);
-  expect.soft((await sections.openWorkReading()).openId, "with no draft open").toBeNull();
-  expect.soft(await app.flyerEditor.companyName(), "and the form empty").toBe("");
-  await sections.selectOpenTab(0);
-  expect.soft(await artworkHeight(), "the draft still has its crop").toBe(wholeHeight - CUT.height);
 
   // 7) Saving in Estudio from the draft
   const dialog = await app.studio.openSaveDialog();

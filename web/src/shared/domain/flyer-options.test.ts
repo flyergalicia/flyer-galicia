@@ -4,6 +4,7 @@ import {
   currentOption,
   optionLabel,
   optionNumber,
+  optionColor,
   optionTab,
   flyerOptionsInFile,
   isFlyerTabId,
@@ -158,5 +159,22 @@ describe("an option among the others", () => {
     expect(currentAmong(options, [1])).toBe(1);
     expect(currentAmong(options, [])).toBe(0);
     expect(currentAmong(options, [4, 5]), "they replace each other").toBe(5);
+  });
+});
+
+describe("the color of a flyer", () => {
+  const options = sanitizeFlyerOptions([
+    { n: 2, nombre: "Con el suyo", color: "#ff0000" },
+    { n: 3, nombre: "Sin color" },
+  ]);
+
+  it("is its own if it has one, and otherwise the one of its place", () => {
+    expect(optionColor(options, 2)).toBe("#ff0000");
+    expect(optionColor(options, 3)).toMatch(/^#/);
+    expect(optionColor(options, 3)).not.toBe(optionColor(options, 1));
+  });
+
+  it("goes round when there are more flyers than colors", () => {
+    expect(optionColor(options, 50)).toMatch(/^#/);
   });
 });

@@ -305,6 +305,7 @@
 }
 
 .adminCount {
+  letter-spacing: 1px;
   margin-left: 2px;
   padding: 0 6px;
   border-radius: 10px;

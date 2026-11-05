@@ -1,7 +1,7 @@
 // What Base de datos asks of the flyer editor, which is another slice: generating the ZIP of the
-// ticked companies, and knowing which options have a flyer. The app puts this provider around the
-// shell when the flyer editor arrives. Until then there is nobody to ask.
-import { createContext, useContext } from "react";
+// ticked companies, and knowing which options have a flyer. The app puts the host around the shell,
+// and the editor, once it is on the page, says it is there.
+import { createContext, useContext, useEffect } from "react";
 import type { Company } from "@/shared/domain/company-registry/company.ts";
 
 export type FlyerFileFormat = "pdf" | "png";
@@ -28,6 +28,16 @@ export interface FlyerGenerationPort {
 
 export const FlyerGenerationContext = createContext<FlyerGenerationPort | null>(null);
 
+/** Where the editor says it is there; a test of the editor alone has nobody to tell. */
+export const FlyerGenerationAttachContext = createContext<
+  ((works: FlyerGenerationPort) => () => void) | null
+>(null);
+
 export function useFlyerGeneration(): FlyerGenerationPort | null {
   return useContext(FlyerGenerationContext);
+}
+
+export function useAttachFlyerGeneration(works: FlyerGenerationPort): void {
+  const attach = useContext(FlyerGenerationAttachContext);
+  useEffect(() => attach?.(works), [attach, works]);
 }

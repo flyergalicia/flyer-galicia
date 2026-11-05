@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { Promotion } from "@/shared/domain/promotions/index.ts";
+import { useOptionOnScreen } from "@/shared/lib/option-on-screen/option-on-screen-context.ts";
 import { useSetIncludeModo } from "@/shared/lib/promotions/include-modo-context.ts";
 import { usePromotionFiltersPort } from "@/shared/lib/promotions/promotion-filters.ts";
 import {
@@ -139,7 +140,7 @@ function InsideOnly({ isActive = true }: { readonly isActive?: boolean }) {
   ) : null;
 }
 
-async function open(cloud: Cloud = {}) {
+async function open({ before, ...cloud }: Cloud & { readonly before?: ReactNode } = {}) {
   const { catalog = [], modo = [], meta, edge, ...rest } = cloud;
   const answers: AppAnswers = {
     ...rest,
@@ -161,7 +162,14 @@ async function open(cloud: Cloud = {}) {
   };
   const harness = createAppHarness(answers);
   harness.storeSession();
-  const screen = await render(harness.wrap(<InsideOnly />));
+  const screen = await render(
+    harness.wrap(
+      <>
+        {before}
+        <InsideOnly />
+      </>,
+    ),
+  );
   await expect.element(screen.getByText("Buscador de Promociones")).toBeVisible();
   return { screen, harness };
 }
@@ -1392,6 +1400,20 @@ describe("what a test can read", () => {
   });
 });
 
+describe("the button of the search", () => {
+  it("tells its key when the mouse rests on it, as Descargar PDF does", async () => {
+    const { screen } = await open({ catalog: [promotion("Alfa")] });
+    await screen.getByTestId("promotions-validate").hover();
+    await expect.element(page.getByRole("tooltip")).toMatchTextContent(/\+ Enter/);
+  });
+});
+
+function Opened({ option }: { readonly option: number }) {
+  const holder = useOptionOnScreen();
+  holder.set(option);
+  return null;
+}
+
 describe("watching the brands found", () => {
   it("is only for the administrator", async () => {
     const { screen } = await open({ catalog: [promotion("Alfa")] });
@@ -1445,6 +1467,42 @@ describe("watching the brands found", () => {
       .element(notice(screen))
       .toMatchTextContent(/Listo: se vigilan 1 marcas de «Súper»/);
     expect(harness.network.to("/storage/v1/object/flyers/_vigilar.json").length).toBeGreaterThan(0);
+  });
+
+  it("starts on the flyer open in the editor, if it is on the list", async () => {
+    const { screen } = await open({
+      profile: ADMIN,
+      files: {
+        "_opciones.json": {
+          opts: [
+            { n: 1, nombre: "Combustible" },
+            { n: 9, nombre: "Súper" },
+          ],
+        },
+      },
+      catalog: [promotion("Alfa")],
+      before: <Opened option={9} />,
+    });
+    await validate(screen, ["Alfa"]);
+    const option = screen.getByLabelText("Vigilar estas marcas en");
+    await expect.element(option).toHaveValue("9");
+  });
+
+  it("with no flyer open, or one that is not on the list, it starts on the first one", async () => {
+    const { screen } = await open({
+      profile: ADMIN,
+      files: {
+        "_opciones.json": {
+          opts: [
+            { n: 1, nombre: "Combustible" },
+            { n: 9, nombre: "Súper" },
+          ],
+        },
+      },
+      catalog: [promotion("Alfa")],
+    });
+    await validate(screen, ["Alfa"]);
+    await expect.element(screen.getByLabelText("Vigilar estas marcas en")).toHaveValue("1");
   });
 
   it("without anything found it asks to review", async () => {

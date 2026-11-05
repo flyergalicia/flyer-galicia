@@ -1,13 +1,17 @@
 // Which option goes with the tab on screen, what the empty form draws, and how to come back from a
 // failure. It is the only one that decides to go to another option on its own.
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { type FlyerTab, isFlyerTabId, optionLabel } from "@/shared/domain/flyer-options.ts";
+import {
+  FLYER_TABS,
+  type FlyerTab,
+  isFlyerTabId,
+  optionLabel,
+} from "@/shared/domain/flyer-options.ts";
 import { useCashbackConfigs } from "@/shared/lib/app-config/cashback-query.ts";
 import { useFlyerOptions } from "@/shared/lib/app-config/flyer-options-query.ts";
 import {
   allowedOptions,
   drawsSingleCashback,
-  emptyFormValues,
   firstOptionOf,
   tabOfOption,
   useFlyerWorkspace,
@@ -15,6 +19,7 @@ import {
 } from "@/shared/lib/flyer-workspace/index.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { usePermissions } from "@/shared/session/index.ts";
+import { useFlyerForm } from "./form-context.ts";
 
 function tabOf(tabId: string): FlyerTab {
   return isFlyerTabId(tabId) ? tabId : "flyer";
@@ -24,8 +29,13 @@ function loadingText(label: string): string {
   return `Cargando ${label}...`;
 }
 
-export function useFlyerOnScreen(tabId: string, isActive: boolean) {
+export function useFlyerOnScreen(
+  tabId: string,
+  isActive: boolean,
+  goToTab: (tabId: string) => void,
+) {
   const workspace = useFlyerWorkspace();
+  const form = useFlyerForm();
   const toast = useToast();
   const { can } = usePermissions();
   const { options } = useFlyerOptions();
@@ -33,12 +43,13 @@ export function useFlyerOnScreen(tabId: string, isActive: boolean) {
   const tab = tabOf(tabId);
   const onScreen = useWorkspaceValue((state) => state.slot.option);
   const lastOfTab = useRef(new Map<FlyerTab, number>());
+  // A batch goes through several flyers from one press: it has to know the tab of now, not of then.
+  const here = useRef({ tab, isActive });
+  useEffect(() => {
+    here.current = { tab, isActive };
+  });
 
   const allowed = useMemo(() => allowedOptions(options, tab, can), [options, tab, can]);
-  const form = useMemo(
-    () => emptyFormValues(tab, configs[0], names[0] ?? ""),
-    [tab, configs, names],
-  );
 
   const go = useCallback(
     (option: number, announce: boolean) => {
@@ -46,16 +57,19 @@ export function useFlyerOnScreen(tabId: string, isActive: boolean) {
       lastOfTab.current.set(optionTabId, option);
       const text = loadingText(optionLabel(options, option));
       if (announce) toast.show(text);
-      void workspace.selectOption(option, drawsSingleCashback(optionTabId)).then((loaded) => {
+      // A batch can go through the flyers with another screen in front: it stays there.
+      if (here.current.isActive && optionTabId !== here.current.tab) goToTab(optionTabId);
+      return workspace.selectOption(option, drawsSingleCashback(optionTabId)).then((loaded) => {
         if (announce) toast.hide(text);
-        if (loaded.scene && loaded.legal !== null && !loaded.legal.trim()) {
+        if (loaded.scene && loaded.legal !== null && !workspace.getState().legal.trim()) {
           toast.show(
             `⚠ ${optionLabel(options, option)} no tiene legal cargado — avisá a la central antes de generar el flyer.`,
           );
         }
+        return loaded;
       });
     },
-    [options, toast, workspace],
+    [goToTab, options, toast, workspace],
   );
 
   // A person who loses an option goes to the first one left; the same on changing tab.
@@ -64,12 +78,20 @@ export function useFlyerOnScreen(tabId: string, isActive: boolean) {
     if (onScreen !== null && tabOfOption(options, onScreen) === tab && allowed.includes(onScreen)) {
       return;
     }
-    go(firstOptionOf(allowed, lastOfTab.current.get(tab)), onScreen !== null);
-  }, [allowed, go, isActive, onScreen, options, tab]);
+    if (allowed.length === 0) {
+      // A tab with nothing of this person: where they have something, if they have it.
+      const elsewhere = FLYER_TABS.flatMap((other) => allowedOptions(options, other, can))[0];
+      if (elsewhere !== undefined) {
+        goToTab(tabOfOption(options, elsewhere));
+        return;
+      }
+    }
+    void go(firstOptionOf(allowed, lastOfTab.current.get(tab)), onScreen !== null);
+  }, [allowed, can, go, goToTab, isActive, onScreen, options, tab]);
 
   useEffect(() => {
-    workspace.setForm(form);
-  }, [form, workspace]);
+    form.setContext({ configs, names, tab });
+  }, [configs, form, names, tab]);
 
   const retry = useCallback(() => {
     void workspace.retryLoading(drawsSingleCashback(tab));
@@ -86,9 +108,6 @@ export function useFlyerOnScreen(tabId: string, isActive: boolean) {
   }, [failure, retry]);
 
   const choose = useCallback((option: number) => go(option, true), [go]);
-  const restore = useCallback(() => {
-    workspace.restoreForm(form);
-  }, [form, workspace]);
 
-  return { allowed, choose, options, retry, restore, onScreen };
+  return { allowed, choose, options, retry, onScreen, tab };
 }

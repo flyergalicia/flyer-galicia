@@ -182,6 +182,18 @@ export interface FlyerEditorDriver {
   historyRows(): Promise<string[]>;
   /** Presses Editar on a row of the Historial. */
   editFromHistory(index: number): Promise<void>;
+  /** Presses PDF on a row of the Historial. */
+  pressDownloadFromHistory(index: number): Promise<void>;
+  /** Presses the cross on a row of the Historial. */
+  pressRemoveFromHistory(index: number): Promise<void>;
+  /** What the Historial says with nothing in it; empty when it has rows. */
+  emptyHistoryText(): Promise<string>;
+  /** The offer of the flyer half made, as it reads; null when there is none. */
+  sessionDraftOffer(): Promise<string | null>;
+  /** Presses "Seguir con ese". */
+  carryOnWithSessionDraft(): Promise<void>;
+  /** Presses "Descartar". */
+  discardSessionDraft(): Promise<void>;
   /** The validation message under a field of an officer. */
   fieldWarning(field: "phone" | "email", officer?: number): Promise<string>;
   /** The switch of Otros that adds officers by branch. */
@@ -315,6 +327,12 @@ export interface FlyerEditorDriver {
   optionsOfTab(tab: string): Promise<number[]>;
   /** Stars an option starting from these favorites, and returns the favorites left. */
   favoritesAfterStarring(current: number[], option: number): Promise<number[]>;
+  /** Presses a flyer of the bar four times in a row and writes its new name. */
+  renameFlyerTab(option: number, name: string): Promise<void>;
+  /** Holds a flyer of the bar until it lifts and drags it over the other half of another one. */
+  dragFlyerTab(option: number, over: number): Promise<void>;
+  /** The name of the flyers in sight, in their order. */
+  flyerTabNames(): Promise<string[]>;
   /** The option on screen. */
   currentOption(): Promise<number>;
 }

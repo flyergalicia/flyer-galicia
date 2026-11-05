@@ -10,7 +10,8 @@ import {
 import { createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
 import { failure, success } from "@/shared/supabase/index.ts";
 import { LOGO_A, paintedFlyer } from "@/shared/lib/flyer-workspace/testing/painted-flyer.ts";
-import { useFlyerDownload } from "./use-flyer-download.ts";
+import { FlyerFormProvider } from "../ui/FlyerFormProvider.tsx";
+import { type FlyerDownloadOptions, useFlyerDownload } from "./use-flyer-download.ts";
 import { attachPreviewDrawing } from "./preview-drawing.ts";
 
 const saving = vi.hoisted((): { result: () => ReturnType<typeof saveFlyerPdf> } => ({
@@ -22,8 +23,8 @@ vi.mock("@/shared/flyer-engine/index.ts", async (original) => ({
   saveFlyerPdf: () => saving.result(),
 }));
 
-function Buttons() {
-  const { download, busy } = useFlyerDownload();
+function Buttons({ hooks }: { readonly hooks: FlyerDownloadOptions }) {
+  const { download, busy } = useFlyerDownload(hooks);
   const workspace = useFlyerWorkspace();
   return (
     <>
@@ -47,7 +48,7 @@ function Buttons() {
   );
 }
 
-async function open() {
+async function open(hooks: FlyerDownloadOptions = {}) {
   const harness = createAppHarness({
     files: {
       "_active9.json": { imageUrl: paintedFlyer([LOGO_A]), cfg: {} },
@@ -57,7 +58,9 @@ async function open() {
   const screen = await render(
     harness.wrap(
       <FlyerWorkspaceProvider>
-        <Buttons />
+        <FlyerFormProvider>
+          <Buttons hooks={hooks} />
+        </FlyerFormProvider>
       </FlyerWorkspaceProvider>,
     ),
   );
@@ -105,6 +108,44 @@ describe("downloading", () => {
         .toHaveTextContent("No se pudo preparar el PDF. Revisá la conexión y probá de nuevo.");
     });
     await expect.element(screen.getByRole("button", { name: "Bajar" })).toBeVisible();
+  });
+
+  it("tells who waits for one that came out, and for nothing else", async () => {
+    const afterDownload = vi.fn<() => void>();
+    const { screen } = await open({ afterDownload });
+    await screen.getByRole("button", { name: "Bajar" }).click();
+    expect(afterDownload).not.toHaveBeenCalled();
+    await screen.getByRole("button", { name: "Traer" }).click();
+    saving.result = () => Promise.resolve(failure({ kind: "library", detail: "No" }));
+    await vi.waitFor(async () => {
+      await screen.getByRole("button", { name: "Bajar" }).click();
+      await expect
+        .element(screen.getByRole("status"), { timeout: 500 })
+        .toMatchTextContent(/No se pudo preparar/);
+    });
+    expect(afterDownload).not.toHaveBeenCalled();
+    saving.result = () => Promise.resolve(success(true));
+    await screen.getByRole("button", { name: "Bajar" }).click();
+    await vi.waitFor(() => {
+      expect(afterDownload).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("a warning stops it until it is answered, and then it goes on", async () => {
+    const stopped: (() => void)[] = [];
+    const checkBefore = vi.fn<(run: () => void) => boolean>((run) => {
+      stopped.push(run);
+      return true;
+    });
+    const { screen } = await open({ checkBefore });
+    await screen.getByRole("button", { name: "Traer" }).click();
+    await vi.waitFor(async () => {
+      await screen.getByRole("button", { name: "Bajar" }).click();
+      expect(checkBefore).toHaveBeenCalled();
+    });
+    await expect.element(screen.getByRole("status")).not.toHaveTextContent("PDF descargado!");
+    stopped[0]?.();
+    await expect.element(screen.getByRole("status")).toHaveTextContent("PDF descargado!");
   });
 
   it("something that breaks while generating is said, and frees the button", async () => {

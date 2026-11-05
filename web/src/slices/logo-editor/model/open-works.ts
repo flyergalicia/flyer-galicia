@@ -2,7 +2,9 @@
 // itself: the original stays clean. They come and go with their own cuts, logos and legal text, and
 // each opening has a number: only the last one can be applied (touching another tab before it finished
 // loading used to leave the first one applied, and the download came out with it).
+import type { LogoChange } from "@/shared/flyer-engine/index.ts";
 import type { LoadedOption } from "@/shared/lib/flyer-workspace/index.ts";
+import { placedChanges } from "./change.ts";
 import {
   draftsKey,
   forgetStoredDrafts,
@@ -21,6 +23,11 @@ const OFFER_WAIT_MS = 900;
 const OPENING_GIVES_UP_MS = 15_000;
 
 export type OpenWorks = ReturnType<typeof createOpenWorks>;
+
+/** What a flyer of the history brings of its own. */
+export interface StoredWork extends Pick<OpenWork, "option" | "cuts" | "legal"> {
+  readonly logos: readonly LogoChange[];
+}
 
 function toStored(work: OpenWork): StoredDraft {
   return {
@@ -61,6 +68,7 @@ export function createOpenWorks(
   let isOffered = false;
   let pending: readonly StoredDraft[] = [];
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  let offerTimer: ReturnType<typeof setTimeout> | undefined;
   let warnedNoRoom = false;
   let warnedHeavy = false;
 
@@ -144,7 +152,7 @@ export function createOpenWorks(
   const offerSoon = () => {
     if (isReviewed || isOffered) return;
     isOffered = true;
-    setTimeout(offer, OFFER_WAIT_MS);
+    offerTimer = setTimeout(offer, OFFER_WAIT_MS);
   };
 
   const saveSoon = () => {
@@ -153,7 +161,10 @@ export function createOpenWorks(
       return;
     }
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveNow, SAVE_WAIT_MS);
+    saveTimer = setTimeout(() => {
+      saveTimer = undefined;
+      saveNow();
+    }, SAVE_WAIT_MS);
   };
 
   const create = (option: number, name?: string): OpenWork => {
@@ -278,6 +289,15 @@ export function createOpenWorks(
     },
     saveSoon,
     offerSoon,
+    /** The screen goes away: what was about to be saved is saved now, and nothing runs later. */
+    stop: () => {
+      clearTimeout(offerTimer);
+      isOffered = false;
+      if (saveTimer === undefined) return;
+      clearTimeout(saveTimer);
+      saveTimer = undefined;
+      saveNow();
+    },
     keepActive,
     /** The × of the sign of a design: what is on screen stays, without a design open. */
     letGoDesign: () => {
@@ -296,6 +316,20 @@ export function createOpenWorks(
       const draft = create(option);
       void open(draft.id);
       notify(`«${draft.name}» listo: arranca del flyer original.`);
+    },
+    /**
+     * A flyer of the history with its cuts or its logos opens in a draft, the same as the changes by
+     * hand: the original stays clean. Its option has to be on screen already.
+     */
+    openStored: async ({ option, logos, cuts, legal }: StoredWork) => {
+      const draft = create(option);
+      update(draft.id, { changes: placedChanges(logos), cuts, legal });
+      // First this: what opening it has to say about a missing logo goes after.
+      notify(
+        `Tus cambios quedaron en «${draft.name}», al lado del flyer original. El original no se tocó.`,
+      );
+      await open(draft.id);
+      saveSoon();
     },
     /** A flyer of the bar was chosen. It says whether it still has to go there. */
     chooseFlyer: (option: number): boolean => {

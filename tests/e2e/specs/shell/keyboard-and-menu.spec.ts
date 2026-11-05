@@ -5,7 +5,7 @@ import { expect, test } from "../../support/test.ts";
 const WAIT_FOR_A_SAVE_MS = 500;
 
 test.describe("the keyboard", () => {
-  test("the tabs of the panel move with the arrows", async ({ openApp }) => {
+  test("the tabs of the panel move with the arrows", { tag: "@react" }, async ({ openApp }) => {
     const { session } = await openApp();
 
     expect.soft(await session.moveAlongEditorTabs("ArrowRight")).toMatch(/Masivo/);
@@ -15,29 +15,33 @@ test.describe("the keyboard", () => {
     expect.soft(await session.moveAlongEditorTabs("ArrowLeft")).toMatch(/Individual/);
   });
 
-  test("Ctrl+Enter downloads, and does nothing with a window on top", async ({ openApp }) => {
-    const { flyerEditor, flyerDrawing, page } = await openApp();
-    await flyerEditor.loadDownloadLibrary("pdf");
-    await flyerEditor.fillCompanyName("ACME");
+  test(
+    "Ctrl+Enter downloads, and does nothing with a window on top",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { flyerEditor, flyerDrawing, page } = await openApp();
+      await flyerEditor.loadDownloadLibrary("pdf");
+      await flyerEditor.fillCompanyName("ACME");
 
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      page.keyboard.press("Control+Enter"),
-    ]);
-    expect.soft(download.suggestedFilename()).toMatch(/\.pdf$/);
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        page.keyboard.press("Control+Enter"),
+      ]);
+      expect.soft(download.suggestedFilename()).toMatch(/\.pdf$/);
 
-    await expect.poll(() => flyerEditor.downloadIsBusy()).toBe(false);
-    await flyerDrawing.openPreviewWindow();
-    let another = false;
-    page.once("download", () => {
-      another = true;
-    });
-    await page.keyboard.press("Control+Enter");
-    await page.waitForTimeout(1_500);
-    expect.soft(another, "the window goes first").toBe(false);
-  });
+      await expect.poll(() => flyerEditor.downloadIsBusy()).toBe(false);
+      await flyerDrawing.openPreviewWindow();
+      let another = false;
+      page.once("download", () => {
+        another = true;
+      });
+      await page.keyboard.press("Control+Enter");
+      await page.waitForTimeout(1_500);
+      expect.soft(another, "the window goes first").toBe(false);
+    },
+  );
 
-  test("Escape closes a window", async ({ openApp }) => {
+  test("Escape closes a window", { tag: "@react" }, async ({ openApp }) => {
     const { flyerDrawing, page } = await openApp();
     await flyerDrawing.openPreviewWindow();
 
@@ -46,23 +50,24 @@ test.describe("the keyboard", () => {
     expect.soft((await flyerDrawing.previewWindowZoom()).open).toBe(false);
   });
 
-  test("the app asks with its own windows, never with those of the browser", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.setPermissions("asesor", { asesores_guardados: true });
-    cloud.savedAdvisors = [
-      { id: "a1", name: "Ana", nombre: "Ana Perez", celular: "11 1", email: "a@b.com" },
-    ];
-    const app = await openApp();
-    await app.officers.openSavedAdvisors(1);
+  test(
+    "the app asks with its own windows, never with those of the browser",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.setPermissions("asesor", { asesores_guardados: true });
+      cloud.savedAdvisors = [
+        { id: "a1", name: "Ana", nombre: "Ana Perez", celular: "11 1", email: "a@b.com" },
+      ];
+      const app = await openApp();
+      await app.officers.openSavedAdvisors(1);
 
-    await app.officers.pressDeleteSavedAdvisor("Ana");
+      await app.officers.pressDeleteSavedAdvisor("Ana");
 
-    expect.soft(await app.session.waitForConfirmation()).toMatch(/Eliminar/);
-    await app.session.answerConfirmation(false);
-    expect.soft(app.dialogs(), "no window of the browser").toEqual([]);
-  });
+      expect.soft(await app.session.waitForConfirmation()).toMatch(/Eliminar/);
+      await app.session.answerConfirmation(false);
+      expect.soft(app.dialogs(), "no window of the browser").toEqual([]);
+    },
+  );
 });
 
 test.describe("the name menu", () => {

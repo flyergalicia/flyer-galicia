@@ -49,6 +49,7 @@ export function FlyerPreviewPane({
         className={failed ? `${styles.canvasBox} ${styles.canvasFailed}` : styles.canvasBox}
         data-testid="flyer-canvas-box"
         data-flyer-box=""
+        data-off={failed}
       >
         <canvas ref={canvasRef} className={styles.canvas} data-testid="flyer-canvas" />
         {layer}

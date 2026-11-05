@@ -2,6 +2,13 @@ import type { ReactNode } from "react";
 import styles from "./Icon.module.css";
 
 const PATHS = {
+  bolt: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+  close: (
+    <>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </>
+  ),
   expand: (
     <>
       <polyline points="15 3 21 3 21 9" />
@@ -195,6 +202,21 @@ const PATHS = {
     <>
       <circle cx="11" cy="11" r="7" />
       <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </>
+  ),
+  share: (
+    <>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </>
+  ),
+  pin: (
+    <>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
     </>
   ),
   sun: (

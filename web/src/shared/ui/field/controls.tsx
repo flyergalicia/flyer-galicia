@@ -59,7 +59,9 @@ export function Input({
   );
 }
 
-type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
+type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  readonly ref?: Ref<HTMLTextAreaElement>;
+};
 
 export function Textarea({ className, id, ...rest }: TextareaProps) {
   const field = useOptionalField();

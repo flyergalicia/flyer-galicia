@@ -188,3 +188,20 @@ export function currentAmong(
   const pool = alive.length > 0 ? alive : candidates;
   return pool.length > 0 ? Math.max(...pool) : 0;
 }
+
+const OPTION_COLORS: readonly string[] = [
+  "#1d4070",
+  "#0e8a5f",
+  "#8e44ad",
+  "#b26a00",
+  "#c2185b",
+  "#00838f",
+  "#5d4037",
+  "#455a64",
+];
+
+/** The color of an option: its own, or one that goes with its number. */
+export function optionColor(options: readonly FlyerOption[], option: number): string {
+  const own = options.find(({ n }) => n === option)?.color;
+  return own || (OPTION_COLORS[(option - 1) % OPTION_COLORS.length] ?? "");
+}

@@ -35,55 +35,60 @@ function companiesAvailable(cloud: Cloud, available: boolean): void {
 }
 
 test.describe("a cut in the network is not an empty list", () => {
-  test("the search says it could not connect, and Reintentar brings the companies", async ({
-    cloud,
-    openApp,
-  }) => {
-    const app = await openApp({ user: "admin" });
-    const { companyRegistry } = app;
-    companiesAvailable(cloud, false);
+  test(
+    "the search says it could not connect, and Reintentar brings the companies",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      const app = await openApp({ user: "admin" });
+      const { companyRegistry } = app;
+      companiesAvailable(cloud, false);
 
-    await companyRegistry.forgetCompanies();
-    await companyRegistry.openSearch();
-    await companyRegistry.waitForConnectionProblem();
+      await companyRegistry.forgetCompanies();
+      await companyRegistry.openSearch();
+      await companyRegistry.waitForConnectionProblem();
 
-    const list = await companyRegistry.searchList();
-    expect.soft(list.text, 'the search says "No se pudo conectar"').toMatch(COULD_NOT_CONNECT);
-    expect.soft(list.hasRetry, "and offers Reintentar").toBe(true);
-    expect
-      .soft(list.text, 'the search does not say "Todavía no cargaste empresas"')
-      .not.toMatch(NOTHING_LOADED_YET);
-    expect
-      .soft(await app.flyerEditor.latestNotice(), "the notice has no technical English")
-      .not.toMatch(/Failed to fetch|TypeError/i);
+      const list = await companyRegistry.searchList();
+      expect.soft(list.text, 'the search says "No se pudo conectar"').toMatch(COULD_NOT_CONNECT);
+      expect.soft(list.hasRetry, "and offers Reintentar").toBe(true);
+      expect
+        .soft(list.text, 'the search does not say "Todavía no cargaste empresas"')
+        .not.toMatch(NOTHING_LOADED_YET);
+      expect
+        .soft(await app.flyerEditor.latestNotice(), "the notice has no technical English")
+        .not.toMatch(/Failed to fetch|TypeError/i);
 
-    companiesAvailable(cloud, true);
-    await companyRegistry.retrySearch();
-    await companyRegistry.waitForCompaniesLoaded(COMPANIES.length);
+      companiesAvailable(cloud, true);
+      await companyRegistry.retrySearch();
+      await companyRegistry.waitForCompaniesLoaded(COMPANIES.length);
 
-    expect
-      .soft((await companyRegistry.searchList()).companies, "after Reintentar it lists both")
-      .toHaveLength(COMPANIES.length);
-    await expectSessionIntact(app);
-  });
+      expect
+        .soft((await companyRegistry.searchList()).companies, "after Reintentar it lists both")
+        .toHaveLength(COMPANIES.length);
+      await expectSessionIntact(app);
+    },
+  );
 
-  test("the suggestions retry by themselves when typing", async ({ cloud, openApp }) => {
-    const app = await openApp({ user: "admin" });
-    const { companyRegistry } = app;
-    companiesAvailable(cloud, false);
+  test(
+    "the suggestions retry by themselves when typing",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      const app = await openApp({ user: "admin" });
+      const { companyRegistry } = app;
+      companiesAvailable(cloud, false);
 
-    await companyRegistry.forgetCompanies();
-    await companyRegistry.loadCompanies();
-    await companyRegistry.waitForConnectionProblem();
-    companiesAvailable(cloud, true);
-    await companyRegistry.typeCompanyName("acm");
-    await companyRegistry.waitForCompaniesLoaded(COMPANIES.length);
+      await companyRegistry.forgetCompanies();
+      await companyRegistry.loadCompanies();
+      await companyRegistry.waitForConnectionProblem();
+      companiesAvailable(cloud, true);
+      await companyRegistry.typeCompanyName("acm");
+      await companyRegistry.waitForCompaniesLoaded(COMPANIES.length);
 
-    const suggestions = await companyRegistry.suggestions();
-    expect.soft(suggestions.visible, "it retried by itself and shows suggestions").toBe(true);
-    expect.soft(suggestions.count, "suggesting ACME").toBeGreaterThanOrEqual(1);
-    await expectSessionIntact(app);
-  });
+      const suggestions = await companyRegistry.suggestions();
+      expect.soft(suggestions.visible, "it retried by itself and shows suggestions").toBe(true);
+      expect.soft(suggestions.count, "suggesting ACME").toBeGreaterThanOrEqual(1);
+      await expectSessionIntact(app);
+    },
+  );
 
   test(
     "Generar flyers says it could not connect, and Reintentar brings the companies",
@@ -142,24 +147,25 @@ test.describe("a cut in the network is not an empty list", () => {
     await expectSessionIntact(app);
   });
 
-  test("an option that could not be asked is not written down as having no flyer", async ({
-    cloud,
-    openApp,
-  }) => {
-    const app = await openApp({ user: "admin" });
-    const { companyRegistry } = app;
-    const dropped = cloud.dropBucketFile("_active9.json");
+  test(
+    "an option that could not be asked is not written down as having no flyer",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      const app = await openApp({ user: "admin" });
+      const { companyRegistry } = app;
+      const dropped = cloud.dropBucketFile("_active9.json");
 
-    const cut = await companyRegistry.checkHunterFlyers();
-    expect.soft(cut.failed, "Hunter: it knows the check failed").toBe(true);
-    expect
-      .soft(cut.hasFlyer, 'Hunter: option 9 is not noted as "no flyer"')
-      .not.toHaveProperty("9");
+      const cut = await companyRegistry.checkHunterFlyers();
+      expect.soft(cut.failed, "Hunter: it knows the check failed").toBe(true);
+      expect
+        .soft(cut.hasFlyer, 'Hunter: option 9 is not noted as "no flyer"')
+        .not.toHaveProperty("9");
 
-    dropped.restore();
-    const back = await companyRegistry.checkHunterFlyers();
-    expect.soft(back.failed, "Hunter: retrying succeeds").toBe(false);
-    expect.soft(back.hasFlyer["9"], "Hunter: and learns option 9 has a flyer").toBe(true);
-    await expectSessionIntact(app);
-  });
+      dropped.restore();
+      const back = await companyRegistry.checkHunterFlyers();
+      expect.soft(back.failed, "Hunter: retrying succeeds").toBe(false);
+      expect.soft(back.hasFlyer["9"], "Hunter: and learns option 9 has a flyer").toBe(true);
+      await expectSessionIntact(app);
+    },
+  );
 });

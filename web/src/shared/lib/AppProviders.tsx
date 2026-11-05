@@ -1,5 +1,6 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { OptionOnScreenProvider } from "./option-on-screen/OptionOnScreenProvider.tsx";
 import { PrimaryActionProvider } from "./primary-action/PrimaryActionProvider.tsx";
 import { IncludeModoProvider } from "./promotions/IncludeModoProvider.tsx";
 import { PromotionFiltersProvider } from "./promotions/PromotionFiltersProvider.tsx";
@@ -23,9 +24,11 @@ export function AppProviders({ backend, queryClient, children }: AppProvidersPro
           <SessionProvider>
             <ToastProvider>
               <PrimaryActionProvider>
-                <IncludeModoProvider>
-                  <PromotionFiltersProvider>{children}</PromotionFiltersProvider>
-                </IncludeModoProvider>
+                <OptionOnScreenProvider>
+                  <IncludeModoProvider>
+                    <PromotionFiltersProvider>{children}</PromotionFiltersProvider>
+                  </IncludeModoProvider>
+                </OptionOnScreenProvider>
               </PrimaryActionProvider>
             </ToastProvider>
           </SessionProvider>

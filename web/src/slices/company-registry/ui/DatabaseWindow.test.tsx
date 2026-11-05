@@ -990,14 +990,14 @@ describe("Generar flyers", () => {
     expect(vi.mocked(port.generate).mock.calls[0]?.[0].format).toBe("pdf");
   });
 
-  it("without the flyer editor it says it is not there yet", async () => {
+  it("with nobody to generate it, it says it could not", async () => {
     await openGenerator({ companies: MANY });
     await expect.element(rowOf(0)).toBeVisible();
     await rowOf(0).getByRole("checkbox").click();
 
     await press(/Generar ZIP/);
 
-    await expect.element(notice()).toHaveTextContent("Generar el ZIP llega con el armador nuevo.");
+    await expect.element(notice()).toMatchTextContent(/No se pudo preparar el ZIP/);
   });
 
   it("what the flyer editor knows decides the flyer of each one", async () => {

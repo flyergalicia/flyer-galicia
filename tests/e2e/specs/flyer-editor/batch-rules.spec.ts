@@ -7,7 +7,7 @@ const row = (empresa: string, sheetRow: number) => ({
   sheetRow,
 });
 
-test.describe("a batch", () => {
+test.describe("a batch", { tag: "@react" }, () => {
   test("the template carries the four officers", async ({ openApp }) => {
     const { flyerEditor } = await openApp();
     await flyerEditor.chooseEditorTab("Masivo");
@@ -90,6 +90,42 @@ test.describe("a batch", () => {
     expect.soft(outcome.summary, "with its summary").not.toBe("");
     await expect.poll(() => cloud.flyerLogWrites.length).toBe(1);
     expect.soft(cloud.flyerLogWrites[0]?.empresa).toMatch(/Mis empresas \(2 flyers\)/);
+  });
+
+  test("a company of a flyer of another tab comes out on it, and it comes back", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.addFlyerOption({
+      option: 8,
+      name: "Combustible rubro",
+      image: FLYER,
+      legal: "L",
+      tab: "rubros",
+    });
+    const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
+    const started = await flyerEditor.activeOption();
+
+    const outcome = await companyRegistry.generateFlyers([
+      { name: "ACME", cashback: "BAU", category: { option: 8 } },
+      { name: "BETA", cashback: "BAU" },
+    ]);
+
+    expect
+      .soft(outcome.files.filter((file) => file.endsWith(".pdf")).map((file) => file.split("/")[0]))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/Combustible rubro/)]));
+    expect.soft(outcome.files.filter((file) => file.endsWith(".pdf"))).toHaveLength(2);
+    expect.soft(outcome.finalOption, "back on the flyer it started on").toBe(started);
+  });
+
+  test("kept waiting by what it needs, it counts as running until it ends", async ({ openApp }) => {
+    const { flyerEditor, session } = await openApp();
+
+    await session.pretendBatchRunning(true);
+    expect.soft(await flyerEditor.batchIsRunning(), "it is running").toBe(true);
+
+    await session.pretendBatchRunning(false);
+    expect.soft(await flyerEditor.batchIsRunning(), "and then it is not").toBe(false);
   });
 
   test("before generating the companies, it says how many go on which flyer", async ({

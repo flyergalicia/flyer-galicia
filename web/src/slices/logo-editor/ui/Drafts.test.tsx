@@ -239,6 +239,31 @@ describe("the drafts", () => {
     await editor.works.open("d");
     await tabs().getByRole("button", { name: "Cerrar" }).click();
     expect(editor.getState().works).toEqual([]);
+    // As in the current version: using again the design on screen leaves its legal as an edit of
+    // the option, and that is what comes back on closing it.
+    expect(workspaceOnScreen().getState().legal).toBe("Su legal");
+  });
+
+  it("closing a design goes back to the legal of its option", async () => {
+    await openEditor();
+    await enter();
+    const editor = theEditor();
+    editor.works.add({
+      id: "d",
+      option: 9,
+      name: "Diseño",
+      temp: false,
+      mine: true,
+      status: "privado",
+      company: "",
+      changes: [],
+      cuts: [],
+      legal: "Su legal",
+      uploads: {},
+    });
+    await editor.works.open("d");
+    expect(workspaceOnScreen().getState().legal).toBe("Su legal");
+    await tabs().getByRole("button", { name: "Cerrar" }).click();
     expect(workspaceOnScreen().getState().legal).toBe("Legal");
   });
 
@@ -442,6 +467,22 @@ describe("the drafts kept in the browser", () => {
     await enter();
     await page.getByRole("button", { name: "Recuperar" }).click();
     await expect.element(page.getByText(/Borrador recuperado.*1 logo subido/)).toBeVisible();
+  });
+
+  it("a screen that goes away saves what it had pending, and writes nothing later", async () => {
+    const { screen } = await openEditor();
+    await enter();
+    await waitForReview();
+    theEditor().works.newDraft();
+    await expect.element(tabs().first()).toBeVisible();
+    theEditor().works.saveSoon();
+    await screen.unmount();
+    expect(saved()?.lista).toHaveLength(1);
+    localStorage.clear();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 1100);
+    });
+    expect(saved()).toBeNull();
   });
 
   it("can be discarded, and then they are erased", async () => {

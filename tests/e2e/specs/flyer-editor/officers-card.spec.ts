@@ -8,7 +8,7 @@ const SOL = { name: "Sol Ruiz", phone: "11 4444 8888", email: "sol.r@bancogalici
 const PEOPLE = [ANA, LUIS, CARLA, SOL];
 const EMPTY = { name: "", phone: "", email: "" };
 
-test.describe("the officers of a flyer", () => {
+test.describe("the officers of a flyer", { tag: "@react" }, () => {
   test("the form starts empty, with one officer and a way to add three more", async ({
     openApp,
   }) => {

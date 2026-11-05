@@ -169,6 +169,24 @@ export function createLegacyFlyerEditorDriver(page: Page): FlyerEditorDriver {
         .nth(index)
         .getByRole("button", { name: "Editar" })
         .click(),
+    pressDownloadFromHistory: (index) =>
+      page
+        .locator("#history-list .hist-item")
+        .nth(index)
+        .getByRole("button", { name: "PDF" })
+        .click(),
+    pressRemoveFromHistory: (index) =>
+      page.locator("#history-list .hist-item").nth(index).locator(".hist-del").click(),
+    emptyHistoryText: async () => {
+      const empty = page.locator("#history-list .history-empty");
+      return (await empty.count()) > 0 ? empty.innerText() : "";
+    },
+    sessionDraftOffer: async () => {
+      const offer = page.locator("#fg-draft");
+      return (await offer.count()) > 0 ? offer.innerText() : null;
+    },
+    carryOnWithSessionDraft: () => page.locator("#fg-draft .btn.bp").click(),
+    discardSessionDraft: () => page.locator("#fg-draft .btn.bg").click(),
     fieldWarning: async (kind, officer = 1) => {
       const suffix = officer === 1 ? "" : String(officer);
       const id = `${kind === "phone" ? "celular" : "email"}${suffix}`;

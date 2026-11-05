@@ -4,7 +4,7 @@ import { newCompany, sanitizeCategory } from "@/shared/domain/company-registry/i
 import { sanitizeFlyerOptions } from "@/shared/domain/flyer-options.ts";
 import { COMPANIES_QUERY_KEY } from "../api/companies.ts";
 import { CLOSED_EDITOR, companyEditorReducer } from "./company-editor.ts";
-import { type ProbeSources, registryProbe } from "./registry-probe.ts";
+import { companyListProbe, type ProbeSources, registryProbe } from "./registry-probe.ts";
 
 const OPTIONS = sanitizeFlyerOptions([{ n: 1 }, { n: 4, nombre: "Combustible", solapa: "rubros" }]);
 const context = { options: OPTIONS, cashbackNames: ["BAU"] };
@@ -97,5 +97,19 @@ describe("what a test can read", () => {
     expect(report.firstCompanyCap).toBe("");
     expect(report.problems.join(" ")).toMatch(/1 CUIT sin 11 dígitos: fila 42/);
     expect(reading.validateSheet([]).firstCompanyCap).toBe("");
+  });
+});
+
+describe("what a test reads of the list wherever it is used", () => {
+  it("with no list yet there is nothing; and of a company, what it has", () => {
+    const queryClient = new QueryClient();
+    const list = companyListProbe(queryClient, "u");
+    expect(list.ownCompanyCount()).toBe(0);
+    expect(list.ownCompany(0)).toEqual({ config: "", firstOfficer: undefined });
+    queryClient.setQueryData(KEY, {
+      rows: [{ ...newCompany(), empresa: "ACME", config: "BAU", asesores: [{ nombre: "Ana" }] }],
+    });
+    expect(list.ownCompanyCount()).toBe(1);
+    expect(list.ownCompany(0)).toEqual({ config: "BAU", firstOfficer: "Ana" });
   });
 });

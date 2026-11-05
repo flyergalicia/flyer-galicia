@@ -15,6 +15,7 @@ import {
   Select,
   Tabs,
   Textarea,
+  useShortcutTip,
 } from "@/shared/ui/index.ts";
 // Not from the index: the shell reads it on the first load, and this one needs the rules of promotions.
 import { ProvinceSelect } from "@/shared/ui/province-select/ProvinceSelect.tsx";
@@ -89,6 +90,7 @@ function OneRowPerBrandTick({ hint }: { readonly hint: string }) {
 function SearchPane() {
   const { brandsText, month, validateWork } = usePromotionsState();
   const { dispatch, validate } = usePromotionsActions();
+  const tip = useShortcutTip("Enter");
   return (
     <>
       <p className={styles.hint}>
@@ -128,12 +130,14 @@ function SearchPane() {
         disabled={Boolean(validateWork)}
         data-testid="promotions-validate"
         {...(validateWork ? {} : { icon: "search" as const })}
+        {...tip.target}
         onClick={() => {
           void validate();
         }}
       >
         {validateWork || "Validar vigencia"}
       </Button>
+      {tip.element}
     </>
   );
 }

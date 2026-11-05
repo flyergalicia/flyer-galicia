@@ -59,6 +59,9 @@ test(
     const app = await openApp({ user: "admin" });
     await app.promotions.open("search");
     await app.promotions.searchBrands(brands);
+    expect
+      .soft(await app.promotions.watchBarOption(), "it starts on the flyer open in the editor")
+      .toBe(FLYER_OPTION);
     await app.promotions.watchFoundBrandsOn(FLYER_OPTION);
 
     const saved = watchListOf(cloud.bucketJson["_vigilar.json"], FLYER_OPTION);

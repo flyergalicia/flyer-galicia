@@ -201,6 +201,19 @@ describe("generateBatch", () => {
     ]);
   });
 
+  it("says when it starts making the ZIP, only if there is something to put in it", async () => {
+    const onPacking = vi.fn<() => void>();
+    await generateBatch({ ...request([{ company: "UNO", option: 1 }]), onPacking });
+    expect(onPacking).toHaveBeenCalledTimes(1);
+    onPacking.mockClear();
+    await generateBatch({
+      ...request([{ company: "UNO", option: 1 }]),
+      loadScene: () => Promise.resolve(failure("network" as const)),
+      onPacking,
+    });
+    expect(onPacking).not.toHaveBeenCalled();
+  });
+
   it("a ZIP that cannot be made is a failure, not a false success", async () => {
     const generating = vi
       .spyOn(JSZip.prototype, "generateAsync")

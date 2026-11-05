@@ -85,6 +85,9 @@ describe("fetching a logo", () => {
   });
 });
 
+/** Decoding a picture takes a while with the whole suite going. */
+const ARRIVAL_WAIT_MS = 5_000;
+
 describe("what drawing asks for", () => {
   it("a logo that is not in memory is null", () => {
     expect(setup().library.imageFor("a.png", ART, TEST_ART_KEY)).toBeNull();
@@ -93,9 +96,12 @@ describe("what drawing asks for", () => {
   it("a missing logo is brought, and whoever draws finds out", async () => {
     const { library, onArrival } = setup();
     library.requestMissing("a.png");
-    await vi.waitFor(() => {
-      expect(onArrival).toHaveBeenCalledTimes(1);
-    });
+    await vi.waitFor(
+      () => {
+        expect(onArrival).toHaveBeenCalledTimes(1);
+      },
+      { timeout: ARRIVAL_WAIT_MS },
+    );
     expect(library.imageFor("a.png", ART, TEST_ART_KEY)).not.toBeNull();
   });
 
@@ -125,9 +131,12 @@ describe("what drawing asks for", () => {
     fails = false;
     passTime(61_000);
     library.requestMissing("a.png");
-    await vi.waitFor(() => {
-      expect(onArrival).toHaveBeenCalledTimes(1);
-    });
+    await vi.waitFor(
+      () => {
+        expect(onArrival).toHaveBeenCalledTimes(1);
+      },
+      { timeout: ARRIVAL_WAIT_MS },
+    );
     library.requestMissing("a.png");
     await flush();
     expect(fetcher).toHaveBeenCalledTimes(2);

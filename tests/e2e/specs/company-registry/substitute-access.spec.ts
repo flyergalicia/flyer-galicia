@@ -52,45 +52,52 @@ function setUpSubstitute(cloud: Cloud): void {
 }
 
 test.describe("a substitute reaches the companies of the one who chose them", () => {
-  test("search, suggestions and generator keep the two bases apart", async ({ cloud, openApp }) => {
-    setUpSubstitute(cloud);
-    const { companyRegistry } = await openApp({ user: "admin" });
+  test(
+    "search, suggestions and generator keep the two bases apart",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      setUpSubstitute(cloud);
+      const { companyRegistry } = await openApp({ user: "admin" });
 
-    // 1) Search: mine and those of Pepito, marked
-    await companyRegistry.forgetCompanies();
-    await companyRegistry.openSearch();
-    await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
-    const list = await companyRegistry.searchList();
-    expect
-      .soft(list.companies, "the search lists mine and those of the owner")
-      .toHaveLength(OWN_COMPANIES.length + OWNER_COMPANIES.length);
-    expect
-      .soft(list.ownerTags, 'those of the owner say "Empresa de Pepito Gomez"')
-      .toEqual([OWNER_TAG, OWNER_TAG]);
-    expect.soft(list.companies[0], "mine come first").toBe("ACME SA");
-    expect
-      .soft(await companyRegistry.ownCompanyCount(), "and the base of my own still has one")
-      .toBe(1);
+      // 1) Search: mine and those of Pepito, marked
+      await companyRegistry.forgetCompanies();
+      await companyRegistry.openSearch();
+      await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
+      const list = await companyRegistry.searchList();
+      expect
+        .soft(list.companies, "the search lists mine and those of the owner")
+        .toHaveLength(OWN_COMPANIES.length + OWNER_COMPANIES.length);
+      expect
+        .soft(list.ownerTags, 'those of the owner say "Empresa de Pepito Gomez"')
+        .toEqual([OWNER_TAG, OWNER_TAG]);
+      expect.soft(list.companies[0], "mine come first").toBe("ACME SA");
+      expect
+        .soft(await companyRegistry.ownCompanyCount(), "and the base of my own still has one")
+        .toBe(1);
 
-    // 2) The search also finds a tax id in the base of Pepito
-    await companyRegistry.searchFor("30-90012368");
-    expect
-      .soft((await companyRegistry.searchList()).companies, "the tax id of a company of the owner")
-      .toEqual(["DELTA LOGISTICA SA"]);
-    await companyRegistry.closeSearch();
+      // 2) The search also finds a tax id in the base of Pepito
+      await companyRegistry.searchFor("30-90012368");
+      expect
+        .soft(
+          (await companyRegistry.searchList()).companies,
+          "the tax id of a company of the owner",
+        )
+        .toEqual(["DELTA LOGISTICA SA"]);
+      await companyRegistry.closeSearch();
 
-    // 3) Suggestions
-    await companyRegistry.typeCompanyName("delta");
-    const suggestions = await companyRegistry.suggestions();
-    expect.soft(suggestions.count, "the suggestions offer both of the owner").toBe(2);
-    expect.soft(suggestions.ownerTags, "with their tag").toBe(2);
-    await companyRegistry.closeSuggestions();
+      // 3) Suggestions
+      await companyRegistry.typeCompanyName("delta");
+      const suggestions = await companyRegistry.suggestions();
+      expect.soft(suggestions.count, "the suggestions offer both of the owner").toBe(2);
+      expect.soft(suggestions.ownerTags, "with their tag").toBe(2);
+      await companyRegistry.closeSuggestions();
 
-    // 4) Generar flyers only with mine
-    await companyRegistry.showGenerator();
-    expect.soft(await companyRegistry.generatorRowCount(), "Generar flyers: only mine").toBe(1);
-    await companyRegistry.hideGenerator();
-  });
+      // 4) Generar flyers only with mine
+      await companyRegistry.showGenerator();
+      expect.soft(await companyRegistry.generatorRowCount(), "Generar flyers: only mine").toBe(1);
+      await companyRegistry.hideGenerator();
+    },
+  );
 
   test(
     "Generar flyers and what is saved are only one's own",
@@ -116,55 +123,106 @@ test.describe("a substitute reaches the companies of the one who chose them", ()
     },
   );
 
-  test("a change on a company of the owner is requested, never saved", async ({
-    cloud,
-    openApp,
-  }) => {
+  test(
+    "a change on a company of the owner is requested, never saved",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      setUpSubstitute(cloud);
+      const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
+      await companyRegistry.forgetCompanies();
+      await companyRegistry.openSearch();
+      await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
+      await companyRegistry.closeSearch();
+
+      // 5) A company of Pepito with another officer: after downloading it offers to REQUEST it
+      const notices = await companyRegistry.applySubstituteCompany(0);
+      expect
+        .soft(notices.join(" | "), "bringing it says whose it is")
+        .toMatch(/de las empresas de Pepito Gomez/);
+      await flyerEditor.setOfficer(NEW_OFFICER);
+      await companyRegistry.reviewChangesAfterDownload();
+      const dialog = await companyRegistry.waitForUpdateDialog();
+      expect
+        .soft(dialog.title, 'the dialog: "Cambios en una empresa de Pepito Gomez"')
+        .toMatch(/Cambios en una empresa de Pepito Gomez/);
+      expect.soft(dialog.text, "it lists the change").toMatch(/Carla Nueva/);
+      expect.soft(dialog.text, "it offers to request it").toMatch(/Ped[ií]rselo a Pepito Gomez/);
+      expect
+        .soft(dialog.text, "it does not offer to keep it in mine")
+        .not.toMatch(/Actualizar empresa|Agregar a mis empresas/);
+      expect.soft(dialog.asksForTaxId, "nor asks for a tax id").toBe(false);
+      await companyRegistry.acceptUpdateDialog();
+
+      const [first] = cloud.substituteRequests;
+      expect.soft(first?.p_dueno, "the request goes to the right owner").toBe(OWNER_ID);
+      expect.soft(first?.p_empresa, "about that company").toBe("DELTA LOGISTICA SA");
+      expect
+        .soft(first?.p_asesores, "with the new officer")
+        .toEqual([
+          expect.objectContaining({ nombre: NEW_OFFICER.name }),
+          expect.anything(),
+          expect.anything(),
+          expect.anything(),
+        ]);
+      expect.soft(first?.p_config, "no cashback sent if it did not change").toBeNull();
+      expect.soft(first?.p_rubro, "no category sent if it did not change").toBeNull();
+      expect.soft(cloud.companyReplaceCalls, "my own base was never saved").toBe(0);
+
+      await companyRegistry.reviewChangesAfterDownload();
+      expect
+        .soft(
+          await companyRegistry.updateDialogIsOpen(),
+          "it does not ask again for the same change",
+        )
+        .toBe(false);
+
+      // 7) A company of MINE still offers "Actualizar mis empresas"
+      await companyRegistry.applyOwnCompany(0);
+      await flyerEditor.setOfficer({ name: "Otro Nombre", phone: "", email: "" });
+      await companyRegistry.reviewChangesAfterDownload();
+      expect
+        .soft(
+          (await companyRegistry.waitForUpdateDialog()).title,
+          'own company: "Actualizar mis empresas"',
+        )
+        .toMatch(/Actualizar mis empresas/);
+      await companyRegistry.dismissUpdateDialog();
+    },
+  );
+
+  test("another cashback travels in the request", { tag: "@react" }, async ({ cloud, openApp }) => {
     setUpSubstitute(cloud);
+    cloud.bucketJson["_cashback.json"] = {
+      configs: [
+        { nombre: "BAU", m1: "$250.000", m2: "$180.000", m3: "$80.000", m4: "$30.000" },
+        { nombre: "Config 1", m1: "$350.000", m2: "$200.000", m3: "$80.000", m4: "$30.000" },
+      ],
+    };
     const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
     await companyRegistry.forgetCompanies();
     await companyRegistry.openSearch();
     await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
     await companyRegistry.closeSearch();
 
-    // 5) A company of Pepito with another officer: after downloading it offers to REQUEST it
-    const notices = await companyRegistry.applySubstituteCompany(0);
-    expect
-      .soft(notices.join(" | "), "bringing it says whose it is")
-      .toMatch(/de las empresas de Pepito Gomez/);
-    await flyerEditor.setOfficer(NEW_OFFICER);
+    await companyRegistry.applySubstituteCompany(1);
+    await flyerEditor.chooseCashback("Config 1");
     await companyRegistry.reviewChangesAfterDownload();
     const dialog = await companyRegistry.waitForUpdateDialog();
-    expect
-      .soft(dialog.title, 'the dialog: "Cambios en una empresa de Pepito Gomez"')
-      .toMatch(/Cambios en una empresa de Pepito Gomez/);
-    expect.soft(dialog.text, "it lists the change").toMatch(/Carla Nueva/);
-    expect.soft(dialog.text, "it offers to request it").toMatch(/Ped[ií]rselo a Pepito Gomez/);
-    expect
-      .soft(dialog.text, "it does not offer to keep it in mine")
-      .not.toMatch(/Actualizar empresa|Agregar a mis empresas/);
-    expect.soft(dialog.asksForTaxId, "nor asks for a tax id").toBe(false);
+    expect.soft(dialog.text, "the dialog shows the cashback change").toMatch(/Cashback/);
     await companyRegistry.acceptUpdateDialog();
 
-    const [first] = cloud.substituteRequests;
-    expect.soft(first?.p_dueno, "the request goes to the right owner").toBe(OWNER_ID);
-    expect.soft(first?.p_empresa, "about that company").toBe("DELTA LOGISTICA SA");
-    expect
-      .soft(first?.p_asesores, "with the new officer")
-      .toEqual([
-        expect.objectContaining({ nombre: NEW_OFFICER.name }),
-        expect.anything(),
-        expect.anything(),
-        expect.anything(),
-      ]);
-    expect.soft(first?.p_config, "no cashback sent if it did not change").toBeNull();
-    expect.soft(first?.p_rubro, "no category sent if it did not change").toBeNull();
+    expect.soft(cloud.substituteRequests[0]?.p_config, "the request sends it").toBe("Config 1");
     expect.soft(cloud.companyReplaceCalls, "my own base was never saved").toBe(0);
+  });
 
-    await companyRegistry.reviewChangesAfterDownload();
-    expect
-      .soft(await companyRegistry.updateDialogIsOpen(), "it does not ask again for the same change")
-      .toBe(false);
+  // A person only gets to "no cashback" by bringing a company that has it: not on this one.
+  test("no cashback travels in the request too", async ({ cloud, openApp }) => {
+    setUpSubstitute(cloud);
+    const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
+    await companyRegistry.forgetCompanies();
+    await companyRegistry.openSearch();
+    await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
+    await companyRegistry.closeSearch();
 
     // 6) Changing the cashback also travels in the request
     await companyRegistry.applySubstituteCompany(1);
@@ -174,43 +232,32 @@ test.describe("a substitute reaches the companies of the one who chose them", ()
     expect.soft(cashbackDialog.text, "the dialog shows the cashback change").toMatch(/Cashback/);
     await companyRegistry.acceptUpdateDialog();
     expect
-      .soft(cloud.substituteRequests[1]?.p_config, 'the request sends "" for no cashback')
+      .soft(cloud.substituteRequests[0]?.p_config, 'the request sends "" for no cashback')
       .toBe("");
     await flyerEditor.setNoCashback(false);
-
-    // 7) A company of MINE still offers "Actualizar mis empresas"
-    await companyRegistry.applyOwnCompany(0);
-    await flyerEditor.setOfficer({ name: "Otro Nombre", phone: "", email: "" });
-    await companyRegistry.reviewChangesAfterDownload();
-    expect
-      .soft(
-        (await companyRegistry.waitForUpdateDialog()).title,
-        'own company: "Actualizar mis empresas"',
-      )
-      .toMatch(/Actualizar mis empresas/);
-    await companyRegistry.dismissUpdateDialog();
   });
 
-  test("when the owner takes the substitute out, their companies stop appearing", async ({
-    cloud,
-    openApp,
-  }) => {
-    setUpSubstitute(cloud);
-    const { companyRegistry } = await openApp({ user: "admin" });
-    await companyRegistry.forgetCompanies();
-    await companyRegistry.openSearch();
-    await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
-    await companyRegistry.closeSearch();
+  test(
+    "when the owner takes the substitute out, their companies stop appearing",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      setUpSubstitute(cloud);
+      const { companyRegistry } = await openApp({ user: "admin" });
+      await companyRegistry.forgetCompanies();
+      await companyRegistry.openSearch();
+      await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
+      await companyRegistry.closeSearch();
 
-    cloud.substituteCompanies = [];
-    await companyRegistry.refreshSubstitutes();
-    await companyRegistry.openSearch();
+      cloud.substituteCompanies = [];
+      await companyRegistry.refreshSubstitutes();
+      await companyRegistry.openSearch();
 
-    const list = await companyRegistry.searchList();
-    expect.soft(list.companies, "the search goes back to mine only").toEqual(["ACME SA"]);
-    expect.soft(list.ownerTags, "with no owner tags").toEqual([]);
-    await companyRegistry.closeSearch();
-  });
+      const list = await companyRegistry.searchList();
+      expect.soft(list.companies, "the search goes back to mine only").toEqual(["ACME SA"]);
+      expect.soft(list.ownerTags, "with no owner tags").toEqual([]);
+      await companyRegistry.closeSearch();
+    },
+  );
 
   test(
     "the owner sees the request of the substitute with its cashback",

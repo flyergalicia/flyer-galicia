@@ -669,6 +669,9 @@ export function createReactLogoEditorDriver(page: Page): LogoEditorDriver {
       page.evaluate(() => {
         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       }),
+    focusCompanyField: () => page.getByLabel("Nombre de la empresa", { exact: true }).focus(),
+    clearCompanyField: () => page.getByLabel("Nombre de la empresa", { exact: true }).fill(""),
+    companyFieldValue: () => page.getByLabel("Nombre de la empresa", { exact: true }).inputValue(),
     readUploadedLogo: async (drawing) => {
       const { base64, type, name } = await paintLogoFile(page, drawing);
       return logoFromFile(page, { name, mimeType: type, buffer: Buffer.from(base64, "base64") });

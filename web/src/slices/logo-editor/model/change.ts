@@ -31,6 +31,11 @@ export interface PlacedChange extends LogoChange {
   prov?: string;
 }
 
+/** Changes that come back from somewhere they were kept, with what a very old one may not have. */
+export function placedChanges(logos: readonly LogoChange[]): PlacedChange[] {
+  return logos.map((logo) => ({ t: "", ox: logo.x, oy: logo.y, ow: logo.w, oh: logo.h, ...logo }));
+}
+
 /** A place on the flyer: a logo found, or a box marked by hand. In pixels of the picture. */
 export interface FlyerPlace {
   readonly x: number;

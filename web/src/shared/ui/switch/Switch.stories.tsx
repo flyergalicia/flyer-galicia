@@ -16,3 +16,4 @@ export const Off: Story = { args: { checked: false } };
 export const Disabled: Story = { args: { disabled: true } };
 export const InARow: Story = { args: { children: "Oficiales por sede" } };
 export const InARowOff: Story = { args: { checked: false, children: "Oficiales por sede" } };
+export const OnATitleLine: Story = { args: { inline: true, children: "Mostrar en el flyer" } };

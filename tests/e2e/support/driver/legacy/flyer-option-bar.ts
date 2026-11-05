@@ -5,6 +5,8 @@ const BAR = "#fg-optbar";
 const OTHERS_BUTTON = `${BAR} .fgo-mas`;
 const BAR_TIMEOUT_MS = 10_000;
 const AFTER_STAR_MS = 300;
+const PRESSES_TO_RENAME = 4;
+const HOLD_TO_LIFT_MS = 4_200;
 
 export function createOptionBar(
   page: Page,
@@ -24,6 +26,9 @@ export function createOptionBar(
   | "barSplit"
   | "optionsOfTab"
   | "favoritesAfterStarring"
+  | "renameFlyerTab"
+  | "dragFlyerTab"
+  | "flyerTabNames"
 > {
   return {
     waitForOthersButton: async () => {
@@ -119,6 +124,25 @@ export function createOptionBar(
         { current: favorites, enabled: options },
       ),
     optionsOfTab: (tab) => page.evaluate((name) => _facOptsDe(name), tab),
+    renameFlyerTab: async (option, name) => {
+      const tab = page.locator(`${BAR} .fgo[data-o="${String(option)}"]`);
+      for (let press = 0; press < PRESSES_TO_RENAME; press += 1) await tab.click();
+      await tab.locator("input").fill(name);
+      await page.keyboard.press("Enter");
+    },
+    dragFlyerTab: async (option, over) => {
+      const box = await page.locator(`${BAR} .fgo[data-o="${String(option)}"]`).boundingBox();
+      const target = await page.locator(`${BAR} .fgo[data-o="${String(over)}"]`).boundingBox();
+      if (!box || !target) throw new Error("The flyers are not on the bar");
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(HOLD_TO_LIFT_MS);
+      await page.mouse.move(target.x + target.width - 4, target.y + target.height / 2, {
+        steps: 4,
+      });
+      await page.mouse.up();
+    },
+    flyerTabNames: () => page.locator(`${BAR} .fgo`).allInnerTexts(),
     favoritesAfterStarring: (current, option) =>
       page.evaluate(
         ({ favorites, star }) => {

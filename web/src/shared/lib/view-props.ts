@@ -6,6 +6,10 @@ export interface ViewProps {
   readonly isActive: boolean;
   /** The tab it opened from: the flyer editor is one screen for three tabs. */
   readonly tabId: string;
+  /** Takes the person to another tab: a screen does not know where the others live. */
+  readonly goToTab?: (tabId: string) => void;
+  /** Opens a window of the name menu, by its id: `database`. */
+  readonly openMenuWindow?: (windowId: string) => void;
 }
 
 /** What the shell gives to a window of the name menu. */

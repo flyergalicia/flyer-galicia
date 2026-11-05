@@ -4,7 +4,7 @@ import { expect, test } from "../../support/test.ts";
 const NOT_FOUND = (what: string) => new RegExp(`No encontr.{1,3} la columna ${what}`);
 const ODD_HEADERS = ["EMPRESA", "Asesor1_Nombre ", "Asesor 1 Celular", "Cashback", "Columna rara"];
 
-test.describe("Masivo por Excel", () => {
+test.describe("Masivo por Excel", { tag: "@react" }, () => {
   test("understands headers written differently and reports the real row", async ({ openApp }) => {
     const { flyerEditor } = await openApp();
 
@@ -152,7 +152,8 @@ test.describe("Masivo por Excel", () => {
     expect.soft(batch.idle, "and the button is free").toBe(true);
   });
 
-  test("the company sheet also reports the real row", async ({ openApp }) => {
+  test("the company sheet also reports the real row", async ({ cloud, openApp }) => {
+    cloud.setPermissions("asesor", { padron_buscar: true });
     const app = await openApp();
 
     const { problems } = await app.companyRegistry.validateSheet([

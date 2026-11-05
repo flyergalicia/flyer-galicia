@@ -8,7 +8,7 @@ const ASK_THE_ADMIN = /administrador/;
 const LONG_STANDING_ACTIVE = (image: string) => ({ name: "Vigente", imageUrl: bucketUrl(image) });
 
 // Option 11 has artwork and its own calibration; option 12 has no flyer at all.
-test.describe("when a flyer does not arrive", () => {
+test.describe("when a flyer does not arrive", { tag: "@react" }, () => {
   test("it warns, stops downloads and never mixes it with another flyer", async ({
     cloud,
     openApp,

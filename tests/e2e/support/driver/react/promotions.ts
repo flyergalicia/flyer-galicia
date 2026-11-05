@@ -232,6 +232,8 @@ function createPanelActions(page: Page) {
       const stored = await page.evaluate(() => localStorage.getItem("fg_promos_modo"));
       return stored === null ? null : stored === "1";
     },
+    watchBarOption: async () =>
+      Number(await page.getByLabel("Vigilar estas marcas en").inputValue()),
     watchFoundBrandsOn: async (option: number) => {
       await page.getByLabel("Vigilar estas marcas en").selectOption(String(option));
       await page.getByRole("button", { name: "Guardar" }).click();

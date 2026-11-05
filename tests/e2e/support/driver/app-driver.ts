@@ -29,6 +29,8 @@ import { createLegacyStudioDriver } from "./legacy/studio.ts";
 import { createReactCompanyRegistryDriver } from "./react/company-registry.ts";
 import { createReactFlyerDrawingDriver } from "./react/flyer-drawing.ts";
 import { createReactFlyerEditorDriver } from "./react/flyer-editor.ts";
+import { createReactFlyerOutputDriver } from "./react/flyer-output.ts";
+import { createReactOfficersDriver } from "./react/officers.ts";
 import { createReactFlyerSectionsDriver } from "./react/flyer-sections.ts";
 import { createReactLogoEditorDriver } from "./react/logo-editor.ts";
 import { createReactLogoStripDriver } from "./react/logo-strip.ts";
@@ -87,8 +89,8 @@ function createReactAppDriver(page: Page): AppDriver {
     page,
     session,
     flyerEditor: createReactFlyerEditorDriver(page),
-    flyerOutput: partialDriver("flyerOutput"),
-    officers: partialDriver("officers"),
+    flyerOutput: createReactFlyerOutputDriver(page),
+    officers: createReactOfficersDriver(page),
     flyerDrawing: createReactFlyerDrawingDriver(page),
     calibrator: partialDriver("calibrator"),
     hunter: partialDriver("hunter"),

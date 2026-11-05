@@ -69,7 +69,7 @@ test.describe("the + and − keys", () => {
     await picker(app.page).getByRole("button", { name: "Cerrar" }).click();
   });
 
-  test("do nothing with the focus on a text field", async ({ openApp }) => {
+  test("do nothing with the focus on a text field", { tag: "@react" }, async ({ openApp }) => {
     const app = await openApp();
     const sizes = async () =>
       (await app.logoEditor.placements()).map(({ sizePercent }) => sizePercent);

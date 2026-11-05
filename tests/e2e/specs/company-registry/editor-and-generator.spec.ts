@@ -94,21 +94,29 @@ test.describe("the company editor and the flyer generator", () => {
     },
   );
 
-  test("an update that cannot be saved leaves the company as it was", async ({
-    cloud,
-    openApp,
-  }) => {
-    const { companyRegistry } = await openApp({ user: "admin" });
-    await companyRegistry.openRegistry();
-    await companyRegistry.openGeneratorWith(COMPANIES);
-    cloud.companyReplaceFails = true;
+  test(
+    "an update that cannot be saved leaves the company as it was",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.bucketJson["_cashback.json"] = {
+        configs: [
+          { nombre: "BAU", m1: "$250.000", m2: "$180.000", m3: "$80.000", m4: "$30.000" },
+          { nombre: "Config 1", m1: "$350.000", m2: "$200.000", m3: "$80.000", m4: "$30.000" },
+          { nombre: "Config 3", m1: "$500.000", m2: "$320.000", m3: "$100.000", m4: "$40.000" },
+        ],
+      };
+      const { companyRegistry } = await openApp({ user: "admin" });
+      await companyRegistry.openRegistry();
+      await companyRegistry.openGeneratorWith(COMPANIES);
+      cloud.companyReplaceFails = true;
 
-    const saved = await companyRegistry.saveFlyerChanges(0, {
-      cashback: "Config 3",
-      officers: [{ name: "Otro" }],
-    });
+      const saved = await companyRegistry.saveFlyerChanges(0, {
+        cashback: "Config 3",
+        officers: [{ name: "Otro" }],
+      });
 
-    expect.soft(saved.cashback, "the cashback goes back").toBe("Config 1");
-    expect.soft(saved.firstOfficer, "and so does the officer").toBe("Oficial 0");
-  });
+      expect.soft(saved.cashback, "the cashback goes back").toBe("Config 1");
+      expect.soft(saved.firstOfficer, "and so does the officer").toBe("Oficial 0");
+    },
+  );
 });

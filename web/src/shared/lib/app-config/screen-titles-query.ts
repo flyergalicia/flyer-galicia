@@ -35,6 +35,8 @@ export function useScreenTitles(enabled = true): ScreenTitlesValue {
     queryFn: () => readTitles(bucket),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,
+    // See useFlyerOptions: whoever enters goes in without them, and it is not asked in a loop.
+    retryOnMount: false,
   });
   return { titles: data ?? NO_TITLES, settled: isSuccess || isError };
 }

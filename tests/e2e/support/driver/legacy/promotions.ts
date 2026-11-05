@@ -623,6 +623,7 @@ export function createLegacyPromotionsDriver(page: Page): PromotionsDriver {
         { x, y },
       ),
 
+    watchBarOption: async () => Number(await page.locator("#vig-opt").inputValue()),
     watchFoundBrandsOn: async (option) => {
       await page.selectOption("#vig-opt", String(option));
       await page.locator("#vig-btn").click();

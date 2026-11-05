@@ -59,7 +59,10 @@ export function destinationOf(
   return option;
 }
 
-export function destinationLabel(option: number, rules: DestinationRules): string {
+export function destinationLabel(
+  option: number,
+  rules: Pick<DestinationRules, "options" | "tabLabel">,
+): string {
   if (option <= 0) return "sin formato disponible";
   const { options, tabLabel } = rules;
   return `${tabLabel(optionTab(options, option))} · ${optionLabel(options, option)}`;

@@ -273,6 +273,47 @@ html.dark {
   --logo-chosen-soft: var(--accent-soft);
   --promotions-picked-row: var(--accent-soft);
 
+  --option-hover-tx: #444;
+  --option-on-bg: #fff;
+  --favorite-star: #e0a100;
+  --others-input-bg: var(--field);
+  --history-row-bg: var(--card);
+  --history-row-line: var(--border);
+  --history-thumb: #ddd;
+  --history-button-bg: #fff;
+  --history-button-tx: var(--ink);
+  --history-remove: #ccc;
+  --history-remove-hover: #e30613;
+  --preview-label-bg: var(--card);
+  --preview-label-tx: var(--ink);
+
+  /* The form of the flyer editor. */
+  --officer-block-bg: var(--accent-soft);
+  --officer-block-line: var(--accent-line);
+  --form-chip-bg: rgba(128, 128, 128, 0.12);
+  --form-soft-line: rgba(128, 128, 128, 0.4);
+  --form-dashed-line: rgba(128, 128, 128, 0.5);
+  --form-paste-bg: rgba(128, 128, 128, 0.05);
+  --form-paste-hover-bg: rgba(198, 40, 40, 0.1);
+  --form-remove-hover-bg: rgba(179, 38, 30, 0.1);
+  --form-paste-chip-bg: rgba(128, 128, 128, 0.14);
+  --form-paste-chip-ok-bg: rgba(46, 125, 50, 0.14);
+  --form-paste-chip-ok-tx: #2e7d32;
+  --advisors-bg: #fff;
+  --advisors-line: var(--border);
+  --advisors-hover-bg: var(--paper);
+  --advisors-action-bg: var(--paper);
+  --advisors-action-line: var(--border);
+  --cashback-bg: var(--field);
+  --cashback-tx: var(--ink-2);
+  --cashback-line: var(--border);
+  --cashback-on-bg: var(--navy);
+  --cashback-on-tx: #fff;
+  --amounts-bg: var(--field);
+  --amounts-line: var(--border);
+  --amount-blue: var(--blue);
+  --dock-shadow: 0 -10px 20px -14px rgba(60, 45, 20, 0.28);
+
   /* Letters. Nothing below 12px, except labels in capitals: 11px. */
   --font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -301,6 +342,7 @@ html.dark {
   --text-welcome: 1.5rem;
   --text-brand: 1.3rem;
   --text-hero: 1.7rem;
+  --text-drop: 1.6rem;
   --text-herosmall: 1.15rem;
   --text-stat: 1.55rem;
   --weight-regular: 400;
@@ -338,6 +380,9 @@ html.dark {
   --window-tx: var(--ink);
   --window-line: var(--border);
   --window-ov: rgba(0, 0, 0, 0.45);
+  --viewer-ov: rgba(0, 0, 0, 0.7);
+  --viewer-bg: #fff;
+  --viewer-tx: var(--ink);
   --window-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
   --window-tab-bg: var(--paper);
   --window-tab-line: var(--border);
@@ -493,6 +538,21 @@ html.dark {
   --menu-danger-bg: var(--danger-soft);
   --menu-danger-tx: var(--danger);
   --progress-bg: var(--border);
+  --batch-box-bg: var(--field);
+  --batch-box-line: var(--border);
+  --batch-ok-bg: #f0fff5;
+  --batch-ok-line: #a3e6c0;
+  --batch-ok-tx: #157a3f;
+  --batch-warn-bg: #fff8e6;
+  --batch-warn-line: #ffd080;
+  --batch-warn-tx: #8a6000;
+  --batch-err-bg: #fff0f0;
+  --batch-err-line: #ffa0a0;
+  --batch-err-tx: #c00;
+  --batch-head-bg: #e8e8e8;
+  --batch-cell-line: #eee;
+  --batch-hint-bg: rgba(245, 146, 30, 0.08);
+  --batch-hint-line: rgba(245, 146, 30, 0.3);
 
   /* Promociones. */
   --promo-box-bg: var(--paper);
@@ -541,6 +601,33 @@ html.dark {
   --logo-suggest-tx: #f0c674;
   --logo-chosen-soft: rgba(242, 97, 34, 0.12);
   --promotions-picked-row: rgba(242, 97, 34, 0.14);
+  --option-hover-tx: #ddd;
+  --option-on-bg: #2c2f36;
+  --others-input-bg: #2c2f36;
+  --history-row-bg: #1b1e23;
+  --history-row-line: #333840;
+  --history-thumb: #3a4049;
+  --history-button-bg: #22262c;
+  --history-button-tx: #e9eaec;
+  --option-on-tx: #f3f4f6;
+  --preview-label-bg: rgba(34, 38, 44, 0.82);
+  --preview-label-tx: #e9eaec;
+  --officer-block-bg: rgba(242, 97, 34, 0.06);
+  --officer-block-line: #5a3a3a;
+  --advisors-bg: #22262c;
+  --advisors-line: #333840;
+  --advisors-hover-bg: #2a2f36;
+  --advisors-action-bg: #2a2f36;
+  --advisors-action-line: #3a4049;
+  --cashback-bg: #22262c;
+  --cashback-tx: #e9eaec;
+  --cashback-line: #333840;
+  --cashback-on-bg: var(--tab-on-bg);
+  --cashback-on-tx: var(--tab-on-tx);
+  --amounts-bg: #1b1e23;
+  --amounts-line: #333840;
+  --amount-blue: #7fb2ff;
+  --dock-shadow: 0 -10px 20px -12px rgba(0, 0, 0, 0.7);
   --placement-warn: #facc15;
   --placement-expired: #ff8a80;
   --logo-warning-bg: #3a2e1a;
@@ -552,6 +639,8 @@ html.dark {
   --raised: #22262c;
   --raised-line: #333840;
   --window-bg: #23262c;
+  --viewer-bg: #22262c;
+  --viewer-tx: #e9eaec;
   --window-tx: #e8e8e8;
   --window-line: #3a3e46;
   --window-tab-bg: #2a2f36;
@@ -633,4 +722,8 @@ html.dark {
   --menu-danger-bg: #3a2326;
   --menu-danger-tx: #ff6b6b;
   --progress-bg: #2a2f36;
+  --batch-box-bg: #1b1e23;
+  --batch-box-line: #333840;
+  --batch-head-bg: #2a2f36;
+  --batch-cell-line: #333840;
 }

@@ -12,6 +12,7 @@ import type { NoticeSourceProps, WaitingNotice } from "@/shared/lib/view-props.t
 import { AppShell } from "./AppShell.tsx";
 import { SearchButton } from "./SearchButton.tsx";
 import { LazyView } from "./ViewHost.tsx";
+import { LOGO_A, paintedFlyer } from "@/shared/lib/flyer-workspace/testing/painted-flyer.ts";
 
 const PROMOTIONS = { promos_buscar: true };
 
@@ -542,6 +543,25 @@ describe("the administrator", () => {
   });
 });
 
+describe("what a screen can ask of the shell", () => {
+  it("the flyer editor opens Base de datos from the company search", async () => {
+    const { screen } = await open({
+      files: {
+        "_facultades.json": permissions({ padron_buscar: true, opcion_1: true }),
+        "_active.json": { imageUrl: null },
+      },
+      tables: { padron_empresas: () => jsonResponse([]) },
+    });
+    await screen
+      .getByRole("button", { name: "Buscar en mis empresas (razón social o CUIT)" })
+      .click();
+    await screen.getByRole("button", { name: "↑ Cargar mis empresas" }).click();
+    await expect
+      .element(screen.getByRole("dialog").first())
+      .toMatchTextContent(/Base de datos|Mis empresas/);
+  });
+});
+
 describe("a screen whose code does not arrive", () => {
   it("says so and can be tried again", async () => {
     const load = vi
@@ -551,7 +571,14 @@ describe("a screen whose code does not arrive", () => {
     const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const screen = await render(
-      <LazyView load={load} loadFailure="No se pudo cargar" isActive tabId="promos" />,
+      <LazyView
+        load={load}
+        loadFailure="No se pudo cargar"
+        isActive
+        tabId="promos"
+        goToTab={() => undefined}
+        openMenuWindow={() => undefined}
+      />,
     );
 
     await expect.element(screen.getByRole("alert")).toHaveTextContent("No se pudo cargar");
@@ -677,5 +704,54 @@ describe("moving the tabs", () => {
       .element(screen.getByRole("status"))
       .toHaveTextContent("Error al guardar el título: sin lugar");
     vi.useRealTimers();
+  });
+});
+
+describe("Generar flyers from another screen", () => {
+  it("brings the flyer editor to the page, and it stays on the screen it was on", async () => {
+    const image = paintedFlyer([LOGO_A]);
+    const created = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:zip");
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const { screen } = await open({
+      files: {
+        "_facultades.json": permissions({
+          promos_buscar: true,
+          padron_buscar: true,
+          opcion_1: false,
+          opcion_9: true,
+          opcion_8: true,
+        }),
+        "_opciones.json": {
+          opts: [
+            { n: 9, nombre: "Combustible", solapa: "flyer" },
+            { n: 8, nombre: "Rubro", solapa: "rubros" },
+          ],
+        },
+        "_titulos.json": { orden: ["promos", "flyer", "rubros"] },
+        "_active9.json": { imageUrl: image, cfg: {} },
+        "_active8.json": { imageUrl: image, cfg: {} },
+      },
+      tables: {
+        padron_empresas: () =>
+          jsonResponse([
+            { empresa: "ACME", cuits: [], config: "BAU", asesores: [], rubro: { opcion: 8 } },
+          ]),
+      },
+    });
+    const selectedTab = screen
+      .getByRole("tablist", { name: "Pantallas" })
+      .getByRole("tab", { selected: true });
+    await expect.element(selectedTab).toHaveTextContent("Promociones");
+
+    await screen.getByRole("button", { name: /^Menú de / }).click();
+    await screen.getByRole("menuitem", { name: "Base de datos" }).click();
+    await screen.getByRole("button", { name: /Generar flyers/ }).click();
+    await screen.getByRole("button", { name: "Todas" }).click();
+    await screen.getByRole("button", { name: /Generar ZIP/ }).click();
+    await screen.getByRole("button", { name: "Generar", exact: true }).click();
+
+    await expect.element(screen.getByText("✓ Flyers generados")).toBeVisible();
+    expect(created).toHaveBeenCalledTimes(1);
+    await expect.element(selectedTab).toHaveTextContent("Promociones");
   });
 });

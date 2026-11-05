@@ -32,6 +32,9 @@ export function useFlyerOptions(enabled = true): FlyerOptionsValue {
     queryFn: () => readFlyerOptions(bucket),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,
+    // Whoever enters goes in with the list of always. Asking again every time something that reads
+    // it appears would take the door of the app back to waiting, in a loop.
+    retryOnMount: false,
   });
   return { options: data ?? DEFAULT_LIST, settled: isSuccess || isError, failed: isError };
 }

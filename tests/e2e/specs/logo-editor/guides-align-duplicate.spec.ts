@@ -206,22 +206,28 @@ test.describe("Cambiar logos", () => {
     },
   );
 
-  test("in a text field, Ctrl+V and Supr do not touch the logos", async ({ openApp }) => {
-    const app = await openApp();
-    await app.logoEditor.enter();
-    await app.logoEditor.placeBrands(LOGOS);
-    await app.logoEditor.touchPlaced(2);
-    await app.page.keyboard.press("Control+c");
-    await app.page.keyboard.press("Control+v");
-    await app.logoEditor.waitUntilSettled();
+  test(
+    "in a text field, Ctrl+V and Supr do not touch the logos",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
+      await app.logoEditor.enter();
+      await app.logoEditor.placeBrands(LOGOS);
+      await app.logoEditor.touchPlaced(2);
+      await app.page.keyboard.press("Control+c");
+      await app.page.keyboard.press("Control+v");
+      await app.logoEditor.waitUntilSettled();
 
-    await app.logoEditor.focusCompanyField();
-    await app.page.keyboard.type("ACME");
-    await app.page.keyboard.press("Backspace");
-    await app.page.keyboard.press("Control+v");
-    expect
-      .soft(await app.logoEditor.placements(), "writing, Supr / Ctrl+V do not touch the logos")
-      .toHaveLength(4);
-    expect.soft(await app.logoEditor.companyFieldValue(), "they act on the field").toMatch(/^ACM/);
-  });
+      await app.logoEditor.focusCompanyField();
+      await app.page.keyboard.type("ACME");
+      await app.page.keyboard.press("Backspace");
+      await app.page.keyboard.press("Control+v");
+      expect
+        .soft(await app.logoEditor.placements(), "writing, Supr / Ctrl+V do not touch the logos")
+        .toHaveLength(4);
+      expect
+        .soft(await app.logoEditor.companyFieldValue(), "they act on the field")
+        .toMatch(/^ACM/);
+    },
+  );
 });

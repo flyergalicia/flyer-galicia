@@ -34,50 +34,56 @@ test("Restaurar lets the crop go", { tag: "@react" }, async ({ openApp }) => {
   expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
 });
 
-test("a company with cashback warns on a cropped flyer", async ({ openApp }) => {
-  const app = await openApp({ user: "asesor" });
-  const sections = app.flyerSections;
-  const wholeHeight = (await sections.cropStatus()).artworkHeight;
+test(
+  "a company with cashback warns on a cropped flyer",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    // Bringing a company takes the search, which comes with its own faculty.
+    cloud.setPermissions("asesor", { padron_buscar: true });
+    const app = await openApp({ user: "asesor" });
+    const sections = app.flyerSections;
+    const wholeHeight = (await sections.cropStatus()).artworkHeight;
 
-  // 2) A company WITH cashback on a cropped flyer: notice, "Mostrar los importes"
-  await sections.removeBand(CUT.y, CUT.height);
-  await sections.bringCompany(COMPANY_WITH_CASHBACK);
-  const notice = await app.session.waitForConfirmation();
-  expect.soft(notice, 'the notice says "tiene cashback"').toMatch(/tiene cashback/);
-  expect.soft(notice, 'and "no muestra importes"').toMatch(/no muestra importes/);
-  await app.session.answerConfirmation(true);
-  await app.page.waitForTimeout(SETTLE_MS);
-  const shown = await sections.cropStatus();
-  expect
-    .soft(shown.artworkHeight, '"Mostrar los importes" leaves the flyer whole')
-    .toBe(wholeHeight);
-  expect.soft(shown.amountsHidden, "with amounts").toBe(false);
-  expect.soft(await sections.firstAmount(), "drawn").toBe("$250.000");
+    // 2) A company WITH cashback on a cropped flyer: notice, "Mostrar los importes"
+    await sections.removeBand(CUT.y, CUT.height);
+    await sections.bringCompany(COMPANY_WITH_CASHBACK);
+    const notice = await app.session.waitForConfirmation();
+    expect.soft(notice, 'the notice says "tiene cashback"').toMatch(/tiene cashback/);
+    expect.soft(notice, 'and "no muestra importes"').toMatch(/no muestra importes/);
+    await app.session.answerConfirmation(true);
+    await app.page.waitForTimeout(SETTLE_MS);
+    const shown = await sections.cropStatus();
+    expect
+      .soft(shown.artworkHeight, '"Mostrar los importes" leaves the flyer whole')
+      .toBe(wholeHeight);
+    expect.soft(shown.amountsHidden, "with amounts").toBe(false);
+    expect.soft(await sections.firstAmount(), "drawn").toBe("$250.000");
 
-  // 3) "Seguir así"
-  await sections.removeBand(CUT.y, CUT.height);
-  await sections.bringCompany(COMPANY_WITH_CASHBACK);
-  await app.session.waitForConfirmation();
-  await app.session.answerConfirmation(false);
-  await app.page.waitForTimeout(SETTLE_MS);
-  expect.soft((await sections.cropStatus()).active, '"Seguir así" keeps it cropped').toBe(true);
+    // 3) "Seguir así"
+    await sections.removeBand(CUT.y, CUT.height);
+    await sections.bringCompany(COMPANY_WITH_CASHBACK);
+    await app.session.waitForConfirmation();
+    await app.session.answerConfirmation(false);
+    await app.page.waitForTimeout(SETTLE_MS);
+    expect.soft((await sections.cropStatus()).active, '"Seguir así" keeps it cropped').toBe(true);
 
-  // 4) A company WITHOUT cashback: this notice does not appear
-  await sections.bringCompany({ ...COMPANY_WITH_CASHBACK, config: "" });
-  expect
-    .soft(await sections.companyNotices(), "no cashback on a flyer without amounts: no notice")
-    .toEqual({ confirmation: null, updateNotice: null });
+    // 4) A company WITHOUT cashback: this notice does not appear
+    await sections.bringCompany({ ...COMPANY_WITH_CASHBACK, config: "" });
+    expect
+      .soft(await sections.companyNotices(), "no cashback on a flyer without amounts: no notice")
+      .toEqual({ confirmation: null, updateNotice: null });
 
-  // 5) An option with no amounts and no known original: only explains what to choose
-  await sections.closeCompanyUpdateNotice();
-  await sections.dropCrop();
-  await sections.turnOffAmountsWithoutOriginal();
-  await sections.bringCompany(COMPANY_WITH_CASHBACK);
-  expect
-    .soft(
-      (await sections.companyNotices()).updateNotice,
-      "no amounts and no known original: it warns and explains what to choose",
-    )
-    .toMatch(/eleg/i);
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+    // 5) An option with no amounts and no known original: only explains what to choose
+    await sections.closeCompanyUpdateNotice();
+    await sections.dropCrop();
+    await sections.turnOffAmountsWithoutOriginal();
+    await sections.bringCompany(COMPANY_WITH_CASHBACK);
+    expect
+      .soft(
+        (await sections.companyNotices()).updateNotice,
+        "no amounts and no known original: it warns and explains what to choose",
+      )
+      .toMatch(/eleg/i);
+    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);

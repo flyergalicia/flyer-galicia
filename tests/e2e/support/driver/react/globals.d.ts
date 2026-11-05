@@ -17,9 +17,13 @@ export interface PromotionsProbe {
   modoShownInLocality(province: string, locality: string, cities: readonly string[]): boolean;
 }
 
-export interface CompanyRegistryProbe {
+export interface CompanyListProbe {
   ownCompanyCount(): number;
   companiesFailed(): boolean;
+  ownCompany(row: number): { config: string; firstOfficer: string | undefined };
+}
+
+export interface CompanyRegistryProbe extends CompanyListProbe {
   editorCategory(row: number): {
     opcion?: number;
     txt?: string;
@@ -157,6 +161,7 @@ export interface FlyerWorkspaceProbe {
     zoom: number;
     scale: number;
     draws: number;
+    extra: number;
     slot: {
       option: number | null;
       loading: boolean;
@@ -166,7 +171,11 @@ export interface FlyerWorkspaceProbe {
         art: HTMLImageElement | HTMLCanvasElement;
         calibration: Record<string, unknown> & { empresa: { yc: number; off?: boolean } };
         cuts: readonly FlyerCut[];
-        whole: { art: HTMLImageElement | HTMLCanvasElement; artKey: string };
+        whole: {
+          art: HTMLImageElement | HTMLCanvasElement;
+          artKey: string;
+          rawCalibration: Record<string, unknown>;
+        };
       } | null;
     };
   };
@@ -176,9 +185,60 @@ export interface FlyerWorkspaceProbe {
 
 export interface FlyerReadingsProbe {
   legalWith(template: string): string;
+  /** The parts of a legal text that come out in bold. */
+  boldParts(text: string): string[];
+  optionStatus(option: number): {
+    settled: boolean;
+    hasArtwork: boolean | null;
+    ready: boolean;
+  };
+  /** Draws the flyer on screen for download, with these values over what the form says. */
+  renderWith(values: Record<string, unknown>): void;
   /** Why it cannot be downloaded, in the words the person reads; "" if it can. */
   blockText(): string;
   optionCalibration(option: number): Record<string, unknown>;
+}
+
+/** One flyer of the history, as it is kept in the browser. */
+export interface HistoryItemProbe {
+  v: { recortes?: readonly unknown[]; recBase?: string; logos?: readonly unknown[] };
+}
+
+export interface FlyerBarProbe {
+  split(
+    favorites: readonly number[],
+    enabled: readonly number[],
+  ): { favorite: number | null; others: number } | null;
+  optionsOfTab(tab: string): readonly number[];
+  afterStar(favorites: readonly number[], option: number): readonly number[];
+}
+
+export interface FlyerBatchProbe {
+  isRunning(): boolean;
+  rowNumbers(): readonly (number | null)[];
+  drawn(): readonly {
+    company: string;
+    officer: string;
+    phone: string;
+    firstAmount: string;
+    noCashback: boolean;
+    option: number;
+    hasAmounts: boolean;
+  }[];
+  /** The version without cashback of that option; 0 when there is none. */
+  versionOf(option: number): number;
+  /** The option that version is of, itself if it is not one. */
+  baseOf(option: number): number;
+  /** What the list of options says it is the version of. */
+  listedAsVersionOf(option: number): number | null;
+}
+
+export interface FlyerKnowledgeProbe {
+  done: boolean;
+  failed: boolean;
+  hasFlyer: Record<string, boolean>;
+  answer(option: number): boolean | undefined;
+  isGenerating(): boolean;
 }
 
 declare global {
@@ -187,10 +247,15 @@ declare global {
     __flyerProbe?: {
       readonly promotions?: () => PromotionsProbe;
       readonly companyRegistry?: () => CompanyRegistryProbe;
+      readonly companyList?: () => CompanyListProbe;
       readonly logoEditor?: () => LogoEditorProbe;
       readonly logoStripWindow?: () => LogoStripWindowProbe;
       readonly flyerWorkspace?: () => FlyerWorkspaceProbe;
       readonly flyerReadings?: () => FlyerReadingsProbe;
+      readonly flyerHistory?: () => readonly HistoryItemProbe[];
+      readonly flyerBar?: () => FlyerBarProbe;
+      readonly flyerBatch?: () => FlyerBatchProbe;
+      readonly flyerKnowledge?: () => FlyerKnowledgeProbe;
     };
   }
 }

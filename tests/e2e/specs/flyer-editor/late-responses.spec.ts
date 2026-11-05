@@ -92,27 +92,31 @@ test.describe("answers that arrive late", () => {
     expect.soft(draft.designName, "nor does it become the design").not.toBe("Diseño lento");
   });
 
-  test("a fixed bold part before a **marked** one is not lost in the legal", async ({
-    openApp,
-  }) => {
-    const app = await openApp();
+  test(
+    "a fixed bold part before a **marked** one is not lost in the legal",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
 
-    const bold = await app.flyerEditor.boldPartsOfLegal(
-      "(1) Promoción del 100% de ahorro. Válido con tope de **$5.000 por mes** en comercios.",
-    );
+      const bold = await app.flyerEditor.boldPartsOfLegal(
+        "(1) Promoción del 100% de ahorro. Válido con tope de **$5.000 por mes** en comercios.",
+      );
 
-    expect.soft(bold, "legal: both bold parts are seen").toHaveLength(2);
-    expect.soft(bold[0], "legal: the fixed one comes first").toMatch(/^\(1\)/);
-  });
+      expect.soft(bold, "legal: both bold parts are seen").toHaveLength(2);
+      expect.soft(bold[0], "legal: the fixed one comes first").toMatch(/^\(1\)/);
+    },
+  );
 
-  test("downloading with other officers does not move the touch areas on screen", async ({
-    openApp,
-  }) => {
-    const app = await openApp();
+  test(
+    "downloading with other officers does not move the touch areas on screen",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp();
 
-    const { before, after } = await app.flyerEditor.screenLayoutAroundDownload();
+      const { before, after } = await app.flyerEditor.screenLayoutAroundDownload();
 
-    expect.soft(after, "after downloading the screen keeps its values").toEqual(before);
-    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-  });
+      expect.soft(after, "after downloading the screen keeps its values").toEqual(before);
+      expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+    },
+  );
 });

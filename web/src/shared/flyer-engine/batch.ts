@@ -31,12 +31,14 @@ export interface BatchRequest<Row> {
   readonly optionOf: (row: Row) => number;
   /** The scene of one option. A group that does not get one never draws on another picture. */
   readonly loadScene: (option: number) => Promise<Result<FlyerScene, ArtworkFailure>>;
-  readonly valuesOf: (row: Row, option: number) => FlyerValues;
+  readonly valuesOf: (row: Row, option: number, scene: FlyerScene) => FlyerValues;
   /** Per option, a folder in the ZIP: then each folder has its own names. */
   readonly folderOf?: (option: number) => string;
   /** The words of Resumen.txt, once the outcome is known. */
   readonly summaryOf?: (outcome: BatchOutcome<Row>) => string;
   readonly onProgress?: (progress: BatchProgress<Row>) => void;
+  /** Everything is drawn and the ZIP starts being made, which takes a while. */
+  readonly onPacking?: () => void;
 }
 
 export interface BatchOutcome<Row> {
@@ -106,6 +108,11 @@ async function fileOf(
 
 const loadZipLibrary = () => import("jszip").then((library) => library.default);
 
+/** What a batch needs: while it comes down, a batch already counts as running. */
+export function bringBatchLibraries(): Promise<unknown> {
+  return Promise.all([import("jspdf"), loadZipLibrary()]);
+}
+
 async function zipOf(files: readonly BatchFile[]): Promise<Result<Blob, OutputFailure>> {
   let Zip: Awaited<ReturnType<typeof loadZipLibrary>>;
   try {
@@ -146,7 +153,7 @@ async function generateRow<Row>(
 ): Promise<void> {
   const { format, logos, valuesOf, folderOf } = run.request;
   try {
-    const values = valuesOf(row, option);
+    const values = valuesOf(row, option, scene);
     const canvas = renderFullResolution(scene, values, logos);
     const name = uniqueName(`Flyer ${safeFileName(values.empresa || "empresa")}`, used);
     const folder = folderOf?.(option);
@@ -202,6 +209,7 @@ export async function generateBatch<Row>(request: BatchRequest<Row>): Promise<Ba
     problems: run.problems,
   };
   if (run.files.length === 0) return { ...outcome, zip: null };
+  request.onPacking?.();
   const summary = request.summaryOf?.(outcome);
   const files =
     summary === undefined

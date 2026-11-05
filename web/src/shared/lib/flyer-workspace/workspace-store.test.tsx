@@ -70,10 +70,10 @@ function smallImage(): string {
   return canvas.toDataURL();
 }
 
-function read(active: unknown, legal: unknown) {
+function read(active: unknown, legal: unknown, option = 9) {
   const reader = fakeBucket(active, legal);
   // @ts-expect-error -- the answers are what a file can say, whatever its shape.
-  return createOptionLoader(reader)(1, { singleCashback: false });
+  return createOptionLoader(reader)(option, { singleCashback: false });
 }
 
 function ShowsZoom() {
@@ -300,6 +300,168 @@ describe("reading an option", () => {
     expect(
       (await read(success({ imageUrl: "data:image/png;base64,AAAA" }), notFound)).failure,
     ).toBe("network");
+  });
+});
+
+describe("the legal text of an option that never saved one", () => {
+  const notFound = failure({ kind: "not-found", status: 404 } as const);
+  const noNetwork = failure({ kind: "unreachable", status: null } as const);
+
+  it("option 1 keeps the text it always had; the others have none", async () => {
+    expect((await read(success({ imageUrl: "" }), notFound, 1)).legal).toMatch(
+      /^Cartera de Consumo/,
+    );
+    expect((await read(success({ imageUrl: "" }), success({ text: 3 }), 1)).legal).toMatch(
+      /^Cartera de Consumo/,
+    );
+    expect((await read(success({ imageUrl: "" }), notFound, 2)).legal).toBe("");
+  });
+
+  it("saved empty on purpose is empty, and what could not arrive is not known", async () => {
+    expect((await read(success({ imageUrl: "" }), success({ text: "" }), 1)).legal).toBe("");
+    expect((await read(success({ imageUrl: "" }), noNetwork, 1)).legal).toBeNull();
+  });
+});
+
+async function onScreen(option: number) {
+  const opened = workspaceWith();
+  opened.loadOption.mockImplementation((asked) =>
+    Promise.resolve(LOADED(String(asked), `Guardado ${String(asked)}`)),
+  );
+  await opened.workspace.selectOption(option, false);
+  await vi.waitFor(() => {
+    expect(opened.workspace.getState().legal).toBe(`Guardado ${String(option)}`);
+  });
+  return opened;
+}
+
+describe("the legal text that was edited", () => {
+  it("stays with its option on going and coming back", async () => {
+    const { workspace } = await onScreen(1);
+    workspace.setLegal("Editado");
+    await workspace.selectOption(2, false);
+    await vi.waitFor(() => {
+      expect(workspace.getState().legal).toBe("Guardado 2");
+    });
+    expect(workspace.optionLegal()).toBe("Guardado 2");
+
+    await workspace.selectOption(1, false);
+    expect(workspace.getState().legal).toBe("Editado");
+    expect(workspace.optionLegal()).toBe("Editado");
+  });
+
+  it("the same as the saved one is not an edit", async () => {
+    const { workspace } = await onScreen(1);
+    workspace.setLegal("Editado");
+    await workspace.selectOption(2, false);
+    await workspace.selectOption(1, false);
+    workspace.setLegal("Guardado 1");
+    expect(workspace.optionLegal()).toBe("Editado");
+    await workspace.selectOption(2, false);
+    await workspace.selectOption(1, false);
+    expect(workspace.optionLegal()).toBe("Guardado 1");
+  });
+
+  it("while another one is on its way there is no legal of anybody", async () => {
+    const { workspace, loadOption } = await onScreen(1);
+    const coming: ((loaded: LoadedOption) => void)[] = [];
+    loadOption.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          coming.push(resolve);
+        }),
+    );
+    const going = workspace.selectOption(2, false);
+    expect(workspace.getState().legal).toBe("");
+    // A second click during the load: the empty field is not an edit of the one that is coming.
+    void workspace.selectOption(2, false);
+    coming[0]?.(LOADED("2", "Guardado 2"));
+    await going;
+    await vi.waitFor(() => {
+      expect(workspace.getState().legal).toBe("Guardado 2");
+    });
+  });
+
+  it("restoring forgets the edit, of that option only", async () => {
+    const { workspace } = await onScreen(1);
+    workspace.setLegal("Editado");
+    await workspace.selectOption(2, false);
+    workspace.setLegal("Otro editado");
+    workspace.restoreForm(emptyFormValues("flyer"));
+    expect(workspace.getState().legal).toBe("Guardado 2");
+    await workspace.selectOption(1, false);
+    expect(workspace.getState().legal).toBe("Editado");
+  });
+
+  it("an option that says nothing of its legal keeps what it had", async () => {
+    const { workspace, loadOption } = await onScreen(1);
+    loadOption.mockResolvedValueOnce({ scene: sceneOf("3"), failure: null, legal: null });
+    await workspace.selectOption(3, false);
+    await vi.waitFor(() => {
+      expect(workspace.getState().slot.scene?.artKey).toBe("3");
+    });
+    expect(workspace.getState().legal).toBe("");
+    expect(workspace.optionLegal()).toBe("");
+    workspace.setLegal("Escrito");
+    await workspace.selectOption(1, false);
+    expect(workspace.getState().legal, "with no base it is not known to be an edit").toBe(
+      "Guardado 1",
+    );
+  });
+
+  it("restoring with nothing on screen leaves the field", () => {
+    const { workspace } = workspaceWith();
+    workspace.setLegal("Algo");
+    workspace.restoreForm(emptyFormValues("flyer"));
+    expect(workspace.getState().legal).toBe("Algo");
+  });
+});
+
+describe("what a test reads of the flyer", () => {
+  it("the parts in bold of a legal text", () => {
+    const readings = workspaceReadings(workspaceWith().workspace);
+    expect(readings.boldParts("uno **dos** tres **cuatro **")).toEqual(["dos", "cuatro"]);
+    expect(readings.boldParts("nada")).toEqual([]);
+  });
+
+  it("whether an option arrived, and whether it is ready", async () => {
+    const { workspace, loadOption } = await onScreen(1);
+    const readings = workspaceReadings(workspace);
+    expect(readings.optionStatus(1)).toEqual({ settled: true, hasArtwork: true, ready: true });
+    expect(readings.optionStatus(2)).toEqual({ settled: false, hasArtwork: null, ready: false });
+    loadOption.mockResolvedValueOnce({ scene: null, failure: "no-flyer", legal: "" });
+    await workspace.selectOption(2, false);
+    await vi.waitFor(() => {
+      expect(workspace.getState().slot.failure).toBe("no-flyer");
+    });
+    expect(readings.optionStatus(2)).toEqual({ settled: true, hasArtwork: false, ready: false });
+    expect(readings.optionStatus(1).ready).toBe(false);
+  });
+
+  it("draws a flyer of another moment only if there is one", async () => {
+    const made = vi.spyOn(document, "createElement");
+    workspaceReadings(workspaceWith().workspace).renderWith({ empresa: "BETA" });
+    expect(made).not.toHaveBeenCalledWith("canvas");
+    const { workspace } = await onScreen(1);
+    workspaceReadings(workspace).renderWith({ empresa: "BETA" });
+    expect(made).toHaveBeenCalledWith("canvas");
+    made.mockRestore();
+  });
+});
+
+describe("whether an option has a flyer", () => {
+  it("is known only once it came", async () => {
+    const { workspace, loadOption } = workspaceWith();
+    expect(workspace.hasFlyer(1)).toBeUndefined();
+    loadOption.mockResolvedValueOnce(LOADED("one"));
+    await workspace.selectOption(1, false);
+    expect(workspace.hasFlyer(1)).toBe(true);
+    loadOption.mockResolvedValueOnce({ scene: null, failure: "no-flyer", legal: "" });
+    await workspace.selectOption(2, false);
+    expect(workspace.hasFlyer(2)).toBe(false);
+    loadOption.mockResolvedValueOnce({ scene: null, failure: "network", legal: null });
+    await workspace.selectOption(3, false);
+    expect(workspace.hasFlyer(3), "it could not be asked").toBeUndefined();
   });
 });
 

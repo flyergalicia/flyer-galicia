@@ -98,6 +98,12 @@
   background: var(--dialog-ov);
 }
 
+.viewer {
+  z-index: 200;
+  padding: 0;
+  background: var(--viewer-ov);
+}
+
 .account {
   z-index: 1200;
   padding: 0;

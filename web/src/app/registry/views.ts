@@ -34,8 +34,10 @@ export interface AppView {
 
 const pendingView = (): Promise<LoadedView> => import("./PendingView.tsx");
 
+export const FLYER_EDITOR_HOST_ID = "flyer-editor";
+
 const FLYER_EDITOR_HOST = {
-  hostId: "flyer-editor",
+  hostId: FLYER_EDITOR_HOST_ID,
   screen: "flyer-layout",
   load: () =>
     import("@/slices/flyer-editor/index.ts").then(({ FlyerEditorView }) => ({

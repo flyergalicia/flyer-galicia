@@ -9,11 +9,19 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Franja | `logoStrip` | Fila o grilla de logos armada de una vez |
 | Marcas guardadas | `savedBrandSet` | Combinación de marcas que se vuelve a aplicar |
 | Borrador | `draft` | Cambios temporales sobre un flyer |
+| Flyer a medio armar | `sessionDraft` | Lo que queda en el navegador para retomar al volver a entrar (facultad "Guardar historial y borrador") |
+| Historial | `flyerHistory` | Los flyers que salieron, para volver a bajarlos o traerlos al formulario |
+| Tu favorito | `favoriteFlyer` | El tercer flyer de la barra, que elige cada persona con la estrellita |
+| Oficiales por sede | `branches` | Hasta 8 oficiales, cada uno con su ubicación |
+| Ventana de Vista previa | `previewWindow` | El flyer tal como se baja, con su zoom |
 | Recortar | `cropSection` | Quitar una franja horizontal del flyer |
 | Insertar | `insertSection` | Sumar una sección copiada de otro flyer |
 | Opción | `flyerOption` | Cada flyer disponible en una solapa |
 | Legal | `legalText` | Texto legal del flyer |
 | Masivo | `bulkGeneration` | Generar flyers desde un Excel |
+| Generar flyers | `companyBatch` | El ZIP de varias empresas de la lista, cada una en su flyer |
+| Todo el segmento | `segment` | Las empresas de la lista que salen con el flyer en pantalla, desde la tarjeta de Masivo |
+| Tanda | `batch` | Muchos flyers de una, en un ZIP: Masivo, Generar flyers y el del Hunter |
 | Padrón, Mis empresas | `company-registry` | Base de empresas de cada usuario |
 | Oficial, asesor | `officer` | Persona del banco que figura en el flyer |
 | Tope | `cap` | Monto máximo de cashback |

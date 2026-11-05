@@ -1,5 +1,6 @@
 export { CompanyField, type CompanyFieldProps } from "./ui/CompanyField.tsx";
 export { NoCashbackDialog } from "./ui/CompanyReviewDialogs.tsx";
+export { RichLine } from "./ui/RichLine.tsx";
 export { DatabaseWindow } from "./ui/DatabaseWindow.tsx";
 export { MyProposalsWindow } from "./ui/MyProposalsWindow.tsx";
 export {

@@ -48,6 +48,15 @@ export interface PastedContact {
   email: string;
   readonly avisos: string[];
   readonly ignorado: string[];
+  /** The phone as it came in the text, and the dialing prefixes taken out of it. */
+  pastedPhone?: string;
+  phonePrefixes?: readonly string[];
+}
+
+/** What is wrong with a field: it marks it and it does not stop anyone from going on. */
+export interface FieldProblem {
+  readonly kind: "invalid" | "warning";
+  readonly message: string;
 }
 
 interface TakenOut {
@@ -259,6 +268,8 @@ function readPhone(text: string, contact: PastedContact): void {
   const [best, ...rest] = sorted;
   if (best) {
     contact.celular = writePhone(best.phone);
+    contact.pastedPhone = best.raw;
+    contact.phonePrefixes = best.phone.takenOut.map(({ label }) => label);
     for (const { raw } of rest) contact.ignorado.push(`otro número (${raw})`);
   } else if (invalid) {
     contact.avisos.push(`"${invalid}" no parece un celular argentino`);
@@ -365,4 +376,41 @@ export function parseContact(text: string): PastedContact {
   readPhone(withoutMails, contact);
   readName(withoutMails, contact);
   return contact;
+}
+
+const MIN_PHONE_DIGITS = 8;
+const LOOKS_LIKE_A_MAIL = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
+const MAIL_OF_THE_BANK = new RegExp(`@${MAIL_DOMAIN.replaceAll(".", "\\.")}$`, "i");
+
+/** Null when there is nothing to say, an empty field among them. */
+export function phoneProblem(text: string): FieldProblem | null {
+  const clean = text.trim();
+  if (!clean) return null;
+  const digits = digitsOf(clean);
+  if (digits.length < MIN_PHONE_DIGITS) {
+    return {
+      kind: "invalid",
+      message:
+        "Faltan números: un celular tiene 10 dígitos con el código de área (ej.: 11 3617 9603).",
+    };
+  }
+  return splitPhone(digits)
+    ? null
+    : {
+        kind: "invalid",
+        message:
+          "No parece un celular argentino. Probá con código de área + número (ej.: 11 3617 9603).",
+      };
+}
+
+/** Null when there is nothing to say, an empty field among them. */
+export function mailProblem(text: string): FieldProblem | null {
+  const clean = text.trim();
+  if (!clean) return null;
+  if (!LOOKS_LIKE_A_MAIL.test(clean)) {
+    return { kind: "invalid", message: "No parece un mail válido (falta el @ o el dominio)." };
+  }
+  return MAIL_OF_THE_BANK.test(clean)
+    ? null
+    : { kind: "warning", message: "Ojo: no es un mail @bancogalicia.com.ar." };
 }

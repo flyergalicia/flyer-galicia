@@ -6,7 +6,11 @@ import {
   type OpenSessionOptions,
   type SessionDriver,
 } from "../session.ts";
+import { companyField } from "./flyer-output.ts";
+import { goToOption } from "./flyer-editor.ts";
+import { holdBatch } from "./flyer-batches.ts";
 import { partialDriver } from "./pending.ts";
+import { createReactPromotionsDriver } from "./promotions.ts";
 
 const ENTRY_TIMEOUT_MS = 25_000;
 const HOLD_TO_LIFT_MS = 4_200;
@@ -75,8 +79,9 @@ const DEFAULT_OPTION = 9;
  * use. Whoever lands elsewhere has no flyer to wait for.
  */
 async function waitForFlyer(page: Page, role: string, startOption: number | undefined) {
-  const screen = page.locator('[data-screen="flyer-layout"]');
-  if (!(await screen.isVisible())) return;
+  // On a phone it has no height until its code arrives: it is there, and not hidden.
+  const screen = page.locator('[data-screen="flyer-layout"]:not([hidden])');
+  if ((await screen.count()) === 0) return;
   const isSettled = () =>
     page.waitForFunction(
       () => {
@@ -88,11 +93,7 @@ async function waitForFlyer(page: Page, role: string, startOption: number | unde
     );
   await isSettled();
   if (role !== "admin" && startOption === undefined) return;
-  const option = page
-    .getByTestId("flyer-options")
-    .locator(`button[data-option="${String(startOption ?? DEFAULT_OPTION)}"]`);
-  if ((await option.count()) === 0) return;
-  await option.click();
+  await goToOption(page, startOption ?? DEFAULT_OPTION);
   await isSettled();
 }
 
@@ -418,14 +419,150 @@ function createReading(page: Page) {
   };
 }
 
+const PILL_DOWNLOAD_TIMEOUT_MS = 30_000;
+const HINT_TIMEOUT_MS = 3_000;
+
+function createFlyerLook(page: Page) {
+  const downloadButton = () => page.getByTestId("download-pdf");
+  return {
+    disabledDownloadButtonOpacity: () =>
+      downloadButton().evaluate((element) => {
+        if (!(element instanceof HTMLButtonElement)) throw new Error("It is not a button");
+        element.disabled = true;
+        const { opacity } = getComputedStyle(element);
+        element.disabled = false;
+        return Number(opacity);
+      }),
+    // What it would be called is on the screen, under the field of the name.
+    downloadFileName: async (pattern: string, values: Record<string, string>) => {
+      await companyField(page).fill(values.empresa ?? "");
+      await page.locator('[data-officer-field="nombre1"]').fill(values.nombre ?? "");
+      await page.getByTestId("file-name").fill(pattern);
+      const preview = await page.getByTestId("file-name-preview").innerText();
+      return preview.replace(/^→\s*/, "").replace(/\.pdf$/, "");
+    },
+    downloadDock: () =>
+      page.evaluate(() => {
+        const dock = document.querySelector('[data-testid="flyer-dock"]');
+        if (!dock || dock.getClientRects().length === 0) {
+          return { buttons: [], stuckToBottom: false };
+        }
+        const panel = document.querySelector("[data-scrolling-panel]");
+        if (panel) panel.scrollTop = 0;
+        const bottom = panel?.getBoundingClientRect().bottom ?? 0;
+        return {
+          buttons: Array.from(dock.querySelectorAll<HTMLElement>("button")).flatMap((button) =>
+            button.offsetParent ? [button.innerText.trim().replace(/\s+/g, " ")] : [],
+          ),
+          stuckToBottom: Math.abs(dock.getBoundingClientRect().bottom - bottom) < 24,
+        };
+      }),
+    moveAlongEditorTabs: async (key: "ArrowRight" | "ArrowLeft") => {
+      const tabs = page.getByRole("tablist", { name: "Modo de armado" });
+      await tabs.getByRole("tab", { selected: true }).focus();
+      await page.keyboard.press(key);
+      return (await tabs.getByRole("tab", { selected: true }).innerText()).trim();
+    },
+    selectedEditorTab: async () =>
+      (
+        await page
+          .getByRole("tablist", { name: "Modo de armado" })
+          .getByRole("tab", { selected: true })
+          .innerText()
+      ).trim(),
+    chosenCashbackButtonColors: () =>
+      page
+        .locator('[data-cashback][aria-pressed="true"]')
+        .first()
+        .evaluate((button) => {
+          const style = getComputedStyle(button);
+          return { text: style.color, background: style.backgroundColor };
+        }),
+    downloadButtonHint: async () => {
+      await downloadButton().hover();
+      const hint = page.getByRole("tooltip");
+      await hint.waitFor({ timeout: HINT_TIMEOUT_MS });
+      return (await hint.textContent()) ?? "";
+    },
+    cashbackCardTitle: async () =>
+      (await page
+        .locator("[data-scrolling-panel]")
+        .getByText(/Configuraci.n de Montos/)
+        .first()
+        .textContent()) ?? "",
+    selectedFlyerColors: () =>
+      page
+        .getByTestId("flyer-options")
+        .locator('button[aria-pressed="true"]')
+        .evaluate((option) => {
+          const style = getComputedStyle(option);
+          return { text: style.color, background: style.backgroundColor };
+        }),
+    promotionLogoBackground: async () => {
+      const promotions = createReactPromotionsDriver(page);
+      await promotions.open("active");
+      await promotions.chooseProvince("promotions", "BUENOS AIRES");
+      await promotions.listActive();
+      return page
+        .getByTestId("promotions-results")
+        .locator("tbody img")
+        .first()
+        .evaluate((logo) => getComputedStyle(logo).backgroundColor);
+    },
+    activePromotionsHeader: async () => ({
+      counters: await page.getByTestId("status-counter").allInnerTexts(),
+      firstSortOption: await page
+        .getByRole("combobox", { name: "Ordenar por" })
+        .locator("option")
+        .first()
+        .innerText(),
+    }),
+    promotionsTableFit: () =>
+      page.getByTestId("promotions-results").evaluate((results) => {
+        const table = results.querySelector("table");
+        const row = table?.querySelector("tbody tr");
+        const status = row?.querySelector("[data-part='status']")?.getBoundingClientRect();
+        const screenWidth = document.documentElement.clientWidth;
+        return {
+          tableWidth: Math.round(table?.getBoundingClientRect().width ?? 0),
+          screenWidth,
+          rowDisplay: row ? getComputedStyle(row).display : "",
+          statusInsideTheScreen:
+            Boolean(status) && (status?.right ?? 0) <= screenWidth && (status?.width ?? 0) > 0,
+        };
+      }),
+    // A person sees it and touches it, and the file comes out with the locks of the button.
+    pressPhoneDownloadPill: async () => {
+      const pill = page.getByTestId("phone-pill").getByRole("button", { name: "Descargar PDF" });
+      const visible = await pill.isVisible();
+      const [download] = await Promise.all([
+        page.waitForEvent("download", { timeout: PILL_DOWNLOAD_TIMEOUT_MS }).catch(() => null),
+        pill.click(),
+      ]);
+      return {
+        visible,
+        pressesOfTheDownloadButton: download ? 1 : 0,
+        staysMarked: (await pill.getAttribute("aria-pressed")) === "true",
+      };
+    },
+  };
+}
+
 /** What exists so far: the flyer editor and the others fill in the rest when they arrive. */
 export function createReactSessionDriver(page: Page): SessionDriver {
+  /** A person cannot pretend: a real batch stays waiting, and letting it go lets it end. */
+  let release: (() => Promise<void>) | null = null;
   return partialDriver<SessionDriver>("session", {
+    pretendBatchRunning: async (running) => {
+      if (running) release = await holdBatch(page);
+      else await release?.();
+    },
     ...createEntry(page),
     ...createHeader(page),
     ...createNotices(page),
     ...createWindows(page),
     ...createReading(page),
+    ...createFlyerLook(page),
     open: (options) => open(page, options),
     status: async () => {
       const isInside = await header(page).isVisible();

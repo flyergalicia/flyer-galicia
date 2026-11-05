@@ -22,7 +22,7 @@ import { asText, columnKey, digitsOf, formatTaxId, parseTaxIds } from "./text.ts
 export type SheetRow = Readonly<Record<string, unknown>>;
 type Cells = ReadonlyMap<string, string>;
 
-const COMPANY_COLUMNS = [
+export const COMPANY_COLUMNS = [
   "empresa",
   "razonsocial",
   "razsocial",
@@ -113,6 +113,14 @@ export function isCashbackColumn(key: string): boolean {
 
 export function isKnownColumn(key: string): boolean {
   return OFFICER_COLUMN.test(key) || NUMBERED_TAX_ID.test(key) || KNOWN_COLUMNS.has(key);
+}
+
+export function isTaxIdColumn(key: string): boolean {
+  return TAX_ID_COLUMNS.includes(key) || NUMBERED_TAX_ID.test(key);
+}
+
+export function isOfficerColumn(key: string): boolean {
+  return OFFICER_COLUMN.test(key) || FIRST_OFFICER_COLUMNS.includes(key);
 }
 
 /** Each column by its clean name, whatever the header said. */

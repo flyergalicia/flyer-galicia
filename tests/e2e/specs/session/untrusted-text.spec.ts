@@ -95,25 +95,26 @@ test.describe("text written by someone else", () => {
     await expectNothingRan(app);
   });
 
-  test("in a company is shown as text in the search, the suggestions and its dialogs", async ({
-    cloud,
-    openApp,
-  }) => {
-    hostileCompany(cloud);
-    const app = await openApp({ user: "admin" });
-    const { companyRegistry: registry } = app;
-    await registry.openSearch();
-    await registry.waitForSearchResults(1);
+  test(
+    "in a company is shown as text in the search, the suggestions and its dialogs",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      hostileCompany(cloud);
+      const app = await openApp({ user: "admin" });
+      const { companyRegistry: registry } = app;
+      await registry.openSearch();
+      await registry.waitForSearchResults(1);
 
-    expect.soft((await registry.searchList()).text).toContain(SHOWN);
-    await registry.closeSearch();
-    await registry.typeCompanyName("malo");
-    expect.soft((await registry.suggestedCompanies()).join(" ")).toContain(SHOWN);
-    await registry.pressInCompanyField("Enter");
-    const dialog = await registry.waitForUpdateDialog();
-    expect.soft(dialog.text, "the warning of no cashback too").toContain(SHOWN);
-    await expectNothingRan(app);
-  });
+      expect.soft((await registry.searchList()).text).toContain(SHOWN);
+      await registry.closeSearch();
+      await registry.typeCompanyName("malo");
+      expect.soft((await registry.suggestedCompanies()).join(" ")).toContain(SHOWN);
+      await registry.pressInCompanyField("Enter");
+      const dialog = await registry.waitForUpdateDialog();
+      expect.soft(dialog.text, "the warning of no cashback too").toContain(SHOWN);
+      await expectNothingRan(app);
+    },
+  );
 
   test(
     "in a company is shown as text in Base de datos",
@@ -131,7 +132,7 @@ test.describe("text written by someone else", () => {
     },
   );
 
-  test("in an Excel is shown as text in its validation", async ({ openApp }) => {
+  test("in an Excel is shown as text in its validation", { tag: "@react" }, async ({ openApp }) => {
     const app = await openApp();
 
     const sheet = await app.flyerEditor.uploadExcelSheet([

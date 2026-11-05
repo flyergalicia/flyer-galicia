@@ -96,6 +96,23 @@ describe("the door of the app", () => {
       .toHaveTextContent("Flyer Galicia");
   });
 
+  it("what fails to arrive is not asked in a loop: the screen does not go back to waiting", async () => {
+    const { screen, harness } = await open({
+      droppedFiles: ["_opciones.json", "_titulos.json"],
+    });
+    await expect.element(screen.getByRole("banner")).toBeVisible();
+    // The screens that read them have already come.
+    await expect.element(screen.getByTestId("flyer-preview")).toBeInTheDocument();
+    const asked = () =>
+      harness.network.to("/storage/v1/object/public/flyers/_opciones.json").length;
+    expect(asked()).toBe(1);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 100);
+    });
+    expect(asked()).toBe(1);
+    await expect.element(screen.getByRole("banner")).toBeVisible();
+  });
+
   it("a test account that changes to another starts over", async () => {
     const { screen, harness } = await open({
       profile: { role: "asesor", full_name: "Ana Inventada", status: "active", es_prueba: true },

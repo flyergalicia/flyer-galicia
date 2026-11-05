@@ -3,6 +3,7 @@ import { usePromotionPicking } from "@/shared/lib/promotions/promotion-picking.t
 import { useMemo, useState } from "react";
 import { STATUS_LABEL } from "@/shared/domain/promotions/index.ts";
 import { useFlyerOptions } from "@/shared/lib/app-config/flyer-options-query.ts";
+import { useOptionOnScreen } from "@/shared/lib/option-on-screen/option-on-screen-context.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { usePermissions } from "@/shared/session/index.ts";
 import { Badge, Button, ConfirmDialog, DataTable, Input } from "@/shared/ui/index.ts";
@@ -276,7 +277,12 @@ function WatchBar({ rows }: { readonly rows: NonNullable<PromotionsState["rows"]
   const { options } = useFlyerOptions();
   const { watchFoundBrands } = usePromotionsActions();
   const toast = useToast();
-  const [option, setOption] = useState(options[0]?.n ?? 1);
+  const onScreen = useOptionOnScreen();
+  const [chosen, setChosen] = useState<number | null>(null);
+  const open = onScreen.get();
+  // It starts on the flyer open in the editor, if that one is on the list.
+  const starting = options.some(({ n }) => n === open) ? open : null;
+  const option = chosen ?? starting ?? options[0]?.n ?? 1;
   const [isAsking, setIsAsking] = useState(false);
   const optionName = options.find(({ n }) => n === option)?.nombre ?? `Opción ${String(option)}`;
   const { found, left } = watchableRows(rows);
@@ -287,7 +293,7 @@ function WatchBar({ rows }: { readonly rows: NonNullable<PromotionsState["rows"]
         id="promotions-watch-option"
         value={option}
         onChange={(event) => {
-          setOption(Number(event.target.value));
+          setChosen(Number(event.target.value));
         }}
       >
         {options.map(({ n, nombre }) => (

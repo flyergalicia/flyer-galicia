@@ -50,16 +50,16 @@ const BENCHMARK_VIEWS: readonly ScreenCase[] = (
 
 const SCREENS: readonly ScreenCase[] = [
   { name: "login", screen: "login", noFlyer: true, inReact: true },
-  { name: "flyer-editor-advisor", screen: "flyer-editor" },
-  { name: "flyer-editor-admin", screen: "flyer-editor", user: ADMIN },
-  { name: "preview-window", screen: "preview-window" },
-  { name: "logo-editor", screen: "logo-editor" },
-  { name: "logo-strip-window", screen: "logo-strip-window" },
+  { name: "flyer-editor-advisor", screen: "flyer-editor", inReact: true },
+  { name: "flyer-editor-admin", screen: "flyer-editor", user: ADMIN, inReact: true },
+  { name: "preview-window", screen: "preview-window", inReact: true },
+  { name: "logo-editor", screen: "logo-editor", inReact: true },
+  { name: "logo-strip-window", screen: "logo-strip-window", inReact: true },
   { name: "promotions-active", screen: "promotions-active", contentOn: PHONE_ONLY, inReact: true },
   { name: "promotions-search", screen: "promotions-search", contentOn: PHONE_ONLY, inReact: true },
   { name: "studio", screen: "studio" },
-  { name: "database-companies", screen: "database-companies" },
-  { name: "database-advisors", screen: "database-advisors" },
+  { name: "database-companies", screen: "database-companies", inReact: true },
+  { name: "database-advisors", screen: "database-advisors", inReact: true },
   { name: "hunter", screen: "hunter", user: REFERENCE_HUNTER, noFlyer: true },
   {
     name: "commercial-actions-list",
@@ -85,7 +85,7 @@ const SCREENS: readonly ScreenCase[] = [
   { name: "admin-users", screen: "admin-users", user: ADMIN },
   { name: "admin-permissions", screen: "admin-permissions", user: ADMIN },
   { name: "admin-flyer-config", screen: "admin-flyer-config", user: ADMIN },
-  { name: "user-menu", screen: "user-menu" },
+  { name: "user-menu", screen: "user-menu", inReact: true },
   { name: "screen-search", screen: "screen-search" },
 ];
 

@@ -37,15 +37,26 @@ function asReaderRow({ cells, readerRow }: ProbeSheetRow): Readonly<Record<strin
   return row;
 }
 
+/** What a test reads of the list of companies wherever it is used: the field of the flyer editor. */
+export function companyListProbe(queryClient: QueryClient, userId: string | null) {
+  const listState = () => queryClient.getQueryState<CompanyList>([...COMPANIES_QUERY_KEY, userId]);
+  return {
+    ownCompanyCount: () => listState()?.data?.rows.length ?? 0,
+    companiesFailed: () => listState()?.status === "error",
+    ownCompany: (row: number) => {
+      const company = listState()?.data?.rows[row];
+      return { config: company?.config ?? "", firstOfficer: company?.asesores[0]?.nombre };
+    },
+  };
+}
+
 export function registryProbe(
   queryClient: QueryClient,
   userId: string | null,
   read: () => ProbeSources,
 ) {
-  const listState = () => queryClient.getQueryState<CompanyList>([...COMPANIES_QUERY_KEY, userId]);
   return {
-    ownCompanyCount: () => listState()?.data?.rows.length ?? 0,
-    companiesFailed: () => listState()?.status === "error",
+    ...companyListProbe(queryClient, userId),
     editorCategory: (row: number) => sanitizeCategory(read().editor.rows?.[row]?.rubro),
     destinationOption: (company: unknown) => {
       const [clean] = sanitizeCompanies([company]);

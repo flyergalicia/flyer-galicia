@@ -14,21 +14,25 @@ function withTwoOptions(cloud: Cloud): void {
 }
 
 test.describe("the markers of the legal", () => {
-  test("are replaced with the amounts of the configuration in use", async ({ cloud, openApp }) => {
-    cloud.bucketJson["_legal9.json"] = {
-      text: "A {eminentblack} B {platinum} C {plusgold} D {plus} E {empresa} F {cashback} G {Plus Gold}.",
-    };
-    const { flyerDrawing, flyerEditor } = await openApp();
-    await flyerEditor.fillCompanyName("ACME");
+  test(
+    "are replaced with the amounts of the configuration in use",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.bucketJson["_legal9.json"] = {
+        text: "A {eminentblack} B {platinum} C {plusgold} D {plus} E {empresa} F {cashback} G {Plus Gold}.",
+      };
+      const { flyerDrawing, flyerEditor } = await openApp();
+      await flyerEditor.fillCompanyName("ACME");
 
-    const words = (await flyerDrawing.draw()).texts.map(({ text }) => text).join(" ");
-    expect.soft(words).toMatch(/A\s+\$250\.000\s+B\s+\$180\.000\s+C\s+\$80\.000\s+D\s+\$30\.000/);
-    expect.soft(words, "the company").toMatch(/E\s+ACME/);
-    expect.soft(words, "the biggest").toMatch(/F\s+\$250\.000/);
-    expect.soft(words, "spaces and capitals do not matter").toMatch(/G\s+\$80\.000/);
-  });
+      const words = (await flyerDrawing.draw()).texts.map(({ text }) => text).join(" ");
+      expect.soft(words).toMatch(/A\s+\$250\.000\s+B\s+\$180\.000\s+C\s+\$80\.000\s+D\s+\$30\.000/);
+      expect.soft(words, "the company").toMatch(/E\s+ACME/);
+      expect.soft(words, "the biggest").toMatch(/F\s+\$250\.000/);
+      expect.soft(words, "spaces and capitals do not matter").toMatch(/G\s+\$80\.000/);
+    },
+  );
 
-  test("one it does not know stays as written", async ({ cloud, openApp }) => {
+  test("one it does not know stays as written", { tag: "@react" }, async ({ cloud, openApp }) => {
     cloud.bucketJson["_legal9.json"] = { text: "Vigente {hasta} y {importeee}." };
     const { flyerDrawing } = await openApp();
 
@@ -68,7 +72,7 @@ test.describe("the markers of the legal", () => {
   });
 });
 
-test.describe("each option keeps its legal", () => {
+test.describe("each option keeps its legal", { tag: "@react" }, () => {
   test("an edit stays on its option and does not travel to the other", async ({
     cloud,
     openApp,
@@ -130,7 +134,7 @@ test.describe("each option keeps its legal", () => {
   });
 });
 
-test.describe("writing the legal", () => {
+test.describe("writing the legal", { tag: "@react" }, () => {
   test("the button and Ctrl+B put and take away the bold", async ({ openApp }) => {
     const { flyerEditor, page } = await openApp();
 

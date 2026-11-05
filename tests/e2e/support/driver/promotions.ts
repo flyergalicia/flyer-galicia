@@ -269,6 +269,8 @@ export interface PromotionsDriver {
   /** Whether the logo at that point of the flyer has printed days below it. */
   hasDaysTextBelowLogoAt(point: { x: number; y: number }): Promise<boolean>;
 
+  /** The flyer the bar "Vigilar estas marcas en" of Buscar has chosen. */
+  watchBarOption(): Promise<number>;
   /** On Buscar, saves what was found as the watched brands of a flyer option. */
   watchFoundBrandsOn(option: number): Promise<void>;
   /** Admin → Config → Marcas vigiladas. */

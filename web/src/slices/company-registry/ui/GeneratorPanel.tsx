@@ -28,7 +28,7 @@ import styles from "./DatabaseWindow.module.css";
 const WAIT_FROM_ROWS = 400;
 const WAIT_MS = 150;
 const ALL = 100_000;
-const NOT_READY = "Generar el ZIP llega con el armador nuevo.";
+const NOT_READY = "No se pudo preparar el ZIP. Revisá la conexión y probá de nuevo.";
 const NOTHING_TICKED: ReadonlySet<number> = new Set();
 
 function GeneratorRowView({

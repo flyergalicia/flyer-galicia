@@ -9,35 +9,31 @@ import {
   type RegistrySheet,
   type SheetRow,
 } from "../company-registry.ts";
+import {
+  chooseTab,
+  database,
+  databaseWindow,
+  decisionDialog,
+  generateCompanies,
+  openRegistry,
+  pane,
+  reloadCompaniesWith,
+  sleep,
+  storedCompany,
+  waitForCompanies,
+} from "./company-list.ts";
+import { reloadKeepingOption } from "./flyer-editor.ts";
 import { partialDriver } from "./pending.ts";
 
 const LOAD_TIMEOUT_MS = 8_000;
+const FLYERS_CHECK_TIMEOUT_MS = 20_000;
 const SETTLE_MS = 300;
 const OFFICERS_SETTLE_MS = 400;
 const SHEET_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const COMPANIES_ROUTE = "**/rest/v1/padron_empresas*";
 const OPTIONS_ROUTE = "**/storage/v1/object/public/flyers/_opciones.json*";
 /** The flyer the driver offers as a category. */
 const CATEGORY_OPTION = 9;
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" };
-
-const sleep = (page: Page, ms: number) => page.waitForTimeout(ms);
-
-function database(page: Page): Locator {
-  return page.locator('[data-screen="my-database"]');
-}
-
-function databaseWindow(page: Page): Locator {
-  return page.getByRole("dialog", { name: /Base de datos/ });
-}
-
-function pane(page: Page): Locator {
-  return database(page).getByRole("tabpanel").locator("visible=true");
-}
-
-function decisionDialog(page: Page): Locator {
-  return page.getByTestId("decision-dialog");
-}
 
 function editorRow(page: Page, row: number): Locator {
   return page.locator(`[data-testid="company-editor-row"][data-row="${String(row)}"]`);
@@ -45,45 +41,6 @@ function editorRow(page: Page, row: number): Locator {
 
 function generatorRow(page: Page, row: number): Locator {
   return page.locator(`[data-testid="generator-row"][data-row="${String(row)}"]`);
-}
-
-async function openRegistry(page: Page): Promise<void> {
-  if (await database(page).isVisible()) return;
-  await page.getByRole("button", { name: /^Menú de / }).click();
-  await page
-    .getByRole("menu", { name: "Tu cuenta" })
-    .getByRole("menuitem", { name: "Base de datos" })
-    .click();
-  await database(page).waitFor({ timeout: LOAD_TIMEOUT_MS });
-}
-
-async function chooseTab(page: Page, label: string): Promise<void> {
-  const tab = databaseWindow(page).getByRole("tab", { name: label });
-  if ((await tab.count()) > 0) await tab.click();
-  await sleep(page, SETTLE_MS);
-}
-
-function storedOfficer({ name, phone, email }: CompanyOfficer) {
-  return { nombre: name, celular: phone ?? "", email: email ?? "" };
-}
-
-function storedCategory({ option, name, cap, secondCap }: CompanyCategory) {
-  return {
-    ...(option === undefined ? {} : { opcion: option }),
-    ...(name === undefined ? {} : { txt: name }),
-    ...(cap === undefined ? {} : { importe: cap }),
-    ...(secondCap === undefined ? {} : { importe2: secondCap }),
-  };
-}
-
-function storedCompany(company: CompanyRecord) {
-  return {
-    empresa: company.name,
-    cuits: company.taxIds ?? [],
-    config: company.cashback,
-    asesores: (company.officers ?? []).map(storedOfficer),
-    rubro: storedCategory(company.category ?? {}),
-  };
 }
 
 function readCategory({
@@ -138,50 +95,16 @@ async function downloadSheet(page: Page, label: string): Promise<RegistrySheet> 
   return { name: download.suggestedFilename(), head, rows };
 }
 
-/** The list the cloud answers with, from here on: a person gets it by reading it again. */
-async function answerCompanies(page: Page, companies: readonly CompanyRecord[]): Promise<void> {
-  await page.route(COMPANIES_ROUTE, async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.fallback();
-      return;
-    }
-    await route.fulfill({ json: companies.map(storedCompany), headers: CORS });
-  });
-}
-
-async function waitForCompanies(page: Page, count: number): Promise<void> {
-  await page.waitForFunction(
-    (wanted) => {
-      const probe = window["__flyerProbe"]?.companyRegistry?.();
-      return probe && !probe.companiesFailed() && probe.ownCompanyCount() === wanted;
-    },
-    count,
-    { timeout: LOAD_TIMEOUT_MS },
-  );
-  await sleep(page, SETTLE_MS);
-}
-
-async function reloadCompaniesWith(page: Page, companies: readonly CompanyRecord[]): Promise<void> {
-  await answerCompanies(page, companies);
-  await openRegistry(page);
-  await chooseTab(page, "Mis empresas");
-  await pane(page).getByRole("button", { name: "Recargar" }).click();
-  await waitForCompanies(page, companies.length);
-}
-
 function createLoading(page: Page) {
   return {
     // The list stays in memory while the page lives: a new page reads it again.
-    forgetCompanies: async () => {
-      await page.reload();
-      await page.getByRole("banner").waitFor({ timeout: LOAD_TIMEOUT_MS });
-    },
+    forgetCompanies: () => reloadKeepingOption(page),
     loadCompanies: async () => {
       await openRegistry(page);
     },
     waitForConnectionProblem: async () => {
       await page.waitForFunction(
-        () => window["__flyerProbe"]?.companyRegistry?.().companiesFailed() === true,
+        () => window["__flyerProbe"]?.companyList?.().companiesFailed() === true,
         null,
         { timeout: LOAD_TIMEOUT_MS },
       );
@@ -189,7 +112,7 @@ function createLoading(page: Page) {
     },
     waitForCompaniesLoaded: (count: number) => waitForCompanies(page, count),
     ownCompanyCount: () =>
-      page.evaluate(() => window["__flyerProbe"]?.companyRegistry?.().ownCompanyCount() ?? 0),
+      page.evaluate(() => window["__flyerProbe"]?.companyList?.().ownCompanyCount() ?? 0),
     retryConnection: () =>
       page
         .getByRole("button", { name: /Reintentar/ })
@@ -201,7 +124,7 @@ function createLoading(page: Page) {
 function createSearch(page: Page) {
   const list = page.getByTestId("company-search-list");
   const suggestions = page.getByTestId("company-suggestions");
-  const field = page.getByTestId("company-name");
+  const field = page.getByLabel("Nombre de la empresa", { exact: true });
   return {
     openSearch: async () => {
       await page.getByTestId("company-search-button").click();
@@ -234,6 +157,7 @@ function createSearch(page: Page) {
       await list.getByTestId("company-option").filter({ hasText: name }).first().click();
       await sleep(page, SETTLE_MS);
     },
+    fileNameField: () => page.getByTestId("file-name").inputValue(),
     searchOffered: () => page.getByTestId("company-search-button").isVisible(),
     typeCompanyName: (text: string) => field.fill(text),
     suggestions: async () => {
@@ -328,6 +252,19 @@ function createGenerator(page: Page) {
         .getByRole("button", { name: /Generar flyers/ })
         .click();
       await page.getByTestId("generator-row").first().waitFor();
+    },
+    generateFlyers: (companies: CompanyRecord[]) => generateCompanies(page, companies),
+    // Which options have a flyer is asked some seconds after entering: a new page asks again.
+    checkHunterFlyers: async () => {
+      await page.reload();
+      await page.getByRole("banner").waitFor({ timeout: FLYERS_CHECK_TIMEOUT_MS });
+      await page.waitForFunction(() => window["__flyerProbe"]?.flyerKnowledge?.().done, null, {
+        timeout: FLYERS_CHECK_TIMEOUT_MS,
+      });
+      return page.evaluate(() => {
+        const knowledge = window["__flyerProbe"]?.flyerKnowledge?.();
+        return { failed: knowledge?.failed ?? false, hasFlyer: knowledge?.hasFlyer ?? {} };
+      });
     },
     tickInGenerator: async (rows: number[]) => {
       const first = page.getByTestId("generator-row").first();
@@ -590,9 +527,86 @@ function createProposals(page: Page) {
   };
 }
 
-/** What can be reached today. The form of the flyer brings what is left: see etapa4-avance. */
+const BRINGING_SETTLE_MS = 400;
+const OWNER_TAG = '[data-part="owner"]';
+
+async function chooseFromTheSearch(page: Page, choose: (options: Locator) => Promise<void>) {
+  const list = page.getByTestId("company-search-list");
+  if (!(await list.isVisible())) await page.getByTestId("company-search-button").click();
+  await page.getByTestId("company-search-query").fill("");
+  const options = list.getByTestId("company-option");
+  await options.first().waitFor({ timeout: LOAD_TIMEOUT_MS });
+  await choose(options);
+  await sleep(page, BRINGING_SETTLE_MS);
+}
+
+function createBringing(page: Page) {
+  return {
+    /** Bringing it is choosing it in the search: for it to be there, the list is read with it. */
+    applyCompany: async (company: CompanyRecord) => {
+      await reloadCompaniesWith(page, [company]);
+      await databaseWindow(page).getByLabel("Cerrar").click();
+      await chooseFromTheSearch(page, (options) => options.first().click());
+    },
+    applyOwnCompany: (index: number) =>
+      chooseFromTheSearch(page, (options) =>
+        options
+          .filter({ hasNot: page.locator(OWNER_TAG) })
+          .nth(index)
+          .click(),
+      ),
+    applySubstituteCompany: async (index: number) => {
+      await chooseFromTheSearch(page, (options) =>
+        options
+          .filter({ has: page.locator(OWNER_TAG) })
+          .nth(index)
+          .click(),
+      );
+      const notice = page.getByRole("status").and(page.locator("[data-visible]"));
+      return [await notice.innerText()];
+    },
+    // The list of a substitute is read again when the page is: a person reloads, or waits a minute.
+    refreshSubstitutes: () => reloadKeepingOption(page),
+    // All the way, as a person does: brought, changed, downloaded and answered.
+    saveFlyerChanges: async (
+      index: number,
+      change: { cashback: string; officers: CompanyOfficer[] },
+    ) => {
+      await databaseWindow(page).getByLabel("Cerrar").click();
+      await chooseFromTheSearch(page, (options) => options.nth(index).click());
+      await page.locator(`[data-cashback="${change.cashback}"]`).click();
+      await page.locator('[data-officer-field="nombre1"]').fill(change.officers[0]?.name ?? "");
+      await page.getByTestId("download-pdf").click();
+      await decisionDialog(page).waitFor({ timeout: LOAD_TIMEOUT_MS });
+      await decisionDialog(page).locator('[data-decision="yes"]').click();
+      await decisionDialog(page).waitFor({ state: "detached", timeout: LOAD_TIMEOUT_MS });
+      await openRegistry(page);
+      return page
+        .evaluate(
+          (row) =>
+            window["__flyerProbe"]?.companyList?.().ownCompany(row) ?? {
+              config: "",
+              firstOfficer: undefined,
+            },
+          index,
+        )
+        .then(({ config, firstOfficer }) => ({ cashback: config, firstOfficer }));
+    },
+    // The download itself, as a person does: what comes after it is what is being looked at.
+    reviewChangesAfterDownload: async () => {
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        page.getByTestId("download-pdf").click(),
+      ]);
+      await download.path();
+    },
+  };
+}
+
+/** What can be reached today. Administrador brings what is left: see etapa4-avance. */
 export function createReactCompanyRegistryDriver(page: Page): CompanyRegistryDriver {
   return partialDriver<CompanyRegistryDriver>("companyRegistry", {
+    ...createBringing(page),
     ...createLoading(page),
     ...createSearch(page),
     ...createUpdateDialog(page),

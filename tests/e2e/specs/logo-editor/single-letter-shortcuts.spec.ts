@@ -107,7 +107,7 @@ test(
   },
 );
 
-test("writing in a field, the letters do nothing", async ({ openApp }) => {
+test("writing in a field, the letters do nothing", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp();
   await app.logoEditor.enter();
   await app.logoEditor.waitForBrandCatalog();

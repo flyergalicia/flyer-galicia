@@ -36,47 +36,53 @@ test.describe("the preview beside the form", () => {
 });
 
 test.describe("the window of Vista previa", () => {
-  test("starts whole; Ctrl + wheel and double click zoom, and the wheel alone scrolls", async ({
-    openApp,
-  }) => {
-    const { flyerDrawing } = await openApp();
-    await flyerDrawing.openPreviewWindow();
-    expect.soft((await flyerDrawing.previewWindowZoom()).percent, "whole").toBe(100);
+  test(
+    "starts whole; Ctrl + wheel and double click zoom, and the wheel alone scrolls",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { flyerDrawing } = await openApp();
+      await flyerDrawing.openPreviewWindow();
+      expect.soft((await flyerDrawing.previewWindowZoom()).percent, "whole").toBe(100);
 
-    await flyerDrawing.wheelOverPreviewWindow({ ctrl: false, times: 2 });
-    expect.soft((await flyerDrawing.previewWindowZoom()).percent, "no Ctrl, no zoom").toBe(100);
+      await flyerDrawing.wheelOverPreviewWindow({ ctrl: false, times: 2 });
+      expect.soft((await flyerDrawing.previewWindowZoom()).percent, "no Ctrl, no zoom").toBe(100);
 
-    await flyerDrawing.wheelOverPreviewWindow({ ctrl: true, times: 2 });
-    const zoomed = (await flyerDrawing.previewWindowZoom()).percent;
-    expect.soft(zoomed, "with Ctrl").toBeGreaterThan(100);
+      await flyerDrawing.wheelOverPreviewWindow({ ctrl: true, times: 2 });
+      const zoomed = (await flyerDrawing.previewWindowZoom()).percent;
+      expect.soft(zoomed, "with Ctrl").toBeGreaterThan(100);
 
-    await flyerDrawing.doubleClickPreviewWindow();
-    expect
-      .soft((await flyerDrawing.previewWindowZoom()).percent, "double click goes back")
-      .toBe(100);
+      await flyerDrawing.doubleClickPreviewWindow();
+      expect
+        .soft((await flyerDrawing.previewWindowZoom()).percent, "double click goes back")
+        .toBe(100);
 
-    await flyerDrawing.doubleClickPreviewWindow();
-    expect
-      .soft((await flyerDrawing.previewWindowZoom()).percent, "and comes closer")
-      .toBeGreaterThan(100);
-  });
+      await flyerDrawing.doubleClickPreviewWindow();
+      expect
+        .soft((await flyerDrawing.previewWindowZoom()).percent, "and comes closer")
+        .toBeGreaterThan(100);
+    },
+  );
 
-  test("the keys + − and 0 work, and each opening starts whole", async ({ openApp }) => {
-    const { flyerDrawing, page } = await openApp();
-    await flyerDrawing.openPreviewWindow();
+  test(
+    "the keys + − and 0 work, and each opening starts whole",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { flyerDrawing, page } = await openApp();
+      await flyerDrawing.openPreviewWindow();
 
-    await page.keyboard.press("+");
-    expect.soft((await flyerDrawing.previewWindowZoom()).percent).toBeGreaterThan(100);
-    await page.keyboard.press("0");
-    expect.soft((await flyerDrawing.previewWindowZoom()).percent).toBe(100);
+      await page.keyboard.press("+");
+      expect.soft((await flyerDrawing.previewWindowZoom()).percent).toBeGreaterThan(100);
+      await page.keyboard.press("0");
+      expect.soft((await flyerDrawing.previewWindowZoom()).percent).toBe(100);
 
-    await page.keyboard.press("+");
-    await flyerDrawing.closePreviewWindow();
-    await flyerDrawing.openPreviewWindow();
-    expect.soft((await flyerDrawing.previewWindowZoom()).percent, "starts whole").toBe(100);
-  });
+      await page.keyboard.press("+");
+      await flyerDrawing.closePreviewWindow();
+      await flyerDrawing.openPreviewWindow();
+      expect.soft((await flyerDrawing.previewWindowZoom()).percent, "starts whole").toBe(100);
+    },
+  );
 
-  test("dragging out of the window does not close it", async ({ openApp }) => {
+  test("dragging out of the window does not close it", { tag: "@react" }, async ({ openApp }) => {
     const { flyerDrawing, page } = await openApp();
     await flyerDrawing.openPreviewWindow();
     await page.keyboard.press("+");

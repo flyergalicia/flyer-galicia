@@ -100,6 +100,7 @@ function useDraftsOffer(editor: LogoEditor) {
   useEffect(() => {
     if (hasFlyer) editor.works.offerSoon();
   }, [editor, hasFlyer]);
+  useEffect(() => editor.works.stop, [editor]);
 }
 
 export function LogoEditorProvider({ children }: { readonly children: ReactNode }) {

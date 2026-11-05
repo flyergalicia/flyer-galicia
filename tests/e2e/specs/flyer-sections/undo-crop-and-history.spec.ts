@@ -52,7 +52,7 @@ test("undo also undoes a crop", { tag: "@react" }, async ({ openApp }) => {
   expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
 });
 
-test("the history remembers crop and logos", async ({ openApp }) => {
+test("the history remembers crop and logos", { tag: "@react" }, async ({ openApp }) => {
   const app = await openApp({ user: "asesor" });
   const sections = app.flyerSections;
   const status = () => sections.cropStatus();

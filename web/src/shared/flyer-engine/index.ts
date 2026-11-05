@@ -6,6 +6,7 @@ export {
   type BatchProgress,
   type BatchRequest,
   type BatchResult,
+  bringBatchLibraries,
   generateBatch,
   yieldToPaint,
 } from "./batch.ts";
@@ -32,6 +33,7 @@ export {
   buildFileName,
   createFlyerPdf,
   dateForFileName,
+  detailOf,
   downloadBlob,
   type FileNameContext,
   type FlyerPdf,
@@ -51,6 +53,7 @@ export {
   cropSceneWith,
   loadFlyerArtwork,
   loadPicture,
+  artKeyWithCuts,
   sceneForStoredValues,
   storedCropOf,
   type StoredCrop,
