@@ -16,6 +16,8 @@ function bucketWith(
   return {
     readJson: () => Promise.resolve(read()),
     publicUrl: (file) => file,
+    listedUrl: (name) => name,
+    readText: () => Promise.resolve(success("")),
     upload: async (_file, body) => write(JSON.parse(await textOf(body))),
     list: () => Promise.resolve(success([])),
     remove: () => Promise.resolve(success(undefined)),

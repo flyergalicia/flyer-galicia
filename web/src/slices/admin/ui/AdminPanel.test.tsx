@@ -36,6 +36,8 @@ describe("the panel", () => {
     ]);
     await pillar("Config").click();
     await expect.element(sheet("Config", "Flyer")).toHaveAttribute("aria-selected", "true");
+    await expect.element(panel()).toMatchTextContent(/Subir nueva versión del flyer/);
+    await sheet("Config", "Cashback").click();
     await expect.element(panel()).toMatchTextContent(/Esta hoja todavía falta/);
   });
 
@@ -69,8 +71,11 @@ describe("the panel", () => {
     await expect.poll(() => first.closed.length).toBe(1);
     await first.screen.unmount();
 
+    // The backdrop is what is left of the window to the left of the panel: it is touched there.
+    await page.viewport(1366, 800);
     const second = await openPanel();
-    await page.getByRole("button", { name: "Cerrar el panel" }).click({ force: true });
+    await expect.element(panel()).toBeVisible();
+    await page.getByRole("button", { name: "Cerrar el panel" }).click({ position: { x: 5, y: 5 } });
     await expect.poll(() => second.closed.length).toBe(1);
     await second.screen.unmount();
 

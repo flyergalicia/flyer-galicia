@@ -70,6 +70,13 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Cambios en las empresas | `companyLog` | Altas, modificaciones y bajas de las empresas, de `padron_log` |
 | Empresas por usuario | `otherPeople` | El administrador lee la lista de otro, sin poder editarla |
 | Perfil | `role` | Admin, VIP, asesor, Hunter, Líder, Prospect |
+| Config → Flyer | `FlyerSheet` | La hoja del panel donde se sube un flyer y se activa o desactiva el de cada opción |
+| Versión (de un flyer) | `uploadedFlyer` | Un archivo subido al bucket (`flyer_<hora>_op<n>.jpg` o el HTML del armado) |
+| Flyer activo | `activeFlyer` | Lo que dice `_active<n>.json`: la imagen y la calibración que usa esa opción |
+| Calibrador | `calibrator` | La ventana donde se acomodan las zonas del flyer sobre su imagen |
+| Zona | `zone` | Empresa, Montos, cada caja, Cashback, Asesores, Legales y cada línea del cartel |
+| Partir de esta base | `calibrationBase` | Un punto de partida medido para un modelo de flyer (Galicia, Pasá tu sueldo) |
+| Plantilla del cartel | `benefitTemplate` | Las líneas del cuadro del beneficio de cada rubro (Flyer Rubros) |
 
 Los perfiles Hunter y Prospect, la palabra cashback y el nombre Benchmark quedan igual.
 

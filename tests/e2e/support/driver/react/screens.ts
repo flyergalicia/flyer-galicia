@@ -97,6 +97,7 @@ const WINDOWS_OVER_THE_FLYER: ReadonlySet<ReferenceScreen> = new Set([
   "admin-dashboard",
   "admin-users",
   "admin-permissions",
+  "admin-flyer-config",
 ]);
 
 /**
@@ -203,6 +204,15 @@ function openers(
       // A person taps the sheet where it shows: the row of sheets does not move under the finger.
       await page
         .getByRole("tablist", { name: "Hojas de Admin" })
+        .evaluate((list) => list.scrollTo({ left: 0 }));
+    },
+    "admin-flyer-config": async () => {
+      await admin.openPanel();
+      await admin.openSheet("Config", "Flyer");
+      await page.getByTestId("flyer-list").waitFor({ timeout: WAIT_MS });
+      // A person taps the sheet where it shows: the row of sheets does not move under the finger.
+      await page
+        .getByRole("tablist", { name: "Hojas de Config" })
         .evaluate((list) => list.scrollTo({ left: 0 }));
     },
     "logo-strip-window": async () => {

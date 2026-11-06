@@ -10,6 +10,7 @@ import {
   type StudioDriver,
   type StudioFilter,
 } from "../studio.ts";
+import { createReactAdminDriver } from "./admin.ts";
 import { createReactLogoEditorDriver } from "./logo-editor.ts";
 import { partialDriver } from "./pending.ts";
 
@@ -877,6 +878,36 @@ async function tabOfTheFlyer(page: Page): Promise<void> {
   if (!isEditing) await logoBar(page).getByRole("button", { name: "Cambiar logos" }).click();
 }
 
+/** Config → Flyer, in the panel of the administrator: it also lists what Estudio publishes. */
+function flyerConfigDriver(page: Page): Partial<StudioDriver> {
+  const openFlyerSheet = async () => {
+    const admin = createReactAdminDriver(page);
+    if (!(await admin.isPanelOpen())) await admin.openPanel();
+    await admin.openSheet("Config", "Flyer");
+    const list = page.getByTestId("flyer-list");
+    await list.waitFor({ timeout: SHOWN_TIMEOUT_MS });
+    return list;
+  };
+  return {
+    askToDeactivateFlyer: async (option: number) => {
+      const list = await openFlyerSheet();
+      await list
+        .getByTestId("flyer-banner")
+        .filter({ hasText: `OP.${String(option)}` })
+        .getByRole("button", { name: "Desactivar" })
+        .click();
+      const question = page.getByRole("alertdialog");
+      await question.waitFor({ timeout: SHOWN_TIMEOUT_MS });
+      return (await question.getByRole("heading").textContent()) ?? "";
+    },
+    flyerListOfConfig: async () => {
+      const list = await openFlyerSheet();
+      await list.getByText(/Sin flyer activo/).waitFor({ timeout: SHOWN_TIMEOUT_MS });
+      return (await list.textContent()) ?? "";
+    },
+  };
+}
+
 export function createReactStudioDriver(page: Page): StudioDriver {
   return partialDriver<StudioDriver>("studio", {
     ...readingsDriver(page),
@@ -885,5 +916,6 @@ export function createReactStudioDriver(page: Page): StudioDriver {
     ...sharingDriver(page),
     ...sourcesDriver(page),
     ...uploadsDriver(page),
+    ...flyerConfigDriver(page),
   });
 }

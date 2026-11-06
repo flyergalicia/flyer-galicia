@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import {
@@ -57,6 +58,8 @@ function fakeBucket(active: unknown, legal: unknown) {
       Promise.resolve(file.startsWith("_active") ? active : legal),
     ),
     publicUrl: vi.fn<() => string>(),
+    listedUrl: vi.fn<() => string>(),
+    readText: vi.fn<() => void>(),
     upload: vi.fn<() => void>(),
     list: vi.fn<() => void>(),
     remove: vi.fn<() => void>(),
@@ -211,6 +214,85 @@ describe("the option on screen", () => {
     workspace.requestDraw();
     expect(preview.drawNow).toHaveBeenCalledTimes(1);
     expect(preview.requestDraw).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("an option whose flyer changed (Config → Flyer)", () => {
+  it("on screen, it is brought again with its tab, and the new picture is drawn", async () => {
+    const { workspace, loadOption } = workspaceWith();
+    loadOption.mockResolvedValueOnce(LOADED("vieja"));
+    loadOption.mockResolvedValueOnce(LOADED("nueva"));
+    await workspace.selectOption(9, true);
+    workspace.forgetOption(9);
+    await vi.waitFor(() => {
+      expect(workspace.getState().slot.scene?.artKey).toBe("nueva");
+    });
+    expect(loadOption).toHaveBeenLastCalledWith(9, { singleCashback: true });
+  });
+
+  it("another one is only forgotten: the one on screen does not move (invariant 6)", async () => {
+    const { workspace, loadOption } = workspaceWith();
+    loadOption.mockResolvedValueOnce(LOADED("nueve"));
+    loadOption.mockResolvedValueOnce(LOADED("uno"));
+    loadOption.mockResolvedValueOnce(LOADED("nueve nueva"));
+    await workspace.selectOption(9, false);
+    await workspace.selectOption(1, false);
+    workspace.forgetOption(9);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+    expect(workspace.getState().slot.scene?.artKey).toBe("uno");
+    expect(loadOption).toHaveBeenCalledTimes(2);
+    await workspace.selectOption(9, false);
+    await vi.waitFor(() => {
+      expect(workspace.getState().slot.scene?.artKey).toBe("nueve nueva");
+    });
+    expect(workspace.hasFlyer(9)).toBe(true);
+  });
+
+  it("what was on its way before the change is not kept, nor drawn over the new one", async () => {
+    const answers: ((loaded: LoadedOption) => void)[] = [];
+    const { workspace, loadOption } = workspaceWith(
+      vi.fn<(option: number) => Promise<LoadedOption>>(
+        () =>
+          new Promise((resolve) => {
+            answers.push(resolve);
+          }),
+      ),
+    );
+    void workspace.selectOption(9, false);
+    workspace.forgetOption(9);
+    expect(loadOption).toHaveBeenCalledTimes(2);
+    answers[1]?.(LOADED("nueva"));
+    await vi.waitFor(() => {
+      expect(workspace.getState().slot.scene?.artKey).toBe("nueva");
+    });
+    answers[0]?.(LOADED("vieja"));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+    expect(workspace.getState().slot.scene?.artKey).toBe("nueva");
+    expect(workspace.optionScene(9)?.artKey).toBe("nueva");
+  });
+
+  it("one not on screen that was on its way is not kept either", async () => {
+    const answers: ((loaded: LoadedOption) => void)[] = [];
+    const { workspace } = workspaceWith(
+      vi.fn<(option: number) => Promise<LoadedOption>>(
+        () =>
+          new Promise((resolve) => {
+            answers.push(resolve);
+          }),
+      ),
+    );
+    void workspace.selectOption(9, false);
+    void workspace.selectOption(1, false);
+    workspace.forgetOption(9);
+    answers[0]?.(LOADED("vieja"));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+    expect(workspace.optionScene(9)).toBeNull();
   });
 });
 
@@ -499,6 +581,40 @@ describe("the provider", () => {
     );
     await expect.element(screen.getByText("Zoom 1")).toBeVisible();
     expect(workspaceOnScreen().getState().zoom).toBe(1);
+  });
+
+  it("hears the options whose flyer changed, and stops hearing when it leaves", async () => {
+    const { createAppHarness } = await import("@/shared/lib/testing/app-harness.tsx");
+    const { useFlyerChanges } = await import("../flyer-changes/flyer-changes.ts");
+    const harness = createAppHarness();
+    const heard: { announce?: (option: number) => void } = {};
+    function Announcer() {
+      const { announce } = useFlyerChanges();
+      useEffect(() => {
+        heard.announce = announce;
+      }, [announce]);
+      return null;
+    }
+    const announce = (option: number) => {
+      heard.announce?.(option);
+    };
+    const screen = await render(
+      harness.wrap(
+        <>
+          <Announcer />
+          <FlyerWorkspaceProvider>
+            <ShowsZoom />
+          </FlyerWorkspaceProvider>
+        </>,
+      ),
+    );
+    await expect.element(screen.getByText("Zoom 1")).toBeVisible();
+    const forget = vi.spyOn(workspaceOnScreen(), "forgetOption");
+    announce(9);
+    expect(forget).toHaveBeenCalledWith(9);
+    await screen.unmount();
+    announce(8);
+    expect(forget).toHaveBeenCalledTimes(1);
   });
 
   it("what a test reads with nothing on screen, and the legal text of a draft", async () => {

@@ -14,6 +14,13 @@ const TEXT_LINE_HEIGHT = 1.18;
 const DEFAULT_TEXT_WEIGHT = 500;
 const DEFAULT_TEXT_COLOR = "#1A1A1A";
 
+/** Where a drawing with no changes of logos finds them: it never asks, and has nothing to give. */
+export const NO_LOGO_SOURCE: LogoSource = {
+  imageFor: () => null,
+  requestMissing: () => undefined,
+  requestTextFont: () => undefined,
+};
+
 export interface LogoPaintTarget {
   readonly ctx: CanvasRenderingContext2D;
   readonly scale: number;

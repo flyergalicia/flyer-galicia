@@ -1,0 +1,340 @@
+/* Config → Flyer: the box to drop the flyer on, and the list of the flyers of each option. */
+.intro {
+  margin-bottom: 16px;
+  color: var(--gray);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+}
+
+.drop {
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 32px 20px;
+  border: 2px dashed var(--flyer-drop-line);
+  border-radius: var(--r-m);
+  background: var(--flyer-drop-bg);
+  color: inherit;
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.drop:hover,
+.drop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.drop:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.icon {
+  display: block;
+  margin-bottom: 8px;
+  font-size: var(--text-upload);
+}
+
+.hint {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: var(--text-company);
+  font-weight: var(--weight-semibold);
+}
+
+.hintSub {
+  display: block;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.file {
+  display: none;
+}
+
+.error,
+.ok {
+  min-height: 18px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  font-size: var(--text-note);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.ok {
+  color: var(--green);
+  font-weight: var(--weight-semibold);
+}
+
+.progress {
+  margin-top: 10px;
+}
+
+.track {
+  overflow: hidden;
+  height: 7px;
+  margin-top: 10px;
+  border-radius: 4px;
+  background: var(--flyer-progress-bg);
+}
+
+.bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.25s;
+}
+
+.percent {
+  margin-top: 4px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.result {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--flyer-drop-line);
+  border-radius: var(--r-m);
+  background: var(--flyer-drop-bg);
+}
+
+.resultLabel {
+  margin-bottom: 2px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.resultUrl {
+  display: block;
+  margin: 4px 0 10px;
+  color: var(--accent-2);
+  font-size: var(--text-note);
+  word-break: break-all;
+}
+
+.resultButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.list {
+  margin-top: 20px;
+}
+
+/* The flyer of each option: green with its name, or gray when it has none. */
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  padding: 11px 14px;
+  border: 1.5px solid var(--flyer-active-line);
+  border-radius: 10px;
+  background: var(--flyer-active-bg);
+}
+
+.bannerInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bannerBadge {
+  padding: 4px 8px;
+}
+
+.bannerName {
+  overflow: hidden;
+  max-width: 280px;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionName {
+  color: var(--flyer-name-tone, var(--option-color));
+}
+
+.fileName {
+  color: var(--gray);
+  font-weight: var(--weight-regular);
+}
+
+.bannerButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.withoutText {
+  margin: 14px 0 6px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.empty {
+  margin-bottom: 4px;
+  padding: 11px 14px;
+  border: 1.5px solid var(--flyer-empty-line);
+  border-radius: 10px;
+  background: var(--flyer-empty-bg);
+  color: var(--flyer-empty-tx);
+  font-size: var(--text-sm);
+}
+
+.versionsLabel {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.nothing {
+  margin-top: 12px;
+  color: var(--gray);
+  font-size: var(--text-md);
+}
+
+/* A version uploaded: which flyer it is for, and what can be done with it. */
+.version {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--raised-line);
+  border-radius: var(--r-m);
+  background: var(--raised);
+  box-shadow: var(--raised-shadow);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+
+.version:hover {
+  border-color: var(--raised-hover-line);
+  box-shadow: var(--sh-1);
+}
+
+.version.active {
+  border-color: var(--flyer-row-active-line);
+  background: var(--flyer-row-active-bg);
+}
+
+.versionInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.versionTitle {
+  display: block;
+  overflow: hidden;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.versionMeta {
+  display: block;
+  max-width: 100%;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.titleBadge {
+  margin-right: 5px;
+}
+
+.faded {
+  opacity: 0.55;
+}
+
+.others {
+  color: var(--gray);
+  font-weight: var(--weight-regular);
+}
+
+.noOption {
+  color: var(--gray);
+}
+
+.tag {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.3px;
+}
+
+.tagFile {
+  background: var(--flyer-file-tag-bg);
+  color: var(--flyer-file-tag-tx);
+}
+
+.tagOn {
+  background: var(--green);
+  color: var(--flyer-on-tag-tx);
+}
+
+.tagOff {
+  background: var(--flyer-off-tag-bg);
+  color: var(--flyer-off-tag-tx);
+}
+
+.versionButtons {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.otherOption {
+  opacity: 0.75;
+}
+
+/* "Ver" of an HTML of the build: a link with the look of the small buttons. */
+.viewLink {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: var(--radius-chip);
+  background: var(--soft-edit-bg);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+}
+
+.viewLink:hover {
+  background: var(--navy);
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .version {
+    flex-wrap: wrap;
+  }
+
+  .versionButtons {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+  }
+}

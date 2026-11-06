@@ -166,18 +166,19 @@ test.describe("text written by someone else", () => {
     },
   );
 
-  test("a flyer file with quotes in its name does not break its buttons", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.bucketFileList = [
-      { name: `flyer'"><img src=x onerror=window.__xss=1>_op9.jpg`, created_at: "2026-10-20" },
-    ];
-    const app = await openApp({ user: "admin" });
-    await app.admin.openPanel();
-    await app.admin.openSheet("Config", "Flyer");
+  test(
+    "a flyer file with quotes in its name does not break its buttons",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.bucketFileList = [
+        { name: `flyer'"><img src=x onerror=window.__xss=1>_op9.jpg`, created_at: "2026-10-20" },
+      ];
+      const app = await openApp({ user: "admin" });
+      await app.admin.openPanel();
+      await app.admin.openSheet("Config", "Flyer");
 
-    await expect.poll(() => app.admin.sheetText()).toContain("onerror");
-    await expectNothingRan(app);
-  });
+      await expect.poll(() => app.admin.sheetText()).toContain("onerror");
+      await expectNothingRan(app);
+    },
+  );
 });

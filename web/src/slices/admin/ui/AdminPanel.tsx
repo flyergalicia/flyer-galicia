@@ -20,6 +20,7 @@ import { AuditSheet } from "./AuditSheet.tsx";
 import { CompanyLogSheet } from "./CompanyLogSheet.tsx";
 import { DashboardSheet } from "./DashboardSheet.tsx";
 import { FacultiesSheet } from "./FacultiesSheet.tsx";
+import { FlyerSheet } from "./FlyerSheet.tsx";
 import { OtherPeopleSheet } from "./OtherPeopleSheet.tsx";
 import { RegistrosSheet } from "./RegistrosSheet.tsx";
 import { AdvisorsSheet, CompaniesSheet, PendingSheet } from "./RegistrySheets.tsx";
@@ -42,7 +43,7 @@ const SHEET_VIEWS: Readonly<Record<SheetId, ComponentType<SheetProps>>> = {
   asesores: AdvisorsSheet,
   padronotros: OtherPeopleSheet,
   padronlog: CompanyLogSheet,
-  subir: PendingSheet,
+  subir: FlyerSheet,
   cashback: PendingSheet,
   legales: PendingSheet,
   opciones: PendingSheet,

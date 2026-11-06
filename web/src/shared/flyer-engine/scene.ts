@@ -4,7 +4,13 @@ import { cropCalibration } from "./crop-calibration.ts";
 import { applyCuts, artFileName, cutsSignature, type SectionImages } from "./crop-art.ts";
 import { resolveCalibration } from "./calibration.ts";
 import { failure, type Result, success } from "@/shared/supabase/index.ts";
-import { type Cut, type FlyerScene, type FlyerValues, type RawCalibration } from "./types.ts";
+import {
+  type Cut,
+  type FlyerArt,
+  type FlyerScene,
+  type FlyerValues,
+  type RawCalibration,
+} from "./types.ts";
 
 /** "no-flyer" is a firm answer; "network" can be tried again. They never read the same. */
 export type ArtworkFailure = "no-flyer" | "network";
@@ -40,17 +46,25 @@ export async function loadFlyerArtwork({
   if (!imageUrl) return failure("no-flyer");
   const art = await loadPicture(imageUrl);
   if (!art) return failure("network");
-  const rawCalibration = calibration ?? {};
   // As the browser writes the address: that is what stored logo changes and cuts were saved with.
-  const artKey = art.src;
-  return success({
+  return success(sceneOf(art, art.src, calibration ?? {}, singleCashback));
+}
+
+/** A picture already in hand with a calibration, whole: the calibrator draws what it is adjusting. */
+export function sceneOf(
+  art: FlyerArt,
+  artKey: string,
+  rawCalibration: RawCalibration,
+  singleCashback: boolean,
+): FlyerScene {
+  return {
     art,
     artKey,
     calibration: resolveCalibration(rawCalibration),
     singleCashback,
     whole: { art, artKey, rawCalibration },
     cuts: [],
-  });
+  };
 }
 
 export interface CropOptions {

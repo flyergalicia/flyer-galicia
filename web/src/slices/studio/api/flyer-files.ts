@@ -5,10 +5,9 @@ import { type FlyerOption, flyerOptionsInFile } from "@/shared/domain/flyer-opti
 import { saveFlyerList } from "@/shared/lib/app-config/flyer-list-store.ts";
 import { DesignImageError } from "../model/design-image.ts";
 import { mergePermissions, savedRolesIn } from "@/shared/session/index.ts";
-import type { Bucket, BucketJsonFile } from "@/shared/supabase/index.ts";
+import type { Bucket } from "@/shared/supabase/index.ts";
 
 const JSON_FILE = { contentType: "application/json" } as const;
-const CONFIGS_FILE = "_flyer_cfgs.json";
 const PERMISSIONS_FILE = "_facultades.json";
 const OPTIONS_FILE = "_opciones.json";
 
@@ -26,17 +25,8 @@ export async function readOptionsNow(bucket: Bucket): Promise<readonly FlyerOpti
 }
 
 export { saveFlyerList };
-
-/** The legal text of an option; empty if it has none or it could not be read. */
-export async function readLegalText(bucket: Bucket, file: BucketJsonFile): Promise<string> {
-  const answer = await bucket.readJson(file);
-  if (!answer.ok) return "";
-  const text: unknown =
-    typeof answer.value === "object" && answer.value !== null
-      ? Reflect.get(answer.value, "text")
-      : "";
-  return typeof text === "string" ? text : "";
-}
+// The calibration of the new image is saved as Config → Flyer saves it. Failing is no stop here.
+export { readLegalText, saveFlyerCalibration } from "@/shared/lib/app-config/flyer-files.ts";
 
 export interface ReservedOption {
   readonly option: number;
@@ -73,20 +63,6 @@ export async function reserveOption(
     throw new DesignImageError(answer.error.message);
   }
   return reserveOption(bucket, first + 1, stamp, activeContent, tries + 1);
-}
-
-/** The calibration goes with the name of the image, as Config → Flyers finds it. Failing is no stop. */
-export async function saveFlyerCalibration(
-  bucket: Bucket,
-  image: string,
-  calibration: unknown,
-): Promise<void> {
-  const file = await bucket.readJson(CONFIGS_FILE);
-  const known = file.ok && typeof file.value === "object" && file.value !== null ? file.value : {};
-  await bucket.upload(CONFIGS_FILE, asJsonBlob({ ...known, [image]: calibration }), {
-    ...JSON_FILE,
-    upsert: true,
-  });
 }
 
 /** Whoever sees the flyer it comes from, sees the new one. It says whether it could be saved. */

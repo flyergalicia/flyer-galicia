@@ -35,20 +35,24 @@ test(
   },
 );
 
-test("a PDF too long to convert says so, instead of freezing the computer", async ({ openApp }) => {
-  const app = await openApp({ user: "admin" });
-  await app.admin.openPanel();
-  await app.admin.openSheet("Config", "Flyer");
+test(
+  "a PDF too long to convert says so, instead of freezing the computer",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.admin.openPanel();
+    await app.admin.openSheet("Config", "Flyer");
 
-  await app.calibrator.chooseFlyerFile({
-    name: "larguisimo.pdf",
-    mimeType: "application/pdf",
-    buffer: buildStripedPdf(14_000),
-  });
-  await app.calibrator.answerOption("Combustible");
+    await app.calibrator.chooseFlyerFile({
+      name: "larguisimo.pdf",
+      mimeType: "application/pdf",
+      buffer: buildStripedPdf(14_000),
+    });
+    await app.calibrator.answerOption("Combustible");
 
-  await expect
-    .poll(() => app.flyerEditor.latestNotice(), { timeout: 20_000 })
-    .toMatch(/demasiado largo/);
-  expect.soft(await app.calibrator.isOpen()).toBe(false);
-});
+    await expect
+      .poll(() => app.flyerEditor.latestNotice(), { timeout: 20_000 })
+      .toMatch(/demasiado largo/);
+    expect.soft(await app.calibrator.isOpen()).toBe(false);
+  },
+);

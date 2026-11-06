@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mergeZone, resolveCalibration } from "./calibration.ts";
+import {
+  factoryCalibration,
+  FUEL_BENEFIT_LINES,
+  mergeZone,
+  resolveCalibration,
+} from "./calibration.ts";
 
 describe("resolveCalibration", () => {
   it("gives a flyer with no calibration the default one", () => {
@@ -114,5 +119,47 @@ describe("resolveCalibration", () => {
     const first = resolveCalibration();
     first.empresa.yc = 1;
     expect(resolveCalibration().empresa.yc).toBe(725);
+  });
+});
+
+describe("factoryCalibration", () => {
+  it("is the default one, whole, with no lines of the benefit of its own", () => {
+    const factory = factoryCalibration();
+    const resolved = resolveCalibration(null);
+    expect(factory.empresa).toEqual(resolved.empresa);
+    expect(factory.montos).toEqual(resolved.montos);
+    expect(factory.contacto).toEqual(resolved.contacto);
+    expect(factory.legal).toEqual(resolved.legal);
+    expect(factory.cashback).toEqual(resolved.cashback);
+    expect(factory.benef).toEqual({ color2: "#fa6400", peso2: 800, lineas: null });
+    expect(Object.keys(factory)).toEqual([
+      "imgW",
+      "imgH",
+      "bottomMargin",
+      "empresa",
+      "montos",
+      "cashback",
+      "contacto",
+      "legal",
+      "benef",
+    ]);
+  });
+
+  it("is new each time: changing one does not change the next", () => {
+    const first = factoryCalibration();
+    first.montos.boxes[0]!.xc = 1;
+    first.empresa.fs = 99;
+    const second = factoryCalibration();
+    expect(second.montos.boxes[0]?.xc).toBe(224);
+    expect(second.empresa.fs).toBe(46);
+    expect(resolveCalibration(null).montos.boxes[0]?.xc).toBe(224);
+  });
+});
+
+describe("the lines of fuel", () => {
+  it("are what a calibration with no lines of its own draws", () => {
+    expect(resolveCalibration({ benef: {} }).benef.lineas.map(({ t }) => t)).toEqual(
+      FUEL_BENEFIT_LINES.map(({ t }) => t),
+    );
   });
 });

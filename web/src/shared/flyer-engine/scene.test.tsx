@@ -6,6 +6,7 @@ import {
   loadFlyerArtwork,
   loadPicture,
   sceneForStoredValues,
+  sceneOf,
   storedCropOf,
 } from "./scene.ts";
 import { paintedCanvas, pixelAt } from "./testing/test-scene.ts";
@@ -54,6 +55,24 @@ describe("loadFlyerArtwork", () => {
     const result = await loadFlyerArtwork({ imageUrl: OK_IMAGE });
     expect(result.ok && result.value.calibration).toEqual(resolveCalibration());
     expect(result.ok && result.value.singleCashback).toBe(false);
+  });
+});
+
+describe("sceneOf", () => {
+  it("is a picture in hand with its calibration, whole and with no cuts", () => {
+    const art = paintedCanvas(1240, 3000);
+    const scene = sceneOf(art, "calibrando", { empresa: { yc: 5 } }, true);
+    expect(scene.art).toBe(art);
+    expect(scene.artKey).toBe("calibrando");
+    expect(scene.calibration.empresa.yc).toBe(5);
+    expect(scene.calibration.empresa.fs).toBe(46);
+    expect(scene.singleCashback).toBe(true);
+    expect(scene.whole).toEqual({
+      art,
+      artKey: "calibrando",
+      rawCalibration: { empresa: { yc: 5 } },
+    });
+    expect(scene.cuts).toEqual([]);
   });
 });
 

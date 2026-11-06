@@ -1,5 +1,6 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { FlyerChangesProvider } from "./flyer-changes/FlyerChangesProvider.tsx";
 import { OptionOnScreenProvider } from "./option-on-screen/OptionOnScreenProvider.tsx";
 import { PrimaryActionProvider } from "./primary-action/PrimaryActionProvider.tsx";
 import { IncludeModoProvider } from "./promotions/IncludeModoProvider.tsx";
@@ -25,9 +26,11 @@ export function AppProviders({ backend, queryClient, children }: AppProvidersPro
             <ToastProvider>
               <PrimaryActionProvider>
                 <OptionOnScreenProvider>
-                  <IncludeModoProvider>
-                    <PromotionFiltersProvider>{children}</PromotionFiltersProvider>
-                  </IncludeModoProvider>
+                  <FlyerChangesProvider>
+                    <IncludeModoProvider>
+                      <PromotionFiltersProvider>{children}</PromotionFiltersProvider>
+                    </IncludeModoProvider>
+                  </FlyerChangesProvider>
                 </OptionOnScreenProvider>
               </PrimaryActionProvider>
             </ToastProvider>

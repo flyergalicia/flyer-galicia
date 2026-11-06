@@ -7,7 +7,7 @@ import {
   type RawCalibration,
 } from "./types.ts";
 
-const BENEFIT_LINE_DEFAULTS: BenefitLine = {
+export const BENEFIT_LINE_DEFAULTS: BenefitLine = {
   t: "",
   x: 640,
   y: 2700,
@@ -18,7 +18,8 @@ const BENEFIT_LINE_DEFAULTS: BenefitLine = {
   mw: 820,
 };
 
-const FUEL_BENEFIT_LINES: readonly Partial<BenefitLine>[] = [
+/** The box of fuel, the first flyer of Rubros: a calibration with no lines of its own draws it. */
+export const FUEL_BENEFIT_LINES: readonly Partial<BenefitLine>[] = [
   {
     t: "¡Beneficio exclusivo {nombre}!",
     x: 723,
@@ -35,7 +36,7 @@ const FUEL_BENEFIT_LINES: readonly Partial<BenefitLine>[] = [
   { t: "Medio de pago: Tarjeta de débito física", x: 723, y: 2827, fs: 16, peso: 500, mw: 800 },
 ];
 
-const BENEFIT_FIELD_LABELS = {
+export const BENEFIT_FIELD_LABELS: Readonly<Record<string, string>> = {
   importe: "Tope de reintegro mensual",
   importe2: "Segundo tope (si es distinto)",
 };
@@ -127,6 +128,19 @@ const DEFAULT_CALIBRATION: Omit<Calibration, "recDe" | "cropH" | "benef"> & {
   },
   benef: { color2: "#fa6400", peso2: 800 },
 };
+
+/** A whole calibration as the calibrator edits and saves it: the benefit has no lines of its own yet. */
+export type FactoryCalibration = Omit<Calibration, "recDe" | "cropH" | "benef"> & {
+  benef: { color2: string; peso2: number; lineas: BenefitLine[] | null };
+};
+
+/** The calibration of the factory, new each time: whoever gets it can change it freely. */
+export function factoryCalibration(): FactoryCalibration {
+  return structuredClone({
+    ...DEFAULT_CALIBRATION,
+    benef: { ...DEFAULT_CALIBRATION.benef, lineas: null },
+  });
+}
 
 /** Defaults, then what is stored; a null or absent value keeps the default. Shallow on purpose. */
 export function mergeZone<T extends object>(defaults: T, stored?: Readonly<Partial<T>> | null): T {

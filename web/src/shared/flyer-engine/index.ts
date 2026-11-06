@@ -10,7 +10,16 @@ export {
   generateBatch,
   yieldToPaint,
 } from "./batch.ts";
-export { resolveCalibration } from "./calibration.ts";
+export {
+  BENEFIT_FIELD_LABELS,
+  BENEFIT_LINE_DEFAULTS,
+  type FactoryCalibration,
+  factoryCalibration,
+  FUEL_BENEFIT_LINES,
+  mergeZone,
+  resolveCalibration,
+} from "./calibration.ts";
+export { amountBoxHeight, amountBoxTop } from "./draw-amounts.ts";
 export { artFileName, type SectionImages } from "./crop-art.ts";
 export { drawFlyer } from "./draw-flyer.ts";
 export {
@@ -27,7 +36,7 @@ export { createBenefitFontLoader } from "./fonts.ts";
 export { legalWithValues, splitBold, type TextSegment } from "./legal-text.ts";
 export { createLogoLibrary, type LogoLibrary, type LogoLibraryOptions } from "./logo-library.ts";
 export { cleanLogo } from "./logo-cleanup.ts";
-export { logoCutLine, type LogoPaintTarget, paintLogoChanges } from "./logos.ts";
+export { logoCutLine, type LogoPaintTarget, NO_LOGO_SOURCE, paintLogoChanges } from "./logos.ts";
 export { extraHeightFor, officerLocationText, officersOf } from "./officers.ts";
 export {
   buildFileName,
@@ -54,11 +63,15 @@ export {
   loadFlyerArtwork,
   loadPicture,
   artKeyWithCuts,
+  sceneOf,
   sceneForStoredValues,
   storedCropOf,
   type StoredCrop,
 } from "./scene.ts";
 export type {
+  AmountBox,
+  AmountsZone,
+  BenefitLine,
   Calibration,
   Cut,
   DrawnFlyer,

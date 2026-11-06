@@ -98,14 +98,18 @@ test.describe("a design opened with Usar", () => {
   );
 });
 
-test("Desactivar a flyer asks first and cancelling leaves it", async ({ cloud, openApp }) => {
-  const admin = await openApp({ user: "admin" });
-  const before = activeFile(cloud, OPTION);
+test(
+  "Desactivar a flyer asks first and cancelling leaves it",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    const admin = await openApp({ user: "admin" });
+    const before = activeFile(cloud, OPTION);
 
-  const question = await admin.studio.askToDeactivateFlyer(OPTION);
-  expect.soft(question, "it asks").toBe(`¿Desactivar el flyer de «${FLYER}»?`);
-  await admin.session.answerConfirmation(false);
+    const question = await admin.studio.askToDeactivateFlyer(OPTION);
+    expect.soft(question, "it asks").toBe(`¿Desactivar el flyer de «${FLYER}»?`);
+    await admin.session.answerConfirmation(false);
 
-  expect.soft(activeFile(cloud, OPTION), "cancelling does not deactivate it").toEqual(before);
-  expect.soft(admin.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+    expect.soft(activeFile(cloud, OPTION), "cancelling does not deactivate it").toEqual(before);
+    expect.soft(admin.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);

@@ -187,3 +187,40 @@ describe("bucket writes", () => {
     }
   });
 });
+
+describe("bucket.readText", () => {
+  it("brings a file a list brought, fresh, at the address of its name", async () => {
+    const { backend, network, url } = createInventedBackend(
+      () => new Response("<html>flyer</html>", { status: 200 }),
+    );
+    await expect(backend.bucket.readText("index_12.html")).resolves.toEqual({
+      ok: true,
+      value: "<html>flyer</html>",
+    });
+    expect(network.requests[0]?.url).toBe(`${url}/storage/v1/object/public/flyers/index_12.html`);
+    expect(network.requests[0]?.init?.cache).toBe("no-cache");
+    expect(backend.bucket.listedUrl("raro'.html")).toBe(
+      `${url}/storage/v1/object/public/flyers/raro'.html`,
+    );
+  });
+
+  it("says when it does not exist and when it could not be fetched", async () => {
+    const gone = createInventedBackend(() => new Response("", { status: 404 }));
+    await expect(gone.backend.bucket.readText("a.html")).resolves.toEqual({
+      ok: false,
+      error: { kind: "not-found", status: 404 },
+    });
+    const busy = createInventedBackend(() => new Response("", { status: 503 }));
+    await expect(busy.backend.bucket.readText("a.html")).resolves.toEqual({
+      ok: false,
+      error: { kind: "unreachable", status: 503 },
+    });
+    const offline = createInventedBackend(() => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(offline.backend.bucket.readText("a.html")).resolves.toEqual({
+      ok: false,
+      error: { kind: "unreachable", status: null },
+    });
+  });
+});

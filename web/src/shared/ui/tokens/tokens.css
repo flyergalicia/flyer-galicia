@@ -664,6 +664,42 @@ html.dark {
   --admin-detail-tx: #444;
   --admin-label-tx: var(--gray);
   --admin-cancel-bg: var(--card);
+
+  /* Config → Flyer, its question of which flyer and the calibrator. */
+  --text-upload: 2.2rem;
+  --flyer-drop-bg: var(--card);
+  --flyer-drop-line: var(--border);
+  --flyer-progress-bg: #e8e8e8;
+  --flyer-active-bg: #f0fff4;
+  --flyer-active-line: #81c784;
+  --flyer-empty-bg: #f8f8f6;
+  --flyer-empty-line: var(--border);
+  --flyer-empty-tx: var(--gray);
+  --flyer-row-active-bg: var(--card);
+  --flyer-row-active-line: var(--border);
+  --flyer-file-tag-bg: #eef3fb;
+  --flyer-file-tag-tx: #1d4070;
+  --flyer-on-tag-tx: #fff;
+  --flyer-off-tag-bg: #eee;
+  --flyer-off-tag-tx: #666;
+  --flyer-window-ov: rgba(20, 18, 16, 0.72);
+  --flyer-window-bg: #fff;
+  --flyer-window-tx: #1a1a1a;
+  --flyer-window-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  --calibrator-body-bg: #e9e9e6;
+  --calibrator-line: rgba(128, 128, 128, 0.25);
+  --calibrator-soft-line: rgba(128, 128, 128, 0.18);
+  --calibrator-field-line: rgba(128, 128, 128, 0.4);
+  --calibrator-select-bg: transparent;
+  --calibrator-hover: #f5921e;
+  --calibrator-split-bg: rgba(128, 128, 128, 0.08);
+  --calibrator-split-hover: rgba(245, 146, 30, 0.18);
+  --calibrator-grip: rgba(128, 128, 128, 0.55);
+  --calibrator-text-bg: transparent;
+  --calibrator-text-tx: currentcolor;
+  --calibrator-text-line: rgba(128, 128, 128, 0.4);
+  --calibrator-text-focus-bg: transparent;
+  --calibrator-canvas-bg: #fff;
 }
 
 html.dark {
@@ -842,4 +878,25 @@ html.dark {
   --admin-log-tx: #c2c6cc;
   --admin-label-tx: var(--ink-2);
   --admin-cancel-bg: #2a2f36;
+  --flyer-drop-bg: #22262c;
+  --flyer-drop-line: #333840;
+  --flyer-progress-bg: #2a2f36;
+  --flyer-active-bg: #132a1c;
+  --flyer-active-line: #1a9c50;
+  /* As today: in dark mode the rule of the green banner wins over that of the empty one. */
+  --flyer-empty-bg: #132a1c;
+  --flyer-empty-line: #1a9c50;
+  --flyer-empty-tx: #9aa0a8;
+  --flyer-row-active-bg: #132a1c;
+  --flyer-row-active-line: #1a9c50;
+  --flyer-name-tone: #e9eaec;
+  --flyer-window-bg: #22242a;
+  --flyer-window-tx: #e9e9ea;
+  --calibrator-body-bg: #15161a;
+  --calibrator-select-bg: #22242a;
+  /* As every text field of the current app in dark mode. */
+  --calibrator-text-bg: var(--field);
+  --calibrator-text-tx: var(--ink);
+  --calibrator-text-line: var(--border);
+  --calibrator-text-focus-bg: var(--card);
 }

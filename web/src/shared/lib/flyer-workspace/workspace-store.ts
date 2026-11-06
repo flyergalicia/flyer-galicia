@@ -57,6 +57,11 @@ export interface FlyerWorkspace {
   /** Goes to an option. What it returns says when what was asked for arrived or failed. */
   readonly selectOption: (option: number, singleCashback: boolean) => Promise<LoadedOption>;
   readonly retryLoading: (singleCashback: boolean) => Promise<LoadedOption | null>;
+  /**
+   * Its flyer changed (Config → Flyer): what is in memory of it is forgotten, and if it is on screen
+   * it is brought again. What was on its way for it does not count anymore.
+   */
+  readonly forgetOption: (option: number) => void;
   readonly setForm: (form: FlyerValues) => void;
   readonly setLogoChanges: (changes: readonly LogoChange[], art: string) => void;
   /**
@@ -129,6 +134,9 @@ export function createFlyerWorkspace({
   const listeners = new Set<() => void>();
   const settled = new Map<number, LoadedOption>();
   const running = new Map<number, Promise<LoadedOption>>();
+  /** How many times each option was forgotten: an answer asked before that is not kept. */
+  const forgotten = new Map<number, number>();
+  const singleCashbackOf = new Map<number, boolean>();
   /** What each option has saved, and what was edited of it in this session. */
   const savedLegals = new Map<number, string>();
   const editedLegals = new Map<number, string>();
@@ -189,9 +197,10 @@ export function createFlyerWorkspace({
     if (known) return Promise.resolve(known);
     const already = running.get(option);
     if (already) return already;
-    const request = loadOption(option, { singleCashback }).then((loaded) => {
-      running.delete(option);
-      if (isFirm(loaded)) settled.set(option, loaded);
+    const round = forgotten.get(option) ?? 0;
+    const request: Promise<LoadedOption> = loadOption(option, { singleCashback }).then((loaded) => {
+      if (running.get(option) === request) running.delete(option);
+      if (isFirm(loaded) && (forgotten.get(option) ?? 0) === round) settled.set(option, loaded);
       return loaded;
     });
     running.set(option, request);
@@ -199,6 +208,7 @@ export function createFlyerWorkspace({
   };
 
   const selectOption: FlyerWorkspace["selectOption"] = (option, singleCashback) => {
+    singleCashbackOf.set(option, singleCashback);
     keepEditedLegal();
     legalOwner = settled.has(option) ? option : null;
     change({
@@ -206,8 +216,10 @@ export function createFlyerWorkspace({
       legal: (legalOwner === null ? undefined : legalOf(option)) ?? "",
     });
     const loading = load(option, singleCashback);
+    const round = forgotten.get(option) ?? 0;
     void loading.then((loaded) => {
-      apply(option, loaded);
+      // Asked before the flyer changed: the new one is on its way.
+      if ((forgotten.get(option) ?? 0) === round) apply(option, loaded);
     });
     return loading;
   };
@@ -237,6 +249,14 @@ export function createFlyerWorkspace({
       if (option === null) return null;
       settled.delete(option);
       return selectOption(option, singleCashback);
+    },
+    forgetOption: (option) => {
+      settled.delete(option);
+      running.delete(option);
+      forgotten.set(option, (forgotten.get(option) ?? 0) + 1);
+      if (state.slot.option === option) {
+        void selectOption(option, singleCashbackOf.get(option) ?? false);
+      }
     },
     setForm: (form) => {
       change({ form });

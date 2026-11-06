@@ -366,25 +366,26 @@ test(
   },
 );
 
-test("Config → Flyer lists options with no flyer last and says how to remove them", async ({
-  cloud,
-  openApp,
-}) => {
-  cloud.bucketJson["_opciones.json"] = {
-    opts: [
-      { n: 3, nombre: "VIEJO Algo", solapa: "flyer" },
-      { n: FUEL, nombre: "Combustible", solapa: "flyer" },
-    ],
-  };
-  const admin = await openApp({ user: "admin" });
+test(
+  "Config → Flyer lists options with no flyer last and says how to remove them",
+  { tag: "@react" },
+  async ({ cloud, openApp }) => {
+    cloud.bucketJson["_opciones.json"] = {
+      opts: [
+        { n: 3, nombre: "VIEJO Algo", solapa: "flyer" },
+        { n: FUEL, nombre: "Combustible", solapa: "flyer" },
+      ],
+    };
+    const admin = await openApp({ user: "admin" });
 
-  const list = await admin.studio.flyerListOfConfig();
+    const list = await admin.studio.flyerListOfConfig();
 
-  // Option 1 always exists, with no flyer in the simulated cloud: they are 2.
-  expect.soft(list, "it counts the options with no flyer").toMatch(/Sin flyer activo \(2\)/);
-  expect.soft(list, "and explains how to remove them").toMatch(/Config → Opciones → Quitar/);
-  expect
-    .soft(list.indexOf("Combustible"), "the one with a flyer goes first, the old one last")
-    .toBeLessThan(list.indexOf("VIEJO Algo"));
-  expect.soft(admin.pageErrors(), "no JavaScript errors").toEqual([]);
-});
+    // Option 1 always exists, with no flyer in the simulated cloud: they are 2.
+    expect.soft(list, "it counts the options with no flyer").toMatch(/Sin flyer activo \(2\)/);
+    expect.soft(list, "and explains how to remove them").toMatch(/Config → Opciones → Quitar/);
+    expect
+      .soft(list.indexOf("Combustible"), "the one with a flyer goes first, the old one last")
+      .toBeLessThan(list.indexOf("VIEJO Algo"));
+    expect.soft(admin.pageErrors(), "no JavaScript errors").toEqual([]);
+  },
+);

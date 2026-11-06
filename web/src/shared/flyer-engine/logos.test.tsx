@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { drawLogoChanges, paintLogoChanges } from "./logos.ts";
+import { drawLogoChanges, NO_LOGO_SOURCE, paintLogoChanges } from "./logos.ts";
 import { passOn, recordingContext } from "./testing/recording-context.ts";
 import { NO_LOGOS, paintedCanvas, TEST_ART_KEY, testScene } from "./testing/test-scene.ts";
 import { type LogoChange, type LogoSource } from "./types.ts";
@@ -110,6 +110,15 @@ function target(ctx: CanvasRenderingContext2D, scale = 1) {
     extra: 0,
   };
 }
+
+describe("NO_LOGO_SOURCE", () => {
+  it("has no logo to give and asks for nothing", () => {
+    const art = paintedCanvas(10, 10);
+    expect(NO_LOGO_SOURCE.imageFor("pc:x", art, TEST_ART_KEY)).toBeNull();
+    expect(NO_LOGO_SOURCE.requestMissing("pc:x")).toBeUndefined();
+    expect(NO_LOGO_SOURCE.requestTextFont()).toBeUndefined();
+  });
+});
 
 describe("paintLogoChanges", () => {
   it("covers everything first and only then draws: a moved logo is not erased", () => {

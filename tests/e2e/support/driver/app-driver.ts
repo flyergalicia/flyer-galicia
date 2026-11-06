@@ -28,6 +28,7 @@ import { createLegacySessionDriver } from "./legacy/session.ts";
 import { createLegacyStudioDriver } from "./legacy/studio.ts";
 import { createReactAdminDriver } from "./react/admin.ts";
 import { createReactBenchmarkDriver } from "./react/benchmark.ts";
+import { createReactCalibratorDriver } from "./react/calibrator.ts";
 import { createReactCommercialActionsDriver } from "./react/commercial-actions.ts";
 import { createReactCompanyRegistryDriver } from "./react/company-registry.ts";
 import { createReactFlyerDrawingDriver } from "./react/flyer-drawing.ts";
@@ -101,7 +102,7 @@ function createReactAppDriver(page: Page): AppDriver {
     flyerOutput: createReactFlyerOutputDriver(page),
     officers: createReactOfficersDriver(page),
     flyerDrawing: createReactFlyerDrawingDriver(page),
-    calibrator: partialDriver("calibrator"),
+    calibrator: createReactCalibratorDriver(page),
     hunter: createReactHunterDriver(page),
     logoEditor,
     logoStrip,

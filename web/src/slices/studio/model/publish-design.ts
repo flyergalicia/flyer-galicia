@@ -202,7 +202,8 @@ async function createFiles(
       }),
       { contentType: "application/json", upsert: true },
     ),
-    saveFlyerCalibration(bucket, image, calibration),
+    // Failing is no stop: the flyer is drawn with the calibration it carries in its own file.
+    saveFlyerCalibration(bucket, image, calibration).then(() => null),
   ]);
   for (const answer of uploaded.slice(0, 2)) {
     if (answer && !answer.ok) throw new DesignImageError(answer.error.message);

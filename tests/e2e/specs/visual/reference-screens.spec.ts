@@ -87,7 +87,7 @@ const SCREENS: readonly ScreenCase[] = [
   { name: "admin-dashboard", screen: "admin-dashboard", user: ADMIN, inReact: true },
   { name: "admin-users", screen: "admin-users", user: ADMIN, inReact: true },
   { name: "admin-permissions", screen: "admin-permissions", user: ADMIN, inReact: true },
-  { name: "admin-flyer-config", screen: "admin-flyer-config", user: ADMIN },
+  { name: "admin-flyer-config", screen: "admin-flyer-config", user: ADMIN, inReact: true },
   { name: "user-menu", screen: "user-menu", inReact: true },
   { name: "screen-search", screen: "screen-search" },
 ];

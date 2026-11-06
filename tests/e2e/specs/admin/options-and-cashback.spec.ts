@@ -160,7 +160,7 @@ test.describe("Config → Cashback", () => {
   });
 });
 
-test.describe("Config → Flyer", () => {
+test.describe("Config → Flyer", { tag: "@react" }, () => {
   test("takes a PDF or an image and asks which flyer it is for", async ({ cloud, openApp }) => {
     cloud.addFlyerOption({ option: 6, name: "Otra", image: "flyer_t6.jpg?v=1", legal: "L" });
     const { admin, calibrator } = await openApp({ user: "admin" });

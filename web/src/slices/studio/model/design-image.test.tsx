@@ -196,6 +196,8 @@ function bucketWith(answer: unknown, ok = true): Bucket {
   return {
     readJson: read,
     publicUrl: (file) => file,
+    listedUrl: (name) => name,
+    readText: () => Promise.resolve({ ok: true, value: "" }),
     upload: () => Promise.resolve({ ok: true, value: undefined }),
     list: () => Promise.resolve({ ok: true, value: [] }),
     remove: () => Promise.resolve({ ok: true, value: undefined }),

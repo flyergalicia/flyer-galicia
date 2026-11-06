@@ -284,6 +284,15 @@ export interface PermissionsProbe {
   startsAllowed(role: string, key: string): boolean;
 }
 
+/** The calibrator open: what it would save, and where each zone is on its canvas. */
+export interface CalibratorProbe {
+  calibration: Record<string, unknown> & {
+    benef?: { lineas?: { t: string; x: number }[] | null };
+  };
+  rects: Record<string, { x: number; y: number; w: number; h: number }>;
+  scale: number;
+}
+
 declare global {
   interface Window {
     // Registered by each screen when it is opened.
@@ -306,6 +315,7 @@ declare global {
       readonly pdfReader?: () => { version: string };
       readonly benchmark?: () => BenchmarkProbe;
       readonly permissions?: () => PermissionsProbe;
+      readonly calibrator?: () => CalibratorProbe;
       readonly pdfConversion?: () => {
         withBands(file: File, bandHeight: number): Promise<HTMLCanvasElement | null>;
       };

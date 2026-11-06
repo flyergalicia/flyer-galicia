@@ -6,11 +6,13 @@ import { type AmountBox, type AmountsZone, type DrawPass, type FlyerValues } fro
 const ROW_ABOVE = 5;
 const DEFAULT_MIN_FONT = 28;
 
-function boxTop(zone: AmountsZone, box: AmountBox): number {
+/** Where a box of the amounts starts: its own row, or that of all of them. */
+export function amountBoxTop(zone: AmountsZone, box: AmountBox): number {
   return box.y ?? zone.y;
 }
 
-function boxHeight(zone: AmountsZone, box: AmountBox): number {
+/** How tall a box of the amounts is: its own height, or that of all of them. */
+export function amountBoxHeight(zone: AmountsZone, box: AmountBox): number {
   return box.mh ?? zone.mh;
 }
 
@@ -31,8 +33,8 @@ export function drawAmounts({ ctx, effective, scene }: DrawPass, values: FlyerVa
   const weight = fontWeightPrefix(zone.peso);
   const texts = amountTexts(values);
   const boxes = zone.boxes.map((box) => {
-    const top = boxTop(zone, box);
-    const height = boxHeight(zone, box);
+    const top = amountBoxTop(zone, box);
+    const height = amountBoxHeight(zone, box);
     return {
       x: Math.round(box.xc * effective),
       width: Math.round(box.ew * effective),

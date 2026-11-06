@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { registerProbe } from "@/shared/lib/test-probe.ts";
 import { type Bucket, useBackend } from "@/shared/supabase/index.ts";
 import { fetchLogoBlob, promotionLogoAddress } from "@/shared/lib/promotions/logo-file.ts";
+import { useFlyerChanges } from "../flyer-changes/flyer-changes.ts";
 import { emptyFormValues } from "./flyer-tab.ts";
 import { createOptionLoader } from "./option-loader.ts";
 import { FlyerWorkspaceContext } from "./workspace-context.ts";
@@ -31,6 +32,14 @@ export function FlyerWorkspaceProvider({ children, options }: FlyerWorkspaceProv
       isSectionAddress: (address) => address.startsWith(sectionsHome(backend.bucket)),
       ...options,
     }),
+  );
+  const changes = useFlyerChanges();
+  useEffect(
+    () =>
+      changes.listen((option) => {
+        workspace.forgetOption(option);
+      }),
+    [changes, workspace],
   );
   useEffect(() => registerProbe("flyerWorkspace", () => workspace), [workspace]);
   useEffect(() => registerProbe("flyerReadings", () => workspaceReadings(workspace)), [workspace]);

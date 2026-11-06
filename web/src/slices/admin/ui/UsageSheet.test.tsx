@@ -100,10 +100,12 @@ describe("Uso", () => {
   it("without the profiles or the logs it does not count either", async () => {
     let fail = "/rest/v1/profiles";
     await openUsage({
+      // A 500, not a 503: the database client retries a 503 three times (7 s), and this test fails
+      // twice in a row, which left it a hair under its 15 s.
       intercept: ({ path, query }) =>
         path === fail &&
         (path !== "/rest/v1/profiles" || query.get("select") === "id,full_name,email_asesor,role")
-          ? new Response(JSON.stringify({ message: "sin red" }), { status: 503 })
+          ? new Response(JSON.stringify({ message: "sin red" }), { status: 500 })
           : null,
     });
     await expect.element(body().getByTestId("read-problem")).toMatchTextContent(/sin red/);

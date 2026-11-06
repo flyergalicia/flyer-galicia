@@ -63,12 +63,17 @@ export interface BucketEntry {
   readonly name: string;
   readonly created_at?: string | null;
   readonly updated_at?: string | null;
+  readonly metadata?: { readonly size?: number | null } | null;
 }
 
 export interface Bucket {
   /** The value is whatever the file has: a tolerant reader of each caller gives it a shape. */
   readonly readJson: (file: BucketJsonFile) => Promise<Result<unknown, BucketReadFailure>>;
   readonly publicUrl: (file: BucketFile) => string;
+  /** The address of a file a list brought: its name can be any. */
+  readonly listedUrl: (name: string) => string;
+  /** A file a list brought, as text: an HTML flyer of the build, for example. */
+  readonly readText: (name: string) => Promise<Result<string, BucketReadFailure>>;
   readonly upload: (
     file: BucketFile,
     body: Blob | ArrayBuffer | string,
@@ -108,13 +113,15 @@ function thrownFailure(cause: unknown) {
   return writeFailure({ message: cause instanceof Error ? cause.message : String(cause) });
 }
 
+function missing(status: number) {
+  return failure<BucketReadFailure>(
+    isTransientStatus(status) ? { kind: "unreachable", status } : { kind: "not-found", status },
+  );
+}
+
 async function readAnswer(response: Response): Promise<Result<unknown, BucketReadFailure>> {
   const { status } = response;
-  if (!response.ok) {
-    return failure(
-      isTransientStatus(status) ? { kind: "unreachable", status } : { kind: "not-found", status },
-    );
-  }
+  if (!response.ok) return missing(status);
   try {
     const data: unknown = await response.json();
     return success(data);
@@ -123,13 +130,25 @@ async function readAnswer(response: Response): Promise<Result<unknown, BucketRea
   }
 }
 
+async function textAnswer(response: Response): Promise<Result<string, BucketReadFailure>> {
+  return response.ok ? success(await response.text()) : missing(response.status);
+}
+
 export function createBucket({ url, fetch: send, client }: BucketDependencies): Bucket {
   const files = () => client.storage.from(BUCKET);
-  const publicUrl = (file: BucketFile): string =>
-    `${url}/storage/v1/object/public/${BUCKET}/${file}`;
+  const listedUrl = (name: string): string => `${url}/storage/v1/object/public/${BUCKET}/${name}`;
+  const publicUrl = (file: BucketFile): string => listedUrl(file);
 
   return {
     publicUrl,
+    listedUrl,
+    readText: async (name) => {
+      try {
+        return await textAnswer(await send(listedUrl(name), { cache: "no-cache" }));
+      } catch {
+        return failure<BucketReadFailure>({ kind: "unreachable", status: null });
+      }
+    },
     // Always fresh: a change the administrator makes shows on the next read.
     readJson: async (file) => {
       try {
