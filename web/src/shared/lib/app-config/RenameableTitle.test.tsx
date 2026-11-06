@@ -30,11 +30,11 @@ async function show(role: string, refuse = false) {
 const title = () => page.getByRole("button", { name: "Flyer por empresa" });
 const notice = () => page.getByRole("status");
 
-async function tapFour() {
-  await title().click();
-  await title().click();
-  await title().click();
-  await title().click();
+async function tapFour(on = title()) {
+  await on.click();
+  await on.click();
+  await on.click();
+  await on.click();
 }
 
 describe("a title the administrator renames", () => {
@@ -80,5 +80,46 @@ describe("a title the administrator renames", () => {
     await userEvent.fill(page.getByRole("textbox"), "Otro nombre");
     await userEvent.keyboard("{Enter}");
     await expect.element(notice()).toMatchTextContent(/^Error al guardar el título: /);
+  });
+});
+
+async function showOther(role: string) {
+  const harness = createAppHarness({
+    profile: { ...ADVISOR, role },
+    files: { "_titulos.json": { ptitle: "Flyer del mes", rubros: "Rubros del mes" } },
+  });
+  harness.storeSession();
+  await render(
+    harness.wrap(
+      <Inside>
+        <p data-testid="line">
+          <RenameableTitle titleKey="ptitle" shown="rubros" inline />
+        </p>
+      </Inside>,
+    ),
+  );
+  return harness;
+}
+
+describe("a title that shows another one", () => {
+  it("shows its name, inside a line of text", async () => {
+    await showOther("asesor");
+    await expect.element(page.getByTestId("line")).toHaveTextContent("Rubros del mes");
+    expect(page.getByTestId("line").element().firstElementChild?.tagName).toBe("SPAN");
+  });
+
+  it("renames its own name, as the panel of the flyer editor does today on another tab", async () => {
+    const harness = await showOther("admin");
+    const shown = page.getByRole("button", { name: "Rubros del mes" });
+    await tapFour(shown);
+    const field = page.getByRole("textbox", { name: "Nombre del título" });
+    await expect.element(field).toHaveValue("Flyer del mes");
+    await userEvent.fill(field, "Flyer de noviembre");
+    await userEvent.keyboard("{Enter}");
+    await expect.element(notice()).toHaveTextContent("Título guardado: Flyer de noviembre");
+    await expect.element(shown).toBeVisible();
+    expect(harness.network.to("/storage/v1/object/flyers/_titulos.json", "POST")).toHaveLength(1);
+    await tapFour(shown);
+    await expect.element(field).toHaveValue("Flyer de noviembre");
   });
 });

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { destinationOf } from "@/shared/domain/company-registry/index.ts";
-import { titleOf } from "@/shared/domain/screen-titles.ts";
 import { formatAmount } from "@/shared/flyer-engine/index.ts";
-import { useScreenTitles } from "@/shared/lib/app-config/screen-titles-query.ts";
+import { RenameableTitle } from "@/shared/lib/app-config/RenameableTitle.tsx";
 import { useOptionOnScreen } from "@/shared/lib/option-on-screen/option-on-screen-context.ts";
 import { usePrimaryAction } from "@/shared/lib/primary-action/primary-action-context.ts";
 import { useAttachFlyerGeneration } from "@/shared/lib/company-registry/flyer-generation-port.ts";
@@ -138,7 +137,6 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
   const workspace = useFlyerWorkspace();
   const logoEditor = useLogoEditorActions();
   const { show } = useToast();
-  const { titles } = useScreenTitles();
   const hasNoAmounts = useFlyerHasNoAmounts();
   const isPhone = useIsPhone();
   const [panel, setPanel] = useState<EditorTab>("individual");
@@ -205,7 +203,12 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
   return (
     <div className={styles.layout}>
       <div className={styles.panel} data-scrolling-panel="" data-no-amounts={hasNoAmounts}>
-        <div className={styles.title}>{titleOf(titles, tab === "flyer" ? "ptitle" : tab)}</div>
+        {/* As today, four taps rename «Flyer Galicia 5.5» also on a tab that shows its own name. */}
+        <RenameableTitle
+          titleKey="ptitle"
+          shown={tab === "flyer" ? "ptitle" : tab}
+          className={styles.title}
+        />
         <FlyerOptionBar
           options={options}
           allowed={allowed}

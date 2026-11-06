@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { type Locator, page, userEvent } from "vitest/browser";
 import { ZOOM_MAX } from "@/shared/lib/flyer-workspace/index.ts";
-import type { AppAnswers } from "@/shared/lib/testing/app-harness.tsx";
+import { ADVISOR, type AppAnswers } from "@/shared/lib/testing/app-harness.tsx";
 import {
   LOGO_A,
   LOGO_B,
@@ -47,6 +47,13 @@ function withList(rows: readonly object[], others: AppAnswers = {}): AppAnswers 
     },
     tables: { padron_empresas: () => jsonResponse(rows), ...others.tables },
   };
+}
+
+async function tapFour(on: Locator) {
+  await on.click();
+  await on.click();
+  await on.click();
+  await on.click();
 }
 
 async function bring(name: string) {
@@ -287,6 +294,28 @@ describe("the flyer editor", () => {
       .element(bar.getByRole("button", { name: "Combustible" }))
       .toHaveAttribute("aria-pressed", "true");
     expect(theWorkspace().currentValues().legal).toBe("Legal de la nueve");
+  });
+
+  it("the administrator renames its title with four taps; on another tab it shows that tab and renames «Flyer Galicia 5.5», as today", async () => {
+    const { show } = await open({ profile: { ...ADVISOR, role: "admin" } });
+    const title = page.getByRole("button", { name: "Flyer Galicia 5.5", exact: true });
+    await tapFour(title);
+    const field = page.getByRole("textbox", { name: "Nombre del título" });
+    await userEvent.fill(field, "Flyer del mes");
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(page.getByRole("button", { name: "Flyer del mes", exact: true }))
+      .toBeVisible();
+    await show("rubros");
+    const onCategories = page.getByRole("button", { name: "Flyer Rubros", exact: true });
+    await tapFour(onCategories);
+    await expect.element(field).toHaveValue("Flyer del mes");
+  });
+
+  it("for somebody else its title is only text", async () => {
+    await open();
+    await expect.element(page.getByText("Flyer Galicia 5.5", { exact: true })).toBeVisible();
+    expect(page.getByRole("button", { name: "Flyer Galicia 5.5" }).query()).toBeNull();
   });
 
   it("an option with no flyer says so, and nothing is drawn over the one before", async () => {

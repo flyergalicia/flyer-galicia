@@ -55,9 +55,15 @@ function NameField({
  */
 export function RenameableTitle({
   titleKey,
+  shown = titleKey,
+  inline = false,
   className,
 }: {
   readonly titleKey: TitleKey;
+  /** What it shows, when it is not what it renames (the panel of the flyer editor). */
+  readonly shown?: TitleKey;
+  /** Inside a line of text, as the label of a panel. */
+  readonly inline?: boolean;
   readonly className?: string | undefined;
 }) {
   const { titles } = useScreenTitles();
@@ -68,6 +74,8 @@ export function RenameableTitle({
   const [renaming, setRenaming] = useState(false);
   const taps = useRef({ count: 0, at: 0 });
   const name = titleOf(titles, titleKey);
+  const shownName = titleOf(titles, shown);
+  const Box = inline ? "span" : "div";
 
   const tap = () => {
     if (renaming) return;
@@ -90,9 +98,9 @@ export function RenameableTitle({
     });
   };
 
-  if (!canEdit) return <div className={className}>{name}</div>;
+  if (!canEdit) return <Box className={className}>{shownName}</Box>;
   return (
-    <div className={className}>
+    <Box className={className}>
       {renaming ? (
         <NameField name={name} onDone={finish} />
       ) : (
@@ -102,9 +110,9 @@ export function RenameableTitle({
           title="4 toques seguidos para cambiar el nombre"
           onClick={tap}
         >
-          {name}
+          {shownName}
         </button>
       )}
-    </div>
+    </Box>
   );
 }

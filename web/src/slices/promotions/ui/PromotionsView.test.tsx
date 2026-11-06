@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { Promotion } from "@/shared/domain/promotions/index.ts";
 import { SEARCH_UNLESS_RESULTS } from "@/shared/domain/promotions/tabs.ts";
@@ -54,6 +54,8 @@ interface Cloud extends AppAnswers {
   readonly modo?: readonly Record<string, unknown>[] | Answer;
   readonly meta?: Record<string, unknown> | null;
   readonly edge?: Answer;
+  /** The title of the panel, to know that it is on screen. */
+  readonly title?: string;
 }
 
 function asAnswer(rows: readonly unknown[] | Answer): Answer {
@@ -144,7 +146,7 @@ function InsideOnly({ isActive = true }: { readonly isActive?: boolean }) {
 }
 
 async function open({ before, ...cloud }: Cloud & { readonly before?: ReactNode } = {}) {
-  const { catalog = [], modo = [], meta, edge, ...rest } = cloud;
+  const { catalog = [], modo = [], meta, edge, title = "Buscador de Promociones", ...rest } = cloud;
   const answers: AppAnswers = {
     ...rest,
     tables: {
@@ -173,7 +175,7 @@ async function open({ before, ...cloud }: Cloud & { readonly before?: ReactNode 
       </>,
     ),
   );
-  await expect.element(screen.getByText("Buscador de Promociones")).toBeVisible();
+  await expect.element(screen.getByText(title)).toBeVisible();
   return { screen, harness };
 }
 
@@ -279,6 +281,32 @@ describe("choosing brands for a flyer", () => {
     await expect
       .element(screen.getByRole("button", { name: "Agregar Alfa" }))
       .toHaveAttribute("data-status", "VIGENTE");
+  });
+});
+
+describe("the title of the panel", () => {
+  it("is the one the administrator saved", async () => {
+    const { screen } = await open({
+      files: { "_titulos.json": { promos_ptitle: "Promos del mes" } },
+      title: "Promos del mes",
+    });
+    expect(screen.getByRole("button", { name: "Promos del mes" }).query()).toBeNull();
+  });
+
+  it("the administrator renames it with four taps, for everybody", async () => {
+    const { screen, harness } = await open({ profile: ADMIN });
+    const title = screen.getByRole("button", { name: "Buscador de Promociones" });
+    await title.click();
+    await title.click();
+    await title.click();
+    await title.click();
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Nombre del título" }),
+      "Promos del mes",
+    );
+    await userEvent.keyboard("{Enter}");
+    await expect.element(screen.getByRole("button", { name: "Promos del mes" })).toBeVisible();
+    expect(harness.network.to("/storage/v1/object/flyers/_titulos.json", "POST")).toHaveLength(1);
   });
 });
 

@@ -10,6 +10,7 @@ import {
   PROMOTIONS_TABS,
   type PromotionsTab,
 } from "@/shared/domain/promotions/tabs.ts";
+import { RenameableTitle } from "@/shared/lib/app-config/RenameableTitle.tsx";
 import { useIncludeModo } from "@/shared/lib/promotions/include-modo-context.ts";
 import {
   Button,
@@ -266,7 +267,9 @@ export function PromotionsPanel() {
   const { provinces, canFilterByProvince } = useCatalogView();
   return (
     <aside className={styles.panel}>
-      <SectionLabel kind="panel">Buscador de Promociones</SectionLabel>
+      <SectionLabel kind="panel">
+        <RenameableTitle titleKey="promos_ptitle" inline />
+      </SectionLabel>
       <Tabs
         value={tab}
         onChange={(value) => {
