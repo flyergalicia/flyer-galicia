@@ -16,4 +16,9 @@ describe("SectionLabel", () => {
       expect(Number.parseFloat(style.fontSize)).toBeGreaterThanOrEqual(11);
     }
   });
+
+  it("takes the space its screen gives it", async () => {
+    const screen = await render(<SectionLabel className="spaced">Resumen general</SectionLabel>);
+    expect(screen.getByText("Resumen general").element().className).toMatch(/spaced$/);
+  });
 });

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import { type RegistryCloud, registryHarness } from "../testing/registry-cloud.ts";
 import { OfficerProposalDialog } from "./OfficerProposalDialog.tsx";
 

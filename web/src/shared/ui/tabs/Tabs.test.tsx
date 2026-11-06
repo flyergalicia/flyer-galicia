@@ -136,4 +136,16 @@ describe("Tabs", () => {
     );
     quiet.mockRestore();
   });
+
+  it("a row of pills that does not fit scrolls sideways, as the sheets of the panel on a phone", async () => {
+    const screen = await render(
+      <div style={{ width: 120 }}>
+        <Example variant="pills" />
+      </div>,
+    );
+    const list = screen.getByRole("tablist").element();
+    expect(list.scrollWidth).toBeGreaterThan(list.clientWidth);
+    list.scrollLeft = 40;
+    expect(list.scrollLeft).toBeGreaterThan(0);
+  });
 });

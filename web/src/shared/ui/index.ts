@@ -21,6 +21,7 @@ export { ConfirmDialog } from "./modal/ConfirmDialog.tsx";
 export { Modal } from "./modal/Modal.ts";
 export type { ModalLook, ModalSize } from "./modal/Modal.parts.tsx";
 export { GaliciaLogo } from "./logo/GaliciaLogo.tsx";
+export { OptionBadge } from "./option-badge/OptionBadge.tsx";
 export { SectionLabel } from "./section-label/SectionLabel.tsx";
 export { type ShortcutTip, useShortcutTip } from "./shortcut-tip/use-shortcut-tip.tsx";
 export { StatCard, type StatCardTone } from "./stat-card/StatCard.tsx";

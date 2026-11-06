@@ -133,16 +133,26 @@ export function isAdminNow({ isAdmin, simulatedRole }: PermissionSubject): boole
   return isAdmin && !simulatedRole;
 }
 
-function adminAllows(ownPermissions: unknown, key: string): boolean {
+/** The column "Vos" of an administrator: what is not there is on, so a new permission starts on. */
+export function adminAllows(ownPermissions: unknown, key: string): boolean {
   if (!isRecord(ownPermissions)) return true;
   const own = ownPermissions[key];
   return own === undefined || own === null ? true : Boolean(own);
 }
 
+/**
+ * Whether a permission means something for a profile: a hunter only downloads (which flyers, and a
+ * short list), and a leader only looks at their team. What does not apply cannot be ticked.
+ */
+export function permissionApplies(role: string, key: string): boolean {
+  if (role === "hunter") return key.startsWith(OPTION_PREFIX) || HUNTER_ALLOWED.has(key);
+  if (role === "lider") return LEADER_ALLOWED.has(key);
+  return true;
+}
+
 export function can(subject: PermissionSubject, key: PermissionKey): boolean {
   const { isAdmin, matrix, ownPermissions, role, simulatedRole } = subject;
-  if (isHunter(subject) && !key.startsWith(OPTION_PREFIX) && !HUNTER_ALLOWED.has(key)) return false;
-  if (isLeader(subject) && !LEADER_ALLOWED.has(key)) return false;
+  if (!permissionApplies(effectiveRole(subject), key)) return false;
   if (simulatedRole) return Boolean(matrix?.[simulatedRole]?.[key]);
   if (isAdmin) return adminAllows(ownPermissions, key);
   return Boolean(matrix?.[role]?.[key]);

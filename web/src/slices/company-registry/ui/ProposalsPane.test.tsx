@@ -7,7 +7,7 @@ import {
   jsonResponse,
   type RecordedRequest,
 } from "@/shared/supabase/testing/recording-fetch.ts";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import { databaseError, type RegistryCloud, registryHarness } from "../testing/registry-cloud.ts";
 import { ProposalsPane } from "./ProposalsPane.tsx";
 

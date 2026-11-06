@@ -4,7 +4,7 @@ import { renderHook } from "vitest-browser-react";
 import { createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
 import { useSession } from "@/shared/session/index.ts";
 import { INVENTED_USER, jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import { databaseError, type RegistryCloud, registryHarness } from "../testing/registry-cloud.ts";
 import { useSavedAdvisors } from "./use-saved-advisors.ts";
 

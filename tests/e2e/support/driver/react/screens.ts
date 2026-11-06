@@ -1,4 +1,5 @@
 import { type Page } from "@playwright/test";
+import { type AdminDriver } from "../admin.ts";
 import { type BenchmarkDriver, type BenchmarkView } from "../benchmark.ts";
 import { type CommercialActionsDriver } from "../commercial-actions.ts";
 import { type CompanyRegistryDriver } from "../company-registry.ts";
@@ -85,6 +86,7 @@ interface ScreenDrivers {
   readonly studio: StudioDriver;
   readonly commercialActions: CommercialActionsDriver;
   readonly benchmark: BenchmarkDriver;
+  readonly admin: AdminDriver;
 }
 
 /** Windows over the flyer: what they show is the point, and its photo alone weighs half an image. */
@@ -92,6 +94,9 @@ const WINDOWS_OVER_THE_FLYER: ReadonlySet<ReferenceScreen> = new Set([
   "database-companies",
   "database-advisors",
   "user-menu",
+  "admin-dashboard",
+  "admin-users",
+  "admin-permissions",
 ]);
 
 /**
@@ -116,6 +121,7 @@ function openers(
     studio,
     commercialActions,
     benchmark,
+    admin,
   }: ScreenDrivers,
 ) {
   const benchmarkView = (view: BenchmarkView) => async () => {
@@ -182,6 +188,23 @@ function openers(
     },
     "benchmark-versus": benchmarkView("versus"),
     "benchmark-cards": benchmarkView("cards"),
+    "admin-dashboard": async () => {
+      await admin.openPanel();
+      await page.getByTestId("admin-dashboard").getByTestId("person-row").first().waitFor();
+    },
+    "admin-users": async () => {
+      await admin.openPanel();
+      await admin.openUsers();
+    },
+    "admin-permissions": async () => {
+      await admin.openPanel();
+      await admin.openSheet("Admin", "Facultades");
+      await admin.facultyRows();
+      // A person taps the sheet where it shows: the row of sheets does not move under the finger.
+      await page
+        .getByRole("tablist", { name: "Hojas de Admin" })
+        .evaluate((list) => list.scrollTo({ left: 0 }));
+    },
     "logo-strip-window": async () => {
       await logoEditor.enter();
       await logoEditor.waitForBrandCatalog();

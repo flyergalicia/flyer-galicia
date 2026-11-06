@@ -20,6 +20,9 @@ async function open(answers: AppAnswers = {}) {
   const onClose = vi.fn<() => void>();
   const screen = await render(harness.wrap(<WhenInside onClose={onClose} />));
   await expect.element(screen.getByRole("dialog", { name: "Cambiar mi contraseña" })).toBeVisible();
+  // The window puts the cursor on the first field a moment after opening: typing before that
+  // lands in the wrong field (it failed once that way).
+  await expect.element(screen.getByLabelText("Contraseña actual")).toHaveFocus();
   return { harness, screen, onClose };
 }
 

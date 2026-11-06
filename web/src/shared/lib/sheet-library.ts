@@ -71,7 +71,7 @@ export async function readSheetFile(library: SheetApi, file: Blob): Promise<Read
 }
 
 export interface SheetToWrite {
-  readonly lines: SheetCells;
+  readonly lines: SheetValues;
   readonly widths: readonly number[];
   readonly sheetName: string;
   readonly fileName: string;

@@ -1,0 +1,26 @@
+.searchBar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search {
+  flex: 1;
+}
+
+.filter {
+  width: auto;
+}
+
+.nothing {
+  padding: 20px 0;
+  color: var(--gray);
+  font-size: var(--text-md);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .searchBar {
+    flex-wrap: wrap;
+  }
+}

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import { databaseError, type RegistryCloud, registryHarness } from "../testing/registry-cloud.ts";
 import { MyProposalsWindow } from "./MyProposalsWindow.tsx";
 

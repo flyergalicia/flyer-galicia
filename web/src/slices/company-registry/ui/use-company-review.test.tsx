@@ -11,7 +11,7 @@ import {
 import { jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
 import type { FlyerForm } from "../model/company-changes.ts";
 import { useCompanies, useSubstituteCompanies } from "../model/use-companies.ts";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import { databaseError, type RegistryCloud, registryHarness } from "../testing/registry-cloud.ts";
 import { NoCashbackDialog } from "./CompanyReviewDialogs.tsx";
 import { type CompanyReview, useCompanyReview } from "./use-company-review.tsx";

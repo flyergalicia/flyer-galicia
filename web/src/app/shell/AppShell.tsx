@@ -20,6 +20,7 @@ import type { MenuRules } from "../registry/view-rules.ts";
 import {
   ADMIN_WINDOW,
   FLYER_EDITOR_HOST_ID,
+  loadRolePreviewBar,
   MENU_WINDOWS_BELOW,
   type MenuWindow,
   NOTICE_SOURCES,
@@ -34,6 +35,8 @@ import { ViewHost } from "./ViewHost.tsx";
 import styles from "./AppShell.module.css";
 
 type SignedInSession = Extract<SessionValue, { readonly status: "signed-in" }>;
+
+const RolePreviewBar = lazy(loadRolePreviewBar);
 
 interface OpenWindow {
   readonly id: string;
@@ -163,6 +166,11 @@ export function AppShell({
                 openMenuWindow={openMenuWindow}
               />
             </PromotionPickingHost>
+            {simulatedRole && (
+              <Suspense fallback={null}>
+                <RolePreviewBar />
+              </Suspense>
+            )}
             {Window && (
               <LoadBoundary
                 key={openWindow.id}

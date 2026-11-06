@@ -22,7 +22,7 @@ function withCategoryFlyers(cloud: Cloud): void {
   cloud.addFlyerOption({ option: 7, name: "Super rubro", image: FLYER, legal: "L", tab: "rubros" });
 }
 
-test.describe("the panel", () => {
+test.describe("the panel", { tag: "@react" }, () => {
   test("is organized in three pillars with their sheets", async ({ openApp }) => {
     const { admin } = await openApp({ user: "admin" });
     await admin.openPanel();
@@ -94,7 +94,7 @@ test.describe("the panel", () => {
   });
 });
 
-test.describe("the matrix of faculties", () => {
+test.describe("the matrix of faculties", { tag: "@react" }, () => {
   test("a profile with nothing saved keeps what it always had", async ({ cloud, openApp }) => {
     cloud.bucketJson["_facultades.json"] = NO_SAVED_FACULTIES;
     const { session, companyRegistry } = await openApp({ waitUntilReady: false });
@@ -226,7 +226,7 @@ test.describe("the matrix of faculties", () => {
   });
 });
 
-test.describe("seeing the app as a profile sees it", () => {
+test.describe("seeing the app as a profile sees it", { tag: "@react" }, () => {
   test("takes things away and gives all of them back on leaving", async ({ cloud, openApp }) => {
     cloud.setPermissions("asesor", {
       promos_buscar: false,

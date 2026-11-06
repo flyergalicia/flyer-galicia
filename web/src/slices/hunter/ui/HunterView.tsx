@@ -8,8 +8,7 @@ import {
 } from "@/shared/lib/commercial-actions/commercial-desk.ts";
 import { optionNumber, optionTab } from "@/shared/domain/flyer-options.ts";
 import { type Company, searchCompanies } from "@/shared/domain/company-registry/index.ts";
-import { titleOf } from "@/shared/domain/screen-titles.ts";
-import { useScreenTitles } from "@/shared/lib/app-config/screen-titles-query.ts";
+import { RenameableTitle } from "@/shared/lib/app-config/RenameableTitle.tsx";
 import type { CompanyBatchProgress } from "@/shared/lib/flyer-workspace/company-batch/company-batch.ts";
 import {
   drawsSingleCashback,
@@ -169,7 +168,6 @@ function useFlyerRequest(list: HunterList, chooseAt: (company: Company, position
 }
 
 function HunterScreen({ isActive }: ViewProps) {
-  const { titles } = useScreenTitles();
   const { show } = useToast();
   const list = useHunterList(isActive);
   const { hits, all, query, setQuery, rules, loading, problem } = list;
@@ -229,7 +227,7 @@ function HunterScreen({ isActive }: ViewProps) {
   return (
     <div className={styles.screen}>
       <div className={styles.panel}>
-        <div className={styles.title}>{titleOf(titles, "hunter_ptitle")}</div>
+        <RenameableTitle titleKey="hunter_ptitle" className={styles.title} />
         <div className={styles.help}>
           Escribí el nombre de la empresa (o su CUIT) y bajá el flyer que le corresponde, con sus
           oficiales y su cashback.

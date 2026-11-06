@@ -205,11 +205,18 @@ export const SEARCH_WINDOW: Pick<MenuWindow, "id" | "load"> = {
   load: pendingWindow,
 };
 
-/** The panel of the administrator: what its button of the header opens. The admin slice brings it. */
+/** The panel of the administrator: what its button of the header opens, apart from the first load. */
 export const ADMIN_WINDOW: Pick<MenuWindow, "id" | "load"> = {
   id: "admin",
-  load: pendingWindow,
+  load: () => import("@/slices/admin/index.ts").then(({ AdminPanel }) => ({ default: AdminPanel })),
 };
+
+/** The bar of the preview of a profile: it comes with the code of the panel, already downloaded. */
+export function loadRolePreviewBar(): Promise<{ readonly default: ComponentType }> {
+  return import("@/slices/admin/index.ts").then(({ RolePreviewBar }) => ({
+    default: RolePreviewBar,
+  }));
+}
 
 /**
  * Who tells what is waiting for the person (company-registry, studio, commercial-actions, hunter),

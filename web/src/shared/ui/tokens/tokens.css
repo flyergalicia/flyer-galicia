@@ -371,6 +371,7 @@ html.dark {
   --text-day: 0.95rem;
   --text-benchmark: 1.25rem;
   --text-editor: 1.17rem;
+  --text-admin: 1.04rem;
   --text-chart: 10px;
   --weight-regular: 400;
   --weight-medium: 500;
@@ -637,6 +638,32 @@ html.dark {
   --bench-focus-line: var(--accent);
   /* Labels go gray; in dark mode the rule of every label of the current app makes them lighter. */
   --bench-label-tx: var(--gray);
+
+  /* The panel of the administrator. */
+  --option-badge-tx: #fff;
+  --waiting-line: #f5c542;
+  --usage-on-tx: #fff;
+  --rename-field-bg: rgba(255, 255, 255, 0.12);
+  --preview-bar-bg: #111;
+  --preview-bar-tx: #fff;
+  --preview-bar-role: #ffb3ba;
+  --faculty-new-tx: #fff;
+  --light-row: var(--paper);
+  --faculty-group-hover: rgba(245, 146, 30, 0.12);
+  --admin-backdrop: rgba(17, 17, 17, 0);
+  --admin-backdrop-on: rgba(17, 17, 17, 0.4);
+  --admin-log-tx: #333;
+  --admin-advisor-tx: #555;
+  --admin-chip-bg: #e8f0ff;
+  --admin-chip-tx: #1565c0;
+  --admin-config-bg: #eef0ff;
+  --admin-config-tx: #3a3a8c;
+  --admin-cap-bg: #fff3e0;
+  --admin-cap-tx: #b26a00;
+  --admin-detail-bg: #f4f4f4;
+  --admin-detail-tx: #444;
+  --admin-label-tx: var(--gray);
+  --admin-cancel-bg: var(--card);
 }
 
 html.dark {
@@ -812,4 +839,7 @@ html.dark {
   --batch-box-line: #333840;
   --batch-head-bg: #2a2f36;
   --batch-cell-line: #333840;
+  --admin-log-tx: #c2c6cc;
+  --admin-label-tx: var(--ink-2);
+  --admin-cancel-bg: #2a2f36;
 }

@@ -4,7 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SearchableCompany } from "@/shared/domain/company-registry/index.ts";
 import { jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import {
   FAILED_CONNECTION,
   type RegistryCloud,

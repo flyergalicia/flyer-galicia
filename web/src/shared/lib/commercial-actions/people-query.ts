@@ -1,9 +1,17 @@
 // Who is on Gestiones, by id: the notices of the header need their names, and the screens of the
 // slice their roles and leaders. There is one read of them for everybody.
-import { useQuery } from "@tanstack/react-query";
+import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { type Backend, useBackend } from "@/shared/supabase/index.ts";
 
 export const COMMERCIAL_PEOPLE_QUERY_KEY = ["commercial-actions", "people"] as const;
+/** What the agenda reads: the hunters of each one come from there. */
+export const COMMERCIAL_AGENDA_QUERY_KEY = ["commercial-actions", "agenda"] as const;
+
+/** Somebody changed profile or leader: the teams of Gestiones and its agenda are read again. */
+export function invalidateTeams(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: COMMERCIAL_PEOPLE_QUERY_KEY });
+  void queryClient.invalidateQueries({ queryKey: COMMERCIAL_AGENDA_QUERY_KEY });
+}
 
 export interface CommercialPerson {
   readonly id: string;

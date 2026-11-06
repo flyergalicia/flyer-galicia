@@ -71,6 +71,7 @@
 /* pills */
 .list-pills {
   gap: 6px;
+  overflow-x: auto;
   padding: 10px 14px;
   border-bottom: 1px solid var(--raised-line);
   background: var(--raised-tabs);

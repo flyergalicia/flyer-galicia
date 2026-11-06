@@ -15,7 +15,7 @@ import {
   matchingAdvisors,
 } from "../model/advisors-draft.ts";
 import { useSavedAdvisors } from "../model/use-saved-advisors.ts";
-import type { Ask } from "./use-ask.tsx";
+import type { Ask } from "@/shared/lib/ask/use-ask.tsx";
 import { SEPARATOR } from "./separator.ts";
 import styles from "./DatabaseWindow.module.css";
 

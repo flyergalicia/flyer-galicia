@@ -4,6 +4,7 @@ import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useBackend } from "@/shared/supabase/index.ts";
 import { COMMERCIAL_NOTICES_QUERY_KEY } from "@/shared/lib/commercial-actions/commercial-notices-query.ts";
+import { COMMERCIAL_AGENDA_QUERY_KEY } from "@/shared/lib/commercial-actions/people-query.ts";
 import {
   readAction,
   readActionList,
@@ -21,7 +22,7 @@ const UNREAD_KEY = ["commercial-actions", "unread"] as const;
 const COMPANIES_KEY = ["commercial-actions", "my-companies"] as const;
 const DETAIL_KEY = ["commercial-actions", "detail"] as const;
 const THREAD_KEY = ["commercial-actions", "thread"] as const;
-export const AGENDA_KEY = ["commercial-actions", "agenda"] as const;
+export const AGENDA_KEY = COMMERCIAL_AGENDA_QUERY_KEY;
 
 const NO_ACTIONS: readonly ListedAction[] = [];
 const NO_UNREAD: UnreadByAction = new Map();

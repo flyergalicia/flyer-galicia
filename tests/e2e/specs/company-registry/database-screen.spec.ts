@@ -124,35 +124,36 @@ test.describe("Base de datos", () => {
     },
   );
 
-  test("an administrator reads the list of someone else, without being able to edit it", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.profiles = [
-      { id: OTHER.id, full_name: OTHER.name, email_asesor: OTHER.email, role: "asesor" },
-      {
-        id: cloud.users.admin?.id,
-        full_name: "Admin Prueba",
-        email_asesor: "a@bancogalicia.com.ar",
-        role: "admin",
-      },
-    ];
-    cloud.companies = [
-      { empresa: "DE OTRO SA", user_id: OTHER.id, cuits: [], config: "BAU", asesores: [] },
-      { empresa: "MIA SA", user_id: "x", cuits: [], config: "BAU", asesores: [] },
-    ];
-    const { admin, companyRegistry } = await openApp({ user: "admin" });
-    await admin.openPanel();
-    await admin.openSheet("Data", "Empresas por usuario");
+  test(
+    "an administrator reads the list of someone else, without being able to edit it",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.profiles = [
+        { id: OTHER.id, full_name: OTHER.name, email_asesor: OTHER.email, role: "asesor" },
+        {
+          id: cloud.users.admin?.id,
+          full_name: "Admin Prueba",
+          email_asesor: "a@bancogalicia.com.ar",
+          role: "admin",
+        },
+      ];
+      cloud.companies = [
+        { empresa: "DE OTRO SA", user_id: OTHER.id, cuits: [], config: "BAU", asesores: [] },
+        { empresa: "MIA SA", user_id: "x", cuits: [], config: "BAU", asesores: [] },
+      ];
+      const { admin, companyRegistry } = await openApp({ user: "admin" });
+      await admin.openPanel();
+      await admin.openSheet("Data", "Empresas por usuario");
 
-    const offered = `${OTHER.name} · Asesor`;
-    await expect
-      .poll(() => companyRegistry.otherUsersOffered(), "not the administrators")
-      .toEqual([offered]);
-    await companyRegistry.chooseOtherUser(offered);
+      const offered = `${OTHER.name} · Asesor`;
+      await expect
+        .poll(() => companyRegistry.otherUsersOffered(), "not the administrators")
+        .toEqual([offered]);
+      await companyRegistry.chooseOtherUser(offered);
 
-    await expect.poll(() => admin.sheetText()).toMatch(/DE OTRO SA/);
-    expect.soft(await admin.sheetText(), "only of that person").not.toMatch(/MIA SA/);
-    expect.soft(await companyRegistry.otherUserScreenHasEditing()).toBe(false);
-  });
+      await expect.poll(() => admin.sheetText()).toMatch(/DE OTRO SA/);
+      expect.soft(await admin.sheetText(), "only of that person").not.toMatch(/MIA SA/);
+      expect.soft(await companyRegistry.otherUserScreenHasEditing()).toBe(false);
+    },
+  );
 });

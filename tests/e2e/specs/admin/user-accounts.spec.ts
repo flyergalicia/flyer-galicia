@@ -48,7 +48,7 @@ async function rowOf({ admin }: OpenedApp, name: string) {
   return (await admin.userRows()).find((row) => row.name === name);
 }
 
-test.describe("the accounts of the panel", () => {
+test.describe("the accounts of the panel", { tag: "@react" }, () => {
   test.beforeEach(({ cloud }) => {
     seedAccounts(cloud);
   });

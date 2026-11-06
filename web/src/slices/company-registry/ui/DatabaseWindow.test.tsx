@@ -12,7 +12,7 @@ import {
   type RecordedRequest,
 } from "@/shared/supabase/testing/recording-fetch.ts";
 import type { registryProbe } from "../model/registry-probe.ts";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import {
   databaseError,
   FAILED_CONNECTION,

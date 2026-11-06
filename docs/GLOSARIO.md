@@ -59,6 +59,16 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Etiqueta de fuente | `sourceLabel` | De dónde sale cada banco y cuándo se leyó |
 | Tarjetas y salas VIP | `premiumCard` | Tarjetas premium con sus pases a salas VIP, cargadas a mano |
 | Facultades | `permissions` | Lo que puede hacer cada perfil |
+| Panel del administrador | `admin` | Lo que abre el botón ⚙ Admin del encabezado |
+| Pilar | `pillar` | Admin, Data o Config: cada uno con sus hojas |
+| Hoja (del panel) | `sheet` | Dashboard, Usuarios, Registros, Uso, Facultades, Auditoría, Mis empresas, Mis asesores, Empresas por usuario, Cambios en las empresas y las de Config |
+| Columna «Vos» | `own` | Lo que el administrador se saca a sí mismo en Facultades |
+| Vista previa de un perfil | `rolePreview` | El administrador ve la app como la ve un perfil, con la barra negra de abajo |
+| Registros | `flyerLogs` | Los flyers que salieron, de `flyer_logs` |
+| Uso | `usage` | Cuántos flyers salen, de qué flyer, por perfil y por semana |
+| Auditoría | `audit` | Quién hizo qué sobre las cuentas, de `audit_log` |
+| Cambios en las empresas | `companyLog` | Altas, modificaciones y bajas de las empresas, de `padron_log` |
+| Empresas por usuario | `otherPeople` | El administrador lee la lista de otro, sin poder editarla |
 | Perfil | `role` | Admin, VIP, asesor, Hunter, Líder, Prospect |
 
 Los perfiles Hunter y Prospect, la palabra cashback y el nombre Benchmark quedan igual.

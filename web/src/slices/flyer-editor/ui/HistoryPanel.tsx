@@ -2,7 +2,7 @@ import { type CSSProperties, useState } from "react";
 import { optionColor, optionLabel, optionNumber } from "@/shared/domain/flyer-options.ts";
 import { useFlyerOptions } from "@/shared/lib/app-config/flyer-options-query.ts";
 import { useFlyerWorkspace } from "@/shared/lib/flyer-workspace/index.ts";
-import { Button, ConfirmDialog, Icon } from "@/shared/ui/index.ts";
+import { Button, ConfirmDialog, Icon, OptionBadge } from "@/shared/ui/index.ts";
 import { uploadedLogoName, uploadedLogosIn } from "@/slices/logo-editor/index.ts";
 import { whenOf } from "../model/flyer-history.ts";
 import { useFlyerHistory, useHistoryItems } from "../model/history-context.ts";
@@ -98,9 +98,7 @@ function HistoryRow({
           {item.fn} · {whenOf(item)}
         </span>
         <div className={styles.badgeLine}>
-          <span className={styles.badge} title={optionLabel(options, option)}>
-            OP.{option}
-          </span>
+          <OptionBadge option={option} label={optionLabel(options, option)} color={color} />
         </div>
         <div className={styles.actions}>
           <button

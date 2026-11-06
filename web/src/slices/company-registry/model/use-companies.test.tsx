@@ -5,7 +5,7 @@ import { newCompany } from "@/shared/domain/company-registry/index.ts";
 import { useSession } from "@/shared/session/index.ts";
 import { createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
 import { type Answer, deferred, jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
-import { Inside } from "../testing/Inside.tsx";
+import { Inside } from "@/shared/lib/testing/Inside.tsx";
 import {
   databaseError,
   FAILED_CONNECTION,

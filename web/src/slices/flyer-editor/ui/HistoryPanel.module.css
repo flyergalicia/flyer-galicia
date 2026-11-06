@@ -92,17 +92,6 @@
   margin-top: 3px;
 }
 
-.badge {
-  flex-shrink: 0;
-  padding: 3px 7px;
-  border-radius: 20px;
-  background: var(--option-color);
-  color: #fff;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.3px;
-}
-
 .actions {
   position: relative;
   display: flex;

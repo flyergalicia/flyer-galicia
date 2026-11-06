@@ -18,3 +18,9 @@ export {
 } from "./model/use-companies.ts";
 export { useSavedAdvisors } from "./model/use-saved-advisors.ts";
 export { newAdvisorId, type SavedAdvisor } from "./api/saved-advisors.ts";
+export { CompaniesPane } from "./ui/CompaniesPane.tsx";
+export { AdvisorsPane } from "./ui/AdvisorsPane.tsx";
+export { CompanyRow } from "./ui/CompanyList.tsx";
+export { type RegistryWork, useRegistryWork } from "./ui/use-registry-work.ts";
+export { type CompanyList, failureText, readCompanies } from "./api/companies.ts";
+export { downloadCompanies } from "./api/company-sheets.ts";

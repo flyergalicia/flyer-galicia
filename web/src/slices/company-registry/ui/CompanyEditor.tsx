@@ -11,7 +11,7 @@ import type { EditorAction, EditorState } from "../model/company-editor.ts";
 import { useSaveCompanies } from "../model/use-companies.ts";
 import { useRegistryContext } from "../model/registry-rules.ts";
 import { CompanyEditorRow, type EditorChoices } from "./CompanyEditorRow.tsx";
-import type { Ask } from "./use-ask.tsx";
+import type { Ask } from "@/shared/lib/ask/use-ask.tsx";
 import styles from "./DatabaseWindow.module.css";
 
 /** With many companies it waits for the person to stop typing. */

@@ -15,7 +15,7 @@ import styles from "./DatabaseWindow.module.css";
 
 const SHOWN = 25;
 
-function CompanyRow({ company }: { readonly company: Company }) {
+export function CompanyRow({ company }: { readonly company: Company }) {
   const { options, cashbackNames } = useRegistryContext();
   const category = companyCategoryLabel(company, options);
   return (

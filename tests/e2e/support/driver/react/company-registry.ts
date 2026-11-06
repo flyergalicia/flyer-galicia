@@ -643,6 +643,39 @@ function createHunterList(page: Page) {
   };
 }
 
+/** Data → Empresas por usuario, in the panel of the administrator: read only. */
+function createOtherUsers(page: Page) {
+  const sheet = () => page.getByTestId("admin-other-companies");
+  const chooser = () => sheet().getByRole("combobox", { name: "Usuario", exact: true });
+  return {
+    openOtherUsersCompanies: async () => {
+      const panel = page.getByTestId("admin-panel");
+      await panel.getByRole("tab", { name: "Data", exact: true }).click();
+      await panel.getByRole("tab", { name: "Empresas por usuario", exact: true }).click();
+      await sheet().waitFor();
+    },
+    otherUsersOffered: () =>
+      chooser()
+        .locator("option")
+        .evaluateAll((options) =>
+          options.flatMap((option) =>
+            option instanceof HTMLOptionElement && option.value ? [option.text] : [],
+          ),
+        ),
+    chooseOtherUser: async (name: string) => {
+      await chooser().selectOption({ label: name });
+      await sheet().getByTestId("other-person").waitFor();
+    },
+    otherUserCompanies: () =>
+      sheet().getByTestId("company-row").locator("> div > div:first-child").allInnerTexts(),
+    otherUserScreenHasEditing: async () =>
+      (await sheet().locator('input[type="file"], [data-testid="company-editor"]').count()) > 0 ||
+      (await sheet()
+        .getByRole("button", { name: /Editar|Guardar|Subir/ })
+        .count()) > 0,
+  };
+}
+
 export function createReactCompanyRegistryDriver(page: Page): CompanyRegistryDriver {
   return partialDriver<CompanyRegistryDriver>("companyRegistry", {
     ...createHunterList(page),
@@ -655,5 +688,6 @@ export function createReactCompanyRegistryDriver(page: Page): CompanyRegistryDri
     ...createEditor(page),
     ...createSheets(page),
     ...createProposals(page),
+    ...createOtherUsers(page),
   });
 }

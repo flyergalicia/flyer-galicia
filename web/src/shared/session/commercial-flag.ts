@@ -60,3 +60,14 @@ export function useCommercialActionsFlag(enabled = true): CommercialFlagValue {
     settled: isSuccess || isError,
   };
 }
+
+/** The switch as it is saved ("off", "prueba" or "on"), for the panel that changes it. */
+export function useCommercialFlagSetting(): string {
+  const { db } = useBackend();
+  const { data } = useQuery({
+    queryKey: COMMERCIAL_FLAG_QUERY_KEY,
+    queryFn: () => readCommercialFlag(db),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  return data ?? "off";
+}

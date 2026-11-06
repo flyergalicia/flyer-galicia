@@ -1,0 +1,46 @@
+/* The administrator sees the app as another profile sees it. */
+.bar {
+  position: fixed;
+  z-index: 2000;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 16px;
+  background: var(--preview-bar-bg);
+  color: var(--preview-bar-tx);
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.3);
+  font-size: var(--text-md);
+}
+
+.bar strong {
+  color: var(--preview-bar-role);
+}
+
+.leave {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--preview-bar-tx);
+  color: var(--preview-bar-bg);
+  font-family: var(--font-family);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.leave:hover {
+  background: var(--navy);
+  color: var(--preview-bar-tx);
+}
+
+@media (max-width: 900px) {
+  .bar {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+}

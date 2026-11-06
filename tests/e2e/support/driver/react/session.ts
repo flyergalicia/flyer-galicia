@@ -268,7 +268,10 @@ function createHeader(page: Page) {
           fitsTheWindow: element.getBoundingClientRect().right <= window.innerWidth + 1,
         };
       }),
-    adminButtonOffered: () => header(page).getByRole("button", { name: /Admin/ }).isVisible(),
+    adminButtonOffered: () =>
+      header(page)
+        .getByRole("button", { name: /^⚙ Admin/ })
+        .isVisible(),
     documentFit: () =>
       page.evaluate(() => {
         const screen = document.querySelector('[data-screen="flyer-layout"]');

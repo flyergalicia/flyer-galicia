@@ -8,10 +8,22 @@ type PartProps = {
 type ListRowProps = PartProps & {
   /** "compact" is the one of the recent activity. */
   readonly density?: "regular" | "compact";
+  /** "waiting": something on this row waits for a decision, and its border says so. */
+  readonly tone?: "plain" | "waiting";
+  readonly "data-testid"?: string;
 };
 
-export function ListRowRoot({ density = "regular", children }: ListRowProps) {
-  return <div className={`${styles.row} ${styles[density]}`}>{children}</div>;
+export function ListRowRoot({
+  density = "regular",
+  tone = "plain",
+  children,
+  ...rest
+}: ListRowProps) {
+  return (
+    <div {...rest} className={`${styles.row} ${styles[density]} ${styles[tone]}`}>
+      {children}
+    </div>
+  );
 }
 
 export function ListRowMain({ children }: PartProps) {

@@ -19,7 +19,7 @@ import { CompanyEditor } from "./CompanyEditor.tsx";
 import { CompanyList } from "./CompanyList.tsx";
 import { GeneratorPanel } from "./GeneratorPanel.tsx";
 import { ImportSummaryDialog } from "./ImportSummaryDialog.tsx";
-import type { Ask } from "./use-ask.tsx";
+import type { Ask } from "@/shared/lib/ask/use-ask.tsx";
 import { SEPARATOR } from "./separator.ts";
 import styles from "./DatabaseWindow.module.css";
 

@@ -17,6 +17,11 @@
   box-shadow: var(--sh-1);
 }
 
+.waiting,
+.waiting:hover {
+  border-color: var(--waiting-line);
+}
+
 .regular {
   margin-bottom: 6px;
   padding: 10px 12px;

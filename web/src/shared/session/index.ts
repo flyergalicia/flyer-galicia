@@ -3,8 +3,10 @@ export {
   commercialActionsOn,
   type CommercialFlagValue,
   useCommercialActionsFlag,
+  useCommercialFlagSetting,
 } from "./commercial-flag.ts";
 export {
+  adminAllows,
   can,
   defaultPermission,
   effectiveRole,
@@ -13,6 +15,7 @@ export {
   isLeader,
   MANAGED_ROLES,
   mergePermissions,
+  permissionApplies,
   savedRolesIn,
   PERMISSION_KEYS,
   type PermissionKey,

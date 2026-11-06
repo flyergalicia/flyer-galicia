@@ -25,75 +25,77 @@ function hostileCompany(cloud: Cloud): void {
 }
 
 test.describe("text written by someone else", () => {
-  test("in the name of a user or of a company in the panel is shown as text", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.profiles = [
-      {
-        id: "00000000-0000-4000-8000-0000000000ef",
-        full_name: MARKUP,
-        email_asesor: "x@bancogalicia.com.ar",
-        role: "asesor",
-        status: "active",
-        created_at: "2026-01-01T00:00:00Z",
-      },
-    ];
-    cloud.flyerLogs = [
-      {
-        id: "l1",
-        user_id: "00000000-0000-4000-8000-0000000000ef",
-        empresa: MARKUP,
-        config_name: MARKUP,
-        format: "pdf",
-        flyer_type: "{}",
-        created_at: new Date().toISOString(),
-      },
-    ];
-    const app = await openApp({ user: "admin" });
-    await app.admin.openPanel();
+  test(
+    "in the name of a user or of a company in the panel is shown as text",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.profiles = [
+        {
+          id: "00000000-0000-4000-8000-0000000000ef",
+          full_name: MARKUP,
+          email_asesor: "x@bancogalicia.com.ar",
+          role: "asesor",
+          status: "active",
+          created_at: "2026-01-01T00:00:00Z",
+        },
+      ];
+      cloud.flyerLogs = [
+        {
+          id: "l1",
+          user_id: "00000000-0000-4000-8000-0000000000ef",
+          empresa: MARKUP,
+          config_name: MARKUP,
+          format: "pdf",
+          flyer_type: "{}",
+          created_at: new Date().toISOString(),
+        },
+      ];
+      const app = await openApp({ user: "admin" });
+      await app.admin.openPanel();
 
-    await app.admin.openSheet("Admin", "Usuarios");
-    await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
+      await app.admin.openSheet("Admin", "Usuarios");
+      await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
 
-    await app.admin.openSheet("Admin", "Registros");
-    await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
-    await expectNothingRan(app);
-  });
+      await app.admin.openSheet("Admin", "Registros");
+      await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
+      await expectNothingRan(app);
+    },
+  );
 
-  test("in the change log and the audit of the panel is shown as text", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.companyLog = [
-      {
-        id: "l1",
-        created_at: "2026-10-20T10:00:00Z",
-        usuario: MARKUP,
-        user_id: "x",
-        accion: "alta",
-        empresa: MARKUP,
-        total: 1,
-      },
-    ];
-    cloud.auditRows = [
-      {
-        id: "a1",
-        created_at: "2026-10-20T10:00:00Z",
-        accion: "approve_user",
-        actor_email: MARKUP,
-        objetivo_email: MARKUP,
-      },
-    ];
-    const app = await openApp({ user: "admin" });
-    await app.admin.openPanel();
+  test(
+    "in the change log and the audit of the panel is shown as text",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.companyLog = [
+        {
+          id: "l1",
+          created_at: "2026-10-20T10:00:00Z",
+          usuario: MARKUP,
+          user_id: "x",
+          accion: "alta",
+          empresa: MARKUP,
+          total: 1,
+        },
+      ];
+      cloud.auditRows = [
+        {
+          id: "a1",
+          created_at: "2026-10-20T10:00:00Z",
+          accion: "approve_user",
+          actor_email: MARKUP,
+          objetivo_email: MARKUP,
+        },
+      ];
+      const app = await openApp({ user: "admin" });
+      await app.admin.openPanel();
 
-    await app.admin.openSheet("Data", "Cambios en las empresas");
-    await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
-    await app.admin.openSheet("Admin", "Auditoría");
-    await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
-    await expectNothingRan(app);
-  });
+      await app.admin.openSheet("Data", "Cambios en las empresas");
+      await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
+      await app.admin.openSheet("Admin", "Auditoría");
+      await expect.poll(() => app.admin.sheetText()).toContain(SHOWN);
+      await expectNothingRan(app);
+    },
+  );
 
   test(
     "in a company is shown as text in the search, the suggestions and its dialogs",

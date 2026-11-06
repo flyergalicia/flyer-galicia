@@ -26,6 +26,7 @@ import { createLegacyScreensDriver } from "./legacy/screens.ts";
 import { createLegacySearchDriver } from "./legacy/search.ts";
 import { createLegacySessionDriver } from "./legacy/session.ts";
 import { createLegacyStudioDriver } from "./legacy/studio.ts";
+import { createReactAdminDriver } from "./react/admin.ts";
 import { createReactBenchmarkDriver } from "./react/benchmark.ts";
 import { createReactCommercialActionsDriver } from "./react/commercial-actions.ts";
 import { createReactCompanyRegistryDriver } from "./react/company-registry.ts";
@@ -92,6 +93,7 @@ function createReactAppDriver(page: Page): AppDriver {
   const studio = createReactStudioDriver(page);
   const commercialActions = createReactCommercialActionsDriver(page);
   const benchmark = createReactBenchmarkDriver(page);
+  const admin = createReactAdminDriver(page);
   return {
     page,
     session,
@@ -110,7 +112,7 @@ function createReactAppDriver(page: Page): AppDriver {
     studio,
     commercialActions,
     benchmark,
-    admin: partialDriver("admin"),
+    admin,
     search: partialDriver("search"),
     screens: createReactScreensDriver(page, {
       session,
@@ -121,6 +123,7 @@ function createReactAppDriver(page: Page): AppDriver {
       studio,
       commercialActions,
       benchmark,
+      admin,
     }),
   };
 }
