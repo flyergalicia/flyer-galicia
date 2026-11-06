@@ -117,7 +117,7 @@ Cada dato va en el primer nivel que le alcance:
 | 1 | Referencia de la versión actual (capturas, PDF/PNG, contrato de red, peso) y las 87 pruebas viejas en TS, contra las dos versiones | Todas pasan contra la versión actual |
 | 2 | `shared`: tokens, `ui`, Supabase, sesión | Storybook coincide con las capturas y el contrato de red pasa |
 | 3 | `flyer-engine` en TS, partido hasta cumplir la complejidad. **Hecha**, ver abajo | PDF y PNG idénticos a la referencia |
-| 4 | Slices, en orden: `auth` y shell, `promotions`, `company-registry`, `logo-editor`, `flyer-editor`, `hunter`, `studio`, `commercial-actions`, `benchmark`, `admin`, `search` y `tour` | Cada slice pasa lint, complejidad, coverage y sus pruebas antes de seguir |
+| 4 | Slices, en orden: `auth` y shell, `promotions`, `company-registry`, `logo-editor`, `flyer-editor`, `hunter`, `studio`, `commercial-actions`, `benchmark`, `admin`, `search` y `tour`. **Hecha**, ver abajo | Cada slice pasa lint, complejidad, coverage y sus pruebas antes de seguir |
 | 5 | Corte local con `npm run release`, que copia `dist/` a la raíz | Todo en verde y paridad con la referencia |
 | 6 | Limpieza del código viejo y documentación | Sin rastros del código viejo |
 
@@ -180,6 +180,58 @@ Se sacaron dos `try/catch` que no podían saltar: al estirar la fila del hueco y
 | `logo-editor` | Detectar y editar logos (`_fgLgDetectar`, `_fgLgPixeles`, `_fgLgRenglones`, `_fgLgColorDe`, `_fgLgTxtMedir`, `_fgLgAchicar`, `_fgLgEsBlanco`, `_fgLgLeerArchivo`), franjas, marcas guardadas y la interacción de Recortar e Insertar (`_fgRecMejorUnion`, `_fgInsFilas`, huecos) |
 | `admin` y `studio` | Calibrador, `_BENEF_PLANTILLAS` salvo la de combustible (el motor la necesita como respaldo), pdf.js y `_rasterizeFlyer` |
 
+## Etapa 4: los slices
+
+**Hecha** el 6-nov-2026, en commits locales de `refactor/react` (de `6185d99` a `7d6ba2f`, más los arreglos `c6b45f1`, `be2c9c3` y `148bc90`). La app React tiene todas las pantallas de la versión actual. Lo que todavía no está publicado es el corte (etapa 5).
+
+### Cómo se comparó
+
+- **Las mismas pruebas:** las specs de `tests/e2e/specs/` corren contra las dos versiones. Contra React corren todas menos 14, más `pdf-bands` (lista y motivo en `tests/LEEME.md`).
+- **Las capturas** de `tests/fixtures/visual/` pasan contra React con la misma tolerancia.
+- **El peso:** `build/weight-budget` pasa. La primera carga de React pesa unos 354 KB de JS gzip, contra 462 KB de la versión actual. Cada pantalla baja aparte la primera vez que se abre.
+- **Reglas rotas a propósito:** en cada slice se rompieron, una por una, las reglas importantes, y alguna prueba falló en cada caso. Si ninguna fallaba, se sumó la prueba.
+- **El contrato de red:** toda prueba contra React falla si la app pide algo que no está en `network-contract.json`.
+
+### Decisiones de la etapa
+
+- **Los errores de la versión actual se portaron como están.** Cada slice los anotó, y la lista va al dueño. Hay tres excepciones:
+  - **Invariante 24.** Donde la versión actual toma una falla de red por «vacío», React avisa con Reintentar y no deja guardar encima.
+  - **Invariante 23.** Un flyer que no cargó no se dibuja ni se baja sobre otro.
+  - **Invariante 7.** Lo que pasa de 1000 filas se lee por páginas.
+- **Diferencias aceptadas**, porque las pide React o un slice anterior:
+  - salir y cambiar de cuenta no recargan la página;
+  - las ventanas atrapan el foco y se cierran con Escape;
+  - lo que se toca con el mouse también se puede usar con el teclado, y se ve igual;
+  - cada pantalla se baja la primera vez que se abre;
+  - el panel del administrador pregunta antes de cerrarse con cambios sin guardar.
+- **Lo común quedó en `shared`:**
+  - componentes nuevos en `shared/ui`: `DecisionDialog`, `ProvinceSelect`, `ZoomControls`, `OptionBadge`, `ShortcutTip`, el logo y las marcas de lo que flota (`floating`); `Menu` se abre también desde afuera;
+  - en `shared/lib`: el espacio de trabajo del flyer (`flyer-workspace`), las tandas de flyers, los lugares de cada pantalla (`places`, que usan el buscador y el tutorial), la configuración de la app (`app-config`, con `RenameableTitle`), la carga diferida de librerías y los gestos de zoom;
+  - en `shared/domain`: las listas de solapas y vistas de cada pantalla, que el buscador necesita antes de que cada pantalla baje.
+- **Drivers:** cada dominio tiene su versión en `driver/react/`, entera. Lo que una persona no puede hacer existe igual y falla diciendo por qué. `partialDriver` ya no existe.
+- **Dependencias nuevas, con versión exacta:** `exceljs` (la misma librería que la versión actual baja de cdnjs) y `pdfjs-dist` 6.5.438, que se sirve desde el propio sitio.
+
+### Errores vivos en producción que encontró la etapa
+
+React no los tiene, pero la versión publicada sí. Si el dueño quiere arreglar alguno antes del corte, va en `auth.js` o `gestiones.js`:
+
+- La lista de empresas se corta en 1000 sin avisar (`loadPadron`).
+- Un suplente sin facultades puede no ver «Base de datos».
+- Facultades, Config → Flyer y Config → Opciones toman una falla de lectura por «lo de siempre», y se puede guardar encima:
+  - «Guardar y activar» sin poder leer las calibraciones borra las de los demás flyers;
+  - Facultades guarda la lista de siempre sobre la que había.
+- El Hunter deja de ofrecer un flyer hasta recargar si falló una sola lectura.
+- Gestiones: si la base falla, ofrece a todos los hunters como libres, y la agenda se ve sin ocupados.
+- La barra de flyers y Config → Opciones borran `reemplaza`, `rubro` y `sinCB` de todas las opciones. **Este se portó como está**, porque cambiarlo es una decisión del dueño.
+
+### Lo que esta etapa no comparó
+
+- Un celular o una PC de sucursal de verdad: sólo el tamaño de pantalla y el toque simulado del navegador de las pruebas.
+- Un PDF real de un flyer: el repo no trae ninguno, así que `pdf-bands` se saltea.
+- Las Edge Functions y la RLS reales: todo corrió contra la nube simulada.
+- Los Excel abiertos en Excel: se leyeron con ExcelJS.
+- Pantallas sin captura de referencia (las ventanas de cada slice): se compararon con estilos calculados y a ojo, no píxel por píxel.
+
 ## Pruebas y coverage
 
 **Coverage funcional:** se prueba el comportamiento por la API pública de cada componente (estados, interacciones y composiciones), en Vitest Browser Mode con Chromium. La lógica pura corre en Node. Las pruebas de navegador con Playwright cubren los flujos completos.
@@ -207,10 +259,10 @@ Los seis que había se corrigieron en la versión actual el 4-nov-2026, cada uno
 
 - `ci.yml` no se puede ejecutar de verdad sin `push`: está validado sólo a través de `npm run ci`.
 - Las capturas de referencia toleran 0,1 % de píxeles distintos (un cambio de pocas letras puede pasar), muestran lo que entra en la ventana más 15 imágenes de contenido, esconden el flyer de fondo en las 8 pantallas que lo tapan, y sólo valen para macOS. El flyer impreso se compara píxel por píxel. Detalle en `tests/LEEME.md`.
-- Las pruebas y sus drivers todavía leen código viejo en algunos puntos, que hay que resolver en React: `_vigSumarEstudio`, el cambio de `baseImg`, `necesitaRevision`, el catálogo en memoria y `search.nameFirstFlyer`.
-- Los chequeos de `_build.mjs` se clasificaron uno por uno en `docs/CHEQUEOS_BUILD.md`. Cada método nuevo de los drivers necesita su versión en `driver/react/` cuando llegue su slice.
+- Los drivers de la versión actual leen su código por dentro en algunos puntos (`_vigSumarEstudio`, el cambio de `baseImg`, `necesitaRevision`, el catálogo en memoria). Los de React no: hacen lo que hace una persona, y lo que una persona no puede hacer falla diciendo por qué (ver `tests/LEEME.md`).
+- Los chequeos de `_build.mjs` se clasificaron uno por uno en `docs/CHEQUEOS_BUILD.md`. Cada método nuevo de los drivers necesita su versión en `driver/react/`.
 - En local no se comprueba la red del banco, las PC de sucursal ni Pages. La nube simulada imita RLS y Edge Functions, no las ejercita.
 - El corte final llega a todos a la vez: si se publica, volver atrás es restaurar la versión anterior en `main`.
-- **El contrato de red registra lo que recorren las pruebas, no todo lo que hace la app.** `auth.js` borra archivos del bucket (`storage.remove`) y sube `index_<hora>.html` y `_active*_img.*`, y nada de eso figura en el contrato: `shared/supabase` lo soporta igual, y tiene que volver a mirarse al pasar esas pantallas.
+- **El contrato de red registra lo que recorren las pruebas, no todo lo que hace la app.** `auth.js` borra archivos del bucket (`storage.remove`) y sube `index_<hora>.html` y `_active*_img.*`, y nada de eso figura en el contrato: `shared/supabase` lo soporta igual. Al portar las pantallas aparecieron más pedidos que ninguna spec recorre, en ninguna de las dos versiones, y que sólo prueban las pruebas de componente: borrar un diseño, una propuesta o una combinación de Estudio, el «Ver» de una propuesta, borrar gestiones y prospectos, la lectura previa de Registrar gestión (la spec `other-screens` la contesta a mano), guardar el interruptor de Gestiones, borrar una cargada a mano de Benchmark, subir y borrar versiones de un flyer y escribir `_legal.json`. Hay que sumarlos cuando se regrabe el contrato.
 - postgrest-js repite solo una lectura sin respuesta durante unos 7 s, también en la versión actual: un corte de red tarda eso en verse como falla.
 - dependency-cruiser todavía no soporta TypeScript 7. Lee el código con swc y muestra un aviso que se puede ignorar. Se comprobó con violaciones reales que detecta los cruces, también en `.tsx` y en imports de tipos.

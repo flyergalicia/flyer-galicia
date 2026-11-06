@@ -28,6 +28,18 @@ Las que no usan navegador y las de componentes, con su coverage:
 npm test
 ```
 
+Las mismas pruebas contra la app React. Antes hay que armarla, porque estas pruebas abren lo que queda en `dist/`:
+
+```bash
+npm run build
+```
+
+```bash
+npx playwright test --project=react
+```
+
+Sólo corren las que llevan la etiqueta `@react`. Ese proyecto también trae lo que vigila el armado nuevo: `build/build-output`, `build/smoke` y `build/weight-budget`, que compara el peso de la primera carga con el de la versión actual.
+
 Todos los chequeos juntos, los mismos de `ci.yml`:
 
 ```bash
@@ -57,7 +69,7 @@ La primera vez hay que instalar el navegador con `npx playwright install chromiu
 | Carpeta                              | Qué tiene                                                                                                                          |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `e2e/specs/`                         | Las pruebas de navegador, por dominio. Dicen qué hace el usuario y qué tiene que ver                                               |
-| `e2e/support/driver/`                | Cómo se hace cada cosa, con métodos nombrados por intención. `legacy/` maneja la versión actual; `react/` manejará la nueva        |
+| `e2e/support/driver/`                | Cómo se hace cada cosa, con métodos nombrados por intención. `legacy/` maneja la versión actual y `react/`, la nueva               |
 | `e2e/specs/design-system/`           | `shared` contra la versión actual: tokens, componentes, capturas, red y letra mínima. Se explica en `docs/PLAN_MIGRACION_REACT.md` |
 | `e2e/support/design-system/`         | Qué story tiene que igualar a qué parte de la app (`cases.ts`), y cómo se mide                                                     |
 | `e2e/specs/flyer-engine/`            | `shared/flyer-engine` contra `fixtures/golden/`: los mismos píxeles y el mismo PDF, sin tolerancia                                 |
@@ -81,6 +93,25 @@ El ejemplo a copiar es `e2e/specs/logo-editor/replace-logo.spec.ts`.
 - Se usa `expect.soft`, para ver todo lo que falla y no sólo lo primero.
 - Toda funcionalidad nueva suma su prueba. Las que ya valen para React llevan la etiqueta `@react`.
 - Una prueba vale si falla cuando se rompe lo que protege. Antes de darla por buena, rompé esa regla en una copia de la app y mirá que falle: con `FLYER_STATIC_ROOT=<copia>` el servidor de las pruebas sirve esa carpeta.
+
+## Las que no corren contra React
+
+Son 14, más `pdf-bands`. Casi todas piden algo que una persona no puede hacer desde la pantalla: en React, el driver de esa acción falla diciendo por qué. Lo que protegen está cubierto por otra prueba.
+
+| Spec                                                                               | Por qué no corre contra React                                                                                                                |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin/options-and-cashback` «a category left without flyer is said…»              | Mete en una tanda una empresa que no se puede tildar. La cubre «a category left without flyer says so on the list…»                          |
+| `benchmark/hand-loaded` (3)                                                        | «Cargadas a mano» no se muestra a nadie, como hoy. Sus reglas las cubren las pruebas de componente; si se vuelve a mostrar, pasan a `@react` |
+| `company-registry/substitute-access` «no cashback travels in the request too»      | Marca «sin cashback» desde adentro. La cubre `use-company-review.test`                                                                       |
+| `flyer-editor/batches-skip-broken-flyer` «the history skips what it cannot draw…»  | Suma al historial un flyer viejo. La cubre `history-rules`                                                                                   |
+| `flyer-editor/drawing-rules` (2) «with no cashback…»                               | Marca «sin cashback» desde adentro. Las cubren otras dos pruebas de `drawing-rules` y `form-state.test`                                      |
+| `flyer-editor/late-responses` «a logo that no longer exists…»                      | Pone una marca que no está en el catálogo. La cubre `logo-library.test`                                                                      |
+| `logo-editor/editor-shows-current-logo` «never falls back to the flyer…»           | Vacía la memoria de logos. La cubre `LogoEditorDetails.test`                                                                                 |
+| `promotions/search-brings-all-promotions` «confirming the match of a clear brand…» | Pide revisar una fila clara desde adentro. La cubren su spec y `result-rows.test`                                                            |
+| `promotions/supermarket-days` «the printed days of a logo are found…»              | Pinta una imagen en la página. La cubre `flyer-pixels.test`                                                                                  |
+| `search/screen-search` «the name of a flyer is painted as text»                    | Un nombre con `<>` nunca llega a la pantalla. La cubre su prueba de componente                                                               |
+| `shell/layout-and-text` «one floating notice at a time…»                           | Muestra un texto cualquiera. La cubre `ToastProvider.test`                                                                                   |
+| `flyer-sections/pdf-bands`                                                         | Corre en las dos versiones, pero se saltea si no hay PDF reales (`FG_PDFS`)                                                                  |
 
 ## Referencias
 
