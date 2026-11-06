@@ -21,7 +21,7 @@ import {
 } from "@/shared/domain/company-registry/index.ts";
 import { registerProbe } from "@/shared/lib/test-probe.ts";
 import { usePermissions } from "@/shared/session/index.ts";
-import { Button, Input } from "@/shared/ui/index.ts";
+import { Button, Input, useCloseWithFloating } from "@/shared/ui/index.ts";
 import { companyListProbe } from "../model/registry-probe.ts";
 import { useRegistryContext } from "../model/registry-rules.ts";
 import {
@@ -190,6 +190,9 @@ function CompanySearchPopup({ anchor, onChoose, onClose, onOpenDatabase }: Searc
     if (failed) void reload();
     void refreshIfOld();
   }, [failed, refreshIfOld, reload]);
+
+  // The search of screens closes it on opening (`closePadronPop`).
+  useCloseWithFloating(onClose);
 
   useEffect(() => {
     const outside = ({ target }: MouseEvent) => {

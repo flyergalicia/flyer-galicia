@@ -5,6 +5,8 @@ import { expect, test } from "../../support/test.ts";
 const softly = expect.configure({ soft: true });
 const SEARCH_PROMPT = "Buscar una pantalla o función";
 const MARKUP = "<img src=x onerror=window.__xss=1>";
+// A name with < or > never arrives (they are taken out on reading the list): as entities it does.
+const ESCAPED_MARKUP = "&lt;img src=x onerror=window.__xss=1&gt;";
 const HEADER_WIDTHS = [1920, 1366, 1180, 1024];
 const DESKTOP = { width: 1366, height: 800 };
 const PHONE = { width: 390, height: 800 };
@@ -27,7 +29,7 @@ function headerButton({ page }: OpenedApp) {
   return page.getByRole("button", { name: SEARCH_PROMPT });
 }
 
-test.describe("as an advisor", () => {
+test.describe("as an advisor", { tag: "@react" }, () => {
   test("it opens with both shortcuts and the button, and closes the same ways", async ({
     openApp,
   }) => {
@@ -116,7 +118,7 @@ test.describe("as an advisor", () => {
     await page.keyboard.press("Escape");
 
     await search.search("historial");
-    await page.locator(".cmdk-it").first().click();
+    await panel(app).getByRole("option").first().click();
     await softly.poll(() => isShowing("flyer-history"), "a click also chooses").toBe(true);
 
     await search.goTo("cambiar logos");
@@ -209,70 +211,84 @@ test.describe("as an advisor", () => {
 });
 
 test.describe("as an administrator", () => {
-  test("it reaches the panel, other screens and inner views", async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    const { page, search, session, admin } = app;
-    const isShowing = session.isShowing.bind(session);
+  test(
+    "it reaches the panel, other screens and inner views",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp({ user: "admin" });
+      const { page, search, session, admin } = app;
+      const isShowing = session.isShowing.bind(session);
 
-    await search.search("auditoria");
-    expect.soft((await search.results())[0], "it searches without accents").toBe("Auditoría");
-    await page.keyboard.press("Enter");
-    await softly.poll(() => admin.isPanelOpen(), "it opens the panel").toBe(true);
-    await softly.poll(() => isShowing("admin-audit"), "on Auditoría").toBe(true);
+      await search.search("auditoria");
+      expect.soft((await search.results())[0], "it searches without accents").toBe("Auditoría");
+      await page.keyboard.press("Enter");
+      await softly.poll(() => admin.isPanelOpen(), "it opens the panel").toBe(true);
+      await softly.poll(() => isShowing("admin-audit"), "on Auditoría").toBe(true);
 
-    await search.goTo("legales");
-    await softly.poll(() => isShowing("admin-legal"), "with it open, it changes sheet").toBe(true);
+      await search.goTo("legales");
+      await softly
+        .poll(() => isShowing("admin-legal"), "with it open, it changes sheet")
+        .toBe(true);
 
-    await search.goTo("benchmark");
-    await softly.poll(() => admin.isPanelOpen(), "going to another screen closes it").toBe(false);
-    await softly.poll(() => isShowing("benchmark"), "and shows that screen").toBe(true);
+      await search.goTo("benchmark");
+      await softly.poll(() => admin.isPanelOpen(), "going to another screen closes it").toBe(false);
+      await softly.poll(() => isShowing("benchmark"), "and shows that screen").toBe(true);
 
-    await search.goTo("tarjetas");
-    await softly
-      .poll(() => app.benchmark.currentView(), {
-        message: "it takes to an inner view of Benchmark",
-        timeout: SLOW_SCREEN_MS,
-      })
-      .toBe("cards");
-  });
+      await search.goTo("tarjetas");
+      await softly
+        .poll(() => app.benchmark.currentView(), {
+          message: "it takes to an inner view of Benchmark",
+          timeout: SLOW_SCREEN_MS,
+        })
+        .toBe("cards");
+    },
+  );
 
-  test("the name of a flyer takes to that flyer, from another screen", async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    await app.search.goTo("promociones");
-    await softly.poll(() => app.session.isShowing("promotions")).toBe(true);
+  test(
+    "the name of a flyer takes to that flyer, from another screen",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp({ user: "admin" });
+      await app.search.goTo("promociones");
+      await softly.poll(() => app.session.isShowing("promotions")).toBe(true);
 
-    const other = await app.session.anotherAvailableFlyer();
-    expect.soft(other, "there is another flyer to go to").not.toBeNull();
-    await app.search.goTo(other?.name ?? "");
+      const other = await app.session.anotherAvailableFlyer();
+      expect.soft(other, "there is another flyer to go to").not.toBeNull();
+      await app.search.goTo(other?.name ?? "");
 
-    await softly
-      .poll(() => app.session.currentFlyerOption(), {
-        message: `it goes to ${String(other?.name)}`,
-        timeout: SLOW_SCREEN_MS,
-      })
-      .toBe(other?.option);
-    await softly.poll(() => app.session.isShowing("flyer-editor"), "on the editor").toBe(true);
-  });
+      await softly
+        .poll(() => app.session.currentFlyerOption(), {
+          message: `it goes to ${String(other?.name)}`,
+          timeout: SLOW_SCREEN_MS,
+        })
+        .toBe(other?.option);
+      await softly.poll(() => app.session.isShowing("flyer-editor"), "on the editor").toBe(true);
+    },
+  );
 
-  test("Base de datos opens from the search and closes by going elsewhere", async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    const { page, search, session } = app;
+  test(
+    "Base de datos opens from the search and closes by going elsewhere",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp({ user: "admin" });
+      const { page, search, session } = app;
 
-    await search.goTo("mis asesores");
-    await softly.poll(() => session.isShowing("my-database"), "Base de datos opens").toBe(true);
+      await search.goTo("mis asesores");
+      await softly.poll(() => session.isShowing("my-database"), "Base de datos opens").toBe(true);
 
-    await search.search("mis asesores");
-    expect
-      .soft(await search.resultLines(), "each result says where it is from")
-      .toEqual(expect.arrayContaining([expect.stringMatching(/Mis asesores.*Base de datos/)]));
-    await page.keyboard.press("Escape");
+      await search.search("mis asesores");
+      expect
+        .soft(await search.resultLines(), "each result says where it is from")
+        .toEqual(expect.arrayContaining([expect.stringMatching(/Mis asesores.*Base de datos/)]));
+      await page.keyboard.press("Escape");
 
-    await search.goTo("promociones");
-    await softly
-      .poll(() => session.isShowing("my-database"), "going elsewhere closes it")
-      .toBe(false);
-    await softly.poll(() => session.isShowing("promotions"), "and shows that screen").toBe(true);
-  });
+      await search.goTo("promociones");
+      await softly
+        .poll(() => session.isShowing("my-database"), "going elsewhere closes it")
+        .toBe(false);
+      await softly.poll(() => session.isShowing("promotions"), "and shows that screen").toBe(true);
+    },
+  );
 
   test("the name of a flyer is painted as text", async ({ openApp }) => {
     const app = await openApp({ user: "admin" });
@@ -287,41 +303,68 @@ test.describe("as an administrator", () => {
       .toEqual({ ranScript: false, imageInList: false });
   });
 
-  test("dark mode applies without moving and the panel stays readable", async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    const { search, session } = app;
-    await search.goTo("promociones");
-    await softly.poll(() => session.isShowing("promotions")).toBe(true);
+  test(
+    "the name of a flyer that arrives with markup is listed as written",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.addFlyerOption({ option: 12, name: ESCAPED_MARKUP, image: null, legal: "" });
+      const app = await openApp({ user: "admin" });
 
-    await search.goTo("modo oscuro");
-    await softly.poll(() => session.isDarkMode(), "the theme changes").toBe(true);
-    expect.soft(await session.isShowing("promotions"), "without moving of screen").toBe(true);
+      await app.search.search("");
+      await app.page.waitForTimeout(IMAGE_ERROR_MS);
 
-    await search.search("");
-    const { background, text } = await search.panelColors();
-    expect.soft(background, "in dark mode the background is dark").not.toBe("rgb(255, 255, 255)");
-    expect.soft(text, "and the letters stand out from it").not.toBe(background);
-  });
-
-  test("the header holds every tab of the administrator", async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    for (const width of HEADER_WIDTHS) {
-      await app.page.setViewportSize({ width, height: DESKTOP.height });
-      await expect
-        .poll(() => app.session.headerFit().then(({ windowWidth }) => windowWidth))
-        .toBe(width);
-      const fit = await app.session.headerFit();
       expect
-        .soft(fit.contentWidth, `${String(width)}px: the header does not overflow`)
-        .toBeLessThanOrEqual(fit.visibleWidth + 1);
+        .soft(await app.search.results(), "it is listed, as it was written")
+        .toContain(ESCAPED_MARKUP);
       expect
-        .soft(fit.searchButtonRight, `${String(width)}px: the button is inside the window`)
-        .toBeLessThanOrEqual(fit.windowWidth);
-    }
-  });
+        .soft(await app.search.injectedMarkup(), "the name of a flyer is not read as HTML")
+        .toEqual({ ranScript: false, imageInList: false });
+    },
+  );
+
+  test(
+    "dark mode applies without moving and the panel stays readable",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp({ user: "admin" });
+      const { search, session } = app;
+      await search.goTo("promociones");
+      await softly.poll(() => session.isShowing("promotions")).toBe(true);
+
+      await search.goTo("modo oscuro");
+      await softly.poll(() => session.isDarkMode(), "the theme changes").toBe(true);
+      expect.soft(await session.isShowing("promotions"), "without moving of screen").toBe(true);
+
+      await search.search("");
+      const { background, text } = await search.panelColors();
+      expect.soft(background, "in dark mode the background is dark").not.toBe("rgb(255, 255, 255)");
+      expect.soft(text, "and the letters stand out from it").not.toBe(background);
+    },
+  );
+
+  test(
+    "the header holds every tab of the administrator",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const app = await openApp({ user: "admin" });
+      for (const width of HEADER_WIDTHS) {
+        await app.page.setViewportSize({ width, height: DESKTOP.height });
+        await expect
+          .poll(() => app.session.headerFit().then(({ windowWidth }) => windowWidth))
+          .toBe(width);
+        const fit = await app.session.headerFit();
+        expect
+          .soft(fit.contentWidth, `${String(width)}px: the header does not overflow`)
+          .toBeLessThanOrEqual(fit.visibleWidth + 1);
+        expect
+          .soft(fit.searchButtonRight, `${String(width)}px: the button is inside the window`)
+          .toBeLessThanOrEqual(fit.windowWidth);
+      }
+    },
+  );
 });
 
-test.describe("as Gestiones people", () => {
+test.describe("as Gestiones people", { tag: "@react" }, () => {
   test.beforeEach(({ cloud }) => {
     cloud.seedCommercialActions();
   });
@@ -364,23 +407,25 @@ test.describe("as Gestiones people", () => {
   });
 });
 
-test("on a phone it fits, with a field that does not zoom, and works with the finger", async ({
-  openApp,
-}) => {
-  const app = await openApp({ user: "admin", viewport: PHONE, touch: true });
+test(
+  "on a phone it fits, with a field that does not zoom, and works with the finger",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin", viewport: PHONE, touch: true });
 
-  await headerButton(app).tap();
-  const layout = await app.search.panelLayout();
-  expect.soft(layout.left, "it fits on the left").toBeGreaterThanOrEqual(0);
-  expect.soft(layout.right, "it fits on the right").toBeLessThanOrEqual(layout.windowWidth);
-  expect.soft(layout.pageWidth, "with no sideways bar").toBeLessThanOrEqual(layout.windowWidth);
-  expect
-    .soft(layout.fieldFontSizePx, "16 px at least: the iPhone does not zoom when touching it")
-    .toBeGreaterThanOrEqual(16);
+    await headerButton(app).tap();
+    const layout = await app.search.panelLayout();
+    expect.soft(layout.left, "it fits on the left").toBeGreaterThanOrEqual(0);
+    expect.soft(layout.right, "it fits on the right").toBeLessThanOrEqual(layout.windowWidth);
+    expect.soft(layout.pageWidth, "with no sideways bar").toBeLessThanOrEqual(layout.windowWidth);
+    expect
+      .soft(layout.fieldFontSizePx, "16 px at least: the iPhone does not zoom when touching it")
+      .toBeGreaterThanOrEqual(16);
 
-  await field(app).fill("promo");
-  await app.page.getByRole("option").first().tap();
-  await softly
-    .poll(() => app.session.isShowing("promotions"), "the finger also takes to the screen")
-    .toBe(true);
-});
+    await field(app).fill("promo");
+    await app.page.getByRole("option").first().tap();
+    await softly
+      .poll(() => app.session.isShowing("promotions"), "the finger also takes to the screen")
+      .toBe(true);
+  },
+);

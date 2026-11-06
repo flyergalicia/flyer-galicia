@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import type { SearchableCompany } from "@/shared/domain/company-registry/index.ts";
 import { jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
 import { Inside } from "@/shared/lib/testing/Inside.tsx";
+import { closeFloating } from "@/shared/ui/index.ts";
 import {
   FAILED_CONNECTION,
   type RegistryCloud,
@@ -270,6 +271,16 @@ describe("the magnifying glass", () => {
 
     await lens().click();
     await page.getByTestId("company-search").getByLabelText("Cerrar").click();
+    await expect.element(list()).not.toBeInTheDocument();
+  });
+
+  it("closes when the search of screens opens", async () => {
+    open();
+    await lens().click();
+    await expect.element(list()).toBeVisible();
+
+    closeFloating();
+
     await expect.element(list()).not.toBeInTheDocument();
   });
 

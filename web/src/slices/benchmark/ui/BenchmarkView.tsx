@@ -1,6 +1,8 @@
 // The tab Benchmark: Galicia against the competition, at the level of a person. Its code comes down
 // when the tab is opened, and nothing here touches the flyer editor.
 import { type ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
+import { BENCHMARK_VIEWS, isBenchView } from "@/shared/domain/benchmark-views.ts";
+import { usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { registerProbe } from "@/shared/lib/test-probe.ts";
 import type { ViewProps } from "@/shared/lib/view-props.ts";
 import { useSession } from "@/shared/session/index.ts";
@@ -67,15 +69,10 @@ function useIsAdmin(): boolean {
 function Tabs() {
   const { screen } = useBenchmark();
   const { dispatch } = useBenchmarkActions();
-  const tabs: readonly (readonly [BenchView, string])[] = [
-    ["rubro", "Resumen por rubro"],
-    ["marca", "Cara a cara por marca"],
-    ["semana", "Semana"],
-    ["comercio", "Por comercio"],
-    ["versus", `Galicia vs ${bankName(screen.versus)}`],
-    // "Cargadas a mano" is shown to nobody: its promotions still enter the comparison.
-    ["tarjetas", "Tarjetas y salas VIP"],
-  ];
+  // "Cargadas a mano" is shown to nobody: its promotions still enter the comparison.
+  const tabs = BENCHMARK_VIEWS.map(([view, label]): readonly [BenchView, string] =>
+    view === "versus" ? [view, `Galicia vs ${bankName(screen.versus)}`] : [view, label],
+  );
   return (
     <div
       className={styles.tabs}
@@ -344,6 +341,10 @@ export function BenchmarkScreen({ handLoadedPage = false }: { readonly handLoade
     firstScreen(readStoredReferences()),
   );
   const isAdmin = useIsAdmin();
+  // A view from the search of screens: as its solapa does.
+  usePlaceRequests("benchmark", (view) => {
+    if (isBenchView(view)) dispatch({ type: "view", view });
+  });
   const actions = useActions(reading, dispatch, screen);
   const value = useValue({ reading, screen, isAdmin });
   const refresh = useRefresh(reading.readAgain);

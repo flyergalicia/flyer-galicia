@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { catalogHasGeography, knownProvinces } from "@/shared/domain/promotions/index.ts";
+import { isPromotionsTab } from "@/shared/domain/promotions/tabs.ts";
 import { usePrimaryAction } from "@/shared/lib/primary-action/primary-action-context.ts";
 import {
   catalogNeverUpdated,
@@ -13,6 +14,7 @@ import {
   type AskedFilters,
   usePromotionFiltersPort,
 } from "@/shared/lib/promotions/promotion-filters.ts";
+import { usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { usePromotionLogoSource } from "@/shared/lib/promotions/logo-file.ts";
 import { promotionsProbe } from "@/shared/lib/promotions/promotions-probe.ts";
 import { registerProbe } from "@/shared/lib/test-probe.ts";
@@ -167,6 +169,11 @@ export function PromotionsProvider({ isActive, children }: PromotionsProviderPro
   );
 
   useSharedFilters(state, dispatch, actions);
+
+  // Buscar or Activas from the search of screens: as their solapa does.
+  usePlaceRequests("promotions", (tab) => {
+    if (isPromotionsTab(tab)) actions.switchTab(tab);
+  });
 
   // The tick is one wherever it shows: if another screen changes it, the table follows.
   useEffect(() => {

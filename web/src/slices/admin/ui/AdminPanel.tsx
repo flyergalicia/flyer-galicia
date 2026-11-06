@@ -1,6 +1,7 @@
 import { type ComponentType, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePendingAccounts } from "@/shared/lib/app-config/pending-accounts-query.ts";
+import { useLeaveRequests, usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import type { MenuWindowProps } from "@/shared/lib/view-props.ts";
 import { Tabs } from "@/shared/ui/index.ts";
 import { useDialog } from "@/shared/ui/modal/use-dialog.ts";
@@ -132,6 +133,11 @@ export function AdminPanel({ onClose }: MenuWindowProps) {
     rememberPlace(next);
     setPlace(next);
   };
+  // A sheet from the search of screens, as its solapa; and going elsewhere, as its X.
+  usePlaceRequests("admin", (sheet) => {
+    choose(goToSheet(place, sheet));
+  });
+  useLeaveRequests("admin", closePanel);
   const Sheet = SHEET_VIEWS[place.sheet];
 
   return createPortal(
@@ -150,6 +156,7 @@ export function AdminPanel({ onClose }: MenuWindowProps) {
         open
         aria-modal="true"
         aria-label="Panel Administrador"
+        data-screen-window=""
         tabIndex={-1}
         className={shown ? `${styles.panel} ${styles.shown}` : styles.panel}
         data-testid="admin-panel"

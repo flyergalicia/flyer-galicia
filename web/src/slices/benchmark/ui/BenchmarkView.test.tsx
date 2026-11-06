@@ -2,6 +2,7 @@
 // filters and each view.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
 import { jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
 import { openBenchmark } from "../testing/benchmark-on-screen.tsx";
 import { BRANDS, CARDS, MANUAL, META, PROMOTIONS, promo } from "../testing/fixtures.ts";
@@ -54,6 +55,18 @@ beforeEach(() => {
 afterEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
+});
+
+describe("from the search of screens", () => {
+  it("a view goes there, as its solapa does", async () => {
+    await openFull();
+
+    placeDeskOnPage().ask("benchmark", "tarjetas");
+    await expect.element(root()).toHaveAttribute("data-view", "tarjetas");
+    await expect.element(tab("Tarjetas y salas VIP")).toHaveAttribute("aria-selected", "true");
+    placeDeskOnPage().ask("benchmark", "cargadas");
+    await expect.element(root()).toHaveAttribute("data-view", "tarjetas");
+  });
 });
 
 describe("reading", () => {

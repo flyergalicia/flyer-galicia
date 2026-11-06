@@ -4,6 +4,7 @@ import { render } from "vitest-browser-react";
 import { workspaceOnScreen } from "@/shared/lib/flyer-workspace/testing/painted-flyer.ts";
 import { HOLD_TO_LIFT_MS } from "@/shared/lib/use-hold-reorder.ts";
 import { ADVISOR, createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
+import { closeFloating } from "@/shared/ui/index.ts";
 import { type Answer, jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
 import { useFavoriteFlyers } from "../model/use-favorite-flyers.ts";
 import { flyerFiles, flyerShown, open } from "../testing/editor-on-screen.tsx";
@@ -166,6 +167,16 @@ describe("with more", () => {
 
     await others().click();
     window.dispatchEvent(new Event("resize"));
+    await expect.element(list()).not.toBeInTheDocument();
+  });
+
+  it("closes when the search of screens opens", async () => {
+    await openBar();
+    await others().click();
+    await expect.element(list()).toBeVisible();
+
+    closeFloating();
+
     await expect.element(list()).not.toBeInTheDocument();
   });
 

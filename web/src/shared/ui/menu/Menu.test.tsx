@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { closeFloating } from "../floating/close-floating.ts";
 import { Menu } from "./Menu.ts";
 
 const noop = () => undefined;
@@ -70,6 +71,15 @@ describe("Menu", () => {
     await userEvent.keyboard("x");
     await expect.element(screen.getByRole("menu")).toBeVisible();
     await userEvent.keyboard("{Escape}");
+    await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("closes with what floats, when the search of screens opens", async () => {
+    const screen = await render(<Example defaultOpen />);
+    await expect.element(screen.getByRole("menu")).toBeVisible();
+
+    closeFloating();
+
     await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
   });
 

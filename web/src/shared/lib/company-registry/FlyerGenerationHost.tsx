@@ -6,7 +6,11 @@ import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { usePermissions } from "@/shared/session/index.ts";
 import { useBackend } from "@/shared/supabase/index.ts";
 import { createFlyerGenerationHub, type FlyerGenerationHub } from "./flyer-generation-hub.ts";
-import { FlyerGenerationAttachContext, FlyerGenerationContext } from "./flyer-generation-port.ts";
+import {
+  FlyerBatchWatchContext,
+  FlyerGenerationAttachContext,
+  FlyerGenerationContext,
+} from "./flyer-generation-port.ts";
 
 /** A while after entering, once the screen is quiet. */
 const CHECK_AFTER_MS = 6000;
@@ -86,7 +90,9 @@ export function FlyerGenerationHost({
   return (
     <FlyerGenerationContext.Provider value={hub}>
       <FlyerGenerationAttachContext.Provider value={hub.attach}>
-        {children}
+        <FlyerBatchWatchContext.Provider value={hub.watchBatch}>
+          {children}
+        </FlyerBatchWatchContext.Provider>
       </FlyerGenerationAttachContext.Provider>
     </FlyerGenerationContext.Provider>
   );

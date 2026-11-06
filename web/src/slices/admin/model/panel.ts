@@ -1,53 +1,21 @@
 // The panel has three pillars, each with its sheets, and each pillar remembers the last sheet seen:
 // `_AP_GROUPS` and `_apLast`. Parts 2 and 3 fill the sheets of Config without touching this.
-export type Pillar = "admin" | "data" | "config";
+import {
+  isSheet,
+  type Pillar,
+  PILLARS,
+  pillarOf,
+  type SheetId,
+} from "@/shared/domain/admin-sheets.ts";
 
-export type SheetId =
-  | "dashboard"
-  | "usuarios"
-  | "registros"
-  | "uso"
-  | "facultades"
-  | "auditoria"
-  | "varios"
-  | "asesores"
-  | "padronotros"
-  | "padronlog"
-  | "subir"
-  | "cashback"
-  | "legales"
-  | "opciones"
-  | "vigiladas";
-
-export const PILLARS: readonly (readonly [Pillar, string])[] = [
-  ["admin", "Admin"],
-  ["data", "Data"],
-  ["config", "Config"],
-];
-
-export const SHEETS: Readonly<Record<Pillar, readonly (readonly [SheetId, string])[]>> = {
-  admin: [
-    ["dashboard", "Dashboard"],
-    ["usuarios", "Usuarios"],
-    ["registros", "Registros"],
-    ["uso", "Uso"],
-    ["facultades", "Facultades"],
-    ["auditoria", "Auditoría"],
-  ],
-  data: [
-    ["varios", "Mis empresas"],
-    ["asesores", "Mis asesores"],
-    ["padronotros", "Empresas por usuario"],
-    ["padronlog", "Cambios en las empresas"],
-  ],
-  config: [
-    ["subir", "Flyer"],
-    ["cashback", "Cashback"],
-    ["legales", "Legales"],
-    ["opciones", "Opciones"],
-    ["vigiladas", "Marcas vigiladas"],
-  ],
-};
+export {
+  isSheet,
+  type Pillar,
+  PILLARS,
+  pillarOf,
+  type SheetId,
+  SHEETS,
+} from "@/shared/domain/admin-sheets.ts";
 
 export interface PanelPlace {
   readonly sheet: SheetId;
@@ -58,15 +26,6 @@ export const FIRST_PLACE: PanelPlace = {
   sheet: "dashboard",
   last: { admin: "dashboard", data: "varios", config: "subir" },
 };
-
-export function pillarOf(sheet: SheetId): Pillar {
-  for (const [pillar] of PILLARS) if (SHEETS[pillar].some(([id]) => id === sheet)) return pillar;
-  return "admin";
-}
-
-export function isSheet(value: string): value is SheetId {
-  return PILLARS.some(([pillar]) => SHEETS[pillar].some(([id]) => id === value));
-}
 
 /** A sheet chosen: it is also the last one seen of its pillar. Something else changes nothing. */
 export function goToSheet(place: PanelPlace, sheet: string): PanelPlace {

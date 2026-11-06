@@ -24,12 +24,12 @@ import {
   MENU_WINDOWS_BELOW,
   type MenuWindow,
   NOTICE_SOURCES,
-  SEARCH_WINDOW,
 } from "../registry/views.ts";
 import { AppHeader } from "./AppHeader.tsx";
 import { CommercialDeskHost } from "./CommercialDeskHost.tsx";
 import { LoadBoundary } from "./LoadBoundary.tsx";
 import { PromotionPickingHost } from "./PromotionPickingHost.tsx";
+import { SearchHost } from "./SearchHost.tsx";
 import { useWaitingNotices } from "./use-waiting-notices.tsx";
 import { ViewHost } from "./ViewHost.tsx";
 import styles from "./AppShell.module.css";
@@ -128,9 +128,6 @@ export function AppShell({
     },
     [showWindow],
   );
-  const showSearch = useCallback(() => {
-    showWindow(SEARCH_WINDOW);
-  }, [showWindow]);
   const showAdmin = useCallback(() => {
     showWindow(ADMIN_WINDOW);
   }, [showWindow]);
@@ -144,20 +141,32 @@ export function AppShell({
         <CommercialDeskHost goTo={setChosen}>
           <div className={styles.shell}>
             {reporters}
-            <AppHeader
-              activeId={activeId}
-              titles={titles}
+            <SearchHost
               rules={rules}
-              name={displayName}
-              role={role}
-              isAdmin={isAdmin}
-              isTestAccount={profile.es_prueba}
-              notice={notice}
-              onSelectView={setChosen}
-              onOpenWindow={showWindow}
-              onOpenSearch={showSearch}
-              onOpenAdmin={showAdmin}
-            />
+              titles={titles}
+              activeId={activeId}
+              flyerOptions={flyerOptions}
+              openWindowId={openWindow?.id ?? null}
+              goToTab={setChosen}
+              openWindow={showWindow}
+            >
+              {(showSearch) => (
+                <AppHeader
+                  activeId={activeId}
+                  titles={titles}
+                  rules={rules}
+                  name={displayName}
+                  role={role}
+                  isAdmin={isAdmin}
+                  isTestAccount={profile.es_prueba}
+                  notice={notice}
+                  onSelectView={setChosen}
+                  onOpenWindow={showWindow}
+                  onOpenSearch={showSearch}
+                  onOpenAdmin={showAdmin}
+                />
+              )}
+            </SearchHost>
             <PromotionPickingHost activeId={activeId} goTo={setChosen}>
               <ViewHost
                 activeId={activeId}

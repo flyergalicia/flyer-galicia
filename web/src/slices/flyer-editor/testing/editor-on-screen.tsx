@@ -12,6 +12,7 @@ import {
   PromotionPickerContext,
 } from "@/shared/lib/promotions/promotion-picking.ts";
 import { ADVISOR, type AppAnswers, createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
+import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
 import type { ViewProps } from "@/shared/lib/view-props.ts";
 import { EditorStage } from "./EditorStage.tsx";
 
@@ -65,6 +66,7 @@ export async function open(
   const view = (id: string, active: boolean) =>
     harness.wrap(
       <PromotionPickerContext.Provider value={NO_PICKER}>
+        <PlaceDeskReader />
         <EditorStage tabId={id} isActive={active} {...ways} />
       </PromotionPickerContext.Provider>,
     );

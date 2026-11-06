@@ -5,19 +5,12 @@ import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { type DropSide, useHoldReorder } from "@/shared/lib/use-hold-reorder.ts";
 import { tabOrder } from "../registry/resolve-view.ts";
 import type { ViewRules } from "../registry/view-rules.ts";
-import { type AppView, viewById } from "../registry/views.ts";
+import { headerTabsOf } from "../registry/header-tabs.ts";
+import { viewById } from "../registry/views.ts";
+
+export type { HeaderTab } from "../registry/header-tabs.ts";
 
 const TAB_SELECTOR = '[role="tab"]';
-
-export interface HeaderTab {
-  readonly id: string;
-  readonly title: string;
-  readonly isRenameable: boolean;
-}
-
-function tabTitle({ title }: AppView, titles: ScreenTitles): string {
-  return "fixed" in title ? title.fixed : titleOf(titles, title.key);
-}
 
 function moved(order: readonly string[], lifted: string, over: string, side: DropSide): string[] {
   const rest = order.filter((id) => id !== lifted);
@@ -87,15 +80,7 @@ export function useHeaderTabs({ rules, titles, canEdit }: HeaderTabsOptions) {
     [reportFailure, save, titles, toast],
   );
 
-  const tabs = useMemo<readonly HeaderTab[]>(
-    () =>
-      order.flatMap((id) => {
-        const view = viewById(id);
-        if (!view?.visible(rules)) return [];
-        return [{ id, title: tabTitle(view, titles), isRenameable: "key" in view.title }];
-      }),
-    [order, rules, titles],
-  );
+  const tabs = useMemo(() => headerTabsOf(order, rules, titles), [order, rules, titles]);
 
   return { tabs, container, reorder, rename };
 }

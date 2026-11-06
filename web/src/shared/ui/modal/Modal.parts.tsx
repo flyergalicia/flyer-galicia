@@ -40,6 +40,11 @@ type ModalProps = {
   readonly look?: ModalLook;
   /** A window with work in progress only closes with its X or with Escape. */
   readonly closeOnBackdrop?: boolean;
+  /**
+   * A window that works as a screen (Base de datos): the search of screens opens over it and goes
+   * elsewhere from it, which another window does not let.
+   */
+  readonly screenWindow?: boolean;
   readonly className?: string | undefined;
   readonly children: ReactNode;
 };
@@ -49,6 +54,7 @@ export function ModalRoot({
   size = "regular",
   look = "window",
   closeOnBackdrop = true,
+  screenWindow = false,
   className,
   children,
 }: ModalProps) {
@@ -79,6 +85,7 @@ export function ModalRoot({
           open
           aria-modal="true"
           aria-labelledby={titleId}
+          data-screen-window={screenWindow ? "" : undefined}
           tabIndex={-1}
           className={`${styles.panel} ${styles[size]}${className ? ` ${className}` : ""}`}
         >

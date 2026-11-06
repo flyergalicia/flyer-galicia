@@ -4,6 +4,10 @@ import {
   type CommercialDesk,
   CommercialDeskContext,
 } from "@/shared/lib/commercial-actions/commercial-desk.ts";
+import {
+  FlyerBatchWatchContext,
+  type WatchBatch,
+} from "@/shared/lib/company-registry/flyer-generation-port.ts";
 import { LOGO_A, paintedFlyer } from "@/shared/lib/flyer-workspace/testing/painted-flyer.ts";
 import { ADVISOR, type AppAnswers, createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
 import { type Answer, jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
@@ -57,6 +61,8 @@ export interface HunterCloud extends AppAnswers {
   readonly companies?: readonly Row[] | Answer;
   readonly proposals?: readonly Row[] | Answer;
   readonly permissions?: Readonly<Record<string, boolean>>;
+  /** Who watches the batches of the page: the shell, for the search of screens. */
+  readonly watchBatch?: WatchBatch;
 }
 
 function answerOf(rows: readonly Row[] | Answer | undefined): Answer {
@@ -86,17 +92,22 @@ export function hunterHarness(cloud: HunterCloud = {}) {
   return { harness, bucketFiles };
 }
 
-export async function openHunter({ desk, ...cloud }: HunterCloud = {}, isActive = true) {
+export async function openHunter(
+  { desk, watchBatch, ...cloud }: HunterCloud = {},
+  isActive = true,
+) {
   const { harness, bucketFiles } = hunterHarness(cloud);
   const view = (active: boolean) =>
     harness.wrap(
-      desk ? (
-        <CommercialDeskContext.Provider value={desk}>
+      <FlyerBatchWatchContext.Provider value={watchBatch ?? null}>
+        {desk ? (
+          <CommercialDeskContext.Provider value={desk}>
+            <HunterStage isActive={active} />
+          </CommercialDeskContext.Provider>
+        ) : (
           <HunterStage isActive={active} />
-        </CommercialDeskContext.Provider>
-      ) : (
-        <HunterStage isActive={active} />
-      ),
+        )}
+      </FlyerBatchWatchContext.Provider>,
     );
   const screen = await render(view(isActive));
   return {

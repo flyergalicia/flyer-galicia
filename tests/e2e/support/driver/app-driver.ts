@@ -39,10 +39,10 @@ import { createReactFlyerSectionsDriver } from "./react/flyer-sections.ts";
 import { createReactHunterDriver } from "./react/hunter.ts";
 import { createReactLogoEditorDriver } from "./react/logo-editor.ts";
 import { createReactLogoStripDriver } from "./react/logo-strip.ts";
-import { partialDriver } from "./react/pending.ts";
 import { createReactPromotionsDriver } from "./react/promotions.ts";
 import { createReactSavedBrandsDriver } from "./react/saved-brands.ts";
 import { createReactScreensDriver } from "./react/screens.ts";
+import { createReactSearchDriver } from "./react/search.ts";
 import { createReactSessionDriver } from "./react/session.ts";
 import { createReactStudioDriver } from "./react/studio.ts";
 import { type HunterDriver } from "./hunter.ts";
@@ -95,6 +95,7 @@ function createReactAppDriver(page: Page): AppDriver {
   const commercialActions = createReactCommercialActionsDriver(page);
   const benchmark = createReactBenchmarkDriver(page);
   const admin = createReactAdminDriver(page);
+  const search = createReactSearchDriver(page);
   return {
     page,
     session,
@@ -114,7 +115,7 @@ function createReactAppDriver(page: Page): AppDriver {
     commercialActions,
     benchmark,
     admin,
-    search: partialDriver("search"),
+    search,
     screens: createReactScreensDriver(page, {
       session,
       promotions,
@@ -125,6 +126,7 @@ function createReactAppDriver(page: Page): AppDriver {
       commercialActions,
       benchmark,
       admin,
+      search,
     }),
   };
 }

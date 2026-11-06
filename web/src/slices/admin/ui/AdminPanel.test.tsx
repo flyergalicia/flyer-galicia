@@ -1,6 +1,9 @@
 // The frame of the panel: its pillars and sheets, where it opens, and what it asks before closing.
-import { afterEach, describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
+import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
 import { FIRST_PLACE, rememberPlace } from "../model/panel.ts";
 import { openPanel } from "../testing/panel-cloud.ts";
 
@@ -108,6 +111,41 @@ describe("the panel", () => {
 
     await panel().getByRole("button", { name: "Cerrar", exact: true }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Salir sin guardar" }).click();
+    await expect.poll(() => closed.length).toBe(1);
+  });
+});
+
+describe("from the search of screens", () => {
+  const beside = createElement(PlaceDeskReader);
+
+  it("goes to the sheet asked for, in any pillar, as its solapa does", async () => {
+    await openPanel({ beside });
+    await expect.element(sheet("Admin", "Dashboard")).toHaveAttribute("aria-selected", "true");
+    placeDeskOnPage().ask("admin", "auditoria");
+    await expect.element(sheet("Admin", "Auditoría")).toHaveAttribute("aria-selected", "true");
+
+    placeDeskOnPage().ask("admin", "legales");
+    await expect.element(sheet("Config", "Legales")).toHaveAttribute("aria-selected", "true");
+    await expect.element(panel()).toHaveAttribute("data-screen-window");
+  });
+
+  it("going elsewhere asks as its X does, and goes on only after the yes", async () => {
+    const { closed } = await openPanel({ beside });
+    await pillar("Data").click();
+    await sheet("Data", "Mis asesores").click();
+    await panel()
+      .getByRole("button", { name: /Agregar asesor/ })
+      .click();
+    const goOn = vi.fn<() => void>();
+
+    placeDeskOnPage().leave("admin", goOn);
+    const question = page.getByRole("alertdialog");
+    await question.getByRole("button", { name: "Seguir editando" }).click();
+    expect(goOn).not.toHaveBeenCalled();
+
+    placeDeskOnPage().leave("admin", goOn);
+    await page.getByRole("alertdialog").getByRole("button", { name: "Salir sin guardar" }).click();
+    expect(goOn).toHaveBeenCalledOnce();
     await expect.poll(() => closed.length).toBe(1);
   });
 });

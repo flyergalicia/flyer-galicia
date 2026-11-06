@@ -748,10 +748,20 @@ describe("Descarga múltiple", () => {
   it("while it is generating, a touch on a row says to wait and changes nothing", async () => {
     zipsDownloaded();
     const waiting = deferred<Response>();
+    // The shell watches it: meanwhile the search of screens does not open (`_pgBusy`).
+    const watched = new Set<() => boolean>();
     const { harness } = await openHunter({
       companies: [company("ACME SA"), company("RUBRO SA", { rubro: { opcion: 11 } })],
       permissions: ALL_FLYERS,
+      watchBatch: (isRunning) => {
+        watched.add(isRunning);
+        return () => {
+          watched.delete(isRunning);
+        };
+      },
     });
+    const generating = () => Array.from(watched).some((isRunning) => isRunning());
+    expect(generating()).toBe(false);
     await startMultiple();
     await tick("RUBRO SA").click();
     await expect.element(tick("RUBRO SA")).toBeChecked();
@@ -765,6 +775,7 @@ describe("Descarga múltiple", () => {
       .getByRole("button", { name: "Generar", exact: true })
       .click();
     await expect.element(zip()).toBeDisabled();
+    expect(generating()).toBe(true);
     expect(harness.network.requests.length).toBeGreaterThan(before);
     await choose("ACME SA");
     await expect.element(notice()).toHaveTextContent("Esperá a que termine de generar el ZIP.");
@@ -773,6 +784,7 @@ describe("Descarga múltiple", () => {
     await expect.element(page.getByRole("alertdialog")).not.toBeInTheDocument();
     waiting.resolve(jsonResponse({ text: "" }));
     await expect.element(page.getByTestId("decision-dialog")).toBeVisible();
+    expect(generating()).toBe(false);
   });
 });
 

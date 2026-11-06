@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { Button, Icon, useShortcutTip } from "@/shared/ui/index.ts";
 import { useIsPhone } from "../model/use-is-phone.ts";
 import type { DownloadKind } from "../model/use-flyer-download.ts";
@@ -26,6 +27,10 @@ type OtherActionsProps = Pick<
 function OtherActions({ isDocked, sharing, canShare, onDownload, onShare }: OtherActionsProps) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  // "Otros" of the search of screens opens it as its button does.
+  usePlaceRequests("flyer-others", () => {
+    setOpen(true);
+  });
   useEffect(() => {
     if (!open) return undefined;
     const onKey = ({ key }: KeyboardEvent) => {

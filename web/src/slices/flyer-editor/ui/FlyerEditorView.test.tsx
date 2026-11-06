@@ -8,6 +8,7 @@ import {
   paintedFlyer,
   workspaceOnScreen,
 } from "@/shared/lib/flyer-workspace/testing/painted-flyer.ts";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
 import { jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
 import { attachPreviewGestures, ZOOM_TIP } from "../model/preview-gestures.ts";
 import { flyerFiles, flyerShown, open, ALLOWED } from "../testing/editor-on-screen.tsx";
@@ -507,6 +508,91 @@ const nextFrame = () =>
   new Promise((resolve) => {
     requestAnimationFrame(resolve);
   });
+
+const editorPanel = (name: string) =>
+  page.getByRole("tablist", { name: "Modo de armado" }).getByRole("tab", { name });
+
+describe("from the search of screens", () => {
+  it("Masivo, Historial and Individual go to their panel", async () => {
+    await open();
+    await flyerShown();
+
+    placeDeskOnPage().ask("flyer-editor", "masivo");
+    await expect.element(editorPanel("Masivo")).toHaveAttribute("aria-selected", "true");
+    placeDeskOnPage().ask("flyer-editor", "historial");
+    await expect.element(editorPanel("Historial")).toHaveAttribute("aria-selected", "true");
+    placeDeskOnPage().ask("flyer-editor", "individual");
+    await expect.element(editorPanel("Individual")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("Cambiar logos goes in from Individual, and stays in if it was already", async () => {
+    await open();
+    await flyerShown();
+    await editorPanel("Masivo").click();
+
+    placeDeskOnPage().ask("flyer-editor", "logos");
+    await expect.element(page.getByRole("button", { name: "Listo" })).toBeVisible();
+    await expect.element(editorPanel("Individual")).toHaveAttribute("aria-selected", "true");
+    placeDeskOnPage().ask("flyer-editor", "logos");
+    await expect.element(page.getByRole("button", { name: "Listo" })).toBeVisible();
+  });
+
+  it("Cambiar logos on a flyer that is not there says why, as its button does", async () => {
+    await open({}, "flyer");
+    await flyerShown();
+    await page.getByTestId("flyer-options").getByRole("button", { name: "Otro Flyer" }).click();
+    await vi.waitFor(() => {
+      expect(theWorkspace().getState().slot.option).toBe(6);
+      expect(theWorkspace().getState().slot.loading).toBe(false);
+    });
+
+    placeDeskOnPage().ask("flyer-editor", "logos");
+    await expect
+      .element(page.getByRole("status"))
+      .toHaveTextContent("«Otro Flyer» todavía no tiene flyer cargado. Avisale al administrador.");
+    await expect.element(page.getByRole("button", { name: "Cambiar logos" })).toBeVisible();
+  });
+
+  it("Otros opens its menu", async () => {
+    await open();
+    await flyerShown();
+
+    placeDeskOnPage().ask("flyer-editor", "otros");
+    await expect
+      .element(page.getByRole("button", { name: "Otros" }))
+      .toHaveAttribute("aria-expanded", "true");
+    await expect
+      .element(page.getByRole("button", { name: "Descargar como imagen (PNG)" }))
+      .toBeVisible();
+  });
+
+  it("while a ZIP is generated a flyer is not changed, and it says why, as on the bar", async () => {
+    await open();
+    await flyerShown();
+    const release = theWorkspace().batch.hold();
+
+    placeDeskOnPage().ask("flyer-editor", "option:6");
+
+    await expect
+      .element(page.getByRole("status"))
+      .toHaveTextContent("Esperá a que termine de generar el ZIP.");
+    expect(theWorkspace().getState().slot.option).toBe(9);
+    release();
+  });
+
+  it("a flyer goes to that flyer, as touching it on the bar does", async () => {
+    await open();
+    await flyerShown();
+
+    placeDeskOnPage().ask("flyer-editor", "option:6");
+    await vi.waitFor(() => {
+      expect(theWorkspace().getState().slot.option).toBe(6);
+    });
+    await expect
+      .element(page.getByTestId("flyer-options").getByRole("button", { name: "Otro Flyer" }))
+      .toHaveAttribute("aria-pressed", "true");
+  });
+});
 
 describe("the mouse on the preview", () => {
   it("Ctrl + wheel zooms where the mouse is, drawing before measuring (invariant 1)", async () => {

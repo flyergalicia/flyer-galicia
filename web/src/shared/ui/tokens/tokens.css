@@ -522,6 +522,10 @@ html.dark {
   --search-bg: rgba(128, 128, 128, 0.12);
   --search-hover-bg: rgba(128, 128, 128, 0.22);
   --search-key-bg: rgba(128, 128, 128, 0.2);
+  /* The search of screens: what dims the page under it, and the result marked. */
+  --search-veil: rgba(15, 17, 20, 0.5);
+  --search-row-on: rgba(128, 128, 128, 0.15);
+  --search-here: var(--accent-2);
   --account-window-ov: rgba(0, 0, 0, 0.55);
   --account-footer-bg: var(--field);
   --close-hover-bg: var(--paper);

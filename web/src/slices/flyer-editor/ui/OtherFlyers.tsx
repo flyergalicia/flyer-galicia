@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { normalizeText } from "@/shared/domain/promotions/index.ts";
 import { type FlyerOption, optionColor, optionLabel } from "@/shared/domain/flyer-options.ts";
 import { useWorkspaceValue } from "@/shared/lib/flyer-workspace/index.ts";
+import { useCloseWithFloating } from "@/shared/ui/index.ts";
 import { type BarParts, otherFlyersList } from "../model/option-bar.ts";
 import styles from "./FlyerEditorView.module.css";
 
@@ -106,6 +107,8 @@ export function OtherFlyers({
     field.current?.focus();
   }, []);
 
+  // The search of screens closes it on opening (`_fgOptMasCerrar`).
+  useCloseWithFloating(onClose);
   useEffect(() => {
     const onPress = ({ target }: PointerEvent) => {
       const isOurs = target instanceof Element && target.closest("[data-keeps-others-open]");

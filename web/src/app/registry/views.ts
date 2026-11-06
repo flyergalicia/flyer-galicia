@@ -140,7 +140,8 @@ export interface MenuWindow {
 
 const pendingWindow = (): Promise<LoadedWindow> => import("./PendingWindow.tsx");
 
-const PROPOSALS_SOURCE = "proposals";
+/** Who counts what waits in Base de datos: the number of its item, and of Cambios pendientes. */
+export const PROPOSALS_SOURCE = "proposals";
 const MY_PROPOSALS_SOURCE = "myProposals";
 const STUDIO_SOURCE = "studio";
 const COMMERCIAL_SOURCE = "commercial";
@@ -198,12 +199,6 @@ export const MENU_WINDOWS_BELOW: readonly MenuWindow[] = [
     load: pendingWindow,
   },
 ];
-
-/** The search of screens: what its button of the header opens. The search slice brings it. */
-export const SEARCH_WINDOW: Pick<MenuWindow, "id" | "load"> = {
-  id: "search",
-  load: pendingWindow,
-};
 
 /** The panel of the administrator: what its button of the header opens, apart from the first load. */
 export const ADMIN_WINDOW: Pick<MenuWindow, "id" | "load"> = {

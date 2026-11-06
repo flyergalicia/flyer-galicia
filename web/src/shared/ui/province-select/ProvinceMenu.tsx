@@ -7,6 +7,7 @@ import {
   provincesName,
   titleCase,
 } from "@/shared/domain/promotions/index.ts";
+import { useCloseWithFloating } from "../floating/close-floating.ts";
 import styles from "./ProvinceSelect.module.css";
 
 const MIN_WIDTH_PX = 250;
@@ -165,6 +166,8 @@ export function ProvinceMenu({
   };
 
   useMenuKeys(rows, labelOf, chosen, focused, setFocused, choose, onClose);
+  // The search of screens closes it on opening (`_provCerrar`).
+  useCloseWithFloating(onClose);
 
   // It opens where it has to be, with what is chosen in sight.
   useLayoutEffect(() => {

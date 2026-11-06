@@ -9,6 +9,7 @@ export {
 export { SECTION_SOURCES_QUERY_KEY } from "./api/section-sources.ts";
 export { useAttachDesignWorks } from "./model/use-design-desk.ts";
 export { useLogoEditorActions, useLogoEditorValue } from "./model/editor-context.ts";
+export { useEnterLogoEditing } from "./model/use-entering.ts";
 export {
   missingUploads,
   missingUploadsText,

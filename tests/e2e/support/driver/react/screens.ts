@@ -8,6 +8,7 @@ import { type LogoEditorDriver } from "../logo-editor.ts";
 import { type LogoStripDriver } from "../logo-strip.ts";
 import { type PromotionsDriver } from "../promotions.ts";
 import { type Appearance, type ReferenceScreen, type ScreensDriver } from "../screens.ts";
+import { type SearchDriver } from "../search.ts";
 import { type SessionDriver } from "../session.ts";
 import { type StudioDriver } from "../studio.ts";
 
@@ -87,6 +88,7 @@ interface ScreenDrivers {
   readonly commercialActions: CommercialActionsDriver;
   readonly benchmark: BenchmarkDriver;
   readonly admin: AdminDriver;
+  readonly search: SearchDriver;
 }
 
 /** Windows over the flyer: what they show is the point, and its photo alone weighs half an image. */
@@ -98,6 +100,7 @@ const WINDOWS_OVER_THE_FLYER: ReadonlySet<ReferenceScreen> = new Set([
   "admin-users",
   "admin-permissions",
   "admin-flyer-config",
+  "screen-search",
 ]);
 
 /**
@@ -123,6 +126,7 @@ function openers(
     commercialActions,
     benchmark,
     admin,
+    search,
   }: ScreenDrivers,
 ) {
   const benchmarkView = (view: BenchmarkView) => async () => {
@@ -215,6 +219,7 @@ function openers(
         .getByRole("tablist", { name: "Hojas de Config" })
         .evaluate((list) => list.scrollTo({ left: 0 }));
     },
+    "screen-search": () => search.search(""),
     "logo-strip-window": async () => {
       await logoEditor.enter();
       await logoEditor.waitForBrandCatalog();

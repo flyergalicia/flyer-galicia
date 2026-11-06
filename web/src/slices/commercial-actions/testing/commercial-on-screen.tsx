@@ -1,6 +1,7 @@
 // Test support: the screen of Gestiones over a simulated cloud.
 import { render } from "vitest-browser-react";
 import type { CommercialDesk } from "@/shared/lib/commercial-actions/commercial-desk.ts";
+import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
 import { type CommercialCloud, commercialHarness } from "./commercial-cloud.ts";
 import { CommercialStage } from "./CommercialStage.tsx";
 
@@ -13,7 +14,10 @@ export async function openCommercial(cloud: CommercialCloud = {}, options: OpenO
   const harness = commercialHarness(cloud);
   const view = (isActive: boolean) =>
     harness.wrap(
-      <CommercialStage isActive={isActive} goToTab={options.goToTab} desk={options.desk} />,
+      <>
+        <PlaceDeskReader />
+        <CommercialStage isActive={isActive} goToTab={options.goToTab} desk={options.desk} />
+      </>,
     );
   const screen = await render(view(true));
   return {

@@ -1,5 +1,6 @@
 import type { ReactNode, RefObject } from "react";
-import { Tabs } from "@/shared/ui/index.ts";
+import { type IconName, Tabs } from "@/shared/ui/index.ts";
+import { EDITOR_PANELS, type EditorPanel } from "@/shared/domain/editor-panels.ts";
 import type { SearchableCompany } from "@/shared/domain/company-registry/index.ts";
 import type { HistoryItem } from "../model/stored-flyer.ts";
 import type { DownloadKind } from "../model/use-flyer-download.ts";
@@ -34,11 +35,13 @@ interface EditorPanelsProps {
   readonly onDownloadFromHistory: (item: HistoryItem) => void;
 }
 
-export type EditorTab = "individual" | "masivo" | "historial";
+export type EditorTab = EditorPanel;
 
-function isEditorTab(value: string): value is EditorTab {
-  return value === "individual" || value === "masivo" || value === "historial";
-}
+const PANEL_ICONS: Readonly<Record<EditorPanel, IconName>> = {
+  individual: "pencil",
+  masivo: "document",
+  historial: "clock",
+};
 
 /** Individual, Masivo and Historial. The first two stay mounted while another one shows. */
 export function EditorPanels({
@@ -64,19 +67,15 @@ export function EditorPanels({
     <Tabs
       value={tab}
       onChange={(next) => {
-        if (isEditorTab(next)) onTab(next);
+        for (const [panel] of EDITOR_PANELS) if (panel === next) onTab(panel);
       }}
     >
       <Tabs.List label="Modo de armado">
-        <Tabs.Tab value="individual" icon="pencil">
-          Individual
-        </Tabs.Tab>
-        <Tabs.Tab value="masivo" icon="document">
-          Masivo
-        </Tabs.Tab>
-        <Tabs.Tab value="historial" icon="clock">
-          Historial
-        </Tabs.Tab>
+        {EDITOR_PANELS.map(([value, label]) => (
+          <Tabs.Tab key={value} value={value} icon={PANEL_ICONS[value]}>
+            {label}
+          </Tabs.Tab>
+        ))}
       </Tabs.List>
       <Tabs.Panel value="individual" keepMounted>
         <div ref={individual}>

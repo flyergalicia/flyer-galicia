@@ -13,6 +13,7 @@ import { partialDriver } from "./pending.ts";
 import { createReactPromotionsDriver } from "./promotions.ts";
 
 const ENTRY_TIMEOUT_MS = 25_000;
+const WINDOWS_TO_CLOSE = 4;
 const HOLD_TO_LIFT_MS = 4_200;
 const TIME_PASSING_MS = 6 * 60_000;
 const SUPABASE_REFRESH = "**/auth/v1/token*";
@@ -27,6 +28,33 @@ const SCREENS: Readonly<Partial<Record<AppScreen, string>>> = {
   "commercial-actions": "commercial-actions",
   "my-database": "my-database",
 };
+
+/** The places inside a screen or a window: a panel of the editor, a solapa, a sheet of the panel. */
+function innerPlace(page: Page, screen: AppScreen): Locator | null {
+  const editor = page.locator('[data-screen="flyer-layout"]');
+  const sheet = (id: string) => page.getByTestId("admin-panel").locator(`[data-sheet="${id}"]`);
+  const places: Partial<Record<AppScreen, Locator>> = {
+    "flyer-individual": editor.getByRole("tabpanel", { name: "Individual" }),
+    "flyer-bulk": editor.getByRole("tabpanel", { name: "Masivo" }),
+    "flyer-history": editor.getByRole("tabpanel", { name: "Historial" }),
+    "promotions-active": page
+      .locator('[data-screen="promotions"]')
+      .getByRole("tab", { name: "Activas", selected: true }),
+    "admin-audit": sheet("auditoria"),
+    "admin-legal": sheet("legales"),
+  };
+  return places[screen] ?? null;
+}
+
+/** The tools of Cambiar logos on, by the names the specs give them. */
+const LOGO_TOOLS: readonly (readonly [string, string])[] = [
+  ["strip", "strip"],
+  ["trim", "crop"],
+  ["insert", "insert"],
+];
+
+/** The internal names the specs give the two solapas of Promociones. */
+const PROMOTIONS_TABS: Readonly<Record<string, string>> = { Buscar: "buscar", Activas: "activas" };
 
 function header(page: Page): Locator {
   return page.getByRole("banner");
@@ -551,6 +579,81 @@ function createFlyerLook(page: Page) {
   };
 }
 
+/** Any window open, closed as a person does: with Escape, the top one first. */
+async function closeWindows(page: Page): Promise<void> {
+  const windows = page.locator(
+    '[role="alertdialog"], dialog[open][aria-modal="true"]:not([data-screen-window])',
+  );
+  for (let left = WINDOWS_TO_CLOSE; left > 0 && (await windows.count()) > 0; left -= 1) {
+    await page.keyboard.press("Escape");
+  }
+}
+
+function createPlaces(page: Page) {
+  return {
+    modes: () =>
+      page.evaluate(
+        ({ logoTools, promotionsTabs }) => {
+          const editor = window["__flyerProbe"]?.logoEditor?.();
+          const mode = editor?.mode() ?? "none";
+          const tools = [
+            ...(editor?.clean() ? ["preview"] : []),
+            ...logoTools.filter(([name]) => name === mode).map(([, tool]) => tool),
+          ];
+          const promotions = document.querySelector(
+            '[data-screen="promotions"] [role="tab"][aria-selected="true"]',
+          );
+          const commercial = document.querySelector(
+            '[data-testid="commercial-tabs"] [aria-selected="true"]',
+          );
+          return {
+            logoEditing: Boolean(editor?.isEditing()),
+            logoTools: tools,
+            promotionsTab: promotionsTabs[promotions?.textContent?.trim() ?? ""] ?? "buscar",
+            commercialActionsTab: commercial?.getAttribute("data-tab") ?? null,
+          };
+        },
+        { logoTools: LOGO_TOOLS, promotionsTabs: PROMOTIONS_TABS },
+      ),
+    focusCompanyField: () => companyField(page).focus(),
+    companyFieldHasFocus: () =>
+      companyField(page).evaluate((field) => field === document.activeElement),
+    // An advisor has no confirmation at hand: the shortest window a person opens is Vista previa.
+    showConfirmation: async () => {
+      // The one of the form: on a phone the pill has another, that only shows the flyer.
+      const preview = page
+        .locator("[data-scrolling-panel]")
+        .getByRole("button", { name: "Vista previa", exact: true })
+        .locator("visible=true")
+        .first();
+      if (!(await preview.isVisible())) {
+        await page
+          .getByRole("tablist", { name: "Modo de armado" })
+          .getByRole("tab", { name: "Individual" })
+          .click();
+      }
+      await preview.click();
+      await page.getByRole("dialog", { name: "Vista previa" }).waitFor();
+    },
+    removeConfirmations: () => closeWindows(page),
+    /** The first flyer of the bar that is not on screen, as the bar shows it. */
+    anotherAvailableFlyer: () =>
+      page
+        .getByTestId("flyer-options")
+        .locator("button[data-option]")
+        .evaluateAll((buttons) => {
+          const other = buttons.find((button) => button.getAttribute("aria-pressed") !== "true");
+          if (!other) return null;
+          return {
+            option: Number(other.getAttribute("data-option")),
+            name: other.textContent?.trim() ?? "",
+          };
+        }),
+    currentFlyerOption: () =>
+      page.evaluate(() => window["__flyerProbe"]?.flyerWorkspace?.().getState().slot.option ?? 0),
+  };
+}
+
 /** What exists so far: the flyer editor and the others fill in the rest when they arrive. */
 export function createReactSessionDriver(page: Page): SessionDriver {
   /** A person cannot pretend: a real batch stays waiting, and letting it go lets it end. */
@@ -615,12 +718,15 @@ export function createReactSessionDriver(page: Page): SessionDriver {
     },
     closeUserMenu: () => closeUserMenu(page),
     isShowing: async (screen) => {
+      const inner = innerPlace(page, screen);
+      if (inner) return inner.isVisible();
       const place = SCREENS[screen];
       if (place === undefined) {
         throw new Error(`"${screen}" is not in the React driver yet: it arrives with its slice.`);
       }
       return page.locator(`[data-screen="${place}"]`).isVisible();
     },
+    ...createPlaces(page),
     waitForCommercialActions: async () => {
       await headerTab(page, "Gestiones").waitFor({ timeout: ENTRY_TIMEOUT_MS });
     },

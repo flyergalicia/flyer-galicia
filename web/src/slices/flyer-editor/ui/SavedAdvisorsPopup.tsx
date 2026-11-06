@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
-import { Button, ConfirmDialog, Field, Input, Modal } from "@/shared/ui/index.ts";
+import {
+  Button,
+  ConfirmDialog,
+  Field,
+  Input,
+  Modal,
+  useCloseWithFloating,
+} from "@/shared/ui/index.ts";
 import {
   newAdvisorId,
   type SavedAdvisor,
@@ -31,6 +38,8 @@ export function SavedAdvisorsPopup({ position, place, onClose }: SavedAdvisorsPo
   const [deleting, setDeleting] = useState<SavedAdvisor | null>(null);
   const popup = useRef<HTMLDivElement>(null);
   const isAsking = naming !== null || deleting !== null;
+  // The search of screens closes it on opening (`closeAsPop`).
+  useCloseWithFloating(onClose);
 
   useEffect(() => {
     if (isAsking) return undefined;

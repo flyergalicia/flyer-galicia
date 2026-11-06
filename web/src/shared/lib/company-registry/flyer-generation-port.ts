@@ -41,3 +41,17 @@ export function useAttachFlyerGeneration(works: FlyerGenerationPort): void {
   const attach = useContext(FlyerGenerationAttachContext);
   useEffect(() => attach?.(works), [attach, works]);
 }
+
+/** How another batch is watched: it gives what stops watching it. */
+export type WatchBatch = (isRunning: () => boolean) => () => void;
+
+/**
+ * A batch that is not of the editor (the ZIP of the Hunter, on its own flyer) also counts as generating:
+ * `_pgBusy` was one for all of them.
+ */
+export const FlyerBatchWatchContext = createContext<WatchBatch | null>(null);
+
+export function useWatchFlyerBatch(isRunning: () => boolean): void {
+  const watch = useContext(FlyerBatchWatchContext);
+  useEffect(() => watch?.(isRunning), [watch, isRunning]);
+}

@@ -5,11 +5,17 @@ import {
   NEW_PROMOTION_DAYS,
   titleCase,
 } from "@/shared/domain/promotions/index.ts";
+import {
+  isPromotionsTab,
+  PROMOTIONS_TABS,
+  type PromotionsTab,
+} from "@/shared/domain/promotions/tabs.ts";
 import { useIncludeModo } from "@/shared/lib/promotions/include-modo-context.ts";
 import {
   Button,
   Checkbox,
   Field,
+  type IconName,
   Input,
   SectionLabel,
   Select,
@@ -21,9 +27,9 @@ import {
 import { ProvinceSelect } from "@/shared/ui/province-select/ProvinceSelect.tsx";
 import { catalogStatusLine, useCatalogView } from "../model/catalog-view.ts";
 import { usePromotionsActions, usePromotionsState } from "../model/promotions-context.ts";
-import { isPromotionsTab } from "../promotions-tab.ts";
 import styles from "./PromotionsView.module.css";
 
+const TAB_ICONS: Readonly<Record<PromotionsTab, IconName>> = { search: "search", active: "list" };
 const NEW_HINT = `Promociones que aparecieron en el catálogo de Galicia en los últimos ${String(NEW_PROMOTION_DAYS)} días.`;
 const PERCENT_HINT =
   "Sólo los supermercados con alguna promo de % de descuento (los del puntito rojo): son los que llevan sus días en el flyer.";
@@ -267,12 +273,11 @@ export function PromotionsPanel() {
         }}
       >
         <Tabs.List label="Modo de promociones">
-          <Tabs.Tab value="search" icon="search">
-            Buscar
-          </Tabs.Tab>
-          <Tabs.Tab value="active" icon="list">
-            Activas
-          </Tabs.Tab>
+          {PROMOTIONS_TABS.map(([value, label]) => (
+            <Tabs.Tab key={value} value={value} icon={TAB_ICONS[value]}>
+              {label}
+            </Tabs.Tab>
+          ))}
         </Tabs.List>
         <p className={styles.section}>Provincia</p>
         <Field>

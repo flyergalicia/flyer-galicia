@@ -82,6 +82,11 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Reemplaza a | `reemplaza` (en `_opciones.json`) | La opción de la campaña anterior: las empresas que la tenían pasan solas a la nueva |
 | Vigente (de un rubro) | `currentOfCategory` | El flyer que hoy recibe las empresas de su rubro (la etiqueta VIGENTE de Config → Opciones) |
 | Versión sin cashback | `sinCB` (en `_opciones.json`) | La opción hecha con Recortar + Estudio a la que van las empresas sin cashback |
+| Buscador de pantallas | `search` | Lo que abre Cmd+K (Ctrl+K en Windows) o el botón Buscar del encabezado |
+| Entrada (del buscador) | `SearchEntry` | Cada cosa a la que lleva el buscador: una solapa, un flyer, un panel del armador, una hoja… |
+| Recientes | `recent` | Lo último que se eligió en el buscador, primero; sólo los ids, en `fg_cmdk_rec` |
+| Lugar (dentro de una pantalla) | `place` | Masivo del armador, Activas de Promociones, una vista de Benchmark, una hoja del panel: adonde se llega desde afuera por el `PlaceDesk` |
+| Ventana-pantalla | `screenWindow` | Base de datos y el panel del administrador: el buscador abre encima y, al ir a otro lado, las cierra con su pregunta |
 
 Los perfiles Hunter y Prospect, la palabra cashback y el nombre Benchmark quedan igual.
 

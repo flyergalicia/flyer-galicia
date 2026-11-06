@@ -13,6 +13,7 @@ export { Spinner } from "./feedback/Spinner.tsx";
 export { Toast } from "./feedback/Toast.tsx";
 export { type ControlSize, Input, Select, Textarea } from "./field/controls.tsx";
 export { Field } from "./field/Field.ts";
+export { closeFloating, useCloseWithFloating } from "./floating/close-floating.ts";
 export type { FieldStatus } from "./field/field-context.ts";
 export { Icon, type IconName } from "./icon/Icon.tsx";
 export { ListRow } from "./list-row/ListRow.ts";

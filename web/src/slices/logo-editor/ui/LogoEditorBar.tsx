@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
-import { optionLabel } from "@/shared/domain/flyer-options.ts";
-import { useFlyerOptions } from "@/shared/lib/app-config/flyer-options-query.ts";
-import { blockReason, useFlyerWorkspace } from "@/shared/lib/flyer-workspace/index.ts";
-import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { usePermissions } from "@/shared/session/index.ts";
 import { Icon } from "@/shared/ui/index.ts";
 import { useLogoEditorActions, useLogoEditorValue } from "../model/editor-context.ts";
 import type { ZoneMode } from "../model/editor-store.ts";
+import { useEntering } from "../model/use-entering.ts";
 import { CutsChip, WorkChip } from "./SectionsOnFlyer.tsx";
 import styles from "./LogoEditor.module.css";
 
@@ -227,21 +224,6 @@ function EditingButtons() {
       <SaveDesignButton />
     </>
   );
-}
-
-/** A flyer that did not load is not edited: the changes would fall on the picture of another. */
-function useEntering() {
-  const editor = useLogoEditorActions();
-  const workspace = useFlyerWorkspace();
-  const toast = useToast();
-  const { isAdminNow } = usePermissions();
-  const { options } = useFlyerOptions();
-  return () => {
-    const { slot } = workspace.getState();
-    const reason = blockReason(slot, optionLabel(options, slot.option), isAdminNow);
-    if (reason && !editor.getState().on) toast.show(reason);
-    else editor.toggleOn();
-  };
 }
 
 export function LogoEditorBar() {

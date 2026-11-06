@@ -1,6 +1,6 @@
 // What the screen of Promociones remembers, and how it changes.
 import { validProvinces } from "@/shared/domain/promotions/index.ts";
-import type { PromotionsTab } from "../promotions-tab.ts";
+import type { PromotionsTab } from "@/shared/domain/promotions/tabs.ts";
 import { type ResultRow, withStartDates, withStatusesOf } from "./result-rows.ts";
 import {
   keepTicks,

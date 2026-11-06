@@ -11,6 +11,8 @@ import {
   PromotionPickingContext,
 } from "@/shared/lib/promotions/promotion-picking.ts";
 import { type AppAnswers, ADVISOR, createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
+import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
 import "@/shared/lib/test-probe.ts";
 import { useSession } from "@/shared/session/index.ts";
 import { type Answer, deferred, jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
@@ -647,6 +649,20 @@ describe("the catalog", () => {
     });
     await chooseProvince(screen, "SALTA");
     await expect.element(screen.getByTestId("promotions-province")).toHaveValue("SALTA");
+  });
+});
+
+describe("from the search of screens", () => {
+  it("Activas and Buscar go to their solapa, as touching it does", async () => {
+    const { screen } = await open({ before: <PlaceDeskReader /> });
+    const tab = (name: string) =>
+      screen.getByRole("tablist", { name: "Modo de promociones" }).getByRole("tab", { name });
+
+    placeDeskOnPage().ask("promotions", "active");
+    await expect.element(tab("Activas")).toHaveAttribute("aria-selected", "true");
+    placeDeskOnPage().ask("promotions", "activas");
+    placeDeskOnPage().ask("promotions", "search");
+    await expect.element(tab("Buscar")).toHaveAttribute("aria-selected", "true");
   });
 });
 

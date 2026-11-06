@@ -22,7 +22,7 @@ import { changeWatchedBrands } from "@/shared/lib/promotions/watched-brands-stor
 import type { ToastActions } from "@/shared/lib/toast/toast-context.ts";
 import type { Backend } from "@/shared/supabase/index.ts";
 import { downloadPromotionsSheet } from "../api/promotions-sheet.ts";
-import type { PromotionsTab } from "../promotions-tab.ts";
+import type { PromotionsTab } from "@/shared/domain/promotions/tabs.ts";
 import type { PromotionsAction, PromotionsState } from "./promotions-state.ts";
 import {
   activeRows,

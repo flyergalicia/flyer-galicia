@@ -1,12 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePendingProposals } from "@/shared/lib/company-registry/proposals-query.ts";
+import { useLeaveRequests, usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { registerProbe } from "@/shared/lib/test-probe.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import type { MenuWindowProps } from "@/shared/lib/view-props.ts";
 import { usePermissions } from "@/shared/session/index.ts";
 import { Modal, Tabs } from "@/shared/ui/index.ts";
-import { databasePanes, type DatabasePane } from "../model/database-panes.ts";
+import {
+  databasePanes,
+  type DatabasePane,
+} from "@/shared/domain/company-registry/database-panes.ts";
 import { registryProbe } from "../model/registry-probe.ts";
 import { useDestinationRules, useRegistryContext } from "../model/registry-rules.ts";
 import { useUserId } from "../model/use-companies.ts";
@@ -62,12 +66,21 @@ export function DatabaseWindow({ onClose, pane }: DatabaseWindowProps) {
       setChosen(panes.find(({ id }) => id === next)?.id);
     });
   };
+  // A pane from the search of screens, as its solapa; and going elsewhere, as its X.
+  usePlaceRequests("database", choose);
+  useLeaveRequests("database", (then) => {
+    leave(() => {
+      onClose();
+      then();
+    });
+  });
 
   if (!active) return null;
   return (
     <Modal
       size="wide"
       closeOnBackdrop={false}
+      screenWindow
       onClose={() => {
         leave(onClose);
       }}

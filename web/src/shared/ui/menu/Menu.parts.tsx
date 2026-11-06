@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useCloseWithFloating } from "../floating/close-floating.ts";
 import { Icon, type IconName } from "../icon/Icon.tsx";
 import styles from "./Menu.module.css";
 
@@ -37,6 +38,10 @@ export function MenuRoot({ defaultOpen = false, children }: MenuProps) {
   const [open, setOpen] = useState(defaultOpen);
   const root = useRef<HTMLDivElement>(null);
   const context = useMemo(() => ({ menuId, open, setOpen }), [menuId, open]);
+  // The search of screens closes it on opening, as it does today.
+  useCloseWithFloating(() => {
+    setOpen(false);
+  }, open);
 
   useEffect(() => {
     if (!open) return undefined;

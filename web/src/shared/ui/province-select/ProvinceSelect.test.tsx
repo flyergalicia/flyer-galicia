@@ -2,6 +2,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { closeFloating } from "../floating/close-floating.ts";
 import { ProvinceSelect } from "./ProvinceSelect.tsx";
 
 const PROVINCES = ["BUENOS AIRES", "CAPITAL FEDERAL", "CORDOBA", "MENDOZA"];
@@ -192,6 +193,18 @@ describe("ProvinceSelect", () => {
     await touchSelect(screen);
     document.dispatchEvent(new Event("touchstart"));
     window.dispatchEvent(new Event("resize"));
+    await vi.waitFor(() => {
+      expect(menu()).toBeNull();
+    });
+  });
+
+  it("closes when the search of screens opens", async () => {
+    const screen = await open();
+    await touchSelect(screen);
+    expect(menu()).not.toBeNull();
+
+    closeFloating();
+
     await vi.waitFor(() => {
       expect(menu()).toBeNull();
     });

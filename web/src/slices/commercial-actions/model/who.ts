@@ -17,32 +17,7 @@ export interface Who {
   readonly peopleFailed?: boolean;
 }
 
-export type InnerTab = "empresas" | "agenda" | "lista" | "tablero";
-export type TabChoice = readonly [InnerTab, string];
-
-/** The solapas of each profile. */
-export function tabsOf(role: string): readonly TabChoice[] {
-  if (role === "hunter") {
-    return [
-      ["agenda", "Mi agenda"],
-      ["lista", "Mis gestiones"],
-      ["tablero", "Tablero"],
-    ];
-  }
-  if (role === "lider") {
-    return [
-      ["agenda", "Agenda del equipo"],
-      ["tablero", "Tablero del equipo"],
-      ["lista", "Gestiones del equipo"],
-    ];
-  }
-  return [
-    ["empresas", "Mis empresas"],
-    ["agenda", "Agenda"],
-    ["lista", "Gestiones"],
-    ["tablero", "Tablero"],
-  ];
-}
+export { type InnerTab, type TabChoice, tabsOf } from "@/shared/domain/commercial-tabs.ts";
 
 export function subtitleOf(role: string): string {
   if (role === "hunter") {

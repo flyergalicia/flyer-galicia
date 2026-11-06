@@ -2,8 +2,10 @@
 // drawn.
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isInnerTab } from "@/shared/domain/commercial-tabs.ts";
 import { useActionRequests } from "@/shared/lib/commercial-actions/commercial-desk.ts";
 import { useCommercialNotices } from "@/shared/lib/commercial-actions/commercial-notices-query.ts";
+import { usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import type { ViewProps } from "@/shared/lib/view-props.ts";
 import { Button } from "@/shared/ui/index.ts";
 import { type ListFilters, NO_FILTERS } from "../model/action-list.ts";
@@ -279,6 +281,14 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
   useActionRequests(({ id, complete }) => {
     openTarget({ id, complete });
   });
+  const chooseTab = (next: InnerTab) => {
+    setChosen(next);
+    setTarget(null);
+  };
+  // A solapa from the search of screens: as the solapa itself does.
+  usePlaceRequests("commercial-actions", (next) => {
+    if (isInnerTab(next)) chooseTab(next);
+  });
 
   return (
     <div className={styles.view}>
@@ -298,10 +308,7 @@ export function CommercialActionsView({ isActive, goToTab }: ViewProps) {
           tab={tab}
           isInDetail={Boolean(target)}
           waiting={notices.length}
-          onChoose={(next) => {
-            setChosen(next);
-            setTarget(null);
-          }}
+          onChoose={chooseTab}
         />
         {peopleFailed && (
           <div className={styles.notice} data-testid="people-problem">

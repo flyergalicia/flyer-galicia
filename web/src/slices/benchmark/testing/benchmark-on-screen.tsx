@@ -3,6 +3,7 @@
 import { render } from "vitest-browser-react";
 import { ADVISOR, type AppAnswers, createAppHarness } from "@/shared/lib/testing/app-harness.tsx";
 import { jsonResponse, type RecordedRequest } from "@/shared/supabase/testing/recording-fetch.ts";
+import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
 import { BenchmarkStage } from "./BenchmarkStage.tsx";
 
 type Row = Readonly<Record<string, unknown>>;
@@ -106,6 +107,13 @@ export async function openBenchmark(cloud: BenchmarkCloud = {}) {
     },
   });
   harness.storeSession();
-  const screen = await render(harness.wrap(<BenchmarkStage handLoadedPage={handLoadedPage} />));
+  const screen = await render(
+    harness.wrap(
+      <>
+        <PlaceDeskReader />
+        <BenchmarkStage handLoadedPage={handLoadedPage} />
+      </>,
+    ),
+  );
   return { screen, harness, tables };
 }

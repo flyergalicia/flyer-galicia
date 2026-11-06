@@ -1,4 +1,4 @@
-import type { PermissionKey } from "@/shared/session/index.ts";
+import type { PermissionKey } from "@/shared/session/permissions.ts";
 
 export type DatabasePane = "empresas" | "asesores" | "propuestas";
 

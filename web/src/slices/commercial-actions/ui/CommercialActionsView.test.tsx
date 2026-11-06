@@ -1,6 +1,7 @@
 // The tab Gestiones over a simulated cloud: what each one sees, and what a failure says.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
 import { deferred, jsonResponse } from "@/shared/supabase/testing/recording-fetch.ts";
 import { CUT, FAILS, fieldsOf, ME } from "../testing/commercial-cloud.ts";
 import { openCommercial } from "../testing/commercial-on-screen.tsx";
@@ -54,6 +55,16 @@ describe("the solapas", () => {
     await openCommercial({ role: "lider" });
     await expect.element(tab("Agenda del equipo")).toHaveAttribute("aria-selected", "true");
     await expect.element(tab("Gestiones del equipo")).toBeVisible();
+  });
+
+  it("a solapa from the search of screens goes there, as touching it does", async () => {
+    await openCommercial({ role: "hunter" });
+    await expect.element(tab("Mi agenda")).toHaveAttribute("aria-selected", "true");
+
+    placeDeskOnPage().ask("commercial-actions", "tablero");
+    await expect.element(tab("Tablero")).toHaveAttribute("aria-selected", "true");
+    placeDeskOnPage().ask("commercial-actions", "otra");
+    await expect.element(tab("Tablero")).toHaveAttribute("aria-selected", "true");
   });
 
   it("a test account says so, and nothing about seeing everything", async () => {

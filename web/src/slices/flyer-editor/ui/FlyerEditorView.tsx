@@ -31,6 +31,7 @@ import { useFlyerForm } from "../model/form-context.ts";
 import { categoryForReview, officersForReview, restoredForm } from "../model/form-state.ts";
 import { useCompanyBringing } from "../model/use-company-bringing.ts";
 import { useCompanyRequest } from "../model/use-company-request.ts";
+import { useEditorPlaces } from "../model/use-editor-places.ts";
 import { useFlyerDownload } from "../model/use-flyer-download.ts";
 import { useFlyerOnScreen } from "../model/use-flyer-on-screen.ts";
 import { useFlyerRules } from "../model/use-flyer-rules.ts";
@@ -187,6 +188,11 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
   usePrimaryAction(() => {
     void download("pdf");
   }, isActive);
+  const chooseFromBar = (option: number) => {
+    if (workspace.batch.isRunning()) show(BATCH_RUNNING_NOTICE);
+    else if (logoEditor.works.chooseFlyer(option)) void choose(option);
+  };
+  useEditorPlaces({ showPanel: setPanel, chooseOption: chooseFromBar });
 
   const restore = () => {
     logoEditor.forget();
@@ -204,10 +210,7 @@ function Editor({ isActive, tabId, goToTab = NOBODY, openMenuWindow = NOBODY }: 
           options={options}
           allowed={allowed}
           worksOf={worksOf}
-          onChoose={(option) => {
-            if (workspace.batch.isRunning()) show(BATCH_RUNNING_NOTICE);
-            else if (logoEditor.works.chooseFlyer(option)) void choose(option);
-          }}
+          onChoose={chooseFromBar}
         />
         <EditorPanels
           isCategoryTab={tab === "rubros"}

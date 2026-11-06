@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { jsonResponse, type Answer } from "@/shared/supabase/testing/recording-fetch.ts";
+import { closeFloating } from "@/shared/ui/index.ts";
 import { withOfficerField } from "../model/form-state.ts";
 import { openWithForm } from "../testing/form-on-screen.tsx";
 import { SavedAdvisorsPopup } from "./SavedAdvisorsPopup.tsx";
@@ -171,6 +172,15 @@ describe("the window of the saved advisors", () => {
     expect(onClose).not.toHaveBeenCalled();
     await page.getByRole("button", { name: "Afuera" }).click();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("closes when the search of screens opens", async () => {
+    const { onClose, popup } = await open();
+    await expect.element(popup).toBeInTheDocument();
+
+    closeFloating();
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("while the list is on its way it says so", async () => {

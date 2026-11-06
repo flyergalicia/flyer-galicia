@@ -9,6 +9,7 @@ import {
 import { optionNumber, optionTab } from "@/shared/domain/flyer-options.ts";
 import { type Company, searchCompanies } from "@/shared/domain/company-registry/index.ts";
 import { RenameableTitle } from "@/shared/lib/app-config/RenameableTitle.tsx";
+import { useWatchFlyerBatch } from "@/shared/lib/company-registry/flyer-generation-port.ts";
 import type { CompanyBatchProgress } from "@/shared/lib/flyer-workspace/company-batch/company-batch.ts";
 import {
   drawsSingleCashback,
@@ -71,6 +72,8 @@ function useTickedBatch(list: HunterList) {
     formCap: () => DEFAULT_CAP,
   });
   const isGenerating = useSyncExternalStore(workspace.batch.subscribe, workspace.batch.isRunning);
+  // Its ZIP counts as one more batch: meanwhile the search of screens does not open.
+  useWatchFlyerBatch(workspace.batch.isRunning);
   return { batch, isGenerating };
 }
 

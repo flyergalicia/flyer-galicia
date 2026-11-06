@@ -35,6 +35,18 @@ describe("the one that answers Base de datos", () => {
     expect(hub.check()).toEqual({ done: false, failed: false });
   });
 
+  it("another batch, the ZIP of the Hunter, counts as generating while it runs", () => {
+    const { hub } = hubWith();
+    let running = true;
+    const stop = hub.watchBatch(() => running);
+    expect(hub.isGenerating()).toBe(true);
+    running = false;
+    expect(hub.isGenerating()).toBe(false);
+    running = true;
+    stop();
+    expect(hub.isGenerating()).toBe(false);
+  });
+
   it("the editor knows better than the check; what it does not know, the check says", () => {
     const { hub } = hubWith();
     hub.noteCheck(

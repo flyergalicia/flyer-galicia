@@ -1,12 +1,13 @@
 // What the screen of Benchmark is showing: the view, the filters, the bank compared, Por comercio
 // and the listing of a day. It lives while the tab does; only the reference purchases are remembered.
+import type { BenchView } from "@/shared/domain/benchmark-views.ts";
 import { todayWeekday } from "./dates.ts";
 import type { BenchFilters } from "./filters.ts";
 import { FIRST_FILTERS } from "./filters.ts";
 import { readReferences, type ReferencePurchases } from "./reference.ts";
 import type { DayPick } from "./week.ts";
 
-export type BenchView = "rubro" | "marca" | "semana" | "comercio" | "versus" | "tarjetas";
+export type { BenchView } from "@/shared/domain/benchmark-views.ts";
 
 export interface ScreenState {
   readonly view: BenchView;

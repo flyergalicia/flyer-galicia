@@ -13,6 +13,8 @@ import {
 } from "@/shared/supabase/testing/recording-fetch.ts";
 import type { registryProbe } from "../model/registry-probe.ts";
 import { Inside } from "@/shared/lib/testing/Inside.tsx";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
+import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
 import {
   databaseError,
   FAILED_CONNECTION,
@@ -41,6 +43,7 @@ function open(cloud: RegistryCloud = {}, port: FlyerGenerationPort | null = null
   const screen = render(
     harness.wrap(
       <FlyerGenerationContext.Provider value={port}>
+        <PlaceDeskReader />
         <Inside>
           <DatabaseWindow onClose={onClose} />
         </Inside>
@@ -137,6 +140,17 @@ const advisorStatus = () => page.getByTestId("advisor-status");
 const advisorRows = () => page.getByTestId("advisor-row");
 
 describe("which panes each one sees", () => {
+  it("a pane from the search of screens opens as its solapa does, and works as a screen", async () => {
+    open();
+    await expect.element(page.getByRole("tab", { name: "Mis empresas" })).toBeVisible();
+
+    placeDeskOnPage().ask("database", "asesores");
+    await expect
+      .element(page.getByRole("tab", { name: "Mis asesores" }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect.element(dialog()).toHaveAttribute("data-screen-window");
+  });
+
   it("with both faculties, three solapas", async () => {
     open();
 
@@ -791,6 +805,21 @@ describe("the inline editor", () => {
 
     await expect.element(confirm()).not.toBeInTheDocument();
     await expect.element(page.getByTestId("company-editor")).toBeVisible();
+  });
+
+  it("going elsewhere from the search of screens asks first, and goes on after the yes", async () => {
+    const { onClose } = await openEditor({ companies: [company("ACME SA")] });
+    const goOn = vi.fn<() => void>();
+
+    placeDeskOnPage().leave("database", goOn);
+    await confirm().getByRole("button", { name: "Seguir editando" }).click();
+    expect(goOn).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    placeDeskOnPage().leave("database", goOn);
+    await confirm().getByRole("button", { name: "Salir sin guardar" }).click();
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(goOn).toHaveBeenCalledOnce();
   });
 
   it("closing it with rows asks, and an empty one closes at once", async () => {
