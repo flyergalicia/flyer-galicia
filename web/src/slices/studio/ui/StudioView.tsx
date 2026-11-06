@@ -133,15 +133,17 @@ function useNumbersOfTheList({
   readonly isMine: (design: DesignRow) => boolean;
 }) {
   const queryClient = useQueryClient();
+  // Written only when it changes: writing it redraws the header, and with it this screen.
+  const requests =
+    designs && isAdmin
+      ? designs.filter(isWaiting).length + proposals.filter(isWaiting).length
+      : null;
   useEffect(() => {
-    if (!designs) return;
-    if (isAdmin) {
-      noteRequests(
-        queryClient,
-        designs.filter(isWaiting).length + proposals.filter(isWaiting).length,
-      );
-    } else noteMyDesigns(queryClient, designs.filter(isMine));
-  }, [designs, isAdmin, isMine, proposals, queryClient]);
+    if (requests !== null) noteRequests(queryClient, requests);
+  }, [queryClient, requests]);
+  useEffect(() => {
+    if (designs && !isAdmin) noteMyDesigns(queryClient, designs.filter(isMine));
+  }, [designs, isAdmin, isMine, queryClient]);
 }
 
 function Intro({ isComplete }: { readonly isComplete: boolean }) {

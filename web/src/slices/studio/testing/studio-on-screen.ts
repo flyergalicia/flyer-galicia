@@ -12,6 +12,7 @@ import {
   type RecordedRequest,
 } from "@/shared/supabase/testing/recording-fetch.ts";
 import { StudioStage } from "./StudioStage.tsx";
+import { StudioUnderHeader } from "./StudioUnderHeader.tsx";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -142,6 +143,8 @@ export interface StudioCloud extends AppAnswers {
   readonly role?: string;
   readonly desk?: Partial<DesignDeskWorks>;
   readonly isActive?: boolean;
+  /** Under a header that hears its numbers, as in the app. */
+  readonly underHeader?: boolean;
 }
 
 export async function openStudio(cloud: StudioCloud = {}) {
@@ -152,6 +155,7 @@ export async function openStudio(cloud: StudioCloud = {}) {
     role = "asesor",
     desk,
     isActive = true,
+    underHeader = false,
     files,
     tables,
     profile,
@@ -191,8 +195,16 @@ export async function openStudio(cloud: StudioCloud = {}) {
     },
   });
   harness.storeSession();
+  let draws = 0;
+  const onDraw = () => {
+    draws += 1;
+  };
   const view = (active: boolean) =>
-    harness.wrap(createElement(StudioStage, { isActive: active, desk: works }));
+    harness.wrap(
+      underHeader
+        ? createElement(StudioUnderHeader, { isActive: active, desk: works, onDraw })
+        : createElement(StudioStage, { isActive: active, desk: works }),
+    );
   const screen = await render(view(isActive));
   return {
     screen,
@@ -201,5 +213,7 @@ export async function openStudio(cloud: StudioCloud = {}) {
     works,
     bucketFiles,
     show: (active: boolean) => screen.rerender(view(active)),
+    /** How many times the header drew, with Estudio under it. */
+    draws: () => draws,
   };
 }

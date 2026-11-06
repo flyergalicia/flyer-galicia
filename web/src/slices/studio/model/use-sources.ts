@@ -29,6 +29,9 @@ import type { StudioDialogs } from "./use-studio-dialogs.tsx";
 
 const SOURCES_KEY = ["studio", "sources"] as const;
 const PROPOSALS_KEY = ["studio", "proposals"] as const;
+// The same empty list every time: a new one on each drawing would draw Estudio again and again while
+// the proposals are on their way (the numbers of the header are written each time it changes).
+const NO_PROPOSALS: readonly Proposal[] = [];
 const LARGEST_FILE = 25 * 1024 * 1024;
 const NAME_LENGTH = 60;
 const LONG_NOTICE_MS = 9000;
@@ -322,7 +325,7 @@ export function useSources({
   return {
     sources: sources.data ?? null,
     sourcesFailure: sources.data ? null : sources.error,
-    proposals: proposals.data ?? [],
+    proposals: proposals.data ?? NO_PROPOSALS,
     chooseFile,
     look,
     lookAtProposal,

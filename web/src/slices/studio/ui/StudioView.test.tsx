@@ -18,6 +18,19 @@ const windowButton = (name: string) =>
   page.getByRole("dialog").getByRole("button", { name, exact: true });
 const confirm = (name: string) =>
   page.getByRole("alertdialog").getByRole("button", { name, exact: true });
+// A list that is late, a while to see that nothing draws on its own, and what a change draws.
+const PROPOSALS_LATE_MS = 1500;
+const QUIET_MS = 400;
+const FEW_DRAWS = 5;
+const pause = (ms: number) =>
+  new Promise((done) => {
+    setTimeout(done, ms);
+  });
+/** As on a busy computer: each reading of the clock is a while after the one before. */
+function busyClock() {
+  let now = Date.now();
+  vi.spyOn(Date, "now").mockImplementation(() => (now += 1));
+}
 const buttonsOf = (id: string) =>
   Array.from(
     document.querySelectorAll(`[data-design="${id}"] button`),
@@ -139,6 +152,38 @@ describe("the list", () => {
     await expect.element(card("mine")).toBeVisible();
     await page.getByTestId("studio-filters").getByRole("tab").nth(2).click();
     await expect.element(page.getByText("No hay pedidos pendientes.")).toBeVisible();
+  });
+
+  it("opens while the proposals are on their way, and is drawn again only when something changes", async () => {
+    busyClock();
+    const { draws } = await openStudio({
+      role: "admin",
+      underHeader: true,
+      designs: [aDesign("waiting", { user_id: OTHER, estado: "pedido" })],
+      intercept: async ({ query }) => {
+        if (query.get("tipo") === "eq.fuente") await pause(PROPOSALS_LATE_MS);
+        return null;
+      },
+    });
+    await expect.element(card("waiting")).toBeVisible();
+    await expect.element(page.getByTestId("header-requests")).toHaveTextContent("1");
+    const before = draws();
+    await pause(QUIET_MS);
+    expect(draws() - before).toBeLessThan(FEW_DRAWS);
+    await expect.element(page.getByTestId("flyers-to-copy")).toBeVisible();
+  });
+
+  it("whoever only received a copy waits for no proposals, and is not drawn again and again", async () => {
+    busyClock();
+    const { draws } = await openStudio({
+      underHeader: true,
+      permissions: { estudio: false, opcion_9: true },
+      designs: [aDesign("copy", { compartido_por: "Admin Inventado" })],
+    });
+    await expect.element(card("copy")).toBeVisible();
+    const before = draws();
+    await pause(QUIET_MS);
+    expect(draws() - before).toBeLessThan(FEW_DRAWS);
   });
 
   it("whoever only received a copy can use it, not ask for anything, and has no sections", async () => {
