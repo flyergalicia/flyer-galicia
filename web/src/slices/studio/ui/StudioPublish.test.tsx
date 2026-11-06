@@ -348,23 +348,36 @@ describe("publishing", () => {
   });
 
   it("the second press while it publishes does nothing", async () => {
+    // The first publication stays in the middle until the second press has been answered: a fixed
+    // delay let it finish first on a busy machine.
+    const gate: { open?: () => void } = {};
+    const held = new Promise<void>((resolve) => {
+      gate.open = resolve;
+    });
+    let reached = false;
     const { harness } = await openStudio(
       asAdmin({
         intercept: async (request) => {
           if (isUpload(request, ACTIVE_OF(10))) {
-            await new Promise((resolve) => {
-              setTimeout(resolve, 600);
-            });
+            reached = true;
+            await held;
           }
           return null;
         },
       }),
     );
     await pressApprove("Una");
+    await vi.waitFor(
+      () => {
+        expect(reached).toBe(true);
+      },
+      { timeout: 10_000 },
+    );
     await pressApprove("Dos");
     await expect
       .element(notice(), WAIT)
       .toMatchTextContent("Ya hay una publicación en curso. Esperá a que termine.");
+    gate.open?.();
     await expect.element(notice(), WAIT).toMatchTextContent(/^Publicado: «Una»/);
     expect(harness.network.to("/storage/v1/object/flyers/_active10.json")).toHaveLength(1);
     expect(harness.network.to("/storage/v1/object/flyers/_active11.json")).toHaveLength(0);
