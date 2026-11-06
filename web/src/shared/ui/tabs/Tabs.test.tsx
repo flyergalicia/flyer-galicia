@@ -121,7 +121,7 @@ describe("Tabs", () => {
     expect(screen.getByRole("tab", { name: "Cuatro" }).element().textContent).toBe("Cuatro");
   });
 
-  it.each(["segmented", "pills", "pills-window", "underline", "line"] as const)(
+  it.each(["segmented", "pills", "pills-window", "pills-inside", "underline", "line"] as const)(
     "has the %s look",
     async (variant) => {
       const screen = await render(<Example variant={variant} />);

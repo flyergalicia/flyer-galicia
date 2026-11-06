@@ -34,5 +34,6 @@ type Story = StoryObj<typeof meta>;
 export const Segmented: Story = { args: { variant: "segmented" } };
 export const Pills: Story = { args: { variant: "pills" } };
 export const PillsInAWindow: Story = { args: { variant: "pills-window" } };
+export const PillsInASheet: Story = { args: { variant: "pills-inside" } };
 export const Underline: Story = { args: { variant: "underline" } };
 export const Line: Story = { args: { variant: "line" } };

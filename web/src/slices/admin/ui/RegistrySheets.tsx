@@ -29,12 +29,3 @@ export function AdvisorsSheet({ work }: SheetProps) {
     </div>
   );
 }
-
-/** A sheet of Config that the next parts of the panel bring. */
-export function PendingSheet() {
-  return (
-    <p className={styles.pending} data-pending-sheet>
-      Esta hoja todavía falta: llega con la próxima parte del panel.
-    </p>
-  );
-}

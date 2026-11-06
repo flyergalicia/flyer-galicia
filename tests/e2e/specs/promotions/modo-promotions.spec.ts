@@ -317,31 +317,37 @@ test(
   },
 );
 
-test("a logo of MODO on the flyer stays current in Marcas vigiladas", async ({ openApp }) => {
-  const app = await openApp({ user: "admin" });
-  await app.logoEditor.enter();
-  await app.promotions.waitForCatalog();
-  await app.promotions.openBrandPickerOver(MARKED_PLACE);
-  await app.promotions.searchInBrandPicker("ypf");
-  await app.promotions.pickBrand("YPF");
+test(
+  "a logo of MODO on the flyer stays current in Marcas vigiladas",
+  { tag: "@react" },
+  async ({ openApp }) => {
+    const app = await openApp({ user: "admin" });
+    await app.logoEditor.enter();
+    await app.promotions.waitForCatalog();
+    await app.promotions.openBrandPickerOver(MARKED_PLACE);
+    await app.promotions.searchInBrandPicker("ypf");
+    await app.promotions.pickBrand("YPF");
 
-  const watched = await app.promotions.openWatchedBrands();
-  expect
-    .soft(watched[0]?.status, "Marcas vigiladas: YPF, only on MODO, is current")
-    .toBe("Vigente");
-  await app.promotions.closeWatchedBrands();
+    const watched = await app.promotions.openWatchedBrands();
+    expect
+      .soft(watched[0]?.status, "Marcas vigiladas: YPF, only on MODO, is current")
+      .toBe("Vigente");
+    await app.promotions.closeWatchedBrands();
 
-  await app.promotions.setIncludeModo(false);
-  expect
-    .soft(
-      await app.promotions.expiredLogosOnFlyer(),
-      "with the tick off, the logo of MODO on the flyer stays current",
-    )
-    .toEqual([]);
-  const watchedWithoutModo = await app.promotions.openWatchedBrands();
-  expect.soft(watchedWithoutModo[0]?.status, "and so it does on Marcas vigiladas").toBe("Vigente");
-  await app.promotions.setIncludeModo(true);
-});
+    await app.promotions.setIncludeModo(false);
+    expect
+      .soft(
+        await app.promotions.expiredLogosOnFlyer(),
+        "with the tick off, the logo of MODO on the flyer stays current",
+      )
+      .toEqual([]);
+    const watchedWithoutModo = await app.promotions.openWatchedBrands();
+    expect
+      .soft(watchedWithoutModo[0]?.status, "and so it does on Marcas vigiladas")
+      .toBe("Vigente");
+    await app.promotions.setIncludeModo(true);
+  },
+);
 
 test.describe("MODO writes the cities its own way", { tag: "@react" }, () => {
   const SAME_PLACE = [

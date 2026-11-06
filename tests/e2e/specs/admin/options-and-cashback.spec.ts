@@ -6,109 +6,114 @@ const FLYER = "flyer_t7.jpg?v=1";
 const JPEG = { name: "nuevo.jpg", mimeType: "image/jpeg", buffer: fixtureFile("op9.jpg") };
 
 test.describe("Config → Opciones", () => {
-  test("adding one gives it a tab, a file, a row of faculties and a legal", async ({
-    cloud,
-    openApp,
-  }) => {
-    const { admin } = await openApp({ user: "admin" });
-    await admin.openPanel();
-    await admin.openSheet("Config", "Opciones");
-    await expect.poll(async () => (await admin.optionRows()).length).toBeGreaterThan(0);
-    const before = await admin.optionRows();
+  test(
+    "adding one gives it a tab, a file, a row of faculties and a legal",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      const { admin } = await openApp({ user: "admin" });
+      await admin.openPanel();
+      await admin.openSheet("Config", "Opciones");
+      await expect.poll(async () => (await admin.optionRows()).length).toBeGreaterThan(0);
+      const before = await admin.optionRows();
 
-    await admin.pressAddOption();
-    const rows = await admin.optionRows();
-    expect.soft(rows.length).toBe(before.length + 1);
-    await admin.renameOptionRow(rows.length - 1, "Campaña nueva");
-    await admin.saveOptions();
+      await admin.pressAddOption();
+      const rows = await admin.optionRows();
+      expect.soft(rows.length).toBe(before.length + 1);
+      await admin.renameOptionRow(rows.length - 1, "Campaña nueva");
+      await admin.saveOptions();
 
-    const saved = cloud.bucketJson["_opciones.json"].opts;
-    const created = saved.find(({ nombre }) => nombre === "Campaña nueva");
-    expect.soft(created, "saved in the shared list").toBeDefined();
+      const saved = cloud.bucketJson["_opciones.json"].opts;
+      const created = saved.find(({ nombre }) => nombre === "Campaña nueva");
+      expect.soft(created, "saved in the shared list").toBeDefined();
 
-    await admin.openSheet("Admin", "Facultades");
-    const faculties = await admin.facultyRows();
-    expect
-      .soft(
-        faculties.some(({ name }) => /Campaña nueva/.test(name)),
-        "it has its faculty",
-      )
-      .toBe(true);
+      await admin.openSheet("Admin", "Facultades");
+      const faculties = await admin.facultyRows();
+      expect
+        .soft(
+          faculties.some(({ name }) => /Campaña nueva/.test(name)),
+          "it has its faculty",
+        )
+        .toBe(true);
 
-    await admin.openSheet("Config", "Legales");
-    expect.soft(await admin.legalTabs(), "and its legal").toContain("Campaña nueva");
-  });
+      await admin.openSheet("Config", "Legales");
+      expect.soft(await admin.legalTabs(), "and its legal").toContain("Campaña nueva");
+    },
+  );
 
-  test("a new flyer can replace the old one: companies follow it by themselves", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.addFlyerOption({
-      option: 8,
-      name: "Combustible 2025",
-      image: FLYER,
-      legal: "L",
-      tab: "rubros",
-    });
-    cloud.addFlyerOption({
-      option: 11,
-      name: "Combustible 2026",
-      image: FLYER,
-      legal: "L",
-      tab: "rubros",
-    });
-    const app = await openApp({ user: "admin" });
-    const { admin, companyRegistry } = app;
-    await admin.openPanel();
-    await admin.openSheet("Config", "Opciones");
-    await expect.poll(async () => (await admin.optionRows()).length).toBeGreaterThan(1);
+  test(
+    "a new flyer can replace the old one: companies follow it by themselves",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.addFlyerOption({
+        option: 8,
+        name: "Combustible 2025",
+        image: FLYER,
+        legal: "L",
+        tab: "rubros",
+      });
+      cloud.addFlyerOption({
+        option: 11,
+        name: "Combustible 2026",
+        image: FLYER,
+        legal: "L",
+        tab: "rubros",
+      });
+      const app = await openApp({ user: "admin" });
+      const { admin, companyRegistry } = app;
+      await admin.openPanel();
+      await admin.openSheet("Config", "Opciones");
+      await expect.poll(async () => (await admin.optionRows()).length).toBeGreaterThan(1);
 
-    const company = { name: "ACME", cashback: "BAU", category: { option: 8 } };
-    expect.soft(await companyRegistry.destinationOption(company), "before").toBe(11);
+      const company = { name: "ACME", cashback: "BAU", category: { option: 8 } };
+      expect.soft(await companyRegistry.destinationOption(company), "before").toBe(11);
 
-    const index = (await admin.optionRows()).findIndex(({ number }) => number === 11);
-    await admin.chooseOptionReplaces(index, "Reemplaza a: Combustible 2025");
-    await admin.saveOptions();
+      const index = (await admin.optionRows()).findIndex(({ number }) => number === 11);
+      await admin.chooseOptionReplaces(index, "Reemplaza a: Combustible 2025");
+      await admin.saveOptions();
 
-    const saved = cloud.bucketJson["_opciones.json"].opts.find(({ n }) => n === 11);
-    expect.soft(saved?.reemplaza).toBe(8);
-    expect
-      .soft(await companyRegistry.destinationOption(company), "the old number leads to the new")
-      .toBe(11);
-    expect.soft((await admin.optionRows())[index]?.isCurrent, "it is marked as current").toBe(true);
-  });
+      const saved = cloud.bucketJson["_opciones.json"].opts.find(({ n }) => n === 11);
+      expect.soft(saved?.reemplaza).toBe(8);
+      expect
+        .soft(await companyRegistry.destinationOption(company), "the old number leads to the new")
+        .toBe(11);
+      expect
+        .soft((await admin.optionRows())[index]?.isCurrent, "it is marked as current")
+        .toBe(true);
+    },
+  );
 
-  test("the row of a company leads to the current flyer of its category, not to the screen", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.addFlyerOption({
-      option: 8,
-      name: "Combustible",
-      image: FLYER,
-      legal: "L",
-      tab: "rubros",
-    });
-    cloud.addFlyerOption({
-      option: 7,
-      name: "Supermercado",
-      image: FLYER,
-      legal: "L",
-      tab: "rubros",
-    });
-    const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
+  test(
+    "the row of a company leads to the current flyer of its category, not to the screen",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.addFlyerOption({
+        option: 8,
+        name: "Combustible",
+        image: FLYER,
+        legal: "L",
+        tab: "rubros",
+      });
+      cloud.addFlyerOption({
+        option: 7,
+        name: "Supermercado",
+        image: FLYER,
+        legal: "L",
+        tab: "rubros",
+      });
+      const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
 
-    const destination = async (category: object) =>
-      companyRegistry.destinationOption({ name: "X", cashback: "BAU", category });
-    expect.soft(await destination({ name: "Combustible" }), "by the text of the sheet").toBe(8);
-    expect.soft(await destination({ name: "Supermercado" })).toBe(7);
-    expect.soft(await destination({ option: 8 }), "by the number saved").toBe(8);
-    expect.soft(await destination({}), "with no category, the general flyer in force").toBe(9);
+      const destination = async (category: object) =>
+        companyRegistry.destinationOption({ name: "X", cashback: "BAU", category });
+      expect.soft(await destination({ name: "Combustible" }), "by the text of the sheet").toBe(8);
+      expect.soft(await destination({ name: "Supermercado" })).toBe(7);
+      expect.soft(await destination({ option: 8 }), "by the number saved").toBe(8);
+      expect.soft(await destination({}), "with no category, the general flyer in force").toBe(9);
 
-    await flyerEditor.selectOption(8);
-    await flyerEditor.waitForOptionShown(8);
-    expect.soft(await destination({}), "wherever one stands").toBe(9);
-  });
+      await flyerEditor.selectOption(8);
+      await flyerEditor.waitForOptionShown(8);
+      expect.soft(await destination({}), "wherever one stands").toBe(9);
+    },
+  );
 
   test("a category left without flyer is said, and does not fall into the general one", async ({
     cloud,
@@ -136,9 +141,43 @@ test.describe("Config → Opciones", () => {
       .not.toMatch(/ACME/);
     expect.soft(outcome.summary, "and this one is told").toMatch(/ACME/);
   });
+
+  // The one above puts in the batch a company a person cannot tick (React has no way to): this is
+  // the same rule with what a person does.
+  test(
+    "a category left without flyer says so on the list, and the batch does not take it",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.addFlyerOption({
+        option: 8,
+        name: "Combustible",
+        image: FLYER,
+        legal: "L",
+        tab: "rubros",
+      });
+      const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
+      await flyerEditor.loadDownloadLibrary("zip");
+      await flyerEditor.loadDownloadLibrary("pdf");
+      const companies = [
+        { name: "ACME", cashback: "BAU", category: { option: 99, name: "Harina" } },
+        { name: "BETA", cashback: "BAU", category: { option: 8 } },
+      ];
+
+      await companyRegistry.openGeneratorWith(companies);
+      expect
+        .soft(await companyRegistry.generatorText(), "the list says why it does not go")
+        .toMatch(/ACME[\s\S]*el flyer de su rubro ya no está/);
+
+      const outcome = await companyRegistry.generateFlyers(companies);
+      expect.soft(outcome.files.join(" "), "the other one goes").toMatch(/BETA/);
+      expect
+        .soft(outcome.files.join(" "), "this one is not sent to another flyer")
+        .not.toMatch(/ACME/);
+    },
+  );
 });
 
-test.describe("Config → Cashback", () => {
+test.describe("Config → Cashback", { tag: "@react" }, () => {
   test("is edited in the panel, saved for everybody and reaches whoever comes in", async ({
     cloud,
     openApp,

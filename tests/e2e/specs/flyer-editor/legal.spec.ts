@@ -41,35 +41,36 @@ test.describe("the markers of the legal", () => {
     expect.soft(words).toContain("{importeee}");
   });
 
-  test("the administrator pastes them with chips, in the legal of that option", async ({
-    cloud,
-    openApp,
-  }) => {
-    withTwoOptions(cloud);
-    const { admin } = await openApp({ user: "admin" });
-    await admin.openPanel();
-    await admin.openSheet("Config", "Legales");
+  test(
+    "the administrator pastes them with chips, in the legal of that option",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      withTwoOptions(cloud);
+      const { admin } = await openApp({ user: "admin" });
+      await admin.openPanel();
+      await admin.openSheet("Config", "Legales");
 
-    const tabs = await admin.legalTabs();
-    expect.soft(tabs, "one tab per option").toContain("Combustible");
-    expect.soft(tabs).toContain("Otra");
+      const tabs = await admin.legalTabs();
+      expect.soft(tabs, "one tab per option").toContain("Combustible");
+      expect.soft(tabs).toContain("Otra");
 
-    await admin.chooseLegalTab("Otra");
-    await expect.poll(() => admin.legalText()).toBe("Legal seis.");
-    const markers = await admin.legalMarkers();
-    expect.soft(markers.join(" "), "the chips name the markers").toMatch(/\{plusgold\}/);
+      await admin.chooseLegalTab("Otra");
+      await expect.poll(() => admin.legalText()).toBe("Legal seis.");
+      const markers = await admin.legalMarkers();
+      expect.soft(markers.join(" "), "the chips name the markers").toMatch(/\{plusgold\}/);
 
-    await admin.pressLegalMarker("{plusgold}");
-    expect.soft(await admin.legalText()).toBe("Legal seis.{plusgold}");
+      await admin.pressLegalMarker("{plusgold}");
+      expect.soft(await admin.legalText()).toBe("Legal seis.{plusgold}");
 
-    await admin.saveLegal();
-    expect
-      .soft(cloud.bucketJson["_legal6.json"], "only its own file")
-      .toEqual(expect.objectContaining({ text: "Legal seis.{plusgold}" }));
-    expect
-      .soft(cloud.bucketJson["_legal9.json"])
-      .toEqual(expect.objectContaining({ text: "Legal de prueba para la opción 9." }));
-  });
+      await admin.saveLegal();
+      expect
+        .soft(cloud.bucketJson["_legal6.json"], "only its own file")
+        .toEqual(expect.objectContaining({ text: "Legal seis.{plusgold}" }));
+      expect
+        .soft(cloud.bucketJson["_legal9.json"])
+        .toEqual(expect.objectContaining({ text: "Legal de prueba para la opción 9." }));
+    },
+  );
 });
 
 test.describe("each option keeps its legal", { tag: "@react" }, () => {

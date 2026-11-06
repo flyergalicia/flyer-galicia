@@ -11,6 +11,7 @@ import {
 } from "../company-registry.ts";
 import {
   chooseTab,
+  closeRegistryIfOpen,
   database,
   databaseWindow,
   decisionDialog,
@@ -434,6 +435,37 @@ function createEditor(page: Page) {
   };
 }
 
+const ADMIN_PANEL = '[data-testid="admin-panel"]';
+
+/**
+ * Where a company goes is read on Base de datos. With the panel of the administrator open, the person
+ * closes it, looks, and opens it again (it opens where it was left); the window is not left in the way.
+ */
+async function destinationOption(page: Page, company: CompanyRecord): Promise<number> {
+  const panel = page.locator(ADMIN_PANEL);
+  const panelWasOpen = await panel.isVisible();
+  if (panelWasOpen) {
+    await panel.getByRole("button", { name: "Cerrar", exact: true }).click();
+    await panel.waitFor({ state: "detached" });
+  }
+  const wasOpen = await database(page).isVisible();
+  const option = await withProbe(page, () =>
+    page.evaluate(
+      (row) => window["__flyerProbe"]?.companyRegistry?.().destinationOption(row) ?? 0,
+      storedCompany(company),
+    ),
+  );
+  if (!wasOpen) await closeRegistryIfOpen(page);
+  if (panelWasOpen) {
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: /^⚙ Admin/ })
+      .click();
+    await panel.waitFor();
+  }
+  return option;
+}
+
 async function withProbe<T>(page: Page, read: () => Promise<T>): Promise<T> {
   await openRegistry(page);
   return read();
@@ -478,13 +510,7 @@ function createSheets(page: Page) {
           rows,
         ),
       ),
-    destinationOption: (company: CompanyRecord) =>
-      withProbe(page, () =>
-        page.evaluate(
-          (row) => window["__flyerProbe"]?.companyRegistry?.().destinationOption(row) ?? 0,
-          storedCompany(company),
-        ),
-      ),
+    destinationOption: (company: CompanyRecord) => destinationOption(page, company),
   };
 }
 

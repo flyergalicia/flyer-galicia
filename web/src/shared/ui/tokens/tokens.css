@@ -440,6 +440,8 @@ html.dark {
   /* Tabs in the shape of a pill. */
   --pill-on-bg: var(--navy);
   --pill-on-tx: #fff;
+  /* The tabs inside a sheet have no band of their own; in dark mode they keep the one of today. */
+  --pills-inside-bg: transparent;
 
   /* Tables. */
   --table-head-bg: var(--paper);
@@ -700,6 +702,23 @@ html.dark {
   --calibrator-text-line: rgba(128, 128, 128, 0.4);
   --calibrator-text-focus-bg: transparent;
   --calibrator-canvas-bg: #fff;
+
+  /* Config → Legales, Opciones and Marcas vigiladas. */
+  --legal-chip-bg: var(--field);
+  --legal-chip-line: var(--border);
+  --options-line: var(--border);
+  --options-name-bg: transparent;
+  --options-choice-bg: transparent;
+  --options-current-bg: #e8f5e9;
+  --options-current-tx: #1b5e20;
+  --watched-ok-bg: #e7f6ee;
+  --watched-ok-tx: #0e7a4f;
+  --watched-soon-bg: #fff4dd;
+  --watched-soon-tx: #8a5a00;
+  --watched-expired-bg: #fdeaea;
+  --watched-expired-tx: #b42318;
+  /* The count of those to review stays this red in dark mode too, as today. */
+  --watched-review-tx: #b42318;
 }
 
 html.dark {
@@ -800,6 +819,7 @@ html.dark {
   --decision-focus: #3a3e46;
   --pill-on-bg: #fff;
   --pill-on-tx: #15171a;
+  --pills-inside-bg: #22262c;
   --table-head-bg: #1b1e23;
   --table-head-tx: #9aa0a8;
   --table-row-line: #333840;
@@ -899,4 +919,18 @@ html.dark {
   --calibrator-text-tx: var(--ink);
   --calibrator-text-line: var(--border);
   --calibrator-text-focus-bg: var(--card);
+  --legal-chip-bg: #1b1e23;
+  --legal-chip-line: #333840;
+  --options-line: #3a3e46;
+  /* As every text field in dark mode, which wins over the rule of the row. */
+  --options-name-bg: var(--field);
+  --options-choice-bg: #22242a;
+  --options-current-bg: #1b3a1f;
+  --options-current-tx: #a5d6a7;
+  --watched-ok-bg: rgba(14, 122, 79, 0.2);
+  --watched-ok-tx: #7ee2b0;
+  --watched-soon-bg: rgba(138, 90, 0, 0.25);
+  --watched-soon-tx: #f0c674;
+  --watched-expired-bg: rgba(180, 35, 24, 0.25);
+  --watched-expired-tx: #ff9b91;
 }

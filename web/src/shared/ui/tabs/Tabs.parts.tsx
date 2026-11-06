@@ -13,10 +13,17 @@ import styles from "./Tabs.module.css";
 /**
  * segmented: the block of the form (Individual, Masivo, Historial).
  * pills: the sub-tabs of the admin panel. pills-window: the same ones, inside a window.
+ * pills-inside: the same ones, inside a sheet of the panel (one per option, in Config → Legales).
  * underline: the three main tabs of the admin panel, which share the whole width.
  * line: the tabs of a screen, as many as they need, in a row.
  */
-export type TabsVariant = "segmented" | "pills" | "pills-window" | "underline" | "line";
+export type TabsVariant =
+  | "segmented"
+  | "pills"
+  | "pills-window"
+  | "pills-inside"
+  | "underline"
+  | "line";
 
 type TabsContextValue = {
   readonly baseId: string;

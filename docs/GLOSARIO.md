@@ -77,6 +77,11 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Zona | `zone` | Empresa, Montos, cada caja, Cashback, Asesores, Legales y cada línea del cartel |
 | Partir de esta base | `calibrationBase` | Un punto de partida medido para un modelo de flyer (Galicia, Pasá tu sueldo) |
 | Plantilla del cartel | `benefitTemplate` | Las líneas del cuadro del beneficio de cada rubro (Flyer Rubros) |
+| Configuración de cashback | `cashbackConfig` | BAU, Config 1…: los cuatro montos que se eligen en el armador; Config → Cashback las edita (`_cashback.json`) |
+| Marcador (del legal) | `legalMarker` | `{empresa}`, `{importe}`, `{importe2}`… en el legal de una opción: el armador los completa solo |
+| Reemplaza a | `reemplaza` (en `_opciones.json`) | La opción de la campaña anterior: las empresas que la tenían pasan solas a la nueva |
+| Vigente (de un rubro) | `currentOfCategory` | El flyer que hoy recibe las empresas de su rubro (la etiqueta VIGENTE de Config → Opciones) |
+| Versión sin cashback | `sinCB` (en `_opciones.json`) | La opción hecha con Recortar + Estudio a la que van las empresas sin cashback |
 
 Los perfiles Hunter y Prospect, la palabra cashback y el nombre Benchmark quedan igual.
 

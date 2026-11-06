@@ -9,6 +9,7 @@ import {
   type ProvinceFieldView,
 } from "../promotions.ts";
 import { partialDriver } from "./pending.ts";
+import { createWatchedBrands } from "./watched-brands.ts";
 
 const WAIT_MS = 15_000;
 const BOX_DRAG_STEPS = 4;
@@ -188,6 +189,31 @@ function createTableActions(page: Page) {
   };
 }
 
+/**
+ * The tick is on Promociones and on the windows of brands. Away from them (on the flyer, with
+ * Cambiar logos on, or on the panel of the administrator), the person goes to Promociones, changes
+ * it and comes back to the flyer.
+ */
+async function setIncludeModo(page: Page, on: boolean): Promise<void> {
+  const tick = page.getByRole("checkbox", { name: "Incluir MODO" });
+  if (await tick.first().isVisible()) {
+    await tick.first().setChecked(on);
+    return;
+  }
+  // With the panel of the administrator open, it is closed first: it covers everything else.
+  const panel = page.getByTestId("admin-panel");
+  if (await panel.isVisible()) {
+    await panel.getByRole("button", { name: "Cerrar", exact: true }).click();
+    await panel.waitFor({ state: "detached", timeout: WAIT_MS });
+  }
+  const header = page.getByRole("banner");
+  const flyerTab = header.getByRole("tab").first();
+  await header.getByRole("tab", { name: "Promociones" }).click();
+  await tabs(page).waitFor({ timeout: WAIT_MS });
+  await page.getByRole("checkbox", { name: "Incluir MODO" }).first().setChecked(on);
+  await flyerTab.click();
+}
+
 function createPanelActions(page: Page) {
   const fillBrands = (brands: string[]) => brandsBox(page).fill(brands.join("\n"));
   return {
@@ -226,8 +252,7 @@ function createPanelActions(page: Page) {
       page.getByRole("checkbox", { name: /Sólo las nuevas/ }).setChecked(on),
     setOneRowPerBrand: (on: boolean) =>
       page.getByRole("checkbox", { name: ONE_ROW_PER_BRAND }).setChecked(on),
-    setIncludeModo: (on: boolean) =>
-      page.getByRole("checkbox", { name: "Incluir MODO" }).setChecked(on),
+    setIncludeModo: (on: boolean) => setIncludeModo(page, on),
     rememberedIncludeModo: async () => {
       const stored = await page.evaluate(() => localStorage.getItem("fg_promos_modo"));
       return stored === null ? null : stored === "1";
@@ -563,6 +588,7 @@ export function createReactPromotionsDriver(page: Page): PromotionsDriver {
     ...createPanelActions(page),
     ...createProvinceActions(page),
     ...createCatalogQuestions(page),
+    ...createWatchedBrands(page),
     waitForCatalog,
     open: async (tab) => {
       await goToScreen();

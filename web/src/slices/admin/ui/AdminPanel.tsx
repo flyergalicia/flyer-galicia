@@ -17,21 +17,25 @@ import {
   SHEETS,
 } from "../model/panel.ts";
 import { AuditSheet } from "./AuditSheet.tsx";
+import { CashbackSheet } from "./CashbackSheet.tsx";
 import { CompanyLogSheet } from "./CompanyLogSheet.tsx";
 import { DashboardSheet } from "./DashboardSheet.tsx";
 import { FacultiesSheet } from "./FacultiesSheet.tsx";
 import { FlyerSheet } from "./FlyerSheet.tsx";
+import { LegalSheet } from "./LegalSheet.tsx";
+import { OptionsSheet } from "./OptionsSheet.tsx";
 import { OtherPeopleSheet } from "./OtherPeopleSheet.tsx";
 import { RegistrosSheet } from "./RegistrosSheet.tsx";
-import { AdvisorsSheet, CompaniesSheet, PendingSheet } from "./RegistrySheets.tsx";
+import { AdvisorsSheet, CompaniesSheet } from "./RegistrySheets.tsx";
 import type { SheetProps } from "./SheetProps.ts";
 import { UsageSheet } from "./UsageSheet.tsx";
 import { UsersSheet } from "./UsersSheet.tsx";
+import { WatchedSheet } from "./WatchedSheet.tsx";
 import styles from "./Panel.module.css";
 
 const SLIDE_MS = 320;
 
-/** What each sheet shows. Parts 2 and 3 of the panel replace the pending ones of Config. */
+/** What each sheet shows. */
 const SHEET_VIEWS: Readonly<Record<SheetId, ComponentType<SheetProps>>> = {
   dashboard: DashboardSheet,
   usuarios: UsersSheet,
@@ -44,10 +48,10 @@ const SHEET_VIEWS: Readonly<Record<SheetId, ComponentType<SheetProps>>> = {
   padronotros: OtherPeopleSheet,
   padronlog: CompanyLogSheet,
   subir: FlyerSheet,
-  cashback: PendingSheet,
-  legales: PendingSheet,
-  opciones: PendingSheet,
-  vigiladas: PendingSheet,
+  cashback: CashbackSheet,
+  legales: LegalSheet,
+  opciones: OptionsSheet,
+  vigiladas: WatchedSheet,
 };
 
 function useSlide(onClose: () => void) {

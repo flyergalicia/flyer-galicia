@@ -179,7 +179,7 @@ test.describe("reading", () => {
     { name: "the panel of the administrator", user: "admin", open: "panel" },
   ] as const;
   for (const { name, user, open } of screens) {
-    const tag = open === null ? ["@react"] : [];
+    const tag = ["@react"];
     test(`nothing in ${name} goes below the minimum letter`, { tag }, async ({ openApp }) => {
       const app = await openApp({ user });
       if (open === "panel") await app.admin.openPanel();

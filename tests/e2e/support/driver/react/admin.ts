@@ -1,7 +1,12 @@
 import ExcelJS from "exceljs";
 import { type Locator, type Page } from "@playwright/test";
-import { type AdminDriver, type FacultyRow, type UsageBoard, type UserRow } from "../admin.ts";
-import { partialDriver } from "./pending.ts";
+import {
+  type AdminDriver,
+  type FacultyRow,
+  type OptionRow,
+  type UsageBoard,
+  type UserRow,
+} from "../admin.ts";
 
 const LOAD_TIMEOUT_MS = 10_000;
 const EXPORT_TIMEOUT_MS = 30_000;
@@ -323,11 +328,113 @@ function createPanel(page: Page) {
   };
 }
 
+/** Runs in the page: each row of Config → Opciones, as it reads. */
+function readOptionRows(rows: Element[]): OptionRow[] {
+  return rows.map((row) => {
+    const chosen = (label: string) => {
+      const select = row.querySelector(`select[aria-label="${label}"]`);
+      return select instanceof HTMLSelectElement
+        ? (select.options[select.selectedIndex]?.text ?? "")
+        : null;
+    };
+    const name = row.querySelector('input[type="text"]');
+    return {
+      number: Number(row.getAttribute("data-n")),
+      name: name instanceof HTMLInputElement ? name.value : "",
+      tab: chosen("Solapa") ?? "",
+      replaces: chosen("Reemplaza a"),
+      isCurrent: row.querySelector('[data-testid="option-current"]') !== null,
+      status: row.querySelector('[data-testid="option-status"]')?.textContent ?? "",
+    };
+  });
+}
+
+/** Presses the button that saves a sheet and waits until it can be pressed again. */
+async function saveSheet(page: Page, sheet: string, label: string): Promise<void> {
+  const save = panel(page).getByTestId(sheet).getByRole("button", { name: label, exact: true });
+  await save.click();
+  await panel(page)
+    .getByTestId(sheet)
+    .getByRole("button", { name: label, exact: true })
+    .and(page.locator(":enabled"))
+    .waitFor({ timeout: LOAD_TIMEOUT_MS });
+}
+
+function createOptions(page: Page) {
+  const rows = () => panel(page).getByTestId("option-row");
+  return {
+    optionRows: async () => {
+      await rows().first().waitFor({ timeout: LOAD_TIMEOUT_MS });
+      return rows().evaluateAll(readOptionRows);
+    },
+    pressAddOption: () =>
+      panel(page)
+        .getByTestId("admin-options")
+        .getByRole("button", { name: "+ Agregar opción", exact: true })
+        .click(),
+    renameOptionRow: (index: number, name: string) =>
+      rows().nth(index).getByLabel("Nombre de la opción").fill(name),
+    chooseOptionTab: async (index: number, tab: string) => {
+      await rows().nth(index).getByLabel("Solapa").selectOption({ label: tab });
+    },
+    chooseOptionReplaces: async (index: number, label: string) => {
+      await rows().nth(index).getByLabel("Reemplaza a").selectOption({ label });
+    },
+    saveOptions: () => saveSheet(page, "admin-options", "Guardar cambios"),
+  };
+}
+
+function createCashback(page: Page) {
+  const configs = () => panel(page).getByTestId("cashback-config");
+  return {
+    cashbackConfigs: () =>
+      configs().evaluateAll((cards) =>
+        cards.map((card) =>
+          Array.from(card.querySelectorAll<HTMLInputElement>("input"), (amount) => amount.value),
+        ),
+      ),
+    setCashbackAmount: (config: number, amount: number, value: string) =>
+      configs()
+        .nth(config)
+        .getByLabel(`Monto ${String(amount + 1)}`, { exact: true })
+        .fill(value),
+    saveCashback: () => saveSheet(page, "admin-cashback", "Guardar cambios"),
+  };
+}
+
+function createLegalSheet(page: Page) {
+  const sheet = () => panel(page).getByTestId("admin-legal");
+  const pane = () => sheet().locator('[role="tabpanel"]:not([hidden])');
+  const text = () => pane().getByTestId("legal-text");
+  return {
+    legalTabs: () => sheet().getByRole("tab").allInnerTexts(),
+    chooseLegalTab: (name: string) => sheet().getByRole("tab", { name, exact: true }).click(),
+    legalMarkers: () => pane().getByTestId("legal-marker").allInnerTexts(),
+    pressLegalMarker: async (name: string) => {
+      await text().click();
+      await page.keyboard.press("ControlOrMeta+End");
+      await page.keyboard.up("ControlOrMeta");
+      await pane().getByTestId("legal-marker").getByText(name, { exact: true }).click();
+    },
+    legalText: () => text().inputValue(),
+    fillLegal: (value: string) => text().fill(value),
+    saveLegal: async () => {
+      await pane().getByRole("button", { name: "Guardar y aplicar a todos", exact: true }).click();
+      await pane()
+        .getByText(/^✅ Guardado\./)
+        .waitFor({ timeout: LOAD_TIMEOUT_MS });
+    },
+  };
+}
+
 export function createReactAdminDriver(page: Page): AdminDriver {
-  return partialDriver<AdminDriver>("admin", {
+  return {
     ...createPanel(page),
     ...createUsage(page),
     ...createUsers(page),
     ...createFaculties(page),
-  });
+    ...createOptions(page),
+    ...createCashback(page),
+    ...createLegalSheet(page),
+  };
 }

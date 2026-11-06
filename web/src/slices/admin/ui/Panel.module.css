@@ -177,13 +177,6 @@
   margin-top: 14px;
 }
 
-.pending {
-  padding: 20px 0;
-  color: var(--gray);
-  font-size: var(--text-lg);
-  text-align: center;
-}
-
 /* The filters of Registros, Cambios en las empresas and Auditoría. */
 .filters {
   display: flex;

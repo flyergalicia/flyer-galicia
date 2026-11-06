@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe("the panel", () => {
-  it("has three pillars with their sheets, and the Config ones still to come", async () => {
+  it("has three pillars with their sheets, and every one of Config is there", async () => {
     await openPanel();
     await expect.element(sheet("Admin", "Dashboard")).toHaveAttribute("aria-selected", "true");
     const groups = Array.from(
@@ -38,7 +38,13 @@ describe("the panel", () => {
     await expect.element(sheet("Config", "Flyer")).toHaveAttribute("aria-selected", "true");
     await expect.element(panel()).toMatchTextContent(/Subir nueva versión del flyer/);
     await sheet("Config", "Cashback").click();
-    await expect.element(panel()).toMatchTextContent(/Esta hoja todavía falta/);
+    await expect.element(panel()).toMatchTextContent(/Montos de cashback/);
+    await sheet("Config", "Legales").click();
+    await expect.element(panel()).toMatchTextContent(/Términos y condiciones/);
+    await sheet("Config", "Opciones").click();
+    await expect.element(panel()).toMatchTextContent(/Opciones del armador/);
+    await sheet("Config", "Marcas vigiladas").click();
+    await expect.element(panel()).toMatchTextContent(/Todos los días a las 9/);
   });
 
   it("goes back to the last sheet seen of each pillar, and opens again where it was left", async () => {
