@@ -119,8 +119,9 @@ export function MyProposalsWindow({ onClose }: MenuWindowProps) {
             return false;
           }
           show("Respuesta enviada: vuelve a quedar pendiente de aprobación.");
-          await reload();
-          await reloadMessages();
+          // As today: it closes at once, and the list and the conversation are read again behind it.
+          void reload();
+          void reloadMessages();
           return true;
         }}
       />

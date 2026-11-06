@@ -140,6 +140,32 @@ describe("Mis propuestas", () => {
     });
   });
 
+  it("closes at once, and the list and the conversation are read again behind it", async () => {
+    let isAnswered = false;
+    const reads: { letThemArrive?: () => void } = {};
+    const late = new Promise<void>((done) => {
+      reads.letThemArrive = done;
+    });
+    const { harness, onClose } = open({
+      intercept: async ({ path, method }) => {
+        if (path === "/rest/v1/rpc/padron_propuesta_responder") isAnswered = true;
+        else if (isAnswered && method === "GET") await late;
+        return null;
+      },
+    });
+    await cards().getByRole("button", { name: "Responder" }).click();
+    await note().fill("Sí, lo confirmé");
+    await send().click();
+
+    await vi.waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+    reads.letThemArrive?.();
+    await vi.waitFor(() => {
+      expect(harness.network.to("/rest/v1/padron_propuestas", "GET").length).toBeGreaterThan(1);
+    });
+  });
+
   it("what cannot be sent says so, keeps the window and can be sent again", async () => {
     const { onClose } = open({
       functions_: { padron_propuesta_responder: () => databaseError("falla simulada") },
