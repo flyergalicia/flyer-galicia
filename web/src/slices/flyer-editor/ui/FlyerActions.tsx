@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
-import { Button, Icon, useShortcutTip } from "@/shared/ui/index.ts";
+import { MENU_CLOSED, usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
+import { Button, Icon, insideGuideTip, useShortcutTip } from "@/shared/ui/index.ts";
 import { useIsPhone } from "../model/use-is-phone.ts";
 import type { DownloadKind } from "../model/use-flyer-download.ts";
 import { BranchesSwitch } from "./BranchesSwitch.tsx";
@@ -27,9 +27,9 @@ type OtherActionsProps = Pick<
 function OtherActions({ isDocked, sharing, canShare, onDownload, onShare }: OtherActionsProps) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  // "Otros" of the search of screens opens it as its button does.
-  usePlaceRequests("flyer-others", () => {
-    setOpen(true);
+  // "Otros" of the search of screens opens it as its button does; the tutorial also closes it.
+  usePlaceRequests("flyer-others", (place) => {
+    setOpen(place !== MENU_CLOSED);
   });
   useEffect(() => {
     if (!open) return undefined;
@@ -37,7 +37,9 @@ function OtherActions({ isDocked, sharing, canShare, onDownload, onShare }: Othe
       if (key === "Escape") setOpen(false);
     };
     const onClick = ({ target }: MouseEvent) => {
-      if (isDocked && target instanceof Node && !box.current?.contains(target)) setOpen(false);
+      // The tutorial opens it on purpose: touching its globe leaves it open.
+      if (!isDocked || !(target instanceof Node) || insideGuideTip(target)) return;
+      if (!box.current?.contains(target)) setOpen(false);
     };
     document.addEventListener("keydown", onKey);
     document.addEventListener("click", onClick, true);
@@ -103,7 +105,7 @@ function OtherActions({ isDocked, sharing, canShare, onDownload, onShare }: Othe
 
 function PreviewButton({ onPreview }: Pick<FlyerActionsProps, "onPreview">) {
   return (
-    <Button variant="blue" icon="eye" onClick={onPreview}>
+    <Button variant="blue" icon="eye" data-testid="preview-button" onClick={onPreview}>
       Vista previa
     </Button>
   );
@@ -132,7 +134,7 @@ function DownloadButton({ busy, onDownload }: Pick<FlyerActionsProps, "busy" | "
 
 function RestoreButton({ onRestore }: Pick<FlyerActionsProps, "onRestore">) {
   return (
-    <Button variant="ghost" icon="restore" onClick={onRestore}>
+    <Button variant="ghost" icon="restore" data-testid="restore-button" onClick={onRestore}>
       Restaurar
     </Button>
   );

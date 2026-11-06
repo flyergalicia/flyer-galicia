@@ -2,6 +2,7 @@ import {
   createContext,
   type KeyboardEvent,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -30,14 +31,25 @@ function useMenu(part: string): MenuContextValue {
 type MenuProps = {
   /** Starts open. It is for showing a state; people open it with the trigger. */
   readonly defaultOpen?: boolean;
+  /** Open or closed from outside too (the tutorial opens the name menu): it is told what changes. */
+  readonly open?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
   readonly children: ReactNode;
 };
 
-export function MenuRoot({ defaultOpen = false, children }: MenuProps) {
+export function MenuRoot({ defaultOpen = false, open: told, onOpenChange, children }: MenuProps) {
   const menuId = useId();
-  const [open, setOpen] = useState(defaultOpen);
+  const [own, setOwn] = useState(defaultOpen);
+  const open = told ?? own;
   const root = useRef<HTMLDivElement>(null);
-  const context = useMemo(() => ({ menuId, open, setOpen }), [menuId, open]);
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setOwn(next);
+      onOpenChange?.(next);
+    },
+    [onOpenChange],
+  );
+  const context = useMemo(() => ({ menuId, open, setOpen }), [menuId, open, setOpen]);
   // The search of screens closes it on opening, as it does today.
   useCloseWithFloating(() => {
     setOpen(false);
@@ -58,7 +70,7 @@ export function MenuRoot({ defaultOpen = false, children }: MenuProps) {
       document.removeEventListener("mousedown", onPress);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   return (
     <MenuContext.Provider value={context}>
@@ -131,6 +143,8 @@ export function MenuList({
 }
 
 type ItemProps = {
+  /** Which one it is, for whoever has to find it: the tutorial lights it. */
+  readonly item?: string;
   readonly icon?: IconName;
   /** Leaving the app and the like: it only looks different under the mouse. */
   readonly danger?: boolean;
@@ -143,6 +157,7 @@ type ItemProps = {
 };
 
 export function MenuItem({
+  item,
   icon,
   danger = false,
   keepOpen = false,
@@ -155,6 +170,7 @@ export function MenuItem({
     <button
       type="button"
       role="menuitem"
+      data-item={item}
       className={danger ? `${styles.item} ${styles.danger}` : styles.item}
       onClick={() => {
         onSelect();

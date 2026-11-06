@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { initialsOf } from "@/shared/domain/initials.ts";
+import { MENU_OPEN, usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { roleLabel, roleTone, useSessionActions } from "@/shared/session/index.ts";
 import { Badge, Menu, PalettePicker, useTheme, useThemeActions } from "@/shared/ui/index.ts";
 import { AccountSwitcher, TestProfilePicker, useAccountSwitch } from "@/slices/auth/index.ts";
@@ -26,6 +28,7 @@ function WindowItems({
     .map((window) => (
       <Menu.Item
         key={window.id}
+        item={window.id}
         icon={window.icon}
         count={window.noticeSource ? rules.waiting(window.noticeSource) : 0}
         onSelect={() => {
@@ -41,7 +44,7 @@ function ThemeItem() {
   const { dark } = useTheme();
   const { toggleDark } = useThemeActions();
   return (
-    <Menu.Item icon={dark ? "sun" : "moon"} keepOpen onSelect={toggleDark}>
+    <Menu.Item item="theme" icon={dark ? "sun" : "moon"} keepOpen onSelect={toggleDark}>
       {dark ? "Modo claro" : "Modo oscuro"}
     </Menu.Item>
   );
@@ -58,8 +61,13 @@ export function UserMenu({
 }: UserMenuProps) {
   const { signOut } = useSessionActions();
   const accountSwitch = useAccountSwitch();
+  const [open, setOpen] = useState(false);
+  // The tutorial opens it for the steps of "Tu menú", and closes it for the others.
+  usePlaceRequests("user-menu", (place) => {
+    setOpen(place === MENU_OPEN);
+  });
   return (
-    <Menu>
+    <Menu open={open} onOpenChange={setOpen}>
       <Menu.Trigger label={`Menú de ${name}`} className={styles.userButton} title={notice.hint}>
         <span className={styles.avatar} aria-hidden="true">
           {initialsOf(name)}

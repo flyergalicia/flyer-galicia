@@ -241,6 +241,7 @@ function HunterScreen({ isActive }: ViewProps) {
             ref={field}
             placeholder="Nombre de la empresa o CUIT"
             autoComplete="off"
+            data-testid="hunter-search"
             value={query}
             onChange={({ target }) => {
               setQuery(target.value);

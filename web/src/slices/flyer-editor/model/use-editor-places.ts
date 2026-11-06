@@ -7,7 +7,7 @@ import {
   optionOfPlace,
   OTHERS_PLACE,
 } from "@/shared/domain/editor-panels.ts";
-import { usePlaceDesk, usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
+import { MENU_OPEN, usePlaceDesk, usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { useEnterLogoEditing } from "@/slices/logo-editor/index.ts";
 
 interface EditorPlaceWays {
@@ -31,6 +31,6 @@ export function useEditorPlaces({ showPanel, chooseOption }: EditorPlaceWays): v
     }
     showPanel("individual");
     if (place === LOGO_EDITING_PLACE) enterLogoEditing();
-    if (place === OTHERS_PLACE) desk?.ask("flyer-others", "open");
+    if (place === OTHERS_PLACE) desk?.ask("flyer-others", MENU_OPEN);
   });
 }

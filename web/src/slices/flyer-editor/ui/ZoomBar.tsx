@@ -19,6 +19,7 @@ export function ZoomBar() {
   return (
     <ZoomControls
       className={styles.zoomBar}
+      testId="flyer-zoom"
       percent={Math.round(zoom * 100)}
       onOut={() => {
         zoomTo(Math.max(zoom / ZOOM_STEP, ZOOM_MIN));

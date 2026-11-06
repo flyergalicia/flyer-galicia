@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -127,5 +128,50 @@ describe("Menu", () => {
     await expect
       .element(screen.getByRole("menuitem", { name: "Sin número" }))
       .toHaveTextContent("Sin número");
+  });
+
+  it("is opened and closed from outside too, and tells what changes by itself", async () => {
+    const changed = vi.fn<(open: boolean) => void>();
+    function FromOutside() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+            }}
+          >
+            Abrirlo de afuera
+          </button>
+          <Menu
+            open={open}
+            onOpenChange={(next) => {
+              changed(next);
+              setOpen(next);
+            }}
+          >
+            <Menu.Trigger label="Tu cuenta">AP</Menu.Trigger>
+            <Menu.List label="Opciones">
+              <Menu.Item item="theme" onSelect={noop}>
+                Modo oscuro
+              </Menu.Item>
+            </Menu.List>
+          </Menu>
+        </>
+      );
+    }
+    const screen = await render(<FromOutside />);
+
+    await screen.getByRole("button", { name: "Abrirlo de afuera" }).click();
+    await expect.element(screen.getByRole("menu")).toBeVisible();
+    expect(changed).not.toHaveBeenCalled();
+    await expect
+      .element(screen.getByRole("menuitem", { name: "Modo oscuro" }))
+      .toHaveAttribute("data-item", "theme");
+
+    await userEvent.keyboard("{Escape}");
+    await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
+    expect(changed).toHaveBeenCalledWith(false);
   });
 });

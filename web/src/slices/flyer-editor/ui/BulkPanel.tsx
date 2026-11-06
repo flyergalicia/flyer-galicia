@@ -139,7 +139,12 @@ export function BulkPanel({ goTo, goBack, companyBatch, onOpenDatabase }: BulkPa
         Cargá tu Excel y generá todos los PDFs en un ZIP. El texto legal se toma del campo de la
         pestaña Individual.
       </p>
-      <button type="button" className={styles.template} onClick={bulk.downloadTemplate}>
+      <button
+        type="button"
+        className={styles.template}
+        data-testid="batch-template"
+        onClick={bulk.downloadTemplate}
+      >
         <Icon name="download" className={styles.icon} /> Descargar plantilla Excel
       </button>
       {tab === "rubros" && <SignHint />}

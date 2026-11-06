@@ -14,6 +14,7 @@ export { Toast } from "./feedback/Toast.tsx";
 export { type ControlSize, Input, Select, Textarea } from "./field/controls.tsx";
 export { Field } from "./field/Field.ts";
 export { closeFloating, useCloseWithFloating } from "./floating/close-floating.ts";
+export { GUIDE_TIP_ATTRIBUTE, GUIDE_VEIL_ATTRIBUTE, insideGuideTip } from "./floating/guide.ts";
 export type { FieldStatus } from "./field/field-context.ts";
 export { Icon, type IconName } from "./icon/Icon.tsx";
 export { ListRow } from "./list-row/ListRow.ts";

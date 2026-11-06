@@ -10,7 +10,6 @@ import {
 } from "../logo-strip.ts";
 import type { ProbedChange } from "./globals.d.ts";
 import { createReactLogoEditorDriver } from "./logo-editor.ts";
-import { partialDriver } from "./pending.ts";
 import { createReactPromotionsDriver } from "./promotions.ts";
 
 const OPEN_TIMEOUT_MS = 15_000;
@@ -899,12 +898,12 @@ function createPreviewGroupMethods(page: Page) {
 
 /** Everything goes with mouse and keyboard: only what cannot be seen is read from the app. */
 export function createReactLogoStripDriver(page: Page): LogoStripDriver {
-  return partialDriver<LogoStripDriver>("logoStrip", {
+  return {
     ...createFlyerMethods(page),
     ...createWindowMethods(page),
     ...createPreviewMethods(page),
     ...createChooserMethods(page),
     ...createPickerMethods(page),
     ...createPreviewGroupMethods(page),
-  });
+  };
 }

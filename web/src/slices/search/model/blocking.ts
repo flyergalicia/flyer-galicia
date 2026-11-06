@@ -3,10 +3,12 @@
 // panel of the administrator are left open: they are screens, and going elsewhere closes them with
 // their question about what is not saved.
 import { BATCH_RUNNING_NOTICE } from "@/shared/lib/flyer-workspace/batch-lock.ts";
+import { GUIDE_VEIL_ATTRIBUTE } from "@/shared/ui/index.ts";
 
 export const WINDOW_OPEN_NOTICE = "Cerrá la ventana abierta para usar el buscador.";
 
-const WINDOW = '[aria-modal="true"], [role="dialog"], [role="alertdialog"], dialog[open]';
+// The veil of the tutorial counts as a window, as its `-ov` did today.
+const WINDOW = `[aria-modal="true"], [role="dialog"], [role="alertdialog"], dialog[open], [${GUIDE_VEIL_ATTRIBUTE}]`;
 /** A window that works as a screen: the search opens over it. */
 const SCREEN_WINDOW = "data-screen-window";
 

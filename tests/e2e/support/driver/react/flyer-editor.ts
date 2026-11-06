@@ -4,7 +4,6 @@ import { bucketUrl } from "../../cloud/index.ts";
 import { type FlyerEditorDriver, type FlyerRegion } from "../flyer-editor.ts";
 import { createReactFlyerBatches } from "./flyer-batches.ts";
 import { companyField, pressOtherAction } from "./flyer-output.ts";
-import { partialDriver } from "./pending.ts";
 
 const OPTION_TIMEOUT_MS = 25_000;
 const ZOOM_TIMEOUT_MS = 2_000;
@@ -679,7 +678,7 @@ function createDesignSaving(page: Page) {
 }
 
 export function createReactFlyerEditorDriver(page: Page): FlyerEditorDriver {
-  return partialDriver<FlyerEditorDriver>("flyerEditor", {
+  return {
     ...createDesignSaving(page),
     ...createFormFields(page),
     ...createDownloads(page),
@@ -792,5 +791,16 @@ export function createReactFlyerEditorDriver(page: Page): FlyerEditorDriver {
         (n) => window["__flyerProbe"]?.flyerReadings?.().optionCalibration(n) ?? {},
         option,
       ),
-  });
+    // A person has no way to do these: the specs that use them stay without @react (flyer-editor).
+    setNoCashback: () => {
+      throw new Error(
+        "In React «sin cashback» comes only from a company of the list: a person cannot set it by hand.",
+      );
+    },
+    redownloadFromHistory: () => {
+      throw new Error(
+        "In React the history holds only what was downloaded: a person cannot add an old flyer to it.",
+      );
+    },
+  };
 }

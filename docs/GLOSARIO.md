@@ -87,6 +87,10 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Recientes | `recent` | Lo último que se eligió en el buscador, primero; sólo los ids, en `fg_cmdk_rec` |
 | Lugar (dentro de una pantalla) | `place` | Masivo del armador, Activas de Promociones, una vista de Benchmark, una hoja del panel: adonde se llega desde afuera por el `PlaceDesk` |
 | Ventana-pantalla | `screenWindow` | Base de datos y el panel del administrador: el buscador abre encima y, al ir a otro lado, las cierra con su pregunta |
+| Tutorial, Ver tutorial | `tour` | El recorrido guiado sobre la pantalla real, por capítulos y por perfil. Arranca solo la primera vez con la facultad «Tutorial al primer ingreso» (`tutorial_auto`); lo visto queda en `fg_tour_done_<id>` |
+| Capítulo (del tutorial) | `chapter` | Armar un flyer, Masivo, Historial, Tu menú, Buscar flyer, Promociones, Gestiones, Opciones, Flyer Rubros: las pastillas de arriba del globo |
+| Paso (del tutorial) | `step` | Lo que se ilumina y su explicación; «Omitir capítulo» salta al primero del capítulo siguiente |
+| Globo, luz y velo | `tip`, `spotlight`, `veil` | El cartel con flecha, el recuadro rojo sobre el elemento y lo que oscurece el resto de la pantalla |
 
 Los perfiles Hunter y Prospect, la palabra cashback y el nombre Benchmark quedan igual.
 

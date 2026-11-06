@@ -13,7 +13,6 @@ import {
   type ScreenPoint,
 } from "../logo-editor.ts";
 import type { ProbedChange } from "./globals.d.ts";
-import { partialDriver } from "./pending.ts";
 
 const PICKER_TIMEOUT_MS = 15_000;
 const SHOWN_TIMEOUT_MS = 15_000;
@@ -582,7 +581,7 @@ function createPickerWindow(page: Page) {
 
 /** Everything goes with mouse and keyboard: only what cannot be seen is read from the app. */
 export function createReactLogoEditorDriver(page: Page): LogoEditorDriver {
-  return partialDriver<LogoEditorDriver>("logoEditor", {
+  return {
     ...createReading(page),
     ...createPickerWindow(page),
     enter: () => enter(page),
@@ -727,5 +726,16 @@ export function createReactLogoEditorDriver(page: Page): LogoEditorDriver {
       await window.getByRole("button", { name: "Guardar", exact: true }).click();
       await window.waitFor({ state: "detached", timeout: SHOWN_TIMEOUT_MS });
     },
-  });
+    // A person has no way to do these: the specs that use them stay without @react (logo-editor).
+    thumbnailWithPlacedLogoOutOfMemory: () => {
+      throw new Error(
+        "In React the memory of logos is not emptied by hand: a person cannot do it.",
+      );
+    },
+    placeBrandInArea: () => {
+      throw new Error(
+        "In React a brand comes from the catalog: a person cannot place one that is not in it.",
+      );
+    },
+  };
 }

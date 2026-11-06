@@ -7,7 +7,6 @@ import {
   type BenchmarkView,
   type BenchmarkWorkbook,
 } from "../benchmark.ts";
-import { partialDriver } from "./pending.ts";
 
 const DATA_TIMEOUT_MS = 15_000;
 const REFRESH_TIMEOUT_MS = 15_000;
@@ -149,7 +148,7 @@ function widths(page: Page) {
   });
 }
 
-function reading(page: Page): Partial<BenchmarkDriver> {
+function reading(page: Page) {
   const area = root(page);
   return {
     sourceLabels: () =>
@@ -198,10 +197,10 @@ function reading(page: Page): Partial<BenchmarkDriver> {
         .locator("table a")
         .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? "")),
     hasInjectedImage: async () => (await area.locator('img[src="x"]').count()) > 0,
-  };
+  } satisfies Partial<BenchmarkDriver>;
 }
 
-function filtering(page: Page): Partial<BenchmarkDriver> {
+function filtering(page: Page) {
   const field = (label: string) => filters(page).getByLabel(label, { exact: true });
   return {
     setProvince: async (province) => {
@@ -230,14 +229,14 @@ function filtering(page: Page): Partial<BenchmarkDriver> {
       await input.press("Tab");
     },
     rememberedReferencePurchases: () => page.evaluate(() => localStorage.getItem("fg_bench_ref")),
-  };
+  } satisfies Partial<BenchmarkDriver>;
 }
 
 function unreachable(): never {
   throw new Error(HAND_LOADED_UNREACHABLE);
 }
 
-function editing(page: Page): Partial<BenchmarkDriver> {
+function editing(page: Page) {
   return {
     editorIsOpen: async () => (await editor(page).count()) > 0,
     cancelEditor: () => editor(page).getByRole("button", { name: "Cancelar" }).click(),
@@ -260,12 +259,12 @@ function editing(page: Page): Partial<BenchmarkDriver> {
     editHandLoadedPromotion: unreachable,
     fillHandLoadedPromotion: unreachable,
     handLoadedCondition: unreachable,
-  };
+  } satisfies Partial<BenchmarkDriver>;
 }
 
 export function createReactBenchmarkDriver(page: Page): BenchmarkDriver {
   const probed = probe(page);
-  return partialDriver<BenchmarkDriver>("benchmark", {
+  return {
     access: async () => {
       const tabShown = await headerTab(page).isVisible();
       const codeLoaded = await page.evaluate(
@@ -356,5 +355,5 @@ export function createReactBenchmarkDriver(page: Page): BenchmarkDriver {
     ...reading(page),
     ...filtering(page),
     ...editing(page),
-  });
+  };
 }

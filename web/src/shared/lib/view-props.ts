@@ -15,6 +15,8 @@ export interface ViewProps {
 /** What the shell gives to a window of the name menu. */
 export interface MenuWindowProps {
   readonly onClose: () => void;
+  /** Takes the person to another tab: the tutorial goes over every screen. */
+  readonly goToTab?: (tabId: string) => void;
 }
 
 /** Something waiting for the person: a slice reports it, and the header shows it. */

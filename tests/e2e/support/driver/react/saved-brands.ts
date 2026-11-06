@@ -10,7 +10,6 @@ import {
   type SavedBrandsDriver,
   type SavedSetRow,
 } from "../saved-brands.ts";
-import { partialDriver } from "./pending.ts";
 
 const SHOWN_TIMEOUT_MS = 15_000;
 const FREE_CARD = '[data-testid="brand-card"]:not([data-strip-number])';
@@ -506,7 +505,7 @@ function twoDaysAgo(): string {
 
 export function createReactSavedBrandsDriver(page: Page): SavedBrandsDriver {
   const catalog = catalogEdits(page);
-  return partialDriver<SavedBrandsDriver>("savedBrands", {
+  return {
     buttonVisible: () =>
       editorBar(page).getByRole("button", { name: "Marcas guardadas" }).isVisible(),
     buildStrip: (box, brands) => buildStrip(page, box, brands),
@@ -588,5 +587,5 @@ export function createReactSavedBrandsDriver(page: Page): SavedBrandsDriver {
       await clearFlyer(page);
     },
     ...artworkDriver(page),
-  });
+  };
 }

@@ -14,6 +14,7 @@ import type { TitleKey } from "@/shared/domain/screen-titles.ts";
 import type { MenuWindowProps, NoticeSourceProps, ViewProps } from "@/shared/lib/view-props.ts";
 import type { IconName } from "@/shared/ui/index.ts";
 import { NotesWindow, PasswordWindow } from "@/slices/auth/index.ts";
+import { loadTourWindow } from "@/slices/tour/index.ts";
 import { buildsFlyers, hasOptionOfTab, type MenuRules, type ViewRules } from "./view-rules.ts";
 
 export type LoadedView = { readonly default: ComponentType<ViewProps> };
@@ -138,8 +139,6 @@ export interface MenuWindow {
   readonly noticeSource?: string;
 }
 
-const pendingWindow = (): Promise<LoadedWindow> => import("./PendingWindow.tsx");
-
 /** Who counts what waits in Base de datos: the number of its item, and of Cambios pendientes. */
 export const PROPOSALS_SOURCE = "proposals";
 const MY_PROPOSALS_SOURCE = "myProposals";
@@ -156,6 +155,19 @@ export const MENU_WINDOWS_ABOVE: readonly MenuWindow[] = [
     load: () => Promise.resolve({ default: PasswordWindow }),
   },
 ];
+
+/**
+ * The tutorial: it is there for everybody, and it starts on request; by itself only with its
+ * faculty. It goes over every screen, and over another window too: the shell gives it a place of its
+ * own.
+ */
+export const TOUR_WINDOW: MenuWindow = {
+  id: "tour",
+  label: "Ver tutorial",
+  icon: "help",
+  visible: () => true,
+  load: loadTourWindow,
+};
 
 /** What opens a window from the name menu, below the theme. */
 export const MENU_WINDOWS_BELOW: readonly MenuWindow[] = [
@@ -190,14 +202,7 @@ export const MENU_WINDOWS_BELOW: readonly MenuWindow[] = [
         default: MyProposalsWindow,
       })),
   },
-  {
-    // tour: it is there for everybody, and it starts on request.
-    id: "tour",
-    label: "Ver tutorial",
-    icon: "help",
-    visible: () => true,
-    load: pendingWindow,
-  },
+  TOUR_WINDOW,
 ];
 
 /** The panel of the administrator: what its button of the header opens, apart from the first load. */

@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { catalogHasGeography, knownProvinces } from "@/shared/domain/promotions/index.ts";
-import { isPromotionsTab } from "@/shared/domain/promotions/tabs.ts";
+import { isPromotionsTab, SEARCH_UNLESS_RESULTS } from "@/shared/domain/promotions/tabs.ts";
 import { usePrimaryAction } from "@/shared/lib/primary-action/primary-action-context.ts";
 import {
   catalogNeverUpdated,
@@ -170,9 +170,14 @@ export function PromotionsProvider({ isActive, children }: PromotionsProviderPro
 
   useSharedFilters(state, dispatch, actions);
 
-  // Buscar or Activas from the search of screens: as their solapa does.
-  usePlaceRequests("promotions", (tab) => {
-    if (isPromotionsTab(tab)) actions.switchTab(tab);
+  // Buscar or Activas from the search of screens: as their solapa does. The tutorial goes back to
+  // Buscar only from Activas with nothing listed: changing the solapa would empty the table.
+  usePlaceRequests("promotions", (place) => {
+    if (isPromotionsTab(place)) actions.switchTab(place);
+    const { tab, rows } = read();
+    if (place === SEARCH_UNLESS_RESULTS && tab === "active" && rows === null) {
+      actions.switchTab("search");
+    }
   });
 
   // The tick is one wherever it shows: if another screen changes it, the table follows.

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { Promotion } from "@/shared/domain/promotions/index.ts";
+import { SEARCH_UNLESS_RESULTS } from "@/shared/domain/promotions/tabs.ts";
 import { useOptionOnScreen } from "@/shared/lib/option-on-screen/option-on-screen-context.ts";
 import { useSetIncludeModo } from "@/shared/lib/promotions/include-modo-context.ts";
 import { usePromotionFiltersPort } from "@/shared/lib/promotions/promotion-filters.ts";
@@ -663,6 +664,42 @@ describe("from the search of screens", () => {
     placeDeskOnPage().ask("promotions", "activas");
     placeDeskOnPage().ask("promotions", "search");
     await expect.element(tab("Buscar")).toHaveAttribute("aria-selected", "true");
+  });
+});
+
+describe("from the tutorial", () => {
+  it("goes back to Buscar only from Activas with nothing listed: changing would empty it", async () => {
+    const { screen } = await open({ before: <PlaceDeskReader />, catalog: [promotion("Alfa")] });
+    const tab = (name: string) =>
+      screen.getByRole("tablist", { name: "Modo de promociones" }).getByRole("tab", { name });
+    await waitForCatalog(screen);
+    await tab("Activas").click();
+
+    placeDeskOnPage().ask("promotions", SEARCH_UNLESS_RESULTS);
+    await expect.element(tab("Buscar")).toHaveAttribute("aria-selected", "true");
+
+    await listActive(screen);
+    await vi.waitFor(() => {
+      expect(titles(screen)).toEqual(["Alfa"]);
+    });
+    placeDeskOnPage().ask("promotions", SEARCH_UNLESS_RESULTS);
+    placeDeskOnPage().ask("promotions", "otra cosa");
+
+    await expect.element(tab("Activas")).toHaveAttribute("aria-selected", "true");
+    expect(titles(screen)).toEqual(["Alfa"]);
+  });
+
+  it("from Buscar stays in Buscar", async () => {
+    const { screen } = await open({ before: <PlaceDeskReader /> });
+    await waitForCatalog(screen);
+    placeDeskOnPage().ask("promotions", SEARCH_UNLESS_RESULTS);
+    await expect
+      .element(
+        screen.getByRole("tablist", { name: "Modo de promociones" }).getByRole("tab", {
+          name: "Buscar",
+        }),
+      )
+      .toHaveAttribute("aria-selected", "true");
   });
 });
 

@@ -8,11 +8,17 @@ import { createContext, useContext, useLayoutEffect, useRef } from "react";
 export type PlaceHolder =
   | "flyer-editor"
   | "flyer-others"
+  | "hunter-others"
+  | "user-menu"
   | "promotions"
   | "commercial-actions"
   | "benchmark"
   | "admin"
   | "database";
+
+/** How a menu that hangs from a button is left, asked from outside: the tutorial opens and closes them. */
+export const MENU_OPEN = "open";
+export const MENU_CLOSED = "closed";
 
 /** What a window does before going elsewhere: asks about what would be lost, closes, and goes on. */
 export type Leave = (then: () => void) => void;

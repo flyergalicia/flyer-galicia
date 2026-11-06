@@ -373,6 +373,7 @@ html.dark {
   --text-editor: 1.17rem;
   --text-admin: 1.04rem;
   --text-chart: 10px;
+  --text-guide: 0.98rem;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -723,6 +724,17 @@ html.dark {
   --watched-expired-tx: #b42318;
   /* The count of those to review stays this red in dark mode too, as today. */
   --watched-review-tx: #b42318;
+  /* The tutorial: the veil with its hole, and the globe. */
+  --tour-veil: rgba(10, 10, 12, 0.58);
+  --tour-bg: #fff;
+  --tour-tx: #111;
+  --tour-text: #333;
+  --tour-chip-bg: rgba(128, 128, 128, 0.14);
+  --tour-chip-hover: rgba(128, 128, 128, 0.26);
+  --tour-button-hover: rgba(128, 128, 128, 0.28);
+  --tour-key-bg: rgba(128, 128, 128, 0.16);
+  --tour-on-accent: #fff;
+  --tour-main-hover: #b8000f;
 }
 
 html.dark {
@@ -937,4 +949,7 @@ html.dark {
   --watched-soon-tx: #f0c674;
   --watched-expired-bg: rgba(180, 35, 24, 0.25);
   --watched-expired-tx: #ff9b91;
+  --tour-bg: #23262c;
+  --tour-tx: #e8e8e8;
+  --tour-text: #cfd2d8;
 }

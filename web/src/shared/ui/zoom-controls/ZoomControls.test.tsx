@@ -31,9 +31,11 @@ describe("the zoom buttons", () => {
         onIn={nothing}
         onReset={nothing}
         className="here"
+        testId="the-zoom"
       />,
     );
 
     expect(screen.container.querySelector(".here")).not.toBeNull();
+    await expect.element(screen.getByTestId("the-zoom")).toBeVisible();
   });
 });

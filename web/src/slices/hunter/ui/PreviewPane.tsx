@@ -59,6 +59,7 @@ export function PreviewPane({ state, zoomRef, onDownload, onMultiple, action }: 
         <div className={styles.label}>Vista previa</div>
         <ZoomControls
           className={styles.zoom}
+          testId="hunter-zoom"
           percent={percent}
           onOut={() => zoomRef.current?.zoomOut()}
           onIn={() => zoomRef.current?.zoomIn()}

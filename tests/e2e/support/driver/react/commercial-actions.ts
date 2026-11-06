@@ -13,6 +13,7 @@ import {
   type DialogDriver,
   type PersonOfAction,
   type PersonOutcome,
+  type TutorialStep,
 } from "../commercial-actions.ts";
 import {
   createAgendaAssignDriver,
@@ -21,7 +22,6 @@ import {
   createFormOfAgenda,
   settle,
 } from "./commercial-agenda.ts";
-import { partialDriver } from "./pending.ts";
 
 const WAIT_MS = 15_000;
 const POLL_MS = 100;
@@ -86,7 +86,7 @@ async function showsSection(page: Page, section: string): Promise<boolean> {
   return (await found.count()) > 0 && found.isVisible();
 }
 
-function createForm(page: Page): Partial<ActionFormDriver> {
+function createForm(page: Page) {
   const typePills = windowOf(page).locator('[data-name="tipo"] button');
   return {
     startForwarding: async (company) => {
@@ -138,7 +138,7 @@ function createForm(page: Page): Partial<ActionFormDriver> {
     chooseFreeHunter: (name) => freeHunters(page).getByRole("button", { name }).click(),
     confirmForwarding: () => page.getByTestId("confirm-forwarding").click(),
     confirmAssignment: () => page.getByTestId("confirm-assignment").click(),
-  };
+  } satisfies Partial<ActionFormDriver>;
 }
 
 function createDialog(page: Page): DialogDriver {
@@ -236,7 +236,7 @@ async function openAction(page: Page, id: string): Promise<void> {
     .waitFor();
 }
 
-function createDetail(page: Page): Partial<ActionDetailDriver> {
+function createDetail(page: Page) {
   const highlighted = page.locator('[data-testid="person-row"][data-highlighted="true"]');
   const commandButton = (name: string) => commands(page).getByRole("button", { name });
   return {
@@ -298,7 +298,7 @@ function createDetail(page: Page): Partial<ActionDetailDriver> {
           () => true,
           () => false,
         ),
-  };
+  } satisfies Partial<ActionDetailDriver>;
 }
 
 function createBehindTheScreen(page: Page): BehindTheScreenDriver {
@@ -392,8 +392,70 @@ function sidewaysOverflow(page: Page): Promise<string[]> {
   });
 }
 
+const TUTORIAL_PAUSE_MS = 300;
+const TUTORIAL_MAX_STEPS = 12;
+
+/** The step on screen: its title, its number, and whether its light falls inside Gestiones. */
+function tutorialNow(page: Page) {
+  return page.evaluate(() => {
+    const tip = document.querySelector('[data-testid="tour-tip"]');
+    if (!tip) return null;
+    const light = document.querySelector('[data-testid="tour-spotlight"]')?.getBoundingClientRect();
+    const area = document
+      .querySelector('section[data-screen="commercial-actions"]:not([hidden])')
+      ?.getBoundingClientRect();
+    const inside =
+      light !== undefined &&
+      area !== undefined &&
+      light.left >= area.left - 8 &&
+      light.right <= area.right + 8 &&
+      light.top >= area.top - 8 &&
+      light.bottom <= area.bottom + 8;
+    return {
+      chapter: tip.querySelector('[aria-current="step"]')?.getAttribute("data-chip") ?? "",
+      count: tip.querySelector('[data-testid="tour-count"]')?.textContent ?? "",
+      title: tip.querySelector("h4")?.textContent ?? "",
+      inside,
+    };
+  });
+}
+
+/** As a person: "Ver tutorial" in the name menu, the chip of Gestiones, and the arrows. */
+async function walkTutorial(page: Page): Promise<TutorialStep[]> {
+  await page.getByRole("button", { name: /^Menú de / }).click();
+  await page.getByRole("menu").getByRole("menuitem", { name: "Ver tutorial" }).click();
+  const tip = page.getByTestId("tour-tip");
+  await tip.waitFor({ timeout: WAIT_MS });
+  await tip.locator('[data-chip="gestiones"]').click();
+  await waitUntil(page, async () => (await tutorialNow(page))?.chapter === "gestiones");
+  const seen: TutorialStep[] = [];
+  for (let step = 0; step < TUTORIAL_MAX_STEPS; step += 1) {
+    await page.waitForTimeout(TUTORIAL_PAUSE_MS);
+    const now = await tutorialNow(page);
+    if (now?.chapter !== "gestiones") break;
+    seen.push({ title: now.title, pointsInsideCommercialActions: now.inside });
+    await page.keyboard.press("ArrowRight");
+    // The next step paints when its screen is there: until then, the globe says the same.
+    await waitUntil(page, async () => {
+      const next = await tutorialNow(page);
+      return next === null || next.count !== now.count || next.title !== now.title;
+    });
+  }
+  if (await tip.isVisible()) await page.keyboard.press("Escape");
+  return seen;
+}
+
+/** Waits for something to be true, as a person waits for the screen. */
+async function waitUntil(page: Page, isTrue: () => Promise<boolean>): Promise<void> {
+  const until = Date.now() + WAIT_MS;
+  while (!(await isTrue())) {
+    if (Date.now() > until) throw new Error("The tutorial did not move");
+    await page.waitForTimeout(POLL_MS);
+  }
+}
+
 export function createReactCommercialActionsDriver(page: Page): CommercialActionsDriver {
-  return partialDriver<CommercialActionsDriver>("commercialActions", {
+  return {
     ...createForm(page),
     ...createFormOfAgenda(page),
     ...createAgendaAssignDriver(page),
@@ -427,5 +489,11 @@ export function createReactCommercialActionsDriver(page: Page): CommercialAction
       return sidewaysOverflow(page);
     },
     waitForScreenToSettle: () => settle(page),
-  });
+    walkTutorial: () => walkTutorial(page),
+    // The demo runs on the current version: in React what waits for each one is read again every
+    // 90 s, and a person cannot ask for it sooner.
+    prepareForDemo: () => {
+      throw new Error("The demo of Gestiones runs on the current version.");
+    },
+  };
 }

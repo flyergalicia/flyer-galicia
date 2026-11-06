@@ -15,6 +15,7 @@ import { sharedCount, useStudioNotices } from "@/shared/lib/studio/studio-notice
 import { registerProbe } from "@/shared/lib/test-probe.ts";
 import type { MenuWindowProps } from "@/shared/lib/view-props.ts";
 import { defaultPermission, type SessionValue, usePermissions } from "@/shared/session/index.ts";
+import { useTourAutoStart } from "@/slices/tour/index.ts";
 import { firstView, resolveView } from "../registry/resolve-view.ts";
 import type { MenuRules } from "../registry/view-rules.ts";
 import {
@@ -24,6 +25,7 @@ import {
   MENU_WINDOWS_BELOW,
   type MenuWindow,
   NOTICE_SOURCES,
+  TOUR_WINDOW,
 } from "../registry/views.ts";
 import { AppHeader } from "./AppHeader.tsx";
 import { CommercialDeskHost } from "./CommercialDeskHost.tsx";
@@ -42,6 +44,14 @@ interface OpenWindow {
   readonly id: string;
   readonly Component: ComponentType<MenuWindowProps>;
 }
+
+interface OpenTour {
+  /** Asking for it again starts it again, from the first step. */
+  readonly round: number;
+  readonly Component: ComponentType<MenuWindowProps>;
+}
+
+const COULD_NOT_OPEN = "No se pudo abrir. Revisá la conexión e intentá de nuevo.";
 
 interface AppShellProps {
   readonly session: SignedInSession;
@@ -89,6 +99,7 @@ export function AppShell({
   );
   const [chosen, setChosen] = useState(() => firstView(rules, titles.order));
   const [openWindow, setOpenWindow] = useState<OpenWindow | null>(null);
+  const [tour, setTour] = useState<OpenTour | null>(null);
   const [needsEditor, setNeedsEditor] = useState(false);
   const activeId = resolveView(chosen, rules);
   const isOnFlyerEditor = isFlyerTabId(activeId);
@@ -118,9 +129,21 @@ export function AppShell({
     setNeedsEditor(true);
   }, []);
 
+  const closeTour = useCallback(() => {
+    setTour(null);
+  }, []);
+
   const showWindow = useCallback(({ id, load }: Pick<MenuWindow, "id" | "load">) => {
+    if (id === TOUR_WINDOW.id) {
+      setTour((current) => ({ round: (current?.round ?? 0) + 1, Component: lazy(load) }));
+      return;
+    }
     setOpenWindow({ id, Component: lazy(load) });
   }, []);
+  const startTourByItself = useCallback(() => {
+    showWindow(TOUR_WINDOW);
+  }, [showWindow]);
+  useTourAutoStart(startTourByItself, tour !== null);
   const openMenuWindow = useCallback(
     (windowId: string) => {
       const menuWindow = MENU_WINDOWS_BELOW.find(({ id }) => id === windowId);
@@ -181,13 +204,16 @@ export function AppShell({
               </Suspense>
             )}
             {Window && (
-              <LoadBoundary
-                key={openWindow.id}
-                message="No se pudo abrir. Revisá la conexión e intentá de nuevo."
-                onRetry={closeWindow}
-              >
+              <LoadBoundary key={openWindow.id} message={COULD_NOT_OPEN} onRetry={closeWindow}>
                 <Suspense fallback={null}>
                   <Window onClose={closeWindow} />
+                </Suspense>
+              </LoadBoundary>
+            )}
+            {tour && (
+              <LoadBoundary key={tour.round} message={COULD_NOT_OPEN} onRetry={closeTour}>
+                <Suspense fallback={null}>
+                  <tour.Component onClose={closeTour} goToTab={setChosen} />
                 </Suspense>
               </LoadBoundary>
             )}

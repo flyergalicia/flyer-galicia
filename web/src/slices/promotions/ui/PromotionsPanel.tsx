@@ -121,6 +121,7 @@ function SearchPane() {
         <Input
           type="month"
           aria-label="Mes a validar"
+          data-testid="promotions-month"
           className={styles.month}
           value={month}
           onChange={(event) => {

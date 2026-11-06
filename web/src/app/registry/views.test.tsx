@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { render } from "vitest-browser-react";
 import { sanitizeFlyerOptions } from "@/shared/domain/flyer-options.ts";
 import type { MenuRules } from "./view-rules.ts";
-import { APP_VIEWS, MENU_WINDOWS_ABOVE, MENU_WINDOWS_BELOW, viewById } from "./views.ts";
+import {
+  APP_VIEWS,
+  MENU_WINDOWS_ABOVE,
+  MENU_WINDOWS_BELOW,
+  TOUR_WINDOW,
+  viewById,
+} from "./views.ts";
 
 function rules(allowed: readonly string[] = [], others: Partial<MenuRules> = {}): MenuRules {
   return {
@@ -105,20 +110,17 @@ describe("what is not there yet", () => {
     expect(seenBy(rules([], { hasSharedDesign: true, isLeader: true }))).not.toContain("estudio");
   });
 
-  it("a pending window closes by itself", async () => {
-    const tour = ALL_WINDOWS.find(({ id }) => id === "tour")!;
-    const { default: Pending } = await tour.load();
-    const closed: true[] = [];
-
-    await render(
-      <Pending
-        onClose={() => {
-          closed.push(true);
-        }}
-      />,
-    );
-
-    expect(closed).toEqual([true]);
+  it("Ver tutorial is there for everybody, last in the menu, with a place of its own", () => {
+    for (const who of [
+      rules(),
+      rules([], { isHunter: true }),
+      rules([], { isLeader: true }),
+      rules([], { isAdminNow: true }),
+    ]) {
+      expect(windowsSeenBy(who).at(-1)).toBe("tour");
+    }
+    expect(MENU_WINDOWS_BELOW.at(-1)).toBe(TOUR_WINDOW);
+    expect(TOUR_WINDOW.label).toBe("Ver tutorial");
   });
 
   it("finds a view by its name", () => {

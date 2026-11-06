@@ -88,6 +88,7 @@ export function LegalCard() {
           className={styles.legalBold}
           title="Negrita (Ctrl+B)"
           aria-label="Negrita"
+          data-testid="legal-bold"
           aria-pressed={isBold}
           onMouseDown={(event) => {
             // The selection of the field is what is being pressed for.

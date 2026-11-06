@@ -61,7 +61,7 @@ export function AmountsCard() {
   return (
     <Card>
       <Card.Title>Configuración de Montos</Card.Title>
-      <div className={styles.cashbackButtons}>
+      <div className={styles.cashbackButtons} data-testid="cashback-buttons">
         {names.map((name, position) => (
           <button
             key={name}

@@ -137,7 +137,7 @@ export function createAgendaDriver(page: Page): AgendaDriver {
 }
 
 /** What the window that assigns has of the agenda. */
-export function createFormOfAgenda(page: Page): Partial<ActionFormDriver> {
+export function createFormOfAgenda(page: Page) {
   return {
     startScheduling: async () => {
       await agenda(page).getByRole("button", { name: SCHEDULE_BUTTON }).click();
@@ -169,7 +169,7 @@ export function createFormOfAgenda(page: Page): Partial<ActionFormDriver> {
           clientHeight: grid?.clientHeight ?? 0,
         };
       }),
-  };
+  } satisfies Partial<ActionFormDriver>;
 }
 
 export function createAgendaAssignDriver(page: Page): AgendaAssignDriver {

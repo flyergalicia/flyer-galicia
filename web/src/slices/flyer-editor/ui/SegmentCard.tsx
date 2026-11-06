@@ -58,7 +58,7 @@ function Segment({ companyBatch, onOpenDatabase }: SegmentCardProps) {
       <div className={styles.segmentLabel}>
         <SectionLabel>Desde mis empresas</SectionLabel>
       </div>
-      <div className={styles.segment}>
+      <div className={styles.segment} data-testid="segment-box">
         <strong className={styles.segmentTitle}>Todo el segmento «{label}»</strong>
         {failed && rows.length === 0 ? (
           <div className={styles.segmentText}>

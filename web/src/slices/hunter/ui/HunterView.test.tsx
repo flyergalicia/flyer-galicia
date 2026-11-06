@@ -7,6 +7,8 @@ import {
   createCommercialDesk,
   type RegisterableCompany,
 } from "@/shared/lib/commercial-actions/commercial-desk.ts";
+import { MENU_CLOSED, MENU_OPEN } from "@/shared/lib/places/place-desk.ts";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
 import { failure, success } from "@/shared/supabase/index.ts";
 import {
   deferred,
@@ -578,6 +580,16 @@ const othersToggle = () =>
 const board = () => page.getByRole("link", { name: "Beneficios Haberes" });
 
 describe("the menu Otros", () => {
+  it("the tutorial opens it for its step and closes it for the others", async () => {
+    await openHunter({ companies: [company("ACME SA")] });
+    await expect.element(othersToggle()).toBeVisible();
+
+    placeDeskOnPage().ask("hunter-others", MENU_OPEN);
+    await expect.element(board()).toBeVisible();
+    placeDeskOnPage().ask("hunter-others", MENU_CLOSED);
+    await expect.element(board()).not.toBeInTheDocument();
+  });
+
   it("opens over what is below, with the board and Descarga múltiple", async () => {
     await openHunter({ companies: [company("ACME SA")] });
     await othersToggle().click();

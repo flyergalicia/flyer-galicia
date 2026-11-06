@@ -84,7 +84,7 @@ export interface AppDriver {
   readonly screens: ScreensDriver;
 }
 
-/** The domains arrive with their slice: until then, using one says that it is missing. */
+/** Every domain, whole: what a person cannot do fails saying why (see driver/react). */
 function createReactAppDriver(page: Page): AppDriver {
   const session = createReactSessionDriver(page);
   const promotions = createReactPromotionsDriver(page);

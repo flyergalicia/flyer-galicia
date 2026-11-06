@@ -28,6 +28,8 @@ describe("what keeps the search from opening", () => {
     ['<dialog open aria-modal="true">Vista previa</dialog>'],
     ['<div role="dialog">Una ventana</div>'],
     ['<div aria-modal="true">Otra</div>'],
+    // The veil of the tutorial, as its `fg-tour-ov` counted today.
+    ['<div data-guide-veil="" style="position: fixed; inset: 0"></div>'],
   ])("is a window open: %s", (html) => {
     place(html);
     expect(searchBlock(false)).toBe(WINDOW_OPEN_NOTICE);

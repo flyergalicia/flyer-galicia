@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MENU_CLOSED, usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { Icon } from "@/shared/ui/index.ts";
 import styles from "./HunterView.module.css";
 
@@ -10,6 +11,10 @@ export const BENEFITS_BOARD_URL =
 export function OtherMenu({ onMultiple }: { readonly onMultiple: () => void }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  // The tutorial opens it for its step, and closes it for the others (`_hunOtrosOpen`).
+  usePlaceRequests("hunter-others", (place) => {
+    setOpen(place !== MENU_CLOSED);
+  });
   useEffect(() => {
     if (!open) return undefined;
     const onKey = ({ key }: KeyboardEvent) => {

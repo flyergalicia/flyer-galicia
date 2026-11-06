@@ -1,6 +1,10 @@
 import type { ComponentProps, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { MENU_CLOSED, MENU_OPEN } from "@/shared/lib/places/place-desk.ts";
+import { placeDeskOnPage } from "@/shared/lib/testing/place-desk-on-page.ts";
+import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
+import { GUIDE_TIP_ATTRIBUTE } from "@/shared/ui/index.ts";
 import { openWithForm } from "../testing/form-on-screen.tsx";
 import { FlyerActions } from "./FlyerActions.tsx";
 
@@ -77,6 +81,28 @@ describe("the buttons of the form", () => {
     // Inside, it stays.
     await expect.element(png()).toBeVisible();
     await page.getByRole("button", { name: "Restaurar" }).click();
+    await expect.element(png()).not.toBeInTheDocument();
+  });
+
+  it("the tutorial opens and closes it, and touching its globe leaves it open", async () => {
+    const handlers = callbacks();
+    await openWithForm(
+      atTheFoot(
+        <>
+          <PlaceDeskReader />
+          <section {...{ [GUIDE_TIP_ATTRIBUTE]: "" }}>
+            <button type="button">Siguiente</button>
+          </section>
+          <FlyerActions busy={false} sharing={false} canShare={false} {...handlers} />
+        </>,
+      ),
+    );
+
+    placeDeskOnPage().ask("flyer-others", MENU_OPEN);
+    await expect.element(png()).toBeVisible();
+    await page.getByRole("button", { name: "Siguiente" }).click();
+    await expect.element(png()).toBeVisible();
+    placeDeskOnPage().ask("flyer-others", MENU_CLOSED);
     await expect.element(png()).not.toBeInTheDocument();
   });
 

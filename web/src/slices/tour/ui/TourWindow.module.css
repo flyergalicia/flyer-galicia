@@ -1,0 +1,195 @@
+/* The tutorial: the values of `#fg-tour-*` of the current app (`_tourStyle`). */
+
+/* The veil is the whole window with a hole over the element (clip-path evenodd). */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: var(--tour-veil);
+}
+
+.spotlight {
+  position: fixed;
+  z-index: 20001;
+  border-radius: 10px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 3px rgba(227, 6, 19, 0.85),
+    0 0 22px rgba(227, 6, 19, 0.45);
+  transition:
+    top 0.18s ease,
+    left 0.18s ease,
+    width 0.18s ease,
+    height 0.18s ease;
+}
+
+.tip {
+  position: fixed;
+  z-index: 20002;
+  width: min(360px, calc(100vw - 24px));
+  padding: 14px 16px 12px;
+  border-radius: 14px;
+  background: var(--tour-bg);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  color: var(--tour-tx);
+  /* As today: what Figtree does not have (the arrows, ✓) comes from the sans-serif of the system. */
+  font-family: "Figtree", sans-serif;
+  animation: tour-in 0.18s ease;
+}
+
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.arrow {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: inherit;
+  box-shadow: -3px -3px 8px rgba(0, 0, 0, 0.06);
+  transform: rotate(45deg);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding-right: 18px;
+}
+
+.chip {
+  margin: 0;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 20px;
+  background: var(--tour-chip-bg);
+  color: var(--gray);
+  font-family: inherit;
+  font-size: var(--text-label);
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip:hover:not(.chipOn) {
+  background: var(--tour-chip-hover);
+}
+
+.chip.chipOn {
+  background: var(--accent);
+  color: var(--tour-on-accent);
+}
+
+.title {
+  margin: 0 0 6px;
+  font-family: "Figtree", sans-serif;
+  font-size: var(--text-guide);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.text {
+  margin: 0;
+  color: var(--tour-text);
+  font-size: var(--text-md);
+  line-height: 1.55;
+}
+
+.text kbd,
+.tip kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--tour-key-bg);
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.count {
+  margin-right: auto;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.button {
+  padding: 7px 11px;
+  border: none;
+  border-radius: 8px;
+  background: var(--tour-chip-bg);
+  color: inherit;
+  font-family: "Figtree", sans-serif;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: normal;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.button:hover {
+  background: var(--tour-button-hover);
+}
+
+.button.main {
+  background: var(--accent);
+  color: var(--tour-on-accent);
+}
+
+.button.main:hover {
+  background: var(--tour-main-hover);
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  margin: 0;
+  padding: 2px 5px;
+  border: none;
+  background: none;
+  color: var(--gray);
+  font-family: inherit;
+  font-size: var(--text-search);
+  line-height: normal;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--accent);
+}
+
+.skip {
+  margin: 0 0 0 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--gray);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  line-height: normal;
+  text-decoration: underline;
+  cursor: pointer;
+}

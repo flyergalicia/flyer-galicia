@@ -8,7 +8,6 @@ import {
   type ProvinceField,
   type ProvinceFieldView,
 } from "../promotions.ts";
-import { partialDriver } from "./pending.ts";
 import { createWatchedBrands } from "./watched-brands.ts";
 
 const WAIT_MS = 15_000;
@@ -581,7 +580,7 @@ export function createReactPromotionsDriver(page: Page): PromotionsDriver {
       { timeout: WAIT_MS },
     );
   };
-  return partialDriver<PromotionsDriver>("promotions", {
+  return {
     ...createBrandWindow(page),
     ...createStripWindow(page),
     ...createTableActions(page),
@@ -609,5 +608,11 @@ export function createReactPromotionsDriver(page: Page): PromotionsDriver {
     switchTab,
     // Until flyer-editor arrives, what the first tab of the header opens.
     backToFlyer: () => page.getByRole("banner").getByRole("tab").first().click(),
-  });
+    // It paints a picture on the page, which a person cannot do: its spec stays without @react.
+    findDaysTextOn: () => {
+      throw new Error(
+        "In React a person cannot paint a picture on the page to look for days in it.",
+      );
+    },
+  };
 }

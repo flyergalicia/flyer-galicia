@@ -8,12 +8,21 @@ interface ZoomControlsProps {
   readonly onReset: () => void;
   /** Where it goes: each screen puts it in its place. */
   readonly className?: string | undefined;
+  /** How the tutorial and the tests find it. */
+  readonly testId?: string;
 }
 
 /** The zoom of a preview with buttons: at the middle of what is seen, not where the mouse is. */
-export function ZoomControls({ percent, onOut, onIn, onReset, className }: ZoomControlsProps) {
+export function ZoomControls({
+  percent,
+  onOut,
+  onIn,
+  onReset,
+  className,
+  testId,
+}: ZoomControlsProps) {
   return (
-    <div className={className ? `${styles.bar} ${className}` : styles.bar}>
+    <div className={className ? `${styles.bar} ${className}` : styles.bar} data-testid={testId}>
       <button
         type="button"
         className={styles.button}

@@ -18,7 +18,6 @@ import { closeRegistryIfOpen } from "./company-list.ts";
 import { createReactCompanyRegistryDriver } from "./company-registry.ts";
 import { createReactFlyerBatches } from "./flyer-batches.ts";
 import { goToOption, waitForOptionShown } from "./flyer-editor.ts";
-import { partialDriver } from "./pending.ts";
 
 const SHOWN_TIMEOUT_MS = 15_000;
 const DOWNLOAD_TIMEOUT_MS = 20_000;
@@ -473,7 +472,7 @@ function sourceSectionSample(page: Page, y: number, height: number): Promise<num
   );
 }
 
-function cropDriver(page: Page): Partial<FlyerSectionsDriver> {
+function cropDriver(page: Page) {
   return {
     toggleCropping: () => pressCropping(page),
     isMarkingCrop: () =>
@@ -519,10 +518,10 @@ function cropDriver(page: Page): Partial<FlyerSectionsDriver> {
       page.evaluate(() => window["__flyerProbe"]?.flyerWorkspace?.().renderDownload()?.height ?? 0),
     imageSize: (bytes) => imageSize(page, bytes),
     downloadPdf: () => downloadPdf(page),
-  };
+  } satisfies Partial<FlyerSectionsDriver>;
 }
 
-function tabsDriver(page: Page): Partial<FlyerSectionsDriver> {
+function tabsDriver(page: Page) {
   return {
     tabs: () => readTabs(page),
     selectFlyerTab: (option) => selectFlyerTab(page, option),
@@ -580,10 +579,10 @@ function tabsDriver(page: Page): Partial<FlyerSectionsDriver> {
         .then(() => undefined),
     savedDrafts: () => readSavedDrafts(page),
     blockBrowserStorage: () => blockBrowserStorage(page),
-  };
+  } satisfies Partial<FlyerSectionsDriver>;
 }
 
-function insertDriver(page: Page): Partial<FlyerSectionsDriver> {
+function insertDriver(page: Page) {
   let hovered: { x: number; y: number } | null = null;
   return {
     insertButtonVisible: () =>
@@ -652,7 +651,7 @@ function insertDriver(page: Page): Partial<FlyerSectionsDriver> {
       await editorBar(page).getByRole("button", { name: "Rehacer" }).click();
       await waitUntilSettled(page);
     },
-  };
+  } satisfies Partial<FlyerSectionsDriver>;
 }
 
 /** A flyer that really does not load: another option whose file cannot be read. */
@@ -970,7 +969,7 @@ async function generateBulk(page: Page, rows: readonly BulkRow[]): Promise<BulkO
 }
 
 export function createReactFlyerSectionsDriver(page: Page): FlyerSectionsDriver {
-  return partialDriver<FlyerSectionsDriver>("flyerSections", {
+  return {
     ...formDriver(page),
     ...historyDriver(page),
     ...pdfDriver(page),
@@ -998,5 +997,5 @@ export function createReactFlyerSectionsDriver(page: Page): FlyerSectionsDriver 
       return option;
     },
     generateBulk: (rows) => generateBulk(page, rows),
-  });
+  };
 }

@@ -10,3 +10,9 @@ export const PROMOTIONS_TABS: readonly (readonly [PromotionsTab, string])[] = [
 export function isPromotionsTab(value: string): value is PromotionsTab {
   return PROMOTIONS_TABS.some(([tab]) => tab === value);
 }
+
+/**
+ * What the tutorial asks before its steps, that are those of "Buscar": from "Activas" with no results
+ * it goes back to "Buscar"; with results nothing changes, because changing the solapa empties them.
+ */
+export const SEARCH_UNLESS_RESULTS = "search-unless-results";

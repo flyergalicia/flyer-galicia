@@ -131,6 +131,8 @@ describe("without the permission", () => {
     );
 
     await expect.element(page.getByPlaceholder("Nombre de la empresa")).toHaveValue("acme");
+    // The same field the tutorial lights, with or without the magnifying glass.
+    await expect.element(field()).toHaveValue("acme");
     expect(lens().elements()).toHaveLength(0);
     await userEvent.click(page.getByPlaceholder("Nombre de la empresa"));
     expect(onFocus).toHaveBeenCalled();

@@ -9,7 +9,6 @@ import {
 import { companyField } from "./flyer-output.ts";
 import { goToOption } from "./flyer-editor.ts";
 import { holdBatch } from "./flyer-batches.ts";
-import { partialDriver } from "./pending.ts";
 import { createReactPromotionsDriver } from "./promotions.ts";
 
 const ENTRY_TIMEOUT_MS = 25_000;
@@ -327,6 +326,20 @@ function createNotices(page: Page) {
   return {
     noticesOnScreen: () => notices.count(),
     noticeVisible: async () => (await notices.count()) > 0,
+    // Decided by whoever coordinates: the spec that uses it stays without @react.
+    showNotice: () => {
+      throw new Error(
+        "In React a notice comes only from a real action: a person cannot show any text they like.",
+      );
+    },
+  };
+}
+
+/** The tutorial: its globe, over the screen; Escape leaves it, as `_tourTecla`. */
+function createTutorial(page: Page) {
+  return {
+    tutorialOpen: () => page.getByTestId("tour-tip").isVisible(),
+    closeTutorial: () => page.keyboard.press("Escape"),
   };
 }
 
@@ -654,11 +667,11 @@ function createPlaces(page: Page) {
   };
 }
 
-/** What exists so far: the flyer editor and the others fill in the rest when they arrive. */
 export function createReactSessionDriver(page: Page): SessionDriver {
   /** A person cannot pretend: a real batch stays waiting, and letting it go lets it end. */
   let release: (() => Promise<void>) | null = null;
-  return partialDriver<SessionDriver>("session", {
+  return {
+    ...createTutorial(page),
     pretendBatchRunning: async (running) => {
       if (running) release = await holdBatch(page);
       else await release?.();
@@ -738,5 +751,5 @@ export function createReactSessionDriver(page: Page): SessionDriver {
         .click();
       await closeUserMenu(page);
     },
-  });
+  };
 }

@@ -94,30 +94,35 @@ test.describe("the name menu", () => {
     expect.soft(await session.notesOpen()).toBe(true);
   });
 
-  test("the tutorial is there for everybody, and it opens on request", async ({ openApp }) => {
-    const { session } = await openApp();
-    expect.soft(await session.tutorialOpen(), "it does not open by itself").toBe(false);
-    expect.soft((await session.userMenuItems()).join(" ")).toMatch(/Ver tutorial/);
+  test(
+    "the tutorial is there for everybody, and it opens on request",
+    { tag: "@react" },
+    async ({ openApp }) => {
+      const { session } = await openApp();
+      expect.soft(await session.tutorialOpen(), "it does not open by itself").toBe(false);
+      expect.soft((await session.userMenuItems()).join(" ")).toMatch(/Ver tutorial/);
 
-    await session.chooseFromUserMenu("Ver tutorial");
+      await session.chooseFromUserMenu("Ver tutorial");
 
-    await expect.poll(() => session.tutorialOpen()).toBe(true);
-  });
+      await expect.poll(() => session.tutorialOpen()).toBe(true);
+    },
+  );
 
-  test("with its faculty it opens by itself the first time, and never again", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.setPermissions("asesor", { tutorial_auto: true });
-    const { session } = await openApp();
+  test(
+    "with its faculty it opens by itself the first time, and never again",
+    { tag: "@react" },
+    async ({ cloud, openApp }) => {
+      cloud.setPermissions("asesor", { tutorial_auto: true });
+      const { session } = await openApp();
 
-    await expect.poll(() => session.tutorialOpen(), { timeout: 4_000 }).toBe(true);
-    await session.closeTutorial();
+      await expect.poll(() => session.tutorialOpen(), { timeout: 4_000 }).toBe(true);
+      await session.closeTutorial();
 
-    const again = await openApp({ localStorage: await session.browserStorage() });
-    await again.page.waitForTimeout(1_500);
-    expect.soft(await again.session.tutorialOpen()).toBe(false);
-  });
+      const again = await openApp({ localStorage: await session.browserStorage() });
+      await again.page.waitForTimeout(1_500);
+      expect.soft(await again.session.tutorialOpen()).toBe(false);
+    },
+  );
 });
 
 test.describe("the tabs of the header", { tag: "@react" }, () => {

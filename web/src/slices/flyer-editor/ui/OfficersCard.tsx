@@ -192,6 +192,7 @@ function OfficerTitle({ position }: { readonly position: number }) {
     <h4
       ref={title}
       className={canUseSaved ? `${styles.officerTitle} ${styles.officerPick}` : styles.officerTitle}
+      data-testid={`officer-title-${String(position + 1)}`}
     >
       {canUseSaved ? (
         <button

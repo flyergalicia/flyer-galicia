@@ -12,7 +12,6 @@ import {
 } from "../studio.ts";
 import { createReactAdminDriver } from "./admin.ts";
 import { createReactLogoEditorDriver } from "./logo-editor.ts";
-import { partialDriver } from "./pending.ts";
 
 const SHOWN_TIMEOUT_MS = 15_000;
 const SOON_TIMEOUT_MS = 8000;
@@ -378,7 +377,7 @@ async function uploadedKeys(page: Page): Promise<string[]> {
   );
 }
 
-function readingsDriver(page: Page): Partial<StudioDriver> {
+function readingsDriver(page: Page) {
   return {
     isTabVisible: () => tab(page).isVisible(),
     open: () => open(page),
@@ -444,10 +443,10 @@ function readingsDriver(page: Page): Partial<StudioDriver> {
         .waitFor({ timeout: SOON_TIMEOUT_MS }),
     listedDesigns: async () =>
       page.locator('[data-testid="design-card"] [data-part="name"]').allInnerTexts(),
-  };
+  } satisfies Partial<StudioDriver>;
 }
 
-function savingDriver(page: Page): Partial<StudioDriver> {
+function savingDriver(page: Page) {
   return {
     saveButton: async () => {
       const button = page.getByTestId("save-design");
@@ -468,10 +467,10 @@ function savingDriver(page: Page): Partial<StudioDriver> {
         const key = (editor?.placed() ?? []).find(({ img }) => img?.startsWith("pc:"))?.img;
         return Boolean(key && editor?.imageOf(key));
       }),
-  };
+  } satisfies Partial<StudioDriver>;
 }
 
-function cardActionsDriver(page: Page): Partial<StudioDriver> {
+function cardActionsDriver(page: Page) {
   return {
     use: (id) => use(page, id),
     requestPublication: () => requestPublication(page),
@@ -510,10 +509,10 @@ function cardActionsDriver(page: Page): Partial<StudioDriver> {
       await answerText(page, flyerName);
       await publishEnded(page, /^(Publicado:|No se pudo publicar|Se creó el flyer)/);
     },
-  };
+  } satisfies Partial<StudioDriver>;
 }
 
-function sharingDriver(page: Page): Partial<StudioDriver> {
+function sharingDriver(page: Page) {
   return {
     openShareDialog: (options) => openShareDialog(page, options),
     shareDialog: () => readShareDialog(page),
@@ -533,10 +532,10 @@ function sharingDriver(page: Page): Partial<StudioDriver> {
       ),
     canUseOption: (option) =>
       page.evaluate((n) => window["__flyerProbe"]?.logoEditor?.().canUseOption(n) ?? false, option),
-  };
+  } satisfies Partial<StudioDriver>;
 }
 
-function sourcesDriver(page: Page): Partial<StudioDriver> {
+function sourcesDriver(page: Page) {
   return {
     sourcesButtonLabel: async () => (await page.getByTestId("sources-button").textContent()) ?? "",
     waitForSourcesButton: () =>
@@ -575,7 +574,7 @@ function sourcesDriver(page: Page): Partial<StudioDriver> {
         .catch(() => undefined);
     },
     saveSourcesWhenListIsForbidden: () => saveSourcesWhenForbidden(page),
-  };
+  } satisfies Partial<StudioDriver>;
 }
 
 const LOGO_PLACES = [
@@ -817,7 +816,7 @@ async function recoverDraftWithLostUpload(page: Page): Promise<string> {
   return noticeMatching(page, /recuperado/);
 }
 
-function uploadsDriver(page: Page): Partial<StudioDriver> {
+function uploadsDriver(page: Page) {
   return {
     uploadKeysOfSameFile: async (file, name) => {
       const first = await uploadTo(page, LOGO_PLACES[0], logoFile(file, name));
@@ -867,7 +866,7 @@ function uploadsDriver(page: Page): Partial<StudioDriver> {
       await question.waitFor({ timeout: SHOWN_TIMEOUT_MS });
       return question.innerText();
     },
-  };
+  } satisfies Partial<StudioDriver>;
 }
 
 /** Whoever comes from Estudio is on the flyer; the bar needs the mode on. */
@@ -879,7 +878,7 @@ async function tabOfTheFlyer(page: Page): Promise<void> {
 }
 
 /** Config → Flyer, in the panel of the administrator: it also lists what Estudio publishes. */
-function flyerConfigDriver(page: Page): Partial<StudioDriver> {
+function flyerConfigDriver(page: Page) {
   const openFlyerSheet = async () => {
     const admin = createReactAdminDriver(page);
     if (!(await admin.isPanelOpen())) await admin.openPanel();
@@ -905,11 +904,11 @@ function flyerConfigDriver(page: Page): Partial<StudioDriver> {
       await list.getByText(/Sin flyer activo/).waitFor({ timeout: SHOWN_TIMEOUT_MS });
       return (await list.textContent()) ?? "";
     },
-  };
+  } satisfies Partial<StudioDriver>;
 }
 
 export function createReactStudioDriver(page: Page): StudioDriver {
-  return partialDriver<StudioDriver>("studio", {
+  return {
     ...readingsDriver(page),
     ...savingDriver(page),
     ...cardActionsDriver(page),
@@ -917,5 +916,5 @@ export function createReactStudioDriver(page: Page): StudioDriver {
     ...sourcesDriver(page),
     ...uploadsDriver(page),
     ...flyerConfigDriver(page),
-  });
+  };
 }

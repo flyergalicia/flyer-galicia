@@ -25,7 +25,6 @@ import {
 } from "./company-list.ts";
 import { reloadKeepingOption } from "./flyer-editor.ts";
 import { hunterRows } from "./hunter.ts";
-import { partialDriver } from "./pending.ts";
 
 const LOAD_TIMEOUT_MS = 8_000;
 const FLYERS_CHECK_TIMEOUT_MS = 20_000;
@@ -703,7 +702,7 @@ function createOtherUsers(page: Page) {
 }
 
 export function createReactCompanyRegistryDriver(page: Page): CompanyRegistryDriver {
-  return partialDriver<CompanyRegistryDriver>("companyRegistry", {
+  return {
     ...createHunterList(page),
     ...createBringing(page),
     ...createLoading(page),
@@ -715,5 +714,5 @@ export function createReactCompanyRegistryDriver(page: Page): CompanyRegistryDri
     ...createSheets(page),
     ...createProposals(page),
     ...createOtherUsers(page),
-  });
+  };
 }

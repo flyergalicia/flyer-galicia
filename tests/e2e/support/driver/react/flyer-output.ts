@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { type Download, type Page } from "@playwright/test";
 import { type FlyerForm, type FlyerOutputDriver } from "../flyer-output.ts";
-import { partialDriver } from "./pending.ts";
 
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 
@@ -40,7 +39,7 @@ async function fillForm(page: Page, { company, officers }: FlyerForm): Promise<v
 }
 
 export function createReactFlyerOutputDriver(page: Page): FlyerOutputDriver {
-  return partialDriver<FlyerOutputDriver>("flyerOutput", {
+  return {
     fillForm: (form) => fillForm(page, form),
     toggleOfficersOnFlyer: () => page.getByRole("switch", { name: "Mostrar en el flyer" }).click(),
     pressDownloadPdf: () => downloadedBy(page, () => page.getByTestId("download-pdf").click()),
@@ -51,5 +50,5 @@ export function createReactFlyerOutputDriver(page: Page): FlyerOutputDriver {
         await page.getByRole("tab", { name: "Masivo" }).click();
         await page.getByTestId("batch-generate").click();
       }),
-  });
+  };
 }

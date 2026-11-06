@@ -404,6 +404,7 @@ export function CompanyField({
     return (
       <Input
         {...inputProps}
+        data-testid="company-name"
         value={value}
         onFocus={onFocus}
         onChange={({ target }) => {
