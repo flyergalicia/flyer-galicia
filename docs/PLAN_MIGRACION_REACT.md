@@ -182,7 +182,7 @@ Se sacaron dos `try/catch` que no podían saltar: al estirar la fila del hueco y
 
 ## Etapa 4: los slices
 
-**Hecha** el 6-nov-2026, en commits locales de `refactor/react` (de `6185d99` a `7d6ba2f`, más los arreglos `c6b45f1`, `be2c9c3` y `148bc90`). La app React tiene todas las pantallas de la versión actual. Lo que todavía no está publicado es el corte (etapa 5).
+**Hecha** el 6-nov-2026, en commits locales de `refactor/react` (de `0676e82` a `13154ec`, más los arreglos `7fb1643`, `1044abd` y `49e2b22`). La app React tiene todas las pantallas de la versión actual. Lo que todavía no está publicado es el corte (etapa 5).
 
 ### Cómo se comparó
 
