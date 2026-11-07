@@ -12,19 +12,12 @@
     "es2024": true
   },
   "ignorePatterns": [
-    "auth.js",
-    "gestiones.js",
-    "benchmark.js",
-    "_build.mjs",
-    "_source.html",
     "index.html",
-    "index_export.html",
     "version.json",
     "web/src/shared/lib/vendor/**",
     "supabase/**",
     "dist/**",
     "assets/**",
-    "legacy-site/**",
     "coverage/**",
     "storybook-static/**",
     "playwright-report/**",
@@ -83,12 +76,6 @@
         "react/rules-of-hooks": "off",
         "react/exhaustive-deps": "off",
         "no-await-in-loop": "off"
-      }
-    },
-    {
-      "files": ["tests/e2e/support/driver/legacy/**"],
-      "rules": {
-        "no-underscore-dangle": "off"
       }
     },
     {

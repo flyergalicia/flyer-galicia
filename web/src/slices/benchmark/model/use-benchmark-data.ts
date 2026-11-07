@@ -51,7 +51,7 @@ export function useBenchmarkData(): BenchmarkReading {
   const result = data.data;
 
   const readAgain = useCallback(async () => {
-    // What was there stays on the labels while it reads, as in the current app.
+    // What was there stays on the labels while it reads, as in the old app.
     const before = queryClient.getQueryData<Awaited<ReturnType<typeof readBenchmark>>>(DATA_KEY);
     if (before?.ok) setLast({ meta: before.value.meta, handLoaded: before.value.handLoaded });
     await Promise.all([
@@ -76,7 +76,7 @@ function loadOf(
   result: Awaited<ReturnType<typeof readBenchmark>> | undefined,
   cardsOnTheirWay: boolean,
 ): BenchmarkLoad {
-  // As the current app, the screen waits for everything it reads together.
+  // As the old app, the screen waits for everything it reads together.
   if (result === undefined || cardsOnTheirWay) return { status: "loading" };
   return result.ok
     ? { status: "ready", data: result.value }

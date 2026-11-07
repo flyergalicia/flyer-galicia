@@ -149,7 +149,7 @@ describe("callEdge", () => {
     expect([accepted, refused]).toHaveLength(2);
   });
 
-  it("cuts at 25 s with the message of the current app", async () => {
+  it("cuts at 25 s with the message of the old app", async () => {
     vi.useFakeTimers();
     const { backend } = createInventedBackend(({ init }) => {
       expect(init?.signal).toBeInstanceOf(AbortSignal);

@@ -1,4 +1,4 @@
-/* The tab Benchmark: the same rules as benchmark.js, and what the global styles of the current app
+/* The tab Benchmark: the same rules as in the old app, and what its global styles
    give its fields, labels and buttons. As a grid, the column takes the width of what it holds. */
 .view {
   display: grid;
@@ -48,7 +48,7 @@
   gap: 8px;
 }
 
-/* A button with no look of its own on the current app: what a button of the system brings. */
+/* A button with no look of its own on the old app: what a button of the system brings. */
 .button {
   display: flex;
   align-items: center;
@@ -164,7 +164,7 @@ label.field,
   color-scheme: normal;
 }
 
-/* The current app puts the box of the check inside the line, with the width of a field. */
+/* The old app puts the box of the check inside the line, with the width of a field. */
 .filters .field .check {
   display: inline-block;
   margin: 0;
@@ -453,7 +453,7 @@ a.segment {
   font-size: var(--text-search);
 }
 
-/* With the weight, margin and pointer every label has in the current app. */
+/* With the weight, margin and pointer every label has in the old app. */
 .comparable {
   margin-bottom: 3px;
   color: var(--ink-2);
@@ -620,7 +620,7 @@ dialog.editor {
   }
 }
 
-/* A text field of the current app lights its border with the focus, with no outline. */
+/* A text field of the old app lights its border with the focus, with no outline. */
 .field input[type="text"] {
   font-family: "Figtree", sans-serif;
 }

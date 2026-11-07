@@ -44,7 +44,7 @@ export function writeContractFromParts(): number {
   return entries.length;
 }
 
-/** What the current app recorded: the only thing the rewrite may ask for. */
+/** What the old app recorded: the only thing the rewrite may ask for. */
 export function readContract(): ContractEntry[] {
   return JSON.parse(readFileSync(CONTRACT_FILE, "utf8")) as ContractEntry[];
 }

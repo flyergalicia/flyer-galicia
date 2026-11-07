@@ -16,43 +16,35 @@ function stripePoints(): Record<string, { x: number; y: number }> {
   return points;
 }
 
-test(
-  "a PDF taller than a band comes out whole, each part in its place",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const { flyerSections } = await openApp({ user: "admin" });
+test("a PDF taller than a band comes out whole, each part in its place", async ({ openApp }) => {
+  const { flyerSections } = await openApp({ user: "admin" });
 
-    const reading = await flyerSections.convertPdf(buildStripedPdf(TALL_POINTS), {
-      points: stripePoints(),
-      inkRegion: NO_REGION,
-    });
+  const reading = await flyerSections.convertPdf(buildStripedPdf(TALL_POINTS), {
+    points: stripePoints(),
+    inkRegion: NO_REGION,
+  });
 
-    expect.soft(reading?.height, "its whole height").toBe(PIXELS);
-    for (const [top, color] of Object.entries(reading?.colors ?? {})) {
-      const isRed = (Number(top) / STRIPE_PX) % 2 === 0;
-      expect.soft(color, `the stripe at ${top} px`).toEqual(isRed ? [255, 0, 0] : [0, 0, 255]);
-    }
-  },
-);
+  expect.soft(reading?.height, "its whole height").toBe(PIXELS);
+  for (const [top, color] of Object.entries(reading?.colors ?? {})) {
+    const isRed = (Number(top) / STRIPE_PX) % 2 === 0;
+    expect.soft(color, `the stripe at ${top} px`).toEqual(isRed ? [255, 0, 0] : [0, 0, 255]);
+  }
+});
 
-test(
-  "a PDF too long to convert says so, instead of freezing the computer",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    await app.admin.openPanel();
-    await app.admin.openSheet("Config", "Flyer");
+test("a PDF too long to convert says so, instead of freezing the computer", async ({ openApp }) => {
+  const app = await openApp({ user: "admin" });
+  await app.admin.openPanel();
+  await app.admin.openSheet("Config", "Flyer");
 
-    await app.calibrator.chooseFlyerFile({
-      name: "larguisimo.pdf",
-      mimeType: "application/pdf",
-      buffer: buildStripedPdf(14_000),
-    });
-    await app.calibrator.answerOption("Combustible");
+  await app.calibrator.chooseFlyerFile({
+    name: "larguisimo.pdf",
+    mimeType: "application/pdf",
+    buffer: buildStripedPdf(14_000),
+  });
+  await app.calibrator.answerOption("Combustible");
 
-    await expect
-      .poll(() => app.flyerEditor.latestNotice(), { timeout: 20_000 })
-      .toMatch(/demasiado largo/);
-    expect.soft(await app.calibrator.isOpen()).toBe(false);
-  },
-);
+  await expect
+    .poll(() => app.flyerEditor.latestNotice(), { timeout: 20_000 })
+    .toMatch(/demasiado largo/);
+  expect.soft(await app.calibrator.isOpen()).toBe(false);
+});

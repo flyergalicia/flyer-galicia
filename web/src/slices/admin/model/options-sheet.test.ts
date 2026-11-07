@@ -1,5 +1,5 @@
 // Config → Opciones, the copy that is edited: as today, without what each one replaces, its category
-// or its version without cashback (an error of the current version, ported as it is); a new one has
+// or its version without cashback (an error of the old version, ported as it is); a new one has
 // the next number; option 1 stays.
 import { describe, expect, it } from "vitest";
 import { sanitizeFlyerOptions } from "@/shared/domain/flyer-options.ts";

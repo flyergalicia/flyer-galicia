@@ -1,4 +1,4 @@
-// The same content the reference screenshots of the current app show, for the design-system
+// The same content the reference screenshots of the old app show, for the design-system
 // project to compare: see tests/e2e/support/design-system/cases.ts. It is made-up data.
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { type ReactNode, useState } from "react";

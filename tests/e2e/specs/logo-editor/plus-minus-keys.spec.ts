@@ -10,7 +10,7 @@ const TEXT_PLACE = { x: 140, y: 2800, width: 300, height: 60 };
 const STRIP = { x: 140, y: 2650, width: 1000, height: 230 };
 
 test.describe("the + and − keys", () => {
-  test("resize what is chosen on the flyer", { tag: "@react" }, async ({ openApp }) => {
+  test("resize what is chosen on the flyer", async ({ openApp }) => {
     const app = await openApp();
     const percent = async (index: number) =>
       (await app.logoEditor.placements())[index]?.sizePercent;
@@ -69,7 +69,7 @@ test.describe("the + and − keys", () => {
     await picker(app.page).getByRole("button", { name: "Cerrar" }).click();
   });
 
-  test("do nothing with the focus on a text field", { tag: "@react" }, async ({ openApp }) => {
+  test("do nothing with the focus on a text field", async ({ openApp }) => {
     const app = await openApp();
     const sizes = async () =>
       (await app.logoEditor.placements()).map(({ sizePercent }) => sizePercent);
@@ -85,7 +85,7 @@ test.describe("the + and − keys", () => {
     await app.logoEditor.leaveFields();
   });
 
-  test("resize what is chosen on Armar franja", { tag: "@react" }, async ({ openApp }) => {
+  test("resize what is chosen on Armar franja", async ({ openApp }) => {
     const app = await openApp();
     const press = (key: string) => app.page.keyboard.press(key);
     const firstSize = async () => (await app.logoStrip.state()).brands[0]?.size ?? 0;

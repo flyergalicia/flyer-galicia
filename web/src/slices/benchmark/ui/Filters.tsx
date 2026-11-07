@@ -25,7 +25,7 @@ const CARD_TYPES: readonly { readonly value: CardType; readonly label: string }[
 ];
 
 /**
- * A purchase is written when the field changes, as the current app does: on leaving it, on Enter or
+ * A purchase is written when the field changes, as the old app does: on leaving it, on Enter or
  * with its arrows, not on each key.
  */
 function ReferenceField({ rubro, label }: { readonly rubro: string; readonly label: string }) {

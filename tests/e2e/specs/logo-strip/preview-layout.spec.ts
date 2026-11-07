@@ -85,66 +85,60 @@ async function checkPreviewIsStableAndTiedToSelection(app: OpenedApp): Promise<n
   return empty.height;
 }
 
-test(
-  "on a 1366x768 screen the preview is stable, tied to the selection and can grow",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp({ viewport: { width: 1366, height: 768 } });
-    const strip = app.logoStrip;
-    const normalHeight = await checkPreviewIsStableAndTiedToSelection(app);
+test("on a 1366x768 screen the preview is stable, tied to the selection and can grow", async ({
+  openApp,
+}) => {
+  const app = await openApp({ viewport: { width: 1366, height: 768 } });
+  const strip = app.logoStrip;
+  const normalHeight = await checkPreviewIsStableAndTiedToSelection(app);
 
-    expect.soft(await strip.offersLargePreview(), '"Ampliar" is offered').toBe(true);
-    await strip.pressLargePreview();
-    await app.page.waitForTimeout(200);
-    expect
-      .soft((await strip.previewSize()).height, '"Ampliar" makes the preview taller')
-      .toBeGreaterThan(normalHeight);
-    expect
-      .soft(await strip.largePreviewLabel(), 'the button turns into "Achicar"')
-      .toContain("Achicar");
+  expect.soft(await strip.offersLargePreview(), '"Ampliar" is offered').toBe(true);
+  await strip.pressLargePreview();
+  await app.page.waitForTimeout(200);
+  expect
+    .soft((await strip.previewSize()).height, '"Ampliar" makes the preview taller')
+    .toBeGreaterThan(normalHeight);
+  expect
+    .soft(await strip.largePreviewLabel(), 'the button turns into "Achicar"')
+    .toContain("Achicar");
 
-    await strip.pressLargePreview();
-    await app.page.waitForTimeout(200);
-    expect
-      .soft((await strip.previewSize()).height, '"Achicar" goes back to the size before')
-      .toBe(normalHeight);
-  },
-);
+  await strip.pressLargePreview();
+  await app.page.waitForTimeout(200);
+  expect
+    .soft((await strip.previewSize()).height, '"Achicar" goes back to the size before')
+    .toBe(normalHeight);
+});
 
-test(
-  "on a 1920x1080 screen the preview is stable and tied to the selection",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp({ viewport: { width: 1920, height: 1080 } });
-    await checkPreviewIsStableAndTiedToSelection(app);
+test("on a 1920x1080 screen the preview is stable and tied to the selection", async ({
+  openApp,
+}) => {
+  const app = await openApp({ viewport: { width: 1920, height: 1080 } });
+  await checkPreviewIsStableAndTiedToSelection(app);
 
-    // The strip already takes all the width of this window.
-    expect
-      .soft(await app.logoStrip.offersLargePreview(), '"Ampliar" is hidden: it would not grow')
-      .toBe(false);
-  },
-);
+  // The strip already takes all the width of this window.
+  expect
+    .soft(await app.logoStrip.offersLargePreview(), '"Ampliar" is hidden: it would not grow')
+    .toBe(false);
+});
 
-test(
-  "on a phone the preview stays in sight while scrolling the second step",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp({ viewport: { width: 390, height: 844 } });
-    const strip = app.logoStrip;
-    await strip.open(LOGOS_STRIP, { province: "" });
-    await strip.tickNext(6);
-    await strip.waitForPreviewLogos();
+test("on a phone the preview stays in sight while scrolling the second step", async ({
+  openApp,
+}) => {
+  const app = await openApp({ viewport: { width: 390, height: 844 } });
+  const strip = app.logoStrip;
+  await strip.open(LOGOS_STRIP, { province: "" });
+  await strip.tickNext(6);
+  await strip.waitForPreviewLogos();
 
-    await strip.pressNextStep();
-    await app.page.waitForTimeout(300);
-    await strip.scrollWindow(700);
-    await app.page.waitForTimeout(200);
+  await strip.pressNextStep();
+  await app.page.waitForTimeout(300);
+  await strip.scrollWindow(700);
+  await app.page.waitForTimeout(200);
 
-    const preview = await strip.previewInWindow();
-    expect.soft(preview.top, "it does not go off the top").toBeGreaterThanOrEqual(0);
-    expect.soft(preview.top, "it stays near the top").toBeLessThan(260);
-    expect.soft(preview.height, "it can be seen").toBeGreaterThan(50);
-    expect.soft(await strip.pageFitsWidth(), "the page does not scroll sideways").toBe(true);
-    expect.soft(await strip.windowFitsWidth(), "the window does not scroll sideways").toBe(true);
-  },
-);
+  const preview = await strip.previewInWindow();
+  expect.soft(preview.top, "it does not go off the top").toBeGreaterThanOrEqual(0);
+  expect.soft(preview.top, "it stays near the top").toBeLessThan(260);
+  expect.soft(preview.height, "it can be seen").toBeGreaterThan(50);
+  expect.soft(await strip.pageFitsWidth(), "the page does not scroll sideways").toBe(true);
+  expect.soft(await strip.windowFitsWidth(), "the window does not scroll sideways").toBe(true);
+});

@@ -40,9 +40,6 @@ const REFERENCE_LABELS: Readonly<Record<string, string>> = {
 };
 const CODE_OF_BENCHMARK = /\/fg-benchmark-[^/]*\.js/;
 /** No person reaches it: no tab leads to the page of promotions loaded by hand, on purpose. */
-const HAND_LOADED_UNREACHABLE =
-  'The page "Cargadas a mano" is shown to nobody in React, as in the current app: no person can open it.';
-
 function root(page: Page): Locator {
   return page.getByTestId("benchmark");
 }
@@ -232,14 +229,9 @@ function filtering(page: Page) {
   } satisfies Partial<BenchmarkDriver>;
 }
 
-function unreachable(): never {
-  throw new Error(HAND_LOADED_UNREACHABLE);
-}
-
 function editing(page: Page) {
   return {
     editorIsOpen: async () => (await editor(page).count()) > 0,
-    cancelEditor: () => editor(page).getByRole("button", { name: "Cancelar" }).click(),
     saveEditor: () =>
       editor(page)
         .getByRole("button", { name: /^Guard/ })
@@ -254,11 +246,6 @@ function editing(page: Page) {
       await cardRow(page, bank, card).getByRole("button", { name: "Quitar" }).click();
       await page.getByRole("alertdialog").getByRole("button", { name: "Quitar" }).click();
     },
-    showHandLoadedPromotions: unreachable,
-    startNewHandLoadedPromotion: unreachable,
-    editHandLoadedPromotion: unreachable,
-    fillHandLoadedPromotion: unreachable,
-    handLoadedCondition: unreachable,
   } satisfies Partial<BenchmarkDriver>;
 }
 

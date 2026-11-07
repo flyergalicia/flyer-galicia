@@ -161,143 +161,139 @@ async function fromTheOfficerToTheHunter(
   return { officer };
 }
 
-test(
-  "an action goes from the officer to the hunter, with its conversation and its people",
-  { tag: "@react" },
-  async ({ cloud, openApp }) => {
-    await fromTheOfficerToTheHunter(cloud, openApp, cloud.seedCommercialActions());
-  },
-);
+test("an action goes from the officer to the hunter, with its conversation and its people", async ({
+  cloud,
+  openApp,
+}) => {
+  await fromTheOfficerToTheHunter(cloud, openApp, cloud.seedCommercialActions());
+});
 
-test(
-  "an action goes from the officer to the hunter and the leader, and reaches the numbers",
-  { tag: "@react" },
-  async ({ cloud, openApp }) => {
-    const seeded = cloud.seedCommercialActions();
-    const tables = commercialTables(cloud);
-    const actionById = (id: string) => tables.actions.find((action) => action.id === id);
-    const { forwardedWithQuestion, cannotAttend } = seeded;
-    const { officer } = await fromTheOfficerToTheHunter(cloud, openApp, seeded);
+test("an action goes from the officer to the hunter and the leader, and reaches the numbers", async ({
+  cloud,
+  openApp,
+}) => {
+  const seeded = cloud.seedCommercialActions();
+  const tables = commercialTables(cloud);
+  const actionById = (id: string) => tables.actions.find((action) => action.id === id);
+  const { forwardedWithQuestion, cannotAttend } = seeded;
+  const { officer } = await fromTheOfficerToTheHunter(cloud, openApp, seeded);
 
-    const leaderApp = await openAsTeamMember(openApp, "leader");
-    const { commercialActions: leader, page: leaderPage } = leaderApp;
+  const leaderApp = await openAsTeamMember(openApp, "leader");
+  const { commercialActions: leader, page: leaderPage } = leaderApp;
 
-    await test.step("the leader sees the trays and assigns", async () => {
-      await expect
-        .soft(
-          leaderPage.getByRole("tab", { name: "Agenda del equipo", selected: true }),
-          "the leader enters on the agenda of the team",
-        )
-        .toBeVisible({ timeout: WAITING_MS });
-      const trays = await leader.waitForScreenText(/Por asignar \(2\)/);
-      expect.soft(trays, 'they see "Por asignar (2)"').toMatch(/Por asignar \(2\)/);
-      expect
-        .soft(trays, 'and "Piden que se la pasen a otro (2)"')
-        .toMatch(/Piden que se la pasen a otro \(2\)/);
-      expect.soft(trays, "with the reason").toMatch(/capacitaci/);
+  await test.step("the leader sees the trays and assigns", async () => {
+    await expect
+      .soft(
+        leaderPage.getByRole("tab", { name: "Agenda del equipo", selected: true }),
+        "the leader enters on the agenda of the team",
+      )
+      .toBeVisible({ timeout: WAITING_MS });
+    const trays = await leader.waitForScreenText(/Por asignar \(2\)/);
+    expect.soft(trays, 'they see "Por asignar (2)"').toMatch(/Por asignar \(2\)/);
+    expect
+      .soft(trays, 'and "Piden que se la pasen a otro (2)"')
+      .toMatch(/Piden que se la pasen a otro \(2\)/);
+    expect.soft(trays, "with the reason").toMatch(/capacitaci/);
 
-      await leader.openFromTray("unassigned", "LOGISTICA ANDINA SRL");
-      expect
-        .soft(await leader.dialogText(), 'the tray opens "Asignar a un hunter"')
-        .toMatch(/Asignar a un hunter/);
-      const choices = (await leader.hunterChoices()).join();
-      for (const name of ["Julia Sosa", "Tomás Ríos", "Sofía Paz"]) {
-        expect.soft(choices, `they choose among the team: ${name}`).toContain(name);
-      }
+    await leader.openFromTray("unassigned", "LOGISTICA ANDINA SRL");
+    expect
+      .soft(await leader.dialogText(), 'the tray opens "Asignar a un hunter"')
+      .toMatch(/Asignar a un hunter/);
+    const choices = (await leader.hunterChoices()).join();
+    for (const name of ["Julia Sosa", "Tomás Ríos", "Sofía Paz"]) {
+      expect.soft(choices, `they choose among the team: ${name}`).toContain(name);
+    }
 
-      await leader.chooseHunter("Julia Sosa");
-      await leader.confirmAssignment();
-      await leader.waitForDialogToClose();
-      const fair = tables.actions.find(({ empresa }) => empresa.includes("LOGISTICA"));
-      expect.soft(fair?.hunter_id, "it stays assigned to Julia").toBe(PEOPLE.hunter3.id);
+    await leader.chooseHunter("Julia Sosa");
+    await leader.confirmAssignment();
+    await leader.waitForDialogToClose();
+    const fair = tables.actions.find(({ empresa }) => empresa.includes("LOGISTICA"));
+    expect.soft(fair?.hunter_id, "it stays assigned to Julia").toBe(PEOPLE.hunter3.id);
+  });
+
+  await test.step("the leader passes on what Tomás cannot attend", async () => {
+    await leader.goToTab("agenda");
+    await leader.openFromTray("reassign-requests", "METALURGICA NORTE SA");
+    await leader.chooseHunter("Sofía Paz");
+    await leader.confirmAssignment();
+    await leader.waitForDialogToClose();
+
+    const passed = actionById(cannotAttend.id);
+    expect.soft(passed?.hunter_id, "the leader passes it to Sofía").toBe(PEOPLE.hunter.id);
+    expect.soft(passed?.no_puede_at, 'the "no puedo" goes away').toBeFalsy();
+    expect.soft(passed?.visto_hunter, "and Sofía gets it as new").toBe(false);
+    expect
+      .soft(
+        tables.events.some(
+          ({ gestion_id: action, que, quien, detalle }) =>
+            action === cannotAttend.id &&
+            que === "hunter" &&
+            quien === PEOPLE.leader.id &&
+            detalle.de === PEOPLE.hunter2.id &&
+            detalle.a === PEOPLE.hunter.id,
+        ),
+        "the history says from whom to whom and who passed it",
+      )
+      .toBe(true);
+
+    const overlapError = await leader.updateActionBehindTheScreen(forwardedWithQuestion.id, {
+      hora_desde: "15:30",
+      hora_hasta: "16:30",
+      fecha: today(),
     });
+    expect.soft(overlapError, "the leader can save over an overlap: it is their call").toBeNull();
+  });
 
-    await test.step("the leader passes on what Tomás cannot attend", async () => {
-      await leader.goToTab("agenda");
-      await leader.openFromTray("reassign-requests", "METALURGICA NORTE SA");
-      await leader.chooseHunter("Sofía Paz");
-      await leader.confirmAssignment();
-      await leader.waitForDialogToClose();
+  await test.step("the dashboard of the officer counts all of it", async () => {
+    await officer.goToTab("dashboard");
+    await officer.choosePeriod("Todo");
+    const board = await officer.waitForScreenText(/Con paquete:/);
+    expect.soft(board, "it tells signups with a package").toMatch(/Con paquete:/);
+    expect.soft(board, "and counts those without").toMatch(/Sin paquete: 2/);
+    expect.soft(board, "it shows why they are discarded").toMatch(/Por qué se descartan/);
+    expect.soft(board, "with the reasons").toMatch(/No contesta/);
+    expect.soft(board, "and how many of the data lists were contacted").toMatch(/Bases de datos:/);
 
-      const passed = actionById(cannotAttend.id);
-      expect.soft(passed?.hunter_id, "the leader passes it to Sofía").toBe(PEOPLE.hunter.id);
-      expect.soft(passed?.no_puede_at, 'the "no puedo" goes away').toBeFalsy();
-      expect.soft(passed?.visto_hunter, "and Sofía gets it as new").toBe(false);
-      expect
-        .soft(
-          tables.events.some(
-            ({ gestion_id: action, que, quien, detalle }) =>
-              action === cannotAttend.id &&
-              que === "hunter" &&
-              quien === PEOPLE.leader.id &&
-              detalle.de === PEOPLE.hunter2.id &&
-              detalle.a === PEOPLE.hunter.id,
-          ),
-          "the history says from whom to whom and who passed it",
-        )
-        .toBe(true);
+    const unassigned = tables.actions.filter(
+      ({ estado, tipo, hunter_id: assignee, dueno_id: owner, creada_por: creator }) =>
+        estado === "planificada" &&
+        tipo !== "datos" &&
+        !assignee &&
+        (owner === PEOPLE.officer.id || creator === PEOPLE.officer.id),
+    );
+    const figures = await officer.dashboardFigures();
+    expect.soft(unassigned.length, "there is something nobody assigned").toBeGreaterThan(0);
+    expect.soft(figures.unassigned, "it counts it apart").toBe(unassigned.length);
+    expect.soft(board, "and warns about it").toMatch(/sin asignar/);
+    expect.soft(board, "saying it does not enter the numbers").toMatch(/No cuenta en los n/);
+    expect
+      .soft(
+        figures.hunterIds.filter((id) => !id),
+        "no row of hunters stays with no owner",
+      )
+      .toEqual([]);
+    expect.soft(await officer.screenMarkup(), "no NaN or undefined").not.toMatch(/NaN|undefined/);
+    expect.soft(board, "it explains it only counts the period").toMatch(/El tablero cuenta/);
+    expect.soft(board, "and actions with a hunter").toMatch(/se ve todo, sin per/);
+  });
 
-      const overlapError = await leader.updateActionBehindTheScreen(forwardedWithQuestion.id, {
-        hora_desde: "15:30",
-        hora_hasta: "16:30",
-        fecha: today(),
-      });
-      expect.soft(overlapError, "the leader can save over an overlap: it is their call").toBeNull();
-    });
+  await test.step("choosing an officer does not shrink the field that chooses them", async () => {
+    await leader.goToTab("dashboard");
+    await leader.dashboardFigures();
+    const officers = await leader.officerChoices();
+    expect.soft(officers.length, "the leader sees the two officers").toBeGreaterThanOrEqual(2);
 
-    await test.step("the dashboard of the officer counts all of it", async () => {
-      await officer.goToTab("dashboard");
-      await officer.choosePeriod("Todo");
-      const board = await officer.waitForScreenText(/Con paquete:/);
-      expect.soft(board, "it tells signups with a package").toMatch(/Con paquete:/);
-      expect.soft(board, "and counts those without").toMatch(/Sin paquete: 2/);
-      expect.soft(board, "it shows why they are discarded").toMatch(/Por qué se descartan/);
-      expect.soft(board, "with the reasons").toMatch(/No contesta/);
-      expect
-        .soft(board, "and how many of the data lists were contacted")
-        .toMatch(/Bases de datos:/);
+    await leader.chooseOfficer(PEOPLE.officer.name);
 
-      const unassigned = tables.actions.filter(
-        ({ estado, tipo, hunter_id: assignee, dueno_id: owner, creada_por: creator }) =>
-          estado === "planificada" &&
-          tipo !== "datos" &&
-          !assignee &&
-          (owner === PEOPLE.officer.id || creator === PEOPLE.officer.id),
-      );
-      const figures = await officer.dashboardFigures();
-      expect.soft(unassigned.length, "there is something nobody assigned").toBeGreaterThan(0);
-      expect.soft(figures.unassigned, "it counts it apart").toBe(unassigned.length);
-      expect.soft(board, "and warns about it").toMatch(/sin asignar/);
-      expect.soft(board, "saying it does not enter the numbers").toMatch(/No cuenta en los n/);
-      expect
-        .soft(
-          figures.hunterIds.filter((id) => !id),
-          "no row of hunters stays with no owner",
-        )
-        .toEqual([]);
-      expect.soft(await officer.screenMarkup(), "no NaN or undefined").not.toMatch(/NaN|undefined/);
-      expect.soft(board, "it explains it only counts the period").toMatch(/El tablero cuenta/);
-      expect.soft(board, "and actions with a hunter").toMatch(/se ve todo, sin per/);
-    });
-
-    await test.step("choosing an officer does not shrink the field that chooses them", async () => {
-      await leader.goToTab("dashboard");
-      await leader.dashboardFigures();
-      const officers = await leader.officerChoices();
-      expect.soft(officers.length, "the leader sees the two officers").toBeGreaterThanOrEqual(2);
-
-      await leader.chooseOfficer(PEOPLE.officer.name);
-
-      expect
-        .soft(await leader.officerChoices(), '"Oficial Payroll" keeps bringing everybody')
-        .toEqual(officers);
-      const counted = (await leader.dashboardFigures()).countedOfficerIds;
-      expect
-        .soft(
-          counted.filter((id) => id !== PEOPLE.officer.id),
-          "and what it counts does respect the filter",
-        )
-        .toEqual([]);
-    });
-  },
-);
+    expect
+      .soft(await leader.officerChoices(), '"Oficial Payroll" keeps bringing everybody')
+      .toEqual(officers);
+    const counted = (await leader.dashboardFigures()).countedOfficerIds;
+    expect
+      .soft(
+        counted.filter((id) => id !== PEOPLE.officer.id),
+        "and what it counts does respect the filter",
+      )
+      .toEqual([]);
+  });
+});

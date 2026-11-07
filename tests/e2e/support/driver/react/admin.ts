@@ -20,7 +20,7 @@ const COLUMNS: Readonly<Record<string, string>> = {
   Líder: "lider",
 };
 const PILLAR_NAMES = { Admin: "Admin", Data: "Data", Config: "Config" } as const;
-/** The buttons that export, by the id they have in the current app. */
+/** The buttons that export, by the id they have in the old app. */
 const EXPORTS: Readonly<Record<string, string>> = {
   "btn-export-excel": "export-dashboard",
   "btn-export-reg": "export-registros",
@@ -374,9 +374,6 @@ function createOptions(page: Page) {
         .click(),
     renameOptionRow: (index: number, name: string) =>
       rows().nth(index).getByLabel("Nombre de la opción").fill(name),
-    chooseOptionTab: async (index: number, tab: string) => {
-      await rows().nth(index).getByLabel("Solapa").selectOption({ label: tab });
-    },
     chooseOptionReplaces: async (index: number, label: string) => {
       await rows().nth(index).getByLabel("Reemplaza a").selectOption({ label });
     },

@@ -3,7 +3,7 @@ import { expect, test } from "../../support/test.ts";
 
 const LOGOS_STRIP = { x: 140, y: 2650, width: 1000, height: 230 };
 
-test("on a phone the window goes in two steps", { tag: "@react" }, async ({ openApp }) => {
+test("on a phone the window goes in two steps", async ({ openApp }) => {
   const app = await openApp({ viewport: { width: 390, height: 844 } });
   const strip = app.logoStrip;
   await strip.open(LOGOS_STRIP, { province: "" });
@@ -47,7 +47,7 @@ test("on a phone the window goes in two steps", { tag: "@react" }, async ({ open
     .toBeGreaterThanOrEqual(2);
 });
 
-test("on a computer there are no steps", { tag: "@react" }, async ({ openApp }) => {
+test("on a computer there are no steps", async ({ openApp }) => {
   const app = await openApp();
   const strip = app.logoStrip;
   await strip.open(LOGOS_STRIP, { province: "" });

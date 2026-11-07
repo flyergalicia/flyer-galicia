@@ -239,7 +239,7 @@ describe("the drafts", () => {
     await editor.works.open("d");
     await tabs().getByRole("button", { name: "Cerrar" }).click();
     expect(editor.getState().works).toEqual([]);
-    // As in the current version: using again the design on screen leaves its legal as an edit of
+    // As in the old version: using again the design on screen leaves its legal as an edit of
     // the option, and that is what comes back on closing it.
     expect(workspaceOnScreen().getState().legal).toBe("Su legal");
   });

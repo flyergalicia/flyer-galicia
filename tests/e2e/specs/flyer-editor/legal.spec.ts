@@ -14,25 +14,21 @@ function withTwoOptions(cloud: Cloud): void {
 }
 
 test.describe("the markers of the legal", () => {
-  test(
-    "are replaced with the amounts of the configuration in use",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.bucketJson["_legal9.json"] = {
-        text: "A {eminentblack} B {platinum} C {plusgold} D {plus} E {empresa} F {cashback} G {Plus Gold}.",
-      };
-      const { flyerDrawing, flyerEditor } = await openApp();
-      await flyerEditor.fillCompanyName("ACME");
+  test("are replaced with the amounts of the configuration in use", async ({ cloud, openApp }) => {
+    cloud.bucketJson["_legal9.json"] = {
+      text: "A {eminentblack} B {platinum} C {plusgold} D {plus} E {empresa} F {cashback} G {Plus Gold}.",
+    };
+    const { flyerDrawing, flyerEditor } = await openApp();
+    await flyerEditor.fillCompanyName("ACME");
 
-      const words = (await flyerDrawing.draw()).texts.map(({ text }) => text).join(" ");
-      expect.soft(words).toMatch(/A\s+\$250\.000\s+B\s+\$180\.000\s+C\s+\$80\.000\s+D\s+\$30\.000/);
-      expect.soft(words, "the company").toMatch(/E\s+ACME/);
-      expect.soft(words, "the biggest").toMatch(/F\s+\$250\.000/);
-      expect.soft(words, "spaces and capitals do not matter").toMatch(/G\s+\$80\.000/);
-    },
-  );
+    const words = (await flyerDrawing.draw()).texts.map(({ text }) => text).join(" ");
+    expect.soft(words).toMatch(/A\s+\$250\.000\s+B\s+\$180\.000\s+C\s+\$80\.000\s+D\s+\$30\.000/);
+    expect.soft(words, "the company").toMatch(/E\s+ACME/);
+    expect.soft(words, "the biggest").toMatch(/F\s+\$250\.000/);
+    expect.soft(words, "spaces and capitals do not matter").toMatch(/G\s+\$80\.000/);
+  });
 
-  test("one it does not know stays as written", { tag: "@react" }, async ({ cloud, openApp }) => {
+  test("one it does not know stays as written", async ({ cloud, openApp }) => {
     cloud.bucketJson["_legal9.json"] = { text: "Vigente {hasta} y {importeee}." };
     const { flyerDrawing } = await openApp();
 
@@ -41,39 +37,38 @@ test.describe("the markers of the legal", () => {
     expect.soft(words).toContain("{importeee}");
   });
 
-  test(
-    "the administrator pastes them with chips, in the legal of that option",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      withTwoOptions(cloud);
-      const { admin } = await openApp({ user: "admin" });
-      await admin.openPanel();
-      await admin.openSheet("Config", "Legales");
+  test("the administrator pastes them with chips, in the legal of that option", async ({
+    cloud,
+    openApp,
+  }) => {
+    withTwoOptions(cloud);
+    const { admin } = await openApp({ user: "admin" });
+    await admin.openPanel();
+    await admin.openSheet("Config", "Legales");
 
-      const tabs = await admin.legalTabs();
-      expect.soft(tabs, "one tab per option").toContain("Combustible");
-      expect.soft(tabs).toContain("Otra");
+    const tabs = await admin.legalTabs();
+    expect.soft(tabs, "one tab per option").toContain("Combustible");
+    expect.soft(tabs).toContain("Otra");
 
-      await admin.chooseLegalTab("Otra");
-      await expect.poll(() => admin.legalText()).toBe("Legal seis.");
-      const markers = await admin.legalMarkers();
-      expect.soft(markers.join(" "), "the chips name the markers").toMatch(/\{plusgold\}/);
+    await admin.chooseLegalTab("Otra");
+    await expect.poll(() => admin.legalText()).toBe("Legal seis.");
+    const markers = await admin.legalMarkers();
+    expect.soft(markers.join(" "), "the chips name the markers").toMatch(/\{plusgold\}/);
 
-      await admin.pressLegalMarker("{plusgold}");
-      expect.soft(await admin.legalText()).toBe("Legal seis.{plusgold}");
+    await admin.pressLegalMarker("{plusgold}");
+    expect.soft(await admin.legalText()).toBe("Legal seis.{plusgold}");
 
-      await admin.saveLegal();
-      expect
-        .soft(cloud.bucketJson["_legal6.json"], "only its own file")
-        .toEqual(expect.objectContaining({ text: "Legal seis.{plusgold}" }));
-      expect
-        .soft(cloud.bucketJson["_legal9.json"])
-        .toEqual(expect.objectContaining({ text: "Legal de prueba para la opción 9." }));
-    },
-  );
+    await admin.saveLegal();
+    expect
+      .soft(cloud.bucketJson["_legal6.json"], "only its own file")
+      .toEqual(expect.objectContaining({ text: "Legal seis.{plusgold}" }));
+    expect
+      .soft(cloud.bucketJson["_legal9.json"])
+      .toEqual(expect.objectContaining({ text: "Legal de prueba para la opción 9." }));
+  });
 });
 
-test.describe("each option keeps its legal", { tag: "@react" }, () => {
+test.describe("each option keeps its legal", () => {
   test("an edit stays on its option and does not travel to the other", async ({
     cloud,
     openApp,
@@ -135,7 +130,7 @@ test.describe("each option keeps its legal", { tag: "@react" }, () => {
   });
 });
 
-test.describe("writing the legal", { tag: "@react" }, () => {
+test.describe("writing the legal", () => {
   test("the button and Ctrl+B put and take away the bold", async ({ openApp }) => {
     const { flyerEditor, page } = await openApp();
 

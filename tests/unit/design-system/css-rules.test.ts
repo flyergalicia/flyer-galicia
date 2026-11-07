@@ -1,5 +1,4 @@
-// What cannot be left to memory in the styles of web/src: replaces the check of minimum letter
-// size that _build.mjs does on the current app.
+// What cannot be left to memory in the styles of web/src, such as the minimum letter size.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";

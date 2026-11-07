@@ -229,7 +229,7 @@ export function createPlacement(
     const list = core.ownList();
     const { selected } = core.getState();
     const placed = list[selected];
-    // As in the current app: it only applies when it replaced something that was there before.
+    // As in the old app: it only applies when it replaced something that was there before.
     if (place.indice === -1 || placed?.img !== item.img || !(item.rel.w > 0)) return;
     const [tw, th] = [item.rel.w * place.w, item.rel.h * place.h];
     core.replaceList(

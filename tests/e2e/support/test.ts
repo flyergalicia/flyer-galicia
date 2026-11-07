@@ -6,7 +6,7 @@ import {
   outsideTheContract,
 } from "./cloud/contract-store.ts";
 import { type Cloud, createCloud } from "./cloud/index.ts";
-import { type StorybookOption, type TargetOption } from "./target.ts";
+import { type StorybookOption } from "./storybook.ts";
 import { launchApp, type LaunchedApp, type OpenAppOptions, type OpenedApp } from "./open-app.ts";
 
 interface HarnessFixtures {
@@ -26,8 +26,7 @@ function browserLog({ app }: LaunchedApp): string {
   ].join("\n");
 }
 
-export const test = base.extend<HarnessFixtures & TargetOption & StorybookOption>({
-  target: ["legacy", { option: true }],
+export const test = base.extend<HarnessFixtures & StorybookOption>({
   storybookUrl: ["", { option: true }],
   clockOffset: [
     // oxlint-disable-next-line no-empty-pattern -- Playwright requires a destructuring pattern
@@ -36,22 +35,21 @@ export const test = base.extend<HarnessFixtures & TargetOption & StorybookOption
     },
     { auto: true },
   ],
-  cloud: async ({ clockOffset: _clockOffset, target }, use, testInfo) => {
+  cloud: async ({ clockOffset: _clockOffset }, use, testInfo) => {
     const cloud = createCloud();
     await use(cloud);
     if (isRecordingContract()) {
       appendContractPart(testInfo.workerIndex, cloud.contractEntries());
-    }
-    if (target === "react") {
+    } else {
       expect
         .soft(outsideTheContract(cloud.contractEntries()), "asked for what the app never asked")
         .toEqual([]);
     }
   },
-  openApp: async ({ browser, cloud, target, baseURL, clockOffset }, use, testInfo) => {
+  openApp: async ({ browser, cloud, baseURL, clockOffset }, use, testInfo) => {
     const launched: LaunchedApp[] = [];
     await use(async (options = {}) => {
-      const opened = await launchApp({ browser, cloud, target, baseURL, clockOffset, options });
+      const opened = await launchApp({ browser, cloud, baseURL, clockOffset, options });
       launched.push(opened);
       return opened.app;
     });

@@ -1,4 +1,4 @@
-// Protects the "pegar:" and "portapapeles" rules that only a text check guarded in _build.mjs.
+// Protects the "pegar:" and "portapapeles" rules that only a text check of the old build guarded.
 import { type Cloud } from "../../support/cloud/index.ts";
 import { type OpenedApp } from "../../support/open-app.ts";
 import { expect, test } from "../../support/test.ts";
@@ -8,7 +8,7 @@ async function openWithPaste(cloud: Cloud, openApp: (o?: object) => Promise<Open
   return openApp();
 }
 
-test.describe("pasting the data of an officer", { tag: "@react" }, () => {
+test.describe("pasting the data of an officer", () => {
   test("a signature gives name, phone and mail, with every digit as it came", async ({
     cloud,
     openApp,

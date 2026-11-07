@@ -22,8 +22,6 @@ describe("specViolations", () => {
     ["evaluate", "await locator.evaluate((node) => node.id);"],
     ["evaluate", "await page.$eval('a', (node) => node.id);"],
     ["waitForFunction", "await page.waitForFunction(() => true);"],
-    ["legacy global", "const list = _fgLg.list;"],
-    ["legacy global", "await app.page.click(_padEditor);"],
     ["#id selector", "await page.locator('#fg-lg-btn').click();"],
     ["#id selector", 'await page.click("div #name");'],
   ])("rejects %s in %s", (name, source) => {

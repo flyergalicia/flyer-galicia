@@ -85,7 +85,7 @@ describe("bucket names", () => {
     expect([accepted, refused]).toHaveLength(2);
   });
 
-  it("publicUrl is the address the current app builds", () => {
+  it("publicUrl is the address the old app builds", () => {
     const { backend, url } = createInventedBackend(() => jsonResponse({}));
 
     expect(backend.bucket.publicUrl("modo/123.png")).toBe(

@@ -1,5 +1,5 @@
-// Serves a folder as it is, for the browser tests: legacy-site/ for the current app, and the root
-// under the path of GitHub Pages for the React app.
+// Serves a folder as it is, for the browser tests and the scripts: the root under the path of
+// GitHub Pages for the app, and storybook-static/ for the stories.
 import { createServer, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";

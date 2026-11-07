@@ -1,4 +1,4 @@
-/* The window of a user: the `um-card` of the current app. */
+/* The window of a user: the `um-card` of the old app. */
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

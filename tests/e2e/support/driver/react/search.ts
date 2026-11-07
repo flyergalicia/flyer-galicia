@@ -88,14 +88,6 @@ export function createReactSearchDriver(page: Page): SearchDriver {
       ranScript: await page.evaluate(() => Boolean(Reflect.get(window, "__xss"))),
       imageInList: (await results(page).locator("img").count()) > 0,
     }),
-    // A flyer name never arrives with < or >: they are taken out when the list of flyers is read and
-    // when it is saved, and only a back door would put them. The spec that asks for it stays without
-    // @react; "the name of a flyer that arrives with markup…" checks the same with real data.
-    nameFirstFlyer: () => {
-      throw new Error(
-        "In React a flyer name cannot hold < or >: they are filtered on arrival, as in the current app.",
-      );
-    },
     panelColors: () =>
       panel(page).evaluate((element) => {
         const style = getComputedStyle(element);

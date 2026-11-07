@@ -137,7 +137,7 @@ function tally(logs: readonly UsageLog[], roleOf: (id: string | null) => string)
 }
 
 function flyerBars(byOption: Tally["byOption"], flyers: UsageFlyers): UsageBar[] {
-  // In the current app an object with numbers for keys: the flyers go in their order.
+  // In the old app an object with numbers for keys: the flyers go in their order.
   const inOrder = [...byOption].toSorted(([one], [other]) => Number(one) - Number(other));
   return byMost(
     inOrder.map(([key, count]) => {

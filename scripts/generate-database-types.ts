@@ -28,7 +28,7 @@ export interface DatabaseModel {
 
 /**
  * Two tables were created by hand in the Supabase panel before migration 001, so no migration says
- * they exist. Their columns come from what auth.js and auth-admin read and write, and all of them
+ * they exist. Their columns come from what the app and auth-admin read and write, and all of them
  * except the keys count as nullable because nothing here knows better. The columns that migrations
  * do add (facultades, es_prueba...) are not repeated.
  */

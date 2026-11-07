@@ -49,11 +49,12 @@ export default {
       to: { path: "^(scripts|tests)/" },
     },
     {
-      name: "specs-do-not-know-the-version",
-      comment: "A spec talks to the AppDriver interface: only the driver knows the legacy app.",
+      name: "specs-do-not-know-the-screens",
+      comment:
+        "A spec talks to the AppDriver interface: only the driver knows how the app is built.",
       severity: "error",
       from: { path: "^tests/e2e/specs/" },
-      to: { path: "^tests/e2e/support/driver/(legacy|react)/" },
+      to: { path: "^tests/e2e/support/driver/react/" },
     },
   ],
   options: {

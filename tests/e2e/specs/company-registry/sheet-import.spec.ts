@@ -28,7 +28,7 @@ async function openDatabase(cloud: Cloud, openApp: (o?: object) => Promise<Opene
   return app;
 }
 
-test.describe("Subir Excel in Mis empresas", { tag: "@react" }, () => {
+test.describe("Subir Excel in Mis empresas", () => {
   test("the first load saves at once", async ({ cloud, openApp }) => {
     cloud.companies = [];
     const { companyRegistry: registry, flyerEditor } = await openDatabase(cloud, openApp);

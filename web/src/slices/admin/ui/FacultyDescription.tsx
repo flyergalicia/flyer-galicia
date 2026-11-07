@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { FacultyRow } from "../model/faculties.ts";
 
-/** What each permission gives, as the current app tells it under its name. */
+/** What each permission gives, as the old app tells it under its name. */
 const DESCRIPTIONS: Readonly<Record<string, ReactNode>> = {
   padron_buscar: (
     <>

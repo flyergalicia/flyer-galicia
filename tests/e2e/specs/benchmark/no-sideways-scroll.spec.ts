@@ -14,7 +14,7 @@ const SCREENS = [
 ];
 
 for (const { width, height, touch } of SCREENS) {
-  test(`every view fits at ${String(width)} px`, { tag: "@react" }, async ({ cloud, openApp }) => {
+  test(`every view fits at ${String(width)} px`, async ({ cloud, openApp }) => {
     seedComparison(cloud);
     seedHandLoaded(cloud);
     seedCards(cloud);
@@ -36,20 +36,16 @@ for (const { width, height, touch } of SCREENS) {
   });
 }
 
-test(
-  "on a phone the wide table slides inside its own box",
-  { tag: "@react" },
-  async ({ cloud, openApp }) => {
-    seedComparison(cloud);
-    const { benchmark } = await openApp({
-      user: "admin",
-      viewport: PHONE,
-      touch: true,
-    });
-    await benchmark.open();
+test("on a phone the wide table slides inside its own box", async ({ cloud, openApp }) => {
+  seedComparison(cloud);
+  const { benchmark } = await openApp({
+    user: "admin",
+    viewport: PHONE,
+    touch: true,
+  });
+  await benchmark.open();
 
-    const { table, tableBox } = await benchmark.pageWidths();
-    expect.soft(table, "it is wider than the screen").toBeGreaterThan(PHONE.width);
-    expect.soft(tableBox, "the box is not").toBeLessThanOrEqual(PHONE.width);
-  },
-);
+  const { table, tableBox } = await benchmark.pageWidths();
+  expect.soft(table, "it is wider than the screen").toBeGreaterThan(PHONE.width);
+  expect.soft(tableBox, "the box is not").toBeLessThanOrEqual(PHONE.width);
+});

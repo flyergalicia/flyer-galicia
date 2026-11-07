@@ -4,7 +4,7 @@ import { expect, test } from "../../support/test.ts";
 const CUT = { y: 669, height: 340 };
 const LOGO = { x: 600, y: 2690, width: 140, height: 60 };
 
-test("undo also undoes a crop", { tag: "@react" }, async ({ openApp }) => {
+test("undo also undoes a crop", async ({ openApp }) => {
   const app = await openApp({ user: "asesor" });
   const sections = app.flyerSections;
   const status = () => sections.cropStatus();
@@ -52,7 +52,7 @@ test("undo also undoes a crop", { tag: "@react" }, async ({ openApp }) => {
   expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
 });
 
-test("the history remembers crop and logos", { tag: "@react" }, async ({ openApp }) => {
+test("the history remembers crop and logos", async ({ openApp }) => {
   const app = await openApp({ user: "asesor" });
   const sections = app.flyerSections;
   const status = () => sections.cropStatus();

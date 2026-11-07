@@ -13,32 +13,28 @@ function indexHtml(): string {
   return readFileSync(`${DIST}/index.html`, "utf8");
 }
 
-test("no published file is hidden from the Jekyll step of GitHub Pages", { tag: "@react" }, () => {
+test("no published file is hidden from the Jekyll step of GitHub Pages", () => {
   const hidden = publishedFiles().filter((path) => /^[_.#~]/.test(basename(path)));
 
   expect(publishedFiles().length).toBeGreaterThan(0);
   expect(hidden).toEqual([]);
 });
 
-test("the page loads its assets with relative paths", { tag: "@react" }, () => {
+test("the page loads its assets with relative paths", () => {
   expect(indexHtml()).not.toMatch(/(?:src|href)="\/(?!\/)/);
 });
 
-test(
-  "the security policy comes before any script and forbids inline scripts",
-  { tag: "@react" },
-  () => {
-    const html = indexHtml();
-    const policy = html.match(/Content-Security-Policy" content="([^"]+)"/)?.[1] ?? "";
-    const scriptPolicy = policy.split("; ").find((directive) => directive.startsWith("script-src"));
+test("the security policy comes before any script and forbids inline scripts", () => {
+  const html = indexHtml();
+  const policy = html.match(/Content-Security-Policy" content="([^"]+)"/)?.[1] ?? "";
+  const scriptPolicy = policy.split("; ").find((directive) => directive.startsWith("script-src"));
 
-    expect(html.indexOf("Content-Security-Policy")).toBeLessThan(html.indexOf("<script"));
-    expect(scriptPolicy).toBeDefined();
-    expect(scriptPolicy).not.toContain("'unsafe-inline'");
-  },
-);
+  expect(html.indexOf("Content-Security-Policy")).toBeLessThan(html.indexOf("<script"));
+  expect(scriptPolicy).toBeDefined();
+  expect(scriptPolicy).not.toContain("'unsafe-inline'");
+});
 
-test("the page starts talking to the backend before it needs to", { tag: "@react" }, () => {
+test("the page starts talking to the backend before it needs to", () => {
   const html = indexHtml();
   const preconnect = html.search(
     /<link rel="preconnect" href="https:[^"]+supabase\.co" crossorigin/,
@@ -48,7 +44,7 @@ test("the page starts talking to the backend before it needs to", { tag: "@react
   expect(preconnect).toBeLessThan(html.indexOf("<script"));
 });
 
-test("the look is known before the first paint", { tag: "@react" }, () => {
+test("the look is known before the first paint", () => {
   const html = indexHtml();
   const look = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
   const policy = html.match(/Content-Security-Policy" content="([^"]+)"/)?.[1] ?? "";
@@ -64,31 +60,27 @@ function assetFiles(): string[] {
   return publishedFiles().filter((path) => path.startsWith("assets/") && /\.\w+$/.test(path));
 }
 
-test(
-  "every asset has its content in the name, so a new version is a new address",
-  { tag: "@react" },
-  () => {
-    const assets = assetFiles();
+test("every asset has its content in the name, so a new version is a new address", () => {
+  const assets = assetFiles();
 
-    expect(assets.length).toBeGreaterThan(0);
-    expect(assets.filter((path) => !/-[\w-]{8}\.\w+$/.test(path))).toEqual([]);
-  },
-);
+  expect(assets.length).toBeGreaterThan(0);
+  expect(assets.filter((path) => !/-[\w-]{8}\.\w+$/.test(path))).toEqual([]);
+});
 
-test("no script comes from outside unless it brings its hash", { tag: "@react" }, () => {
+test("no script comes from outside unless it brings its hash", () => {
   const outside = [...indexHtml().matchAll(/<script[^>]*src="https?:[^>]*>/g)].map(([tag]) => tag);
 
   expect(outside.filter((tag) => !/integrity="sha384-/.test(tag))).toEqual([]);
 });
 
-test("the policy lets WASM compile but never eval", { tag: "@react" }, () => {
+test("the policy lets WASM compile but never eval", () => {
   const policy = indexHtml().match(/Content-Security-Policy" content="([^"]+)"/)?.[1] ?? "";
 
   expect(policy).toContain("'wasm-unsafe-eval'");
   expect(policy).not.toContain("'unsafe-eval'");
 });
 
-test("the libraries of exports are not in the first load", { tag: "@react" }, () => {
+test("the libraries of exports are not in the first load", () => {
   const html = indexHtml();
   const preloaded = [...html.matchAll(/(?:src|href)="\.\/assets\/([^"]+)"/g)].map(
     ([, file]) => file,
@@ -98,7 +90,7 @@ test("the libraries of exports are not in the first load", { tag: "@react" }, ()
   expect(html).not.toMatch(/<script[^>]*(?:jspdf|exceljs|jszip|xlsx)/i);
 });
 
-test("the page itself stays light: no images inside it", { tag: "@react" }, () => {
+test("the page itself stays light: no images inside it", () => {
   const html = indexHtml();
 
   expect(html).not.toContain("data:image");
@@ -106,7 +98,7 @@ test("the page itself stays light: no images inside it", { tag: "@react" }, () =
   expect(html).toMatch(/<link rel="icon"[^>]*href="\.\/favicon\.jpg"/);
 });
 
-test("fonts never come by @import nor from the first version", { tag: "@react" }, () => {
+test("fonts never come by @import nor from the first version", () => {
   const styles = assetFiles()
     .filter((path) => path.endsWith(".css"))
     .map((path) => readFileSync(`${DIST}/${path}`, "utf8"))
@@ -116,7 +108,7 @@ test("fonts never come by @import nor from the first version", { tag: "@react" }
   expect(`${styles}${indexHtml()}`).not.toMatch(/Syne|DM Sans/);
 });
 
-test("the versions of what is installed are exact", { tag: "@react" }, () => {
+test("the versions of what is installed are exact", () => {
   const manifest: {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
@@ -129,7 +121,7 @@ test("the versions of what is installed are exact", { tag: "@react" }, () => {
   expect(loose).toEqual([]);
 });
 
-test("the functions of the server pin the library they import", { tag: "@react" }, () => {
+test("the functions of the server pin the library they import", () => {
   const functions = readdirSync("supabase/functions", { withFileTypes: true }).filter((entry) =>
     entry.isDirectory(),
   );

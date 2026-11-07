@@ -10,8 +10,6 @@ import {
 } from "./cases.ts";
 import { type Box } from "./images.ts";
 
-const FIND_TIMEOUT_MS = 5000;
-
 const LOOK_PROPERTIES = [
   "color",
   "background-color",
@@ -105,7 +103,7 @@ function sizeOf(element: Locator): Promise<Box> {
   });
 }
 
-/** Puts what is being compared in the same place as in the current app, on the same background. */
+/** Puts what is being compared in the place it had in the old app, on the same background. */
 export async function placeStory(
   page: Page,
   look: LookCase,
@@ -141,26 +139,6 @@ export async function placeStory(
     },
   );
   return { read, natural: { ...natural, height: (await sizeOf(read)).height } };
-}
-
-/** Adds the markup of a state that no screen shows, inside the page of the current app. */
-export function addProbe(page: Page, markup: string): Promise<void> {
-  return page.evaluate((html) => {
-    document.querySelector("[data-probe]")?.remove();
-    const holder = document.createElement("div");
-    holder.dataset.probe = "";
-    holder.style.cssText = "position:fixed;left:0;top:0;width:420px;z-index:300000";
-    holder.innerHTML = html;
-    document.body.append(holder);
-  }, markup);
-}
-
-export async function visibleBox(element: Locator): Promise<Box | null> {
-  return element.boundingBox({ timeout: FIND_TIMEOUT_MS }).catch(() => null);
-}
-
-export function legacyElement(page: Page, look: LookCase): Locator {
-  return page.locator(look.legacy).filter({ visible: true }).first();
 }
 
 /** The whole set of custom properties set on <html>, with their values. */

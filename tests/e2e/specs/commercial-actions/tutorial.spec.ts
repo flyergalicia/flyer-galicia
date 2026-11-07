@@ -2,7 +2,7 @@
 import { openAsTeamMember } from "../../support/commercial-team.ts";
 import { expect, test } from "../../support/test.ts";
 
-test.describe("the chapter of Gestiones of the tutorial", { tag: "@react" }, () => {
+test.describe("the chapter of Gestiones of the tutorial", () => {
   test.beforeEach(({ cloud }) => {
     cloud.seedCommercialActions();
   });

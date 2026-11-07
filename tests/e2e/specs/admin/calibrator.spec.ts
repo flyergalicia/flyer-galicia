@@ -26,7 +26,7 @@ function withTabs(cloud: Cloud): void {
 
 const boxes = ({ montos }: CalibrationData) => montos?.boxes ?? [];
 
-test.describe("the calibrator", { tag: "@react" }, () => {
+test.describe("the calibrator", () => {
   test("offers the zones of the tab of that flyer", async ({ cloud, openApp }) => {
     withTabs(cloud);
     const galicia = await openCalibrator(openApp);

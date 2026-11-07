@@ -117,7 +117,7 @@ describe("sessionView", () => {
     });
   });
 
-  it("no row and no error counts as inactive, as in the current app", () => {
+  it("no row and no error counts as inactive, as in the old app", () => {
     expect(sessionView(after(entered), { profile: null, error: null })).toMatchObject({
       status: "rejected",
       reason: "inactive",

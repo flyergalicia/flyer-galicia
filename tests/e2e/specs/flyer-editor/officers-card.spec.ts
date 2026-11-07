@@ -1,4 +1,4 @@
-// Protects the rules of the Oficiales card that only a text check guarded in _build.mjs.
+// Protects the rules of the Oficiales card that only a text check of the old build guarded.
 import { expect, test } from "../../support/test.ts";
 
 const ANA = { name: "Ana Perez", phone: "11 4444 5555", email: "ana.p@bancogalicia.com.ar" };
@@ -8,7 +8,7 @@ const SOL = { name: "Sol Ruiz", phone: "11 4444 8888", email: "sol.r@bancogalici
 const PEOPLE = [ANA, LUIS, CARLA, SOL];
 const EMPTY = { name: "", phone: "", email: "" };
 
-test.describe("the officers of a flyer", { tag: "@react" }, () => {
+test.describe("the officers of a flyer", () => {
   test("the form starts empty, with one officer and a way to add three more", async ({
     openApp,
   }) => {

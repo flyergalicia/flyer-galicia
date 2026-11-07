@@ -16,22 +16,18 @@ const DARK_SQUARE_WITH_COLORS = {
   ],
 } as const;
 
-test(
-  "a white logo on a dark square turns into the color of the square",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp();
+test("a white logo on a dark square turns into the color of the square", async ({ openApp }) => {
+  const app = await openApp();
 
-    // The real Toledo of the catalog: white letters on a blue square
-    const toledo = await app.logoEditor.cleanLogo(TOLEDO_LOGO);
-    expect.soft(toledo.width, "the blue square went: only the word stays").toBeLessThan(170);
-    expect.soft(toledo.height, "the blue square went, also in height").toBeLessThan(80);
-    expect.soft(toledo.visibleLight, "no letter stays white").toBe(0);
-    expect.soft(toledo.visibleBlue, "the letters are blue").toBeGreaterThan(toledo.visible * 0.9);
+  // The real Toledo of the catalog: white letters on a blue square
+  const toledo = await app.logoEditor.cleanLogo(TOLEDO_LOGO);
+  expect.soft(toledo.width, "the blue square went: only the word stays").toBeLessThan(170);
+  expect.soft(toledo.height, "the blue square went, also in height").toBeLessThan(80);
+  expect.soft(toledo.visibleLight, "no letter stays white").toBe(0);
+  expect.soft(toledo.visibleBlue, "the letters are blue").toBeGreaterThan(toledo.visible * 0.9);
 
-    // A dark square with a drawing in colors is left whole
-    const square = await app.logoEditor.cleanLogo(DARK_SQUARE_WITH_COLORS);
-    expect.soft(square.width, "a dark square with colors keeps its size").toBe(200);
-    expect.soft(square.cornerAlpha, "and its background").toBe(255);
-  },
-);
+  // A dark square with a drawing in colors is left whole
+  const square = await app.logoEditor.cleanLogo(DARK_SQUARE_WITH_COLORS);
+  expect.soft(square.width, "a dark square with colors keeps its size").toBe(200);
+  expect.soft(square.cornerAlpha, "and its background").toBe(255);
+});

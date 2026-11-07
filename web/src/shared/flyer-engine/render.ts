@@ -64,7 +64,7 @@ export function renderFullResolution(
 /**
  * The preview: the same drawing as a download, at the scale of the screen, copied to the canvas on
  * screen. `work` is kept by the caller and reused, because at a high zoom it takes about 150 MB. It
- * has no save and restore, as in the current app: once a logo was drawn, its high smoothing stays
+ * has no save and restore, as in the old app: once a logo was drawn, its high smoothing stays
  * on while the canvas keeps its size.
  */
 export function renderPreview(

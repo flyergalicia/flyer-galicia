@@ -87,7 +87,7 @@ describe("drawAmounts", () => {
     expect(recording.boxes).toEqual([]);
   });
 
-  it("as the current app, an absent amount says so on the flyer", () => {
+  it("as the old app, an absent amount says so on the flyer", () => {
     const recording = recordingContext();
     drawAmounts(passOn(recording, testScene()), { empresa: "X", m1: "$1", m2: null });
     expect(textsOf(recording)).toEqual(["$1", "null", "undefined", "undefined"]);

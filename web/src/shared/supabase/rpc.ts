@@ -13,7 +13,7 @@ type ValueOf<Union, Key extends PropertyKey> = Union extends unknown
 
 /**
  * Exactly the keys the app sends today, all of them present. The types come from the migrations;
- * only the keys in `MayBeNull` admit the null the current app passes.
+ * only the keys in `MayBeNull` admit the null the old app passes.
  */
 type Params<
   Name extends keyof Functions,

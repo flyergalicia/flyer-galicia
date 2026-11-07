@@ -18,7 +18,7 @@ async function positions(app: OpenedApp) {
 }
 
 test.describe("Shift chooses several logos", () => {
-  test("on the flyer they move and grow together", { tag: "@react" }, async ({ openApp }) => {
+  test("on the flyer they move and grow together", async ({ openApp }) => {
     const app = await openApp();
     const chosen = async () => (await app.logoEditor.selection()).chosen;
     await app.flyerEditor.setZoom(1.3);
@@ -111,43 +111,39 @@ test.describe("Shift chooses several logos", () => {
     expect.soft(await chosen(), "a click without Shift chooses only one").toEqual([1]);
   });
 
-  test(
-    "on the preview of a strip they move and grow together",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const app = await openApp();
-      await app.flyerEditor.setZoom(1.3);
-      await app.logoEditor.enter();
-      await app.logoStrip.open(STRIP);
-      await app.logoStrip.tickNext(5);
-      await app.logoStrip.waitForPreviewLogos();
+  test("on the preview of a strip they move and grow together", async ({ openApp }) => {
+    const app = await openApp();
+    await app.flyerEditor.setZoom(1.3);
+    await app.logoEditor.enter();
+    await app.logoStrip.open(STRIP);
+    await app.logoStrip.tickNext(5);
+    await app.logoStrip.waitForPreviewLogos();
 
-      await app.logoStrip.clickPreviewLogo(0);
-      await app.logoStrip.shiftClickPreviewLogo(2);
-      expect
-        .soft(await app.logoStrip.chosenInPreview(), "Shift-click chooses the 1st and 3rd")
-        .toEqual([0, 2]);
-      expect
-        .soft(
-          (await app.logoStrip.selectionRows()).filter(({ highlighted }) => highlighted),
-          "the 2 rows are highlighted",
-        )
-        .toHaveLength(2);
-      expect
-        .soft(await app.logoStrip.adjustmentsText(), 'the controls say "2 elegidos"')
-        .toContain("2 elegidos");
+    await app.logoStrip.clickPreviewLogo(0);
+    await app.logoStrip.shiftClickPreviewLogo(2);
+    expect
+      .soft(await app.logoStrip.chosenInPreview(), "Shift-click chooses the 1st and 3rd")
+      .toEqual([0, 2]);
+    expect
+      .soft(
+        (await app.logoStrip.selectionRows()).filter(({ highlighted }) => highlighted),
+        "the 2 rows are highlighted",
+      )
+      .toHaveLength(2);
+    expect
+      .soft(await app.logoStrip.adjustmentsText(), 'the controls say "2 elegidos"')
+      .toContain("2 elegidos");
 
-      await app.logoStrip.dragPreviewLogo(2, [{ x: 15, y: 8 }]);
-      const moved = (await app.logoStrip.state()).brands.map((brand) => brand.moved);
-      expect.soft(moved[0], "dragging one moves the other too").toEqual(moved[2]);
-      expect.soft(moved[0]?.x, "for real").not.toBe(0);
-      expect.soft(moved[1]?.x, "but not the one in the middle").toBe(0);
+    await app.logoStrip.dragPreviewLogo(2, [{ x: 15, y: 8 }]);
+    const moved = (await app.logoStrip.state()).brands.map((brand) => brand.moved);
+    expect.soft(moved[0], "dragging one moves the other too").toEqual(moved[2]);
+    expect.soft(moved[0]?.x, "for real").not.toBe(0);
+    expect.soft(moved[1]?.x, "but not the one in the middle").toBe(0);
 
-      await stripWindow(app.page).getByRole("button", { name: "Más grande" }).click();
-      const sizes = (await app.logoStrip.state()).brands.map((brand) => brand.size);
-      expect.soft(sizes[0], '"+" grows the first').toBeGreaterThan(1);
-      expect.soft(sizes[2], "and the third").toBeGreaterThan(1);
-      expect.soft(sizes[1], "not the one in the middle").toBe(1);
-    },
-  );
+    await stripWindow(app.page).getByRole("button", { name: "Más grande" }).click();
+    const sizes = (await app.logoStrip.state()).brands.map((brand) => brand.size);
+    expect.soft(sizes[0], '"+" grows the first').toBeGreaterThan(1);
+    expect.soft(sizes[2], "and the third").toBeGreaterThan(1);
+    expect.soft(sizes[1], "not the one in the middle").toBe(1);
+  });
 });

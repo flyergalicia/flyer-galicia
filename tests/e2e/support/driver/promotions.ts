@@ -86,20 +86,6 @@ export interface FlyerBox {
   height: number;
 }
 
-/** A picture drawn for a test, to stand in for the artwork of a flyer. */
-export interface DrawnArtwork {
-  width: number;
-  height: number;
-  blocks: (FlyerBox & { color: string })[];
-  texts: { text: string; x: number; baseline: number; color: string; font: string }[];
-}
-
-export interface DaysTextSearch {
-  /** How tall the logo stays once the text is told apart, in flyer pixels. */
-  logoHeight: number;
-  daysText: { top: number; height: number } | null;
-}
-
 export interface PlacedLogo {
   title: string;
   logoFile: string;
@@ -153,12 +139,8 @@ export interface PromotionsDriver {
   /** Pastes the brands and presses Validar vigencia. */
   searchBrands(brands: string[]): Promise<void>;
   rows(): Promise<PromotionRowView[]>;
-  /** Chooses again the first match of a pasted brand, as the Revisar rows let you do. */
-  confirmMatchAgain(brand: string): Promise<void>;
   /** Presses the head of a column of the table: once sorts, twice reverses. */
   sortBy(column: string): Promise<void>;
-  /** The chosen ordering of the table, as the control reads. */
-  statusCounters(): Promise<string[]>;
   /** Writes in the search box over the results. */
   filterResults(text: string): Promise<void>;
   /** The search box over the results keeps the focus after a key. */
@@ -264,8 +246,6 @@ export interface PromotionsDriver {
   /** The logos marked as expired on the flyer, by title. */
   expiredLogosOnFlyer(): Promise<string[]>;
   placedOnFlyer(): Promise<PlacedOnFlyer>;
-  /** Looks for the printed days of a logo on a picture made for the test. */
-  findDaysTextOn(artwork: DrawnArtwork, logo: FlyerBox): Promise<DaysTextSearch>;
   /** Whether the logo at that point of the flyer has printed days below it. */
   hasDaysTextBelowLogoAt(point: { x: number; y: number }): Promise<boolean>;
 

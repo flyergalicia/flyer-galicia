@@ -1,19 +1,20 @@
-// The design tokens against the current app: the same value for each one, in each look.
+// The design tokens against the old app, as frozen in tests/fixtures/design-system/reference-look.json:
+// the same value for each one, in each look.
 import {
   type AppearanceName,
   NOT_TOKENS,
   RENAMED_TOKENS,
 } from "../../support/design-system/cases.ts";
+import { frozenTokens } from "../../support/design-system/reference-look.ts";
 import {
   customProperties,
   normalizeToken,
   openStory,
   storyUrl,
 } from "../../support/design-system/look.ts";
-import { type Palette } from "../../support/driver/screens.ts";
 import { expect, test } from "../../support/test.ts";
 
-const PALETTES: readonly Palette[] = ["marfil", "marino", "grafito", "cielo"];
+const PALETTES = ["marfil", "marino", "grafito", "cielo"] as const;
 const TOKENS_STORY = "Tokens/InTheCurrentLook";
 // Only for labels in capitals, where 11px is allowed.
 const LABEL_TOKENS = new Set(["--text-label", "--text-panel"]);
@@ -29,30 +30,27 @@ async function storyTokens(
 for (const palette of PALETTES) {
   for (const dark of [false, true]) {
     test(`${palette}, ${dark ? "dark" : "light"}: every token of the app has its value`, async ({
-      openApp,
       storybookUrl,
       browser,
     }) => {
-      const app = await openApp();
-      await app.screens.setAppearance({ dark, palette });
-      const legacy = await customProperties(app.page);
+      const frozen = frozenTokens(palette, dark);
 
-      const story = await browser.newPage();
       // The names of the looks that matter here are the palette and the mode, not the window.
       const url = storyUrl(storybookUrl, TOKENS_STORY, "desktop-light").replace(
         /globals=[^&]*/,
         `globals=${encodeURIComponent(`palette:${palette};dark:${String(dark)}`)}`,
       );
+      const story = await browser.newPage();
       const tokens = await storyTokens(story, url);
       await story.close();
 
-      const names = Object.keys(legacy).filter((name) => !NOT_TOKENS.test(name));
+      const names = Object.keys(frozen).filter((name) => !NOT_TOKENS.test(name));
       expect(names.length, "the app was read").toBeGreaterThan(40);
       for (const name of names) {
         const inStory = tokens[RENAMED_TOKENS[name] ?? name];
         expect
           .soft(normalizeToken(inStory ?? "(missing)"), name)
-          .toBe(normalizeToken(legacy[name] ?? ""));
+          .toBe(normalizeToken(frozen[name] ?? ""));
       }
     });
   }

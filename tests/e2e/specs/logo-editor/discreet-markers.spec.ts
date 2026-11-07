@@ -12,7 +12,7 @@ async function putLogoAndEmptyPlace(app: OpenedApp): Promise<void> {
   await app.logoEditor.waitForMarkersToStopFlashing();
 }
 
-test.describe("the boxes of Cambiar logos", { tag: "@react" }, () => {
+test.describe("the boxes of Cambiar logos", () => {
   test("do not show at rest and appear around the mouse", async ({ openApp }) => {
     const app = await openApp();
     await putLogoAndEmptyPlace(app);

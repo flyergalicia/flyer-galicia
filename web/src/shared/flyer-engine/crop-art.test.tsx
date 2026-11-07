@@ -210,7 +210,7 @@ describe("the names", () => {
     expect(artFileName("")).toBe("");
   });
 
-  it("the signature tells cuts apart, as the current app writes it", () => {
+  it("the signature tells cuts apart, as the old app writes it", () => {
     expect(cutsSignature([{ y: 669.4, h: 340.2 }])).toBe("669-340");
     expect(
       cutsSignature([

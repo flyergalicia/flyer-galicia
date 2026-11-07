@@ -12,13 +12,12 @@ const E2E_ROOT = "tests/e2e";
 
 /**
  * Specs say what the user does and sees: the driver is the only one that knows how the
- * app is built, so that the same spec can run against any version of it.
+ * app is built, so that a spec survives a change of how a screen is made.
  */
 const SPEC_BANS: readonly { name: string; pattern: RegExp }[] = [
   { name: "page.evaluate", pattern: /\bpage\.evaluate\b/ },
   { name: "evaluate", pattern: /\.(?:evaluate|evaluateAll|evaluateHandle|\$eval|\$\$eval)\(/ },
   { name: "waitForFunction", pattern: /\bwaitForFunction\b/ },
-  { name: "legacy global", pattern: /\b_(?:fg|pad|est|mg|promo|ges|ben|hun|cmd|prov)[A-Z]/ },
   { name: "#id selector", pattern: /["'`][^"'`\n]*#[A-Za-z_][\w-]*[^"'`\n]*["'`]/ },
 ];
 

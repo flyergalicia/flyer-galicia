@@ -17,29 +17,25 @@ function baselineWeight(): StartupWeight {
   return baseline.startup;
 }
 
-test(
-  "starting the app weighs no more than the app it replaces",
-  { tag: "@react" },
-  async ({ openApp, baseURL }) => {
-    test.skip(
-      !existsSync(FLYER_EDITOR_SLICE),
-      "The React app has no flyer editor yet: its start-up cannot be compared with the old one.",
-    );
-    const watching: { read?: () => Promise<StartupWeight> } = {};
-    await openApp({
-      beforeNavigation: (page) => {
-        watching.read = watchStartupWeight(page, baseURL ?? "");
-        return Promise.resolve();
-      },
-    });
+test("starting the app weighs no more than the app it replaces", async ({ openApp, baseURL }) => {
+  test.skip(
+    !existsSync(FLYER_EDITOR_SLICE),
+    "The React app has no flyer editor yet: its start-up cannot be compared with the old one.",
+  );
+  const watching: { read?: () => Promise<StartupWeight> } = {};
+  await openApp({
+    beforeNavigation: (page) => {
+      watching.read = watchStartupWeight(page, baseURL ?? "");
+      return Promise.resolve();
+    },
+  });
 
-    const weight = await watching.read?.();
-    if (!weight) throw new Error("The page was never watched");
+  const weight = await watching.read?.();
+  if (!weight) throw new Error("The page was never watched");
 
-    const budget = baselineWeight();
-    expect
-      .soft(weight.javascript.gzip, "JavaScript, gzip")
-      .toBeLessThanOrEqual(budget.javascript.gzip);
-    expect.soft(weight.css.gzip, "CSS, gzip").toBeLessThanOrEqual(budget.css.gzip);
-  },
-);
+  const budget = baselineWeight();
+  expect
+    .soft(weight.javascript.gzip, "JavaScript, gzip")
+    .toBeLessThanOrEqual(budget.javascript.gzip);
+  expect.soft(weight.css.gzip, "CSS, gzip").toBeLessThanOrEqual(budget.css.gzip);
+});

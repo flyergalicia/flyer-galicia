@@ -52,7 +52,7 @@ describe("release", () => {
       "index.html": "old",
       "version.json": '{"v":"old"}',
       "assets/fg-index-OLD.js": "old app",
-      "auth.js": "kept",
+      "README.md": "kept",
     });
 
     expect(release(dist, root)).toEqual(["assets/", "favicon.jpg", "index.html", "version.json"]);
@@ -60,15 +60,7 @@ describe("release", () => {
     expect(readFileSync(join(root, "version.json"), "utf8")).toBe('{"v":"new"}');
     expect(existsSync(join(root, "assets/fg-index-NEW.js"))).toBe(true);
     expect(existsSync(join(root, "assets/fg-index-OLD.js"))).toBe(false);
-    expect(readFileSync(join(root, "auth.js"), "utf8")).toBe("kept");
-  });
-
-  it("no longer publishes the old app on its own", () => {
-    const root = folderWith({ "index_export.html": "old app with everything inside" });
-
-    release(folderWith(BUILT), root);
-
-    expect(existsSync(join(root, "index_export.html"))).toBe(false);
+    expect(readFileSync(join(root, "README.md"), "utf8")).toBe("kept");
   });
 
   it("touches nothing in the root when the build is not whole", () => {

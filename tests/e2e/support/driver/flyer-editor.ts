@@ -84,11 +84,6 @@ export interface BatchCompany {
   option?: number;
 }
 
-export interface HistoryRedownload {
-  notice: string;
-  saveAttempts: number;
-}
-
 export interface ScreenLayout {
   extraHeight: number;
   contentBottom: unknown;
@@ -163,8 +158,6 @@ export interface FlyerEditorDriver {
   fillOfficerName(name: string): Promise<void>;
   /** Writes the first officer the way a pasted text or a chosen company does. */
   setOfficer(officer: OfficerFields): Promise<void>;
-  /** Flips the "sin cashback" switch. */
-  setNoCashback(on: boolean): Promise<void>;
   activeOption(): Promise<number>;
   /** Presses Descargar PDF for real and tells what reached the disk. */
   downloadPdfToDisk(): Promise<string>;
@@ -282,8 +275,6 @@ export interface FlyerEditorDriver {
   waitForBatchZip(timeout: number): Promise<string[]>;
   /** Tries a batch while the flyer on screen did not load. */
   tryBatchWithoutFlyer(rows: BatchRow[]): Promise<{ zips: number; notice: string }>;
-  /** Adds an old flyer of that option to the history and downloads it again from there. */
-  redownloadFromHistory(option: number): Promise<HistoryRedownload>;
 
   /** Starts the check of which options have artwork, done some seconds after entering. */
   checkOptionsInBackground(): Promise<void>;

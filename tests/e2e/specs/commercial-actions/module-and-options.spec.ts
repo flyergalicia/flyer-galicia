@@ -3,11 +3,11 @@ import { commercialTables, openAsTeamMember } from "../../support/commercial-tea
 import { expect, test } from "../../support/test.ts";
 
 const FAR_DATE = "2027-03-01";
-/** The file of the current app, or the piece of the build of the other one. */
+/** The file of the old app, or the piece of the build of the other one. */
 const CODE_OF_THE_MODULE = /gestiones\.js|\/fg-commercial-actions-[^/]*\.js/;
 
 test.describe("the module of Gestiones", () => {
-  test("its code arrives only when it is opened", { tag: "@react" }, async ({ cloud, openApp }) => {
+  test("its code arrives only when it is opened", async ({ cloud, openApp }) => {
     cloud.seedCommercialActions();
     const asked: string[] = [];
     const app = await openApp({
@@ -30,70 +30,64 @@ test.describe("the module of Gestiones", () => {
     expect.soft(asked.length, "once on opening").toBe(1);
   });
 
-  test(
-    "with the switch off it does not exist for anybody",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.seedCommercialActions();
-      commercialTables(cloud).flag = "off";
-      const app = await openApp({
-        user: "officer",
-        commercialActions: true,
-        waitUntilReady: false,
-      });
-      await app.session.waitUntilSignedIn();
+  test("with the switch off it does not exist for anybody", async ({ cloud, openApp }) => {
+    cloud.seedCommercialActions();
+    commercialTables(cloud).flag = "off";
+    const app = await openApp({
+      user: "officer",
+      commercialActions: true,
+      waitUntilReady: false,
+    });
+    await app.session.waitUntilSignedIn();
 
-      await expect.poll(async () => (await app.session.headerTabs()).length).toBeGreaterThan(0);
-      expect.soft((await app.session.headerTabs()).join(" ")).not.toMatch(/Gestiones/);
-    },
-  );
+    await expect.poll(async () => (await app.session.headerTabs()).length).toBeGreaterThan(0);
+    expect.soft((await app.session.headerTabs()).join(" ")).not.toMatch(/Gestiones/);
+  });
 
-  test(
-    "on trial only the administrator sees it, whatever the matrix says",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.seedCommercialActions();
-      commercialTables(cloud).flag = "prueba";
-      cloud.setPermissions("pro", { gestiones: true });
+  test("on trial only the administrator sees it, whatever the matrix says", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.seedCommercialActions();
+    commercialTables(cloud).flag = "prueba";
+    cloud.setPermissions("pro", { gestiones: true });
 
-      const officer = await openApp({
-        user: "officer",
-        commercialActions: true,
-        waitUntilReady: false,
-      });
-      await officer.session.waitUntilSignedIn();
-      await officer.page.waitForTimeout(400);
-      expect
-        .soft((await officer.session.headerTabs()).join(" "), "not an officer")
-        .not.toMatch(/Gestiones/);
+    const officer = await openApp({
+      user: "officer",
+      commercialActions: true,
+      waitUntilReady: false,
+    });
+    await officer.session.waitUntilSignedIn();
+    await officer.page.waitForTimeout(400);
+    expect
+      .soft((await officer.session.headerTabs()).join(" "), "not an officer")
+      .not.toMatch(/Gestiones/);
 
-      const admin = await openApp({ user: "admin", commercialActions: true });
-      await expect
-        .poll(async () => (await admin.session.headerTabs()).join(" "))
-        .toMatch(/Gestiones/);
-    },
-  );
+    const admin = await openApp({ user: "admin", commercialActions: true });
+    await expect
+      .poll(async () => (await admin.session.headerTabs()).join(" "))
+      .toMatch(/Gestiones/);
+  });
 
-  test(
-    "a test account can try the other profiles from its menu, through the server",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.isTestAccount = true;
-      const app = await openApp();
-      const asked: unknown[] = [];
-      app.page.on("request", (request) => {
-        if (request.url().includes("/rpc/prueba_cambiar_rol")) asked.push(request.postDataJSON());
-      });
-      await app.session.openUserMenu();
+  test("a test account can try the other profiles from its menu, through the server", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.isTestAccount = true;
+    const app = await openApp();
+    const asked: unknown[] = [];
+    app.page.on("request", (request) => {
+      if (request.url().includes("/rpc/prueba_cambiar_rol")) asked.push(request.postDataJSON());
+    });
+    await app.session.openUserMenu();
 
-      await app.page.getByRole("button", { name: "Hunter", exact: true }).first().click();
+    await app.page.getByRole("button", { name: "Hunter", exact: true }).first().click();
 
-      await expect.poll(() => asked.length).toBe(1);
-      expect.soft(asked[0]).toEqual({ p_role: "hunter" });
-    },
-  );
+    await expect.poll(() => asked.length).toBe(1);
+    expect.soft(asked[0]).toEqual({ p_role: "hunter" });
+  });
 
-  test("new things show as a number on the tab", { tag: "@react" }, async ({ cloud, openApp }) => {
+  test("new things show as a number on the tab", async ({ cloud, openApp }) => {
     cloud.seedCommercialActions();
     const app = await openApp({ user: "hunter", commercialActions: true, waitUntilReady: false });
     await app.session.waitForCommercialActions();
@@ -103,30 +97,29 @@ test.describe("the module of Gestiones", () => {
       .toMatch(/^\d+\+?$/);
   });
 
-  test(
-    "the administrator sees his own by default and can look at the team",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.seedCommercialActions();
-      const app = await openApp({ user: "admin", commercialActions: true });
-      const asked: unknown[] = [];
-      app.page.on("request", (request) => {
-        if (request.url().includes("/rpc/gestiones_lista")) asked.push(request.postDataJSON());
-      });
-      await app.commercialActions.open();
-      await expect.poll(() => asked.length).toBeGreaterThan(0);
-      expect.soft(asked.at(-1), "only his").toEqual(expect.objectContaining({ p_solo_mio: true }));
+  test("the administrator sees his own by default and can look at the team", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.seedCommercialActions();
+    const app = await openApp({ user: "admin", commercialActions: true });
+    const asked: unknown[] = [];
+    app.page.on("request", (request) => {
+      if (request.url().includes("/rpc/gestiones_lista")) asked.push(request.postDataJSON());
+    });
+    await app.commercialActions.open();
+    await expect.poll(() => asked.length).toBeGreaterThan(0);
+    expect.soft(asked.at(-1), "only his").toEqual(expect.objectContaining({ p_solo_mio: true }));
 
-      await app.page.getByRole("button", { name: "Ver todo" }).click();
+    await app.page.getByRole("button", { name: "Ver todo" }).click();
 
-      await expect.poll(() => asked.at(-1)).toEqual(expect.objectContaining({ p_solo_mio: false }));
-      await expect(app.page.getByRole("button", { name: "Sólo lo mío" })).toBeVisible();
-    },
-  );
+    await expect.poll(() => asked.at(-1)).toEqual(expect.objectContaining({ p_solo_mio: false }));
+    await expect(app.page.getByRole("button", { name: "Sólo lo mío" })).toBeVisible();
+  });
 });
 
 test.describe("the form of an action", () => {
-  test("offers its types, and no old Visita", { tag: "@react" }, async ({ cloud, openApp }) => {
+  test("offers its types, and no old Visita", async ({ cloud, openApp }) => {
     cloud.seedCommercialActions();
     const { commercialActions: actions } = await openAsTeamMember(openApp, "officer");
 
@@ -138,32 +131,29 @@ test.describe("the form of an action", () => {
     expect.soft(types.join(" ")).not.toMatch(/Visita/);
   });
 
-  test(
-    "every N days with a number of times creates all the dates, in a single series",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.seedCommercialActions();
-      const tables = commercialTables(cloud);
-      const before = tables.actions.length;
-      const { commercialActions: actions, page } = await openAsTeamMember(openApp, "officer");
+  test("every N days with a number of times creates all the dates, in a single series", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.seedCommercialActions();
+    const tables = commercialTables(cloud);
+    const before = tables.actions.length;
+    const { commercialActions: actions, page } = await openAsTeamMember(openApp, "officer");
 
-      await actions.startForwarding("TEXTIL ARGENTA SA");
-      await actions.chooseHunter("Sofía Paz");
-      await actions.setDate(FAR_DATE);
-      await actions.setTimes("10:00", "12:00");
-      await page.getByRole("button", { name: "Se repite" }).click();
-      await page.getByLabel("Cada cuántos días").fill("7");
-      await page.getByLabel("Cantidad de veces").fill("3");
-      await actions.confirmForwarding();
+    await actions.startForwarding("TEXTIL ARGENTA SA");
+    await actions.chooseHunter("Sofía Paz");
+    await actions.setDate(FAR_DATE);
+    await actions.setTimes("10:00", "12:00");
+    await page.getByRole("button", { name: "Se repite" }).click();
+    await page.getByLabel("Cada cuántos días").fill("7");
+    await page.getByLabel("Cantidad de veces").fill("3");
+    await actions.confirmForwarding();
 
-      await expect.poll(() => tables.actions.length).toBe(before + 3);
-      const created = tables.actions.slice(before);
-      expect
-        .soft(created.map(({ fecha }) => fecha).toSorted())
-        .toEqual(["2027-03-01", "2027-03-08", "2027-03-15"]);
-      expect
-        .soft(new Set(created.map(({ serie_id: series }) => series)).size, "one series")
-        .toBe(1);
-    },
-  );
+    await expect.poll(() => tables.actions.length).toBe(before + 3);
+    const created = tables.actions.slice(before);
+    expect
+      .soft(created.map(({ fecha }) => fecha).toSorted())
+      .toEqual(["2027-03-01", "2027-03-08", "2027-03-15"]);
+    expect.soft(new Set(created.map(({ serie_id: series }) => series)).size, "one series").toBe(1);
+  });
 });

@@ -1,14 +1,9 @@
-// Each component on top of the reference images of the current app: the part that a component is
-// responsible for, in its place on the screen, compared pixel by pixel. See docs/PLAN_MIGRACION_REACT.md.
+// Each component on top of the reference images of the old app: the part that a component is
+// responsible for, in its place on the screen, compared pixel by pixel. Where each part was in the
+// old app is frozen in tests/fixtures/design-system/reference-look.json.
+// See docs/PLAN_MIGRACION_REACT.md.
+import { APPEARANCES, SCREEN_GROUPS } from "../../support/design-system/cases.ts";
 import {
-  APPEARANCES,
-  type AppearanceName,
-  type LookCase,
-  type ScreenGroup,
-  SCREEN_GROUPS,
-} from "../../support/design-system/cases.ts";
-import {
-  type Box,
   allowedPixels,
   clipOf,
   crop,
@@ -18,53 +13,22 @@ import {
   pixelAt,
   referenceImage,
 } from "../../support/design-system/images.ts";
-import {
-  legacyElement,
-  openStory,
-  placeStory,
-  storyUrl,
-  visibleBox,
-} from "../../support/design-system/look.ts";
-import { seedReferenceData } from "../visual/reference-data.ts";
+import { frozenReferenceBoxes } from "../../support/design-system/reference-look.ts";
+import { openStory, placeStory, storyUrl } from "../../support/design-system/look.ts";
 import { writeFileSync } from "node:fs";
-import { type OpenedApp } from "../../support/open-app.ts";
 import { expect, test } from "../../support/test.ts";
 import { PNG } from "pngjs";
 
 const HEIGHT_TOLERANCE_PX = 0.51;
-
-function optionsOf(group: ScreenGroup, appearance: AppearanceName) {
-  const { viewport, touch } = APPEARANCES[appearance];
-  return {
-    viewport,
-    touch,
-    commercialActions: Boolean(group.commercialActions),
-    waitUntilReady: !group.noFlyer,
-    signedOut: Boolean(group.signedOut),
-    ...(group.user === undefined ? {} : { user: group.user }),
-  };
-}
-
-async function maskBoxes(app: OpenedApp, look: LookCase): Promise<Box[]> {
-  const boxes = await Promise.all(
-    (look.mask ?? []).map((selector) => app.page.locator(selector).first().boundingBox()),
-  );
-  return boxes.filter((box) => box !== null);
-}
 
 for (const group of SCREEN_GROUPS) {
   for (const appearance of group.appearances) {
     test(
       `${group.name}, ${appearance}: over the reference image`,
       { tag: "@visual" },
-      async ({ cloud, openApp, browser, storybookUrl }, testInfo) => {
-        seedReferenceData(cloud);
+      async ({ browser, storybookUrl }, testInfo) => {
         const reference = referenceImage(`${group.image}--${appearance}`);
-        const app = await openApp(optionsOf(group, appearance));
-        const { dark, palette, viewport, touch } = APPEARANCES[appearance];
-        await app.page.emulateMedia({ reducedMotion: "reduce" });
-        await app.screens.setAppearance({ dark, palette });
-        await app.screens.open(group.screen);
+        const { viewport, touch } = APPEARANCES[appearance];
 
         const context = await browser.newContext({
           viewport,
@@ -77,16 +41,15 @@ for (const group of SCREEN_GROUPS) {
           ({ noImage, notOnPhone, belowThePhoneImage }) =>
             !noImage && !(touch && (notOnPhone || belowThePhoneImage)),
         )) {
-          const box = await visibleBox(legacyElement(app.page, look));
+          const frozen = frozenReferenceBoxes(group.name, appearance, look);
+          const { box } = frozen;
           const clip = box && clipOf(box, viewport);
           expect
-            .soft(clip, `${look.story}: ${look.legacy} is in the reference image`)
+            .soft(clip, `${look.story}: ${look.selector} is in the reference image`)
             .not.toBeNull();
           if (box && clip) {
             await openStory(page, storyUrl(storybookUrl, look.story, appearance));
-            const placeBox = look.placeFrom
-              ? await app.page.locator(look.placeFrom).first().boundingBox()
-              : box;
+            const placeBox = look.placeFrom ? frozen.placeFrom : box;
             const { natural } = await placeStory(
               page,
               look,
@@ -107,7 +70,7 @@ for (const group of SCREEN_GROUPS) {
               await page.screenshot({ clip, animations: "disabled", caret: "hide" }),
             );
             const expected = crop(reference, clip);
-            for (const area of await maskBoxes(app, look)) {
+            for (const area of frozen.mask ?? []) {
               paintOut(expected, area, clip);
               paintOut(actual, area, clip);
             }

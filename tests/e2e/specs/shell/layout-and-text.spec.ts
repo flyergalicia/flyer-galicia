@@ -23,136 +23,106 @@ function contrast({ text, background }: AppColors): number {
 }
 
 test.describe("on a computer", () => {
-  test(
-    "the editor fills the window and the form scrolls inside its panel",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session, officers } = await openApp();
-      await officers.pressAdd();
-      await officers.pressAdd();
+  test("the editor fills the window and the form scrolls inside its panel", async ({ openApp }) => {
+    const { session, officers } = await openApp();
+    await officers.pressAdd();
+    await officers.pressAdd();
 
-      const fit = await session.documentFit();
-      expect.soft(fit.documentScrolls, "the page itself does not scroll").toBe(false);
-      expect
-        .soft(fit.editorHeight, "the editor takes what the header leaves")
-        .toBe(fit.windowHeight - fit.headerHeight);
-      expect.soft(fit.panelScrollsInside, "the panel scrolls by itself").toBe(true);
-    },
-  );
+    const fit = await session.documentFit();
+    expect.soft(fit.documentScrolls, "the page itself does not scroll").toBe(false);
+    expect
+      .soft(fit.editorHeight, "the editor takes what the header leaves")
+      .toBe(fit.windowHeight - fit.headerHeight);
+    expect.soft(fit.panelScrollsInside, "the panel scrolls by itself").toBe(true);
+  });
 
-  test(
-    "the bar with the download stays in sight while the form scrolls",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session, officers } = await openApp();
-      await officers.pressAdd();
-      await officers.pressAdd();
+  test("the bar with the download stays in sight while the form scrolls", async ({ openApp }) => {
+    const { session, officers } = await openApp();
+    await officers.pressAdd();
+    await officers.pressAdd();
 
-      const dock = await session.downloadDock();
-      expect.soft(dock.stuckToBottom).toBe(true);
-      expect.soft(dock.buttons.join(" | ")).toMatch(/Vista previa.*Descargar PDF.*Otros/);
-    },
-  );
+    const dock = await session.downloadDock();
+    expect.soft(dock.stuckToBottom).toBe(true);
+    expect.soft(dock.buttons.join(" | ")).toMatch(/Vista previa.*Descargar PDF.*Otros/);
+  });
 
-  test(
-    "Descargar PDF tells its shortcut when the mouse rests on it",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session } = await openApp();
+  test("Descargar PDF tells its shortcut when the mouse rests on it", async ({ openApp }) => {
+    const { session } = await openApp();
 
-      expect.soft(await session.downloadButtonHint()).toMatch(/(Ctrl|⌘|Cmd) \+ Enter/);
-    },
-  );
+    expect.soft(await session.downloadButtonHint()).toMatch(/(Ctrl|⌘|Cmd) \+ Enter/);
+  });
 
-  test("the title of the amounts card has its accent", { tag: "@react" }, async ({ openApp }) => {
+  test("the title of the amounts card has its accent", async ({ openApp }) => {
     const { session } = await openApp();
 
     expect.soft(await session.cashbackCardTitle()).toContain("Configuración de Montos");
   });
 
-  test(
-    "two notices of real actions: one on screen, the last one",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.setPermissions("asesor", { notas: true });
-      const { session, flyerEditor, page } = await openApp();
-      await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-      await session.openNotes();
+  test("two notices of real actions: one on screen, the last one", async ({ cloud, openApp }) => {
+    cloud.setPermissions("asesor", { notas: true });
+    const { session, flyerEditor, page } = await openApp();
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await session.openNotes();
 
-      await page.getByRole("button", { name: /Copiar/ }).click();
-      await expect.poll(() => flyerEditor.latestNotice()).toBe("Nota copiada");
-      await page.getByRole("button", { name: /Eliminar/ }).click();
-      await session.waitForConfirmation();
-      await session.answerConfirmation(true);
+    await page.getByRole("button", { name: /Copiar/ }).click();
+    await expect.poll(() => flyerEditor.latestNotice()).toBe("Nota copiada");
+    await page.getByRole("button", { name: /Eliminar/ }).click();
+    await session.waitForConfirmation();
+    await session.answerConfirmation(true);
 
-      await expect.poll(() => flyerEditor.latestNotice()).toBe("Nota eliminada");
-      expect.soft(await session.noticesOnScreen()).toBe(1);
-    },
-  );
+    await expect.poll(() => flyerEditor.latestNotice()).toBe("Nota eliminada");
+    expect.soft(await session.noticesOnScreen()).toBe(1);
+  });
 
-  test(
-    "the screen takes what the header leaves, and the page itself does not scroll",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session } = await openApp();
+  test("the screen takes what the header leaves, and the page itself does not scroll", async ({
+    openApp,
+  }) => {
+    const { session } = await openApp();
 
-      const fit = await session.documentFit();
+    const fit = await session.documentFit();
 
-      expect.soft(fit.documentScrolls).toBe(false);
-      expect.soft(fit.editorHeight).toBe(fit.windowHeight - fit.headerHeight);
-    },
-  );
+    expect.soft(fit.documentScrolls).toBe(false);
+    expect.soft(fit.editorHeight).toBe(fit.windowHeight - fit.headerHeight);
+  });
 
-  test(
-    "Cargando goes away as soon as the option arrives",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.addFlyerOption({
-        option: 6,
-        name: "Otra",
-        image: "flyer_t6.jpg?v=1",
-        legal: "Legal 6",
-      });
-      cloud.setPermissions("asesor", { opcion_6: true });
-      const { session, flyerEditor } = await openApp({ startOption: 9 });
+  test("Cargando goes away as soon as the option arrives", async ({ cloud, openApp }) => {
+    cloud.addFlyerOption({
+      option: 6,
+      name: "Otra",
+      image: "flyer_t6.jpg?v=1",
+      legal: "Legal 6",
+    });
+    cloud.setPermissions("asesor", { opcion_6: true });
+    const { session, flyerEditor } = await openApp({ startOption: 9 });
 
-      await flyerEditor.selectOption(6);
-      await flyerEditor.waitForOptionShown(6);
+    await flyerEditor.selectOption(6);
+    await flyerEditor.waitForOptionShown(6);
 
-      expect.soft(await session.noticeVisible(), "no notice left over the new flyer").toBe(false);
-    },
-  );
+    expect.soft(await session.noticeVisible(), "no notice left over the new flyer").toBe(false);
+  });
 
-  test(
-    "in dark mode the chosen amounts button can be read",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session, page } = await openApp();
-      await session.toggleDarkMode();
-      await page.waitForTimeout(400);
+  test("in dark mode the chosen amounts button can be read", async ({ openApp }) => {
+    const { session, page } = await openApp();
+    await session.toggleDarkMode();
+    await page.waitForTimeout(400);
 
-      const colors = await session.chosenCashbackButtonColors();
-      expect
-        .soft(contrast(colors), `${colors.text} over ${colors.background}`)
-        .toBeGreaterThan(CONTRAST_TOLERANCE);
-    },
-  );
+    const colors = await session.chosenCashbackButtonColors();
+    expect
+      .soft(contrast(colors), `${colors.text} over ${colors.background}`)
+      .toBeGreaterThan(CONTRAST_TOLERANCE);
+  });
 
-  test(
-    "a single font family, with no trace of the first version",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session } = await openApp();
+  test("a single font family, with no trace of the first version", async ({ openApp }) => {
+    const { session } = await openApp();
 
-      const families = await session.fontFamiliesOnScreen();
-      expect.soft(families.join(" | "), "no Syne").not.toMatch(/Syne/);
-      expect.soft(families.join(" | "), "no DM Sans").not.toMatch(/DM Sans/);
-      expect.soft(families.join(" | "), "the one of the app").toMatch(/Figtree/);
-    },
-  );
+    const families = await session.fontFamiliesOnScreen();
+    expect.soft(families.join(" | "), "no Syne").not.toMatch(/Syne/);
+    expect.soft(families.join(" | "), "no DM Sans").not.toMatch(/DM Sans/);
+    expect.soft(families.join(" | "), "the one of the app").toMatch(/Figtree/);
+  });
 });
 
-test("what was chosen is on the page when it opens", { tag: "@react" }, async ({ openApp }) => {
+test("what was chosen is on the page when it opens", async ({ openApp }) => {
   const { session, page } = await openApp({
     signedOut: true,
     waitUntilReady: false,
@@ -169,8 +139,7 @@ test.describe("reading", () => {
     { name: "the panel of the administrator", user: "admin", open: "panel" },
   ] as const;
   for (const { name, user, open } of screens) {
-    const tag = ["@react"];
-    test(`nothing in ${name} goes below the minimum letter`, { tag }, async ({ openApp }) => {
+    test(`nothing in ${name} goes below the minimum letter`, async ({ openApp }) => {
       const app = await openApp({ user });
       if (open === "panel") await app.admin.openPanel();
 
@@ -182,24 +151,20 @@ test.describe("reading", () => {
     });
   }
 
-  test(
-    'no screen says "padrón": for the user it is "empresas"',
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.setPermissions("asesor", { padron_buscar: true, asesores_guardados: true });
-      const app = await openApp();
-      expect.soft(await app.session.visibleText()).not.toMatch(/padr[oó]n/i);
+  test('no screen says "padrón": for the user it is "empresas"', async ({ cloud, openApp }) => {
+    cloud.setPermissions("asesor", { padron_buscar: true, asesores_guardados: true });
+    const app = await openApp();
+    expect.soft(await app.session.visibleText()).not.toMatch(/padr[oó]n/i);
 
-      await app.companyRegistry.openRegistry();
-      expect.soft(await app.session.visibleText(), "Base de datos").not.toMatch(/padr[oó]n/i);
-      await app.companyRegistry.closeRegistry();
+    await app.companyRegistry.openRegistry();
+    expect.soft(await app.session.visibleText(), "Base de datos").not.toMatch(/padr[oó]n/i);
+    await app.companyRegistry.closeRegistry();
 
-      const sheet = await app.companyRegistry.templateName();
-      expect.soft(sheet, "and neither the name of what it downloads").not.toMatch(/padr[oó]n/i);
-    },
-  );
+    const sheet = await app.companyRegistry.templateName();
+    expect.soft(sheet, "and neither the name of what it downloads").not.toMatch(/padr[oó]n/i);
+  });
 
-  test('the search does not say "padrón" either', { tag: "@react" }, async ({ cloud, openApp }) => {
+  test('the search does not say "padrón" either', async ({ cloud, openApp }) => {
     cloud.setPermissions("asesor", { padron_buscar: true, asesores_guardados: true });
     const app = await openApp();
 
@@ -210,7 +175,7 @@ test.describe("reading", () => {
 });
 
 test.describe("on a phone", () => {
-  test("the header keeps the logo and the whole name", { tag: "@react" }, async ({ openApp }) => {
+  test("the header keeps the logo and the whole name", async ({ openApp }) => {
     const { session } = await openApp({ touch: true, viewport: PHONE });
 
     const look = await session.headerLook();
@@ -219,27 +184,19 @@ test.describe("on a phone", () => {
     expect.soft(look.fitsTheWindow).toBe(true);
   });
 
-  test(
-    "the header fits between a phone and a computer too",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session } = await openApp({ viewport: { width: 700, height: 800 } });
+  test("the header fits between a phone and a computer too", async ({ openApp }) => {
+    const { session } = await openApp({ viewport: { width: 700, height: 800 } });
 
-      const look = await session.headerLook();
-      expect.soft(look.logoWidth, "the small logo, for the person to fit beside it").toBe(30);
-      expect.soft(look.title).toMatch(/Flyer/);
-      expect.soft(look.titleFits, "the tabs are not squeezed").toBe(true);
-      expect.soft(look.fitsTheWindow).toBe(true);
-    },
-  );
+    const look = await session.headerLook();
+    expect.soft(look.logoWidth, "the small logo, for the person to fit beside it").toBe(30);
+    expect.soft(look.title).toMatch(/Flyer/);
+    expect.soft(look.titleFits, "the tabs are not squeezed").toBe(true);
+    expect.soft(look.fitsTheWindow).toBe(true);
+  });
 
-  test(
-    "the fixed bar goes away and its buttons return to the form",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { session } = await openApp({ touch: true, viewport: PHONE });
+  test("the fixed bar goes away and its buttons return to the form", async ({ openApp }) => {
+    const { session } = await openApp({ touch: true, viewport: PHONE });
 
-      expect.soft((await session.downloadDock()).buttons).toEqual([]);
-    },
-  );
+    expect.soft((await session.downloadDock()).buttons).toEqual([]);
+  });
 });

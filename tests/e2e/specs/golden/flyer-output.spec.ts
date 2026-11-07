@@ -1,5 +1,5 @@
 // The printed flyer must not change: what comes out of the real buttons, compared with the files
-// stored from the current app. Update them with --update-snapshots, and only on purpose.
+// stored from the old app. Update them with --update-snapshots, and only on purpose.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { platform } from "node:process";
 import { fileURLToPath } from "node:url";
@@ -117,34 +117,26 @@ const CASES: readonly OutputCase[] = [
 ];
 
 for (const { name, prepare } of CASES) {
-  test(
-    `the flyer comes out the same: ${name}`,
-    { tag: ["@golden", "@react"] },
-    async ({ openApp }) => {
-      const app = await openApp();
-      await prepare(app);
+  test(`the flyer comes out the same: ${name}`, { tag: "@golden" }, async ({ openApp }) => {
+    const app = await openApp();
+    await prepare(app);
 
-      expectSamePng(name, await app.flyerOutput.pressDownloadPng());
-      expectSamePdf(name, await app.flyerOutput.pressDownloadPdf());
-    },
-  );
+    expectSamePng(name, await app.flyerOutput.pressDownloadPng());
+    expectSamePdf(name, await app.flyerOutput.pressDownloadPdf());
+  });
 }
 
-test(
-  "the flyer comes out the same: bulk ZIP entry",
-  { tag: ["@golden", "@react"] },
-  async ({ openApp }) => {
-    const { flyerEditor, flyerOutput } = await openApp();
-    await flyerEditor.uploadExcelSheet(BULK_SHEET);
+test("the flyer comes out the same: bulk ZIP entry", { tag: "@golden" }, async ({ openApp }) => {
+  const { flyerEditor, flyerOutput } = await openApp();
+  await flyerEditor.uploadExcelSheet(BULK_SHEET);
 
-    const zip = await flyerOutput.pressGenerateZip();
+  const zip = await flyerOutput.pressGenerateZip();
 
-    const entries = readZipEntries(zip.bytes);
-    const pdfs = [...entries.keys()].filter((entry) => entry.endsWith(".pdf")).toSorted();
-    expect.soft(pdfs, "one PDF per row").toHaveLength(BULK_SHEET.length - 1);
-    const [first] = pdfs;
-    const bytes = first === undefined ? undefined : entries.get(first);
-    if (first === undefined || bytes === undefined) throw new Error("The ZIP has no PDF");
-    expectSamePdf("bulk-zip-entry", { name: first, bytes });
-  },
-);
+  const entries = readZipEntries(zip.bytes);
+  const pdfs = [...entries.keys()].filter((entry) => entry.endsWith(".pdf")).toSorted();
+  expect.soft(pdfs, "one PDF per row").toHaveLength(BULK_SHEET.length - 1);
+  const [first] = pdfs;
+  const bytes = first === undefined ? undefined : entries.get(first);
+  if (first === undefined || bytes === undefined) throw new Error("The ZIP has no PDF");
+  expectSamePdf("bulk-zip-entry", { name: first, bytes });
+});

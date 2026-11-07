@@ -1,4 +1,4 @@
-// The look of the current app, for the React rewrite to be compared against. It runs on the
+// The look of the old app, for the React rewrite to be compared against. It runs on the
 // project of each version with the same images: see snapshotPathTemplate in playwright.config.ts.
 // Only what fits the window goes in each image: the desktop screens scroll inside their panels,
 // so a full-page image would be the same, and on a phone it changes the layout while it is taken.
@@ -23,7 +23,6 @@ interface ScreenCase {
   /** Where it opens with filters on top: one more image, scrolled to what the screen is for. */
   contentOn?: readonly AppearanceCase["name"][];
   /** The React version already has this screen, whole: its slice marks it when it arrives. */
-  inReact?: boolean;
 }
 
 interface AppearanceCase extends Appearance {
@@ -46,34 +45,32 @@ const BENCHMARK_VIEWS: readonly ScreenCase[] = (
     ["benchmark-versus", PHONE_AND_DESKTOP],
     ["benchmark-cards", PHONE_AND_DESKTOP],
   ] as const
-).map(([screen, contentOn]) => ({ name: screen, screen, user: ADMIN, contentOn, inReact: true }));
+).map(([screen, contentOn]) => ({ name: screen, screen, user: ADMIN, contentOn }));
 
 const SCREENS: readonly ScreenCase[] = [
-  { name: "login", screen: "login", noFlyer: true, inReact: true },
-  { name: "flyer-editor-advisor", screen: "flyer-editor", inReact: true },
-  { name: "flyer-editor-admin", screen: "flyer-editor", user: ADMIN, inReact: true },
-  { name: "preview-window", screen: "preview-window", inReact: true },
-  { name: "logo-editor", screen: "logo-editor", inReact: true },
-  { name: "logo-strip-window", screen: "logo-strip-window", inReact: true },
-  { name: "promotions-active", screen: "promotions-active", contentOn: PHONE_ONLY, inReact: true },
-  { name: "promotions-search", screen: "promotions-search", contentOn: PHONE_ONLY, inReact: true },
-  { name: "studio", screen: "studio", inReact: true },
-  { name: "database-companies", screen: "database-companies", inReact: true },
-  { name: "database-advisors", screen: "database-advisors", inReact: true },
-  { name: "hunter", screen: "hunter", user: REFERENCE_HUNTER, noFlyer: true, inReact: true },
+  { name: "login", screen: "login", noFlyer: true },
+  { name: "flyer-editor-advisor", screen: "flyer-editor" },
+  { name: "flyer-editor-admin", screen: "flyer-editor", user: ADMIN },
+  { name: "preview-window", screen: "preview-window" },
+  { name: "logo-editor", screen: "logo-editor" },
+  { name: "logo-strip-window", screen: "logo-strip-window" },
+  { name: "promotions-active", screen: "promotions-active", contentOn: PHONE_ONLY },
+  { name: "promotions-search", screen: "promotions-search", contentOn: PHONE_ONLY },
+  { name: "studio", screen: "studio" },
+  { name: "database-companies", screen: "database-companies" },
+  { name: "database-advisors", screen: "database-advisors" },
+  { name: "hunter", screen: "hunter", user: REFERENCE_HUNTER, noFlyer: true },
   {
     name: "commercial-actions-list",
     screen: "commercial-actions-list",
     user: OFFICER,
     noFlyer: true,
-    inReact: true,
   },
   {
     name: "commercial-actions-agenda",
     screen: "commercial-actions-agenda",
     user: OFFICER,
     noFlyer: true,
-    inReact: true,
   },
   {
     name: "commercial-actions-dashboard",
@@ -81,15 +78,14 @@ const SCREENS: readonly ScreenCase[] = [
     user: OFFICER,
     noFlyer: true,
     contentOn: PHONE_AND_DESKTOP,
-    inReact: true,
   },
   ...BENCHMARK_VIEWS,
-  { name: "admin-dashboard", screen: "admin-dashboard", user: ADMIN, inReact: true },
-  { name: "admin-users", screen: "admin-users", user: ADMIN, inReact: true },
-  { name: "admin-permissions", screen: "admin-permissions", user: ADMIN, inReact: true },
-  { name: "admin-flyer-config", screen: "admin-flyer-config", user: ADMIN, inReact: true },
-  { name: "user-menu", screen: "user-menu", inReact: true },
-  { name: "screen-search", screen: "screen-search", inReact: true },
+  { name: "admin-dashboard", screen: "admin-dashboard", user: ADMIN },
+  { name: "admin-users", screen: "admin-users", user: ADMIN },
+  { name: "admin-permissions", screen: "admin-permissions", user: ADMIN },
+  { name: "admin-flyer-config", screen: "admin-flyer-config", user: ADMIN },
+  { name: "user-menu", screen: "user-menu" },
+  { name: "screen-search", screen: "screen-search" },
 ];
 
 const MATRIX: readonly AppearanceCase[] = [
@@ -134,7 +130,7 @@ async function shoot(app: OpenedApp, screen: ScreenCase, appearance: AppearanceC
 }
 
 function defineCase(screen: ScreenCase, appearance: AppearanceCase): void {
-  const tag = screen.inReact ? ["@visual", "@react"] : ["@visual"];
+  const tag = "@visual";
   test(`${screen.name}: ${appearance.name}`, { tag }, async ({ cloud, openApp }) => {
     seedReferenceData(cloud);
     if (screen.user === REFERENCE_HUNTER) cloud.users.hunter = REFERENCE_HUNTER;

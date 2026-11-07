@@ -1,4 +1,4 @@
-/* The search of screens (Cmd+K / Ctrl+K): the values of `.cmdk-*` of the current app. */
+/* The search of screens (Cmd+K / Ctrl+K): the values of `.cmdk-*` of the old app. */
 .backdrop {
   position: fixed;
   inset: 0;

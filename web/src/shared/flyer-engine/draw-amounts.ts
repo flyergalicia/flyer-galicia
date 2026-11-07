@@ -57,7 +57,7 @@ export function drawAmounts({ ctx, effective, scene }: DrawPass, values: FlyerVa
     ctx.fillStyle = box.color;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // As in the current app: an absent amount writes "undefined" through fillText.
+    // As in the old app: an absent amount writes "undefined" through fillText.
     ctx.fillText(String(texts[index]), box.x, box.y);
   }
 }

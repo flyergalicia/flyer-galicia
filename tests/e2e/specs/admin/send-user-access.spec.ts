@@ -4,7 +4,7 @@ import { expect, test } from "../../support/test.ts";
 const NEW_PASSWORD = "ClaveNueva123";
 const NAME = "Asesor Prueba";
 
-test.describe("sending the access by mail when a password changes", { tag: "@react" }, () => {
+test.describe("sending the access by mail when a password changes", () => {
   test.beforeEach(({ cloud }) => {
     const { id, email } = cloud.users.asesor ?? { id: "", email: "" };
     cloud.profiles = [

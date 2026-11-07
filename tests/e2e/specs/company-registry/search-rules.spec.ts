@@ -28,7 +28,7 @@ const LOGISTICA = {
 const SIN_OFICIALES = { empresa: "SOLA SA", cuits: [], config: "BAU", asesores: [], rubro: {} };
 const COMPANIES = [ACME, BETA, LOGISTICA, SIN_OFICIALES];
 
-test.describe("the magnifying glass", { tag: "@react" }, () => {
+test.describe("the magnifying glass", () => {
   test("dots do not count: S.A. finds SA and SA finds S.A.", async ({ cloud, openApp }) => {
     cloud.companies = COMPANIES;
     const { companyRegistry: registry } = await openApp({ user: "admin" });
@@ -109,7 +109,7 @@ test.describe("the magnifying glass", { tag: "@react" }, () => {
   });
 });
 
-test.describe("while typing the company", { tag: "@react" }, () => {
+test.describe("while typing the company", () => {
   test("it suggests from two letters or three digits, and Enter brings it", async ({
     cloud,
     openApp,
@@ -135,7 +135,7 @@ test.describe("while typing the company", { tag: "@react" }, () => {
   });
 });
 
-test.describe("bringing a company", { tag: "@react" }, () => {
+test.describe("bringing a company", () => {
   test("its data arrives whole: cashback, officers and the name of the file", async ({
     cloud,
     openApp,

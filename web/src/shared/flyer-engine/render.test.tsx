@@ -176,7 +176,7 @@ describe("renderPreview", () => {
     expect(differences(pixelsOf(target), clean)).toBe(0);
   });
 
-  it("as in the current app, the high smoothing of a logo stays while the canvas keeps its size", () => {
+  it("as in the old app, the high smoothing of a logo stays while the canvas keeps its size", () => {
     const logo = paintedCanvas(40, 40, "#ff0000");
     const logos: LogoSource = { ...NO_LOGOS, imageFor: () => logo };
     const change = { x: 1, y: 1, w: 1, h: 1, bg: "#fff", tx: 1, ty: 1, tw: 1, th: 1, img: "a" };

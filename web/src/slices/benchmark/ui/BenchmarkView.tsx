@@ -332,7 +332,7 @@ function useActions(
 }
 
 /**
- * The screen. The page "Cargadas a mano" is shown to nobody, as in the current app (no tab leads
+ * The screen. The page "Cargadas a mano" is shown to nobody, as in the old app (no tab leads
  * there): only its own tests open it, with `handLoadedPage`.
  */
 export function BenchmarkScreen({ handLoadedPage = false }: { readonly handLoadedPage?: boolean }) {

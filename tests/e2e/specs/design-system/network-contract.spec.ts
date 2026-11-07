@@ -1,4 +1,4 @@
-// What shared asks of the cloud is the contract the current app recorded: the rewrite asks the same.
+// What shared asks of the cloud is the contract the old app recorded: the rewrite asks the same.
 import {
   normalized,
   openHarness,
@@ -21,7 +21,7 @@ const ENTRY_COLUMNS = [
   "role",
   "status",
 ];
-// supabase-js repeats by itself a read with no answer for 7 seconds, as in the current app.
+// supabase-js repeats by itself a read with no answer for 7 seconds, as in the old app.
 const DROPPED_CONNECTION_SHOWS_MS = 15_000;
 
 /** Must stay empty: an entry that cannot go through the public API of shared is a hole in it. */

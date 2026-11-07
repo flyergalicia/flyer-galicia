@@ -5,7 +5,7 @@ import { expect, test } from "../../support/test.ts";
 const PROFILE = "**/rest/v1/profiles*";
 const RETRY_AFTER_MS = 12_000;
 
-test.describe("with no session", { tag: "@react" }, () => {
+test.describe("with no session", () => {
   test("the form is what shows, and the app stays hidden behind it", async ({ openApp }) => {
     const { session } = await openApp({ signedOut: true, waitUntilReady: false });
 
@@ -92,7 +92,7 @@ test.describe("with no session", { tag: "@react" }, () => {
   });
 });
 
-test.describe("having forgotten the password", { tag: "@react" }, () => {
+test.describe("having forgotten the password", () => {
   const ASKED = { email: "ana.perez@bancogalicia.com.ar", password: "ClaveNueva123" };
 
   test("it checks the fields before going to the server", async ({ cloud, openApp }) => {
@@ -146,7 +146,7 @@ test.describe("having forgotten the password", { tag: "@react" }, () => {
   });
 });
 
-test.describe("changing the password from the name menu", { tag: "@react" }, () => {
+test.describe("changing the password from the name menu", () => {
   const CURRENT = "ClaveActual123";
   const NEW = "ClaveNueva456";
 
@@ -227,7 +227,7 @@ test.describe("changing the password from the name menu", { tag: "@react" }, () 
   });
 });
 
-test.describe("with a saved session", { tag: "@react" }, () => {
+test.describe("with a saved session", () => {
   test("it says it is entering and never shows the form", async ({ openApp }) => {
     const hold = gate();
     const app = await openApp({
@@ -330,144 +330,125 @@ test.describe("with a saved session", { tag: "@react" }, () => {
 });
 
 test.describe("the first thing on screen", () => {
-  test(
-    "is the first tab this profile sees, whatever order the administrator left",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.bucketJson["_titulos.json"] = { orden: ["estudio", "promos", "flyer"] };
-      cloud.setPermissions("asesor", { promos_buscar: true, estudio: false });
+  test("is the first tab this profile sees, whatever order the administrator left", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.bucketJson["_titulos.json"] = { orden: ["estudio", "promos", "flyer"] };
+    cloud.setPermissions("asesor", { promos_buscar: true, estudio: false });
 
-      const { session } = await openApp({ waitUntilReady: false });
+    const { session } = await openApp({ waitUntilReady: false });
 
-      await session.waitUntilSignedIn();
-      await expect.poll(() => session.activeHeaderTab()).toBe("Promociones");
-      await expect.poll(() => session.isShowing("promotions")).toBe(true);
-    },
-  );
+    await session.waitUntilSignedIn();
+    await expect.poll(() => session.activeHeaderTab()).toBe("Promociones");
+    await expect.poll(() => session.isShowing("promotions")).toBe(true);
+  });
 
-  test(
-    "no flyer is painted until the one this profile opens in arrives",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const hold = gate();
-      const app = await openApp({
-        waitUntilReady: false,
-        beforeNavigation: async (page) => {
-          await page.route("**/flyers/_active9.json*", async (route) => {
-            await hold.promise;
-            await route.fallback();
-          });
-        },
-      });
+  test("no flyer is painted until the one this profile opens in arrives", async ({ openApp }) => {
+    const hold = gate();
+    const app = await openApp({
+      waitUntilReady: false,
+      beforeNavigation: async (page) => {
+        await page.route("**/flyers/_active9.json*", async (route) => {
+          await hold.promise;
+          await route.fallback();
+        });
+      },
+    });
 
-      await app.session.waitUntilSignedIn();
-      await app.page.waitForTimeout(800);
-      expect.soft(await app.session.previewPainted(), "not the sample nor option 1").toBe(false);
+    await app.session.waitUntilSignedIn();
+    await app.page.waitForTimeout(800);
+    expect.soft(await app.session.previewPainted(), "not the sample nor option 1").toBe(false);
 
-      hold.open();
-      await expect.poll(() => app.session.previewPainted()).toBe(true);
-      await app.flyerEditor.waitForOptionShown(9);
-    },
-  );
+    hold.open();
+    await expect.poll(() => app.session.previewPainted()).toBe(true);
+    await app.flyerEditor.waitForOptionShown(9);
+  });
 
-  test(
-    "the flyer of option 1 arriving late does not replace the one on screen",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const hold = gate();
-      cloud.addFlyerOption({
-        option: 1,
-        name: "Viejo",
-        image: "flyer_t1.jpg?v=1",
-        legal: "Legal 1",
-      });
-      cloud.setPermissions("asesor", { opcion_1: false, opcion_9: true });
-      const app = await openApp({
-        waitUntilReady: false,
-        beforeNavigation: async (page) => {
-          await page.route("**/flyers/_active.json*", async (route) => {
-            await hold.promise;
-            await route.fallback();
-          });
-        },
-      });
-      await app.session.waitUntilSignedIn();
-      await app.flyerEditor.waitForOptionShown(9);
-      const calibration = await app.flyerEditor.activeCalibration();
+  test("the flyer of option 1 arriving late does not replace the one on screen", async ({
+    cloud,
+    openApp,
+  }) => {
+    const hold = gate();
+    cloud.addFlyerOption({
+      option: 1,
+      name: "Viejo",
+      image: "flyer_t1.jpg?v=1",
+      legal: "Legal 1",
+    });
+    cloud.setPermissions("asesor", { opcion_1: false, opcion_9: true });
+    const app = await openApp({
+      waitUntilReady: false,
+      beforeNavigation: async (page) => {
+        await page.route("**/flyers/_active.json*", async (route) => {
+          await hold.promise;
+          await route.fallback();
+        });
+      },
+    });
+    await app.session.waitUntilSignedIn();
+    await app.flyerEditor.waitForOptionShown(9);
+    const calibration = await app.flyerEditor.activeCalibration();
 
-      hold.open();
-      await app.page.waitForTimeout(600);
+    hold.open();
+    await app.page.waitForTimeout(600);
 
-      expect.soft(await app.flyerEditor.activeOption()).toBe(9);
-      expect.soft(await app.flyerEditor.showsArtworkOf(9), "its artwork stays").toBe(true);
-      expect
-        .soft(await app.flyerEditor.activeCalibration(), "and its calibration")
-        .toEqual(calibration);
-    },
-  );
+    expect.soft(await app.flyerEditor.activeOption()).toBe(9);
+    expect.soft(await app.flyerEditor.showsArtworkOf(9), "its artwork stays").toBe(true);
+    expect
+      .soft(await app.flyerEditor.activeCalibration(), "and its calibration")
+      .toEqual(calibration);
+  });
 
-  test(
-    "the shared files are asked for once on the way in",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const asked = new Map<string, number>();
-      const app = await openApp({
-        beforeNavigation: (page) => {
-          page.on("request", (request) => {
-            const file = /\/flyers\/(_[^?]+\.json)/.exec(request.url())?.[1];
-            if (file) asked.set(file, (asked.get(file) ?? 0) + 1);
-          });
-          return Promise.resolve();
-        },
-      });
-      await app.page.waitForTimeout(500);
+  test("the shared files are asked for once on the way in", async ({ openApp }) => {
+    const asked = new Map<string, number>();
+    const app = await openApp({
+      beforeNavigation: (page) => {
+        page.on("request", (request) => {
+          const file = /\/flyers\/(_[^?]+\.json)/.exec(request.url())?.[1];
+          if (file) asked.set(file, (asked.get(file) ?? 0) + 1);
+        });
+        return Promise.resolve();
+      },
+    });
+    await app.page.waitForTimeout(500);
 
-      for (const file of [
-        "_opciones.json",
-        "_facultades.json",
-        "_titulos.json",
-        "_cashback.json",
-      ]) {
-        expect.soft(asked.get(file), `${file} once`).toBe(1);
-      }
-    },
-  );
+    for (const file of ["_opciones.json", "_facultades.json", "_titulos.json", "_cashback.json"]) {
+      expect.soft(asked.get(file), `${file} once`).toBe(1);
+    }
+  });
 
-  test(
-    "the legal and the data of an option are asked for together",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.addFlyerOption({
-        option: 6,
-        name: "Otra",
-        image: "flyer_t6.jpg?v=1",
-        legal: "Legal 6",
-      });
-      cloud.setPermissions("asesor", { opcion_6: true, opcion_9: false });
-      const hold = gate();
-      let legalAsked = false;
-      const app = await openApp({
-        waitUntilReady: false,
-        beforeNavigation: async (page) => {
-          await page.route("**/flyers/_active6.json*", async (route) => {
-            await hold.promise;
-            await route.fallback();
-          });
-          await page.route("**/flyers/_legal6.json*", async (route) => {
-            legalAsked = true;
-            await route.fallback();
-          });
-        },
-      });
+  test("the legal and the data of an option are asked for together", async ({ cloud, openApp }) => {
+    cloud.addFlyerOption({
+      option: 6,
+      name: "Otra",
+      image: "flyer_t6.jpg?v=1",
+      legal: "Legal 6",
+    });
+    cloud.setPermissions("asesor", { opcion_6: true, opcion_9: false });
+    const hold = gate();
+    let legalAsked = false;
+    const app = await openApp({
+      waitUntilReady: false,
+      beforeNavigation: async (page) => {
+        await page.route("**/flyers/_active6.json*", async (route) => {
+          await hold.promise;
+          await route.fallback();
+        });
+        await page.route("**/flyers/_legal6.json*", async (route) => {
+          legalAsked = true;
+          await route.fallback();
+        });
+      },
+    });
 
-      await expect.poll(() => legalAsked, "the legal does not wait for the data").toBe(true);
-      hold.open();
-      await app.flyerEditor.waitForOptionShown(6);
-    },
-  );
+    await expect.poll(() => legalAsked, "the legal does not wait for the data").toBe(true);
+    hold.open();
+    await app.flyerEditor.waitForOptionShown(6);
+  });
 });
 
-test.describe("a new version", { tag: "@react" }, () => {
+test.describe("a new version", () => {
   test("is offered with a notice when the published one is different", async ({ openApp }) => {
     const app = await openApp();
     await app.page.route("**/version.json*", async (route) => {

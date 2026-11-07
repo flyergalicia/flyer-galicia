@@ -288,8 +288,8 @@ export interface CommercialActionsDriver
     CompaniesDriver,
     ActionListDriver,
     DashboardDriver {
-  /** For a window a person watches: says whose it is and brings the notices by itself. */
-  prepareForDemo(noticesEveryMs: number): Promise<void>;
+  /** For a window a person watches: its title says whose it is. */
+  prepareForDemo(title: string): Promise<void>;
   /** Goes to Gestiones and waits for its solapas. */
   open(): Promise<void>;
   goToTab(tab: CommercialTab): Promise<void>;

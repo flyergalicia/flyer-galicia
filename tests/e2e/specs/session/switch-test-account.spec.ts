@@ -10,7 +10,7 @@ const WAIT_FOR_LIST_MS = 15_000;
 // Long enough for the app to have sent a request, if it were going to.
 const REQUEST_WINDOW_MS = 600;
 
-test.describe("jumping to another test account from the name menu", { tag: "@react" }, () => {
+test.describe("jumping to another test account from the name menu", () => {
   test.beforeEach(({ cloud }) => {
     cloud.testAccounts = [
       {

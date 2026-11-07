@@ -5,11 +5,7 @@ import { expect, test } from "../../support/test.ts";
 
 const ARROW_ROOM_WITH_OVERLAY_SCROLLBARS = 16;
 
-test(
-  "a connected mouse does not change the scrollbars",
-  { tag: ["@visual", "@react"] },
-  async ({ page }) => {
-    test.skip(process.platform !== "darwin", "Only macOS changes them");
-    expect(await selectArrowRoom(page)).toBe(ARROW_ROOM_WITH_OVERLAY_SCROLLBARS);
-  },
-);
+test("a connected mouse does not change the scrollbars", { tag: "@visual" }, async ({ page }) => {
+  test.skip(process.platform !== "darwin", "Only macOS changes them");
+  expect(await selectArrowRoom(page)).toBe(ARROW_ROOM_WITH_OVERLAY_SCROLLBARS);
+});

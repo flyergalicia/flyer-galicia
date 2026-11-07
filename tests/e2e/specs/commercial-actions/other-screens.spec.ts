@@ -1,5 +1,5 @@
 // What Gestiones and the other screens ask of each other: "Registrar gestión" of the screen of the
-// Hunter, and "Ver su flyer" of an action. Nothing tested these on the current app.
+// Hunter, and "Ver su flyer" of an action. Nothing tested these on the old app.
 import { type Page } from "@playwright/test";
 import { PEOPLE } from "../../support/cloud/commercial-actions/model.ts";
 import { commercialTables, openAsTeamMember } from "../../support/commercial-team.ts";
@@ -37,7 +37,7 @@ async function chooseCompany(app: OpenedApp): Promise<void> {
   await app.hunter.waitForPreview();
 }
 
-test.describe("Registrar gestión", { tag: "@react" }, () => {
+test.describe("Registrar gestión", () => {
   test("a hunter registers what they did, for its officer, and lands on it", async ({
     cloud,
     openApp,
@@ -114,7 +114,7 @@ test.describe("Registrar gestión", { tag: "@react" }, () => {
   });
 });
 
-test.describe("Ver su flyer", { tag: "@react" }, () => {
+test.describe("Ver su flyer", () => {
   test("takes a hunter to their screen, with that company chosen", async ({ cloud, openApp }) => {
     const { forwardedWithQuestion } = cloud.seedCommercialActions();
     const app = await openAsTeamMember(openApp, "hunter");

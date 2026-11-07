@@ -259,7 +259,7 @@ describe("a saved advisor", () => {
     expect(officer(withSavedAdvisor(byHand, 0, SAVED)).mailByHand).toBe(true);
   });
 
-  it("as in the current app: changing the name then replaces its mail by the one suggested", () => {
+  it("as in the old app: changing the name then replaces its mail by the one suggested", () => {
     const form = withOfficerField(
       withSavedAdvisor(initialFormState(), 0, SAVED),
       0,

@@ -73,132 +73,126 @@ function countDownloads(page: Page) {
 }
 
 test.describe("downloading an old flyer again", () => {
-  test(
-    "with a format that no longer exists or is not enabled, it says so and nothing comes out",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const stored = setUp(cloud, [{ option: GONE }, { option: NOT_ENABLED }]);
-      const { flyerEditor, page } = await openApp({ localStorage: stored });
-      const downloads = countDownloads(page);
-      await flyerEditor.chooseEditorTab("Historial");
+  test("with a format that no longer exists or is not enabled, it says so and nothing comes out", async ({
+    cloud,
+    openApp,
+  }) => {
+    const stored = setUp(cloud, [{ option: GONE }, { option: NOT_ENABLED }]);
+    const { flyerEditor, page } = await openApp({ localStorage: stored });
+    const downloads = countDownloads(page);
+    await flyerEditor.chooseEditorTab("Historial");
 
-      await flyerEditor.pressDownloadFromHistory(0);
-      await page.waitForTimeout(NOTICE_MS);
-      expect.soft(await flyerEditor.latestNotice()).toMatch(/ya no existe/);
-      expect.soft(await flyerEditor.latestNotice()).toMatch(/No se puede volver a descargar/);
+    await flyerEditor.pressDownloadFromHistory(0);
+    await page.waitForTimeout(NOTICE_MS);
+    expect.soft(await flyerEditor.latestNotice()).toMatch(/ya no existe/);
+    expect.soft(await flyerEditor.latestNotice()).toMatch(/No se puede volver a descargar/);
 
-      await flyerEditor.pressDownloadFromHistory(1);
-      await page.waitForTimeout(NOTICE_MS);
-      expect.soft(await flyerEditor.latestNotice()).toMatch(/no está habilitado/);
-      expect.soft(downloads(), "nothing, on any other flyer").toBe(0);
-      expect.soft(await flyerEditor.activeOption(), "and it stays on the flyer it was").toBe(9);
-    },
-  );
+    await flyerEditor.pressDownloadFromHistory(1);
+    await page.waitForTimeout(NOTICE_MS);
+    expect.soft(await flyerEditor.latestNotice()).toMatch(/no está habilitado/);
+    expect.soft(downloads(), "nothing, on any other flyer").toBe(0);
+    expect.soft(await flyerEditor.activeOption(), "and it stays on the flyer it was").toBe(9);
+  });
 
-  test(
-    "if its flyer does not load, no PDF comes out with another picture",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const stored = setUp(cloud, [{ option: WITH_NO_FLYER }]);
-      const { flyerEditor, page } = await openApp({ localStorage: stored });
-      const downloads = countDownloads(page);
-      await flyerEditor.chooseEditorTab("Historial");
+  test("if its flyer does not load, no PDF comes out with another picture", async ({
+    cloud,
+    openApp,
+  }) => {
+    const stored = setUp(cloud, [{ option: WITH_NO_FLYER }]);
+    const { flyerEditor, page } = await openApp({ localStorage: stored });
+    const downloads = countDownloads(page);
+    await flyerEditor.chooseEditorTab("Historial");
 
-      await flyerEditor.pressDownloadFromHistory(0);
-      await flyerEditor.waitForLoadProblem();
-      await page.waitForTimeout(NOTICE_MS);
+    await flyerEditor.pressDownloadFromHistory(0);
+    await flyerEditor.waitForLoadProblem();
+    await page.waitForTimeout(NOTICE_MS);
 
-      expect.soft(downloads(), "no file").toBe(0);
-      expect.soft(await flyerEditor.latestNotice(), "and it says why").toMatch(/no tiene flyer/);
-    },
-  );
+    expect.soft(downloads(), "no file").toBe(0);
+    expect.soft(await flyerEditor.latestNotice(), "and it says why").toMatch(/no tiene flyer/);
+  });
 
-  test(
-    "on another flyer it goes to that one first, and comes out with it",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const stored = setUp(cloud, [{ option: ANOTHER_FLYER }]);
-      const { flyerEditor, page } = await openApp({ localStorage: stored });
-      await flyerEditor.chooseEditorTab("Historial");
+  test("on another flyer it goes to that one first, and comes out with it", async ({
+    cloud,
+    openApp,
+  }) => {
+    const stored = setUp(cloud, [{ option: ANOTHER_FLYER }]);
+    const { flyerEditor, page } = await openApp({ localStorage: stored });
+    await flyerEditor.chooseEditorTab("Historial");
 
-      const [download] = await Promise.all([
-        page.waitForEvent("download"),
-        flyerEditor.pressDownloadFromHistory(0),
-      ]);
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      flyerEditor.pressDownloadFromHistory(0),
+    ]);
 
-      expect.soft(download.suggestedFilename()).toMatch(/VIEJA SA\.pdf$/);
-      expect.soft(await flyerEditor.activeOption(), "its flyer is on screen").toBe(ANOTHER_FLYER);
-      await expect.poll(() => cloud.flyerLogWrites.length, "it is logged again").toBe(1);
-      await flyerEditor.chooseEditorTab("Individual");
-      await flyerEditor.chooseEditorTab("Historial");
-      expect.soft((await flyerEditor.historyRows()).length, "and it stays in the history").toBe(2);
-    },
-  );
+    expect.soft(download.suggestedFilename()).toMatch(/VIEJA SA\.pdf$/);
+    expect.soft(await flyerEditor.activeOption(), "its flyer is on screen").toBe(ANOTHER_FLYER);
+    await expect.poll(() => cloud.flyerLogWrites.length, "it is logged again").toBe(1);
+    await flyerEditor.chooseEditorTab("Individual");
+    await flyerEditor.chooseEditorTab("Historial");
+    expect.soft((await flyerEditor.historyRows()).length, "and it stays in the history").toBe(2);
+  });
 
-  test(
-    "with a logo uploaded from the PC that is gone, it asks first",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const logos = [{ img: "pc:1:toledo.png", t: "", x: 1, y: 1, w: 9, h: 9, bg: "white" }];
-      const stored = setUp(cloud, [{ option: 9, logos }]);
-      const { flyerEditor, session, page } = await openApp({ localStorage: stored });
-      const downloads = countDownloads(page);
-      await flyerEditor.chooseEditorTab("Historial");
+  test("with a logo uploaded from the PC that is gone, it asks first", async ({
+    cloud,
+    openApp,
+  }) => {
+    const logos = [{ img: "pc:1:toledo.png", t: "", x: 1, y: 1, w: 9, h: 9, bg: "white" }];
+    const stored = setUp(cloud, [{ option: 9, logos }]);
+    const { flyerEditor, session, page } = await openApp({ localStorage: stored });
+    const downloads = countDownloads(page);
+    await flyerEditor.chooseEditorTab("Historial");
 
-      await flyerEditor.pressDownloadFromHistory(0);
-      expect.soft(await session.waitForConfirmation()).toMatch(/Falta un logo subido de la PC/);
-      expect.soft(await session.waitForConfirmation()).toMatch(/toledo\.png/);
-      await session.answerConfirmation(false);
-      await page.waitForTimeout(NOTICE_MS);
-      expect.soft(downloads(), "Cancelar: nothing comes out").toBe(0);
+    await flyerEditor.pressDownloadFromHistory(0);
+    expect.soft(await session.waitForConfirmation()).toMatch(/Falta un logo subido de la PC/);
+    expect.soft(await session.waitForConfirmation()).toMatch(/toledo\.png/);
+    await session.answerConfirmation(false);
+    await page.waitForTimeout(NOTICE_MS);
+    expect.soft(downloads(), "Cancelar: nothing comes out").toBe(0);
 
-      await flyerEditor.pressDownloadFromHistory(0);
-      await session.waitForConfirmation();
-      const [download] = await Promise.all([
-        page.waitForEvent("download"),
-        session.answerConfirmation(true),
-      ]);
-      expect.soft(download.suggestedFilename(), "Descargar igual").toMatch(/\.pdf$/);
-    },
-  );
+    await flyerEditor.pressDownloadFromHistory(0);
+    await session.waitForConfirmation();
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      session.answerConfirmation(true),
+    ]);
+    expect.soft(download.suggestedFilename(), "Descargar igual").toMatch(/\.pdf$/);
+  });
 });
 
 test.describe("the Historial", () => {
-  test(
-    "with nothing, it says how to get something there; a flyer can be taken out of it",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const { flyerEditor } = await openApp();
-      await flyerEditor.chooseEditorTab("Historial");
-      expect.soft(await flyerEditor.emptyHistoryText()).toMatch(/Todavía no hay flyers/);
-      await flyerEditor.chooseEditorTab("Individual");
-      await flyerEditor.fillCompanyName("UNO SA");
-      await flyerEditor.downloadPdfToDisk();
-      await flyerEditor.dismissAfterDownload();
+  test("with nothing, it says how to get something there; a flyer can be taken out of it", async ({
+    cloud,
+    openApp,
+  }) => {
+    const { flyerEditor } = await openApp();
+    await flyerEditor.chooseEditorTab("Historial");
+    expect.soft(await flyerEditor.emptyHistoryText()).toMatch(/Todavía no hay flyers/);
+    await flyerEditor.chooseEditorTab("Individual");
+    await flyerEditor.fillCompanyName("UNO SA");
+    await flyerEditor.downloadPdfToDisk();
+    await flyerEditor.dismissAfterDownload();
 
-      await flyerEditor.chooseEditorTab("Historial");
-      expect.soft(await flyerEditor.historyRows()).toHaveLength(1);
-      expect.soft(await flyerEditor.emptyHistoryText()).toBe("");
-      await flyerEditor.pressRemoveFromHistory(0);
+    await flyerEditor.chooseEditorTab("Historial");
+    expect.soft(await flyerEditor.historyRows()).toHaveLength(1);
+    expect.soft(await flyerEditor.emptyHistoryText()).toBe("");
+    await flyerEditor.pressRemoveFromHistory(0);
 
-      expect.soft(await flyerEditor.emptyHistoryText()).toMatch(/Todavía no hay flyers/);
-      await expect.poll(() => cloud.flyerLogWrites.length, "the log stays").toBe(1);
-    },
-  );
+    expect.soft(await flyerEditor.emptyHistoryText()).toMatch(/Todavía no hay flyers/);
+    await expect.poll(() => cloud.flyerLogWrites.length, "the log stays").toBe(1);
+  });
 
-  test(
-    "editing one whose format is gone brings its data to the flyer on screen, and says so",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const stored = setUp(cloud, [{ option: NOT_ENABLED, company: "AJENA SA" }]);
-      const { flyerEditor } = await openApp({ localStorage: stored });
-      await flyerEditor.chooseEditorTab("Historial");
+  test("editing one whose format is gone brings its data to the flyer on screen, and says so", async ({
+    cloud,
+    openApp,
+  }) => {
+    const stored = setUp(cloud, [{ option: NOT_ENABLED, company: "AJENA SA" }]);
+    const { flyerEditor } = await openApp({ localStorage: stored });
+    await flyerEditor.chooseEditorTab("Historial");
 
-      await flyerEditor.editFromHistory(0);
+    await flyerEditor.editFromHistory(0);
 
-      await expect.poll(() => flyerEditor.companyName()).toBe("AJENA SA");
-      expect.soft(await flyerEditor.latestNotice()).toMatch(/Se cargaron los datos en/);
-      expect.soft(await flyerEditor.activeOption(), "it stays on the flyer it was").toBe(9);
-    },
-  );
+    await expect.poll(() => flyerEditor.companyName()).toBe("AJENA SA");
+    expect.soft(await flyerEditor.latestNotice()).toMatch(/Se cargaron los datos en/);
+    expect.soft(await flyerEditor.activeOption(), "it stays on the flyer it was").toBe(9);
+  });
 });

@@ -58,7 +58,7 @@ describe("createBackend", () => {
     ]);
   });
 
-  it("finds the session left by the current app", async () => {
+  it("finds the session left by the old app", async () => {
     const { backend, storageKey } = createInventedBackend(() => jsonResponse({}));
     localStorage.setItem(storageKey, JSON.stringify(inventedSession()));
 

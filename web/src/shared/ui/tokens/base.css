@@ -1,4 +1,4 @@
-/* What every screen starts from. The same rules as the current app, without its old layers. */
+/* What every screen starts from. The same rules as the old app, without its old layers. */
 *,
 *::before,
 *::after {

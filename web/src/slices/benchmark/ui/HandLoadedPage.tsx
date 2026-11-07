@@ -1,6 +1,6 @@
 // "Cargadas a mano": what does not arrive by itself (a promotion of Macro or Santander, the benefits of a
 // package) is loaded here and enters the comparison as "cargada a mano". The page is shown to nobody,
-// as in the current app: no tab leads here, and its promotions still count. To show it again, it is
+// as in the old app: no tab leads here, and its promotions still count. To show it again, it is
 // one more tab in BenchmarkView.
 import { useState } from "react";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";

@@ -198,8 +198,6 @@ export function createReactFlyerDrawingDriver(page: Page): FlyerDrawingDriver {
       });
     },
     previewCoverColors: () => coverColors(page),
-    downloadRegionColor: (region) =>
-      page.evaluate(averageColor, { source: "download" as const, region }),
     artworkRegionColor: (region) =>
       page.evaluate(averageColor, { source: "artwork" as const, region }),
     preview: () =>

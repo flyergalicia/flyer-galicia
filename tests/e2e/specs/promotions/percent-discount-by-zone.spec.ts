@@ -38,7 +38,7 @@ function addSupermarket(cloud: Cloud): void {
 
 const LOCALITY = localitiesOf(PROVINCE).find((name) => /MARTIN DE LOS ANDES/.test(name));
 
-test("the flyer days look at the chosen zone", { tag: "@react" }, async ({ cloud, openApp }) => {
+test("the flyer days look at the chosen zone", async ({ cloud, openApp }) => {
   addSupermarket(cloud);
   const app = await openApp({ user: "admin" });
   await app.promotions.open("active");
@@ -74,75 +74,69 @@ test("the flyer days look at the chosen zone", { tag: "@react" }, async ({ cloud
     .toBe("");
 });
 
-test(
-  "the red dot and the tick of the windows look at the chosen zone",
-  { tag: "@react" },
-  async ({ cloud, openApp }) => {
-    addSupermarket(cloud);
-    const app = await openApp({ user: "admin" });
-    await app.logoEditor.enter();
-    await app.promotions.waitForCatalog();
-    const locality = LOCALITY;
+test("the red dot and the tick of the windows look at the chosen zone", async ({
+  cloud,
+  openApp,
+}) => {
+  addSupermarket(cloud);
+  const app = await openApp({ user: "admin" });
+  await app.logoEditor.enter();
+  await app.promotions.waitForCatalog();
+  const locality = LOCALITY;
 
-    const card = async () =>
-      (await app.promotions.brandCards()).find(({ title }) => title === TITLE);
+  const card = async () => (await app.promotions.brandCards()).find(({ title }) => title === TITLE);
 
-    await app.promotions.openBrandPickerOver(MARKED_PLACE);
-    await app.promotions.chooseProvince("brandPicker", PROVINCE);
-    await app.promotions.chooseLocality("brandPicker", locality ?? "");
-    await app.promotions.searchInBrandPicker("super prueba");
-    const withLocality = await card();
-    expect.soft(withLocality, "window with a locality: it shows up").toBeDefined();
-    expect.soft(withLocality?.hasPercentDot, "without the red dot").toBe(false);
+  await app.promotions.openBrandPickerOver(MARKED_PLACE);
+  await app.promotions.chooseProvince("brandPicker", PROVINCE);
+  await app.promotions.chooseLocality("brandPicker", locality ?? "");
+  await app.promotions.searchInBrandPicker("super prueba");
+  const withLocality = await card();
+  expect.soft(withLocality, "window with a locality: it shows up").toBeDefined();
+  expect.soft(withLocality?.hasPercentDot, "without the red dot").toBe(false);
 
-    const tick = app.page.getByRole("checkbox", ONLY_PERCENT);
-    await tick.check();
-    expect
-      .soft(await card(), 'with the tick "Sólo súper con %" it does not show up')
-      .toBeUndefined();
-    expect
-      .soft(
-        (await app.promotions.brandCards()).filter(({ hasPercentDot }) => !hasPercentDot),
-        "and all those left carry the dot",
-      )
-      .toEqual([]);
-    await tick.uncheck();
+  const tick = app.page.getByRole("checkbox", ONLY_PERCENT);
+  await tick.check();
+  expect.soft(await card(), 'with the tick "Sólo súper con %" it does not show up').toBeUndefined();
+  expect
+    .soft(
+      (await app.promotions.brandCards()).filter(({ hasPercentDot }) => !hasPercentDot),
+      "and all those left carry the dot",
+    )
+    .toEqual([]);
+  await tick.uncheck();
 
-    await app.promotions.chooseLocality("brandPicker", "");
-    const withProvince = await card();
-    expect
-      .soft((await app.promotions.localityField("brandPicker")).inUse, "only the province is left")
-      .toBe("");
-    expect.soft(withProvince?.hasPercentDot, "only with the province: with the dot").toBe(true);
-    expect.soft(withProvince?.detail, 'and "2 promos"').toMatch(/2 promos/);
+  await app.promotions.chooseLocality("brandPicker", "");
+  const withProvince = await card();
+  expect
+    .soft((await app.promotions.localityField("brandPicker")).inUse, "only the province is left")
+    .toBe("");
+  expect.soft(withProvince?.hasPercentDot, "only with the province: with the dot").toBe(true);
+  expect.soft(withProvince?.detail, 'and "2 promos"').toMatch(/2 promos/);
 
-    await tick.check();
-    expect.soft((await card())?.hasPercentDot, "and it passes the tick").toBe(true);
-    await tick.uncheck();
-    await app.promotions.closeBrandPicker();
-  },
-);
+  await tick.check();
+  expect.soft((await card())?.hasPercentDot, "and it passes the tick").toBe(true);
+  await tick.uncheck();
+  await app.promotions.closeBrandPicker();
+});
 
-test(
-  "a card is one logo: several promotions read as a count, with the detail on hover",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const province = "CAPITAL FEDERAL";
-    const app = await openApp({ user: "admin" });
-    await app.logoEditor.enter();
-    await app.promotions.waitForCatalog();
+test("a card is one logo: several promotions read as a count, with the detail on hover", async ({
+  openApp,
+}) => {
+  const province = "CAPITAL FEDERAL";
+  const app = await openApp({ user: "admin" });
+  await app.logoEditor.enter();
+  await app.promotions.waitForCatalog();
 
-    await app.promotions.openBrandPickerOver(MARKED_PLACE);
-    await app.promotions.chooseProvince("brandPicker", province);
-    await app.promotions.searchInBrandPicker("coto");
+  await app.promotions.openBrandPickerOver(MARKED_PLACE);
+  await app.promotions.chooseProvince("brandPicker", province);
+  await app.promotions.searchInBrandPicker("coto");
 
-    const coto = (await app.promotions.brandCards()).find(({ title }) => title === "Coto");
-    const offers = await app.promotions.currentOfferCount("Coto", province);
-    expect.soft(offers, "Coto has several promotions there").toBeGreaterThan(1);
-    expect
-      .soft(coto?.morePromos, "Coto is a single logo and says how many")
-      .toBe(`${String(offers)} promos`);
-    expect.soft(coto?.morePromosOnHover, "with the detail on hover").toMatch(/cuotas/i);
-    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-  },
-);
+  const coto = (await app.promotions.brandCards()).find(({ title }) => title === "Coto");
+  const offers = await app.promotions.currentOfferCount("Coto", province);
+  expect.soft(offers, "Coto has several promotions there").toBeGreaterThan(1);
+  expect
+    .soft(coto?.morePromos, "Coto is a single logo and says how many")
+    .toBe(`${String(offers)} promos`);
+  expect.soft(coto?.morePromosOnHover, "with the detail on hover").toMatch(/cuotas/i);
+  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+});

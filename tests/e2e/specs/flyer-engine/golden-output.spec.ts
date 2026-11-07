@@ -1,5 +1,5 @@
-// The new engine against the printed flyer stored from the current app: the same pixels and the same
-// PDF, with no tolerance. It only reads those files: they change through the current app.
+// The new engine against the printed flyer stored from the old app: the same pixels and the same
+// PDF, with no tolerance. It only reads those files: they change through the old app.
 import { readFileSync } from "node:fs";
 import { platform } from "node:process";
 import { fileURLToPath } from "node:url";

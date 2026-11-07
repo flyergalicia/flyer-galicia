@@ -36,86 +36,82 @@ function checkColors(colors: PdfImageReading["colors"] | undefined): void {
   expect.soft(colors?.group?.[1], "nor pure red").toBeGreaterThan(90);
 }
 
-test(
-  "a PDF is converted under the real security policy, with all it can bring",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    const urls: string[] = [];
-    const blocked: string[] = [];
-    app.page.on("requestfinished", (request) => urls.push(request.url()));
-    app.page.on("console", (message) => {
-      if (/Content Security Policy|Refused/i.test(message.text())) blocked.push(message.text());
-    });
+test("a PDF is converted under the real security policy, with all it can bring", async ({
+  openApp,
+}) => {
+  const app = await openApp({ user: "admin" });
+  const urls: string[] = [];
+  const blocked: string[] = [];
+  app.page.on("requestfinished", (request) => urls.push(request.url()));
+  app.page.on("console", (message) => {
+    if (/Content Security Policy|Refused/i.test(message.text())) blocked.push(message.text());
+  });
 
-    const reading = await app.flyerSections.convertPdf(SAMPLE, PROBES);
-    expect.soft(reading, "the PDF converts").not.toBeNull();
-    expect
-      .soft(await app.flyerSections.pdfReaderVersion(), "with the expected reader")
-      .toBe(READER_VERSION);
-    expect.soft(reading?.width, "it comes out 1240 px wide").toBe(1240);
-    expect.soft(reading?.height, "and with a proportional height").toBe(SAMPLE_HEIGHT * 2);
-    checkColors(reading?.colors);
-    expect.soft(reading?.darkPixels, "text with no embedded font is drawn").toBeGreaterThan(300);
+  const reading = await app.flyerSections.convertPdf(SAMPLE, PROBES);
+  expect.soft(reading, "the PDF converts").not.toBeNull();
+  expect
+    .soft(await app.flyerSections.pdfReaderVersion(), "with the expected reader")
+    .toBe(READER_VERSION);
+  expect.soft(reading?.width, "it comes out 1240 px wide").toBe(1240);
+  expect.soft(reading?.height, "and with a proportional height").toBe(SAMPLE_HEIGHT * 2);
+  checkColors(reading?.colors);
+  expect.soft(reading?.darkPixels, "text with no embedded font is drawn").toBeGreaterThan(300);
 
-    const wasm = urls.filter((url) => url.endsWith(".wasm"));
-    expect
-      .soft(
-        wasm.some((url) => /openjpeg[^/]*\.wasm$/.test(url)),
-        "it downloads the WASM for JPEG 2000",
-      )
-      .toBe(true);
-    expect
-      .soft(
-        wasm.some((url) => /jbig2[^/]*\.wasm$/.test(url)),
-        "and the one for fax",
-      )
-      .toBe(true);
-    expect
-      .soft(
-        urls.filter((url) => /nowasm_fallback|qcms|\.bcmap/.test(url)),
-        "it downloads nothing else that is not verified",
-      )
-      .toEqual([]);
-    expect.soft(blocked, "the security policy blocks nothing").toEqual([]);
-    expect
-      .soft(
-        await app.flyerSections.convertPdf(SAMPLE, PROBES),
-        "a second PDF comes out the same, the reader already loaded",
-      )
-      .toEqual(reading);
-    const policy = await app.flyerSections.securityPolicy();
-    expect.soft(policy, "the policy lets WASM compile").toMatch(/wasm-unsafe-eval/);
-    expect.soft(policy, "without opening eval").not.toMatch(/'unsafe-eval'/);
-    expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-  },
-);
+  const wasm = urls.filter((url) => url.endsWith(".wasm"));
+  expect
+    .soft(
+      wasm.some((url) => /openjpeg[^/]*\.wasm$/.test(url)),
+      "it downloads the WASM for JPEG 2000",
+    )
+    .toBe(true);
+  expect
+    .soft(
+      wasm.some((url) => /jbig2[^/]*\.wasm$/.test(url)),
+      "and the one for fax",
+    )
+    .toBe(true);
+  expect
+    .soft(
+      urls.filter((url) => /nowasm_fallback|qcms|\.bcmap/.test(url)),
+      "it downloads nothing else that is not verified",
+    )
+    .toEqual([]);
+  expect.soft(blocked, "the security policy blocks nothing").toEqual([]);
+  expect
+    .soft(
+      await app.flyerSections.convertPdf(SAMPLE, PROBES),
+      "a second PDF comes out the same, the reader already loaded",
+    )
+    .toEqual(reading);
+  const policy = await app.flyerSections.securityPolicy();
+  expect.soft(policy, "the policy lets WASM compile").toMatch(/wasm-unsafe-eval/);
+  expect.soft(policy, "without opening eval").not.toMatch(/'unsafe-eval'/);
+  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
+});
 
-test(
-  "a tampered WASM does not run: that image is missing but the conversion ends",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp({
-      user: "admin",
-      beforeNavigation: async (page) => {
-        await page.route(OPENJPEG_ROUTE, async (route) => {
-          const response = await route.fetch();
-          const body = await response.body();
-          body[body.length - 1] = (body.at(-1) ?? 0) ^ 255;
-          await route.fulfill({ response, body });
-        });
-      },
-    });
+test("a tampered WASM does not run: that image is missing but the conversion ends", async ({
+  openApp,
+}) => {
+  const app = await openApp({
+    user: "admin",
+    beforeNavigation: async (page) => {
+      await page.route(OPENJPEG_ROUTE, async (route) => {
+        const response = await route.fetch();
+        const body = await response.body();
+        body[body.length - 1] = (body.at(-1) ?? 0) ^ 255;
+        await route.fulfill({ response, body });
+      });
+    },
+  });
 
-    const reading = await app.flyerSections.convertPdf(SAMPLE, PROBES);
+  const reading = await app.flyerSections.convertPdf(SAMPLE, PROBES);
 
-    expect.soft(reading, "the conversion ends").not.toBeNull();
-    expect.soft(isRed(reading?.colors.jpeg2000), "the JPEG 2000 is not decoded").toBe(false);
-    expect.soft(isRed(reading?.colors.cmyk), "and the rest of the PDF comes out anyway").toBe(true);
-  },
-);
+  expect.soft(reading, "the conversion ends").not.toBeNull();
+  expect.soft(isRed(reading?.colors.jpeg2000), "the JPEG 2000 is not decoded").toBe(false);
+  expect.soft(isRed(reading?.colors.cmyk), "and the rest of the PDF comes out anyway").toBe(true);
+});
 
-test("a tampered worker does not run and it warns", { tag: "@react" }, async ({ openApp }) => {
+test("a tampered worker does not run and it warns", async ({ openApp }) => {
   const app = await openApp({
     user: "admin",
     beforeNavigation: async (page) => {

@@ -98,7 +98,7 @@ export function cropCalibration(
   width: number,
   height: number,
 ): Calibration {
-  // Through JSON, as in the current app: the copy has no undefined, and a default it shares with
+  // Through JSON, as in the old app: the copy has no undefined, and a default it shares with
   // another flyer is not written on.
   const calibration: Calibration = JSON.parse(JSON.stringify(resolveCalibration(raw)));
   const toPicture = width / calibration.imgW;

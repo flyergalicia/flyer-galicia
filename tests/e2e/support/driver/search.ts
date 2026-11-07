@@ -27,8 +27,6 @@ export interface SearchDriver {
   shortcutWithoutSession(): Promise<{ opened: boolean; appKeptTheKey: boolean }>;
   /** Whether markup written as text became HTML in the list, or ran its script. */
   injectedMarkup(): Promise<{ ranScript: boolean; imageInList: boolean }>;
-  /** Gives the first flyer that exact name, past the filter that names go through on arrival. */
-  nameFirstFlyer(name: string): Promise<void>;
   panelColors(): Promise<{ background: string; text: string }>;
   panelLayout(): Promise<SearchPanelLayout>;
 }

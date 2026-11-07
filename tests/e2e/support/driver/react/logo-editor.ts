@@ -726,16 +726,5 @@ export function createReactLogoEditorDriver(page: Page): LogoEditorDriver {
       await window.getByRole("button", { name: "Guardar", exact: true }).click();
       await window.waitFor({ state: "detached", timeout: SHOWN_TIMEOUT_MS });
     },
-    // A person has no way to do these: the specs that use them stay without @react (logo-editor).
-    thumbnailWithPlacedLogoOutOfMemory: () => {
-      throw new Error(
-        "In React the memory of logos is not emptied by hand: a person cannot do it.",
-      );
-    },
-    placeBrandInArea: () => {
-      throw new Error(
-        "In React a brand comes from the catalog: a person cannot place one that is not in it.",
-      );
-    },
   };
 }

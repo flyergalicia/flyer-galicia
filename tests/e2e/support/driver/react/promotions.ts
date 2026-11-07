@@ -156,7 +156,6 @@ function createTableActions(page: Page) {
         .getByRole("button")
         .click();
     },
-    statusCounters: () => page.getByTestId("status-counter").allInnerTexts(),
     filterResults: (text: string) =>
       page.getByTestId("promotions-results-search").pressSequentially(text),
     resultsFilterHasFocus: () =>
@@ -167,12 +166,6 @@ function createTableActions(page: Page) {
       results(page).getByPlaceholder(hint, { exact: true }).first().fill(text),
     filterStatus: async (label: string) => {
       await page.getByRole("combobox", { name: "Filtrar por estado" }).selectOption({ label });
-    },
-    confirmMatchAgain: async (brand: string) => {
-      await page
-        .getByRole("combobox", { name: `Coincidencia de ${brand}` })
-        .first()
-        .selectOption({ index: 1 });
     },
     downloadSheet: async () => {
       const [download] = await Promise.all([
@@ -608,11 +601,5 @@ export function createReactPromotionsDriver(page: Page): PromotionsDriver {
     switchTab,
     // Until flyer-editor arrives, what the first tab of the header opens.
     backToFlyer: () => page.getByRole("banner").getByRole("tab").first().click(),
-    // It paints a picture on the page, which a person cannot do: its spec stays without @react.
-    findDaysTextOn: () => {
-      throw new Error(
-        "In React a person cannot paint a picture on the page to look for days in it.",
-      );
-    },
   };
 }

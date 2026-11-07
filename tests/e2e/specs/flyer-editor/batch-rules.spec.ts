@@ -7,7 +7,7 @@ const row = (empresa: string, sheetRow: number) => ({
   sheetRow,
 });
 
-test.describe("a batch", { tag: "@react" }, () => {
+test.describe("a batch", () => {
   test("the template carries the four officers", async ({ openApp }) => {
     const { flyerEditor } = await openApp();
     await flyerEditor.chooseEditorTab("Masivo");

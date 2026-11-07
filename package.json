@@ -18,14 +18,13 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "contract:record": "FLYER_RECORD_CONTRACT=1 playwright test --project=legacy",
+    "contract:record": "FLYER_RECORD_CONTRACT=1 playwright test --project=app",
     "perf:baseline": "node scripts/measure-performance.ts",
     "demo:commercial-actions": "node scripts/demo-commercial-actions.ts",
     "storybook": "storybook dev --port 6006",
     "storybook:build": "storybook build --output-dir storybook-static --quiet",
-    "legacy:build": "node scripts/legacy-build.ts",
     "db:types": "node scripts/generate-database-types.ts",
-    "ci": "npm run lint:policy && npm run format:check && npm run lint && npm run lint:boundaries && npm run typecheck && npm test && npm run release && npm run legacy:build && npm run storybook:build && npm run test:e2e"
+    "ci": "npm run lint:policy && npm run format:check && npm run lint && npm run lint:boundaries && npm run typecheck && npm test && npm run release && npm run storybook:build && npm run test:e2e"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

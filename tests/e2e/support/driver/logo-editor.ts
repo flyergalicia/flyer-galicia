@@ -246,11 +246,6 @@ export interface LogoEditorDriver {
   /** Index of the change the window would replace; -1 when it would add one. */
   pickerTargetIndex(): Promise<number>;
   textForm(): Promise<TextFormState>;
-  /**
-   * Presses Cambiar for the chosen logo right after its image left the memory, and reads the
-   * thumbnail in that very moment, before the image comes back.
-   */
-  thumbnailWithPlacedLogoOutOfMemory(index: number): Promise<PickerThumbnail>;
 
   // Logos as files.
   /** The app reads that drawing as an uploaded file: the logo it keeps and what it warned. */
@@ -263,8 +258,6 @@ export interface LogoEditorDriver {
   openPickerForArea(box: FlyerBox): Promise<void>;
   /** Presses the first brand of the window and returns right away, while its logo downloads. */
   pressFirstBrand(): Promise<void>;
-  /** Puts on a place a brand with that logo file. */
-  placeBrandInArea(box: FlyerBox, brand: { image: string; title: string }): Promise<void>;
 
   // Used by Estudio and by cropped flyers.
   /** Touches the logo at that point and writes that text in its place. */

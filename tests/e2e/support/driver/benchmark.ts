@@ -80,18 +80,6 @@ export interface BenchmarkCardFields {
   sourceUrl?: string;
 }
 
-export interface BenchmarkManualFields {
-  bank?: string;
-  rubro?: string;
-  title?: string;
-  percent?: string;
-  cap?: string;
-  capPerMonth?: boolean;
-  /** 0 is Monday. */
-  days?: number[];
-  condition?: string;
-}
-
 export interface BenchmarkWorkbook {
   sheetNames: string[];
   /** Every sheet by its name, header row included. */
@@ -125,8 +113,6 @@ export interface BenchmarkDriver {
 
   currentView(): Promise<BenchmarkView>;
   showView(view: BenchmarkView): Promise<void>;
-  /** Shows the page of promotions loaded by hand: no tab leads there on purpose. */
-  showHandLoadedPromotions(): Promise<void>;
 
   setProvince(province: string): Promise<void>;
   setRubro(rubro: string): Promise<void>;
@@ -178,7 +164,6 @@ export interface BenchmarkDriver {
   presentPromotion(row: Record<string, unknown>): Promise<BenchmarkPresentation>;
 
   editorIsOpen(): Promise<boolean>;
-  cancelEditor(): Promise<void>;
   /** Presses Guardar; it does not wait for the outcome. */
   saveEditor(): Promise<void>;
   waitForEditorClosed(): Promise<void>;
@@ -190,13 +175,6 @@ export interface BenchmarkDriver {
   fillCard(fields: BenchmarkCardFields): Promise<void>;
   /** Presses Quitar on the row of that card and confirms. */
   removeCard(bank: string, card: string): Promise<void>;
-
-  /** Presses "+ Agregar promo". */
-  startNewHandLoadedPromotion(): Promise<void>;
-  /** Presses Editar on the row of that promotion. */
-  editHandLoadedPromotion(bank: string, title: string): Promise<void>;
-  fillHandLoadedPromotion(fields: BenchmarkManualFields): Promise<void>;
-  handLoadedCondition(): Promise<string>;
 
   /** Downloads the Excel and reads it. */
   downloadExcel(): Promise<BenchmarkWorkbook>;

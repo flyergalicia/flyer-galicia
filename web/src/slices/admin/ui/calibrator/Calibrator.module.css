@@ -224,7 +224,7 @@
   font-size: var(--text-xs);
 }
 
-/* A label of the panel, as every label of the current app: in semibold, a little apart. */
+/* A label of the panel, as every label of the old app: in semibold, a little apart. */
 .label {
   display: block;
   margin-bottom: 3px;
@@ -453,7 +453,7 @@ select.field {
     flex-wrap: wrap;
   }
 
-  /* As every number field of the current app on a phone (the others have their own size). */
+  /* As every number field of the old app on a phone (the others have their own size). */
   .heightField {
     font-size: var(--text-phone);
   }

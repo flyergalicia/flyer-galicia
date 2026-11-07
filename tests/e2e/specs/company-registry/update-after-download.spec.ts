@@ -25,7 +25,7 @@ async function withCompany(cloud: Cloud, openApp: (o?: object) => Promise<Opened
   return app;
 }
 
-test.describe("after downloading a flyer", { tag: "@react" }, () => {
+test.describe("after downloading a flyer", () => {
   test("nothing is asked when nothing changed", async ({ cloud, openApp }) => {
     const { flyerEditor, companyRegistry } = await withCompany(cloud, openApp);
 

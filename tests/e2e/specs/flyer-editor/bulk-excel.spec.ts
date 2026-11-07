@@ -4,7 +4,7 @@ import { expect, test } from "../../support/test.ts";
 const NOT_FOUND = (what: string) => new RegExp(`No encontr.{1,3} la columna ${what}`);
 const ODD_HEADERS = ["EMPRESA", "Asesor1_Nombre ", "Asesor 1 Celular", "Cashback", "Columna rara"];
 
-test.describe("Masivo por Excel", { tag: "@react" }, () => {
+test.describe("Masivo por Excel", () => {
   test("understands headers written differently and reports the real row", async ({ openApp }) => {
     const { flyerEditor } = await openApp();
 

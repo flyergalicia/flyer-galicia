@@ -160,7 +160,6 @@ export interface SessionDriver {
   waitForConfirmation(): Promise<string>;
   /** Presses its button: the one that goes ahead, or the one that takes it back. */
   answerConfirmation(goAhead: boolean): Promise<void>;
-  confirmationOpen(): Promise<boolean>;
   /** Reloads the page and waits for the flyer it ends up in. */
   reload(option?: number): Promise<void>;
   modes(): Promise<AppModes>;
@@ -203,7 +202,6 @@ export interface SessionDriver {
   downloadDock(): Promise<DownloadDock>;
   /** The floating notices on screen at once. */
   noticesOnScreen(): Promise<number>;
-  showNotice(text: string): Promise<void>;
   /** The notice is showing right now. */
   noticeVisible(): Promise<boolean>;
   /** Keeps the mouse on "Descargar PDF" and reads the hint that appears. */

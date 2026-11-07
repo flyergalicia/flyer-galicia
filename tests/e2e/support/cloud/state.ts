@@ -63,7 +63,7 @@ export interface NetworkFault {
 
 /**
  * Everything the simulated cloud remembers. Each test gets its own through
- * createCloudState: this is what legacy tests reached as `nube.*`.
+ * createCloudState.
  */
 export interface CloudState {
   users: Record<string, CloudUser>;

@@ -1,6 +1,6 @@
 // The cut-over: what `vite build` left in dist/ goes to the root, which is what GitHub Pages
-// publishes. It runs after the build (`npm run release`) and touches only what it owns: assets/,
-// the files at the top of dist/ and the leftovers of the old build that must not stay published.
+// publishes. It runs after the build (`npm run release`) and touches only what it owns: assets/
+// and the files at the top of dist/.
 import { cpSync, existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { exit } from "node:process";
@@ -9,9 +9,6 @@ const DIST = "dist";
 const ASSETS = "assets";
 // What the page of dist/ needs to work, checked before anything in the root is touched.
 const REQUIRED = ["index.html", "version.json", ASSETS];
-// The old app on its own, with auth.js inside: it would keep a second version of the app
-// published, writing to the same data. The old build still writes it, into legacy-site/.
-export const RETIRED = ["index_export.html"];
 
 /** Names that the Jekyll step of GitHub Pages leaves out of the site. */
 function hiddenFromPages(name: string): boolean {
@@ -39,7 +36,6 @@ export function release(dist: string, root: string): string[] {
       cpSync(`${dist}/${name}`, `${root}/${name}`, { recursive: true });
       return statSync(`${dist}/${name}`).isDirectory() ? `${name}/` : name;
     });
-  for (const name of RETIRED) rmSync(`${root}/${name}`, { force: true });
   return written;
 }
 
@@ -47,7 +43,6 @@ if (import.meta.main) {
   try {
     const written = release(DIST, ".");
     console.log(`Root updated from ${DIST}/: ${written.join(", ")}`);
-    console.log(`Removed from the root: ${RETIRED.join(", ")}`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     console.error("Nothing was copied to the root.");

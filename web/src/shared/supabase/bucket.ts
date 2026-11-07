@@ -24,7 +24,7 @@ export type BucketImageFile =
   | `fuente_${number}.jpg`
   | `modo/${string}`;
 
-/** auth.js uploads these too, in paths no test of the contract goes through. */
+/** The app uploads these too, in paths no test of the contract goes through. */
 export type BucketUploadedAsset =
   | `index_${number}.html`
   | `_active_img.${"jpg" | "png"}`
@@ -84,7 +84,7 @@ export interface Bucket {
     options?: BucketListOptions,
   ) => Promise<Result<readonly BucketEntry[], BucketWriteFailure>>;
   /**
-   * auth.js deletes uploads and the files of an abandoned publication. Any name goes, because
+   * The app deletes uploads and the files of an abandoned publication. Any name goes, because
    * what it deletes comes from `list`.
    */
   readonly remove: (files: readonly string[]) => Promise<Result<void, BucketWriteFailure>>;

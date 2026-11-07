@@ -62,13 +62,6 @@ export interface FlyerDrawingDriver {
   clickPreviewWindowBackground(): Promise<void>;
   /** Drags from over the flyer and lets go outside it. */
   dragOutOfPreviewWindow(): Promise<void>;
-  /** Average color of a region of what a download would contain. */
-  downloadRegionColor(region: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }): Promise<number[]>;
   /** Average color of the same region of the artwork alone. */
   artworkRegionColor(region: {
     x: number;

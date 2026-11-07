@@ -1,28 +1,21 @@
 import { argv, env } from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 import { overlayScrollbarsLaunch } from "./tests/e2e/support/browser/overlay-scrollbars.ts";
-import { type StorybookOption, type TargetOption } from "./tests/e2e/support/target.ts";
+import { type StorybookOption } from "./tests/e2e/support/storybook.ts";
 
-const LEGACY_PORT = Number(env.FLYER_LEGACY_PORT ?? 8767);
-const PREVIEW_PORT = 8766;
+const APP_PORT = 8766;
 const STORYBOOK_PORT = 8768;
 // Same path GitHub Pages publishes the site under.
 const PUBLISHED_PATH = "/flyer-galicia/";
 const isCi = Boolean(env.CI);
 
-// `npm run legacy:build` first: the current app is built into legacy-site/, not into the root.
-const LEGACY_SERVER = {
-  command: `node scripts/serve-static.ts --port ${LEGACY_PORT}`,
-  env: { FLYER_STATIC_ROOT: env.FLYER_STATIC_ROOT ?? "legacy-site" },
-  url: `http://127.0.0.1:${LEGACY_PORT}/index.html`,
-  reuseExistingServer: false,
-};
-// `npm run release` first: the React app is tested as the root holds it, which is what Pages
-// publishes, and under the same path.
-const PREVIEW_SERVER = {
-  command: `node scripts/serve-static.ts --port ${PREVIEW_PORT}`,
-  env: { FLYER_STATIC_ROOT: ".", FLYER_BASE_PATH: PUBLISHED_PATH },
-  url: `http://127.0.0.1:${PREVIEW_PORT}${PUBLISHED_PATH}`,
+// `npm run release` first: the app is tested as the root holds it, which is what Pages publishes,
+// and under the same path. FLYER_STATIC_ROOT serves another folder instead, such as a copy of the
+// root with a rule broken on purpose.
+const APP_SERVER = {
+  command: `node scripts/serve-static.ts --port ${APP_PORT}`,
+  env: { FLYER_STATIC_ROOT: env.FLYER_STATIC_ROOT ?? ".", FLYER_BASE_PATH: PUBLISHED_PATH },
+  url: `http://127.0.0.1:${APP_PORT}${PUBLISHED_PATH}`,
   reuseExistingServer: false,
 };
 
@@ -34,7 +27,7 @@ const STORYBOOK_SERVER = {
   reuseExistingServer: false,
 };
 
-/** Asked with --project, only that project's server starts: `legacy` runs without a build. */
+/** Asked with --project, only that project's server starts. */
 function asksOnlyFor(project: string): boolean {
   const asked = argv.flatMap((argument, index) => {
     if (argument === "--project") return [argv[index + 1]];
@@ -44,14 +37,13 @@ function asksOnlyFor(project: string): boolean {
 }
 
 function webServers() {
-  if (asksOnlyFor("legacy")) return [LEGACY_SERVER];
-  if (asksOnlyFor("react")) return [PREVIEW_SERVER];
-  if (asksOnlyFor("design-system")) return [LEGACY_SERVER, STORYBOOK_SERVER];
+  if (asksOnlyFor("app")) return [APP_SERVER];
+  if (asksOnlyFor("design-system")) return [STORYBOOK_SERVER];
   if (asksOnlyFor("flyer-engine")) return [STORYBOOK_SERVER];
-  return [LEGACY_SERVER, PREVIEW_SERVER, STORYBOOK_SERVER];
+  return [APP_SERVER, STORYBOOK_SERVER];
 }
 
-export default defineConfig<TargetOption & StorybookOption>({
+export default defineConfig<StorybookOption>({
   testDir: "tests/e2e/specs",
   fullyParallel: true,
   forbidOnly: isCi,
@@ -63,7 +55,7 @@ export default defineConfig<TargetOption & StorybookOption>({
   globalTeardown: "./tests/e2e/support/cloud/contract-teardown.ts",
   // Screenshot and flyer baselines depend on the platform, so CI does not compare them.
   ...(isCi ? { grepInvert: /@visual|@golden/ } : {}),
-  // No project in the path: the React app is compared against the images of the current app.
+  // No project in the path: the app is compared against the images taken of the old one.
   snapshotPathTemplate: "tests/fixtures/visual/{platform}/{arg}{ext}",
   expect: {
     toHaveScreenshot: {
@@ -80,26 +72,15 @@ export default defineConfig<TargetOption & StorybookOption>({
   },
   projects: [
     {
-      name: "legacy",
-      testIgnore: ["**/specs/build/**", "**/specs/design-system/**", "**/specs/flyer-engine/**"],
-      use: {
-        ...devices["Desktop Chrome"],
-        baseURL: `http://127.0.0.1:${LEGACY_PORT}/`,
-        target: "legacy",
-      },
-    },
-    {
-      name: "react",
+      name: "app",
       testIgnore: ["**/specs/design-system/**", "**/specs/flyer-engine/**"],
-      grep: /@react/,
       use: {
         ...devices["Desktop Chrome"],
-        baseURL: `http://127.0.0.1:${PREVIEW_PORT}${PUBLISHED_PATH}`,
-        target: "react",
+        baseURL: `http://127.0.0.1:${APP_PORT}${PUBLISHED_PATH}`,
       },
     },
     {
-      // The new engine against the printed flyer stored from the current app.
+      // The engine against the printed flyer stored from the old app.
       name: "flyer-engine",
       testMatch: "**/specs/flyer-engine/**",
       use: {
@@ -108,13 +89,12 @@ export default defineConfig<TargetOption & StorybookOption>({
       },
     },
     {
-      // shared against the current app: the tokens, the look of each component and the network.
+      // shared against what was frozen from the old app in tests/fixtures/design-system/: the
+      // tokens and the look of each component; and against the recorded network contract.
       name: "design-system",
       testMatch: "**/specs/design-system/**",
       use: {
         ...devices["Desktop Chrome"],
-        baseURL: `http://127.0.0.1:${LEGACY_PORT}/`,
-        target: "legacy",
         storybookUrl: `http://127.0.0.1:${STORYBOOK_PORT}/`,
       },
     },

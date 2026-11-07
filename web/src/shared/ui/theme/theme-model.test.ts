@@ -20,7 +20,7 @@ const broken = {
 };
 
 describe("saved appearance", () => {
-  it("reads what the current app saved, with the same keys and values", () => {
+  it("reads what the old app saved, with the same keys and values", () => {
     const saved = storage({ fg_theme: "dark", fg_palette: "t-grafito" });
     expect(readStoredDark(saved)).toBe(true);
     expect(readStoredPalette(saved)).toBe("grafito");

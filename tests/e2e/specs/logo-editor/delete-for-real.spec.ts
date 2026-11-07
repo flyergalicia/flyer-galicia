@@ -4,7 +4,7 @@ import { adjustBar, button } from "./editor-toolbars.ts";
 
 const PLACE = { x: 140, y: 2650, width: 300, height: 110 };
 
-test.describe("deleting a logo", { tag: "@react" }, () => {
+test.describe("deleting a logo", () => {
   test("Supr leaves the place empty, which then only offers adding", async ({ openApp }) => {
     const app = await openApp();
     await app.logoEditor.enter();

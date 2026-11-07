@@ -1,6 +1,6 @@
 /*
- * Design tokens. The values come from the current app (_source.html and _newcss.txt) and the
- * design-system project checks them against it: change them only on purpose.
+ * Design tokens. The values come from the old app, and the design-system project checks them
+ * against what was frozen from it in tests/fixtures/design-system/: change them only on purpose.
  * Each palette is a class on <html>, and .dark goes on top of any of them.
  */
 :root {
@@ -380,7 +380,7 @@ html.dark {
   --weight-bold: 700;
   --weight-heavy: 800;
 
-  /* Spaces: the ones the screens of the current app use. */
+  /* Spaces: the ones the screens of the old app use. */
   --space-2xs: 2px;
   --space-xs: 3px;
   --space-s: 5px;
@@ -629,7 +629,7 @@ html.dark {
   --ges-b1: #f5b79a;
   --ges-grid: #ede7dc;
   --ges-window-ov: rgba(20, 18, 15, 0.45);
-  /* A button with no look of its own on the current app: what a button of the system brings. */
+  /* A button with no look of its own on the old app: what a button of the system brings. */
   --system-button-bg: #efefef;
   --system-button-tx: #000;
   --register-action-bg: var(--system-button-bg);
@@ -643,7 +643,7 @@ html.dark {
   --bench-best-row: rgba(242, 97, 34, 0.08);
   /* A text field with the focus: in dark mode its border does not light up, only its ring. */
   --bench-focus-line: var(--accent);
-  /* Labels go gray; in dark mode the rule of every label of the current app makes them lighter. */
+  /* Labels go gray; in dark mode the rule of every label of the old app makes them lighter. */
   --bench-label-tx: var(--gray);
 
   /* The panel of the administrator. */
@@ -930,7 +930,7 @@ html.dark {
   --flyer-window-tx: #e9e9ea;
   --calibrator-body-bg: #15161a;
   --calibrator-select-bg: #22242a;
-  /* As every text field of the current app in dark mode. */
+  /* As every text field of the old app in dark mode. */
   --calibrator-text-bg: var(--field);
   --calibrator-text-tx: var(--ink);
   --calibrator-text-line: var(--border);

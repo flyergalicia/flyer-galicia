@@ -44,7 +44,7 @@ function copyPresent(from: FlyerValues, keys: readonly string[], to: Record<stri
   }
 }
 
-/** The order of the keys is the one of the current app: what reads them only looks for them. */
+/** The order of the keys is the one of the old app: what reads them only looks for them. */
 export function flyerUseDetail({ values, option, usesSecondCap }: FlyerUse): string {
   const detail: Record<string, unknown> = { opcion: option };
   copyPresent(values, PLAIN_FIELDS, detail);

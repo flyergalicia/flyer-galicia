@@ -76,7 +76,7 @@ describe("the window of the saved advisors", () => {
     await expect.element(page.getByRole("status")).toHaveTextContent('Asesor "Julieta" cargado');
   });
 
-  it("leaves the mark of the mail as it was, as in the current app: a new name suggests over it", async () => {
+  it("leaves the mark of the mail as it was, as in the old app: a new name suggests over it", async () => {
     const { popup, form } = await open(ROWS, 0);
     await popup.getByRole("button", { name: "Julieta" }).click();
     expect(form().getState().officers[0]?.email).toBe("j@b.com");

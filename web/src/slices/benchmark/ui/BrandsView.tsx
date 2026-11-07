@@ -11,7 +11,7 @@ import { galiciaClass } from "./galicia-class.ts";
 import { BankHeaders } from "./TableParts.tsx";
 import styles from "./BenchmarkView.module.css";
 
-/** The search waits a moment after the last key, as the current app does. */
+/** The search waits a moment after the last key, as the old app does. */
 const SEARCH_WAIT_MS = 180;
 
 function resultLabel(result: BrandResult, other: string): string {

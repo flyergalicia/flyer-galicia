@@ -82,8 +82,6 @@ export interface StudioDriver {
   headerMessages(): Promise<HeaderMessages>;
   /** What the app knows without opening Estudio: open questions on my designs. */
   openQuestions(): Promise<number>;
-  /** And how many designs were shared with me. */
-  sharedWithMe(): Promise<number>;
   waitForOpenQuestions(count: number): Promise<void>;
   waitForSharedWithMe(count: number): Promise<void>;
   /** The explanation under the Estudio title. */

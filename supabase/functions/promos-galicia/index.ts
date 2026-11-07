@@ -18,7 +18,7 @@
 // cliente para mostrar/ocultar la pestaña, pero validado acá del lado
 // servidor: la facultad del cliente es sólo interfaz, esto es lo que de
 // verdad autoriza o rechaza).
-// Versión FIJA, la misma que usa la app (SUPABASE_JS_URL en _build.mjs): con "@2"
+// Versión FIJA, la misma que usa la app (package.json): con "@2"
 // cada deploy tomaba la última 2.x que hubiera, sin que nadie la probara.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 

@@ -64,7 +64,7 @@ function addSummary(workbook: Workbook, lines: readonly Cell[][]): void {
   sheet.getColumn(2).width = 46;
   for (const line of lines) sheet.addRow([...line]);
   sheet.getRow(1).font = { bold: true, size: 14 };
-  // As the current app does: since ICBC joined, the 20th line is a bank and not a title.
+  // As the old app does: since ICBC joined, the 20th line is a bank and not a title.
   for (const line of BOLD_LINES) sheet.getRow(line).font = { bold: true };
   for (const line of AMOUNT_LINES) sheet.getRow(line).getCell(2).numFmt = MONEY;
 }

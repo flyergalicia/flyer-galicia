@@ -23,7 +23,7 @@ const DAY_WORDS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábad
 /** "Martes y jueves"; without days, or with all of them, "Todos los días". */
 export function daysText(days: readonly number[] | null | undefined): string {
   if (!days || days.length === 0 || days.length === 7) return "Todos los días";
-  // Sorted as text, as the current app does: with one digit it is the same.
+  // Sorted as text, as the old app does: with one digit it is the same.
   const words = days
     .map(String)
     .toSorted()

@@ -1,6 +1,6 @@
 // Config → Opciones: the list of flyers, adding one, what replaces what, its category, taking one out,
 // and saving the whole list for everybody: as today, without what replaces what, the category or the
-// version without cashback of the rows not touched (an error of the current version, ported as it is).
+// version without cashback of the rows not touched (an error of the old version, ported as it is).
 import { createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { page } from "vitest/browser";

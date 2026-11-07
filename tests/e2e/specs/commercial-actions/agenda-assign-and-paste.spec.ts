@@ -33,7 +33,7 @@ function idOf(cloud: Cloud, person: string): string {
   return cloud.users[person]?.id ?? "";
 }
 
-test.describe("Asignar from the agenda", { tag: "@react" }, () => {
+test.describe("Asignar from the agenda", () => {
   test("the company is searched in the database, chosen and goes with its officer", async ({
     cloud,
     openApp,
@@ -200,7 +200,7 @@ test.describe("Asignar from the agenda", { tag: "@react" }, () => {
   });
 });
 
-test.describe("Pegar desde Excel", { tag: "@react" }, () => {
+test.describe("Pegar desde Excel", () => {
   const TWO_GOOD = [
     `${DAY}\t10 a 12\t${TEXTIL}\tSofía\tPiso 3`,
     `Feria\t${DAY}\t14 a 15\tTomás Ríos\t${LOGISTICA}`,

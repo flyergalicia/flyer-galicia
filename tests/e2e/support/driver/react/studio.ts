@@ -408,7 +408,6 @@ function readingsDriver(page: Page) {
     },
     openQuestions: () =>
       page.evaluate(() => window["__flyerProbe"]?.studioNotices?.().questions ?? 0),
-    sharedWithMe: () => page.evaluate(() => window["__flyerProbe"]?.studioNotices?.().shared ?? 0),
     waitForOpenQuestions: (count: number) =>
       page
         .waitForFunction((n) => window["__flyerProbe"]?.studioNotices?.().questions === n, count, {

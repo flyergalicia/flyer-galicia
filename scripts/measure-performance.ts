@@ -1,5 +1,6 @@
-// Measures the current app on the simulated cloud and keeps the numbers the React rewrite has to
-// beat: `npm run perf:baseline`. It is not part of `npm run ci`.
+// Measures the app the root holds (`npm run release` first) on the simulated cloud and keeps the
+// numbers that build/weight-budget compares against: `npm run perf:baseline`. It is not part of
+// `npm run ci`, and it replaces the reference: only on purpose, looking at the difference.
 import { writeFileSync } from "node:fs";
 import { arch, cpus, platform } from "node:os";
 import { chromium, type Browser } from "@playwright/test";
@@ -32,7 +33,6 @@ async function measureRun(browser: Browser, url: string, clockOffset: number): P
   const { context } = await launchApp({
     browser,
     cloud: createCloud(),
-    target: "legacy",
     baseURL: url,
     clockOffset,
     options: {

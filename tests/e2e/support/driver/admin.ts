@@ -134,7 +134,6 @@ export interface AdminDriver {
   optionRows(): Promise<OptionRow[]>;
   pressAddOption(): Promise<void>;
   renameOptionRow(index: number, name: string): Promise<void>;
-  chooseOptionTab(index: number, tab: string): Promise<void>;
   chooseOptionReplaces(index: number, label: string): Promise<void>;
   saveOptions(): Promise<void>;
 

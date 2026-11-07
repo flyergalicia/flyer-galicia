@@ -1,5 +1,6 @@
-// Commercial actions demo to try by hand, without touching the platform: it opens real windows
-// with the simulated cloud and made-up data. What one person does, the other sees live.
+// Commercial actions demo to try by hand, without touching the platform: it opens real windows of
+// the app the root holds (`npm run release` first) with the simulated cloud and made-up data. What
+// one person does, the other sees when the app reads it again.
 //   npm run demo:commercial-actions                     officer, hunter and leader
 //   npm run demo:commercial-actions -- oficial hunter2  only those people
 //   npm run demo:commercial-actions -- --check          no windows: opens everything and closes
@@ -23,7 +24,6 @@ const DEFAULT_PEOPLE = ["oficial", "hunter", "lider"];
 const CHECK_FLAG = "--check";
 const WINDOW_ARGS = ["--window-size=1300,860"];
 const VIEWPORT = { width: 1280, height: 780 };
-const NOTICES_EVERY_MS = 15_000;
 const WHAT_TO_TRY = [
   "",
   "Qué probar:",
@@ -38,7 +38,7 @@ const WHAT_TO_TRY = [
   "  LÍDER (Laura Méndez):",
   '   · Agenda del equipo: bandejas "Por asignar" y "Piden que se la pasen a otro"; tocá Asignar / Cambiar hunter.',
   "",
-  "Los avisos entre ventanas llegan solos cada 15 segundos (o cambiando de solapa).",
+  "Los avisos entre ventanas llegan solos cada 90 segundos (o cambiando de solapa).",
   "Para terminar: cerrá las ventanas o Ctrl+C acá.",
 ].join("\n");
 
@@ -68,7 +68,6 @@ async function openWindows(
     const opened = await launchApp({
       browser,
       cloud,
-      target: "legacy",
       baseURL: url,
       // Today's real date: the demo does not need the fixed moment of the tests.
       clockOffset: 0,
@@ -82,7 +81,7 @@ async function openWindows(
     // oxlint-disable-next-line no-await-in-loop -- the same
     await opened.app.commercialActions.open();
     // oxlint-disable-next-line no-await-in-loop -- the same
-    await opened.app.commercialActions.prepareForDemo(NOTICES_EVERY_MS);
+    await opened.app.commercialActions.prepareForDemo(`Demo · ${person} · Gestiones`);
     windows.push(opened);
   }
   return windows;

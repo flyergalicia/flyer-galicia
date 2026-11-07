@@ -3,7 +3,6 @@ import { AUTH_STORAGE_KEY, type Cloud, type CloudUser, storedSession } from "./c
 import { moveClock } from "./clock.ts";
 import { type AppDriver, createAppDriver } from "./driver/app-driver.ts";
 import { installLogoRoute } from "./logos.ts";
-import { type AppTarget } from "./target.ts";
 
 const DEFAULT_VIEWPORT = { width: 1366, height: 800 };
 
@@ -42,7 +41,6 @@ export interface OpenedApp extends AppDriver {
 export interface LaunchInputs {
   browser: Browser;
   cloud: Cloud;
-  target: AppTarget;
   baseURL: string | undefined;
   clockOffset: number;
   options: OpenAppOptions;
@@ -73,7 +71,7 @@ function seedLocalStorage(session: [string, string | null, Record<string, string
 }
 
 export async function launchApp(inputs: LaunchInputs): Promise<LaunchedApp> {
-  const { browser, cloud, target, baseURL, clockOffset, options } = inputs;
+  const { browser, cloud, baseURL, clockOffset, options } = inputs;
   const user = resolveUser(cloud, options.user);
   const context = await browser.newContext({
     ...(baseURL === undefined ? {} : { baseURL }),
@@ -105,7 +103,7 @@ export async function launchApp(inputs: LaunchInputs): Promise<LaunchedApp> {
   ] satisfies [string, string | null, Record<string, string>]);
   await options.beforeNavigation?.(page);
 
-  const driver = createAppDriver(page, target);
+  const driver = createAppDriver(page);
   await driver.session.open({
     role: user.role,
     waitUntilReady: options.waitUntilReady ?? true,

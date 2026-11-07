@@ -59,177 +59,163 @@ function withCategoryFlyer(cloud: Cloud, calibration: Record<string, unknown> = 
 }
 
 test.describe("Flyer Galicia", () => {
-  test(
-    "draws the four amounts and the amounts change with the configuration",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      cloud.bucketJson["_cashback.json"] = {
-        configs: [
-          { nombre: "BAU", m1: "$250.000", m2: "$180.000", m3: "$80.000", m4: "$30.000" },
-          { nombre: "Config 1", m1: "$111.000", m2: "$11.000", m3: "$1.100", m4: "$110" },
-        ],
-      };
-      const { flyerDrawing, flyerEditor } = await openApp();
+  test("draws the four amounts and the amounts change with the configuration", async ({
+    cloud,
+    openApp,
+  }) => {
+    cloud.bucketJson["_cashback.json"] = {
+      configs: [
+        { nombre: "BAU", m1: "$250.000", m2: "$180.000", m3: "$80.000", m4: "$30.000" },
+        { nombre: "Config 1", m1: "$111.000", m2: "$11.000", m3: "$1.100", m4: "$110" },
+      ],
+    };
+    const { flyerDrawing, flyerEditor } = await openApp();
 
-      const base = textsOf(await flyerDrawing.draw());
-      for (const amount of AMOUNTS) expect.soft(base, amount).toContain(amount);
+    const base = textsOf(await flyerDrawing.draw());
+    for (const amount of AMOUNTS) expect.soft(base, amount).toContain(amount);
 
-      await flyerEditor.chooseCashback("Config 1");
-      const other = textsOf(await flyerDrawing.draw());
-      expect.soft(other).toContain("$111.000");
-      expect.soft(other).not.toContain("$250.000");
-    },
-  );
+    await flyerEditor.chooseCashback("Config 1");
+    const other = textsOf(await flyerDrawing.draw());
+    expect.soft(other).toContain("$111.000");
+    expect.soft(other).not.toContain("$250.000");
+  });
 
-  test(
-    "a company with no cashback still covers the zone, with no number",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      withCompanyWithoutCashback(cloud);
-      const app = await openApp();
-      const covered = (await app.flyerDrawing.draw()).rectangles.length;
+  test("a company with no cashback still covers the zone, with no number", async ({
+    cloud,
+    openApp,
+  }) => {
+    withCompanyWithoutCashback(cloud);
+    const app = await openApp();
+    const covered = (await app.flyerDrawing.draw()).rectangles.length;
 
-      await bringCompanyWithoutCashback(app);
+    await bringCompanyWithoutCashback(app);
 
-      const drawn = await app.flyerDrawing.draw();
-      for (const amount of AMOUNTS) expect.soft(textsOf(drawn), amount).not.toContain(amount);
-      expect.soft(drawn.rectangles.length, "the same zones are covered").toBe(covered);
-    },
-  );
+    const drawn = await app.flyerDrawing.draw();
+    for (const amount of AMOUNTS) expect.soft(textsOf(drawn), amount).not.toContain(amount);
+    expect.soft(drawn.rectangles.length, "the same zones are covered").toBe(covered);
+  });
 
-  test(
-    "the color that covers the amounts comes from the artwork and not from the zoom",
-    { tag: "@react" },
-    async ({ openApp }) => {
-      const { flyerDrawing, flyerEditor } = await openApp();
-      const region = { x: 506, y: 790, width: BOX_WIDTH, height: 4 };
+  test("the color that covers the amounts comes from the artwork and not from the zoom", async ({
+    openApp,
+  }) => {
+    const { flyerDrawing, flyerEditor } = await openApp();
+    const region = { x: 506, y: 790, width: BOX_WIDTH, height: 4 };
 
-      await flyerEditor.setZoom(1);
-      const near = await flyerDrawing.previewCoverColors();
-      await flyerEditor.setZoom(0.4);
-      const far = await flyerDrawing.previewCoverColors();
+    await flyerEditor.setZoom(1);
+    const near = await flyerDrawing.previewCoverColors();
+    await flyerEditor.setZoom(0.4);
+    const far = await flyerDrawing.previewCoverColors();
 
-      expect.soft(near.length, "something is covered").toBeGreaterThan(0);
-      expect.soft(far, "seen closer or farther it is the same color").toEqual(near);
+    expect.soft(near.length, "something is covered").toBeGreaterThan(0);
+    expect.soft(far, "seen closer or farther it is the same color").toEqual(near);
 
-      const artwork = await flyerDrawing.artworkRegionColor(region);
-      const [red = 0, green = 0, blue = 0] = artwork;
-      const covers = (await flyerDrawing.draw()).rectangles
-        .filter(({ width }) => width === BOX_WIDTH)
-        .map(({ color }) => color);
-      const parsed = covers.flatMap((color) => {
-        const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
-        return match ? [match.slice(1).map((part) => Number.parseInt(part, 16))] : [];
-      });
-      expect.soft(parsed.length, "colors are read").toBeGreaterThan(0);
-      for (const [r = 0, g = 0, b = 0] of parsed) {
-        const distance = Math.max(Math.abs(r - red), Math.abs(g - green), Math.abs(b - blue));
-        expect.soft(distance, "it is the tone printed right above").toBeLessThan(MAX_TONE_DISTANCE);
-      }
-    },
-  );
+    const artwork = await flyerDrawing.artworkRegionColor(region);
+    const [red = 0, green = 0, blue = 0] = artwork;
+    const covers = (await flyerDrawing.draw()).rectangles
+      .filter(({ width }) => width === BOX_WIDTH)
+      .map(({ color }) => color);
+    const parsed = covers.flatMap((color) => {
+      const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
+      return match ? [match.slice(1).map((part) => Number.parseInt(part, 16))] : [];
+    });
+    expect.soft(parsed.length, "colors are read").toBeGreaterThan(0);
+    for (const [r = 0, g = 0, b = 0] of parsed) {
+      const distance = Math.max(Math.abs(r - red), Math.abs(g - green), Math.abs(b - blue));
+      expect.soft(distance, "it is the tone printed right above").toBeLessThan(MAX_TONE_DISTANCE);
+    }
+  });
 
-  test(
-    "two by two amounts go where each box says",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      const montos = {
-        y: 824,
-        fs: 46,
-        mh: 46,
-        bg: hex("f4e0d3"),
-        boxes: [
-          { xc: 626, ew: 240, col: "#1d4070" },
-          { xc: 890, ew: 240, col: "#1d4070" },
-          { xc: 626, ew: 240, y: 905, col: ORANGE },
-          { xc: 890, ew: 240, y: 905, col: ORANGE },
-        ],
-      };
-      cloud.addFlyerOption({
-        option: 6,
-        name: "Mixto",
-        image: "flyer_t6.jpg?v=1",
-        legal: "L",
-        calibration: { montos },
-      });
-      cloud.setPermissions("asesor", { opcion_6: true, opcion_9: false });
-      const { flyerDrawing } = await openApp({ startOption: 6 });
+  test("two by two amounts go where each box says", async ({ cloud, openApp }) => {
+    const montos = {
+      y: 824,
+      fs: 46,
+      mh: 46,
+      bg: hex("f4e0d3"),
+      boxes: [
+        { xc: 626, ew: 240, col: "#1d4070" },
+        { xc: 890, ew: 240, col: "#1d4070" },
+        { xc: 626, ew: 240, y: 905, col: ORANGE },
+        { xc: 890, ew: 240, y: 905, col: ORANGE },
+      ],
+    };
+    cloud.addFlyerOption({
+      option: 6,
+      name: "Mixto",
+      image: "flyer_t6.jpg?v=1",
+      legal: "L",
+      calibration: { montos },
+    });
+    cloud.setPermissions("asesor", { opcion_6: true, opcion_9: false });
+    const { flyerDrawing } = await openApp({ startOption: 6 });
 
-      const { texts } = await flyerDrawing.draw();
-      const [first, second, third, fourth] = AMOUNTS.map(
-        (amount) =>
-          texts.find(({ text }) => text === amount) ?? {
-            x: -1,
-            y: -1,
-            color: "",
-            text: "",
-            font: "",
-          },
-      );
-      expect.soft(first?.y, "first row").toBe(second?.y);
-      expect.soft(third?.y, "second row").toBe(fourth?.y);
-      expect.soft(third?.y, "below").toBeGreaterThan(first?.y ?? 0);
-      expect.soft(third?.x, "one column").toBe(first?.x);
-      expect.soft(first?.color, "each with its color").toBe("#1d4070");
-      expect.soft(third?.color).toBe(ORANGE);
-    },
-  );
+    const { texts } = await flyerDrawing.draw();
+    const [first, second, third, fourth] = AMOUNTS.map(
+      (amount) =>
+        texts.find(({ text }) => text === amount) ?? {
+          x: -1,
+          y: -1,
+          color: "",
+          text: "",
+          font: "",
+        },
+    );
+    expect.soft(first?.y, "first row").toBe(second?.y);
+    expect.soft(third?.y, "second row").toBe(fourth?.y);
+    expect.soft(third?.y, "below").toBeGreaterThan(first?.y ?? 0);
+    expect.soft(third?.x, "one column").toBe(first?.x);
+    expect.soft(first?.color, "each with its color").toBe("#1d4070");
+    expect.soft(third?.color).toBe(ORANGE);
+  });
 });
 
 test.describe("Flyer Sueldo", () => {
-  test(
-    "is its own tab, with a single amount: the biggest, in the orange of the flyer",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      withSalaryFlyer(cloud);
-      const { session, flyerDrawing } = await openApp({ startOption: 7 });
+  test("is its own tab, with a single amount: the biggest, in the orange of the flyer", async ({
+    cloud,
+    openApp,
+  }) => {
+    withSalaryFlyer(cloud);
+    const { session, flyerDrawing } = await openApp({ startOption: 7 });
 
-      expect.soft(await session.activeHeaderTab()).toMatch(/Sueldo/);
-      const { texts } = await flyerDrawing.draw();
-      const amount = texts.filter(({ text }) => AMOUNTS.includes(text));
-      expect
-        .soft(
-          amount.map(({ text }) => text),
-          "one amount and the biggest",
-        )
-        .toEqual(["$250.000"]);
-      expect.soft(amount[0]?.color, "the orange of the PDF").toBe(ORANGE);
-    },
-  );
+    expect.soft(await session.activeHeaderTab()).toMatch(/Sueldo/);
+    const { texts } = await flyerDrawing.draw();
+    const amount = texts.filter(({ text }) => AMOUNTS.includes(text));
+    expect
+      .soft(
+        amount.map(({ text }) => text),
+        "one amount and the biggest",
+      )
+      .toEqual(["$250.000"]);
+    expect.soft(amount[0]?.color, "the orange of the PDF").toBe(ORANGE);
+  });
 
-  test(
-    "a company with no cashback covers its zone with the real background",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      withSalaryFlyer(cloud);
-      withCompanyWithoutCashback(cloud);
-      const app = await openApp({ startOption: 7 });
-      const before = await app.flyerDrawing.draw();
+  test("a company with no cashback covers its zone with the real background", async ({
+    cloud,
+    openApp,
+  }) => {
+    withSalaryFlyer(cloud);
+    withCompanyWithoutCashback(cloud);
+    const app = await openApp({ startOption: 7 });
+    const before = await app.flyerDrawing.draw();
 
-      await bringCompanyWithoutCashback(app);
+    await bringCompanyWithoutCashback(app);
 
-      const after = await app.flyerDrawing.draw();
-      expect.soft(textsOf(after)).not.toContain("$250.000");
-      expect.soft(after.rectangles.length, "it still covers").toBe(before.rectangles.length);
-      expect
-        .soft(sentence(after), "and {cashback} in the legal goes blank too")
-        .not.toMatch(/\$250\.000/);
-    },
-  );
+    const after = await app.flyerDrawing.draw();
+    expect.soft(textsOf(after)).not.toContain("$250.000");
+    expect.soft(after.rectangles.length, "it still covers").toBe(before.rectangles.length);
+    expect
+      .soft(sentence(after), "and {cashback} in the legal goes blank too")
+      .not.toMatch(/\$250\.000/);
+  });
 
-  test(
-    "the legal says the same amount as the orange number",
-    { tag: "@react" },
-    async ({ cloud, openApp }) => {
-      withSalaryFlyer(cloud);
-      const { flyerDrawing } = await openApp({ startOption: 7 });
+  test("the legal says the same amount as the orange number", async ({ cloud, openApp }) => {
+    withSalaryFlyer(cloud);
+    const { flyerDrawing } = await openApp({ startOption: 7 });
 
-      expect.soft(sentence(await flyerDrawing.draw())).toContain("El cashback es $250.000");
-    },
-  );
+    expect.soft(sentence(await flyerDrawing.draw())).toContain("El cashback es $250.000");
+  });
 });
 
-test.describe("Flyer Rubros", { tag: "@react" }, () => {
+test.describe("Flyer Rubros", () => {
   test("is its own tab and adds the benefit lines, with the company and its cap", async ({
     cloud,
     openApp,

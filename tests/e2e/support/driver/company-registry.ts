@@ -219,11 +219,8 @@ export interface CompanyRegistryDriver {
   advisorsInDatabase(): Promise<string[]>;
   editAdvisorInDatabase(row: number, name: string): Promise<void>;
   saveAdvisorsInDatabase(): Promise<void>;
-  /** The company screen an administrator uses to look at someone else's list. */
-  openOtherUsersCompanies(): Promise<void>;
   otherUsersOffered(): Promise<string[]>;
   chooseOtherUser(name: string): Promise<void>;
-  otherUserCompanies(): Promise<string[]>;
   otherUserScreenHasEditing(): Promise<boolean>;
   /** Makes the current flyer eligible as a category, of that kind when one is given. */
   offerCurrentFlyerAsCategory(kind?: string): Promise<number>;

@@ -1,7 +1,7 @@
 // Config → Opciones: a copy of the list of flyers that is edited and, only on saving, goes to
 // everybody. As today, the copy is the one of the flyer bar (`_opcListaActual`): it has not what each
 // option replaces, its category or its version without cashback, so each row shows none and saving
-// takes them out of every row not touched. An error of the current version, ported as it is: it is
+// takes them out of every row not touched. An error of the old version, ported as it is: it is
 // a decision of the owner (see etapa4-avance).
 import {
   activeOptionOfKind,

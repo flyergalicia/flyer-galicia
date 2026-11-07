@@ -18,7 +18,7 @@ async function readCashback(bucket: Backend["bucket"]): Promise<readonly Cashbac
 }
 
 export interface CashbackValue {
-  /** Without the file, or until it arrives, the ones of always, as the current app does. */
+  /** Without the file, or until it arrives, the ones of always, as the old app does. */
   readonly configs: readonly CashbackConfig[];
   readonly names: readonly string[];
   readonly settled: boolean;

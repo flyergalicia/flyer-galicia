@@ -44,48 +44,45 @@ function column(lines: unknown[][], title: string): unknown[] {
   return rows.map((row) => row[index]);
 }
 
-test(
-  "the Excel carries the numbers on screen and only the actions of the filter",
-  { tag: "@react" },
-  async ({ cloud, openApp }) => {
-    cloud.seedCommercialActions();
-    const { commercialActions: actions, page } = await openAsTeamMember(openApp, "officer");
-    await actions.goToTab("dashboard");
-    await actions.choosePeriod("Todo");
-    const figures = await actions.dashboardFigures();
+test("the Excel carries the numbers on screen and only the actions of the filter", async ({
+  cloud,
+  openApp,
+}) => {
+  cloud.seedCommercialActions();
+  const { commercialActions: actions, page } = await openAsTeamMember(openApp, "officer");
+  await actions.goToTab("dashboard");
+  await actions.choosePeriod("Todo");
+  const figures = await actions.dashboardFigures();
 
-    const { name, sheets, order } = await downloadExcel(page);
+  const { name, sheets, order } = await downloadExcel(page);
 
-    expect.soft(name, "the name has the day").toBe(`Gestiones_${today()}.xlsx`);
-    expect
-      .soft(order)
-      .toEqual(["Resumen", "Por hunter", "Por oficial", "Por empresa", "Gestiones"]);
-    const summary = sheets.Resumen ?? [];
-    expect
-      .soft(summary.find(([label]) => label === "Acciones realizadas")?.[1], "as on screen")
-      .toBe(figures.actions);
-    expect.soft(summary.find(([label]) => label === "Período")?.[1]).toBe("Todo");
-    expect
-      .soft(column(sheets["Por hunter"] ?? [], "Nombre"), "no row of hunters without a name")
-      .not.toContain(undefined);
-    const dates = column(sheets.Gestiones ?? [], "Fecha").map(String);
-    expect.soft(dates.length, "it has the actions").toBeGreaterThan(0);
-    expect
-      .soft(
-        dates.filter((date) => date > today()),
-        "what is still to come does not count",
-      )
-      .toEqual([]);
+  expect.soft(name, "the name has the day").toBe(`Gestiones_${today()}.xlsx`);
+  expect.soft(order).toEqual(["Resumen", "Por hunter", "Por oficial", "Por empresa", "Gestiones"]);
+  const summary = sheets.Resumen ?? [];
+  expect
+    .soft(summary.find(([label]) => label === "Acciones realizadas")?.[1], "as on screen")
+    .toBe(figures.actions);
+  expect.soft(summary.find(([label]) => label === "Período")?.[1]).toBe("Todo");
+  expect
+    .soft(column(sheets["Por hunter"] ?? [], "Nombre"), "no row of hunters without a name")
+    .not.toContain(undefined);
+  const dates = column(sheets.Gestiones ?? [], "Fecha").map(String);
+  expect.soft(dates.length, "it has the actions").toBeGreaterThan(0);
+  expect
+    .soft(
+      dates.filter((date) => date > today()),
+      "what is still to come does not count",
+    )
+    .toEqual([]);
 
-    await page.getByRole("combobox", { name: "Tipo", exact: true }).selectOption("feria");
-    await actions.waitForScreenToSettle();
-    const fairs = await downloadExcel(page);
-    const companies = column(fairs.sheets.Gestiones ?? [], "Empresa");
+  await page.getByRole("combobox", { name: "Tipo", exact: true }).selectOption("feria");
+  await actions.waitForScreenToSettle();
+  const fairs = await downloadExcel(page);
+  const companies = column(fairs.sheets.Gestiones ?? [], "Empresa");
 
-    expect
-      .soft(column(fairs.sheets.Gestiones ?? [], "Tipo"), "only fairs")
-      .toEqual(companies.map(() => "Feria"));
-    expect.soft(companies, "the fair already done").toContain("SUPERMERCADOS DEL VALLE SA");
-    expect.soft(companies, "and not the one to come").not.toContain("LOGISTICA ANDINA SRL");
-  },
-);
+  expect
+    .soft(column(fairs.sheets.Gestiones ?? [], "Tipo"), "only fairs")
+    .toEqual(companies.map(() => "Feria"));
+  expect.soft(companies, "the fair already done").toContain("SUPERMERCADOS DEL VALLE SA");
+  expect.soft(companies, "and not the one to come").not.toContain("LOGISTICA ANDINA SRL");
+});

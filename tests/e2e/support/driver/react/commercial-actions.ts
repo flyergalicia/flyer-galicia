@@ -490,10 +490,10 @@ export function createReactCommercialActionsDriver(page: Page): CommercialAction
     },
     waitForScreenToSettle: () => settle(page),
     walkTutorial: () => walkTutorial(page),
-    // The demo runs on the current version: in React what waits for each one is read again every
-    // 90 s, and a person cannot ask for it sooner.
-    prepareForDemo: () => {
-      throw new Error("The demo of Gestiones runs on the current version.");
-    },
+    // What waits for each one is read again every 90 s, as for anybody: only the title changes.
+    prepareForDemo: (title) =>
+      page.evaluate((text) => {
+        document.title = text;
+      }, title),
   };
 }

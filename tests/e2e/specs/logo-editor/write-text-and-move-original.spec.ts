@@ -7,62 +7,58 @@ const KIDDO_LOGO = { x: 205, y: 2708 };
 const SUPERMARKETS_REGION = { x: 0, y: 1240, width: 1240, height: 220 };
 const BRANDS_REGION = { x: 0, y: 2620, width: 1240, height: 240 };
 
-test(
-  "a text can take the place of another and be edited",
-  { tag: "@react" },
-  async ({ openApp }) => {
-    const app = await openApp();
-    const original = await app.flyerEditor.downloadRegionDigest(SUPERMARKETS_REGION);
-    await app.flyerEditor.setZoom(1.6);
-    await app.logoEditor.enter();
+test("a text can take the place of another and be edited", async ({ openApp }) => {
+  const app = await openApp();
+  const original = await app.flyerEditor.downloadRegionDigest(SUPERMARKETS_REGION);
+  await app.flyerEditor.setZoom(1.6);
+  await app.logoEditor.enter();
 
-    // Change the text "Martes y jueves", under Jumbo
-    await app.logoEditor.touch(DAYS_TEXT);
-    await button(app.page, "Escribir un texto").click();
-    const textBox = app.page.getByRole("textbox", { name: /^Texto/ });
-    await textBox.fill("Lunes y\nmiércoles");
-    const form = await app.logoEditor.textForm();
-    expect.soft(form.size, "it suggests a size").toBeGreaterThan(0);
-    expect.soft(form.colors[0], "the first color is the original one").toBe("Como estaba");
-    expect
-      .soft(form.colors.slice(1), "then the usual colors")
-      .toEqual(["Negro", "Gris", "Naranja", "Azul", "Blanco"]);
-    await button(app.page, "Poner el texto").click();
-    await app.logoEditor.waitForPickerClosed();
+  // Change the text "Martes y jueves", under Jumbo
+  await app.logoEditor.touch(DAYS_TEXT);
+  await button(app.page, "Escribir un texto").click();
+  const textBox = app.page.getByRole("textbox", { name: /^Texto/ });
+  await textBox.fill("Lunes y\nmiércoles");
+  const form = await app.logoEditor.textForm();
+  expect.soft(form.size, "it suggests a size").toBeGreaterThan(0);
+  expect.soft(form.colors[0], "the first color is the original one").toBe("Como estaba");
+  expect
+    .soft(form.colors.slice(1), "then the usual colors")
+    .toEqual(["Negro", "Gris", "Naranja", "Azul", "Blanco"]);
+  await button(app.page, "Poner el texto").click();
+  await app.logoEditor.waitForPickerClosed();
 
-    const written = await placedAt(app, 0);
-    expect.soft(written.kind, "the text is put").toBe("text");
-    expect.soft(written.text, "as written, in two lines").toBe("Lunes y\nmiércoles");
-    expect.soft(written.fontSize, "with the size suggested").toBe(form.size);
-    expect.soft(written.color, "in the color of the text it replaces").toBe("#040404");
-    expect.soft(written.weight, "not bold").toBe(500);
-    expect.soft(boxOf(written).width, "it is drawn").toBeGreaterThan(0);
-    expect.soft((await app.logoEditor.selection()).main, "and stays chosen").toBe(0);
+  const written = await placedAt(app, 0);
+  expect.soft(written.kind, "the text is put").toBe("text");
+  expect.soft(written.text, "as written, in two lines").toBe("Lunes y\nmiércoles");
+  expect.soft(written.fontSize, "with the size suggested").toBe(form.size);
+  expect.soft(written.color, "in the color of the text it replaces").toBe("#040404");
+  expect.soft(written.weight, "not bold").toBe(500);
+  expect.soft(boxOf(written).width, "it is drawn").toBeGreaterThan(0);
+  expect.soft((await app.logoEditor.selection()).main, "and stays chosen").toBe(0);
 
-    // Bigger
-    await adjustBar(app.page).getByRole("button", { name: "Más grande" }).click();
-    const grown = await placedAt(app, 0);
-    expect.soft(grown.sizePercent, "+ makes it 10% bigger").toBe(110);
-    expect.soft(grown.fontSize, "which means its letter").toBeCloseTo(form.size * 1.1, 5);
-    const editText = adjustBar(app.page).getByRole("button", { name: "Editar texto" });
-    await expect.soft(editText, 'the button says "Editar texto"').toBeVisible();
+  // Bigger
+  await adjustBar(app.page).getByRole("button", { name: "Más grande" }).click();
+  const grown = await placedAt(app, 0);
+  expect.soft(grown.sizePercent, "+ makes it 10% bigger").toBe(110);
+  expect.soft(grown.fontSize, "which means its letter").toBeCloseTo(form.size * 1.1, 5);
+  const editText = adjustBar(app.page).getByRole("button", { name: "Editar texto" });
+  await expect.soft(editText, 'the button says "Editar texto"').toBeVisible();
 
-    // Edit it from the bar
-    await editText.click();
-    await expect.soft(textBox, "editing brings the text").toHaveValue("Lunes y\nmiércoles");
-    await textBox.fill("Lunes");
-    await button(app.page, "Poner el texto").click();
-    await app.logoEditor.waitForPickerClosed();
-    expect.soft((await placedAt(app, 0)).text, "the text is the new one").toBe("Lunes");
-    expect.soft(await app.logoEditor.placements(), "it stays one change").toHaveLength(1);
+  // Edit it from the bar
+  await editText.click();
+  await expect.soft(textBox, "editing brings the text").toHaveValue("Lunes y\nmiércoles");
+  await textBox.fill("Lunes");
+  await button(app.page, "Poner el texto").click();
+  await app.logoEditor.waitForPickerClosed();
+  expect.soft((await placedAt(app, 0)).text, "the text is the new one").toBe("Lunes");
+  expect.soft(await app.logoEditor.placements(), "it stays one change").toHaveLength(1);
 
-    expect
-      .soft(await app.flyerEditor.downloadRegionDigest(SUPERMARKETS_REGION), "the download has it")
-      .not.toBe(original);
-  },
-);
+  expect
+    .soft(await app.flyerEditor.downloadRegionDigest(SUPERMARKETS_REGION), "the download has it")
+    .not.toBe(original);
+});
 
-test("a logo printed on the flyer can be moved", { tag: "@react" }, async ({ openApp }) => {
+test("a logo printed on the flyer can be moved", async ({ openApp }) => {
   const app = await openApp();
   const original = await app.flyerEditor.downloadRegionDigest(BRANDS_REGION);
   await app.flyerEditor.setZoom(1.6);

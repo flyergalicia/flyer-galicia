@@ -29,7 +29,7 @@ function promotion(id: number, titulo: string, extra: Partial<PromotionRow> = {}
   };
 }
 
-test.describe("matching the pasted brands", { tag: "@react" }, () => {
+test.describe("matching the pasted brands", () => {
   const CATALOG = [
     promotion(1, "SushiClub"),
     promotion(2, "Golf Club"),
@@ -136,9 +136,8 @@ test.describe("matching the pasted brands", { tag: "@react" }, () => {
   });
 });
 
-test.describe("a catalog that cannot be read", { tag: "@react" }, () => {
-  test("says so, it does not say there are no promotions", async ({ openApp, target }) => {
-    test.skip(target === "legacy", "The current app answers that the catalog is empty: see avance");
+test.describe("a catalog that cannot be read", () => {
+  test("says so, it does not say there are no promotions", async ({ openApp }) => {
     const app = await openApp({
       user: "admin",
       beforeNavigation: async (page) => {
@@ -184,7 +183,7 @@ test.describe("a catalog that cannot be read", { tag: "@react" }, () => {
   });
 });
 
-test.describe("updating the catalog", { tag: "@react" }, () => {
+test.describe("updating the catalog", () => {
   const OLD = [promotion(1, "Marca Vieja")];
   const NEW = [promotion(1, "Marca Vieja"), promotion(2, "Marca Recien Llegada")];
 
@@ -314,7 +313,7 @@ test.describe("updating the catalog", { tag: "@react" }, () => {
   });
 });
 
-test.describe("the table", { tag: "@react" }, () => {
+test.describe("the table", () => {
   test("only the faculty shows Promociones", async ({ cloud, openApp }) => {
     cloud.setPermissions("asesor", { promos_buscar: false });
     const without = await openApp();
@@ -423,7 +422,7 @@ test.describe("the table", { tag: "@react" }, () => {
   });
 });
 
-test.describe("on Activas", { tag: "@react" }, () => {
+test.describe("on Activas", () => {
   test("what is new is tagged and can be filtered", async ({ cloud, openApp }) => {
     cloud.promotionCatalog = [
       promotion(1, "Reciente", { primera_vez: inDays(-2) }),

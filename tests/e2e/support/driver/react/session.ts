@@ -326,12 +326,6 @@ function createNotices(page: Page) {
   return {
     noticesOnScreen: () => notices.count(),
     noticeVisible: async () => (await notices.count()) > 0,
-    // Decided by whoever coordinates: the spec that uses it stays without @react.
-    showNotice: () => {
-      throw new Error(
-        "In React a notice comes only from a real action: a person cannot show any text they like.",
-      );
-    },
   };
 }
 
@@ -388,7 +382,6 @@ function createWindows(page: Page) {
         .click();
       await window.waitFor({ state: "detached" });
     },
-    confirmationOpen: () => page.getByRole("alertdialog").isVisible(),
   };
 }
 

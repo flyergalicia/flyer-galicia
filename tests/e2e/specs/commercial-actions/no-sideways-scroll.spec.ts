@@ -19,7 +19,7 @@ const TABS_OF: readonly (readonly [PersonKey, readonly CommercialTab[]])[] = [
   ["leader", ["agenda", "dashboard", "actions"]],
 ];
 
-test.describe("no solapa of Gestiones scrolls sideways", { tag: "@react" }, () => {
+test.describe("no solapa of Gestiones scrolls sideways", () => {
   for (const [person, tabs] of TABS_OF) {
     for (const { width, height } of SCREENS) {
       test(`${person} at ${String(width)} px`, async ({ cloud, openApp }) => {
@@ -40,7 +40,7 @@ test.describe("no solapa of Gestiones scrolls sideways", { tag: "@react" }, () =
   }
 });
 
-test.describe("the filters of Mis empresas", { tag: "@react" }, () => {
+test.describe("the filters of Mis empresas", () => {
   test("tell forwarded companies from the others, and say how many each has", async ({
     cloud,
     openApp,
