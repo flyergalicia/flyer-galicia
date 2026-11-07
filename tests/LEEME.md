@@ -4,13 +4,15 @@ Son las pruebas que se corren antes de cada cambio para no romper lo que ya anda
 
 ## Cómo correrlas
 
-Primero armá la app, porque las pruebas abren `index.html`:
+Desde el corte (etapa 5) la raíz tiene la app React, y la versión vieja se arma aparte, en `legacy-site/` (no se versiona). Las pruebas de la versión vieja abren esa carpeta, así que primero hay que armarla:
 
 ```bash
-node _build.mjs
+npm run legacy:build
 ```
 
-Todas las de navegador contra la versión actual:
+No uses `node _build.mjs` en la raíz: pisaría el `index.html` de React.
+
+Todas las de navegador contra la versión vieja:
 
 ```bash
 npx playwright test --project=legacy
@@ -28,19 +30,19 @@ Las que no usan navegador y las de componentes, con su coverage:
 npm test
 ```
 
-Las mismas pruebas contra la app React. Antes hay que armarla, porque estas pruebas abren lo que queda en `dist/`:
+Las mismas pruebas contra la app React. Antes hay que hacer el corte, porque estas pruebas abren lo que queda en la raíz, bajo la misma ruta que GitHub Pages (`/flyer-galicia/`):
 
 ```bash
-npm run build
+npm run release
 ```
 
 ```bash
 npx playwright test --project=react
 ```
 
-Sólo corren las que llevan la etiqueta `@react`. Ese proyecto también trae lo que vigila el armado nuevo: `build/build-output`, `build/smoke` y `build/weight-budget`, que compara el peso de la primera carga con el de la versión actual.
+Sólo corren las que llevan la etiqueta `@react`. Ese proyecto también trae lo que vigila el armado nuevo: `build/build-output` (lo que dejó `dist/`), `build/release-output` (que la raíz sea exactamente `dist/`, sin archivos de un armado anterior y sin `index_export.html`; si falla, falta correr `npm run release`), `build/smoke` y `build/weight-budget`, que compara el peso de la primera carga con el de la versión vieja.
 
-Todos los chequeos juntos, los mismos de `ci.yml`:
+Todos los chequeos juntos, los mismos de `ci.yml`. Hace el corte y arma la versión vieja antes de las pruebas, así que deja la raíz al día; en `ci.yml`, además, falla si la raíz del commit no es la del armado:
 
 ```bash
 npm run ci
@@ -92,7 +94,7 @@ El ejemplo a copiar es `e2e/specs/logo-editor/replace-logo.spec.ts`.
 - Lo que no se puede expresar con texto visible o roles va por el driver del dominio.
 - Se usa `expect.soft`, para ver todo lo que falla y no sólo lo primero.
 - Toda funcionalidad nueva suma su prueba. Las que ya valen para React llevan la etiqueta `@react`.
-- Una prueba vale si falla cuando se rompe lo que protege. Antes de darla por buena, rompé esa regla en una copia de la app y mirá que falle: con `FLYER_STATIC_ROOT=<copia>` el servidor de las pruebas sirve esa carpeta.
+- Una prueba vale si falla cuando se rompe lo que protege. Antes de darla por buena, rompé esa regla en una copia de la app y mirá que falle: con `FLYER_STATIC_ROOT=<copia>` el servidor de las pruebas de la versión vieja sirve esa carpeta en lugar de `legacy-site/`. Para React, rompela en `web/`, corré `npm run release` y, al deshacerlo, volvé a correr `npm run release`.
 
 ## Las que no corren contra React
 

@@ -2,6 +2,7 @@
 
 Guía para cualquier herramienta de IA (o persona) que retome este proyecto. Está en español y sin datos personales ni claves, porque **el repositorio es público**.
 
+Referencias de símbolos (usos, definiciones, tipos): usa la herramienta `LSP` (`findReferences`, `goToDefinition`, `hover`); `grep` queda para texto libre.
 ---
 
 ## 1. Qué es este proyecto y para qué sirve
@@ -16,7 +17,7 @@ Además tiene: login con roles, guardado de datos en la nube, buscador de promoc
 
 ## 2. Cómo está armado
 
-**Migración a React + TypeScript en curso:** se trabaja **sólo en la rama `refactor/react`**, y están **prohibidos el `push` y los commits a `main`** (también para subagentes; tampoco se usa `--no-verify`). El plan, los estándares y el manejo de estado están en `docs/PLAN_MIGRACION_REACT.md`, y los términos en `docs/GLOSARIO.md`. La app nueva vive en `web/`. El código nuevo y los commits van en inglés; la documentación y los textos de pantalla, en español. Hasta el corte, lo publicado sigue siendo lo que se describe abajo, que se arma con `node _build.mjs`.
+**Migración a React + TypeScript en curso:** se trabaja **sólo en la rama `refactor/react`**, y están **prohibidos el `push` y los commits a `main`** (también para subagentes; tampoco se usa `--no-verify`). El plan, los estándares y el manejo de estado están en `docs/PLAN_MIGRACION_REACT.md`, y los términos en `docs/GLOSARIO.md`. La app nueva vive en `web/`. El código nuevo y los commits van en inglés; la documentación y los textos de pantalla, en español. **El corte (etapa 5) está hecho en local:** la raíz tiene la app React que arma `npm run release` (`index.html`, `assets/`, `version.json`). La versión vieja que se describe abajo sigue en el repo hasta la etapa 6, pero ya no se publica: `npm run legacy:build` la arma en `legacy-site/` (no se versiona), sólo para las pruebas que comparan contra ella. Lo publicado en GitHub Pages sigue siendo la versión vieja hasta que el dueño apruebe subir el corte.
 
 ### Lo que se edita (frontend: todo corre en el navegador)
 
@@ -30,10 +31,17 @@ Además tiene: login con roles, guardado de datos en la nube, buscador de promoc
 
 ### Lo que se genera (NO editar a mano)
 
-- `index.html` → producción (lo sirve GitHub Pages). Enlaza `auth.js?v=<hash>`.
-- `index_export.html` → misma app con `auth.js` incrustado, para usarla suelta desde cualquier lado.
-- `flyer_default.jpg` → imagen de ejemplo que se carga si no hay flyer activo.
-- `version.json` → hash del armado; la app lo compara y avisa "hay versión nueva". Sin guion bajo a propósito: GitHub Pages no sirve archivos que empiezan con `_`.
+Desde el corte (etapa 5), `npm run release` arma la app React y la copia a la raíz, que es lo que sirve GitHub Pages:
+
+- `index.html` → la app React, con la política de seguridad (CSP) adentro.
+- `assets/` → todo el código, los estilos y las librerías, cada archivo con su contenido en el nombre (una versión nueva es una dirección nueva). El corte borra los de la versión anterior.
+- `version.json` → hash del armado; la app lo compara y avisa "hay versión nueva". Sin guion bajo a propósito: GitHub Pages no sirve archivos que empiezan con `_`. Una página vieja que haya quedado abierta también lo compara y ofrece recargar.
+- `favicon.jpg` → sale de `web/public/`.
+- **`index_export.html` ya no se publica:** era la app vieja entera en un solo archivo, y dejarla habría mantenido publicada una segunda versión que escribe en los mismos datos. Subir un HTML como flyer en Config → Flyer sigue andando con un HTML que traiga la imagen (`baseImg.src="data:image…"`), como `_source.html`. `npm run legacy:build` todavía lo arma en `legacy-site/`.
+- Quedan en la raíz, sin cambios hasta la etapa 6, `auth.js`, `gestiones.js`, `benchmark.js`, `libs/` y `flyer_default.jpg`: una página vieja que el navegador tenga guardada los sigue encontrando hasta que recarga.
+
+La versión vieja (`node scripts/legacy-build.ts`, o `npm run legacy:build`) corre `_build.mjs` adentro de `legacy-site/` y deja ahí `index.html`, `index_export.html`, `version.json`, `flyer_default.jpg` y `favicon.jpg`. **No correr `node _build.mjs` en la raíz:** pisaría el `index.html` de React (lo detecta la prueba `build/release-output`).
+
 - Las librerías de exportación (jsPDF, xlsx, JSZip, ExcelJS) no van en el `<head>`: `auth.js` las baja bajo demanda con verificación de integridad. Si se agrega una función que use alguna, hay que envolverla en `_libInit`.
 - `libs/` (esto no se genera; se versiona tal cual) → xlsx 0.20.3, servido desde el propio sitio: npm y cdnjs quedaron en la 0.18.5, con avisos altos, y las corregidas sólo se publican en cdn.sheetjs.com. El armado comprueba su hash. Para subir de versión: archivo nuevo con otro nombre, y `XLSX_LOCAL` y su hash en `_build.mjs`.
 
@@ -207,8 +215,8 @@ Además tiene: login con roles, guardado de datos en la nube, buscador de promoc
 
 **Armar y publicar**
 
-1. Editar `_source.html`, `_newcss.txt` y/o `auth.js` (y `supabase/` si aplica).
-2. `node _build.mjs` → regenera `index.html` e `index_export.html` y corre los chequeos de contrato. Si algo falla, **no** escribe nada.
+1. Editar la app en `web/` (y `supabase/` si aplica). La versión vieja (`_source.html`, `_newcss.txt`, `auth.js`) ya no se publica.
+2. `npm run release` → arma la app React en `dist/` y la copia a la raíz (`index.html`, `assets/`, `version.json`, `favicon.jpg`). Si al armado le falta algo, no toca la raíz. Después, `npm run ci` corre todos los chequeos sobre lo que quedó en la raíz; los archivos de la raíz van en el commit.
 3. Si se tocó `supabase/functions/*`, publicarla aparte con `supabase/_deployfn.mjs` (necesita `SB_TOKEN` en el entorno).
 4. Si hay una migración nueva, aplicarla con `supabase/_runsql.mjs <archivo.sql>` (necesita `SB_TOKEN`) y verificarla con los `_verify_*.sql`.
 5. `git add -A && git commit && git push origin main` → GitHub Pages se actualiza solo. **Pedir confirmación al usuario antes de subir.**
@@ -217,10 +225,10 @@ Además tiene: login con roles, guardado de datos en la nube, buscador de promoc
 
 **Probar**
 
-- Abrir `index.html` por `http://localhost` (**no** por `file://`: la política de seguridad no lo permite) con cualquier servidor estático.
-- La app necesita login real de Supabase; para probar pantallas sin sesión se hacía un "bypass" desde pruebas automáticas (Playwright) seteando el estado a mano.
-- **Pruebas automáticas: viven en `tests/`** (Playwright y Vitest en TypeScript, con nube simulada, sin tocar Supabase). Después de `node _build.mjs`, correrlas con `npx playwright test --project=legacy` (o sólo algunas: `npx playwright test --project=legacy logo-strip/build-strip`) y `npm test`. Ver `tests/LEEME.md`. Toda funcionalidad nueva suma su prueba ahí. Los números viejos que aparecen en este archivo (`t79`, `u05`) se encuentran buscándolos en `tests/`: la primera línea de cada prueba nombra el archivo viejo que reemplaza. Lo que antes vigilaban los chequeos de `_build.mjs` está en `docs/CHEQUEOS_BUILD.md`. Las pruebas de la versión actual bajan las librerías de los CDN: sin internet fallan, y alguna puede fallar por tiempos de red (repetirla sola antes de buscar un bug).
-- **Si el usuario dice "no veo el cambio":** antes de buscar un bug, mirar qué versión sirve producción (`curl` a `index.html` y `auth.js`) y sugerir Ctrl+F5. GitHub Pages cachea 10 min.
+- Abrir `index.html` por `http://localhost` (**no** por `file://`: la política de seguridad no lo permite) con cualquier servidor estático. **Ojo:** el armado apunta al Supabase real (es producción): sin la nube simulada, sólo mirar la pantalla de entrada, sin ingresar.
+- La app necesita login real de Supabase; las pantallas con sesión se ven con las pruebas automáticas, contra la nube simulada.
+- **Pruebas automáticas: viven en `tests/`** (Playwright y Vitest en TypeScript, con nube simulada, sin tocar Supabase). Las de React corren contra la raíz, después de `npm run release`: `npx playwright test --project=react`. Las de la versión vieja, después de `npm run legacy:build`: `npx playwright test --project=legacy` (o sólo algunas: `npx playwright test --project=legacy logo-strip/build-strip`) y `npm test`. Ver `tests/LEEME.md`. Toda funcionalidad nueva suma su prueba ahí. Los números viejos que aparecen en este archivo (`t79`, `u05`) se encuentran buscándolos en `tests/`: la primera línea de cada prueba nombra el archivo viejo que reemplaza. Lo que antes vigilaban los chequeos de `_build.mjs` está en `docs/CHEQUEOS_BUILD.md`. Las pruebas de la versión actual bajan las librerías de los CDN: sin internet fallan, y alguna puede fallar por tiempos de red (repetirla sola antes de buscar un bug).
+- **Si el usuario dice "no veo el cambio":** antes de buscar un bug, mirar qué versión sirve producción (`curl` a `index.html` y `version.json`) y sugerir Ctrl+F5. GitHub Pages cachea 10 min.
 - Cuando algo no se pueda ver logueado desde la sesión, **decirlo** y pedirle al usuario que lo revise en vivo.
 
 ---

@@ -118,7 +118,7 @@ Cada dato va en el primer nivel que le alcance:
 | 2 | `shared`: tokens, `ui`, Supabase, sesión | Storybook coincide con las capturas y el contrato de red pasa |
 | 3 | `flyer-engine` en TS, partido hasta cumplir la complejidad. **Hecha**, ver abajo | PDF y PNG idénticos a la referencia |
 | 4 | Slices, en orden: `auth` y shell, `promotions`, `company-registry`, `logo-editor`, `flyer-editor`, `hunter`, `studio`, `commercial-actions`, `benchmark`, `admin`, `search` y `tour`. **Hecha**, ver abajo | Cada slice pasa lint, complejidad, coverage y sus pruebas antes de seguir |
-| 5 | Corte local con `npm run release`, que copia `dist/` a la raíz | Todo en verde y paridad con la referencia |
+| 5 | Corte local con `npm run release`, que copia `dist/` a la raíz. **Hecha**, ver abajo | Todo en verde y paridad con la referencia |
 | 6 | Limpieza del código viejo y documentación | Sin rastros del código viejo |
 
 ## Etapa 2: cómo se compara `shared` con la referencia
@@ -231,6 +231,67 @@ React no los tiene, pero la versión publicada sí. Si el dueño quiere arreglar
 - Las Edge Functions y la RLS reales: todo corrió contra la nube simulada.
 - Los Excel abiertos en Excel: se leyeron con ExcelJS.
 - Pantallas sin captura de referencia (las ventanas de cada slice): se compararon con estilos calculados y a ojo, no píxel por píxel.
+
+## Etapa 5: el corte
+
+**Hecha** el 6-nov-2026, en commits locales de `refactor/react`. La raíz tiene la app React. **No se publicó nada**: `main` y `origin/main` siguen en `a88f5e8`, y GitHub Pages sigue sirviendo la versión vieja hasta que el dueño apruebe subir.
+
+### Cómo se arma
+
+- **`npm run release`** = `vite build` + `scripts/release.ts`. Antes de tocar la raíz comprueba que `dist/` tenga `index.html`, `version.json` y `assets/`, y que ningún archivo empiece con `_`, `.`, `#` o `~` (Pages no los publicaría). Si falta algo, no toca nada. Después borra `assets/` de la raíz entero (así no quedan archivos de un armado anterior), copia lo de `dist/` y borra `index_export.html`.
+- El armado es repetible: dos armados seguidos dan los mismos archivos, byte por byte.
+- **La versión vieja ya no se arma en la raíz.** `npm run legacy:build` (`scripts/legacy-build.ts`) copia lo que lee `_build.mjs` a `legacy-site/` (no se versiona) y lo corre ahí adentro; `_build.mjs` no cambió y sus chequeos siguen corriendo. Sale el mismo `index.html` que estaba publicado. Sirve sólo para las pruebas que comparan contra la versión vieja (`legacy`, `design-system`) y para `perf:baseline` y la demo de Gestiones.
+- **`npm run ci`** hace el corte, arma la versión vieja y corre todo. `ci.yml` además falla si después de eso `git status` no queda limpio: la raíz del commit tiene que ser la que se probó.
+
+### Qué cambió en la raíz
+
+| Archivo | Antes | Ahora |
+|---|---|---|
+| `index.html` | La app vieja, con la CSP y `auth.js?v=` | La app React, con su CSP (sin `unsafe-inline`), el aviso de versión (`build-v`) y la conexión previa al backend |
+| `assets/` | No existía | Todo el código, los estilos, las librerías (jsPDF, JSZip, ExcelJS, xlsx, pdf.js con su worker y sus WASM), cada uno con su hash en el nombre |
+| `version.json` | El hash del armado viejo | El de React, con la misma forma (`{"v":"…"}`): una página vieja abierta ve otro número y ofrece recargar, y al recargar llega la nueva |
+| `favicon.jpg` | Del armado viejo | El de `web/public/`, que es el mismo archivo |
+| `index_export.html` | La app vieja entera, en un archivo | **Ya no se publica** (ver abajo) |
+| `auth.js`, `gestiones.js`, `benchmark.js`, `libs/`, `flyer_default.jpg` | Los usaba la página | Quedan sin cambios hasta la etapa 6, para una página vieja que el navegador tenga guardada (Pages cachea el HTML 10 min) |
+
+**`index_export.html` no se mantiene.** Servía para abrir la app suelta (desde el disco o el bucket) y, en su momento, para subirla como flyer. React no puede ser un solo archivo sin sumar una herramienta y meter adentro todo lo que hoy baja aparte (varios MB), y dejar la vieja publicada habría mantenido una segunda versión de la app escribiendo en los mismos datos, con errores que React ya no tiene. Subir un HTML como flyer en Config → Flyer sigue andando con cualquier HTML que traiga la imagen (`baseImg.src="data:image…"`), como `_source.html`. El texto de esa pantalla todavía dice «El HTML del build (index_export.html) también sirve como antes»: se dejó igual que en la versión vieja.
+
+**CSP:** la de React pide menos que la vieja. Ya no permite `unsafe-inline` ni cdnjs ni jsDelivr, porque todo se sirve desde el sitio. Sigue permitiendo Supabase, `www.galicia.ar` (logos de promociones), Google Fonts, `blob:`/`data:` y `wasm-unsafe-eval` (pdf.js). Las pruebas corren con esa política puesta.
+
+### Cómo se probó
+
+Todo contra lo que quedó en la raíz, servido por `http://127.0.0.1` bajo `/flyer-galicia/`, como Pages: el servidor de las pruebas de React ahora es `scripts/serve-static.ts` sobre la raíz (con `FLYER_BASE_PATH`), ya no `vite preview` sobre `dist/`.
+
+| Qué | Resultado |
+|---|---|
+| `npm run ci` completo | exit 0 |
+| lint, complejidad, límites, tipos, formato | en verde |
+| `npm test` | 360 archivos, 4548 pruebas pasan, 5 salteadas, sin bajar umbrales |
+| Pruebas de navegador, los cuatro proyectos | 1455 pasan, 5 salteadas |
+| … contra React (la raíz) | todas pasan, también las 85 capturas, los 6 casos del flyer impreso (PDF y PNG idénticos, sin tolerancia) y `weight-budget`. Salteada: `pdf-bands` (no hay PDF reales) |
+| … contra la versión vieja (`legacy-site/`) | todas pasan; las 4 salteadas son las de siempre |
+| `design-system` y `flyer-engine` | 76 y 7 pasan |
+| Contrato de red | ninguna prueba contra React pidió algo fuera de `network-contract.json` |
+| Referencias de `tests/fixtures/` | sin cambios |
+
+La prueba nueva `build/release-output` controla que la raíz sea `dist/` byte por byte, que no quede ningún archivo de un armado anterior, que no esté `index_export.html` y que sigan los archivos que necesita una página vieja. Se rompió a propósito (un `version.json` cambiado y un archivo viejo en `assets/`) y falló. `scripts/release.test.ts` prueba el script.
+
+También se abrió la raíz en el navegador de la app: la pantalla de entrada se ve bien, sin errores en la consola y sin ningún pedido a Supabase. No se ingresó: el armado apunta al Supabase real.
+
+En la primera corrida falló una prueba de componentes de Estudio («the second press while it publishes does nothing»): esperaba un tiempo fijo de 600 ms y, con la máquina cargada, la primera publicación terminaba antes del segundo toque. Ahora la subida queda retenida hasta que la prueba ve el aviso (commit propio). En otra corrida, 54 archivos de prueba de componentes no llegaron a abrirse («SyntaxError» al importarlos) justo después de haber corrido un archivo suelto sin coverage; `npm test` entero pasó en las dos corridas siguientes. No se llegó a reproducir: si vuelve a pasar, sospechar de la caché de vitest compartida entre corridas con y sin coverage.
+
+### Lo que no se pudo comprobar
+
+- GitHub Pages de verdad (el corte no se subió) ni su paso de Jekyll: se imitó con la ruta `/flyer-galicia/` y la regla de los nombres con `_`.
+- `ci.yml` en Linux: que el armado dé los mismos archivos en otro sistema y que el chequeo de `git status` quede limpio.
+- El Supabase real, la red del banco, una PC de sucursal, un celular, un PDF real de un flyer y los Excel abiertos en Excel, como en la etapa 4.
+- La transición de una página vieja abierta a la nueva con datos reales: se comprobó que `version.json` cambia y que los archivos que la vieja necesita siguen en la raíz, no el recorrido en producción.
+
+### Para publicar (sólo con el OK del dueño)
+
+1. Revisar las decisiones pendientes del informe de la etapa 4.
+2. Subir un PDF real en Config → Flyer con la app React, contra el Supabase real, con una cuenta de prueba.
+3. Llevar los commits a `main` y hacer `push`. Volver atrás es restaurar la versión anterior en `main` (la etiqueta `respaldo-antes-gestiones-v2` no sirve: es más vieja; conviene etiquetar `a88f5e8` antes).
 
 ## Pruebas y coverage
 

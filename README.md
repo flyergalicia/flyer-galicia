@@ -4,7 +4,7 @@ Aplicación web de una sola pantalla para que asesores y oficiales de banco arme
 
 También incluye inicio de sesión con perfiles, buscador de promociones vigentes, comparación de promociones entre bancos, gestiones comerciales con tablero y panel de administración.
 
-**Migración en curso:** el frontend se está pasando a React y TypeScript en la rama `refactor/react`, con la app nueva en `web/`. Lo que está publicado sigue siendo el JavaScript plano armado por `_build.mjs`, hasta el corte. El plan está en [docs/PLAN_MIGRACION_REACT.md](docs/PLAN_MIGRACION_REACT.md) y los términos en [docs/GLOSARIO.md](docs/GLOSARIO.md).
+**Migración en curso:** el frontend se está pasando a React y TypeScript en la rama `refactor/react`, con la app nueva en `web/`. El corte ya está hecho en local (la raíz tiene la app React que arma `npm run release`), pero GitHub Pages sigue publicando la versión vieja hasta que se suba. El plan está en [docs/PLAN_MIGRACION_REACT.md](docs/PLAN_MIGRACION_REACT.md) y los términos en [docs/GLOSARIO.md](docs/GLOSARIO.md).
 
 ## Cómo está armada
 
@@ -76,22 +76,26 @@ La aplicación necesita una sesión real y **no hay un entorno de prueba aparte*
 
 ## Armar
 
-`node _build.mjs` se corre desde la raíz del proyecto. Genera los archivos de salida y ejecuta los chequeos de contrato: si alguno falla, no escribe `index.html`.
+`npm run release` arma la app React (`web/`) y la copia a la raíz, que es lo que publica GitHub Pages. Si al armado le falta algo, no toca la raíz.
 
-Después de editar `_source.html`, `_newcss.txt` o `auth.js` hay que volver a armar. Las pruebas se hacen sobre `index.html`, no sobre la plantilla.
+La versión vieja (`_source.html`, `_newcss.txt`, `auth.js`) sigue en el repo hasta la limpieza, pero ya no se publica: `npm run legacy:build` la arma en `legacy-site/`, sólo para las pruebas que comparan contra ella. No corras `node _build.mjs` en la raíz: pisaría el `index.html` de React.
 
 ## Probar
 
-Corré las pruebas de navegador, después de armar:
+Todos los chequeos y pruebas juntos (hace el corte y arma la versión vieja antes):
 
 ```bash
-npx playwright test --project=legacy
+npm run ci
 ```
 
-O sólo algunas, indicando parte de la ruta:
+Sólo las de navegador de la app React, después de `npm run release`, o sólo algunas, indicando parte de la ruta:
 
 ```bash
-npx playwright test --project=legacy logo-strip/build-strip
+npx playwright test --project=react
+```
+
+```bash
+npx playwright test --project=react logo-strip/build-strip
 ```
 
 Las que no usan navegador y las de componentes se corren aparte:
@@ -106,7 +110,7 @@ Las de navegador usan una nube simulada y no tocan Supabase. Toda funcionalidad 
 
 **Todo lo que llega a `main` se publica en producción**: GitHub Pages sirve el sitio desde esa rama y se actualiza solo. No subas nada a `main` sin la confirmación del dueño del producto.
 
-1. Armá con `node _build.mjs`, corré las pruebas e incluí los archivos generados en el commit.
+1. Armá con `npm run release`, corré `npm run ci` e incluí los archivos generados en el commit.
 2. Si hay una migración nueva, aplicala antes de subir el cliente que la necesita. Se aplican a mano y en orden; hace falta el token de la API de gestión de Supabase en la variable `SB_TOKEN`:
 
    ```bash
@@ -125,14 +129,16 @@ Los secretos nunca van en el repositorio, que es público: se pasan por variable
 
 ## Archivos que no se editan a mano
 
-Los genera `node _build.mjs` y se pisan en cada armado:
+Los genera `npm run release` y se pisan en cada armado:
 
 | Archivo | Qué es |
 |---|---|
 | `index.html` | La página de producción. |
-| `index_export.html` | La misma aplicación con `auth.js` incrustado, para usarla suelta. |
+| `assets/` | El código, los estilos y las librerías, con el contenido en el nombre de cada archivo. |
 | `version.json` | Hash del armado, con el que la aplicación avisa que hay una versión nueva. |
-| `flyer_default.jpg`, `favicon.jpg` | Imágenes extraídas de `_source.html`. |
+| `favicon.jpg` | El ícono, copiado de `web/public/`. |
+
+`index_export.html` (la versión vieja entera en un archivo) ya no se publica. `auth.js`, `gestiones.js`, `benchmark.js`, `libs/` y `flyer_default.jpg` quedan en la raíz hasta la limpieza, para una página vieja que el navegador tenga guardada.
 
 ## Convención de commits
 
