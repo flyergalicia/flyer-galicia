@@ -1,0 +1,1 @@
+import{d as e}from"./fg-flyer-options-DUSPhF5x.js";import{_ as t,g as n}from"./fg-session-BCaImMZl.js";var r=`_opciones.json`;async function i(i,a){let o=e(a),s=await i.upload(r,new Blob([JSON.stringify({opts:o,updated_at:new Date().toISOString()})],{type:`application/json`}),{contentType:`application/json`,upsert:!0});return s.ok?t(o):n(s.error.message)}export{i as t};

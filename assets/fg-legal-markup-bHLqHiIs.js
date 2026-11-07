@@ -1,0 +1,4 @@
+var e=/^(p|div|li|tr|h[1-6])$/;function t(e){let t=e.tagName.toLowerCase();if(t===`b`||t===`strong`)return!0;let{fontWeight:n}=e.style;return n===`bold`||n===`bolder`||Number.parseInt(n,10)>=600}function n(e){return e.nodeType===1}function r(r,a){if(r.nodeType===3){let e=(r.nodeValue??``).replaceAll(/[ \t\r\n]+/g,` `);return a&&e.trim()?`**${e}**`:e}if(!n(r))return``;let o=i(r,a||t(r)),s=r.tagName.toLowerCase();return s===`br`||e.test(s)?`${o}\n`:o}function i(e,t){return Array.from(e.childNodes,e=>r(e,t)).join(``)}function a(e){let{body:t}=new DOMParser().parseFromString(e,`text/html`);return i(t,!1).replaceAll(/\*\*\s*\*\*/g,` `).replaceAll(/[ \t]+\n/g,`
+`).replaceAll(/\n{3,}/g,`
+
+`).replaceAll(/[ \t]{2,}/g,` `).trim()}export{a as t};

@@ -1,0 +1,1 @@
+var e=`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`;function t(e,t,n){let r=URL.createObjectURL(new Blob([e],{type:n})),i=document.createElement(`a`);i.href=r,i.download=t,document.body.append(i),i.click(),i.remove(),setTimeout(()=>{URL.revokeObjectURL(r)},4e3)}export{t as n,e as t};
