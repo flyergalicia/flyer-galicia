@@ -4,16 +4,15 @@ Aplicación web de una sola pantalla para que asesores y oficiales de banco arme
 
 También incluye inicio de sesión con perfiles, buscador de promociones vigentes, comparación de promociones entre bancos, gestiones comerciales con tablero y panel de administración.
 
-**Migración en curso:** el frontend se está pasando a React y TypeScript en la rama `refactor/react`, con la app nueva en `web/`. El corte ya está hecho en local (la raíz tiene la app React que arma `npm run release`), pero GitHub Pages sigue publicando la versión vieja hasta que se suba. El plan está en [docs/PLAN_MIGRACION_REACT.md](docs/PLAN_MIGRACION_REACT.md) y los términos en [docs/GLOSARIO.md](docs/GLOSARIO.md).
+La app es React y TypeScript, y vive en `web/`. Reemplazó a una versión anterior que ya no está en el repo (cómo se hizo: [docs/PLAN_MIGRACION_REACT.md](docs/PLAN_MIGRACION_REACT.md); términos: [docs/GLOSARIO.md](docs/GLOSARIO.md)). Se trabaja en la rama `refactor/react`, y GitHub Pages sigue publicando la versión anterior hasta que el dueño apruebe subir esta.
 
 ## Cómo está armada
 
 | Componente | Lenguaje | Dónde |
 |---|---|---|
-| Plantilla y estilos | HTML y CSS | `_source.html`, `_newcss.txt` |
-| Lógica principal del navegador: pantalla, sesión, motor del flyer, padrón, promociones | JavaScript | `auth.js` |
-| Módulos que se bajan al abrir su solapa | JavaScript | `gestiones.js`, `benchmark.js` |
-| Armado y chequeos de contrato | Node.js (ESM) | `_build.mjs` |
+| La app: pantallas, sesión, motor del flyer, padrón, promociones, gestiones, benchmark | TypeScript y React | `web/src/` (`app/`, `shared/`, `slices/`) |
+| Colores, letras y espacios (tokens) | CSS | `web/src/shared/ui/tokens/` |
+| Armado | Vite y TypeScript | `vite.config.ts`, `scripts/` |
 | Edge Functions | TypeScript (Deno) | `supabase/functions/auth-admin`, `promos-galicia`, `benchmark-sync` |
 | Estructura de la base y reglas de acceso | SQL (Postgres) | `supabase/migrations/` |
 | Envío de mails de aviso | Google Apps Script | `supabase/mail/apps-script.gs` |
@@ -44,58 +43,38 @@ npm install
 npx playwright install chromium
 ```
 
-### App nueva (`web/`)
+### Comandos
 
 | Comando | Qué hace |
 |---|---|
 | `npm run dev` | Levanta la app en <http://127.0.0.1:5173/> |
 | `npm run build` | Genera `dist/` |
+| `npm run release` | Arma la app y la copia a la raíz, que es lo que publica GitHub Pages. Si al armado le falta algo, no toca la raíz |
 | `npm run preview` | Sirve `dist/` en <http://127.0.0.1:8766/> |
 | `npm run storybook` | Abre el catálogo de componentes |
-| `npm run ci` | Corre **todos** los chequeos: es lo que tiene que pasar antes de un commit de etapa |
+| `npm run ci` | Corre **todos** los chequeos: es lo que tiene que pasar antes de un commit |
+| `npm run demo:commercial-actions` | Abre ventanas de Oficial, Hunter y Líder sobre la nube simulada, para probar Gestiones a mano (después de `npm run release`) |
 
 `npm run dev` **no se conecta a ningún proyecto de Supabase** si no existe `web/.env.local` (hay un ejemplo en `web/.env.example`). Es a propósito: con credenciales reales, la copia local trabaja sobre los datos reales y puede disparar mails. Si hace falta, usá sólo cuentas de prueba.
 
-### App publicada
-
-Armala:
-
-```bash
-npm run legacy:build
-```
-
-Para abrirla, servila por `http://localhost` con cualquier servidor estático. Por `file://` no funciona, porque la política de seguridad de la página no lo permite.
-
-```bash
-python3 -m http.server 8000
-```
-
-Después entrá a <http://localhost:8000/>.
-
-La aplicación necesita una sesión real y **no hay un entorno de prueba aparte**: si iniciás sesión desde una copia local, trabajás sobre los datos reales.
-
-## Armar
-
-`npm run release` arma la app React (`web/`) y la copia a la raíz, que es lo que publica GitHub Pages. Si al armado le falta algo, no toca la raíz.
-
-La versión vieja (`_source.html`, `_newcss.txt`, `auth.js`) sigue en el repo hasta la limpieza, pero ya no se publica: `npm run legacy:build` la arma en `legacy-site/`, sólo para las pruebas que comparan contra ella. No corras `node _build.mjs` en la raíz: pisaría el `index.html` de React.
+Lo que deja `npm run release` en la raíz se puede abrir por `http://localhost` con cualquier servidor estático (por `file://` no funciona: la política de seguridad de la página no lo permite). Apunta al Supabase real, que es producción y **no tiene un entorno de prueba aparte**: mirá sólo la pantalla de entrada, sin iniciar sesión.
 
 ## Probar
 
-Todos los chequeos y pruebas juntos (hace el corte y arma la versión vieja antes):
+Todos los chequeos y pruebas juntos (arma la app antes):
 
 ```bash
 npm run ci
 ```
 
-Sólo las de navegador de la app React, después de `npm run release`, o sólo algunas, indicando parte de la ruta:
+Sólo las de navegador, después de `npm run release`, o sólo algunas, indicando parte de la ruta:
 
 ```bash
-npx playwright test --project=react
+npx playwright test --project=app
 ```
 
 ```bash
-npx playwright test --project=react logo-strip/build-strip
+npx playwright test --project=app logo-strip/build-strip
 ```
 
 Las que no usan navegador y las de componentes se corren aparte:
@@ -138,8 +117,6 @@ Los genera `npm run release` y se pisan en cada armado:
 | `version.json` | Hash del armado, con el que la aplicación avisa que hay una versión nueva. |
 | `favicon.jpg` | El ícono, copiado de `web/public/`. |
 
-`index_export.html` (la versión vieja entera en un archivo) ya no se publica. `auth.js`, `gestiones.js`, `benchmark.js`, `libs/` y `flyer_default.jpg` quedan en la raíz hasta la limpieza, para una página vieja que el navegador tenga guardada.
-
 ## Convención de commits
 
 Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) y **se escriben en inglés**:
@@ -176,4 +153,4 @@ Los maneja [lefthook](https://lefthook.dev/) (`lefthook.yml`) y se instalan solo
 - [`CLAUDE.md`](CLAUDE.md): guía completa del proyecto, con decisiones tomadas, invariantes, servicios conectados y pendientes.
 - [`supabase/INVENTARIO_RPC.md`](supabase/INVENTARIO_RPC.md): funciones que expone la base, a quién y qué valida cada una.
 - [`tests/LEEME.md`](tests/LEEME.md): cómo funcionan las pruebas, la nube simulada y las referencias.
-- [`docs/CHEQUEOS_BUILD.md`](docs/CHEQUEOS_BUILD.md): dónde sigue cada chequeo de `_build.mjs` cuando desaparezca.
+- [`docs/CHEQUEOS_BUILD.md`](docs/CHEQUEOS_BUILD.md): qué prueba sostiene cada regla que vigilaba el armado de la versión anterior.

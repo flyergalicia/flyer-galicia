@@ -1,8 +1,8 @@
-# Chequeos de `_build.mjs`
+# Reglas que vigilaba el armado anterior
 
-`_build.mjs` tiene un objeto `checks` con 247 comprobaciones sobre el texto de `auth.js`, `gestiones.js`, `_newcss.txt` y el HTML generado. Desaparecen junto con el código viejo, así que cada regla necesita antes un lugar donde seguir viva. Este archivo dice dónde quedó cada una.
+La versión anterior de la app tenía, en su script de armado, 247 comprobaciones sobre el texto de su propio código. Ese script ya no existe, así que antes de borrarlo cada regla pasó a tener un lugar donde seguir viva. Este archivo dice dónde quedó cada una.
 
-Es una migración de reglas, no de código: una prueba de navegador sigue valiendo cuando la app pasa a React y no conoce nombres internos.
+Es una migración de reglas, no de código: una prueba de navegador sigue valiendo aunque cambie cómo está hecha una pantalla.
 
 ## Las cuatro clases
 
@@ -10,24 +10,18 @@ Es una migración de reglas, no de código: una prueba de navegador sigue valien
 |---|---|---:|
 | **cubierto** | Una prueba existente ejerce el mismo comportamiento con la app corriendo. Se abrió la prueba para confirmarlo. | 54 |
 | **prueba nueva** | Regla que ve el usuario, o regla de datos, sin prueba real hasta ahora. Se escribió. | 167 |
-| **armado** | Cómo se genera la salida. Se comprueba sobre `dist/` en `tests/e2e/specs/build/`, o se retira si sólo tenía sentido para `_build.mjs`. | 14 |
-| **regla de código** | Cómo se escribe el código. Dice qué la sostiene en React y, si se puede medir, también se mide. | 12 |
+| **armado** | Cómo se genera la salida. Se comprueba sobre `dist/` en `tests/e2e/specs/build/`, o se retira si sólo tenía sentido para el armado anterior. | 14 |
+| **regla de código** | Cómo se escribe el código. Dice qué la sostiene y, si se puede medir, también se mide. | 12 |
 
-Las rutas son relativas a `tests/e2e/specs/` y sin `.spec.ts`.
+Las rutas son relativas a `tests/e2e/specs/` y sin `.spec.ts`. Todas corren en el proyecto `app` de Playwright.
 
 ## Lo que la app no cumple tal como decía el chequeo
 
 Son diferencias entre lo que decía el comentario del chequeo y lo que hace el código. No se cambió la app ni se forzó la prueba: quedan para decidir.
 
-- **«padron: cada empresa sale en el flyer vigente de su rubro»**: el comentario dice que una empresa sin rubro va «a la Opción 1 SIEMPRE». El código elige el flyer vigente entre los de Flyer Galicia que tienen imagen. La prueba fija lo que hace hoy: no depende de la pantalla.
+- **«padron: cada empresa sale en el flyer vigente de su rubro»**: el comentario dice que una empresa sin rubro va «a la Opción 1 SIEMPRE». El código elige el flyer vigente entre los de Flyer Galicia que tienen imagen. La prueba fija lo que hace: no depende de la pantalla.
 - **«promos: orden por columna»**: los vacíos «caen al final» sólo en orden ascendente. Al invertir la columna Hasta, encabezan la tabla. La prueba cubre el ascendente.
-- **«ux: sin confirm() nativo»**: se cumple para `confirm`, pero «Guardar el actual» de los asesores guardados pregunta el nombre con `prompt()`. La regla `no-alert` lo va a impedir en React.
-- **`padron: lupita solo admin`**: el nombre quedó viejo. Hoy va por la facultad `padron_buscar`, no por ser admin.
-
-## Lo que falta en React
-
-- Las técnicas de rendimiento (filas 197, 205 a 209) son tareas de las etapas 2 y 3: no se pueden medir de forma estable sin dar falsas alarmas.
-- Las pruebas nuevas corren hoy contra la versión actual. Cada método nuevo de los drivers necesita su versión en `driver/react/` cuando llegue su slice.
+- **«padron: lupita solo admin»**: el nombre quedó viejo. Va por la facultad `padron_buscar`, no por ser admin.
 
 ## Una fila por chequeo
 
@@ -36,31 +30,31 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 1 | CSS full-screen | prueba nueva | La ventana no se desplaza: el armador ocupa lo que deja el header. Vive en: `shell/layout-and-text`. |
 | 2 | layout height | prueba nueva | Alto del armador = ventana menos header. Vive en: `shell/layout-and-text`. |
 | 3 | panel height | prueba nueva | El formulario se desplaza adentro de su panel. Vive en: `shell/layout-and-text`. |
-| 4 | Supabase SDK (version fija) | armado | React empaqueta supabase-js (no hay CDN). Lo que sigue valiendo, versión exacta: «the versions of what is installed are exact». Vive en: `build/build-output`. |
-| 5 | auth.js | armado (retirado) | Retirado: en React no existe `auth.js`; el equivalente es el nombre con hash de cada asset (fila siguiente). Vive en: `build/build-output`. |
-| 6 | cache-busting auth.js | armado | Vite pone el hash en cada nombre de asset: «every asset has its content in the name». Vive en: `build/build-output`. |
+| 4 | Supabase SDK (version fija) | armado | La app empaqueta supabase-js (no hay CDN). Lo que sigue valiendo, versión exacta: «the versions of what is installed are exact». Vive en: `build/build-output`. |
+| 5 | el script principal con versión | armado (retirado) | Retirado: no hay un script principal suelto; el equivalente es el nombre con hash de cada asset (fila siguiente). Vive en: `build/build-output`. |
+| 6 | cache-busting del script | armado | Vite pone el hash en cada nombre de asset: «every asset has its content in the name». Vive en: `build/build-output`. |
 | 7 | SRI: todos los scripts CDN con integrity | armado | Sin scripts externos en la salida de Vite; si aparece uno, debe traer SRI: «no script comes from outside unless it brings its hash». Y `smoke` comprueba que no se pide nada afuera. Vive en: `build/build-output` `build/smoke`. |
 | 8 | libs de exportacion bajo demanda (fuera del head, con SRI en la meta) | armado | jsPDF y JSZip ya van con `import()` en `shared/flyer-engine` (lo controla `tests/unit/flyer-engine-libraries.test.ts`); ExcelJS va con `import()` desde `promotions`; xlsx, como archivo aparte que se baja con `<script>` y hash (`shared/lib/sheet-library.ts`; el armado comprueba el hash, `scripts/vite/sheet-library-integrity.ts`); pdf.js va en `shared/lib/pdf-flyer/pdf-reader.ts`, por `import()`, con su worker y sus WASM verificados al llegar (`tests/unit/pdf-reader-files.test.ts` compara los hashes con el paquete instalado). Se comprueba que ninguna librería de exportación está en la primera carga: «the libraries of exports are not in the first load». `flyer-sections/pdf-to-image` ejerce la carga bajo demanda de pdf.js en las dos versiones. Vive en: `build/build-output`. |
-| 9 | CSP: pdf.js baja sus archivos y compila WASM, sin eval | cubierto | Convierte un PDF bajo la CSP real, con el WASM verificado. En React también lo fija «the policy lets WASM compile but never eval». Vive en: `flyer-sections/pdf-to-image` `build/build-output`. |
+| 9 | CSP: pdf.js baja sus archivos y compila WASM, sin eval | cubierto | Convierte un PDF bajo la CSP real, con el WASM verificado. También lo fija «the policy lets WASM compile but never eval». Vive en: `flyer-sections/pdf-to-image` `build/build-output`. |
 | 10 | SRI: pdf.js dinamico con integrity | cubierto | «a tampered WASM…» y «a tampered worker…»: con el hash cambiado no corre. Vive en: `flyer-sections/pdf-to-image`. |
-| 11 | CSP: en index.html, no en export | armado | La mitad de `index.html` sigue valiendo y la cubre «the security policy comes before any script». La mitad del export se retira: en el plan no hay `index_export.html`. Vive en: `build/build-output`. |
-| 12 | export: auth.js inlineado | armado (retirado) | Retirado: `index_export.html` no existe en React (el plan publica `dist/`). |
-| 13 | export: sin HTML duplicado (una sola imagen base, un solo auth.js) | armado (retirado) | Retirado: era un error de armar el export con `String.replace`; sin export, no aplica. |
-| 14 | imagen base fuera de index.html (fallback flyer_default) | armado | «the page itself stays light»: sin imágenes adentro y menos de 400 KB. La regla de usuario (no bajar la imagen de ejemplo en silencio) está en `flyer-editor/flyer-fails-to-load`. Vive en: `build/build-output`. |
+| 11 | CSP: en index.html, no en el archivo suelto | armado | La de `index.html` la cubre «the security policy comes before any script». La del archivo suelto con toda la app se retira: ya no se arma. Vive en: `build/build-output`. |
+| 12 | archivo suelto: el script adentro | armado (retirado) | Retirado: el archivo suelto con toda la app ya no se arma (se publica `dist/`). |
+| 13 | archivo suelto: sin HTML duplicado | armado (retirado) | Retirado: era un error de armar el archivo suelto con `String.replace`; sin ese archivo, no aplica. |
+| 14 | imagen base fuera de index.html | armado | «the page itself stays light»: sin imágenes adentro y menos de 400 KB. La regla de usuario (no bajar la imagen de ejemplo en silencio) está en `flyer-editor/flyer-fails-to-load`. Vive en: `build/build-output`. |
 | 15 | escape: helper con comillas | prueba nueva | Comillas y etiquetas de terceros salen como texto, en cada pantalla. Vive en: `session/untrusted-text`. |
 | 16 | escape: panel usuarios/registros | prueba nueva | Usuarios, Registros, Cambios y Auditoría con un nombre hostil. Vive en: `session/untrusted-text`. |
-| 17 | onclick solo con ids (versiones/eliminar) | regla de código | JSX no permite `onclick` con texto y la CSP de React no tiene `unsafe-inline` (`build/build-output`). Hoy además: un archivo con comillas en el nombre no rompe ni ejecuta nada. Vive en: `session/untrusted-text`. |
+| 17 | onclick solo con ids (versiones/eliminar) | regla de código | JSX no permite `onclick` con texto y la CSP de React no tiene `unsafe-inline` (`build/build-output`). Además: un archivo con comillas en el nombre no rompe ni ejecuta nada. Vive en: `session/untrusted-text`. |
 | 18 | sesion: signOut si la cuenta no esta activa | prueba nueva | Cuenta inactiva o pendiente: mensaje, formulario y sesión cerrada. Vive en: `session/entry`. |
 | 19 | portapapeles: DOMParser | prueba nueva | Pegar HTML en el legal conserva las negritas y no ejecuta nada. Vive en: `flyer-editor/legal`. |
 | 20 | excel: vista previa escapada | prueba nueva | Encabezados y celdas hostiles del Excel en la validación. Vive en: `session/untrusted-text`. |
-| 21 | toast: unico (debounce) | prueba nueva | Un solo aviso a la vez; gana el último. Vive en: `shell/layout-and-text`. |
+| 21 | toast: unico (debounce) | prueba nueva | Un solo aviso a la vez; gana el último. Como una persona no puede mostrar un aviso cualquiera, vive en una prueba de componente: `web/src/shared/lib/toast/ToastProvider.test.tsx`. |
 | 22 | promos: espera de catalogo en vuelo | prueba nueva | Validar con el catálogo en camino espera, no ignora; el botón queda trabado mientras. Vive en: `promotions/table-and-matching`. |
 | 23 | registro: solo dominio del banco | prueba nueva | Registro: sólo @bancogalicia.com.ar, clave de 8 y no se pide nada antes de validar. Vive en: `session/entry`. |
 | 24 | asesores guardados: slot 3/4 | prueba nueva | «Guardar el actual» desde el Asesor 3 guarda el 3. Vive en: `flyer-editor/officers-card`. |
 | 25 | asesores guardados: en la nube | prueba nueva | La lista viene de la nube y se guarda con `asesores_replace`. Vive en: `flyer-editor/officers-card` `company-registry/database-screen`. |
 | 26 | buscador de pantallas: Cmd/Ctrl+K y boton en el header | cubierto | Todo el comportamiento del buscador. Vive en: `search/screen-search`. |
 | 27 | layout hidden | prueba nueva | Sin sesión, el armador está escondido. Vive en: `session/entry`. |
-| 28 | version: meta build-v + chequeo en auth.js | prueba nueva | Cartel de versión nueva sólo si difiere. En React: `build/smoke` cubre `version.json`, y el cartel es de `app/shell/NewVersionNotice`. Vive en: `session/entry`. |
+| 28 | version: meta build-v + chequeo en la app | prueba nueva | Cartel de versión nueva sólo si difiere. `build/smoke` cubre `version.json`, y el cartel es de `app/shell/NewVersionNotice`. Vive en: `session/entry`. |
 | 29 | login-ov | prueba nueva | Sin sesión aparece el formulario. Vive en: `session/entry`. |
 | 30 | admin-panel | cubierto | Cada prueba del panel lo abre. Vive en: `admin/usage-board` `admin/panel-and-faculties`. |
 | 31 | calcSC | cubierto | `calcSC` es la escala de la vista previa: se ejerce al hacer zoom. Vive en: `flyer-editor/preview-zoom`. |
@@ -110,7 +104,7 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 75 | hunter fase 3: tildadas arriba, Ctrl+Enter, simbar, iconos, conversacion | prueba nueva | Tildadas arriba, Ctrl+Enter, conversación de propuestas. Vive en: `hunter/hunter-screen` `company-registry/substitute-access`. |
 | 76 | propuestas: proponer (hunter) y aprobar/rechazar (oficial), vía RPC | prueba nueva | Crear, aprobar, rechazar y repreguntar por su RPC, sin reescribir la lista. Vive en: `hunter/hunter-screen`. |
 | 77 | textos: la palabra padron no aparece en pantalla | prueba nueva | Se lee el texto en pantalla y el nombre del archivo. Vive en: `shell/layout-and-text`. |
-| 78 | premium: capa visual (marino + naranja, Figtree, tarjetas, login partido) | cubierto | Lo cubren las imágenes de referencia (login, tarjetas, paletas) y la tipografía se mide en `shell/layout-and-text`. La versión React se compara contra las mismas capturas. Vive en: `visual/reference-screens`. |
+| 78 | premium: capa visual (marino + naranja, Figtree, tarjetas, login partido) | cubierto | Lo cubren las imágenes de referencia (login, tarjetas, paletas) y la tipografía se mide en `shell/layout-and-text`. La app se compara contra esas capturas. Vive en: `visual/reference-screens`. |
 | 79 | padron: generar flyers (ZIP por formato + resumen) | cubierto | ZIP por formato y `Resumen.txt` en `batches-skip-broken-flyer`; el registro de la tanda en `batch-rules`. Vive en: `flyer-editor/batches-skip-broken-flyer` `flyer-editor/batch-rules`. |
 | 80 | padron: editor en linea | prueba nueva | «Editar en línea» guarda lo editado. El resto del editor ya estaba en `editor-and-generator`. Vive en: `company-registry/sheet-import` `company-registry/editor-and-generator`. |
 | 81 | panel admin: 3 pilares | prueba nueva | Los tres pilares. Vive en: `admin/panel-and-faculties`. |
@@ -215,7 +209,7 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 180 | ux: compartir (solo PDF, boton oculto si no se puede) + Otros (PNG) | prueba nueva | Oculto si el navegador no puede; PNG en Otros; registra «compartir». Vive en: `flyer-editor/downloads-and-history`. |
 | 181 | promos: columna con el link a la promo | prueba nueva | El enlace con el formato del sitio de Galicia. Vive en: `promotions/table-and-matching`. |
 | 182 | promos: filtro por provincia | cubierto | Provincia y «Fuera de la provincia». Vive en: `promotions/several-provinces` `promotions/modo-promotions`. |
-| 183 | promos: MODO (tilde, sin repetidas, logos por _promoLogoSrc) | cubierto | Tilde, repetidas y logos. Vive en: `promotions/modo-promotions`. |
+| 183 | promos: MODO (tilde, sin repetidas, logos por una sola función) | cubierto | Tilde, repetidas y logos. Vive en: `promotions/modo-promotions`. |
 | 184 | promos: nuevas y proximamente | prueba nueva | Etiqueta Nueva, «Sólo las nuevas» y «Empieza el dd/mm». Vive en: `promotions/table-and-matching`. |
 | 185 | promos: solapa "Activas" | cubierto | Activas por provincia y localidad. Vive en: `promotions/several-provinces` `promotions/modo-promotions` `logo-strip/locality-filters`. |
 | 186 | promos: una sola fila por marca | prueba nueva | Une sucursales sólo si el nombre corto existe; las farmacias distintas quedan. Vive en: `promotions/table-and-matching` `promotions/search-brings-all-promotions`. |
@@ -223,15 +217,15 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 188 | ux: Ctrl+Enter tambien valida promociones | prueba nueva | Ctrl+Enter valida desde el cuadro. Vive en: `promotions/table-and-matching`. |
 | 189 | ux: teclado (solapas + Ctrl+Enter + Esc) | prueba nueva | Flechas en las solapas, Ctrl+Enter y Escape. Vive en: `shell/keyboard-and-menu`. |
 | 190 | ux: negrita del legal | prueba nueva | Botón y Ctrl+B ponen y sacan. Vive en: `flyer-editor/legal`. |
-| 191 | ux: sin confirm() nativo | regla de código | Regla `no-alert` en `.oxlintrc.json` (agregada). Hoy: `app.dialogs()` queda vacío en «the app asks with its own windows». Queda un `prompt()` en «Guardar el actual» (ver aviso abajo). Vive en: `shell/keyboard-and-menu`. |
+| 191 | ux: sin confirm() nativo | regla de código | Regla `no-alert` en `.oxlintrc.json`: tampoco `prompt()`. `app.dialogs()` queda vacío en «the app asks with its own windows». Vive en: `shell/keyboard-and-menu`. |
 | 192 | pegar: telefono por grupos de digitos | prueba nueva | CUIT, fecha y separadores no se confunden. Vive en: `flyer-editor/paste-officer`. |
-| 193 | perf: sin el armador muerto del template | armado (retirado) | Retirado: es el código muerto de `_source.html`, que React no tiene. |
-| 194 | perf: favicon fuera del head | armado | «the page itself stays light» pide el favicon por `link`. React lo hace desde `web/index.html`. Vive en: `build/build-output`. |
+| 193 | perf: sin el armador muerto del template | armado (retirado) | Retirado: era código muerto de la plantilla HTML anterior, que ya no existe. |
+| 194 | perf: favicon fuera del head | armado | «the page itself stays light» pide el favicon por `link`. Lo pone `web/index.html`. Vive en: `build/build-output`. |
 | 195 | perf: fuentes por <link> + preconnect | armado | «fonts never come by @import». Figtree se pide por `<link>` con `preconnect` desde `web/index.html`. Vive en: `build/build-output`. |
-| 196 | perf: redraw coalescido por frame | regla de código | Se mide: una ráfaga de cambios dibuja como uno. En React: `requestDraw` de `createFlyerPreview` agrupa por frame (`shared/flyer-engine/preview.test.tsx`). Vive en: `flyer-editor/drawing-economy`. |
+| 196 | perf: redraw coalescido por frame | regla de código | Se mide: una ráfaga de cambios dibuja como uno. `requestDraw` de `createFlyerPreview` agrupa por frame (`shared/flyer-engine/preview.test.tsx`). Vive en: `flyer-editor/drawing-economy`. |
 | 197 | perf: legal con cache de medidas y de word-wrap | regla de código | Técnica de rendimiento. Vive en: `shared/flyer-engine/draw-legal.test.tsx` (no vuelve a medir ni a partir un texto conocido); `flyer-engine/golden-output` fija el resultado. |
 | 198 | perf: preconnect a Supabase (antes de los scripts) | armado | «the page starts talking to the backend before it needs to»: lo pone `scripts/vite/backend-preconnect.ts`. Vive en: `build/build-output`. |
-| 199 | perf: configuracion del bucket pedida junta al entrar (_bucketJson) | regla de código | Regla `no-restricted-globals` para `fetch` en `web/src` fuera de `shared/supabase` y `shared/lib` (agregada). Tarea de la etapa 2: `bucketJson`. Hoy se mide: cada archivo se pide una vez al entrar. Vive en: `session/entry`. |
+| 199 | perf: configuracion del bucket pedida junta al entrar | regla de código | Regla `no-restricted-globals` para `fetch` en `web/src` fuera de `shared/supabase` y `shared/lib` (agregada). El bucket se lee con `readJson`. Hoy se mide: cada archivo se pide una vez al entrar. Vive en: `session/entry`. |
 | 200 | perf: facultades y opciones sin descargas repetidas | prueba nueva | Una sola descarga de `_facultades.json` y `_opciones.json`. Vive en: `session/entry`. |
 | 201 | perf: legal de la opcion en paralelo con sus datos | prueba nueva | El legal no espera a los datos de la opción. Vive en: `session/entry`. |
 | 202 | arranque: la Opcion 1 no pisa a otra opcion | prueba nueva | La opción 1 que llega tarde no pisa imagen ni calibración. Vive en: `session/entry`. |
@@ -239,7 +233,7 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 204 | perf: imagenes de flyer con cache larga (solo nombres unicos) | prueba nueva | Sólo el archivo con hora lleva un año de caché; el de nombre fijo no. Vive en: `admin/options-and-cashback`. |
 | 205 | perf: normalizaciones recordadas (promos y empresas) | regla de código | Técnica de rendimiento: TanStack Query y `shared/domain` en la etapa 2. El resultado se mide en `promotions/table-and-matching` (catálogo de 2.300). |
 | 206 | perf: generacion en tanda sin pausas fijas | regla de código | Técnica de rendimiento: `yieldToPaint` en `shared/flyer-engine/batch.ts`. El resultado está en `flyer-editor/batch-rules`. |
-| 207 | perf: un solo armado del PDF (_fgPdfDe) | regla de código | Un solo armado del PDF: `createFlyerPdf` en `shared/flyer-engine/output.ts`; los límites de carpetas de dependency-cruiser lo sostienen. |
+| 207 | perf: un solo armado del PDF | regla de código | Un solo armado del PDF: `createFlyerPdf` en `shared/flyer-engine/output.ts`; los límites de carpetas de dependency-cruiser lo sostienen. |
 | 208 | perf: canvas de alta resolucion reutilizado | regla de código | Técnica de rendimiento. Vive en: `shared/flyer-engine/render.test.tsx`. |
 | 209 | perf: color de fondo de la vista previa recordado | regla de código | Técnica de rendimiento. Vive en: `shared/flyer-engine/background-sample.test.tsx`; el resultado (mismo color) está en `flyer-editor/drawing-rules`. |
 | 210 | exportes completos (sin el corte de 1000 filas) | prueba nueva | Registros, tablero, Cambios y Hunter con 2.300 filas. Vive en: `admin/exports-whole`. |
@@ -254,7 +248,7 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 219 | pulido: menu del usuario sin pildoras naranjas | cubierto | Mide el menú del nombre. Vive en: `flyer-editor/visual-polish`. |
 | 220 | pulido: oscuro legible (opcion elegida y logos de Promociones) | cubierto | Contraste medido. Vive en: `flyer-editor/visual-polish`. |
 | 221 | pulido: boton apagado se ve apagado | cubierto | Opacidad medida. Vive en: `flyer-editor/visual-polish`. |
-| 222 | pulido: una sola tipografia (sin Syne ni DM Sans) | prueba nueva | Tipografías medidas en pantalla. En React: `build-output`. Vive en: `shell/layout-and-text` `build/build-output`. |
+| 222 | pulido: una sola tipografia (sin Syne ni DM Sans) | prueba nueva | Tipografías medidas en pantalla. Y en `build-output`. Vive en: `shell/layout-and-text` `build/build-output`. |
 | 223 | pulido: nombre de archivo sin "flyer" de relleno | cubierto | El nombre con marcadores vacíos. Vive en: `flyer-editor/visual-polish`. |
 | 224 | pulido: Cambiar logos no abre con el flyer sin cargar | cubierto | No abre con el flyer sin cargar. Vive en: `flyer-editor/visual-polish`. |
 | 225 | pulido: Activas sin contadores que siempre dan 0 | cubierto | Contadores de Activas. Vive en: `flyer-editor/visual-polish`. |
@@ -278,5 +272,5 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 243 | ux: oficiales ocultos = modificacion para el padron | prueba nueva | Ocultarlos cuenta como quitarlos. Vive en: `company-registry/update-after-download`. |
 | 244 | ux: zoom en la Vista previa (Ctrl+ruedita, doble clic, pellizco) | prueba nueva | Ctrl + rueda, doble clic, teclas, arrastre que no cierra. El pellizco no se puede simular en este navegador: queda el mismo evento `wheel` con Ctrl. Vive en: `flyer-editor/preview-zoom`. |
 | 245 | ux: vista previa sin texto de relleno (lo que se ve es lo que se baja) | prueba nueva | Campos vacíos no dibujan texto de relleno. Vive en: `flyer-editor/officers-card`. |
-| 246 | ux: letra minima (nada < 11 px salvo simbolos) | regla de código | Tokens de `shared/ui`, desde la etapa 2: `tests/unit/design-system/css-rules.test.ts` no deja tamaños de letra sueltos y `design-system/story-rules` mide todas las stories. En la versión actual se mide en el navegador: nada por debajo de 12 px (11 en mayúsculas) en el armador y el panel. Vive en: `shell/layout-and-text`. |
-| 247 | perf: un solo listener de resize (el de auth.js, con demora) | regla de código | Se mide: cambiar la ventana varias veces dibuja como una vez. En React: un solo `ResizeObserver` en el controlador del canvas (slice `flyer-editor`, etapa 4). Vive en: `flyer-editor/drawing-economy`. |
+| 246 | ux: letra minima (nada < 11 px salvo simbolos) | regla de código | Tokens de `shared/ui`, desde la etapa 2: `tests/unit/design-system/css-rules.test.ts` no deja tamaños de letra sueltos y `design-system/story-rules` mide todas las stories. Además se mide en el navegador: nada por debajo de 12 px (11 en mayúsculas) en el armador y el panel. Vive en: `shell/layout-and-text`. |
+| 247 | perf: un solo listener de resize (con demora) | regla de código | Se mide: cambiar la ventana varias veces dibuja como una vez. Un solo `ResizeObserver` en el controlador del canvas (slice `flyer-editor`, etapa 4). Vive en: `flyer-editor/drawing-economy`. |

@@ -4,25 +4,25 @@ Son las pruebas que se corren antes de cada cambio para no romper lo que ya anda
 
 ## Cómo correrlas
 
-Desde el corte (etapa 5) la raíz tiene la app React, y la versión vieja se arma aparte, en `legacy-site/` (no se versiona). Las pruebas de la versión vieja abren esa carpeta, así que primero hay que armarla:
+Las de navegador abren lo que quedó en la raíz, bajo la misma ruta que GitHub Pages (`/flyer-galicia/`), así que primero hay que armar:
 
 ```bash
-npm run legacy:build
+npm run release
 ```
 
-No uses `node _build.mjs` en la raíz: pisaría el `index.html` de React.
-
-Todas las de navegador contra la versión vieja:
+Todas las de navegador de la app:
 
 ```bash
-npx playwright test --project=legacy
+npx playwright test --project=app
 ```
 
 Sólo una carpeta o un archivo:
 
 ```bash
-npx playwright test --project=legacy logo-strip/build-strip
+npx playwright test --project=app logo-strip/build-strip
 ```
+
+Ese proyecto también trae lo que vigila el armado: `build/build-output` (lo que dejó `dist/`), `build/release-output` (que la raíz sea exactamente `dist/`, sin archivos de un armado anterior; si falla, falta correr `npm run release`), `build/smoke` y `build/weight-budget`, que compara el peso de la primera carga con la referencia.
 
 Las que no usan navegador y las de componentes, con su coverage:
 
@@ -30,25 +30,13 @@ Las que no usan navegador y las de componentes, con su coverage:
 npm test
 ```
 
-Las mismas pruebas contra la app React. Antes hay que hacer el corte, porque estas pruebas abren lo que queda en la raíz, bajo la misma ruta que GitHub Pages (`/flyer-galicia/`):
-
-```bash
-npm run release
-```
-
-```bash
-npx playwright test --project=react
-```
-
-Sólo corren las que llevan la etiqueta `@react`. Ese proyecto también trae lo que vigila el armado nuevo: `build/build-output` (lo que dejó `dist/`), `build/release-output` (que la raíz sea exactamente `dist/`, sin archivos de un armado anterior y sin `index_export.html`; si falla, falta correr `npm run release`), `build/smoke` y `build/weight-budget`, que compara el peso de la primera carga con el de la versión vieja.
-
-Todos los chequeos juntos, los mismos de `ci.yml`. Hace el corte y arma la versión vieja antes de las pruebas, así que deja la raíz al día; en `ci.yml`, además, falla si la raíz del commit no es la del armado:
+Todos los chequeos juntos, los mismos de `ci.yml`. Arma la app y Storybook antes de las pruebas, así que deja la raíz al día; en `ci.yml`, además, falla si la raíz del commit no es la del armado:
 
 ```bash
 npm run ci
 ```
 
-Lo común de la app nueva (`shared`) contra la versión actual. Necesita Storybook armado:
+Lo común de la app (`shared`) contra lo que se guardó de la versión anterior en `tests/fixtures/design-system/reference-look.json` (se grabó una sola vez, antes de borrarla, y no se puede volver a grabar). Necesita Storybook armado:
 
 ```bash
 npm run storybook:build
@@ -58,7 +46,7 @@ npm run storybook:build
 npx playwright test --project=design-system
 ```
 
-El motor del flyer nuevo contra el flyer impreso de referencia. También necesita Storybook armado:
+El motor del flyer contra el flyer impreso de referencia. También necesita Storybook armado:
 
 ```bash
 npx playwright test --project=flyer-engine
@@ -68,21 +56,22 @@ La primera vez hay que instalar el navegador con `npx playwright install chromiu
 
 ## Qué hay acá
 
-| Carpeta                              | Qué tiene                                                                                                                          |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `e2e/specs/`                         | Las pruebas de navegador, por dominio. Dicen qué hace el usuario y qué tiene que ver                                               |
-| `e2e/support/driver/`                | Cómo se hace cada cosa, con métodos nombrados por intención. `legacy/` maneja la versión actual y `react/`, la nueva               |
-| `e2e/specs/design-system/`           | `shared` contra la versión actual: tokens, componentes, capturas, red y letra mínima. Se explica en `docs/PLAN_MIGRACION_REACT.md` |
-| `e2e/support/design-system/`         | Qué story tiene que igualar a qué parte de la app (`cases.ts`), y cómo se mide                                                     |
-| `e2e/specs/flyer-engine/`            | `shared/flyer-engine` contra `fixtures/golden/`: los mismos píxeles y el mismo PDF, sin tolerancia                                 |
-| `e2e/support/flyer-engine/`          | Abre la story del motor y baja lo que sale. Trae las entradas grabadas de cada caso (`golden-inputs.json`)                         |
-| `e2e/support/cloud/`                 | La nube simulada: tablas, bucket, funciones y reglas. Se crea una por prueba                                                       |
-| `unit/`                              | Lógica suelta, sin navegador                                                                                                       |
-| `fixtures/data/`, `fixtures/logos/`  | Lo que sirve la nube simulada: flyer, catálogo de promociones, geografía y logos                                                   |
-| `fixtures/visual/`                   | Capturas de referencia de la versión actual                                                                                        |
-| `fixtures/golden/`                   | PNG y resumen de los PDF de referencia del flyer impreso                                                                           |
-| `fixtures/network-contract.json`     | Todo lo que la app le pide a la nube: tablas, funciones y acciones                                                                 |
-| `fixtures/performance-baseline.json` | Peso y tiempos de la versión actual                                                                                                |
+| Carpeta                              | Qué tiene                                                                                                                                 |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/specs/`                         | Las pruebas de navegador, por dominio. Dicen qué hace el usuario y qué tiene que ver                                                      |
+| `e2e/support/driver/`                | Cómo se hace cada cosa, con métodos nombrados por intención: la interfaz de cada dominio, y en `react/` cómo se hace en la app            |
+| `e2e/specs/design-system/`           | `shared` contra lo que se guardó de la versión anterior: tokens, componentes, capturas, red y letra mínima. Se explica en el plan         |
+| `e2e/support/design-system/`         | Qué story tiene que igualar a qué parte de la app (`cases.ts`), cómo se mide y cómo se lee lo guardado (`reference-look.ts`)              |
+| `e2e/specs/flyer-engine/`            | `shared/flyer-engine` contra `fixtures/golden/`: los mismos píxeles y el mismo PDF, sin tolerancia                                        |
+| `e2e/support/flyer-engine/`          | Abre la story del motor y baja lo que sale. Trae las entradas grabadas de cada caso (`golden-inputs.json`)                                |
+| `e2e/support/cloud/`                 | La nube simulada: tablas, bucket, funciones y reglas. Se crea una por prueba                                                              |
+| `unit/`                              | Lógica suelta, sin navegador (las de cada pantalla viven al lado de su código, en `web/src`)                                              |
+| `fixtures/data/`, `fixtures/logos/`  | Lo que sirve la nube simulada: flyer, catálogo de promociones, geografía y logos                                                          |
+| `fixtures/visual/`                   | Capturas de referencia, tomadas de la versión anterior                                                                                    |
+| `fixtures/golden/`                   | PNG y resumen de los PDF de referencia del flyer impreso                                                                                  |
+| `fixtures/design-system/`            | Lo que el proyecto `design-system` leía de la versión anterior abierta: valores de los tokens, de cada componente y dónde estaba cada uno |
+| `fixtures/network-contract.json`     | Todo lo que la app le pide a la nube: tablas, funciones y acciones                                                                        |
+| `fixtures/performance-baseline.json` | Peso y tiempos de la versión anterior: lo que la app no puede superar                                                                     |
 
 Los números viejos (`t79`, `u05`) que aparecen en `CLAUDE.md` se encuentran buscándolos: la primera línea de cada prueba nombra el archivo que reemplaza, y los archivos viejos siguen en la historia de git.
 
@@ -90,30 +79,12 @@ Los números viejos (`t79`, `u05`) que aparecen en `CLAUDE.md` se encuentran bus
 
 El ejemplo a copiar es `e2e/specs/logo-editor/replace-logo.spec.ts`.
 
-- La spec no conoce globales, `id` ni `page.evaluate`: `npm run lint:policy` lo controla. Así, la misma prueba sirve para las dos versiones.
+- La spec no conoce `id` ni `page.evaluate`: `npm run lint:policy` lo controla. Así, la spec sigue valiendo aunque cambie cómo está hecha una pantalla.
 - Lo que no se puede expresar con texto visible o roles va por el driver del dominio.
 - Se usa `expect.soft`, para ver todo lo que falla y no sólo lo primero.
-- Toda funcionalidad nueva suma su prueba. Las que ya valen para React llevan la etiqueta `@react`.
-- Una prueba vale si falla cuando se rompe lo que protege. Antes de darla por buena, rompé esa regla en una copia de la app y mirá que falle: con `FLYER_STATIC_ROOT=<copia>` el servidor de las pruebas de la versión vieja sirve esa carpeta en lugar de `legacy-site/`. Para React, rompela en `web/`, corré `npm run release` y, al deshacerlo, volvé a correr `npm run release`.
-
-## Las que no corren contra React
-
-Son 14, más `pdf-bands`. Casi todas piden algo que una persona no puede hacer desde la pantalla: en React, el driver de esa acción falla diciendo por qué. Lo que protegen está cubierto por otra prueba.
-
-| Spec                                                                               | Por qué no corre contra React                                                                                                                |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin/options-and-cashback` «a category left without flyer is said…»              | Mete en una tanda una empresa que no se puede tildar. La cubre «a category left without flyer says so on the list…»                          |
-| `benchmark/hand-loaded` (3)                                                        | «Cargadas a mano» no se muestra a nadie, como hoy. Sus reglas las cubren las pruebas de componente; si se vuelve a mostrar, pasan a `@react` |
-| `company-registry/substitute-access` «no cashback travels in the request too»      | Marca «sin cashback» desde adentro. La cubre `use-company-review.test`                                                                       |
-| `flyer-editor/batches-skip-broken-flyer` «the history skips what it cannot draw…»  | Suma al historial un flyer viejo. La cubre `history-rules`                                                                                   |
-| `flyer-editor/drawing-rules` (2) «with no cashback…»                               | Marca «sin cashback» desde adentro. Las cubren otras dos pruebas de `drawing-rules` y `form-state.test`                                      |
-| `flyer-editor/late-responses` «a logo that no longer exists…»                      | Pone una marca que no está en el catálogo. La cubre `logo-library.test`                                                                      |
-| `logo-editor/editor-shows-current-logo` «never falls back to the flyer…»           | Vacía la memoria de logos. La cubre `LogoEditorDetails.test`                                                                                 |
-| `promotions/search-brings-all-promotions` «confirming the match of a clear brand…» | Pide revisar una fila clara desde adentro. La cubren su spec y `result-rows.test`                                                            |
-| `promotions/supermarket-days` «the printed days of a logo are found…»              | Pinta una imagen en la página. La cubre `flyer-pixels.test`                                                                                  |
-| `search/screen-search` «the name of a flyer is painted as text»                    | Un nombre con `<>` nunca llega a la pantalla. La cubre su prueba de componente                                                               |
-| `shell/layout-and-text` «one floating notice at a time…»                           | Muestra un texto cualquiera. La cubre `ToastProvider.test`                                                                                   |
-| `flyer-sections/pdf-bands`                                                         | Corre en las dos versiones, pero se saltea si no hay PDF reales (`FG_PDFS`)                                                                  |
+- Toda funcionalidad nueva suma su prueba.
+- Lo que una persona no puede hacer desde la pantalla no se prueba con una spec: va en una prueba de componente, al lado del código.
+- Una prueba vale si falla cuando se rompe lo que protege. Antes de darla por buena, rompé esa regla en `web/`, corré `npm run release` y mirá que falle; al deshacerlo, volvé a correr `npm run release`. También se puede romper una copia de la raíz y servirla con `FLYER_STATIC_ROOT=<copia>`.
 
 ## Referencias
 
@@ -121,9 +92,12 @@ Se actualizan **sólo a propósito**, y hay que mirar la diferencia antes de ace
 
 | Qué                      | Cómo se actualiza                                                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Capturas y flyer impreso | `npx playwright test --project=legacy --grep "@visual\|@golden" --update-snapshots`                                                        |
+| Capturas y flyer impreso | `npx playwright test --project=app --grep "@visual\|@golden" --update-snapshots`                                                           |
 | Contrato de red          | `npm run contract:record`. Corre toda la suite y reemplaza el archivo entero: nunca con un filtro, porque quedaría sólo lo de esas pruebas |
-| Peso y tiempos           | `npm run perf:baseline`                                                                                                                    |
+| Peso y tiempos           | `npm run perf:baseline`, después de `npm run release`                                                                                      |
+| `fixtures/design-system` | No se puede: se grabó de la versión anterior abierta, que ya no existe. Un caso nuevo de `cases.ts` se compara de otra forma               |
+
+Las capturas, el flyer impreso, el contrato de red y el peso se tomaron de la versión anterior, y la app los cumple. Regrabarlos los pasa a ser de la app: hacelo sólo cuando un cambio de pantalla, de pedidos o de peso sea a propósito. Las tres capturas de Config → Flyer (`admin-flyer-config--*`) ya son de la app: se regrabaron el 6-nov-2026, al sacar de esa pantalla una frase que nombraba un archivo de la versión anterior.
 
 Límites de las capturas:
 
@@ -131,35 +105,27 @@ Límites de las capturas:
 - Muestran lo que entra en la ventana, más una imagen del contenido en las pantallas que abren con filtros arriba.
 - Valen sólo para macOS, y por eso no corren en CI. En otro sistema hay que generarlas ahí.
 - No dependen de que haya un mouse conectado. Con un mouse, macOS le da al navegador barras de desplazamiento clásicas, que mueven lo que se ve (un flyer centrado, el ancho de un desplegable) aunque Playwright las esconda. Por eso el navegador de las pruebas arranca siempre con las superpuestas: `support/browser/overlay-scrollbars.ts`. Lo vigila `visual/overlay-scrollbars.spec.ts`.
-- El proyecto `design-system` compara recortes de esas mismas capturas: no tiene referencias propias. Si cambia una captura a propósito, él se entera solo.
+- El proyecto `design-system` compara recortes de esas mismas capturas. Si cambia una captura a propósito, revisá que el recorte que usa siga siendo el mismo componente.
 
 ## El motor del flyer contra la referencia
 
 `e2e/specs/flyer-engine/` abre la story `EngineHarness` y baja el PNG y el PDF con la API pública del motor, sin formulario ni nube. Lee `fixtures/golden/`, nunca las escribe. Lo que depende de la plataforma lleva `@golden` y no corre en CI.
 
-`e2e/support/flyer-engine/golden-inputs.json` son los datos de cada caso, tal como los tenía la app actual en el momento de descargar. No hay nada personal: son personas y empresas inventadas. Las direcciones son de un dominio `.invalid`, y sólo contestan los archivos de `fixtures/`.
-
-Hay que regrabarlas sólo si cambia un caso de `golden/flyer-output.spec.ts` o la calibración de `fixtures/data/`, así:
-
-1. Con una spec temporal en `specs/golden/` (no se versiona), hacer lo mismo que el caso y envolver `window.fullRes` antes de apretar el botón, para guardar los valores que recibe.
-2. Guardar también `window.FLYER_CFG` (con un recorte, `_fgRec.cfg0` y `_fgRec.cortes`), el texto de `#filename` y las claves de `_fgLg.imgs`. Del Masivo se guardan las filas.
-3. Cambiar la dirección del flyer por la de `golden-inputs.json`, también en `logosSrc`.
-4. Si las referencias no cambiaron, el motor tiene que seguir dando diferencia 0: eso demuestra que las entradas están bien.
+`e2e/support/flyer-engine/golden-inputs.json` son los datos de cada caso, tal como los tenía la versión anterior en el momento de descargar. No hay nada personal: son personas y empresas inventadas. Las direcciones son de un dominio `.invalid`, y sólo contestan los archivos de `fixtures/`. Si cambia un caso de `golden/flyer-output.spec.ts` o la calibración de `fixtures/data/`, hay que ajustar a mano los datos del caso para que el motor siga dando diferencia 0 con la referencia, o regrabar la referencia con la app (ver la tabla de arriba) mirando la diferencia.
 
 ## Casos especiales
 
-- Toda prueba contra React falla si la app pide algo que no está en `fixtures/network-contract.json`: lo controla `support/test.ts`.
+- Toda prueba de navegador falla si la app pide algo que no está en `fixtures/network-contract.json`: lo controla `support/test.ts` (menos al regrabar el contrato).
 - `pdf-bands` compara PDF de verdad, que no se versionan. Se saltea si no se indican: `FG_PDFS="a.pdf;b.pdf"`.
 - `tests/unit/benchmark/normalize.test.ts` consulta MODO en vivo sólo con `FLYER_LIVE_TESTS=1`, porque depende de internet y de lo que publique MODO ese día.
 - Cada prueba arranca en una fecha fija (`FIXED_NOW`, en `e2e/support/clock.ts`) porque el catálogo de `fixtures/data` es una foto y sus promos vencen. Si se renueva el catálogo, hay que mover esa fecha.
-- Las pruebas de la versión actual necesitan internet para bajar las librerías de los CDN. Si una falla por tiempos de red, repetila sola antes de buscar un error.
 
 ## Demo de Gestiones
 
-No es una prueba: sirve para probar a mano. Abre ventanas visibles de Oficial, Hunter y Líder sobre la misma nube simulada, y lo que hace una persona lo ve la otra en vivo:
+No es una prueba: sirve para probar a mano. Abre ventanas visibles de Oficial, Hunter y Líder sobre la misma nube simulada, con la app que quedó en la raíz (`npm run release` antes). Lo que hace una persona le llega a la otra cuando la app lo vuelve a leer (cada 90 segundos, o cambiando de solapa):
 
 ```bash
 npm run demo:commercial-actions
 ```
 
-También se pueden elegir personas, con `npm run demo:commercial-actions -- oficial hunter2`.
+También se pueden elegir personas, con `npm run demo:commercial-actions -- oficial hunter2`, y comprobar que abre sin ventanas con `npm run demo:commercial-actions -- --check`.

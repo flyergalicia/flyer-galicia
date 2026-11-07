@@ -1,6 +1,6 @@
 # Glosario
 
-Cómo se llama en el código nuevo cada término del negocio. El código va en inglés; las pantallas siguen en español.
+Cómo se llama en el código cada término del negocio. El código va en inglés; las pantallas siguen en español.
 
 | En pantalla | En el código | Qué es |
 |---|---|---|
@@ -71,7 +71,7 @@ Cómo se llama en el código nuevo cada término del negocio. El código va en i
 | Empresas por usuario | `otherPeople` | El administrador lee la lista de otro, sin poder editarla |
 | Perfil | `role` | Admin, VIP, asesor, Hunter, Líder, Prospect |
 | Config → Flyer | `FlyerSheet` | La hoja del panel donde se sube un flyer y se activa o desactiva el de cada opción |
-| Versión (de un flyer) | `uploadedFlyer` | Un archivo subido al bucket (`flyer_<hora>_op<n>.jpg` o el HTML del armado) |
+| Versión (de un flyer) | `uploadedFlyer` | Un archivo subido al bucket (`flyer_<hora>_op<n>.jpg`, o `index_<hora>.html` si se subió un HTML con la imagen adentro) |
 | Flyer activo | `activeFlyer` | Lo que dice `_active<n>.json`: la imagen y la calibración que usa esa opción |
 | Calibrador | `calibrator` | La ventana donde se acomodan las zonas del flyer sobre su imagen |
 | Zona | `zone` | Empresa, Montos, cada caja, Cashback, Asesores, Legales y cada línea del cartel |
