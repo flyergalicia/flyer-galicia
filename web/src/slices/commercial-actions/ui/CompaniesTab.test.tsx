@@ -6,6 +6,7 @@ import {
   jsonResponse,
   type RecordedRequest,
 } from "@/shared/supabase/testing/recording-fetch.ts";
+import { dateLabel } from "../model/formatting.ts";
 import { FAILS, fieldsOf, ME } from "../testing/commercial-cloud.ts";
 import { openCommercial } from "../testing/commercial-on-screen.tsx";
 import { aListedAction, anAction, TEAM } from "../testing/fixtures.ts";
@@ -324,10 +325,12 @@ describe("a repetition", () => {
 
   it("a date that clashes does not stop the others: it says which, and opens the action", async () => {
     let turn = 0;
+    let clashDate = "";
     const clashing: Answer = (request) => {
       if (request.method !== "POST") return jsonResponse(anAction({ id: "new" }));
       turn += 1;
       if (turn === 2) {
+        clashDate = String(Reflect.get(fieldsOf(request.body), "fecha"));
         return jsonResponse({ message: "GES_PISA: de 10:00 a 12:00" }, 400);
       }
       return saved(request);
@@ -345,6 +348,7 @@ describe("a repetition", () => {
     await expect.element(notice()).toMatchTextContent(/Se crearon 2 de 3 fechas/);
     await expect.element(notice()).toMatchTextContent(/se pisa/);
     expect(turn).toBe(3);
+    await expect.element(notice()).toMatchTextContent(`No se pudo: ${dateLabel(clashDate)} (`);
     await expect.element(page.getByTestId("action-detail")).toBeVisible();
   });
 });

@@ -250,6 +250,22 @@ describe("assigning", () => {
     await expect.element(page.getByTestId("form-hunter")).toHaveValue("h1");
   });
 
+  it("a leader chooses only among the hunters of the team", async () => {
+    await open(
+      { hunter: "h1" },
+      {
+        role: "lider",
+        personsOfTeam: Object.values({ ...TEAM, h1: { ...TEAM.h1, lider_id: ME } }),
+      },
+    );
+    const field = page.getByTestId("form-hunter");
+    await expect.element(field.getByRole("option", { name: "Sofía Paz" })).toBeInTheDocument();
+    await expect
+      .element(field.getByRole("option", { name: "Otro Hunter" }))
+      .not.toBeInTheDocument();
+    await expect.element(field.getByRole("option", { name: "Tomás Ríos" })).not.toBeInTheDocument();
+  });
+
   it("saves it with the officer of the company, forwarded and planned", async () => {
     const { posted, onClose, onSaved } = await open({ hunter: "h1", date: DAY, time: "10:00" });
     await chooseTextil();

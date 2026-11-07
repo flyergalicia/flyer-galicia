@@ -135,6 +135,23 @@ describe("how it starts", () => {
     expect(localStorage.getItem("fg_ges_agver")).toBe("sem");
   });
 
+  it("a leader sees only the team, on the day of the team and on the week", async () => {
+    await openAgenda({}, { role: "lider", personsOfTeam: TEAM_OF_ME });
+
+    const team = page.getByTestId("agenda-team");
+    await expect.element(team.getByRole("row").filter({ hasText: "Sofía Paz" })).toBeVisible();
+    await expect.element(team.getByRole("row").filter({ hasText: "Tomás Ríos" })).toBeVisible();
+    await expect.element(team.getByText("Otro Hunter")).not.toBeInTheDocument();
+
+    await view("Semana").click();
+    const whose = agenda().getByRole("combobox", { name: "Agenda de" });
+    await expect.element(whose.getByRole("option", { name: "Sofía Paz" })).toBeInTheDocument();
+    await expect.element(whose.getByRole("option", { name: "Tomás Ríos" })).toBeInTheDocument();
+    await expect
+      .element(whose.getByRole("option", { name: "Otro Hunter" }))
+      .not.toBeInTheDocument();
+  });
+
   it("touching the view it is on does nothing", async () => {
     await openAgenda({}, officerWithOccupancy([]));
     await view("Día del equipo").click();
@@ -313,6 +330,26 @@ describe("the calendar by hours", () => {
     await expect
       .element(agenda().getByText("Sin horario", { exact: true }))
       .not.toBeInTheDocument();
+  });
+
+  it("nothing missing prints as NaN or undefined, on any view", async () => {
+    const sparse = [
+      { ...OWN, id: "no-end", hora_hasta: null, lugar: null, cuit: null, fecha: today() },
+      { ...OWN, id: "no-time", hora_desde: null, hora_hasta: null, fecha: today() },
+    ];
+    await openWeek(sparse, [{ ...HIDDEN, fecha: today(), hora_hasta: null }]);
+    await expect.element(blocks().first()).toBeVisible();
+    const printed = () => agenda().element().innerHTML;
+    expect.soft(printed()).not.toMatch(/NaN|undefined/);
+
+    await view("Día del equipo").click();
+    await expect.element(page.getByTestId("agenda-team")).toBeVisible();
+    expect.soft(printed()).not.toMatch(/NaN|undefined/);
+
+    await view("Mes").click();
+    await expect.element(page.getByTestId("agenda-month")).toBeVisible();
+    await expect.element(agenda().getByText("ALIMENTOS SA").first()).toBeVisible();
+    expect.soft(printed()).not.toMatch(/NaN|undefined/);
   });
 
   it("Sunday shows only if it has something", async () => {

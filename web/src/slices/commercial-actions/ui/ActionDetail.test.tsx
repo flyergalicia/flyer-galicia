@@ -865,6 +865,24 @@ describe("the time of a hunter", () => {
       .not.toBeInTheDocument();
   });
 
+  it("the hunter of the form is not free, and a time with no end takes an hour", async () => {
+    await openAction(FORWARDED, {
+      hunterDay: [TAKEN],
+      dayOccupancy: [
+        { hunter_id: "h1", hora_desde: "10:30", hora_hasta: "11:30" },
+        { hunter_id: "h9", hora_desde: "09:30", hora_hasta: null },
+      ],
+    });
+    await command("Cambiar hunter").click();
+    await expect.element(freeHunters().getByRole("button", { name: "Tomás Ríos" })).toBeVisible();
+    await expect
+      .element(freeHunters().getByRole("button", { name: "Sofía Paz" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(freeHunters().getByRole("button", { name: "Otro Hunter" }))
+      .not.toBeInTheDocument();
+  });
+
   it("being stopped reads that day again: it may have changed", async () => {
     const { harness } = await openAction(FORWARDED, { hunterDay: [TAKEN] });
     await command("Cambiar hunter").click();

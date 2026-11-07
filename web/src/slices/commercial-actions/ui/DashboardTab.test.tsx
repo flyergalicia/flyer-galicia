@@ -265,6 +265,18 @@ describe("what it draws", () => {
     await expect.element(screen()).toMatchTextContent("Otro motivo1 · 33%");
   });
 
+  it("the signups by package, all five even with none, and no income ranges", async () => {
+    await openBoard();
+    const content = page.getByTestId("dashboard-content");
+
+    await expect.element(content).toMatchTextContent("Altas por paquete");
+    await expect.element(content).toMatchTextContent("Sin paquete2 · 33%");
+    await expect.element(content).toMatchTextContent("Plus Gold0 · 0%");
+    await expect.element(content).toMatchTextContent("Eminent Platinum0 · 0%");
+    await expect.element(content).toMatchTextContent("Eminent Black0 · 0%");
+    expect(content.element().textContent).not.toMatch(/renta/i);
+  });
+
   it("the rankings, with no row without an owner, and the packages of each hunter", async () => {
     await openBoard();
 

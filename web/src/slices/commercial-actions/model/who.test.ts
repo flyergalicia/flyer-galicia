@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { administrator, anAction, hunter, leader, officer, whoIs } from "../testing/fixtures.ts";
 import {
+  asksHiddenOccupancy,
   canDelete,
   canEdit,
   canForce,
@@ -109,6 +110,19 @@ describe("who changes the hunter and who forces a time", () => {
     expect.soft(isOfMyTeam(leader, "h1")).toBe(true);
     expect.soft(isOfMyTeam(leader, "h9")).toBe(false);
     expect.soft(isOfMyTeam(leader, null)).toBe(false);
+  });
+});
+
+describe("who is asked for the hidden occupation", () => {
+  it.each([
+    ["hunter", false, false],
+    ["vip", false, true],
+    ["asesor", false, true],
+    ["pro", false, true],
+    ["lider", false, false],
+    ["admin", true, false],
+  ])("role %s (administrator: %s) is asked: %s", (role, isAdmin, asked) => {
+    expect(asksHiddenOccupancy(whoIs(role, "o1", isAdmin))).toBe(asked);
   });
 });
 
