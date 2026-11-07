@@ -239,7 +239,6 @@ export function FlyerSheet() {
         ninguna línea de texto): la app escribe todo el cuadro con la misma letra, y en el
         calibrador elegís la plantilla del rubro (Combustible / Supermercado), ajustás textos y
         tamaños y arrastrás las líneas. Qué opción ve cada perfil se define en Admin → Facultades.
-        El HTML del build (<strong>index_export.html</strong>) también sirve como antes.
       </p>
       <UploadBox state={upload.state} onFile={chooseFile} />
       <ListArea

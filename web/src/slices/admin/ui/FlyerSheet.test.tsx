@@ -419,7 +419,7 @@ describe("uploading a flyer", () => {
   it("an HTML goes up as it is, without asking, and shows its address", async () => {
     const { harness } = await openSheet();
     await userEvent.upload(sheet().getByTestId("flyer-file"), [
-      new File(["<html></html>"], "index_export.html", { type: "text/html" }),
+      new File(["<html></html>"], "flyer.html", { type: "text/html" }),
     ]);
     await expect
       .poll(() => harness.network.to("/storage/v1/object/flyers/index_", "POST").length)
@@ -453,7 +453,7 @@ describe("uploading a flyer", () => {
           : null,
     });
     await userEvent.upload(sheet().getByTestId("flyer-file"), [
-      new File(["<html></html>"], "index_export.html", { type: "text/html" }),
+      new File(["<html></html>"], "flyer.html", { type: "text/html" }),
     ]);
     await expect
       .poll(() => sheet().getByTestId("flyer-upload-error").element().textContent)

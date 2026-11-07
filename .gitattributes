@@ -1,3 +1,2 @@
-
 # Tienen hash de integridad (SRI): un cambio de fin de línea haría que no carguen
-libs/* -text
+web/src/shared/lib/vendor/* -text

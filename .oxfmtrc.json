@@ -14,7 +14,7 @@
     "package-lock.json",
     "README.md",
     "CLAUDE.md",
-    "libs/**",
+    "web/src/shared/lib/vendor/**",
     "supabase/**",
     "docs/**",
     "tests/fixtures/**",

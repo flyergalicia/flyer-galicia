@@ -1,7 +1,7 @@
 // SheetJS, for the sheets of the app. npm and cdnjs stayed in an old version with known problems, so
-// it is served from the site itself (libs/): a script that the browser checks against its hash, and
+// it is served from the site itself (vendor/): a script that the browser checks against its hash, and
 // that comes down the first time somebody touches a sheet.
-import libraryAddress from "../../../../libs/xlsx-0.20.3.full.min.js?url";
+import libraryAddress from "./vendor/xlsx-0.20.3.full.min.js?url";
 import { createLibraryLoader, type LibraryLoader } from "./library-loader.ts";
 
 // Worked out from the file when building: see scripts/vite/sheet-library-integrity.ts.

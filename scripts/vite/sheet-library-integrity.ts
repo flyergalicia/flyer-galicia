@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-export const SHEET_LIBRARY_FILE = "libs/xlsx-0.20.3.full.min.js";
+export const SHEET_LIBRARY_FILE = "web/src/shared/lib/vendor/xlsx-0.20.3.full.min.js";
 export const SHEET_LIBRARY_INTEGRITY =
   "sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT";
 

@@ -20,7 +20,7 @@
     "index.html",
     "index_export.html",
     "version.json",
-    "libs/**",
+    "web/src/shared/lib/vendor/**",
     "supabase/**",
     "dist/**",
     "assets/**",
