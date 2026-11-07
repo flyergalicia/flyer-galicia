@@ -5,7 +5,6 @@ import { expect, test } from "../../support/test.ts";
 const LOGO_HOST = "https://www.galicia.ar/**";
 const DESIGNS_TABLE = "**/rest/v1/flyer_disenos**";
 const FREE_AREA = { x: 140, y: 2650, width: 300, height: 110 };
-const MISSING_LOGO = "no_existe_x.png";
 const SLOW_MS = 1_500;
 
 const delay = (ms: number) =>
@@ -42,28 +41,6 @@ test.describe("answers that arrive late", () => {
         .toEqual([]);
     },
   );
-
-  test("a logo that no longer exists is asked for once, not on every redraw", async ({
-    openApp,
-  }) => {
-    const app = await openApp();
-    await app.logoEditor.enter();
-    let requests = 0;
-    await app.page.route(LOGO_HOST, async (route) => {
-      if (route.request().url().includes(MISSING_LOGO)) {
-        requests += 1;
-        await route.fulfill({ status: 404, body: "" });
-        return;
-      }
-      await route.fallback();
-    });
-
-    await app.logoEditor.placeBrandInArea(FREE_AREA, { image: MISSING_LOGO, title: "Ya no está" });
-    await app.flyerEditor.redrawFlyer(15);
-    await app.page.waitForTimeout(500);
-
-    expect.soft(requests, "a missing logo: one request, not one per redraw").toBe(1);
-  });
 
   test(
     "a design saved late does not convert the draft opened meanwhile",

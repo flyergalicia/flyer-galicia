@@ -115,33 +115,6 @@ test.describe("Config → Opciones", () => {
     },
   );
 
-  test("a category left without flyer is said, and does not fall into the general one", async ({
-    cloud,
-    openApp,
-  }) => {
-    cloud.addFlyerOption({
-      option: 8,
-      name: "Combustible",
-      image: FLYER,
-      legal: "L",
-      tab: "rubros",
-    });
-    const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
-    await flyerEditor.loadDownloadLibrary("zip");
-    await flyerEditor.loadDownloadLibrary("pdf");
-
-    const outcome = await companyRegistry.generateFlyers([
-      { name: "ACME", cashback: "BAU", category: { option: 99, name: "Harina" } },
-      { name: "BETA", cashback: "BAU", category: { option: 8 } },
-    ]);
-
-    expect.soft(outcome.files.join(" "), "the other one goes").toMatch(/BETA/);
-    expect
-      .soft(outcome.files.join(" "), "this one is not sent to another flyer")
-      .not.toMatch(/ACME/);
-    expect.soft(outcome.summary, "and this one is told").toMatch(/ACME/);
-  });
-
   // The one above puts in the batch a company a person cannot tick (React has no way to): this is
   // the same rule with what a person does.
   test(

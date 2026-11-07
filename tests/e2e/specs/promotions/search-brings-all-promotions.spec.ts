@@ -77,27 +77,6 @@ test(
   },
 );
 
-// Only for the current app: a brand with a clear match has no way to be chosen again, and the driver
-// marks the row for review from inside. The next test covers the rule with real actions.
-test("confirming the match of a clear brand does not repeat its promotions", async ({
-  openApp,
-}) => {
-  const app = await openApp({ user: "admin" });
-  await app.promotions.open("search");
-  await app.promotions.searchBrands(["Coto", "Farmacity"]);
-
-  await app.promotions.confirmMatchAgain("Coto");
-  const afterConfirming = await app.promotions.rows();
-  expect
-    .soft(
-      afterConfirming.filter(({ brand }) => brand === "Coto").length,
-      "confirming a match adds the others of the brand without repeating them",
-    )
-    .toBe(3);
-  expect.soft(afterConfirming.length, "and no other row changes").toBe(7);
-  expect.soft(app.pageErrors(), "no JavaScript errors").toEqual([]);
-});
-
 test(
   "choosing the match of a row to review brings the others of that brand, and only those",
   { tag: "@react" },

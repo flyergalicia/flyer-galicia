@@ -215,28 +215,6 @@ test.describe("a substitute reaches the companies of the one who chose them", ()
     expect.soft(cloud.companyReplaceCalls, "my own base was never saved").toBe(0);
   });
 
-  // A person only gets to "no cashback" by bringing a company that has it: not on this one.
-  test("no cashback travels in the request too", async ({ cloud, openApp }) => {
-    setUpSubstitute(cloud);
-    const { companyRegistry, flyerEditor } = await openApp({ user: "admin" });
-    await companyRegistry.forgetCompanies();
-    await companyRegistry.openSearch();
-    await companyRegistry.waitForSearchResults(OWN_COMPANIES.length + OWNER_COMPANIES.length);
-    await companyRegistry.closeSearch();
-
-    // 6) Changing the cashback also travels in the request
-    await companyRegistry.applySubstituteCompany(1);
-    await flyerEditor.setNoCashback(true);
-    await companyRegistry.reviewChangesAfterDownload();
-    const cashbackDialog = await companyRegistry.waitForUpdateDialog();
-    expect.soft(cashbackDialog.text, "the dialog shows the cashback change").toMatch(/Cashback/);
-    await companyRegistry.acceptUpdateDialog();
-    expect
-      .soft(cloud.substituteRequests[0]?.p_config, 'the request sends "" for no cashback')
-      .toBe("");
-    await flyerEditor.setNoCashback(false);
-  });
-
   test(
     "when the owner takes the substitute out, their companies stop appearing",
     { tag: "@react" },

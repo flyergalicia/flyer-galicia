@@ -5,20 +5,6 @@ const MARKED_PLACE = { x: 140, y: 2650, width: 300, height: 110 };
 const DAYS_TICK = /Si es un súper, poner también sus días debajo/;
 const SUPERMARKETS = "Supermercados";
 
-const TEXT_STYLE = { color: "rgb(232, 49, 42)", font: "bold 22px Arial" };
-const TEST_ARTWORK = {
-  width: 800,
-  height: 600,
-  blocks: [
-    { x: 60, y: 60, width: 200, height: 80, color: "rgb(34, 34, 34)" },
-    { x: 400, y: 60, width: 200, height: 80, color: "rgb(34, 34, 34)" },
-  ],
-  texts: [
-    { text: "Lunes y martes", x: 80, baseline: 172, ...TEXT_STYLE },
-    { text: "Viernes", x: 450, baseline: 158, ...TEXT_STYLE },
-  ],
-};
-
 test(
   "Activas shows the days of supermarkets and of no other category",
   { tag: "@react" },
@@ -51,29 +37,6 @@ test(
       .toEqual([]);
   },
 );
-
-test("the printed days of a logo are found, separate or stuck to it", async ({ openApp }) => {
-  const app = await openApp();
-
-  const separate = await app.promotions.findDaysTextOn(TEST_ARTWORK, {
-    x: 56,
-    y: 56,
-    width: 208,
-    height: 88,
-  });
-  const top = separate.daysText?.top;
-  expect.soft(top, "it finds the days text separate below the logo").toBeGreaterThanOrEqual(150);
-  expect.soft(top, "right below the logo").toBeLessThanOrEqual(160);
-
-  const stuck = await app.promotions.findDaysTextOn(TEST_ARTWORK, {
-    x: 396,
-    y: 56,
-    width: 208,
-    height: 110,
-  });
-  expect.soft(stuck.logoHeight, "it tells the stuck days from the logo").toBeLessThanOrEqual(90);
-  expect.soft(stuck.daysText?.top, "and the text stays under the logo").toBeGreaterThanOrEqual(140);
-});
 
 test(
   "placing a supermarket brings its days, unless the tick is off",

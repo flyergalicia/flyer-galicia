@@ -81,17 +81,6 @@ test.describe("Flyer Galicia", () => {
     },
   );
 
-  test("with no cashback it still covers the zone, with no number", async ({ openApp }) => {
-    const { flyerDrawing, flyerEditor } = await openApp();
-    const covered = (await flyerDrawing.draw()).rectangles.length;
-
-    await flyerEditor.setNoCashback(true);
-
-    const drawn = await flyerDrawing.draw();
-    for (const amount of AMOUNTS) expect.soft(textsOf(drawn), amount).not.toContain(amount);
-    expect.soft(drawn.rectangles.length, "the same zones are covered").toBe(covered);
-  });
-
   test(
     "a company with no cashback still covers the zone, with no number",
     { tag: "@react" },
@@ -207,24 +196,6 @@ test.describe("Flyer Sueldo", () => {
       expect.soft(amount[0]?.color, "the orange of the PDF").toBe(ORANGE);
     },
   );
-
-  test("with no cashback it covers its zone with the real background and writes nothing", async ({
-    cloud,
-    openApp,
-  }) => {
-    withSalaryFlyer(cloud);
-    const { flyerDrawing, flyerEditor } = await openApp({ startOption: 7 });
-    const before = await flyerDrawing.draw();
-
-    await flyerEditor.setNoCashback(true);
-
-    const after = await flyerDrawing.draw();
-    expect.soft(textsOf(after)).not.toContain("$250.000");
-    expect.soft(after.rectangles.length, "it still covers").toBe(before.rectangles.length);
-    expect
-      .soft(sentence(after), "and {cashback} in the legal goes blank too")
-      .not.toMatch(/\$250\.000/);
-  });
 
   test(
     "a company with no cashback covers its zone with the real background",

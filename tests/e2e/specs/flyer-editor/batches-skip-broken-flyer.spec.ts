@@ -115,38 +115,6 @@ test.describe("when the flyer of a format does not load", () => {
     },
   );
 
-  // Without @react: it asks to add an old flyer to the history, and a person cannot. The same rules
-  // with real actions are in history-rules: "with a format that no longer exists or is not
-  // enabled, it says so and nothing comes out" and "if its flyer does not load, no PDF comes out
-  // with another picture".
-  test("the history skips what it cannot draw and says so", async ({ cloud, openApp }) => {
-    addVariantWithoutCashback(cloud);
-    cloud.dropBucketFile(NO_CASHBACK_ARTWORK);
-    const opened = await openApp();
-    const { flyerEditor, page } = opened;
-    await flyerEditor.loadDownloadLibrary("zip");
-
-    // 5) History: an option that can no longer be used does not come out with another
-    const gone = await flyerEditor.redownloadFromHistory(77);
-    const notAllowed = await flyerEditor.redownloadFromHistory(1);
-    expect.soft(gone.notice, "history: a format that no longer exists").toMatch(/ya no existe/);
-    expect.soft(gone.saveAttempts, "is not downloaded again").toBe(0);
-    expect.soft(notAllowed.saveAttempts, "nor is one the profile cannot use").toBe(0);
-    expect.soft(notAllowed.notice, "which warns about it").toMatch(/no est[aá] habilitado/);
-
-    let downloads = 0;
-    page.on("download", () => {
-      downloads += 1;
-    });
-    await flyerEditor.redownloadFromHistory(NO_CASHBACK_OPTION);
-    await page.waitForTimeout(2_500);
-    expect
-      .soft(downloads, "history: if its flyer does not load, no PDF with another image")
-      .toBe(0);
-    await flyerEditor.selectOption(ORIGINAL_OPTION);
-    expect.soft(opened.pageErrors(), "no JavaScript errors").toEqual([]);
-  });
-
   test(
     "the automatic choice does not send a company to an option without artwork",
     { tag: "@react" },

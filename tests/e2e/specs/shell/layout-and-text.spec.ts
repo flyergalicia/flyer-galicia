@@ -70,16 +70,6 @@ test.describe("on a computer", () => {
     expect.soft(await session.cashbackCardTitle()).toContain("Configuración de Montos");
   });
 
-  test("one floating notice at a time, and the last one wins", async ({ openApp }) => {
-    const { session, flyerEditor } = await openApp();
-
-    await session.showNotice("Uno");
-    await session.showNotice("Dos");
-
-    expect.soft(await session.noticesOnScreen()).toBe(1);
-    expect.soft(await flyerEditor.latestNotice()).toBe("Dos");
-  });
-
   test(
     "two notices of real actions: one on screen, the last one",
     { tag: "@react" },

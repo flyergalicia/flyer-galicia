@@ -94,28 +94,4 @@ test.describe("the thumbnail of the window for changing a logo", () => {
         .toBeLessThan(0.15);
     },
   );
-
-  test("never falls back to the flyer while the logo is not in memory", async ({ openApp }) => {
-    const app = await openApp();
-    await app.logoEditor.enter();
-    await app.logoEditor.waitForBrandCatalog();
-
-    await app.logoEditor.replaceWithBrand(JUMBO_LOGO, WIDE_BRAND);
-    const wide = proportion(await app.logoEditor.placedImageSize(0));
-
-    const missing = await app.logoEditor.thumbnailWithPlacedLogoOutOfMemory(0);
-    expect
-      .soft(missing.hidden, "with the logo out of memory, the one of the flyer is not shown")
-      .toBe(true);
-
-    await expect
-      .configure({ soft: true })
-      .poll(async () => (await app.logoEditor.thumbnail()).hidden, {
-        message: "when the logo arrives, it is drawn",
-      })
-      .toBe(false);
-    expect
-      .soft(Math.abs(proportion(await app.logoEditor.thumbnail()) - wide), "that same logo")
-      .toBeLessThan(0.15);
-  });
 });

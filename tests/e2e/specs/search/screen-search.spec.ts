@@ -290,19 +290,6 @@ test.describe("as an administrator", () => {
     },
   );
 
-  test("the name of a flyer is painted as text", async ({ openApp }) => {
-    const app = await openApp({ user: "admin" });
-    await app.search.nameFirstFlyer(MARKUP);
-
-    await app.search.search("");
-    await app.page.waitForTimeout(IMAGE_ERROR_MS);
-
-    expect.soft(await app.search.results(), "it is listed, as it was written").toContain(MARKUP);
-    expect
-      .soft(await app.search.injectedMarkup(), "the name of a flyer is not read as HTML")
-      .toEqual({ ranScript: false, imageInList: false });
-  });
-
   test(
     "the name of a flyer that arrives with markup is listed as written",
     { tag: "@react" },
