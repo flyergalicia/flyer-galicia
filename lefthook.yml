@@ -14,6 +14,9 @@ pre-commit:
         - "package-lock.json"
         - "supabase/**"
         - "tests/fixtures/**"
+        - "assets/**"
+        - "version.json"
+        - "legacy-site/**"
         - ".claude/**"
       run: npx --no-install oxfmt {staged_files}
       stage_fixed: true
@@ -21,6 +24,7 @@ pre-commit:
       glob: "*.{ts,tsx}"
       exclude:
         - "supabase/**"
+        - "legacy-site/**"
       run: npm run --silent lint -- {staged_files}
     4_typecheck:
       glob: "*.{ts,tsx}"

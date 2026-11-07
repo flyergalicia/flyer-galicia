@@ -10,13 +10,18 @@ const STORYBOOK_PORT = 8768;
 const PUBLISHED_PATH = "/flyer-galicia/";
 const isCi = Boolean(env.CI);
 
+// `npm run legacy:build` first: the current app is built into legacy-site/, not into the root.
 const LEGACY_SERVER = {
   command: `node scripts/serve-static.ts --port ${LEGACY_PORT}`,
+  env: { FLYER_STATIC_ROOT: env.FLYER_STATIC_ROOT ?? "legacy-site" },
   url: `http://127.0.0.1:${LEGACY_PORT}/index.html`,
   reuseExistingServer: false,
 };
+// `npm run release` first: the React app is tested as the root holds it, which is what Pages
+// publishes, and under the same path.
 const PREVIEW_SERVER = {
-  command: `npm run preview -- --base ${PUBLISHED_PATH}`,
+  command: `node scripts/serve-static.ts --port ${PREVIEW_PORT}`,
+  env: { FLYER_STATIC_ROOT: ".", FLYER_BASE_PATH: PUBLISHED_PATH },
   url: `http://127.0.0.1:${PREVIEW_PORT}${PUBLISHED_PATH}`,
   reuseExistingServer: false,
 };

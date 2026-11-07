@@ -1,4 +1,5 @@
-// Serves the repository root as it is, for the browser tests of the current app.
+// Serves a folder as it is, for the browser tests: legacy-site/ for the current app, and the root
+// under the path of GitHub Pages for the React app.
 import { createServer, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
@@ -6,6 +7,8 @@ import { argv, cwd, env, exit } from "node:process";
 
 const HOST = "127.0.0.1";
 const ROOT = resolve(env.FLYER_STATIC_ROOT ?? cwd());
+// As GitHub Pages does: the site lives under a path, and nothing is served outside it.
+const BASE_PATH = env.FLYER_BASE_PATH ?? "/";
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -31,7 +34,9 @@ function portFromArguments(): number {
 }
 
 function fileFor(url: string): string | null {
-  const path = decodeURIComponent(new URL(url, `http://${HOST}`).pathname);
+  const full = decodeURIComponent(new URL(url, `http://${HOST}`).pathname);
+  if (!full.startsWith(BASE_PATH)) return null;
+  const path = `/${full.slice(BASE_PATH.length)}`;
   const file = resolve(ROOT, `.${path.endsWith("/") ? `${path}index.html` : path}`);
   return file.startsWith(ROOT + sep) ? file : null;
 }

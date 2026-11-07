@@ -19,5 +19,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
-      # Same entry point as local runs: this workflow adds no checks of its own.
+      # Same entry point as local runs.
       - run: npm run ci
+      # `npm run ci` runs `npm run release`: the root that GitHub Pages publishes has to be the one
+      # in the commit, or the published site would not be what was tested.
+      - run: git status --porcelain && test -z "$(git status --porcelain)"

@@ -1,8 +1,9 @@
-// Starts scripts/serve-static.ts on a free port, for scripts that open the current app.
+// Starts scripts/serve-static.ts on a free port, for scripts that open the current app: it serves
+// legacy-site/, which `npm run legacy:build` writes.
 import { type ChildProcess, spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
-import { execPath } from "node:process";
+import { env, execPath } from "node:process";
 
 const WAIT_ATTEMPTS = 50;
 const WAIT_STEP_MS = 100;
@@ -51,6 +52,7 @@ export async function startStaticServer(): Promise<StaticServer> {
   const url = `http://127.0.0.1:${String(port)}/`;
   const server = spawn(execPath, ["scripts/serve-static.ts", "--port", String(port)], {
     stdio: "ignore",
+    env: { ...env, FLYER_STATIC_ROOT: "legacy-site" },
   });
   await waitUntilServing(url, server);
   return {

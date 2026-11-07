@@ -19,6 +19,8 @@
     "docs/**",
     "tests/fixtures/**",
     "dist/**",
+    "assets/**",
+    "legacy-site/**",
     ".vitest/**",
     "coverage/**",
     "storybook-static/**",

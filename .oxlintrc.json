@@ -23,6 +23,8 @@
     "libs/**",
     "supabase/**",
     "dist/**",
+    "assets/**",
+    "legacy-site/**",
     "coverage/**",
     "storybook-static/**",
     "playwright-report/**",
