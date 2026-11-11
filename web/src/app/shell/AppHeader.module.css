@@ -200,6 +200,11 @@
   line-height: 1.2;
 }
 
+/* "Ctrl K" has lower case, so it takes the 12px minimum; "⌘K" is a label in capitals (11px). */
+.searchButton .searchKeyWords {
+  font-size: var(--text-xs);
+}
+
 .userButton {
   position: relative;
   display: inline-flex;
