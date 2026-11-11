@@ -264,7 +264,8 @@ describe("the list", () => {
     );
     await openList({ list: many });
     await expect.element(page.getByText(/Se muestran las 300 más recientes/)).toBeVisible();
-    expect(rows().all()).toHaveLength(300);
+    // Count the elements: all() builds a selector for each of the 300 and went past 15 s on CI.
+    expect(rows().elements()).toHaveLength(300);
   });
 
   it("writes text of others as text", async () => {
