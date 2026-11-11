@@ -4,7 +4,7 @@ pre-commit:
   commands:
     1_block_main:
       run: test "$(git branch --show-current)" != "main"
-      fail_text: Committing to main is forbidden during the React migration.
+      fail_text: Committing to main is forbidden. Work on a branch and open a pull request.
     2_format:
       glob: "*.{ts,tsx,css,json,yml,yaml}"
       exclude:
@@ -31,7 +31,7 @@ pre-merge-commit:
   commands:
     block_main:
       run: test "$(git branch --show-current)" != "main"
-      fail_text: Merging into main is forbidden during the React migration.
+      fail_text: Merging into main is forbidden. Open a pull request instead.
 
 commit-msg:
   commands:
@@ -40,6 +40,8 @@ commit-msg:
 
 pre-push:
   commands:
-    block_push:
-      run: "false"
-      fail_text: Pushing is forbidden during the React migration.
+    # Git passes one line per ref: "<local ref> <local sha> <remote ref> <remote sha>".
+    block_main:
+      use_stdin: true
+      run: "! grep -qE ' refs/heads/main( |$)'"
+      fail_text: Pushing to main is forbidden. Open a pull request instead.

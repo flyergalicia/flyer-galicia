@@ -102,7 +102,7 @@ Las de navegador usan una nube simulada y no tocan Supabase. Toda funcionalidad 
    node supabase/_deployfn.mjs deploy <función>
    ```
 
-4. Subí el cliente con `git push origin main`.
+4. Subí la rama y abrí un pull request a `main`. Al unirlo, GitHub Pages publica solo.
 
 Los secretos nunca van en el repositorio, que es público: se pasan por variables de entorno o se guardan en Supabase.
 
@@ -146,7 +146,7 @@ Los maneja [lefthook](https://lefthook.dev/) (`lefthook.yml`) y se instalan solo
 | `pre-commit` | Frena si la rama es `main`; formatea, corre el lint y el typecheck |
 | `commit-msg` | Valida el mensaje con commitlint |
 | `pre-merge-commit` | Frena si la rama es `main` |
-| `pre-push` | **Rechaza todo `push`** mientras dure la migración |
+| `pre-push` | **Rechaza el `push` a `main`**: se publica uniendo un pull request |
 
 ## Más documentación
 
