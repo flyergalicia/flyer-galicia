@@ -98,8 +98,9 @@ test.describe("Subir Excel in Mis empresas", () => {
 
     await registry.uploadRegistrySheet([HEAD, row("NUEVA SA")]);
 
+    // Supabase tries a failed read three more times (after 1, 2 and 4 s) before it gives up.
     await expect
-      .poll(() => flyerEditor.latestNotice(), { timeout: 8000 })
+      .poll(() => flyerEditor.latestNotice(), { timeout: 15_000 })
       .toMatch(/no se reemplaz. nada/);
     expect.soft(cloud.companyReplaceCalls).toBe(0);
   });
