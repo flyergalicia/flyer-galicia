@@ -26,13 +26,13 @@
 // saber su mail, dejándola bloqueada (o tomada, si el admin aprueba sin
 // verificar). El cambio real sólo ocurre en approve_reset, después de que un
 // admin lo revisa.
-// Versión FIJA, la misma que usa la app (SUPABASE_JS_URL en _build.mjs): con "@2"
+// Versión FIJA, la misma que usa la app (package.json): con "@2"
 // cada deploy tomaba la última 2.x que hubiera, sin que nadie la probara.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-// Preferimos la nueva secret key (ADMIN_SECRET); fallback a la legacy mientras
-// dure la transición. Cuando se deshabiliten las legacy, ADMIN_SECRET es la que rige.
+// Preferimos la nueva secret key (ADMIN_SECRET); si falta, la clave anterior de
+// Supabase (service_role). Cuando se deshabiliten las anteriores, rige ADMIN_SECRET.
 const SERVICE_KEY = Deno.env.get("ADMIN_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // La clave nueva que alguien pide en "olvidé mi contraseña" espera en la base

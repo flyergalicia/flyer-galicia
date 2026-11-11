@@ -1,0 +1,88 @@
+.bare {
+  display: inline-flex;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.bare:disabled,
+.row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--toggle-line);
+  border-radius: var(--r-s);
+  background: var(--toggle-bg);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.row:hover:not(:disabled) {
+  border-color: var(--toggle-hover-line);
+}
+
+.rowText {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.inline:hover {
+  color: var(--ink);
+}
+
+.track {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--switch-off);
+  transition: background 0.2s;
+}
+
+.track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--switch-knob);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  content: "";
+  transition: left 0.2s;
+}
+
+.on {
+  background: var(--accent);
+}
+
+.on::after {
+  left: 19px;
+}

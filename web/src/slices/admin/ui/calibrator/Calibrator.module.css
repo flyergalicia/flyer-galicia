@@ -1,0 +1,460 @@
+/* The calibrator: the picture on top with its zones, and the controls below with their own bar. */
+.overlay {
+  position: fixed;
+  z-index: 100000;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 16px;
+  background: var(--flyer-window-ov);
+}
+
+.card {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  outline: none;
+  background: var(--flyer-window-bg);
+  box-shadow: var(--flyer-window-shadow);
+  color: var(--flyer-window-tx);
+  font-family: var(--font-family);
+}
+
+/* A size by hand (the corner, or «Ampliar»). */
+.card.sized {
+  max-width: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--calibrator-line);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-bold);
+}
+
+.save {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-grad);
+  box-shadow: 0 6px 14px var(--accent-sh);
+  color: #fff;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    box-shadow 0.15s,
+    background 0.15s,
+    filter 0.15s;
+}
+
+.save:hover {
+  background: var(--accent-grad-h);
+  box-shadow: 0 8px 18px var(--accent-sh);
+}
+
+.save:active {
+  transform: translateY(1px);
+}
+
+.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 4px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--gray);
+  font-size: var(--text-close);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.close:hover {
+  background: var(--close-hover-bg);
+  color: var(--close-hover-tx);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--calibrator-soft-line);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1.5px solid transparent;
+  border-radius: 20px;
+  background: none;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip.on {
+  border-color: currentcolor;
+  font-weight: var(--weight-bold);
+}
+
+.dot {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+.picture {
+  flex: 1 1 0;
+  overflow: auto;
+  min-height: 150px;
+  padding: 16px;
+  background: var(--calibrator-body-bg);
+}
+
+.canvas {
+  display: block;
+  margin: 0 auto;
+  background: var(--calibrator-canvas-bg);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+  cursor: grab;
+  touch-action: none;
+}
+
+.splitBar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 9px;
+  border-top: 1px solid var(--calibrator-line);
+  background: var(--calibrator-split-bg);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.splitBar:hover {
+  background: var(--calibrator-split-hover);
+}
+
+.splitBar::before {
+  width: 46px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--calibrator-grip);
+  content: "";
+}
+
+/* The controls take what the picture leaves, and scroll if they need to. */
+.controls {
+  flex: 0 1 auto;
+  overflow: auto;
+  min-height: 60px;
+}
+
+.card.split .picture {
+  flex: 0 0 auto;
+}
+
+.card.split .controls {
+  flex: 1 1 0;
+}
+
+.corner {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    var(--calibrator-grip) 50%,
+    var(--calibrator-grip) 58%,
+    transparent 58%,
+    transparent 70%,
+    var(--calibrator-grip) 70%,
+    var(--calibrator-grip) 78%,
+    transparent 78%
+  );
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--calibrator-line);
+  font-size: var(--text-xs);
+}
+
+/* A label of the panel, as every label of the old app: in semibold, a little apart. */
+.label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.heightRow {
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: 11px 16px;
+}
+
+.heightField {
+  width: 90px;
+  padding: 4px 6px;
+}
+
+.muted {
+  color: var(--gray);
+}
+
+.choice {
+  padding: 3px 6px;
+  border: 1px solid var(--calibrator-field-line);
+  border-radius: 5px;
+  background: var(--calibrator-select-bg);
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.small {
+  padding: 3px 9px;
+}
+
+.tiny {
+  padding: 4px 9px;
+}
+
+/* The size, weight and color of the chosen zone. */
+.properties {
+  padding: 9px 16px;
+  border-top: 1px solid var(--calibrator-line);
+  font-size: var(--text-xs);
+}
+
+.propertiesRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.propertiesRow > b {
+  align-self: center;
+  font-size: var(--text-xs);
+}
+
+.space {
+  flex: 1;
+}
+
+.property {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 3px;
+  color: var(--admin-label-tx);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.field {
+  padding: 3px 5px;
+  border: 1px solid var(--calibrator-field-line);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+select.field {
+  background: var(--calibrator-select-bg);
+}
+
+.number {
+  width: 74px;
+}
+
+.color {
+  width: 40px;
+  height: 24px;
+  padding: 1px 2px;
+  cursor: pointer;
+}
+
+.colors {
+  display: flex;
+  gap: 4px;
+}
+
+/* Flyer Rubros: the lines of the benefit box. */
+.benefit {
+  padding: 9px 16px;
+  border-top: 1px solid var(--calibrator-line);
+  font-size: var(--text-xs);
+}
+
+.benefitTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 18px 1fr 58px 62px 36px 62px 22px;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.line .field {
+  min-width: 0;
+}
+
+.lineColor {
+  height: 24px;
+  padding: 1px 2px;
+  cursor: pointer;
+}
+
+.lineDot {
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+
+.lineHead {
+  color: var(--gray);
+  font-size: var(--text-label);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.remove {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--gray);
+  font-family: inherit;
+  font-size: var(--text-md);
+  text-align: center;
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--accent);
+}
+
+.line .lineText {
+  border-color: var(--calibrator-text-line);
+  background: var(--calibrator-text-bg);
+  color: var(--calibrator-text-tx);
+}
+
+.line .lineText:focus {
+  background: var(--calibrator-text-focus-bg);
+}
+
+.benefitNote {
+  margin-top: 4px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--calibrator-line);
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zoomButton {
+  padding: 2px 8px;
+  border: 1px solid var(--calibrator-field-line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.zoomButton:hover {
+  border-color: var(--calibrator-hover);
+}
+
+@media (max-width: 900px) {
+  .splitBar,
+  .corner,
+  .enlarge {
+    display: none;
+  }
+
+  .head,
+  .foot {
+    flex-wrap: wrap;
+  }
+
+  /* As every number field of the old app on a phone (the others have their own size). */
+  .heightField {
+    font-size: var(--text-phone);
+  }
+}

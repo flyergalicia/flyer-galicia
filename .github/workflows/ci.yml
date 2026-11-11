@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  # A branch is tested through its pull request: pushed too, it would run twice at the same time.
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    # The whole run takes about 17 minutes on the runner.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps chromium
+      # Same entry point as local runs.
+      - run: npm run ci
+      # `npm run ci` runs `npm run release`: the root that GitHub Pages publishes has to be the one
+      # in the commit, or the published site would not be what was tested.
+      - run: git status --porcelain && test -z "$(git status --porcelain)"

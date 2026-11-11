@@ -1,0 +1,1746 @@
+[
+  {
+    "kind": "auth",
+    "method": "POST",
+    "path": "/auth/v<n>/logout"
+  },
+  {
+    "kind": "auth",
+    "method": "POST",
+    "path": "/auth/v<n>/token"
+  },
+  {
+    "kind": "auth",
+    "method": "POST",
+    "path": "/auth/v<n>/verify"
+  },
+  {
+    "kind": "auth",
+    "method": "PUT",
+    "path": "/auth/v<n>/user"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_active.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_active<n>.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_cashback.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_facultades.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_flyer_cfgs.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_fuentes.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_legal.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_legal<n>.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_opciones.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_titulos.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "_vigilar.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "flyer_<n>_op<n>.jpg"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "flyer_t<n>.jpg"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "fuente_<n>.jpg"
+  },
+  {
+    "kind": "bucket",
+    "operation": "read",
+    "file": "modo/<n>.png"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_active<n>.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_cashback.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_facultades.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_flyer_cfgs.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_fuentes.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_legal<n>.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_opciones.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_titulos.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "_vigilar.json"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "flyer_<n>_op<n>.jpg"
+  },
+  {
+    "kind": "bucket",
+    "operation": "write",
+    "file": "fuente_<n>.jpg"
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "approve_reset",
+    "payload": [
+      "uid"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "approve_user",
+    "payload": [
+      "uid"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "create_user",
+    "payload": [
+      "email",
+      "full_name",
+      "password",
+      "role",
+      "status"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "cuentas_prueba",
+    "payload": []
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "delete_user",
+    "payload": [
+      "uid"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "deny_reset",
+    "payload": [
+      "uid"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "entrar_como",
+    "payload": [
+      "uid"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "notify_estudio",
+    "payload": [
+      "flyer",
+      "id",
+      "que"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "notify_estudio",
+    "payload": [
+      "id",
+      "que"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "notify_estudio_pedido",
+    "payload": [
+      "id"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "notify_self_password",
+    "payload": []
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "register",
+    "payload": [
+      "email",
+      "full_name",
+      "password"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "request_reset",
+    "payload": [
+      "email",
+      "password"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "set_password",
+    "payload": [
+      "enviar_a",
+      "enviar_nombre",
+      "password",
+      "uid"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "auth-admin",
+    "action": "set_password",
+    "payload": [
+      "password",
+      "uid"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "benchmark-sync",
+    "action": "bbva",
+    "payload": []
+  },
+  {
+    "kind": "function",
+    "name": "benchmark-sync",
+    "action": "galicia",
+    "payload": [
+      "presupuestoMs"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "benchmark-sync",
+    "action": "marcas",
+    "payload": [
+      "presupuestoMs"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "benchmark-sync",
+    "action": "supervielle",
+    "payload": []
+  },
+  {
+    "kind": "function",
+    "name": "benchmark-sync",
+    "action": "sync",
+    "payload": [
+      "banco"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "promos-galicia",
+    "action": "detalle",
+    "payload": [
+      "ids"
+    ]
+  },
+  {
+    "kind": "function",
+    "name": "promos-galicia",
+    "action": "sync",
+    "payload": []
+  },
+  {
+    "kind": "function",
+    "name": "promos-galicia",
+    "action": "ubicacion",
+    "payload": [
+      "localidad",
+      "provincia"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "asesores_replace",
+    "params": [
+      "p_rows"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "colegas_para_suplente",
+    "params": []
+  },
+  {
+    "kind": "rpc",
+    "name": "flyer_diseno_compartir",
+    "params": [
+      "p_id",
+      "p_para"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "flyer_diseno_consultar",
+    "params": [
+      "p_id",
+      "p_texto"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "flyer_diseno_responder",
+    "params": [
+      "p_id",
+      "p_texto"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestion_marcar_leida",
+    "params": [
+      "p_gestion"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestion_marcar_no_leida",
+    "params": [
+      "p_gestion"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestion_marcar_vista",
+    "params": [
+      "p_serie"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestion_mensaje_enviar",
+    "params": [
+      "p_gestion",
+      "p_texto"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestion_no_puedo",
+    "params": [
+      "p_gestion",
+      "p_motivo"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_dia",
+    "params": [
+      "p_fecha"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_empresas",
+    "params": [
+      "p_limit",
+      "p_q"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_lista",
+    "params": [
+      "p_limit",
+      "p_solo_mio"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_marcar_todas_leidas",
+    "params": []
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_mensajes_nuevos",
+    "params": []
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_ocupacion",
+    "params": [
+      "p_desde",
+      "p_hasta"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_ocupado",
+    "params": [
+      "p_fecha",
+      "p_hunter"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_personas",
+    "params": []
+  },
+  {
+    "kind": "rpc",
+    "name": "gestiones_tablero",
+    "params": [
+      "p_desde",
+      "p_dueno",
+      "p_hasta",
+      "p_hunter",
+      "p_meses",
+      "p_prueba",
+      "p_solo_mio",
+      "p_tipo"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_propuesta_aprobar",
+    "params": [
+      "p_comentario",
+      "p_id"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_propuesta_consultar",
+    "params": [
+      "p_id",
+      "p_texto"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_propuesta_crear",
+    "params": [
+      "p_asesores",
+      "p_dueno",
+      "p_empresa",
+      "p_nota"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_propuesta_rechazar",
+    "params": [
+      "p_id",
+      "p_motivo"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_propuesta_responder",
+    "params": [
+      "p_asesores",
+      "p_id",
+      "p_texto"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_replace",
+    "params": [
+      "p_rows"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_suplencia_proponer",
+    "params": [
+      "p_asesores",
+      "p_config",
+      "p_dueno",
+      "p_empresa",
+      "p_nota",
+      "p_rubro"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "padron_suplencias",
+    "params": []
+  },
+  {
+    "kind": "rpc",
+    "name": "prueba_cambiar_rol",
+    "params": [
+      "p_role"
+    ]
+  },
+  {
+    "kind": "storage",
+    "method": "POST",
+    "path": "/storage/v<n>/object/list/flyers"
+  },
+  {
+    "kind": "table",
+    "method": "DELETE",
+    "table": "promos_bench_tarjetas",
+    "select": [],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "app_flags",
+    "select": [
+      "valor"
+    ],
+    "filters": [
+      "clave"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "asesores_guardados",
+    "select": [
+      "celular",
+      "email",
+      "id",
+      "name",
+      "nombre",
+      "orden"
+    ],
+    "filters": [
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "audit_log",
+    "select": [
+      "accion",
+      "actor_email",
+      "created_at",
+      "detalle",
+      "id",
+      "objetivo_email"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_diseno_mensajes",
+    "select": [
+      "autor_nombre",
+      "created_at",
+      "diseno_id",
+      "rol",
+      "texto",
+      "tipo"
+    ],
+    "filters": [
+      "diseno_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "base_name",
+      "compartido_at",
+      "compartido_de",
+      "compartido_por",
+      "created_at",
+      "empresa",
+      "estado",
+      "id",
+      "miniatura",
+      "nombre",
+      "nota_admin",
+      "opcion",
+      "opcion_publicada",
+      "pedido_at",
+      "revisado_at",
+      "updated_at",
+      "user_id"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "base_name",
+      "compartido_at",
+      "compartido_de",
+      "compartido_por",
+      "created_at",
+      "empresa",
+      "estado",
+      "id",
+      "miniatura",
+      "nombre",
+      "nota_admin",
+      "opcion",
+      "opcion_publicada",
+      "pedido_at",
+      "revisado_at",
+      "updated_at",
+      "user_id"
+    ],
+    "filters": [
+      "tipo"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "created_at",
+      "estado",
+      "id",
+      "miniatura",
+      "nombre",
+      "nota_admin",
+      "updated_at",
+      "user_id"
+    ],
+    "filters": [
+      "estado",
+      "tipo"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "datos",
+      "estado",
+      "id",
+      "miniatura",
+      "nombre"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "flyer:datos->>flyer",
+      "id",
+      "miniatura",
+      "nombre",
+      "opcion",
+      "prov:datos->>prov",
+      "resumen:datos->>resumen",
+      "updated_at",
+      "user_id",
+      "v:datos->>v"
+    ],
+    "filters": [
+      "tipo"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "base_name",
+      "datos",
+      "empresa",
+      "estado",
+      "id",
+      "nombre",
+      "opcion",
+      "user_id"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "compartido_at",
+      "compartido_por",
+      "estado",
+      "id",
+      "nombre"
+    ],
+    "filters": [
+      "tipo",
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "created_at",
+      "estado",
+      "pedido_at",
+      "revisado_at"
+    ],
+    "filters": [
+      "compartido_por",
+      "tipo",
+      "updated_at"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_disenos",
+    "select": [
+      "estado"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_logs",
+    "select": [
+      "bulk_count",
+      "created_at",
+      "flyer_type",
+      "is_bulk",
+      "user_id"
+    ],
+    "filters": [
+      "created_at",
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_logs",
+    "select": [
+      "config_name",
+      "created_at",
+      "empresa",
+      "flyer_type",
+      "format",
+      "id",
+      "user_id"
+    ],
+    "filters": [
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "flyer_logs",
+    "select": [
+      "config_name",
+      "created_at",
+      "empresa",
+      "format",
+      "id",
+      "user_id"
+    ],
+    "filters": [
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestion_eventos",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "gestion_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestion_mensajes",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "gestion_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestion_prospectos",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "gestion_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestion_prospectos",
+    "select": [
+      "contacto",
+      "estado",
+      "gestion_id",
+      "id",
+      "nombre",
+      "proximo"
+    ],
+    "filters": [
+      "estado",
+      "proximo"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestion_prospectos",
+    "select": [
+      "estado",
+      "gestion_id",
+      "id"
+    ],
+    "filters": [
+      "gestion_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "cuit",
+      "dueno_id",
+      "empresa",
+      "estado",
+      "fecha",
+      "hora_desde",
+      "hora_hasta",
+      "hunter_id",
+      "id",
+      "lider_id",
+      "lugar",
+      "modalidad",
+      "no_puede_at",
+      "origen",
+      "prueba",
+      "tipo",
+      "vence",
+      "visto_dueno",
+      "visto_hunter"
+    ],
+    "filters": [
+      "fecha",
+      "hunter_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "cuit",
+      "dueno_id",
+      "empresa",
+      "estado",
+      "fecha",
+      "hora_desde",
+      "hora_hasta",
+      "hunter_id",
+      "id",
+      "lider_id",
+      "lugar",
+      "modalidad",
+      "no_puede_at",
+      "origen",
+      "prueba",
+      "tipo",
+      "vence",
+      "visto_dueno",
+      "visto_hunter"
+    ],
+    "filters": [
+      "fecha"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "cuit",
+      "dueno_id",
+      "empresa",
+      "estado",
+      "fecha",
+      "hora_desde",
+      "hora_hasta",
+      "hunter_id",
+      "id",
+      "lider_id",
+      "no_puede_at",
+      "no_puede_motivo",
+      "origen",
+      "tipo",
+      "vence"
+    ],
+    "filters": [
+      "estado",
+      "hunter_id",
+      "tipo"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "cuit",
+      "dueno_id",
+      "empresa",
+      "estado",
+      "fecha",
+      "hora_desde",
+      "hora_hasta",
+      "hunter_id",
+      "id",
+      "lider_id",
+      "no_puede_at",
+      "no_puede_motivo",
+      "origen",
+      "tipo",
+      "vence"
+    ],
+    "filters": [
+      "estado",
+      "hunter_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "cuit",
+      "dueno_id",
+      "empresa",
+      "estado",
+      "fecha",
+      "hora_desde",
+      "hora_hasta",
+      "hunter_id",
+      "id",
+      "lider_id",
+      "no_puede_at",
+      "no_puede_motivo",
+      "origen",
+      "tipo",
+      "vence"
+    ],
+    "filters": [
+      "estado",
+      "no_puede_at"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "cuit",
+      "dueno_id",
+      "empresa",
+      "estado",
+      "fecha",
+      "hora_desde",
+      "hora_hasta",
+      "hunter_id",
+      "id",
+      "lider_id",
+      "no_puede_at",
+      "no_puede_motivo",
+      "origen",
+      "tipo",
+      "vence"
+    ],
+    "filters": [
+      "estado",
+      "tipo"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "dueno_id",
+      "empresa",
+      "estado",
+      "hunter_id",
+      "origen",
+      "serie_id",
+      "visto_dueno",
+      "visto_hunter"
+    ],
+    "filters": [
+      "dueno_id",
+      "hunter_id",
+      "visto_dueno",
+      "visto_hunter"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "creada_por",
+      "empresa",
+      "serie_id"
+    ],
+    "filters": [
+      "estado",
+      "hunter_id",
+      "lider_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "empresa",
+      "estado",
+      "fecha",
+      "hora_desde",
+      "hora_hasta",
+      "hunter_id",
+      "id",
+      "tipo"
+    ],
+    "filters": [
+      "estado",
+      "fecha",
+      "hunter_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "gestiones",
+    "select": [
+      "empresa",
+      "id"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_empresas",
+    "select": [
+      "asesores",
+      "config",
+      "created_at",
+      "cuits",
+      "empresa",
+      "id",
+      "rubro",
+      "user_id"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_empresas",
+    "select": [
+      "asesores",
+      "config",
+      "created_at",
+      "cuits",
+      "empresa",
+      "rubro"
+    ],
+    "filters": [
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_empresas",
+    "select": [
+      "cuits",
+      "empresa"
+    ],
+    "filters": [
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_log",
+    "select": [
+      "accion",
+      "cambios",
+      "created_at",
+      "empresa",
+      "id",
+      "total",
+      "user_id",
+      "usuario"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_propuesta_mensajes",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "propuesta_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_propuestas",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "estado"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "padron_propuestas",
+    "select": [
+      "asesores",
+      "asesores_antes",
+      "created_at",
+      "dueno_id",
+      "empresa",
+      "empresa_key",
+      "estado",
+      "id",
+      "motivo",
+      "resuelta_at"
+    ],
+    "filters": [
+      "creada_por"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "celular_asesor",
+      "email_asesor",
+      "es_prueba",
+      "facultades",
+      "flyer_fav",
+      "full_name",
+      "lider_id",
+      "nombre_asesor",
+      "role",
+      "status"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "email",
+      "email_asesor",
+      "full_name",
+      "id",
+      "role",
+      "status"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "email_asesor",
+      "full_name",
+      "id",
+      "last_login",
+      "role",
+      "status"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "email_asesor",
+      "full_name",
+      "id",
+      "role"
+    ],
+    "filters": [
+      "role"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "email_asesor",
+      "full_name",
+      "id",
+      "role"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "email_asesor",
+      "full_name",
+      "id"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "profiles",
+    "select": [
+      "suplente_id"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_bench_cache",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_bench_manual",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_bench_marcas",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_bench_meta",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_bench_tarjetas",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_galicia_cache",
+    "select": [
+      "beneficio",
+      "dias",
+      "fecha_desde",
+      "fecha_hasta",
+      "id",
+      "imagen",
+      "primera_vez",
+      "provincias",
+      "proximamente",
+      "subtitulo",
+      "tipo_promocion",
+      "titulo"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_galicia_meta",
+    "select": [
+      "last_sync_at",
+      "total",
+      "ubicaciones"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "GET",
+    "table": "promos_modo_cache",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "HEAD",
+    "table": "flyer_disenos",
+    "select": [
+      "id"
+    ],
+    "filters": [
+      "estado",
+      "tipo"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "HEAD",
+    "table": "flyer_logs",
+    "select": [
+      "id"
+    ],
+    "filters": [
+      "user_id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "HEAD",
+    "table": "profiles",
+    "select": [
+      "id"
+    ],
+    "filters": [
+      "status"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "base_name",
+      "compartido_at",
+      "compartido_de",
+      "compartido_por",
+      "created_at",
+      "empresa",
+      "estado",
+      "id",
+      "miniatura",
+      "nombre",
+      "nota_admin",
+      "opcion",
+      "opcion_publicada",
+      "pedido_at",
+      "revisado_at",
+      "updated_at",
+      "user_id"
+    ],
+    "filters": [
+      "estado",
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "base_name",
+      "compartido_at",
+      "compartido_de",
+      "compartido_por",
+      "created_at",
+      "empresa",
+      "estado",
+      "id",
+      "miniatura",
+      "nombre",
+      "nota_admin",
+      "opcion",
+      "opcion_publicada",
+      "pedido_at",
+      "revisado_at",
+      "updated_at",
+      "user_id"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "flyer:datos->>flyer",
+      "id",
+      "miniatura",
+      "nombre",
+      "opcion",
+      "prov:datos->>prov",
+      "resumen:datos->>resumen",
+      "updated_at",
+      "user_id",
+      "v:datos->>v"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "flyer_disenos",
+    "select": [],
+    "filters": [
+      "estado",
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "gestion_prospectos",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "gestiones",
+    "select": [
+      "*"
+    ],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "profiles",
+    "select": [],
+    "filters": [
+      "email"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "profiles",
+    "select": [],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "promos_bench_manual",
+    "select": [],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "PATCH",
+    "table": "promos_bench_tarjetas",
+    "select": [],
+    "filters": [
+      "id"
+    ]
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "base_name",
+      "compartido_at",
+      "compartido_de",
+      "compartido_por",
+      "created_at",
+      "empresa",
+      "estado",
+      "id",
+      "miniatura",
+      "nombre",
+      "nota_admin",
+      "opcion",
+      "opcion_publicada",
+      "pedido_at",
+      "revisado_at",
+      "updated_at",
+      "user_id"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "flyer_disenos",
+    "select": [
+      "autor",
+      "flyer:datos->>flyer",
+      "id",
+      "miniatura",
+      "nombre",
+      "opcion",
+      "prov:datos->>prov",
+      "resumen:datos->>resumen",
+      "updated_at",
+      "user_id",
+      "v:datos->>v"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "flyer_disenos",
+    "select": [],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "flyer_logs",
+    "select": [],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "gestion_prospectos",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "gestion_prospectos",
+    "select": [
+      "id"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "gestiones",
+    "select": [
+      "*"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "gestiones",
+    "select": [
+      "id"
+    ],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "promos_bench_manual",
+    "select": [],
+    "filters": []
+  },
+  {
+    "kind": "table",
+    "method": "POST",
+    "table": "promos_bench_tarjetas",
+    "select": [],
+    "filters": []
+  }
+]

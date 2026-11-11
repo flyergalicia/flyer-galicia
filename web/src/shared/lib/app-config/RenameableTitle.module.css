@@ -1,0 +1,26 @@
+/* A title that is renamed in its place: it keeps the look of the text around it. */
+.title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+  cursor: default;
+}
+
+.field {
+  width: 160px;
+  max-width: 70vw;
+  padding: 1px 6px;
+  border: 1px solid currentcolor;
+  border-radius: 5px;
+  outline: none;
+  background: var(--rename-field-bg);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}

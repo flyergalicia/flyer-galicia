@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "ignorePatterns": [
+    "index.html",
+    "version.json",
+    "package-lock.json",
+    "README.md",
+    "CLAUDE.md",
+    "web/src/shared/lib/vendor/**",
+    "supabase/**",
+    "docs/**",
+    "tests/fixtures/**",
+    "dist/**",
+    "assets/**",
+    ".vitest/**",
+    "coverage/**",
+    "storybook-static/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".claude/**"
+  ]
+}

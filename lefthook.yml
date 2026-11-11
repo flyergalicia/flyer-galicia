@@ -1,0 +1,47 @@
+# Git hooks. Installed automatically by `npm install` through the `prepare` script.
+pre-commit:
+  piped: true
+  commands:
+    1_block_main:
+      run: test "$(git branch --show-current)" != "main"
+      fail_text: Committing to main is forbidden. Work on a branch and open a pull request.
+    2_format:
+      glob: "*.{ts,tsx,css,json,yml,yaml}"
+      exclude:
+        - "package-lock.json"
+        - "supabase/**"
+        - "tests/fixtures/**"
+        - "assets/**"
+        - "version.json"
+        - ".claude/**"
+      run: npx --no-install oxfmt {staged_files}
+      stage_fixed: true
+    3_lint:
+      glob: "*.{ts,tsx}"
+      exclude:
+        - "supabase/**"
+      run: npm run --silent lint -- {staged_files}
+    4_typecheck:
+      glob: "*.{ts,tsx}"
+      exclude:
+        - "supabase/**"
+      run: npm run --silent typecheck
+
+pre-merge-commit:
+  commands:
+    block_main:
+      run: test "$(git branch --show-current)" != "main"
+      fail_text: Merging into main is forbidden. Open a pull request instead.
+
+commit-msg:
+  commands:
+    commitlint:
+      run: npx --no-install commitlint --edit {1}
+
+pre-push:
+  commands:
+    # Git passes one line per ref: "<local ref> <local sha> <remote ref> <remote sha>".
+    block_main:
+      use_stdin: true
+      run: "! grep -qE ' refs/heads/main( |$)'"
+      fail_text: Pushing to main is forbidden. Open a pull request instead.

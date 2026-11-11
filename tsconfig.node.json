@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "types": ["node"]
+  },
+  "include": ["*.config.ts", "scripts", ".storybook/main.ts"],
+  // They drive the browser through the test harness: tsconfig.e2e.json checks them.
+  "exclude": ["scripts/demo-commercial-actions.ts", "scripts/measure-performance.ts"]
+}

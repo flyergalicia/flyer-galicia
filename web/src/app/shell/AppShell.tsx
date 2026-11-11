@@ -1,0 +1,225 @@
+import {
+  type ComponentType,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { type FlyerOption, isFlyerTabId } from "@/shared/domain/flyer-options.ts";
+import type { ScreenTitles } from "@/shared/domain/screen-titles.ts";
+import { FlyerGenerationHost } from "@/shared/lib/company-registry/FlyerGenerationHost.tsx";
+import { DesignDeskHost } from "@/shared/lib/studio/DesignDeskHost.tsx";
+import { sharedCount, useStudioNotices } from "@/shared/lib/studio/studio-notices-query.ts";
+import { registerProbe } from "@/shared/lib/test-probe.ts";
+import type { MenuWindowProps } from "@/shared/lib/view-props.ts";
+import { defaultPermission, type SessionValue, usePermissions } from "@/shared/session/index.ts";
+import { useTourAutoStart } from "@/slices/tour/index.ts";
+import { firstView, resolveView } from "../registry/resolve-view.ts";
+import type { MenuRules } from "../registry/view-rules.ts";
+import {
+  ADMIN_WINDOW,
+  FLYER_EDITOR_HOST_ID,
+  loadRolePreviewBar,
+  MENU_WINDOWS_BELOW,
+  type MenuWindow,
+  NOTICE_SOURCES,
+  TOUR_WINDOW,
+} from "../registry/views.ts";
+import { AppHeader } from "./AppHeader.tsx";
+import { CommercialDeskHost } from "./CommercialDeskHost.tsx";
+import { LoadBoundary } from "./LoadBoundary.tsx";
+import { PromotionPickingHost } from "./PromotionPickingHost.tsx";
+import { SearchHost } from "./SearchHost.tsx";
+import { useWaitingNotices } from "./use-waiting-notices.tsx";
+import { ViewHost } from "./ViewHost.tsx";
+import styles from "./AppShell.module.css";
+
+type SignedInSession = Extract<SessionValue, { readonly status: "signed-in" }>;
+
+const RolePreviewBar = lazy(loadRolePreviewBar);
+
+interface OpenWindow {
+  readonly id: string;
+  readonly Component: ComponentType<MenuWindowProps>;
+}
+
+interface OpenTour {
+  /** Asking for it again starts it again, from the first step. */
+  readonly round: number;
+  readonly Component: ComponentType<MenuWindowProps>;
+}
+
+const COULD_NOT_OPEN = "No se pudo abrir. Revisá la conexión e intentá de nuevo.";
+
+interface AppShellProps {
+  readonly session: SignedInSession;
+  readonly titles: ScreenTitles;
+  readonly flyerOptions: readonly FlyerOption[];
+  readonly commercialActionsOn: boolean;
+  /** Who tells what is waiting for this person. */
+  readonly noticeSources?: Parameters<typeof useWaitingNotices>[0];
+}
+
+/** What is around every screen: the header, and the screen of the tab that is chosen. */
+export function AppShell({
+  session,
+  titles,
+  flyerOptions,
+  commercialActionsOn,
+  noticeSources = NOTICE_SOURCES,
+}: AppShellProps) {
+  const { can, isHunter, isLeader, isAdminNow, simulatedRole } = usePermissions();
+  const { notice, reporters, waiting } = useWaitingNotices(noticeSources);
+  // The preview of a profile shows what that profile sees: what was shared with me does not count.
+  const studioNotices = useStudioNotices();
+  const hasSharedDesign = !simulatedRole && sharedCount(studioNotices) > 0;
+  const rules = useMemo<MenuRules>(
+    () => ({
+      can,
+      isHunter,
+      isLeader,
+      isAdminNow,
+      commercialActionsOn,
+      flyerOptions,
+      hasSharedDesign,
+      waiting,
+    }),
+    [
+      can,
+      isHunter,
+      isLeader,
+      isAdminNow,
+      commercialActionsOn,
+      flyerOptions,
+      hasSharedDesign,
+      waiting,
+    ],
+  );
+  const [chosen, setChosen] = useState(() => firstView(rules, titles.order));
+  const [openWindow, setOpenWindow] = useState<OpenWindow | null>(null);
+  const [tour, setTour] = useState<OpenTour | null>(null);
+  const [needsEditor, setNeedsEditor] = useState(false);
+  const activeId = resolveView(chosen, rules);
+  const isOnFlyerEditor = isFlyerTabId(activeId);
+
+  // What a profile starts with when the administrator has not touched it: a test reads it here.
+  useEffect(
+    () =>
+      registerProbe("permissions", () => ({
+        startsAllowed: (role: string, key: string) => defaultPermission(role, key),
+      })),
+    [],
+  );
+
+  useEffect(() => {
+    // What the toast and the fixed pieces of the flyer editor listen to, on a phone.
+    document.body.dataset.flyerEditor = String(isOnFlyerEditor);
+    return () => {
+      delete document.body.dataset.flyerEditor;
+    };
+  }, [isOnFlyerEditor]);
+
+  const closeWindow = useCallback(() => {
+    setOpenWindow(null);
+  }, []);
+
+  const onNeedEditor = useCallback(() => {
+    setNeedsEditor(true);
+  }, []);
+
+  const closeTour = useCallback(() => {
+    setTour(null);
+  }, []);
+
+  const showWindow = useCallback(({ id, load }: Pick<MenuWindow, "id" | "load">) => {
+    if (id === TOUR_WINDOW.id) {
+      setTour((current) => ({ round: (current?.round ?? 0) + 1, Component: lazy(load) }));
+      return;
+    }
+    setOpenWindow({ id, Component: lazy(load) });
+  }, []);
+  const startTourByItself = useCallback(() => {
+    showWindow(TOUR_WINDOW);
+  }, [showWindow]);
+  useTourAutoStart(startTourByItself, tour !== null);
+  const openMenuWindow = useCallback(
+    (windowId: string) => {
+      const menuWindow = MENU_WINDOWS_BELOW.find(({ id }) => id === windowId);
+      if (menuWindow) showWindow(menuWindow);
+    },
+    [showWindow],
+  );
+  const showAdmin = useCallback(() => {
+    showWindow(ADMIN_WINDOW);
+  }, [showWindow]);
+
+  const { displayName, role, isAdmin, profile } = session;
+  const Window = openWindow?.Component;
+
+  return (
+    <FlyerGenerationHost onNeedEditor={onNeedEditor}>
+      <DesignDeskHost onNeedEditor={onNeedEditor}>
+        <CommercialDeskHost goTo={setChosen}>
+          <div className={styles.shell}>
+            {reporters}
+            <SearchHost
+              rules={rules}
+              titles={titles}
+              activeId={activeId}
+              flyerOptions={flyerOptions}
+              openWindowId={openWindow?.id ?? null}
+              goToTab={setChosen}
+              openWindow={showWindow}
+            >
+              {(showSearch) => (
+                <AppHeader
+                  activeId={activeId}
+                  titles={titles}
+                  rules={rules}
+                  name={displayName}
+                  role={role}
+                  isAdmin={isAdmin}
+                  isTestAccount={profile.es_prueba}
+                  notice={notice}
+                  onSelectView={setChosen}
+                  onOpenWindow={showWindow}
+                  onOpenSearch={showSearch}
+                  onOpenAdmin={showAdmin}
+                />
+              )}
+            </SearchHost>
+            <PromotionPickingHost activeId={activeId} goTo={setChosen}>
+              <ViewHost
+                activeId={activeId}
+                alsoOpen={needsEditor ? FLYER_EDITOR_HOST_ID : undefined}
+                goToTab={setChosen}
+                openMenuWindow={openMenuWindow}
+              />
+            </PromotionPickingHost>
+            {simulatedRole && (
+              <Suspense fallback={null}>
+                <RolePreviewBar />
+              </Suspense>
+            )}
+            {Window && (
+              <LoadBoundary key={openWindow.id} message={COULD_NOT_OPEN} onRetry={closeWindow}>
+                <Suspense fallback={null}>
+                  <Window onClose={closeWindow} />
+                </Suspense>
+              </LoadBoundary>
+            )}
+            {tour && (
+              <LoadBoundary key={tour.round} message={COULD_NOT_OPEN} onRetry={closeTour}>
+                <Suspense fallback={null}>
+                  <tour.Component onClose={closeTour} goToTab={setChosen} />
+                </Suspense>
+              </LoadBoundary>
+            )}
+          </div>
+        </CommercialDeskHost>
+      </DesignDeskHost>
+    </FlyerGenerationHost>
+  );
+}

@@ -1,0 +1,31 @@
+/* Data → Empresas por usuario. */
+.choose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.choose .person {
+  width: 100%;
+  max-width: 320px;
+}
+
+.stat {
+  margin-bottom: 12px;
+  color: var(--gray);
+  font-size: var(--text-note);
+}
+
+.listNote {
+  margin: 10px 0 6px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.note {
+  margin-top: 10px;
+  color: var(--gray);
+  font-size: var(--text-sm);
+}
