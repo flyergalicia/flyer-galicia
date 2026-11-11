@@ -2,7 +2,9 @@ name: CI
 
 on:
   pull_request:
+  # A branch is tested through its pull request: pushed too, it would run twice at the same time.
   push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -10,7 +12,8 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The whole run takes about 17 minutes on the runner.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
