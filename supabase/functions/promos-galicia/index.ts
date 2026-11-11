@@ -300,6 +300,8 @@ const GALICIA_HEADERS: Record<string, string> = {
 // equivocado el WAF contesta 403, no 400, así que un typo parece una caída.
 // Los nombres de provincia van tal cual los da ubicacion/filtro ("NEUQUEN"):
 // con tilde o en otro formato Galicia devuelve 0 promos sin error.
+// Si vuelve a fallar: las rutas vigentes están en el bundle pages/index-*.js de
+// beneficios.galicia.ar, bloque personalizacion_v1. Pedirle algo al banco no es opción.
 type Ruta = {
   nombre: string;
   catalogo: string;

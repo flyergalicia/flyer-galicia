@@ -73,7 +73,7 @@ La primera vez hay que instalar el navegador con `npx playwright install chromiu
 | `fixtures/network-contract.json`     | Todo lo que la app le pide a la nube: tablas, funciones y acciones                                                                        |
 | `fixtures/performance-baseline.json` | Peso y tiempos de la versión anterior: lo que la app no puede superar                                                                     |
 
-Los números viejos (`t79`, `u05`) que aparecen en `CLAUDE.md` se encuentran buscándolos: la primera línea de cada prueba nombra el archivo que reemplaza, y los archivos viejos siguen en la historia de git.
+Para encontrar la prueba que reemplazó a un archivo viejo (`t79`, `u05`), buscá ese nombre en `tests/`: la primera línea de cada prueba nombra el archivo que reemplaza. Los archivos viejos siguen en la historia de git.
 
 ## Cómo escribir una prueba
 

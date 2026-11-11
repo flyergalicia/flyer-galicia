@@ -4,7 +4,7 @@ Aplicación web de una sola pantalla para que asesores y oficiales de banco arme
 
 También incluye inicio de sesión con perfiles, buscador de promociones vigentes, comparación de promociones entre bancos, gestiones comerciales con tablero y panel de administración.
 
-La app es React y TypeScript, y vive en `web/`. Reemplazó a una versión anterior que ya no está en el repo (cómo se hizo: [docs/PLAN_MIGRACION_REACT.md](docs/PLAN_MIGRACION_REACT.md); términos: [docs/GLOSARIO.md](docs/GLOSARIO.md)). Se trabaja en la rama `refactor/react`, y GitHub Pages sigue publicando la versión anterior hasta que el dueño apruebe subir esta.
+La app es React y TypeScript, y vive en `web/`. Reemplazó a una versión anterior que ya no está en el repo (cómo se hizo: [docs/PLAN_MIGRACION_REACT.md](docs/PLAN_MIGRACION_REACT.md); términos: [docs/GLOSARIO.md](docs/GLOSARIO.md)).
 
 ## Cómo está armada
 
@@ -150,7 +150,9 @@ Los maneja [lefthook](https://lefthook.dev/) (`lefthook.yml`) y se instalan solo
 
 ## Más documentación
 
-- [`CLAUDE.md`](CLAUDE.md): guía completa del proyecto, con decisiones tomadas, invariantes, servicios conectados y pendientes.
+- [`CLAUDE.md`](CLAUDE.md): reglas firmes, invariantes y servicios conectados.
+- [`docs/adr/`](docs/adr/): decisiones de producto y de arquitectura, con su porqué.
+- [`docs/PENDIENTES.md`](docs/PENDIENTES.md): qué falta para publicar, qué probar en vivo y el backlog.
 - [`supabase/INVENTARIO_RPC.md`](supabase/INVENTARIO_RPC.md): funciones que expone la base, a quién y qué valida cada una.
 - [`tests/LEEME.md`](tests/LEEME.md): cómo funcionan las pruebas, la nube simulada y las referencias.
 - [`docs/CHEQUEOS_BUILD.md`](docs/CHEQUEOS_BUILD.md): qué prueba sostiene cada regla que vigilaba el armado de la versión anterior.

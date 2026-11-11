@@ -1,5 +1,5 @@
 // How the names and numbers of the companies are compared and written. The razón social is the key
-// of a company (invariant in CLAUDE.md), so this is what says that two names are the same one.
+// of a company (docs/adr/0001), so this is what says that two names are the same one.
 import { rememberedText } from "../promotions/text.ts";
 
 const ACCENTS = /[̀-ͯ]/g;

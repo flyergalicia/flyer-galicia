@@ -182,7 +182,7 @@ Se sacaron dos `try/catch` que no podían saltar: al estirar la fila del hueco y
 
 ## Etapa 4: los slices
 
-**Hecha** el 6-nov-2026, en commits locales de `refactor/react` (de `0676e82` a `13154ec`, más los arreglos `7fb1643`, `1044abd` y `49e2b22`). La app React tiene todas las pantallas de la versión anterior. Lo que todavía no está publicado es el corte (etapa 5).
+**Hecha** el 6-nov-2026, en commits locales de `refactor/react` (de `abea73f` a `f199c57`, más los arreglos `a4b9de2`, `72707b6` y `31bb518`). La app React tiene todas las pantallas de la versión anterior. Lo que todavía no está publicado es el corte (etapa 5).
 
 ### Cómo se comparó
 
@@ -295,7 +295,7 @@ En la primera corrida falló una prueba de componentes de Estudio («the second 
 
 ## Etapa 6: sin la versión anterior
 
-**Hecha** el 6-nov-2026, en commits locales de `refactor/react` (de `c25d579` a `e4c9f22`, más el de la documentación). Hoy nadie usa la app, así que no hizo falta ninguna transición (decisión del dueño): **la versión anterior ya no está en el repo**, vive sólo en la historia de git (el último commit que la tiene es `02a555d`). `main` y `origin/main` siguen en `a88f5e8`.
+**Hecha** el 6-nov-2026, en commits locales de `refactor/react` (de `4188c42` a `3a2f8d7`, más el de la documentación). Hoy nadie usa la app, así que no hizo falta ninguna transición (decisión del dueño): **la versión anterior ya no está en el repo**, vive sólo en la historia de git (el último commit que la tiene es `8e9927c`). `main` y `origin/main` siguen en `a88f5e8`.
 
 ### Qué se borró
 
@@ -324,7 +324,7 @@ Las capturas (salvo las tres de Config → Flyer), el flyer impreso, `network-co
 
 | Qué | Resultado |
 |---|---|
-| `npm run ci` completo, sobre el código de `e4c9f22` | exit 0 |
+| `npm run ci` completo, sobre el código de `3a2f8d7` | exit 0 |
 | `npm test` | 357 archivos, 4420 pruebas pasan, 5 salteadas, sin bajar umbrales |
 | Pruebas de navegador (`app`, `design-system`, `flyer-engine`) | 772 pasan, 1 salteada (`pdf-bands`, sin PDF reales) |
 | `design-system` | 76 pasan, contra lo guardado. Se cambió un token a propósito y falló |
@@ -333,7 +333,7 @@ Las capturas (salvo las tres de Config → Flyer), el flyer impreso, `network-co
 | La raíz en el navegador de la app | La pantalla de entrada se ve igual, sin errores en la consola y sin pedidos a Supabase. No se ingresó |
 | Nombres viejos en el repo | Sólo en la historia de la sección 4 de `CLAUDE.md` y en `performance-baseline.json` |
 
-Lo que no cambia: `pdfjs-dist/legacy/…` es el nombre de una carpeta del paquete de pdf.js, y las «legacy keys» del comentario de `auth-admin` se reescribieron como «la clave anterior de Supabase». **El primer commit de la etapa (`c25d579`) no pasa `npm run ci` solo**: movió la librería de Excel antes de borrar el armado viejo, que todavía la copiaba; `e4c9f22` deja todo en verde. No se reescribió la historia para arreglarlo.
+Lo que no cambia: `pdfjs-dist/legacy/…` es el nombre de una carpeta del paquete de pdf.js, y las «legacy keys» del comentario de `auth-admin` se reescribieron como «la clave anterior de Supabase». **El primer commit de la etapa (`4188c42`) no pasa `npm run ci` solo**: movió la librería de Excel antes de borrar el armado viejo, que todavía la copiaba; `3a2f8d7` deja todo en verde. No se reescribió la historia para arreglarlo.
 
 ## Pruebas y coverage
 
