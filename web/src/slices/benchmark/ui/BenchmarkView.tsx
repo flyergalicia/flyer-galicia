@@ -216,7 +216,7 @@ function Body({
       <Message title="Todavía no hay promos de la competencia">
         {isAdmin
           ? "Tocá «Actualizar ahora» para bajarlas por primera vez."
-          : "Se actualizan una vez por semana."}
+          : "Se actualizan todos los días a la mañana."}
       </Message>
     );
   }
