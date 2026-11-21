@@ -751,11 +751,13 @@ async function syncGaliciaPropia(presupuestoMs: number): Promise<{ hechas: numbe
   }
   return { hechas: ok, pendientes, total: vigentes.length };
 }
-// ── Supervielle: la API abierta del buscador de su web ────────────────────
-// /api/rubros (por segmento) y /api/beneficios?rubro=<nombre>&esIdentite=<bool>.
+// ── Supervielle: las promos que trae su página de beneficios ──────────────
+// Desde nov-2026 la web es otra (Next.js) y la API vieja (/api/rubros, /api/beneficios)
+// contesta 410. La página https://www.supervielle.com.ar/personas/beneficios trae todas las
+// promos dentro del propio HTML (flujo self.__next_f.push): se leen de ahí, sin pedir nada más.
 // Sólo pide un User-Agent de navegador (sin él, CloudFront contesta 403).
-const SUP_API = "https://www.supervielle.com.ar/api";
-const DIAS_ES = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
+const SUP_WEB = "https://www.supervielle.com.ar/personas/beneficios";
+const DIAS_SUP = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
 const RUBRO_SUPERVIELLE: [RegExp, string][] = [
   [/combust/i, "Combustible"], [/supermerc|carnicer/i, "Supermercados"], [/farmac|belleza|optica|óptica/i, "Salud y Bienestar"],
   [/automotor/i, "Vehículos"], [/tecnolog/i, "Electrónica"], [/turismo|transporte|entreten/i, "Entretenimiento"],
@@ -772,27 +774,76 @@ export function rubroSupervielle(rubro: unknown, marca: string, rubroDe: (clave:
   const porPalabra = RUBRO_PALABRAS.find(([re]) => re.test(marca));
   return rubroDe(modoClave(marca)) || (porPalabra ? porPalabra[1] : "Otros");
 }
+// Saca las promos del HTML de la página: junta los pedazos del flujo de Next y toma cada
+// objeto que tenga "oferta" (id, name, rubro, oferta, dias, medios, segmentos, tope, vigencia…).
+export function extraerSupervielle(html: string): any[] {
+  let flujo = "";
+  for (const m of String(html || "").matchAll(/self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)/g)) {
+    try { flujo += JSON.parse(m[1]); } catch { /* pedazo roto: se saltea */ }
+  }
+  const vistas = new Map<string, any>();
+  let i = 0;
+  while ((i = flujo.indexOf('"oferta":', i)) >= 0) {
+    let a = -1, prof = 0;
+    for (let k = i; k >= 0; k--) {
+      const c = flujo[k];
+      if (c === "}") prof++;
+      else if (c === "{") { if (prof === 0) { a = k; break; } prof--; }
+    }
+    let j = a;
+    prof = 0;
+    for (; a >= 0 && j < flujo.length; j++) {
+      const c = flujo[j];
+      if (c === "{") prof++;
+      else if (c === "}") { prof--; if (!prof) break; }
+    }
+    if (a >= 0) {
+      try {
+        const o = JSON.parse(flujo.slice(a, j + 1));
+        if (o?.id && o?.name) vistas.set(String(o.id), o);
+      } catch { /* objeto que no es una promo */ }
+    }
+    i = Math.max(j, i + 1);
+  }
+  return [...vistas.values()];
+}
+// "01/08/26 al 31/10/26" -> ["2026-08-01", "2026-10-31"]
+export function vigenciaSupervielle(v: unknown): [string | null, string | null] {
+  const f = (d: string, m: string, a: string) => `${a.length === 2 ? "20" + a : a}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  const m = String(v || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*al\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  return m ? [f(m[1], m[2], m[3]), f(m[4], m[5], m[6])] : [null, null];
+}
 export function normalizarSupervielle(b: any, rubroDe: (clave: string) => string | undefined, hoy: string, ahora: string): Record<string, unknown> | null {
-  const marca = marcaSupervielle(b?.marca);
+  const marca = marcaSupervielle(b?.name);
   if (!b?.id || !marca) return null;
-  const mp = String(b?.descuento || "").match(/(\d{1,3}(?:[.,]\d+)?)\s*%/);
-  const cuotas = Math.max(0, ...(Array.isArray(b?.cuotas) ? b.cuotas : []).map((x: unknown) => Number(String(x).replace(/\D/g, "")) || 0));
-  const idx = [...new Set((Array.isArray(b?.dias) ? b.dias : []).map((d: unknown) => DIAS_ES.indexOf(sinAcentos(d))).filter((i: number) => i >= 0))] as number[];
+  const oferta = String(b?.oferta || "").replace(/\s+/g, " ").trim();
+  const mp = oferta.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/);
+  const mc = oferta.match(/(\d{1,2})\s*cuotas/i);
+  const cuotas = mc ? Number(mc[1]) : 0;
+  const idx = [...new Set((Array.isArray(b?.dias) ? b.dias : []).map((d: unknown) => DIAS_SUP.indexOf(sinAcentos(d).toLowerCase().slice(0, 3))).filter((i: number) => i >= 0))] as number[];
   const dias = idx.length === 7 ? [] : idx.sort((x, y) => x - y);
-  const tope = Number(b?.tope || 0);
-  const cred = !!b?.esTarjetaCredito, deb = !!b?.esTarjetaDebito;
-  const rubroTxt = String(b?.rubro || "");
-  const emisores = /visa/i.test(rubroTxt) ? ["visa"] : /mastercard/i.test(rubroTxt) ? ["master"] : [];
-  const desde = isoFecha(b?.fechaVigenciaDesde), hasta = isoFecha(b?.fechaVigenciaHasta);
+  // el tope viene como "$$10.000" (o "$undefined" si no tiene); el texto legal dice si es mensual
+  const mt = String(b?.tope ?? "").match(/\d[\d.]*/);
+  const legales = (Array.isArray(b?.legales) ? b.legales : [b?.legales]).filter((t: unknown) => typeof t === "string" && t.length > 20).join(" ");
+  const tl = topeLegalSupervielle(legales);
+  const tope = mt ? Number(mt[0].replace(/\./g, "")) : tl.tope;
+  const medios = Array.isArray(b?.medios) ? b.medios.map((x: unknown) => String(x).toLowerCase()) : [];
+  const cred = medios.includes("credito"), deb = medios.includes("debito");
+  const rubroTxt = String(b?.rubro?.label || b?.rubro?.value || b?.rubro || "");
+  const emisores = /visa/i.test(rubroTxt + " " + b?.name) ? ["visa"] : /mastercard/i.test(rubroTxt + " " + b?.name) ? ["master"] : [];
+  // Identité sola = premium; "identite" + "general" = para todos
+  const segs = Array.isArray(b?.segmentos) ? b.segmentos.map((x: unknown) => String(x).toLowerCase()) : [];
+  const premium = segs.includes("identite") && !segs.includes("general");
+  const [desde, hasta] = vigenciaSupervielle(b?.vigencia);
   return {
-    id: "supervielle:p" + b.id, banco: "supervielle", fuente: "supervielle",
+    id: "supervielle:w" + b.id, banco: "supervielle", fuente: "supervielle",
     titulo: marca, marca_clave: modoClave(marca), rubro: rubroSupervielle(rubroTxt, marca, rubroDe),
-    slug: "", beneficio: [b?.descuento, cuotas ? "hasta " + cuotas + " cuotas sin interés" : ""].filter(Boolean).join(" y ") || null,
+    slug: "", beneficio: oferta || null,
     pct: mp ? Number(mp[1].replace(",", ".")) : null,
-    tope: tope > 0 ? tope : null, tope_por: null, cuotas,
+    tope: tope && tope > 0 ? tope : null, tope_por: tope && tope > 0 ? tl.por : null, cuotas,
     dias: diasTexto(dias), dias_n: dias,
     credito: cred || (!cred && !deb), debito: deb || (!cred && !deb), emisores, canales: [],
-    segmento: b?.esIdentite ? "premium" : null, segmento_txt: b?.esIdentite ? "Identité" : null,
+    segmento: premium ? "premium" : null, segmento_txt: premium ? "Identité" : null,
     provincias: null, fecha_desde: desde, fecha_hasta: hasta,
     proximamente: (desde || "") > hoy, updated_at: ahora, detalle_at: ahora, bancos_n: null,
   };
@@ -821,30 +872,24 @@ async function jsonCon(url: string, headers: Record<string, string>, ms = 20000)
   }
 }
 async function syncSupervielle(): Promise<{ total: number }> {
-  const pares: [string, boolean][] = [];
-  for (const ide of [false, true]) {
-    const d = await jsonCon(`${SUP_API}/rubros/?esIdentite=${ide}`, MODO_HEADERS);
-    if (!Array.isArray(d?.rubros) || !d.rubros.length) throw new Error("Supervielle cambió el formato de los rubros");
-    for (const r of d.rubros) if (r?.nombre) pares.push([String(r.nombre), ide]);
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 30000);
+  let html = "";
+  try {
+    const r = await fetch(SUP_WEB, { headers: { ...MODO_HEADERS, Accept: "text/html" }, signal: ctl.signal });
+    if (!r.ok) throw new Error("respondió " + r.status);
+    html = await r.text();
+  } catch (e) {
+    throw new Error((e as Error)?.name === "AbortError" ? "no respondió en 30 s" : (e as Error)?.message || String(e));
+  } finally {
+    clearTimeout(t);
   }
-  const crudo: any[] = [];
-  let i = 0;
-  async function worker() {
-    while (i < pares.length) {
-      const [rubro, ide] = pares[i++];
-      const url = `${SUP_API}/beneficios?rubro=${encodeURIComponent(rubro)}&esIdentite=${ide}`;
-      let d: any;
-      try { d = await jsonCon(url, MODO_HEADERS); } catch { d = await jsonCon(url, MODO_HEADERS); } // un reintento
-      if (!Array.isArray(d?.beneficios)) throw new Error("Supervielle cambió el formato del listado");
-      crudo.push(...d.beneficios);
-    }
-  }
-  await Promise.all(Array.from({ length: 4 }, worker)); // si un rubro falla, falla todo: no se guarda una lista cortada
-  if (!crudo.length) throw new Error("Supervielle devolvió el listado vacío");
+  const crudo = extraerSupervielle(html);
+  if (!crudo.length) throw new Error("Supervielle cambió la página: no se encontraron promos");
   const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10), ahora = new Date().toISOString();
   const rubros = await rubroPorMarca();
-  // la clásica primero: si la de Identité es igual, queda la clásica (vale para todos)
-  crudo.sort((a, b) => (a?.esIdentite ? 1 : 0) - (b?.esIdentite ? 1 : 0));
+  // las que valen para todos primero: si hay una igual sólo para Identité, queda la general
+  crudo.sort((a, b) => (normalizarSupervielle(a, () => undefined, hoy, ahora)?.segmento ? 1 : 0) - (normalizarSupervielle(b, () => undefined, hoy, ahora)?.segmento ? 1 : 0));
   const vistas = new Set<string>(), filas: Record<string, unknown>[] = [];
   for (const b of crudo) {
     const f = normalizarSupervielle(b, (k) => rubros.get(k), hoy, ahora);
@@ -856,22 +901,9 @@ async function syncSupervielle(): Promise<{ total: number }> {
     filas.push(f);
   }
   if (!filas.length) throw new Error("Ninguna promo de Supervielle se pudo leer");
-  // El listado no trae el tope de muchas promos con %: está en el texto legal del detalle.
-  // Si un detalle no responde, la promo queda como "sin tope informado" (no frena la carga).
-  const sinTope = filas.filter((f) => f.pct != null && f.tope == null);
-  let k = 0;
-  const t0 = Date.now();
-  async function detalle() {
-    while (k < sinTope.length && Date.now() - t0 < 60000) {
-      const f = sinTope[k++];
-      try {
-        const d = await jsonCon(`${SUP_API}/beneficio?id=${encodeURIComponent(String(f.id).replace("supervielle:p", ""))}`, MODO_HEADERS);
-        const tp = topeLegalSupervielle((d?.beneficio || d)?.legales);
-        if (tp.tope) { f.tope = tp.tope; f.tope_por = tp.por; }
-      } catch { /* sin tope informado */ }
-    }
-  }
-  await Promise.all(Array.from({ length: 6 }, detalle));
+  // si más de la mitad viene sin oferta reconocible, la página cambió de formato: no se reemplaza
+  const sinDato = filas.filter((f) => f.pct == null && !f.cuotas).length;
+  if (sinDato > filas.length / 2) throw new Error(`Supervielle cambió el formato: ${sinDato} de ${filas.length} promos sin % ni cuotas`);
   const { count: guardadas } = await admin.from("promos_bench_cache").select("id", { count: "exact", head: true }).eq("fuente", "supervielle").or(`fecha_hasta.is.null,fecha_hasta.gte.${hoy}`);
   if (guardadas && filas.length < guardadas * MINIMO_RELATIVO) throw new Error(`Supervielle devolvió sólo ${filas.length} promos y la copia guardada tiene ${guardadas}: no se reemplaza por las dudas`);
   for (let j = 0; j < filas.length; j += 500) {

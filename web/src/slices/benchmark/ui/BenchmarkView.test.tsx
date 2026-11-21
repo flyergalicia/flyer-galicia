@@ -130,7 +130,7 @@ describe("reading", () => {
     await expect
       .element(root())
       .toMatchTextContent(
-        /Todavía no hay promos de la competenciaSe actualizan una vez por semana\./,
+        /Todavía no hay promos de la competenciaSe actualizan todos los días a la mañana\./,
       );
     expect(document.querySelectorAll('[data-testid="benchmark"] button')).toHaveLength(0);
   });

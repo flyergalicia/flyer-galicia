@@ -30,6 +30,8 @@ interface BenchmarkFunction {
   rubroSantander(categories: { description: string }[]): string;
   resumenManual(rows: object[], today: string): ManualSummary[];
   topeLegalSupervielle(text: string): BenchmarkRow;
+  extraerSupervielle(html: string): object[];
+  vigenciaSupervielle(text: string): [string | null, string | null];
   esMarcaCombustible(brand: string, detail?: string): boolean;
   normalizarMacroWeb(row: object, today: string, now: string): BenchmarkRow | null;
   normalizarIcbcWeb(row: object, today: string, now: string): BenchmarkRow[];
@@ -40,7 +42,7 @@ interface BenchmarkFunction {
 const SOURCE_SLICES = [
   { from: "const MODO_RUBROS", to: "// Baja y guarda un banco" },
   { from: "// ── Webs propias", to: "async function rubroPorMarca" },
-  { from: "// ── Supervielle: la API abierta", to: "async function jsonCon" },
+  { from: "// ── Supervielle: las promos que trae su página", to: "async function jsonCon" },
   { from: "// ── Santander: su buscador", to: "const SAN_HEADERS" },
   { from: "// ── Recordatorio mensual", to: "async function recordatorioManual" },
   { from: "// ── Carga asistida", to: "async function importarWeb" },
@@ -64,6 +66,8 @@ const FUNCTIONS = [
   "rubroSantander",
   "resumenManual",
   "topeLegalSupervielle",
+  "extraerSupervielle",
+  "vigenciaSupervielle",
   "esMarcaCombustible",
   "normalizarMacroWeb",
   "normalizarIcbcWeb",
@@ -73,6 +77,11 @@ const FUNCTIONS = [
 
 const TODAY = "2026-10-27";
 const noBrand: RubroOfBrand = () => undefined;
+
+/** One piece of the Next.js stream a page carries: self.__next_f.push([1,"…"]). */
+function nextChunk(obj: object): string {
+  return `<script>self.__next_f.push([1,${JSON.stringify(JSON.stringify(obj))}])</script>`;
+}
 
 let api: BenchmarkFunction;
 
@@ -522,62 +531,106 @@ describe("the catalog of Galicia", () => {
 });
 
 describe("the own web of Supervielle", () => {
-  it("reads Shell con MODO as Shell, 10%, cap 10.000, Sundays, only debit, fuel", () => {
-    const row = api.normalizarSupervielle(
-      {
-        dias: ["domingo"],
-        cuotas: null,
-        rubro: "Combustible",
-        marca: "Shell con MODO",
-        esTarjetaCredito: false,
-        esTarjetaDebito: true,
-        tope: 10000,
-        esIdentite: false,
-        descuento: "10%",
-        id: "51009d",
-        fechaVigenciaDesde: "2026-08-01",
-        fechaVigenciaHasta: "2026-10-31",
-      },
-      noBrand,
-      "2026-10-28",
-      "x",
-    );
+  // The shape the page carries since nov-2026 (one promotion, copied from the real page).
+  const shell = {
+    id: "611988ee-0cce-4288-bf85-e9bbde9cea0a",
+    name: "Shell con MODO",
+    rubro: { value: "combustible", label: "Combustible" },
+    oferta: "10% de ahorro",
+    dias: ["dom"],
+    tipos: ["ahorro"],
+    medios: ["debito"],
+    segmentos: ["identite", "general"],
+    medioTexto: "Tarjeta de Débito",
+    tope: "$$10.000",
+    vigencia: "01/08/26 al 31/12/26",
+    exclusivo: false,
+    legales: ["$136"],
+    cta: null,
+  };
+
+  it("reads Shell con MODO as Shell, 10%, cap 10.000, Sundays, only debit, fuel, for everyone", () => {
+    const row = api.normalizarSupervielle(shell, noBrand, "2026-11-20", "x");
 
     expect.soft(row).toMatchObject({
+      id: "supervielle:w611988ee-0cce-4288-bf85-e9bbde9cea0a",
       titulo: "Shell",
       pct: 10,
       tope: 10000,
       dias: "Domingos",
       rubro: "Combustible",
       fuente: "supervielle",
+      segmento: null,
+      fecha_desde: "2026-08-01",
+      fecha_hasta: "2026-12-31",
     });
     expect.soft(row.credito).toBeFalsy();
     expect.soft(row.debito).toBeTruthy();
   });
 
-  it("reads the 7 days as all, 3 installments, Identité as premium, Farmacia as health", () => {
+  it("reads the 7 days as all, installments, Identité alone as premium, Farmacia as health, no cap", () => {
     const row = api.normalizarSupervielle(
       {
-        dias: ["lunes", " martes", " miércoles", " jueves", " viernes", " sábado", " domingo"],
-        cuotas: ["3"],
-        rubro: "Farmacia",
-        marca: "Farmacia Central",
-        esTarjetaCredito: true,
-        esTarjetaDebito: false,
-        tope: null,
-        esIdentite: true,
-        descuento: "20%",
         id: "x1",
-        fechaVigenciaDesde: "2026-10-01",
-        fechaVigenciaHasta: "2026-12-31",
+        name: "Farmacia Central",
+        rubro: { value: "farmacia", label: "Farmacia" },
+        oferta: "20% de ahorro y 3 cuotas sin interés",
+        dias: ["lun", "mar", "mie", "jue", "vie", "sab", "dom"],
+        medios: ["credito", "debito"],
+        segmentos: ["identite"],
+        tope: "$undefined",
+        vigencia: "01/10/26 al 31/12/26",
+        legales: [
+          "Aprovechá un 20% de ahorro. Sin tope de reintegro. Válido en sucursales adheridas.",
+        ],
       },
       noBrand,
-      "2026-10-28",
+      "2026-11-20",
       "x",
     );
 
     expect.soft(row.dias_n).toHaveLength(0);
-    expect.soft(row).toMatchObject({ cuotas: 3, segmento: "premium", rubro: "Salud y Bienestar" });
+    expect.soft(row).toMatchObject({
+      pct: 20,
+      cuotas: 3,
+      tope: null,
+      segmento: "premium",
+      rubro: "Salud y Bienestar",
+    });
+    expect.soft(row.credito).toBeTruthy();
+    expect.soft(row.debito).toBeTruthy();
+  });
+
+  it("takes the monthly cap from the legal text when the card does not bring one", () => {
+    const row = api.normalizarSupervielle(
+      {
+        ...shell,
+        tope: "$undefined",
+        legales: [
+          "Reintegro del 10%. El importe máximo de reintegro será de $12.000 mensual por cuenta.",
+        ],
+      },
+      noBrand,
+      "2026-11-20",
+      "x",
+    );
+
+    expect.soft(row).toMatchObject({ tope: 12000, tope_por: "month" });
+  });
+
+  it("finds the promotions inside the page, once each, and reads the validity", () => {
+    const html =
+      nextChunk({ props: { cards: [shell, { ...shell, id: "otra", name: "Coto" }] } }) +
+      nextChunk({ props: { cards: [shell] } }) +
+      "<div>sin promos</div>";
+
+    const found = api.extraerSupervielle(html);
+
+    expect.soft(found).toHaveLength(2);
+    expect
+      .soft(api.vigenciaSupervielle("01/08/26 al 31/10/26"))
+      .toEqual(["2026-08-01", "2026-10-31"]);
+    expect.soft(api.vigenciaSupervielle("sin fecha")).toEqual([null, null]);
   });
 
   it('takes the cap from the legal text, and "Sin tope" does not make one up', () => {
