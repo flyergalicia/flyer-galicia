@@ -2,13 +2,13 @@
 
 En orden de prioridad. Lo que se termina se borra de acá: la historia queda en git.
 
-## Para publicar la app React (sólo con el OK del dueño)
+## Después de publicar la app React
+
+Publicada el 20-nov-2026 (PR #2). Para volver a la versión anterior: etiqueta `respaldo-antes-react`. Antes de unir se hizo un backup completo de Supabase (fuera del repo, en la PC del dueño). Las migraciones hasta la 050 están aplicadas y las tres Edge Functions publicadas con supabase-js 2.118.0 y unpdf 2.1.0.
 
 1. Seguir «Para publicar» de `docs/PLAN_MIGRACION_REACT.md`: revisar las decisiones pendientes del informe de la etapa 4 (incluye los errores de la versión anterior que se portaron como estaban: se cambian sólo si el dueño lo decide).
 2. Subir un **PDF real** en Config → Flyer con una cuenta de prueba: el motor nunca se comparó con un flyer real.
-3. Confirmar que estén aplicadas las migraciones que la app ya usa (034 de Estudio, 038 de Flyers para copiar, 050 del tablero de Gestiones, entre otras). Cada una va **antes** del cliente que la necesita.
-4. Publicar las tres Edge Functions con supabase-js 2.118.0 y unpdf 2.1.0 (sólo se probaron en Deno local).
-5. Etiquetar `a88f5e8` antes de publicar, para poder volver atrás.
+3. Probar con una sesión de admin algo que pase por `auth-admin` (por ejemplo, editar un usuario): se publicó con supabase-js 2.118.0 sin poder probarla logueado.
 
 ## Probar en vivo (nunca se vio con datos reales)
 
