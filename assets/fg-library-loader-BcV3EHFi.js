@@ -1,0 +1,1 @@
+function e(e){let t=null,n=!1,r=async()=>{try{let t=await e();return n=!0,t}catch(e){throw t=null,e}};return{isReady:()=>n,load:()=>(t??=r(),t)}}export{e as t};

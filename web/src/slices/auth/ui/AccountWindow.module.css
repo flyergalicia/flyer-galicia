@@ -1,0 +1,48 @@
+/* What the windows of one's own account have inside. */
+.grid {
+  display: grid;
+  gap: 14px;
+}
+
+.row label {
+  margin-bottom: 4px;
+}
+
+.row input {
+  margin-bottom: 12px;
+}
+
+.grid .row {
+  margin-bottom: 0;
+}
+
+.error {
+  min-height: 16px;
+  padding: 0 22px 8px;
+  color: var(--danger);
+  font-size: var(--text-xs);
+}
+
+.ok {
+  padding: 0 22px 4px;
+  color: var(--green);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+.footerButton {
+  font-size: var(--text-xs);
+}
+
+.cancel {
+  padding: 9px 18px;
+}
+
+.send {
+  padding: 9px 22px;
+}
+
+.send:disabled {
+  opacity: 0.6;
+}

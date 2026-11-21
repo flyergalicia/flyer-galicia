@@ -4,8 +4,8 @@
 -- (vacíos incluidos), mientras que las filas viejas tenían {} y menos slots. Cada
 -- guardado marcaba TODAS las empresas como "modificación" (51 de 52 filas falsas
 -- en un guardado del 2026-09-17) y la solapa "Cambios del padrón" repetía todo.
--- Solución: normalizar antes de comparar (misma semántica que _padRubroIgual /
--- _padSane en auth.js). Lo que se GUARDA en "cambios" sigue siendo el valor real.
+-- Solución: normalizar antes de comparar (misma semántica que la comparación de
+-- rubros y filas de la app, slice company-registry). Lo que se GUARDA en "cambios" sigue siendo el valor real.
 -- Idempotente. Aplicar con: SB_TOKEN=... node supabase/_runsql.mjs supabase/migrations/009_padron_log_solo_cambios_reales.sql
 
 -- Rubro: sin opción (>0) = null; con opción, importes sólo dígitos e importe2

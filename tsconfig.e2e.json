@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
+    // DOM: callbacks of page.evaluate run in the browser.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "nodenext",
+    "types": ["node"]
+  },
+  "include": ["tests", "scripts/demo-commercial-actions.ts", "scripts/measure-performance.ts"]
+}

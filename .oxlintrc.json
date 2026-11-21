@@ -1,0 +1,90 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "jsx-a11y", "import", "unicorn", "oxc", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "ignorePatterns": [
+    "index.html",
+    "version.json",
+    "web/src/shared/lib/vendor/**",
+    "supabase/**",
+    "dist/**",
+    "assets/**",
+    "coverage/**",
+    "storybook-static/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".claude/**"
+  ],
+  "rules": {
+    "complexity": [
+      "error",
+      {
+        "max": 15
+      }
+    ],
+    "typescript/no-explicit-any": "error",
+    "no-alert": "error",
+    "import/no-cycle": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/only-export-components": [
+      "error",
+      {
+        "allowConstantExport": true
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["web/src/**"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "Network access goes through web/src/shared/supabase: one place that tells 'not found' from 'no network'."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["web/src/shared/supabase/**", "web/src/shared/lib/**"],
+      "rules": {
+        "no-restricted-globals": "off"
+      }
+    },
+    {
+      "files": ["*.stories.tsx", "*.test.tsx", "*.config.ts", ".storybook/**"],
+      "rules": {
+        "react/only-export-components": "off",
+        "import/no-unassigned-import": "off"
+      }
+    },
+    {
+      "files": ["tests/**"],
+      "rules": {
+        "react/rules-of-hooks": "off",
+        "react/exhaustive-deps": "off",
+        "no-await-in-loop": "off"
+      }
+    },
+    {
+      "files": ["tests/e2e/support/cloud/**"],
+      "rules": {
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "oxc/no-map-spread": "off"
+      }
+    }
+  ]
+}

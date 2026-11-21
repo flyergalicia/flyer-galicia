@@ -1,0 +1,260 @@
+/* Admin → Facultades: the switch of Gestiones and the matrix of a row per permission. */
+.switch {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-m);
+  background: var(--accent-soft);
+}
+
+.switchTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: var(--text-tab);
+  font-weight: var(--weight-heavy);
+}
+
+.new {
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--faculty-new-tx);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heavy);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.switchText {
+  margin: 2px 0 10px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  border: 0;
+}
+
+/* The choice is the whole card: the round mark of the browser is not drawn. */
+.radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-s);
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--font-family);
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice b {
+  font-size: var(--text-md);
+}
+
+.choice span {
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+.choice:has(.radio:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.choice:has(.radio:checked) b {
+  color: var(--accent-2);
+}
+
+.choice:has(.radio:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.grid {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1.7fr repeat(6, minmax(64px, 0.6fr));
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row > * {
+  text-align: center;
+}
+
+.row > :first-child {
+  text-align: left;
+}
+
+.row[hidden] {
+  display: none;
+}
+
+.headRow {
+  background: var(--light-row);
+  color: var(--gray);
+  font-size: var(--text-label);
+  font-weight: var(--weight-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.own {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  opacity: 0.7;
+}
+
+.preview {
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.preview:hover {
+  background: var(--navy);
+  color: var(--faculty-new-tx);
+}
+
+.eye {
+  width: 11px;
+  height: 10px;
+  margin-left: 3px;
+  vertical-align: -1px;
+  opacity: 0.65;
+}
+
+.preview:hover .eye {
+  opacity: 1;
+}
+
+.name {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.description {
+  margin-top: 2px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.sub > :first-child {
+  padding-left: 20px;
+}
+
+.box {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.none {
+  color: var(--gray);
+}
+
+.group {
+  width: 100%;
+  border-width: 0 0 1px;
+  border-color: var(--border);
+  background: var(--light-row);
+  color: var(--ink);
+  font-family: var(--font-family);
+  cursor: pointer;
+  user-select: none;
+}
+
+.group:hover {
+  background: var(--faculty-group-hover);
+}
+
+.group .name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.caret {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  fill: var(--gray);
+  transition: transform 0.15s;
+}
+
+.group[aria-expanded="true"] .caret {
+  transform: rotate(90deg);
+}
+
+.howMany {
+  color: var(--gray);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+
+.count {
+  color: var(--gray);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+@media (max-width: 900px) {
+  .row {
+    gap: 4px;
+    padding: 8px 6px;
+  }
+
+  .description {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .choices {
+    grid-template-columns: 1fr;
+  }
+}

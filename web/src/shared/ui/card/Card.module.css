@@ -1,0 +1,31 @@
+.card {
+  margin-bottom: 10px;
+  padding: 13px 14px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-m);
+  background: var(--card);
+  box-shadow: var(--sh-1);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-heavy);
+}
+
+.subtitle {
+  margin: 10px 0 6px;
+  color: var(--gray);
+  font-size: var(--text-label);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.subtitle:first-of-type {
+  margin-top: 0;
+}

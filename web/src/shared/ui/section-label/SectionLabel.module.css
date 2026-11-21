@@ -1,0 +1,16 @@
+.label {
+  color: var(--gray);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}
+
+.section {
+  font-size: var(--text-label);
+  letter-spacing: 1.6px;
+}
+
+.panel {
+  margin-bottom: 10px;
+  font-size: var(--text-panel);
+  letter-spacing: 0.12em;
+}

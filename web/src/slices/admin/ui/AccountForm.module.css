@@ -1,0 +1,90 @@
+/* The window of a user: the `um-card` of the old app. */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+/* Each field as `.login-inp`: 4px under its label, 12px under the control, the whole width. */
+.grid .field {
+  margin-bottom: 0;
+}
+
+.grid .field label {
+  margin-bottom: 4px;
+}
+
+.grid .field input,
+.grid .field select {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.grid .field .half {
+  width: 50%;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 10px;
+  color: var(--ink-2);
+  font-size: var(--text-menu);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.sendFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.error {
+  min-height: 16px;
+  padding: 0 22px 8px;
+  color: var(--danger);
+  font-size: var(--text-xs);
+}
+
+.footerButton {
+  font-size: var(--text-xs);
+}
+
+.footerButton.cancel {
+  padding: 9px 18px;
+  background: var(--admin-cancel-bg);
+}
+
+.footerButton.send {
+  padding: 9px 22px;
+}
+
+.send:disabled {
+  opacity: 0.6;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .sendFields {
+    grid-template-columns: 1fr;
+  }
+}

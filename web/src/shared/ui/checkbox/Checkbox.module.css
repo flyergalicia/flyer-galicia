@@ -1,0 +1,19 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--check-tx);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.box {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.box:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -1,0 +1,647 @@
+/* The tab Benchmark: the same rules as in the old app, and what its global styles
+   give its fields, labels and buttons. As a grid, the column takes the width of what it holds. */
+.view {
+  display: grid;
+  overflow: auto;
+  min-width: 0;
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.root {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 24px 60px;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+.top h2 {
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-benchmark);
+  font-weight: var(--weight-bold);
+}
+
+.top p {
+  min-width: 0;
+  max-width: 640px;
+  margin: 3px 0 0;
+  color: var(--gray);
+  font-size: var(--text-md);
+}
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A button with no look of its own on the old app: what a button of the system brings. */
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--system-button-bg);
+  color: var(--system-button-tx);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    box-shadow 0.15s,
+    background 0.15s,
+    filter 0.15s;
+}
+
+.button:disabled {
+  box-shadow: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin: 8px 0 14px;
+}
+
+.chip {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.chip b {
+  color: var(--ink);
+}
+
+.chip[data-stale="true"] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.card {
+  min-width: 0;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-m);
+  background: var(--card);
+  box-shadow: var(--sh-1);
+}
+
+.card h3 {
+  min-width: 0;
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: var(--text-dialog);
+  font-weight: var(--weight-bold);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--gray);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+label.field,
+.labelLike {
+  margin-bottom: 3px;
+  color: var(--bench-label-tx);
+  cursor: default;
+}
+
+.light {
+  font-weight: var(--weight-medium);
+}
+
+.filters .field select,
+.filters .field input,
+.editor .field select,
+.editor .field input,
+.editor .field textarea,
+.card .field input,
+.card .field select {
+  min-width: 120px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+  font-size: var(--text-search);
+  color-scheme: normal;
+}
+
+/* The old app puts the box of the check inside the line, with the width of a field. */
+.filters .field .check {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  vertical-align: baseline;
+}
+
+.salary {
+  align-self: end;
+}
+
+.references {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.filters .references input {
+  width: 96px;
+  min-width: 0;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  margin-bottom: -1px;
+  padding: 9px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--gray);
+  font-size: var(--text-search);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+}
+
+.sub {
+  min-width: 0;
+  margin: 0 0 10px;
+  color: var(--gray);
+  font-size: var(--text-sm);
+}
+
+.summary {
+  min-width: 0;
+  color: var(--ink);
+  font-size: var(--text-xl);
+  line-height: 1.5;
+}
+
+.summary b {
+  color: var(--ink);
+}
+
+.slides {
+  overflow-x: auto;
+  width: 0;
+  min-width: 100%;
+}
+
+.table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  font-size: var(--text-md);
+}
+
+.table th,
+.table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  color: var(--gray);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+
+.table .galicia {
+  background: var(--accent-soft);
+}
+
+.table .closing {
+  border-bottom-width: 2px;
+}
+
+.offer {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 118px;
+}
+
+.amount {
+  color: var(--ink);
+  font-weight: var(--weight-bold);
+}
+
+.percent {
+  font-weight: var(--weight-medium);
+}
+
+.detail {
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.offer[data-wins="true"] {
+  padding-left: 6px;
+  border-left: 3px solid var(--bench-win-line);
+}
+
+.offer[data-wins="true"] .amount {
+  color: var(--bench-win-tx);
+}
+
+.offer[data-empty="true"] {
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+.logo {
+  width: 26px;
+  height: 26px;
+  margin-right: 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 160px;
+  color: var(--ink);
+  font-weight: var(--weight-bold);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.bar i {
+  display: block;
+  min-width: 2px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--navy-2);
+}
+
+.bar[data-galicia="true"] i {
+  background: var(--accent);
+}
+
+.empty {
+  padding: 34px 14px;
+  color: var(--gray);
+  font-size: var(--text-search);
+  text-align: center;
+}
+
+.empty strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+
+.notice {
+  min-width: 0;
+  margin: 8px 0 0;
+  color: var(--gray);
+  font-size: var(--text-sm);
+}
+
+.placesNotice {
+  margin: -6px 0 12px;
+}
+
+.segment {
+  color: var(--gray);
+  font-size: var(--text-xs);
+}
+
+a.segment {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.pill {
+  display: inline-block;
+  text-align: start;
+  margin: 0 4px 4px 0;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.pill[aria-pressed="true"] {
+  border-color: var(--navy);
+  background: var(--bench-pill-on-bg);
+  color: var(--bench-pill-on-tx);
+}
+
+.list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: var(--text-search);
+  line-height: 1.65;
+}
+
+.list li {
+  margin-bottom: 4px;
+}
+
+.up {
+  color: var(--bench-win-tx);
+  font-weight: var(--weight-bold);
+}
+
+.down {
+  color: var(--danger);
+  font-weight: var(--weight-bold);
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.closeButton {
+  margin-top: 8px;
+}
+
+.searchRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.search {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+  font-size: var(--text-search);
+}
+
+/* With the weight, margin and pointer every label has in the old app. */
+.comparable {
+  margin-bottom: 3px;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  cursor: default;
+}
+
+.pills {
+  margin-top: 8px;
+}
+
+.merchantRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.merchantField {
+  flex: 1;
+  min-width: 200px;
+}
+
+.merchantField input {
+  width: 100%;
+}
+
+.best {
+  margin: 0 0 6px;
+}
+
+.flush {
+  margin: 0;
+}
+
+.topRow {
+  background: var(--bench-best-row);
+}
+
+.noWrap {
+  white-space: nowrap;
+}
+
+.passName {
+  overflow: hidden;
+  width: 230px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.highlight {
+  border-color: var(--accent);
+}
+
+.reminder {
+  color: var(--ink);
+  font-size: var(--text-xl);
+  line-height: 1.5;
+}
+
+.faded {
+  opacity: 0.55;
+}
+
+.retry {
+  margin: 8px auto 0;
+}
+
+@media (max-width: 900px) {
+  .view {
+    overflow: visible;
+    height: auto;
+  }
+
+  .root {
+    padding: 14px 14px 40px;
+  }
+
+  .filters .references input {
+    width: 84px;
+  }
+
+  .button {
+    padding: 12px 14px;
+  }
+}
+
+/* On a phone the bars shrink alike (--f: their length; --r: what is left for the name and number). */
+@media (max-width: 640px) {
+  .bar {
+    width: 0;
+    min-width: 100%;
+  }
+
+  .bar i {
+    flex-shrink: 0;
+    width: calc((100% - var(--r, 140px)) * var(--f, 1)) !important;
+  }
+}
+
+.passesSummary {
+  margin-bottom: 8px;
+}
+
+.metaFailure {
+  margin: 8px 0 14px;
+}
+
+/* The window of a card or of a promotion loaded by hand. */
+/* Its veil leaves 16 px around it, 2 more than the one of the shared window. */
+dialog.editor {
+  display: block;
+  overflow: auto;
+  width: min(760px, calc(100% - 4px));
+  max-width: none;
+  max-height: 92vh;
+  padding: 18px;
+  border-radius: var(--r-m);
+  background: var(--card);
+  box-shadow: var(--sh-3);
+  color: var(--ink);
+}
+
+.editorTitle {
+  margin: 0 0 10px;
+  font-size: var(--text-editor);
+  font-weight: var(--weight-bold);
+}
+
+.editorGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.editor .field input,
+.editor .field select,
+.editor .field textarea {
+  width: 100%;
+}
+
+.editor .field textarea {
+  min-height: 120px;
+  line-height: 1.5;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.whole {
+  grid-column: 1 / -1;
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@media (max-width: 700px) {
+  .editorGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* A text field of the old app lights its border with the focus, with no outline. */
+.field input[type="text"] {
+  font-family: "Figtree", sans-serif;
+}
+
+.field input[type="text"],
+.field textarea {
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+
+.field input[type="text"]:focus,
+.field textarea:focus {
+  border-color: var(--bench-focus-line);
+  outline: none;
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.tick {
+  margin-right: 10px;
+  font-weight: var(--weight-medium);
+}

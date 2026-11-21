@@ -1,0 +1,181 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  border-radius: var(--radius-control);
+  font-weight: var(--weight-bold);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    box-shadow 0.15s,
+    background 0.15s,
+    filter 0.15s;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  box-shadow: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+.fullWidth {
+  display: flex;
+  width: 100%;
+}
+
+.busy,
+.busy:disabled {
+  opacity: 0.75;
+  cursor: progress;
+  pointer-events: none;
+}
+
+.lg {
+  padding: 13px;
+  font-size: var(--text-xl);
+}
+
+.md {
+  padding: 11px 14px;
+  font-size: var(--text-lg);
+}
+
+.dialog {
+  padding: 9px 14px;
+  font-size: var(--text-sm);
+}
+
+.sm {
+  padding: 8px 16px;
+  font-size: var(--text-xs);
+}
+
+.xs {
+  padding: 5px 10px;
+  border-radius: var(--radius-chip);
+  font-size: var(--text-xs);
+}
+
+/* An icon that is a letter, such as a trash can. */
+.icon-size {
+  padding: 5px 9px;
+  border-radius: var(--radius-chip);
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.primary {
+  background: var(--accent-grad);
+  box-shadow: 0 6px 14px var(--accent-sh);
+  color: #fff;
+}
+
+.primary:hover {
+  background: var(--accent-grad-h);
+  box-shadow: 0 8px 18px var(--accent-sh);
+}
+
+.secondary {
+  background: var(--secondary-bg);
+  color: #fff;
+}
+
+.secondary:hover {
+  filter: brightness(1.15);
+}
+
+.ghost {
+  border: 1px solid var(--ghost-line);
+  background: var(--card);
+  color: var(--ghost-tx);
+}
+
+.ghost:hover {
+  border-color: var(--ghost-hover-line);
+}
+
+.blue {
+  background: var(--navy-2);
+  color: #fff;
+}
+
+.blue:hover {
+  filter: brightness(1.1);
+}
+
+.green {
+  background: var(--green);
+  box-shadow: 0 6px 14px var(--green-sh);
+  color: #fff;
+}
+
+.soft-danger {
+  background: var(--soft-danger-bg);
+  color: var(--soft-danger-tx);
+}
+
+.soft-danger:hover {
+  background: var(--soft-danger-tx);
+  color: #fff;
+}
+
+.soft-ok {
+  background: var(--soft-ok-bg);
+  color: var(--green);
+}
+
+.soft-ok:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+.soft-neutral {
+  background: var(--soft-edit-bg);
+  color: var(--ink);
+}
+
+.soft-neutral:hover {
+  background: var(--navy);
+  color: #fff;
+}
+
+.soft-muted {
+  background: var(--soft-neutral-bg);
+  color: var(--soft-neutral-tx);
+}
+
+.soft-muted:hover {
+  background: var(--soft-muted-hover-bg);
+  color: var(--soft-muted-hover-tx);
+}
+
+.link {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--link);
+  font-weight: var(--weight-semibold);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .md {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+}

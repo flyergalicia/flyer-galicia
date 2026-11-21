@@ -1,0 +1,45 @@
+/* On a computer the window does not scroll: each screen scrolls inside what the header leaves. */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--simbar-h, 0px));
+  overflow: hidden;
+}
+
+.host {
+  flex: 1;
+  min-height: 0;
+}
+
+.view {
+  height: 100%;
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.loadFailure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 480px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+
+/* On a phone it is the page that scrolls. */
+@media (max-width: 900px) {
+  .shell {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    padding-bottom: var(--simbar-h, 0px);
+  }
+
+  .view {
+    height: auto;
+  }
+}

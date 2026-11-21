@@ -1,0 +1,222 @@
+/* The entry of the app: a window split in two over the whole page. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--lg-ov);
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  width: 880px;
+  max-width: 94vw;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: 0 30px 80px rgba(20, 20, 20, 0.28);
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 460px;
+  overflow: hidden;
+  padding: 40px 36px;
+  background: var(--lg-hero);
+  color: var(--lg-hero-tx);
+}
+
+.heroTitle {
+  max-width: 12ch;
+  margin: 26px 0 0;
+  font-size: var(--text-hero);
+  font-weight: var(--weight-heavy);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.heroArt {
+  position: absolute;
+  right: -10px;
+  bottom: -14px;
+  width: 64%;
+  height: auto;
+  pointer-events: none;
+}
+
+.artInk {
+  fill: var(--lg-art-ink);
+}
+
+.artLine {
+  fill: var(--lg-art-line);
+}
+
+.artAccent {
+  fill: var(--accent);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandLogo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.18));
+}
+
+.brandWord {
+  color: var(--lg-word);
+  font-size: var(--text-brand);
+  font-weight: var(--weight-heavy);
+  letter-spacing: -0.02em;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 36px 32px;
+  border: 1px solid var(--login-card-line);
+  background: var(--card);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+.title {
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: var(--text-welcome);
+  font-weight: var(--weight-heavy);
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin-bottom: 24px;
+  color: var(--gray);
+  font-size: var(--text-md);
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.card .field {
+  margin-bottom: 0;
+}
+
+.field label {
+  margin-bottom: 4px;
+}
+
+.field input {
+  margin-bottom: 12px;
+}
+
+.error,
+.ok {
+  min-height: 18px;
+  margin-bottom: 8px;
+  font-size: var(--text-note);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.ok {
+  color: var(--green);
+  font-weight: var(--weight-semibold);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+.linksCentered {
+  justify-content: center;
+}
+
+.entering {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  text-align: center;
+}
+
+.enteringSpinner {
+  margin-bottom: 18px;
+}
+
+.entering .subtitle {
+  margin: 4px 0 0;
+}
+
+.retry {
+  text-align: center;
+}
+
+.retryMark {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-brand);
+  font-weight: var(--weight-heavy);
+}
+
+.retry .subtitle {
+  margin: 6px 0 18px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .card {
+    padding: 26px 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: 1fr;
+    width: 420px;
+  }
+
+  .hero {
+    min-height: 0;
+    padding: 20px 22px 18px;
+  }
+
+  .heroTitle {
+    max-width: none;
+    margin: 10px 0 0;
+    font-size: var(--text-herosmall);
+  }
+
+  .heroArt {
+    display: none;
+  }
+}

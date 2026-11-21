@@ -2,7 +2,8 @@
 -- (Caja de Ahorro, Plus, Plus Gold, Eminent Platinum, Eminent Black), no por
 -- rango de renta. La columna renta queda (sin uso en la app) para no perder lo
 -- cargado en las pruebas; el tablero deja de sumarla.
--- Las claves y su orden en pantalla viven en GES_PAQ (gestiones.js).
+-- Las claves y su orden en pantalla viven en PACKAGES
+-- (web/src/slices/commercial-actions/model/labels.ts).
 
 alter table public.gestion_prospectos add column if not exists paquete text;
 alter table public.gestion_prospectos drop constraint if exists gestion_prospectos_paquete_check;
