@@ -10,6 +10,7 @@ import {
   ownDays,
   promotionLink,
   promotionNote,
+  promotionShownImage,
   provinceList,
   type PromotionStatus,
   statusText,
@@ -174,7 +175,7 @@ function addLogos(
     return image;
   };
   const placeLogo = async (row: ResultRow, position: number) => {
-    const file = row.promotion?.imagen;
+    const file = promotionShownImage(row.promotion);
     if (!file) return;
     const extension = imageFormat(file);
     const image = extension ? await imageOf(file, extension) : null;

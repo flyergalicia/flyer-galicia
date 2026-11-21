@@ -326,6 +326,18 @@
   cursor: help;
 }
 
+.cardNoLogo {
+  color: var(--logo-note);
+  font-weight: var(--weight-bold);
+  cursor: help;
+}
+
+.cardLogoMissing {
+  color: var(--gray);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
 .cardMore {
   color: var(--gray);
   font-weight: var(--weight-semibold);

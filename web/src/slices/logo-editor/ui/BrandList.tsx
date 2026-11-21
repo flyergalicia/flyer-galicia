@@ -4,11 +4,14 @@ import {
   type Promotion,
   titleCase,
   promotionNote,
+  promotionShownImage,
 } from "@/shared/domain/promotions/index.ts";
 import { usePromotionLogoSource } from "@/shared/lib/promotions/logo-file.ts";
 import {
+  brandCardKey,
   daysOfCard,
   MAX_CARDS,
+  needsUploadedLogo,
   promotionsOfLogoDetail,
   shortNote,
   untilDate,
@@ -33,7 +36,7 @@ function CardLine({ promotion, picker }: Pick<BrandCardProps, "promotion" | "pic
   const days = daysOfCard(promotion, supermarkets, zone);
   const note = promotionNote(promotion);
   const until = untilDate(promotion);
-  const ofLogo = brands.ofLogo.get(promotion.imagen ?? "") ?? [];
+  const ofLogo = brands.ofLogo.get(brandCardKey(promotion)) ?? [];
   return (
     <span className={styles.cardLine} data-testid="brand-detail">
       {promotion.subtitulo ?? ""}
@@ -70,6 +73,18 @@ function CardLine({ promotion, picker }: Pick<BrandCardProps, "promotion" | "pic
         </>
       )}
       {until && ` · hasta ${until}`}
+      {needsUploadedLogo(promotion) && (
+        <>
+          {" · "}
+          <b
+            className={styles.cardNoLogo}
+            data-testid="no-logo"
+            title="Esta marca no tiene logo en Promociones: al elegirla te pide que subas su imagen desde la PC"
+          >
+            Sin logo: subí su imagen
+          </b>
+        </>
+      )}
       {ofLogo.length >= 2 && (
         <>
           {" · "}
@@ -108,6 +123,7 @@ export function BrandCard({
       data-n={number ?? undefined}
       data-strip-number={stripNumber ?? undefined}
       data-logo={promotion.imagen ?? undefined}
+      data-no-logo={needsUploadedLogo(promotion) || undefined}
       data-category={promotion.subtitulo ?? ""}
       aria-pressed={stripNumber === undefined ? undefined : stripNumber !== null}
       onClick={() => {
@@ -116,7 +132,16 @@ export function BrandCard({
     >
       {typeof stripNumber === "number" && <span className={styles.stripNumber}>{stripNumber}</span>}
       <span className={styles.cardLogo}>
-        <img loading="lazy" decoding="async" alt="" src={logoSource(promotion.imagen)} />
+        {promotionShownImage(promotion) ? (
+          <img
+            loading="lazy"
+            decoding="async"
+            alt=""
+            src={logoSource(promotionShownImage(promotion))}
+          />
+        ) : (
+          <span className={styles.cardLogoMissing}>Sin logo</span>
+        )}
         {hasPercent && (
           <span
             className={styles.percentDot}

@@ -8,6 +8,7 @@ import {
   type Promotion,
   promotionHasPercent,
   promotionNote,
+  promotionShownImage,
   statusText,
 } from "@/shared/domain/promotions/index.ts";
 import { usePromotionLogoSource } from "@/shared/lib/promotions/logo-file.ts";
@@ -38,7 +39,7 @@ function PromotionLogo({
   const [failedOn, setFailedOn] = useState<string | null>(null);
   const address = source(image);
   let logo: ReactNode;
-  if (!promotion?.imagen) {
+  if (!image) {
     logo = <div className={`${styles.logo} ${styles.logoEmpty}`} title="Sin coincidencia" />;
   } else if (failedOn === address) {
     logo = (
@@ -231,7 +232,7 @@ function PromotionRowCells({
         {picking?.firstCell(row) ?? <ExcludeTick row={row} />}
       </DataTable.Cell>
       <DataTable.Cell className={styles.cellLogo} data-part="logo">
-        <PromotionLogo image={promotion?.imagen ?? ""} promotion={promotion} />
+        <PromotionLogo image={promotionShownImage(promotion)} promotion={promotion} />
       </DataTable.Cell>
       {!isActiveTab && (
         <DataTable.Cell className={styles.cellBrand} data-part="brand">

@@ -50,6 +50,7 @@ export {
   promotionLogoSource,
   promotionNote,
   promotionOfLogo,
+  promotionShownImage,
 } from "./promotion.ts";
 export {
   expiryStatus,

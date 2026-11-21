@@ -7,6 +7,11 @@ export interface Promotion {
   readonly titulo: string;
   readonly subtitulo?: string | null;
   readonly imagen?: string | null;
+  /**
+   * Only MODO, for a brand with no logo: the picture of its MODO card. Almost always the logo, at
+   * times a photo: it shows in Promociones but is never offered as the flyer's logo.
+   */
+  readonly imagen_tarjeta?: string | null;
   readonly fecha_hasta?: string | null;
   readonly fecha_desde?: string | null;
   readonly tipo_promocion?: string | null;
@@ -50,6 +55,11 @@ export function isModoPromotion(promotion: Promotion | null | undefined): boolea
  * because the ones of MODO cannot be drawn on a PDF (invariant 26). Whatever shows or downloads a
  * logo goes through here.
  */
+/** The picture to show for a promotion in lists: its logo, or else the picture of its MODO card. */
+export function promotionShownImage(promotion: Promotion | null | undefined): string {
+  return promotion?.imagen || promotion?.imagen_tarjeta || "";
+}
+
 export function promotionLogoSource(
   image: string | null | undefined,
   bucketUrl: (file: BucketLogo) => string,

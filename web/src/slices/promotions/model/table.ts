@@ -9,6 +9,7 @@ import {
   isOnlinePromotion,
   lowerCased,
   promotionHasPercent,
+  promotionShownImage,
   PROMOTION_STATUSES,
   type PromotionStatus,
   STATUS_LABEL,
@@ -91,7 +92,7 @@ function passesTicks({ promotion }: ResultRow, filters: TableFilters): boolean {
 }
 
 function passesLogo({ promotion }: ResultRow, filters: TableFilters): boolean {
-  const hasLogo = Boolean(promotion?.imagen);
+  const hasLogo = Boolean(promotionShownImage(promotion));
   if (filters.logo === "con") return hasLogo;
   return filters.logo !== "sin" || !hasLogo;
 }
@@ -147,7 +148,7 @@ const AFTER_ALL = "￿";
 
 function sortValue(row: ResultRow, field: SortField): string | number {
   if (field === "status") return STATUS_URGENCY[row.status];
-  if (field === "logo") return row.promotion?.imagen ? 0 : 1;
+  if (field === "logo") return promotionShownImage(row.promotion) ? 0 : 1;
   if (field === "startDate") {
     return row.promotion && row.startDate ? row.startDate.slice(0, 10) : NO_DATE;
   }
