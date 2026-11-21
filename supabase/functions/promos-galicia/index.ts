@@ -621,6 +621,19 @@ function modoClave(s: unknown): string {
     .replace(/\b(supermercados?|super|hiper(mercados?)?|mayorista|farmacias?|perfumerias?|y|de|del|la|el|los|las|grupo|s ?a)\b/g, " ")
     .replace(/[^a-z0-9]+/g, "");
 }
+// Para buscar el logo de Galicia cuando el nombre no coincide justo: "Farma Plus Online" =
+// "Farmaplus", "www.simplicity.com.ar" = "Simplicity". Va en un mapa aparte del exacto: mezclado,
+// "Farmacity" tomaba el logo de "Farmacity.com".
+function modoClaveSuelta(s: unknown): string {
+  return modoClave(sinAcentos(s).replace(/\b(WWW|ONLINE|COM|AR)\b/g, " "));
+}
+// "Megatlon y Fiter" -> "megatlon" (sólo con "y" y una primera parte de 5 letras o más; partir por
+// comas daba "Carrefour Hiper, Market y Express" -> el logo de "Market").
+function modoPrimeraParte(s: unknown): string {
+  const t = sinAcentos(s), p = t.split(/ Y /)[0];
+  const k = p.length < t.length ? modoClaveSuelta(p) : "";
+  return k.length >= 5 ? k : "";
+}
 function modoMarcaLogo(locales: any[], titulo: string): { id: string; url: string } | null {
   const k = modoClave(titulo), cuenta = new Map<string, { n: number; url: string }>();
   for (const l of locales) {
@@ -805,11 +818,16 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
   // Logo de Galicia de la misma marca: para las que no tienen locales (online,
   // YPF en cuotas) o cuyos locales son de otra marca.
   // (de a 1000: PostgREST corta cada consulta ahí y Galicia tiene más de 2000)
-  const logoGalicia = new Map<string, string>();
+  const logoGalicia = new Map<string, string>(), logoGaliciaSuelta = new Map<string, string>();
   for (let d = 0; ; d += 1000) {
     const { data: gal, error } = await admin.from("promos_galicia_cache").select("titulo,imagen").neq("imagen", "").order("id").range(d, d + 999);
     if (error) throw new Error("Leyendo los logos de Galicia: " + error.message);
-    for (const g of gal || []) { const k = modoClave(g.titulo); if (k && !logoGalicia.has(k)) logoGalicia.set(k, g.imagen); }
+    for (const g of gal || []) {
+      const k = modoClave(g.titulo);
+      if (k && !logoGalicia.has(k)) logoGalicia.set(k, g.imagen);
+      const s = modoClaveSuelta(g.titulo);
+      if (s && !logoGaliciaSuelta.has(s)) logoGaliciaSuelta.set(s, g.imagen);
+    }
     if (!gal || gal.length < 1000) break;
   }
 
@@ -866,7 +884,9 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
       // Logo: primero el de esa marca en Galicia (así la promo de MODO y la de
       // Galicia van en la misma tarjeta y el flyer usa el mismo dibujo), después
       // el de la marca en sus locales de MODO.
-      const kg = logoGalicia.get(modoClave(titulo));
+      const p1 = modoPrimeraParte(titulo);
+      const kg = logoGalicia.get(modoClave(titulo)) || logoGaliciaSuelta.get(modoClaveSuelta(titulo))
+        || (p1 ? logoGaliciaSuelta.get(p1) || logoGalicia.get(p1) : undefined);
       if (kg) imagen = kg;
       else {
         const marca = modoMarcaLogo(locales, titulo);
