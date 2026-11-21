@@ -7,10 +7,12 @@ import {
 } from "@/shared/domain/promotions/index.ts";
 import {
   type BrandFilters,
+  brandCardKey,
   daysOfCard,
   filterBrands,
   listInfo,
   MAX_CARDS,
+  needsUploadedLogo,
   promotionsOfLogoDetail,
   shortNote,
   untilDate,
@@ -66,6 +68,27 @@ describe("the brands of a window", () => {
       promotion("Buena"),
     ];
     expect(titles(catalog)).toEqual(["Buena"]);
+  });
+
+  it("offers a MODO brand with no logo only in the window of one logo, each one on its own card", () => {
+    const chalita = promotion("Chalita", {
+      imagen: null,
+      origen: "modo",
+      imagen_tarjeta: "modo/tarjeta-1.png",
+    });
+    const diarco = promotion("Diarco", { imagen: "", origen: "modo" });
+    const catalog = [chalita, diarco, promotion("Sin", { imagen: null }), promotion("Buena")];
+    const all = { ...NO_FILTERS };
+    const withThem = filterBrands(catalog, all, null, supermarketIndexOf(catalog), null, TODAY, {
+      withoutLogo: true,
+    });
+
+    expect.soft(titles(catalog)).toEqual(["Buena"]);
+    expect.soft(withThem.list.map(({ titulo }) => titulo)).toEqual(["Buena", "Chalita", "Diarco"]);
+    expect
+      .soft(withThem.list.filter(needsUploadedLogo).map(({ titulo }) => titulo))
+      .toEqual(["Chalita", "Diarco"]);
+    expect.soft(brandCardKey(chalita)).not.toBe(brandCardKey(diarco));
   });
 
   it("filters by category and by what is written, in order", () => {

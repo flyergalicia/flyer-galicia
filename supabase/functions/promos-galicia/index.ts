@@ -649,6 +649,8 @@ function modoMarcaLogo(locales: any[], titulo: string): { id: string; url: strin
   for (const [id, c] of cuenta) if (c.n > max) { max = c.n; mejor = { id, url: c.url }; }
   return mejor;
 }
+// Imágenes de tarjeta de MODO que son de relleno, no de la marca.
+const MODO_TARJETA_GENERICA = /(gen[eé]rica|default|placeholder|gral-\d|^(farmacias|indumentaria|transporte|supermercados?|gastronomia)-?\d*\.)/i;
 // Copia el logo al bucket una sola vez (flyers/modo/<id de la marca>.png).
 // Un logo que no se puede copiar no frena nada: la promo queda sin logo propio.
 async function modoCopiarLogo(m: { id: string; url: string }, yaEstan: Set<string>): Promise<string | null> {
@@ -831,7 +833,7 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
     if (!gal || gal.length < 1000) break;
   }
 
-  const extra = new Map<string, { provincias: string[] | null; localidades: string[] | null; imagen: string; aclaracion: string | null }>();
+  const extra = new Map<string, { provincias: string[] | null; localidades: string[] | null; imagen: string; aclaracion: string | null; tarjeta?: string }>();
   let idx = 0;
   async function worker() {
     while (idx < list.length) {
@@ -910,6 +912,19 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
     const m = marcasVistas.get(modoClave(c?.card?.validity_place));
     if (m) x.imagen = (await modoCopiarLogo(m, yaEstan)) || "";
   }
+  // Las que siguen sin logo (marcas que Galicia no tiene y MODO no informa: Chalita, Diarco,
+  // Almacor…): la imagen de la tarjeta de MODO. Casi siempre es el logo, a veces una foto, por eso
+  // va aparte (imagen_tarjeta): se ve en Promociones pero no se ofrece como logo para el flyer
+  // (ahí se pide subir la imagen). Las genéricas ("Super-Generica", "Gral-1") no dicen nada de la
+  // marca y no se guardan.
+  for (const c of list) {
+    const x = extra.get(String(c.benefit.id))!;
+    if (x.imagen) continue;
+    const ci = String(c?.card?.image || "");
+    const archivo = decodeURIComponent(ci.split("?")[0].split("/").pop() || "").replace(/^[0-9a-f-]{36}_/i, "");
+    if (!/^https:\/\/assets\.mobile\.playdigital\.com\.ar\//.test(ci) || MODO_TARJETA_GENERICA.test(archivo)) continue;
+    x.tarjeta = (await modoCopiarLogo({ id: "tarjeta-" + String(c.benefit.id), url: ci }, yaEstan)) || "";
+  }
   // Las que no tienen locales en el mapa (las próximas todavía no los cargan) toman
   // los de otra promo de la misma marca que sí los tiene (Basualdo de noviembre =
   // los locales de Basualdo de octubre). Si no hay, quedan sin dato (null).
@@ -944,6 +959,7 @@ async function syncModo(): Promise<{ total: number; conProvincia: number; conLog
       subtitulo: rubro,
       aclaracion: x.aclaracion,
       imagen: x.imagen,
+      imagen_tarjeta: x.tarjeta || null,
       beneficio: String(c?.card?.benefit || "").replace(/\s+/g, " ").trim() || null,
       tope: tope > 0 ? String(tope) : null,
       dias: modoDias(s.days_of_week),

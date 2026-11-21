@@ -3,7 +3,7 @@ import type { Promotion } from "@/shared/domain/promotions/index.ts";
 import { useFlyerWorkspace } from "@/shared/lib/flyer-workspace/index.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
 import { Button, Modal } from "@/shared/ui/index.ts";
-import { listInfo } from "../model/brand-filter.ts";
+import { listInfo, needsUploadedLogo } from "../model/brand-filter.ts";
 import { type BrandPicker, useBrandPicker } from "../model/brand-picker.ts";
 import {
   type FlyerPlace,
@@ -108,11 +108,13 @@ function pickerTitle(forAdding: boolean, several: readonly FlyerPlace[] | undefi
 interface ModesProps extends PickerActionsInput {
   readonly noMove: boolean;
   readonly onWrite: () => void;
+  /** The upload lives in the window: choosing a brand with no logo also asks for the file. */
+  readonly upload: ReturnType<typeof useLogoUpload>;
 }
 
-function PickerModes({ editor, place, close, noMove, onWrite }: ModesProps) {
+function PickerModes({ editor, place, close, noMove, onWrite, upload }: ModesProps) {
   const toast = useToast();
-  const { fileInput, isBusy, askForFile, readFile } = useLogoUpload({ editor, place, close });
+  const { fileInput, isBusy, askForFile, readFile } = upload;
   return (
     <div className={styles.modes}>
       {!noMove && (
@@ -329,6 +331,7 @@ export function LogoPicker({ request }: { readonly request: PickerRequest }) {
   const close = editor.closePicker;
   const actions = { editor, place, close };
   const placing = useBrandPlacing(picker, actions);
+  const upload = useLogoUpload(actions);
   const severalChoice = useSeveral(several, placing.putSeveral);
   const [isWriting, setWriting] = useState(Boolean(previousText));
   const draft = useTextDraft(editor.picture(), place, previousText);
@@ -367,6 +370,7 @@ export function LogoPicker({ request }: { readonly request: PickerRequest }) {
       {!several && !isWriting && (
         <PickerModes
           {...actions}
+          upload={upload}
           noMove={noMove}
           onWrite={() => {
             setWriting(true);
@@ -406,6 +410,20 @@ export function LogoPicker({ request }: { readonly request: PickerRequest }) {
                 }
           }
           onChoose={(promotion) => {
+            if (needsUploadedLogo(promotion)) {
+              // No logo to draw: the brand is offered so it can be found, and its picture is asked.
+              if (several) {
+                toast.show(
+                  `«${promotion.titulo}» no tiene logo: ponela de a un lugar y subí su imagen.`,
+                );
+              } else {
+                toast.show(
+                  `«${promotion.titulo}» no tiene logo en Promociones: elegí su imagen en la PC.`,
+                );
+                upload.askForFile();
+              }
+              return;
+            }
             if (several) severalChoice.toggle(promotion);
             else void placing.chooseBrand(promotion);
           }}

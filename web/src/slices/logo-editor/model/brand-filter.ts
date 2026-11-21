@@ -48,13 +48,33 @@ const NO_NOTE_LENGTH = 70;
 const CUT_NOTE_LENGTH = 67;
 const SHORT_DATE_LENGTH = 5;
 
+/**
+ * The key of a card: its logo. A brand of MODO with no logo (Galicia does not have it and MODO does
+ * not say it) goes by its name, so each one is its own card.
+ */
+export function brandCardKey(promotion: Promotion): string {
+  return promotion.imagen || `sin-logo:${normalizeText(promotion.titulo)}`;
+}
+
+/** A brand of MODO with no logo: it is offered, but placing it asks for its picture. */
+export function needsUploadedLogo(promotion: Promotion): boolean {
+  return !promotion.imagen && isModoPromotion(promotion);
+}
+
+export interface BrandListOptions {
+  /** Also the brands of MODO with no logo (the window of one logo asks to upload it). */
+  readonly withoutLogo?: boolean;
+}
+
 function passes(
   promotion: Promotion,
   filters: BrandFilters,
   localityIds: ReadonlySet<string> | null,
   today: Date,
+  withoutLogo: boolean,
 ): boolean {
-  if (!promotion.imagen || promotion.proximamente) return false;
+  if (promotion.proximamente) return false;
+  if (!promotion.imagen && !(withoutLogo && needsUploadedLogo(promotion))) return false;
   if (expiryStatus(promotion.fecha_hasta, today) === "VENCIDA") return false;
   if (filters.category && promotion.subtitulo !== filters.category) return false;
   if (filters.province && !isInProvince(promotion, filters.province)) return false;
@@ -67,12 +87,13 @@ function byLogo(
   filters: BrandFilters,
   localityIds: ReadonlySet<string> | null,
   today: Date,
+  withoutLogo: boolean,
 ) {
   const best = new Map<string, Promotion>();
   const ofLogo = new Map<string, Promotion[]>();
   for (const promotion of catalog) {
-    if (passes(promotion, filters, localityIds, today)) {
-      const logo = promotion.imagen ?? "";
+    if (passes(promotion, filters, localityIds, today, withoutLogo)) {
+      const logo = brandCardKey(promotion);
       const known = best.get(logo);
       if (!known || isBetterPromotion(promotion, known)) best.set(logo, promotion);
       ofLogo.set(logo, [...(ofLogo.get(logo) ?? []), promotion]);
@@ -134,9 +155,10 @@ export function filterBrands(
   supermarkets: SupermarketIndex,
   zone: PromotionZone | null,
   today: Date = new Date(),
+  { withoutLogo = false }: BrandListOptions = {},
 ): BrandList {
   const ids = filters.locality && localityIds ? new Set(localityIds.map(String)) : null;
-  const { best, ofLogo } = byLogo(catalog, filters, ids, today);
+  const { best, ofLogo } = byLogo(catalog, filters, ids, today, withoutLogo);
   let shown = oneByName(best.values());
   if (filters.onePerBrand) shown = oneByBrand(shown);
   if (filters.onlyPercent) {

@@ -3,7 +3,7 @@ pre-commit:
   piped: true
   commands:
     1_block_main:
-      run: git branch --show-current | grep -vxq main
+      run: "! git branch --show-current | grep -qx main"
       fail_text: Committing to main is forbidden. Work on a branch and open a pull request.
     2_format:
       glob: "*.{ts,tsx,css,json,yml,yaml}"
@@ -30,7 +30,7 @@ pre-commit:
 pre-merge-commit:
   commands:
     block_main:
-      run: git branch --show-current | grep -vxq main
+      run: "! git branch --show-current | grep -qx main"
       fail_text: Merging into main is forbidden. Open a pull request instead.
 
 commit-msg:

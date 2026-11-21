@@ -1100,6 +1100,7 @@ export type Database = {
           fecha_hasta: string | null;
           id: string;
           imagen: string;
+          imagen_tarjeta: string | null;
           localidades: string[] | null;
           primera_vez: string | null;
           provincias: string[] | null;
@@ -1120,6 +1121,7 @@ export type Database = {
           fecha_hasta?: string | null;
           id: string;
           imagen?: string;
+          imagen_tarjeta?: string | null;
           localidades?: string[] | null;
           primera_vez?: string | null;
           provincias?: string[] | null;
@@ -1140,6 +1142,7 @@ export type Database = {
           fecha_hasta?: string | null;
           id?: string;
           imagen?: string;
+          imagen_tarjeta?: string | null;
           localidades?: string[] | null;
           primera_vez?: string | null;
           provincias?: string[] | null;

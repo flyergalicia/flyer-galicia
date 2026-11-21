@@ -128,7 +128,7 @@ export function useBrandPicker(initial?: BrandFilters) {
     [filters.locality, filters.province, ids],
   );
   const brands = useMemo(
-    () => filterBrands(shown, filters, ids, supermarkets, zone),
+    () => filterBrands(shown, filters, ids, supermarkets, zone, undefined, { withoutLogo: true }),
     [filters, ids, shown, supermarkets, zone],
   );
 
