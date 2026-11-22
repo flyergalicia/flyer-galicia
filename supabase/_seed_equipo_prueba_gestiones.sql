@@ -21,7 +21,10 @@
 do $$
 declare
   v_so uuid; v_le uuid; v_ni uuid; v_ma uuid; v_ca uuid;
-  hoy date := (now() at time zone 'America/Argentina/Buenos_Aires')::date;
+  -- "Hoy" es el día hábil: si se corre un sábado o un domingo, arranca el lunes.
+  hoy date := (now() at time zone 'America/Argentina/Buenos_Aires')::date
+              + case extract(isodow from (now() at time zone 'America/Argentina/Buenos_Aires')::date)
+                  when 6 then 2 when 7 then 1 else 0 end;
   sid text := 'e1000000-0000-4000-8000-0000000000';
   g uuid; g2 uuid; g3 uuid; d date;
 begin
@@ -89,7 +92,7 @@ begin
 
   -- 6) Para que la asigne Martin
   insert into public.gestiones(empresa, origen, hunter_id, lider_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, nota, serie_id)
-  values ('Cooperativa Agraria San Vicente Ltda.','derivada',null,v_ma,'feria','presencial','planificada', hoy+6,'14:00','18:00','Salón de la cooperativa',
+  values ('Cooperativa Agraria San Vicente Ltda.','derivada',null,v_ma,'feria','presencial','planificada', hoy+8,'14:00','18:00','Salón de la cooperativa',
           'Feria de la cosecha. Mandan micro desde el pueblo, va a haber mucha gente.', (sid||'06')::uuid);
 
   -- 7) Una cancelada
@@ -159,7 +162,7 @@ begin
 
   -- 15) Algo que hizo él en una empresa de Leandro
   insert into public.gestiones(empresa, dueno_id, origen, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, dotacion, asistentes, serie_id)
-  values ('Centro Médico Los Tilos SRL', v_le,'propia','accion','presencial','realizada', hoy-8,'11:00','13:00', 95, 22, (sid||'15')::uuid) returning id into g;
+  values ('Centro Médico Los Tilos SRL', v_le,'propia','accion','presencial','realizada', hoy-7,'11:00','13:00', 95, 22, (sid||'15')::uuid) returning id into g;
   insert into public.gestion_prospectos(gestion_id, nombre, contacto, cuil, referencia, estado, paquete, motivo, proximo, fecha_alta) values
     (g,'Silvana Ocampo','11 5803-5001','27304561234',null,'alta','plus',null,null, hoy-6),
     (g,'Tomás Arrieta','11 5803-5002',null,'Guardia','descartado',null,'ya_galicia',null,null),
@@ -249,7 +252,7 @@ begin
     perform set_config('request.jwt.claim.sub', v_so::text, true);
     -- Algo ya hecho, para que el tablero compare a los dos hunters
     insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, dotacion, asistentes, nota, serie_id)
-    values ('Seguros del Litoral SA','derivada',v_ca,'accion','presencial','realizada', hoy-9,'10:00','13:00','Oficina central, piso 4', 85, 28,
+    values ('Seguros del Litoral SA','derivada',v_ca,'accion','presencial','realizada', hoy-10,'10:00','13:00','Oficina central, piso 4', 85, 28,
             'Equipo chico pero muy interesado en el paquete Gold.', (sid||'16')::uuid) returning id into g;
     -- Mañana a la mañana (Nicolas ese día está a las 10 y a las 15: no se pisan)
     insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, nota, serie_id)
@@ -281,7 +284,7 @@ begin
       ('Seguros del Litoral SA','derivada',v_ca,'accion','presencial','planificada', hoy+4,'09:00','11:00','Oficina central, piso 4',
        'Segunda vuelta: quedó el equipo de Siniestros.', (sid||'21')::uuid);
     insert into public.gestiones(empresa, origen, hunter_id, tipo, modalidad, estado, fecha, hora_desde, hora_hasta, lugar, dotacion, asistentes, nota, serie_id)
-    values ('Colegio San Jerónimo SRL','derivada',v_ni,'accion','presencial','realizada', hoy-15,'10:00','13:00','Sala de profesores', 70, 25,
+    values ('Colegio San Jerónimo SRL','derivada',v_ni,'accion','presencial','realizada', hoy-14,'10:00','13:00','Sala de profesores', 70, 25,
             'Jornada institucional. Muy buena recepción de los preceptores.', (sid||'22')::uuid) returning id into g;
 
     perform set_config('request.jwt.claims', json_build_object('sub', v_le, 'role', 'authenticated')::text, true);
@@ -333,9 +336,12 @@ begin
   perform public.gestion_mensaje_enviar(g, 'Excelente la feria, ya me escribieron de RRHH para repetirla.');
 
   -- Lo viejo no tiene que aparecer como novedad; lo de mañana sí.
+  -- (Sin fg.marcar_vista el trigger deja los "visto" como estaban.)
+  perform set_config('fg.marcar_vista', '1', true);
   update public.gestiones set visto_dueno = true where serie_id::text like 'e1000000-0000-4000-8000-%';
   update public.gestiones set visto_hunter = true
    where serie_id::text like 'e1000000-0000-4000-8000-%' and serie_id <> (sid||'03')::uuid;
+  perform set_config('fg.marcar_vista', '', true);
 
   raise notice 'Listo: % gestiones y % personas',
     (select count(*) from public.gestiones where serie_id::text like 'e1000000-0000-4000-8000-%'),
