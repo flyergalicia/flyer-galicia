@@ -50,9 +50,10 @@ export function networkEscapes(source: string): string[] {
 }
 
 function listSourceFiles(root: string): string[] {
+  // With "/" on every system, like POLICY_FILES: Windows lists its folders with "\".
   return readdirSync(root, { recursive: true, encoding: "utf8" })
     .filter((path) => SOURCE_FILE.test(path))
-    .map((path) => join(root, path))
+    .map((path) => join(root, path).replaceAll("\\", "/"))
     .filter((path) => !POLICY_FILES.has(path));
 }
 

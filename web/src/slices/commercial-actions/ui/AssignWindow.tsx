@@ -12,7 +12,7 @@ import { useQuestions } from "../model/use-questions.tsx";
 import { huntersOf, nameOf, type Who } from "../model/who.ts";
 import { ActionWindow } from "./ActionWindow.tsx";
 import { Availability } from "./Availability.tsx";
-import { HunterOptions, TimesField } from "./form-parts.tsx";
+import { HunterOptions, NonWorkingDay, TimesField } from "./form-parts.tsx";
 import { HunterWeek } from "./HunterWeek.tsx";
 import { TaxId } from "./parts.tsx";
 import styles from "./CommercialActions.module.css";
@@ -171,6 +171,7 @@ export function AssignWindow({ who, action, onClose, onSaved }: AssignWindowProp
                 }}
               />
             </label>
+            <NonWorkingDay date={date} />
             <div className={styles.formField}>
               <span>Horario</span>
               <TimesField

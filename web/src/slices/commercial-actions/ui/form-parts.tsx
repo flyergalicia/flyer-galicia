@@ -2,7 +2,10 @@
 import type { ReactNode } from "react";
 import type { CommercialPerson } from "@/shared/lib/commercial-actions/people-query.ts";
 import { TO_LEADER } from "../model/action-form.ts";
+import { isWeekend, weekdayOf } from "../model/agenda-dates.ts";
 import styles from "./CommercialActions.module.css";
+
+const SATURDAY = 5;
 
 export function Pills({
   name,
@@ -31,6 +34,17 @@ export function Pills({
         </button>
       ))}
     </div>
+  );
+}
+
+/** Under the date field: a Saturday or a Sunday is not a working day. It warns, it does not stop. */
+export function NonWorkingDay({ date }: { readonly date: string }) {
+  if (!isWeekend(date)) return null;
+  return (
+    <p className={styles.nonWorking} data-testid="non-working-day">
+      Día no laborable: es {weekdayOf(date) === SATURDAY ? "sábado" : "domingo"}. Podés guardarla
+      igual.
+    </p>
   );
 }
 

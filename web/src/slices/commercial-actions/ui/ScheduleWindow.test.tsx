@@ -205,6 +205,20 @@ describe("the company", () => {
 });
 
 describe("assigning", () => {
+  it("warns that a Saturday or a Sunday is not a working day, without stopping anyone", async () => {
+    await open({ hunter: "h2", date: "2026-12-05", time: "09:30" });
+
+    await expect
+      .element(page.getByTestId("non-working-day"))
+      .toMatchTextContent("Día no laborable: es sábado");
+    await page.getByTestId("form-date").fill("2026-12-06");
+    await expect
+      .element(page.getByTestId("non-working-day"))
+      .toMatchTextContent("Día no laborable: es domingo");
+    await page.getByTestId("form-date").fill("2026-12-07");
+    await expect.element(page.getByTestId("non-working-day")).not.toBeInTheDocument();
+  });
+
   it("opens with that hunter, that day and an hour from that time", async () => {
     await open({ hunter: "h2", date: DAY, time: "09:30" });
 

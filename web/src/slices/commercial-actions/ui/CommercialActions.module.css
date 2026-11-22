@@ -1013,6 +1013,16 @@ label.formField {
   line-height: 1.5;
 }
 
+.nonWorking {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--r-s);
+  background: var(--ges-warn-soft);
+  color: var(--ges-warn);
+  font-size: var(--text-note);
+  line-height: 1.5;
+}
+
 .overlapping {
   color: var(--danger);
   font-weight: var(--weight-bold);

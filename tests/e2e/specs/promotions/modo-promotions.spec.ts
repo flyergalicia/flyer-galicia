@@ -202,9 +202,16 @@ test("the window of a logo offers MODO with its tag, and placing it keeps it val
   await app.promotions.chooseProvince("brandPicker", "");
 
   await app.promotions.searchInBrandPicker("wico");
+  const wico = await app.promotions.brandCards();
   expect
-    .soft(await app.promotions.brandCards(), "one of MODO without a logo is not offered")
-    .toEqual([]);
+    .soft(
+      wico.map(({ title }) => title),
+      "one of MODO without a logo is offered too",
+    )
+    .toEqual(["WICO Combustibles"]);
+  expect.soft(wico[0]?.hasModoTag, "with the MODO tag").toBe(true);
+  expect.soft(wico[0]?.logoUrl, "and no logo drawn").toBe("");
+  expect.soft(wico[0]?.detail, "asking to upload its picture").toMatch(/Sin logo: subí su imagen/);
 
   await app.promotions.chooseProvince("brandPicker", "CAPITAL FEDERAL");
   await app.promotions.searchInBrandPicker("coto");
