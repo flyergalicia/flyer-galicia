@@ -76,7 +76,12 @@ declare
    {"k":"43","c":"so","h":"ni","t":"accion","e":"Automotores Llanura Verde SA","f":"2027-01-22","hd":"10:00","hh":"12:00","lu":"Concesionaria, salón de ventas"},
    {"k":"44","c":"le","l":"ma","t":"accion","e":"Distribuidora Mayorista El Faro SA","f":"2027-01-22","hd":"09:00","hh":"12:00","lu":"Depósito","n":"Que la asigne Martin: no sé quién vuelve primero de vacaciones."},
    {"k":"45","c":"so","h":"ca","t":"datos","m":"virtual","e":"Clínica Sierra Chica SA","f":"2026-11-20","v":"2027-01-15","n":"Listado del turno noche. Llamar de 7 a 9, cuando salen."},
-   {"k":"46","c":"le","h":"ni","t":"datos","m":"virtual","e":"Frigorífico Las Tres Marías SA","f":"2027-01-04","v":"2027-01-29","n":"Ingresantes de temporada (RRHH pasa la lista el 4 de enero)."}
+   {"k":"46","c":"le","h":"ni","t":"datos","m":"virtual","e":"Frigorífico Las Tres Marías SA","f":"2027-01-04","v":"2027-01-29","n":"Ingresantes de temporada (RRHH pasa la lista el 4 de enero)."},
+   {"k":"47","c":"le","h":"ni","t":"accion","e":"Laboratorio Bioquímico Austral SA","f":"2026-11-23","hd":"11:30","hh":"13:00","lu":"Recepción","n":"Charla corta con el turno mañana."},
+   {"k":"48","c":"le","h":"ni","t":"posicion","e":"Centro Médico Los Tilos SRL","f":"2026-11-23","hd":"15:00","hh":"16:30","lu":"Sala de espera de guardia","n":"Cambio de turno: aprovecho que hay más gente."},
+   {"k":"49","c":"so","h":"ni","t":"accion","m":"virtual","e":"Seguros del Litoral SA","f":"2026-11-23","hd":"17:00","hh":"18:00","lu":"Videollamada","n":"Cierre del día: seguimiento por Meet con los que no pudieron ir."},
+   {"k":"50","c":"so","h":"ca","t":"accion","e":"Textiles Punta Mogotes SA","f":"2026-11-26","hd":"09:00","hh":"11:00","lu":"Comedor del turno mañana","n":"Primer turno, antes de la feria."},
+   {"k":"51","c":"le","h":"ca","t":"posicion","e":"Imprenta Offset Rivadavia SRL","f":"2026-11-26","hd":"16:00","hh":"18:00","lu":"Taller","n":"Cierre del día en la imprenta."}
   ]'::jsonb;
 begin
   select id into v_so from public.profiles where es_prueba and lower(email) = 'pruebaoficial@bancogalicia.com.ar';
