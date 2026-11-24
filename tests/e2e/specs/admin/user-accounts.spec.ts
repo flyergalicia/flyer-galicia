@@ -217,7 +217,7 @@ test.describe("the accounts of the panel", () => {
   }) => {
     const app = await openUsers(openApp);
     await app.admin.openNewUserForm();
-    await app.admin.fillUserForm({ ...NEW_ACCOUNT, profile: "Pro" });
+    await app.admin.fillUserForm({ ...NEW_ACCOUNT, profile: "Payroll 2" });
 
     await app.admin.submitUserForm();
 
@@ -236,7 +236,7 @@ test.describe("the accounts of the panel", () => {
     await app.admin.waitForUserFormClosed();
     await expect
       .poll(async () => (await rowOf(app, NEW_ACCOUNT.name))?.badges)
-      .toEqual(["Pro", "Activo"]);
+      .toEqual(["Payroll 2", "Activo"]);
     expect.soft(await app.flyerEditor.latestNotice()).toMatch(/Usuario creado exitosamente/);
   });
 

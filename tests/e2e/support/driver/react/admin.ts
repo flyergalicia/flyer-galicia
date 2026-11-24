@@ -14,8 +14,8 @@ const EXPORT_TIMEOUT_MS = 30_000;
 const COLUMNS: Readonly<Record<string, string>> = {
   Vos: "me",
   Asesor: "asesor",
-  VIP: "vip",
-  Pro: "pro",
+  Payroll: "vip",
+  "Payroll 2": "pro",
   Hunter: "hunter",
   Líder: "lider",
 };

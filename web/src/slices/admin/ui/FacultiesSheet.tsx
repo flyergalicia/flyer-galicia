@@ -37,8 +37,8 @@ import panel from "./Panel.module.css";
 
 const NOT_FOR: Readonly<Record<string, string>> = {
   [OWN_COLUMN]: "No aplica al administrador: podés verlo desde tu nombre → Ver tutorial",
-  hunter: "No aplica al perfil Hunter: sólo busca una empresa y baja su flyer",
-  lider: "No aplica al perfil Líder: sólo mira el tablero de su equipo",
+  hunter: "No aplica al perfil Hunter: no arma flyers, busca una empresa y baja el suyo",
+  lider: "No aplica al perfil Líder: no arma flyers",
 };
 
 const COLUMNS = [OWN_COLUMN, ...ROLE_COLUMNS.map(([role]) => role)];
@@ -302,7 +302,7 @@ export function FacultiesSheet({ closePanel }: SheetProps) {
         volver a tildarlo cuando quieras.
         <br />
         <br />
-        Tocá el <strong>nombre de un perfil</strong> (Asesor, VIP, Pro) para{" "}
+        Tocá el <strong>nombre de un perfil</strong> (Asesor, Payroll, Payroll 2) para{" "}
         <strong>ver la app tal cual la ve ese perfil</strong>, sin salir de tu sesión. Para volver,
         usá el botón de la barra de abajo.
         <br />

@@ -5,6 +5,7 @@ import { ADVISOR, type AppAnswers, createAppHarness } from "@/shared/lib/testing
 import { jsonResponse, type RecordedRequest } from "@/shared/supabase/testing/recording-fetch.ts";
 import { PlaceDeskReader } from "@/shared/lib/testing/PlaceDeskReader.tsx";
 import { BenchmarkStage } from "./BenchmarkStage.tsx";
+import { PreviewAs } from "./PreviewAs.tsx";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -59,6 +60,8 @@ function readOnly(rows: () => Row[], table: string, tables: BenchTables) {
 export interface BenchmarkCloud extends Omit<AppAnswers, "admin"> {
   /** The person is the administrator. */
   readonly isAdmin?: boolean;
+  /** The administrator is looking at the app as this profile. */
+  readonly previewAs?: string;
   readonly promotions?: readonly Row[];
   readonly brands?: readonly Row[];
   readonly meta?: readonly Row[];
@@ -71,7 +74,14 @@ export interface BenchmarkCloud extends Omit<AppAnswers, "admin"> {
 }
 
 export async function openBenchmark(cloud: BenchmarkCloud = {}) {
-  const { isAdmin = true, handLoadedPage = false, sync, tables: extraTables, ...rest } = cloud;
+  const {
+    isAdmin = true,
+    previewAs,
+    handLoadedPage = false,
+    sync,
+    tables: extraTables,
+    ...rest
+  } = cloud;
   const tables: BenchTables = {
     promotions: [...(cloud.promotions ?? [])],
     brands: [...(cloud.brands ?? [])],
@@ -111,6 +121,7 @@ export async function openBenchmark(cloud: BenchmarkCloud = {}) {
     harness.wrap(
       <>
         <PlaceDeskReader />
+        {previewAs !== undefined && <PreviewAs role={previewAs} />}
         <BenchmarkStage handLoadedPage={handLoadedPage} />
       </>,
     ),

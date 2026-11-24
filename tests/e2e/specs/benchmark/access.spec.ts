@@ -16,7 +16,7 @@ test("an advisor without the faculty does not see it and nothing is requested", 
   const access = await benchmark.access();
   expect.soft(access.allowed, "an advisor does not have the faculty").toBe(false);
   expect.soft(access.tabShown, "an advisor does not see the tab").toBe(false);
-  for (const role of ["asesor", "vip", "hunter"]) {
+  for (const role of ["asesor", "vip", "hunter", "lider"]) {
     expect
       .soft(await benchmark.startsAllowedFor(role), `the faculty starts off for ${role}`)
       .toBe(false);

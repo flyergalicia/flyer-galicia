@@ -8,6 +8,7 @@ import {
   leavesNoFlyer,
   OWN_COLUMN,
   ownApplies,
+  ROLE_COLUMNS,
   roleApplies,
   tabsInOrder,
   tick,
@@ -52,6 +53,18 @@ describe("the rows of the matrix", () => {
   });
 });
 
+describe("the columns", () => {
+  it("are the profiles as the user reads them", () => {
+    expect(ROLE_COLUMNS.map(([, name]) => name)).toEqual([
+      "Asesor",
+      "Payroll",
+      "Payroll 2",
+      "Hunter",
+      "Líder",
+    ]);
+  });
+});
+
 describe("the matrix", () => {
   const matrix = facultyMatrix({ asesor: { opcion_8: true, notas: true } }, OPTIONS, {
     notas: false,
@@ -92,12 +105,17 @@ describe("the matrix", () => {
 });
 
 describe("what can be ticked", () => {
-  it("for a hunter only the flyers and a short list; for a leader, notes, tutorial and Gestiones", () => {
+  it("for a hunter only the flyers and a short list; for a leader, one without flyers", () => {
     expect(roleApplies("hunter", "opcion_8")).toBe(true);
     expect(roleApplies("hunter", "promos_buscar")).toBe(true);
     expect(roleApplies("hunter", "pegar_oficial")).toBe(false);
     expect(roleApplies("lider", "opcion_1")).toBe(false);
     expect(roleApplies("lider", "gestiones")).toBe(true);
+    for (const role of ["hunter", "lider"]) {
+      expect(roleApplies(role, "promos_buscar")).toBe(true);
+      expect(roleApplies(role, "benchmark")).toBe(true);
+      expect(roleApplies(role, "estudio")).toBe(false);
+    }
     expect(roleApplies("asesor", "pegar_oficial")).toBe(true);
   });
 

@@ -8,6 +8,18 @@ const VIP: CloudUser = {
   name: "Vip Prueba",
   role: "vip",
 };
+const HUNTER: CloudUser = {
+  id: "00000000-0000-4000-8000-0000000000e2",
+  email: "hunter@bancogalicia.com.ar",
+  name: "Hunter Prueba",
+  role: "hunter",
+};
+const LEADER: CloudUser = {
+  id: "00000000-0000-4000-8000-0000000000e3",
+  email: "lider@bancogalicia.com.ar",
+  name: "Líder Prueba",
+  role: "lider",
+};
 const FLYER = "flyer_t7.jpg?v=1";
 const NO_SAVED_FACULTIES = { roles: {} };
 
@@ -51,7 +63,7 @@ test.describe("the panel", () => {
     await admin.openNewUserForm();
 
     const profiles = await admin.userFormProfiles();
-    for (const profile of ["Asesor", "VIP", "Pro", "Hunter"]) {
+    for (const profile of ["Asesor", "Payroll", "Payroll 2", "Hunter"]) {
       expect.soft(profiles, profile).toContain(profile);
     }
     expect.soft(profiles.join(" "), "and the leader").toMatch(/L.der/);
@@ -110,7 +122,7 @@ test.describe("the matrix of faculties", () => {
     expect.soft(await companyRegistry.searchOffered(), "no magnifying glass").toBe(false);
   });
 
-  test("a VIP has by default the notes and the saved advisors", async ({ cloud, openApp }) => {
+  test("a Payroll has by default the notes and the saved advisors", async ({ cloud, openApp }) => {
     cloud.bucketJson["_facultades.json"] = NO_SAVED_FACULTIES;
     const { session } = await openApp({ user: VIP, waitUntilReady: false });
     await session.waitUntilSignedIn();
@@ -179,6 +191,56 @@ test.describe("the matrix of faculties", () => {
 
     const advisor = await openApp();
     expect.soft((await advisor.session.userMenuItems()).join(" ")).toMatch(/Bloc de notas/);
+  });
+
+  test("the names of the profiles do not overlap, and on a phone every column is reached", async ({
+    openApp,
+  }) => {
+    const { admin, page } = await openApp({ user: "admin" });
+    await admin.openPanel();
+    await admin.openSheet("Admin", "Facultades");
+    const names = page.getByTestId("faculty-grid").locator("[data-preview]");
+    const overlapping = () =>
+      names.evaluateAll((buttons) => {
+        const boxes = buttons.map((button) => button.getBoundingClientRect());
+        return boxes.filter((box, at) => at > 0 && box.left < (boxes[at - 1]?.right ?? 0)).length;
+      });
+    expect.soft(await overlapping(), "on a computer").toBe(0);
+
+    await page.setViewportSize({ width: 390, height: 800 });
+    expect.soft(await overlapping(), "on a phone").toBe(0);
+    const reached = await page.getByTestId("faculty-grid").evaluate((grid) => {
+      grid.scrollLeft = grid.scrollWidth;
+      const last = grid.querySelector('[data-preview="lider"]')?.getBoundingClientRect();
+      return last !== undefined && last.right <= grid.getBoundingClientRect().right;
+    });
+    expect.soft(reached, "the last column can be ticked").toBe(true);
+  });
+
+  test("Promociones and Benchmark can be given to the Hunter and the Leader", async ({
+    cloud,
+    openApp,
+  }) => {
+    const { admin } = await openApp({ user: "admin" });
+    await admin.openPanel();
+    await admin.openSheet("Admin", "Facultades");
+    for (const profile of ["Hunter", "Líder"]) {
+      await admin.setFaculty("Buscador de promociones", profile, true);
+      await admin.setFaculty("Benchmark (competencia)", profile, true);
+    }
+    await admin.saveFaculties();
+
+    for (const user of [HUNTER, LEADER]) {
+      expect
+        .soft(cloud.bucketJson["_facultades.json"].roles[user.role], user.role)
+        .toMatchObject({ promos_buscar: true, benchmark: true, estudio: false });
+      const { session } = await openApp({ user, waitUntilReady: false });
+      await session.waitUntilSignedIn();
+      const tabs = (await session.headerTabs()).join(" ");
+      expect.soft(tabs, user.role).toMatch(/Promociones/);
+      expect.soft(tabs, user.role).toMatch(/Benchmark/);
+      expect.soft(tabs, user.role).not.toMatch(/Estudio|Flyer Galicia/);
+    }
   });
 
   test("the column of the administrator is his own: it goes to his profile", async ({

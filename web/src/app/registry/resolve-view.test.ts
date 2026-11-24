@@ -80,6 +80,21 @@ describe("the first screen", () => {
     expect(firstView(hunter, ["hunter"])).toBe("hunter");
   });
 
+  it("a leader opens in Gestiones, whatever else they have and whatever the order", () => {
+    const leader = rules(["promos_buscar", "benchmark"], {
+      isLeader: true,
+      commercialActionsOn: true,
+    });
+
+    expect(firstView(leader, null)).toBe("gestiones");
+    expect(firstView(leader, ["promos", "gestiones"])).toBe("gestiones");
+    expect(resolveView("benchmark", leader)).toBe("benchmark");
+  });
+
+  it("a leader with Gestiones off opens in the first of theirs", () => {
+    expect(firstView(rules(["promos_buscar"], { isLeader: true }), null)).toBe("promos");
+  });
+
   it("whoever has nothing still ends up somewhere", () => {
     expect(firstView(rules([], { isLeader: true }), null)).toBe("gestiones");
   });

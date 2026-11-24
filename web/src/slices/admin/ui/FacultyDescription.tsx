@@ -54,8 +54,8 @@ const DESCRIPTIONS: Readonly<Record<string, ReactNode>> = {
       Agrega la solapa <strong>Benchmark</strong>: compara las promociones de Galicia contra BBVA,
       Macro, Supervielle y Santander, por rubro, por marca y por día de la semana, con el ganador
       según lo que devuelve en una compra de referencia. Es una herramienta interna: viene{" "}
-      <strong>apagada para todos</strong> y la ves vos. Los datos se actualizan solos una vez por
-      semana.
+      <strong>apagada para todos</strong>. Quien la tiene sólo la consulta: cargar y actualizar es
+      tuyo. Los datos se actualizan solos todos los días.
     </>
   ),
   estudio: (

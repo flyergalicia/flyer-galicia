@@ -199,6 +199,16 @@ describe("the tabs each person has", () => {
       .toHaveTextContent("Gestiones");
   });
 
+  it("a leader with Promociones finds it beside Gestiones", async () => {
+    const { screen } = await open({ profile: profileWith("lider"), commercialFlag: "on" });
+
+    await screen.getByRole("tab", { name: "Promociones" }).click();
+
+    await expect
+      .element(screen.getByRole("tab", { name: "Promociones" }))
+      .toHaveAttribute("aria-selected", "true");
+  });
+
   it("the names can be changed by the administrator for everybody", async () => {
     const { screen } = await open({ files: { "_titulos.json": { promos: "Beneficios" } } });
 

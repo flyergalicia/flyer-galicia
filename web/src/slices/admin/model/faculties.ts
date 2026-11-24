@@ -14,15 +14,11 @@ import {
   mergePermissions,
   type PermissionMatrix,
   permissionApplies,
+  roleLabel,
 } from "@/shared/session/index.ts";
 
-export const ROLE_COLUMNS: readonly (readonly [(typeof MANAGED_ROLES)[number], string])[] = [
-  ["asesor", "Asesor"],
-  ["vip", "VIP"],
-  ["pro", "Pro"],
-  ["hunter", "Hunter"],
-  ["lider", "Líder"],
-];
+export const ROLE_COLUMNS: readonly (readonly [(typeof MANAGED_ROLES)[number], string])[] =
+  MANAGED_ROLES.map((role) => [role, roleLabel(role)] as const);
 
 /** The column of the administrator, by the name the driver and the screen give it. */
 export const OWN_COLUMN = "me";

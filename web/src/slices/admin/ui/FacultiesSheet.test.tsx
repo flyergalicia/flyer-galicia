@@ -92,8 +92,12 @@ describe("the matrix", () => {
     expect(box("pegar_oficial", "hunter")).toBeNull();
     expect(
       row("pegar_oficial")?.querySelector('[data-column="hunter"]')?.getAttribute("title"),
-    ).toMatch(/Hunter: sólo busca/);
+    ).toMatch(/Hunter: no arma flyers/);
     expect(box("pegar_oficial", "lider")).toBeNull();
+    for (const role of ["hunter", "lider"]) {
+      expect(box("promos_buscar", role)?.checked).toBe(false);
+      expect(box("benchmark", role)?.checked).toBe(false);
+    }
     expect(box("pegar_oficial", "asesor")).not.toBeNull();
     expect(box("tutorial_auto", "me")).toBeNull();
     expect(box("opcion_8", "hunter")).not.toBeNull();

@@ -42,14 +42,12 @@ test.describe("the Hunter", () => {
       padron_buscar: true,
       pegar_oficial: true,
       estudio: true,
-      benchmark: true,
     });
     const app = await openHunter(openApp);
 
     const tabs = (await app.session.headerTabs()).join(" ");
     expect.soft(tabs).toMatch(/Flyer por empresa|Buscar flyer|Hunter/);
     expect.soft(tabs, "no Studio even if it is ticked").not.toMatch(/Estudio/);
-    expect.soft(tabs, "no Benchmark").not.toMatch(/Benchmark/);
     expect.soft(await app.session.isShowing("flyer-layout"), "no editor").toBe(false);
     const menu = (await app.session.userMenuItems()).join(" ");
     expect.soft(menu, "no database").not.toMatch(/Base de datos/);

@@ -1,7 +1,8 @@
+/** The names on screen. The keys are data (`profiles.role`): "vip" and "pro" are what they were. */
 export const ROLE_LABELS: Readonly<Record<string, string>> = {
   admin: "Admin",
-  vip: "VIP",
-  pro: "Pro",
+  vip: "Payroll",
+  pro: "Payroll 2",
   asesor: "Asesor",
   hunter: "Hunter",
   lider: "Líder",

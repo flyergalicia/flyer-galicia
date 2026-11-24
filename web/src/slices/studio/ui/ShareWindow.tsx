@@ -7,6 +7,7 @@ import { normalizeText } from "@/shared/domain/promotions/index.ts";
 import { useFlyerOptions } from "@/shared/lib/app-config/flyer-options-query.ts";
 import type { DesignRow } from "@/shared/lib/studio/design-row.ts";
 import { useToast } from "@/shared/lib/toast/toast-context.ts";
+import { ROLE_LABELS } from "@/shared/session/index.ts";
 import { useBackend } from "@/shared/supabase/index.ts";
 import { Button, Modal } from "@/shared/ui/index.ts";
 import { type Person, readPeople } from "../api/designs.ts";
@@ -15,12 +16,7 @@ import { shareSummary, type ShareAnswer } from "../model/share-outcome.ts";
 import styles from "./StudioView.module.css";
 
 const SUMMARY_MS = 6000;
-const ROLE_LABELS: Readonly<Record<string, string>> = {
-  admin: "Admin",
-  vip: "VIP",
-  asesor: "Asesor",
-  prospect: "Prueba",
-};
+const PERSON_ROLES: Readonly<Record<string, string>> = { ...ROLE_LABELS, prospect: "Prueba" };
 
 interface ShareablePerson {
   readonly id: string;
@@ -141,7 +137,7 @@ export function ShareWindow({ design, myId, withCopy, onClose, onShared }: Share
                   </>
                 )}
               </span>
-              <span className={styles.personRole}>{ROLE_LABELS[role] ?? role}</span>
+              <span className={styles.personRole}>{PERSON_ROLES[role] ?? role}</span>
             </label>
           ))}
         </>
