@@ -180,9 +180,9 @@ describe("trying another profile", () => {
     const buttons = screen.getByRole("group", { name: /Probar como/ }).getByRole("button");
     expect(buttons.elements().map(({ textContent }) => textContent)).toEqual([
       "Hunter",
-      "VIP",
+      "Payroll",
       "Asesor",
-      "Pro",
+      "Payroll 2",
       "Líder",
     ]);
   });

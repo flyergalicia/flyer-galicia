@@ -27,8 +27,12 @@ export function tabOrder(order: readonly string[] | null): string[] {
   );
 }
 
-/** The first of the tabs someone sees, in the order the administrator left them. */
+/**
+ * The first of the tabs someone sees, in the order the administrator left them. A leader opens in
+ * Gestiones whatever the order is: the other screens are there to consult.
+ */
 export function firstView(rules: ViewRules, order: readonly string[] | null): string {
+  if (rules.isLeader && viewById(LEADER_VIEW)?.visible(rules)) return LEADER_VIEW;
   const first = tabOrder(order).find((id) => viewById(id)?.visible(rules));
   return resolveView(first ?? MAIN_FLYER_TAB, rules);
 }

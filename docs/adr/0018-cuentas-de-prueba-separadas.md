@@ -5,4 +5,4 @@ Las cuentas con `es_prueba` (Prospect y el equipo que simula Gestiones) tienen e
 ## Consecuencias
 
 - **Cambiar de cuenta (prueba)** lo autoriza el servidor (`auth-admin`, `entrar_como`): quien pide es admin o de prueba, y el destino es siempre de prueba y forma parte de un equipo. A una cuenta común no se entra nunca por ahí, y el navegador no guarda claves ni sesiones ajenas.
-- Para darle Gestiones a una cuenta de prueba se le cambia el perfil (por ejemplo a Pro) en vez de prender la facultad en Asesor, que la habilitaría para todos los asesores reales.
+- Para darle Gestiones a una cuenta de prueba se le cambia el perfil (por ejemplo a Payroll 2) en vez de prender la facultad en Asesor, que la habilitaría para todos los asesores reales.

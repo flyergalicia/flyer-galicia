@@ -135,6 +135,13 @@ describe("reading", () => {
     expect(document.querySelectorAll('[data-testid="benchmark"] button')).toHaveLength(0);
   });
 
+  it("an administrator looking as another profile sees what that profile sees", async () => {
+    await openFull({ previewAs: "asesor" });
+    await expect.element(button("Actualizar ahora")).not.toBeInTheDocument();
+    await tab("Tarjetas y salas VIP").click();
+    await expect.element(button("+ Agregar tarjeta")).not.toBeInTheDocument();
+  });
+
   it("a part that could not be read is said, never shown as empty (invariant 24)", async () => {
     const { tables } = await openFull({
       missing: ["promos_bench_marcas", "promos_bench_manual", "promos_bench_meta"],

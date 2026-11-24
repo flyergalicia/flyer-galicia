@@ -1,5 +1,7 @@
 // Admin → Uso: how many flyers come out, of which flyer, by which profiles and week by week, and
 // what Estudio did in the period. It is counted in the browser from `flyer_logs`.
+import { ROLE_LABELS } from "@/shared/session/index.ts";
+
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
 const WEEKS_SHOWN = 12;
@@ -13,15 +15,7 @@ export const USAGE_PERIODS: readonly (readonly [UsagePeriod, string])[] = [
   ["anio", "Este año"],
 ];
 
-const ROLE_NAMES: Readonly<Record<string, string>> = {
-  admin: "Admin",
-  vip: "VIP",
-  pro: "Pro",
-  asesor: "Asesor",
-  hunter: "Hunter",
-  lider: "Líder",
-  prospect: "Prospect",
-};
+const ROLE_NAMES: Readonly<Record<string, string>> = { ...ROLE_LABELS, prospect: "Prospect" };
 
 export function usageSince(period: UsagePeriod, now: Date): Date {
   if (period === "anio") return new Date(now.getFullYear(), 0, 1);

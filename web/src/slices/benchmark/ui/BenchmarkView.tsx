@@ -5,7 +5,7 @@ import { BENCHMARK_VIEWS, isBenchView } from "@/shared/domain/benchmark-views.ts
 import { usePlaceRequests } from "@/shared/lib/places/place-desk.ts";
 import { registerProbe } from "@/shared/lib/test-probe.ts";
 import type { ViewProps } from "@/shared/lib/view-props.ts";
-import { useSession } from "@/shared/session/index.ts";
+import { usePermissions } from "@/shared/session/index.ts";
 import type { BenchmarkData } from "../api/benchmark-data.ts";
 import {
   type BenchmarkActions,
@@ -59,11 +59,6 @@ function readStoredReferences(): string | null {
   } catch {
     return null;
   }
-}
-
-function useIsAdmin(): boolean {
-  const session = useSession();
-  return session.status === "signed-in" && session.isAdmin;
 }
 
 function Tabs() {
@@ -340,7 +335,7 @@ export function BenchmarkScreen({ handLoadedPage = false }: { readonly handLoade
   const [screen, dispatch] = useReducer(screenReducer, null, () =>
     firstScreen(readStoredReferences()),
   );
-  const isAdmin = useIsAdmin();
+  const { isAdminNow: isAdmin } = usePermissions();
   // A view from the search of screens: as its solapa does.
   usePlaceRequests("benchmark", (view) => {
     if (isBenchView(view)) dispatch({ type: "view", view });

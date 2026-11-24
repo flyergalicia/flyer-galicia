@@ -68,7 +68,7 @@ describe("the list of users", () => {
     expect(labels("Ana Activa")).toEqual(["Desactivar", "Editar"]);
     expect(labels("Inés Inactiva")).toEqual(["Activar", "Editar"]);
     await expect.element(rowOf("Pedro Pendiente")).not.toMatchTextContent(/Asesor/);
-    await expect.element(rowOf("Ana Activa")).toMatchTextContent(/VIPActivo/);
+    await expect.element(rowOf("Ana Activa")).toMatchTextContent(/PayrollActivo/);
     await expect.element(rowOf("Inés Inactiva")).toMatchTextContent(/Últ. acceso: 01\/10\/2026/);
     await expect.element(rowOf("Ana Activa")).toMatchTextContent(/Sin accesos/);
     expect(
@@ -235,7 +235,7 @@ describe("a new account", () => {
     await userEvent.fill(formField("Nombre completo"), " Nora Nueva ");
     await userEvent.fill(formField("Email"), "Nora@bancogalicia.com.ar");
     await userEvent.fill(formField("Contraseña"), "ClaveNueva123");
-    await userEvent.selectOptions(formField("Rol"), "Pro");
+    await userEvent.selectOptions(formField("Rol"), "Payroll 2");
     await userEvent.selectOptions(formField("Líder a cargo"), "Lidia Líder");
     await submit().click();
     await expect.element(notice()).toHaveTextContent("✅ Usuario creado exitosamente");

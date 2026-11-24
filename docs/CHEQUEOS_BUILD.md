@@ -158,7 +158,7 @@ Son diferencias entre lo que decía el comentario del chequeo y lo que hace el c
 | 129 | admin: auditoria de acciones (solapa Admin) | prueba nueva | La hoja lee `audit_log`. Vive en: `admin/panel-and-faculties`. |
 | 130 | facultades: gating bidireccional (quitar tambien saca) | prueba nueva | Sacar una facultad también saca lo que da. Vive en: `admin/panel-and-faculties`. |
 | 131 | facultades: gating aplicado tras cargar la matriz | prueba nueva | Lo que se ve sale de la matriz leída (perfil sin nada guardado y al guardar). Vive en: `admin/panel-and-faculties`. |
-| 132 | rol Pro | prueba nueva | El formulario de usuario ofrece Pro. Vive en: `admin/panel-and-faculties`. |
+| 132 | rol Pro | prueba nueva | El formulario de usuario ofrece Payroll 2 (antes Pro). Vive en: `admin/panel-and-faculties`. |
 | 133 | gestiones: modulo aparte bajo demanda, interruptor, Lider y cuenta de prueba | prueba nueva | Se baja al abrir, interruptor apagado/prueba, «Probar como»; el Líder en `team-workflow`. Vive en: `commercial-actions/module-and-options` `commercial-actions/team-workflow`. |
 | 134 | preview: zoom con Ctrl + rueda (la rueda sola recorre), armador y Hunter | prueba nueva | Con y sin Ctrl, en el armador y en el Hunter. Vive en: `flyer-editor/preview-zoom` `hunter/hunter-screen`. |
 | 135 | gestiones: Accion/Feria, repeticion cada N dias y "solo lo mio" del admin | prueba nueva | Tipos sin «Visita», cada N días y «sólo lo mío». Vive en: `commercial-actions/module-and-options`. |

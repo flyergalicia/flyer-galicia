@@ -99,9 +99,9 @@
 
 .row {
   display: grid;
-  grid-template-columns: 1.7fr repeat(6, minmax(64px, 0.6fr));
+  grid-template-columns: minmax(0, 1.7fr) repeat(6, minmax(72px, 0.6fr));
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
 }
@@ -137,14 +137,19 @@
   opacity: 0.7;
 }
 
+/* The name above its eye: side by side, the longest one did not fit in its column. */
 .preview {
-  padding: 3px 7px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 0;
   border: 0;
   border-radius: 6px;
   background: none;
   color: inherit;
   font: inherit;
-  letter-spacing: inherit;
+  letter-spacing: 0.04em;
   text-transform: inherit;
   white-space: nowrap;
   cursor: pointer;
@@ -161,8 +166,6 @@
 .eye {
   width: 11px;
   height: 10px;
-  margin-left: 3px;
-  vertical-align: -1px;
   opacity: 0.65;
 }
 
@@ -242,10 +245,36 @@
   font-weight: var(--weight-bold);
 }
 
+/* On a phone the six columns do not fit: they scroll sideways, and the name of each row stays. */
 @media (max-width: 900px) {
+  .grid {
+    overflow-x: auto;
+  }
+
   .row {
-    gap: 4px;
-    padding: 8px 6px;
+    grid-template-columns: minmax(112px, 1.7fr) repeat(6, minmax(72px, 0.6fr));
+    min-width: 584px;
+    padding: 8px 6px 8px 0;
+    background: var(--paper);
+  }
+
+  .row > :first-child {
+    position: sticky;
+    left: 0;
+    align-self: stretch;
+    padding-left: 6px;
+    background: var(--paper);
+    z-index: 1;
+  }
+
+  .row > :first-child:not(.name) {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .sub > :first-child {
+    padding-left: 20px;
   }
 
   .description {

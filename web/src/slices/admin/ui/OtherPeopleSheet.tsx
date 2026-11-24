@@ -150,8 +150,8 @@ export function OtherPeopleSheet() {
       <SectionLabel className={styles.label}>Empresas de otros usuarios</SectionLabel>
       <p className={styles.intro}>
         Cada usuario tiene su <strong>lista privada de empresas</strong>: nadie puede ver ni editar
-        la de otro. Desde acá podés <strong>consultar y descargar</strong> la de los asesores, VIP y
-        Pro, pero <strong>no modificarla</strong>.
+        la de otro. Desde acá podés <strong>consultar y descargar</strong> la de los asesores,
+        Payroll y Payroll 2, pero <strong>no modificarla</strong>.
         <br />
         <br />
         Las empresas de un administrador son privadas incluso para los demás administradores, así

@@ -142,12 +142,13 @@ describe("can", () => {
     });
     const hunter = subject({ role: "hunter", matrix });
 
-    for (const key of ["padron_buscar", "estudio", "benchmark", "guardar_trabajo"] as const) {
+    for (const key of ["padron_buscar", "estudio", "guardar_trabajo"] as const) {
       expect([key, can(hunter, key)]).toEqual([key, false]);
     }
     for (const key of [
       "notas",
       "promos_buscar",
+      "benchmark",
       "gestiones",
       "proponer_oficiales",
       "tutorial_auto",
@@ -161,15 +162,34 @@ describe("can", () => {
 
   it("the leader lock leaves only its list, and no flyer at all", () => {
     const matrix = mergePermissions({
-      lider: { notas: true, tutorial_auto: true, gestiones: true, estudio: true, opcion_1: true },
+      lider: {
+        notas: true,
+        tutorial_auto: true,
+        gestiones: true,
+        promos_buscar: true,
+        benchmark: true,
+        estudio: true,
+        padron_buscar: true,
+        opcion_1: true,
+      },
     });
     const leader = subject({ role: "lider", matrix });
 
     expect(can(leader, "notas")).toBe(true);
     expect(can(leader, "tutorial_auto")).toBe(true);
     expect(can(leader, "gestiones")).toBe(true);
+    expect(can(leader, "promos_buscar")).toBe(true);
+    expect(can(leader, "benchmark")).toBe(true);
+    expect(can(leader, "padron_buscar")).toBe(false);
     expect(can(leader, "estudio")).toBe(false);
     expect(can(leader, "opcion_1")).toBe(false);
+  });
+
+  it("Promociones and Benchmark start off for a hunter and a leader: they are ticked", () => {
+    for (const role of ["hunter", "lider"]) {
+      expect(can(subject({ role }), "promos_buscar")).toBe(false);
+      expect(can(subject({ role }), "benchmark")).toBe(false);
+    }
   });
 
   it("an administrator has all but what they turned off for themselves", () => {

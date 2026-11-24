@@ -69,7 +69,7 @@ Cómo se llama en el código cada término del negocio. El código va en inglés
 | Auditoría | `audit` | Quién hizo qué sobre las cuentas, de `audit_log` |
 | Cambios en las empresas | `companyLog` | Altas, modificaciones y bajas de las empresas, de `padron_log` |
 | Empresas por usuario | `otherPeople` | El administrador lee la lista de otro, sin poder editarla |
-| Perfil | `role` | Admin, VIP, asesor, Hunter, Líder, Prospect |
+| Perfil | `role` | Admin, asesor, Payroll (`vip`), Payroll 2 (`pro`), Hunter, Líder, Prospect. `vip` y `pro` son los nombres viejos: siguen siendo el dato guardado |
 | Config → Flyer | `FlyerSheet` | La hoja del panel donde se sube un flyer y se activa o desactiva el de cada opción |
 | Versión (de un flyer) | `uploadedFlyer` | Un archivo subido al bucket (`flyer_<hora>_op<n>.jpg`, o `index_<hora>.html` si se subió un HTML con la imagen adentro) |
 | Flyer activo | `activeFlyer` | Lo que dice `_active<n>.json`: la imagen y la calibración que usa esa opción |

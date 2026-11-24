@@ -40,6 +40,7 @@ const ROLE_DEFAULTS: PermissionMatrix = {
 /** Hunters find a company and download its flyer: only this, plus which flyers they see. */
 const HUNTER_ALLOWED: ReadonlySet<string> = new Set([
   "promos_buscar",
+  "benchmark",
   "notas",
   "tutorial_auto",
   "proponer_oficiales",
@@ -47,8 +48,14 @@ const HUNTER_ALLOWED: ReadonlySet<string> = new Set([
   "gestiones",
 ]);
 
-/** Leaders only look at the dashboard of their team. */
-const LEADER_ALLOWED: ReadonlySet<string> = new Set(["notas", "tutorial_auto", "gestiones"]);
+/** Leaders look at the dashboard of their team, and consult what the administrator lets them. */
+const LEADER_ALLOWED: ReadonlySet<string> = new Set([
+  "promos_buscar",
+  "benchmark",
+  "notas",
+  "tutorial_auto",
+  "gestiones",
+]);
 
 /**
  * An option is a permission of its own, and everybody starts with the first one, except hunters
@@ -142,7 +149,7 @@ export function adminAllows(ownPermissions: unknown, key: string): boolean {
 
 /**
  * Whether a permission means something for a profile: a hunter only downloads (which flyers, and a
- * short list), and a leader only looks at their team. What does not apply cannot be ticked.
+ * short list), and a leader builds no flyers at all. What does not apply cannot be ticked.
  */
 export function permissionApplies(role: string, key: string): boolean {
   if (role === "hunter") return key.startsWith(OPTION_PREFIX) || HUNTER_ALLOWED.has(key);

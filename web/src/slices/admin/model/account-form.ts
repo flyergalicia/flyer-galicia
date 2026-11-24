@@ -1,14 +1,11 @@
 // The window of a user: what it checks before going to the server, and what it sends.
+import { MANAGED_ROLES, roleLabel } from "@/shared/session/index.ts";
 import type { Account } from "./accounts.ts";
 
-export const PROFILE_CHOICES = [
-  ["asesor", "Asesor"],
-  ["vip", "VIP"],
-  ["pro", "Pro"],
-  ["hunter", "Hunter"],
-  ["lider", "Líder"],
+export const PROFILE_CHOICES: readonly (readonly [string, string])[] = [
+  ...MANAGED_ROLES.map((role) => [role, roleLabel(role)] as const),
   ["admin", "Administrador"],
-] as const;
+];
 
 export const STATUS_CHOICES = [
   ["active", "Activo"],

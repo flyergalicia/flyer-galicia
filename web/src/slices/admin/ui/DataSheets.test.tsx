@@ -65,7 +65,7 @@ describe("Empresas por usuario", () => {
     });
     await expect
       .poll(() => chooser().element().textContent)
-      .toBe("Elegí un usuario...Otra Persona · Asesorvip@b.com · VIP(sin nombre) · rara");
+      .toBe("Elegí un usuario...Otra Persona · Asesorvip@b.com · Payroll(sin nombre) · rara");
     await userEvent.selectOptions(chooser(), "Otra Persona · Asesor");
     await expect.element(sheet()).toMatchTextContent(/2 empresas · 1 CUIT · sólo lectura/);
     await expect.element(sheet()).toMatchTextContent(/Mostrando 2DE OTRO SA30-71111111-1/);
@@ -91,7 +91,7 @@ describe("Empresas por usuario", () => {
 
   it("says when a person has none, and offers nothing to download", async () => {
     await openOn("padronotros");
-    await userEvent.selectOptions(chooser(), "vip@b.com · VIP");
+    await userEvent.selectOptions(chooser(), "vip@b.com · Payroll");
     await expect
       .element(sheet())
       .toMatchTextContent(/Este usuario todavía no cargó ninguna empresa\./);

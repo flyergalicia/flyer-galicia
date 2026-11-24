@@ -172,7 +172,7 @@ export function CompanyLogSheet() {
         <strong>qué empresas se agregaron, cuáles se modificaron</strong> (y qué cambió: CUIT,
         cashback u oficiales) <strong>y cuáles se borraron</strong>, con fecha, hora y quién lo
         hizo. Un cambio de razón social aparece como una baja más un alta. Ves tus propios cambios y
-        los de asesores, VIP y Pro; los de otro administrador no.
+        los de asesores, Payroll y Payroll 2; los de otro administrador no.
       </p>
       <LogFilters
         onSearch={() => {
