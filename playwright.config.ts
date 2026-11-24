@@ -1,4 +1,4 @@
-import { argv, env } from "node:process";
+import { argv, env, platform } from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 import { overlayScrollbarsLaunch } from "./tests/e2e/support/browser/overlay-scrollbars.ts";
 import { type StorybookOption } from "./tests/e2e/support/storybook.ts";
@@ -8,6 +8,9 @@ const STORYBOOK_PORT = 8768;
 // Same path GitHub Pages publishes the site under.
 const PUBLISHED_PATH = "/flyer-galicia/";
 const isCi = Boolean(env.CI);
+// Screenshot and flyer baselines depend on the platform and are only taken on macOS
+// (tests/fixtures/visual/darwin): CI and other systems do not compare them.
+const comparesScreens = !isCi && platform === "darwin";
 
 // `npm run release` first: the app is tested as the root holds it, which is what Pages publishes,
 // and under the same path. FLYER_STATIC_ROOT serves another folder instead, such as a copy of the
@@ -53,8 +56,7 @@ export default defineConfig<StorybookOption>({
   reporter: "list",
   globalSetup: "./tests/e2e/support/cloud/contract-setup.ts",
   globalTeardown: "./tests/e2e/support/cloud/contract-teardown.ts",
-  // Screenshot and flyer baselines depend on the platform, so CI does not compare them.
-  ...(isCi ? { grepInvert: /@visual|@golden/ } : {}),
+  ...(comparesScreens ? {} : { grepInvert: /@visual|@golden/ }),
   // No project in the path: the app is compared against the images taken of the old one.
   snapshotPathTemplate: "tests/fixtures/visual/{platform}/{arg}{ext}",
   expect: {

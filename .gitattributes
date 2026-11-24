@@ -1,2 +1,7 @@
+# Fin de línea de Linux en todas las copias, también en Windows: el formato, los hashes de la CSP
+# y los nombres de los archivos publicados se calculan sobre el texto, y con el fin de línea de
+# Windows salen distintos de los de GitHub.
+* text=auto eol=lf
+
 # Tienen hash de integridad (SRI): un cambio de fin de línea haría que no carguen
 web/src/shared/lib/vendor/* -text

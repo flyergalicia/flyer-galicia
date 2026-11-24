@@ -6,7 +6,10 @@ const DIST = "dist";
 const MAX_PAGE_BYTES = 400_000;
 
 function publishedFiles(): string[] {
-  return readdirSync(DIST, { recursive: true, encoding: "utf8" });
+  // With "/" on every system: Windows lists its folders with "\".
+  return readdirSync(DIST, { recursive: true, encoding: "utf8" }).map((path) =>
+    path.replaceAll("\\", "/"),
+  );
 }
 
 function indexHtml(): string {

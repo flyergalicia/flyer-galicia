@@ -2,6 +2,7 @@
 import { addDays, isoDate, minutesOf, MONTHS, timeOf, today } from "./formatting.ts";
 
 const DAYS_PER_WEEK = 7;
+const WEEKEND_START = 5;
 const DAY_MS = 86_400_000;
 const TWO_DIGITS = 2;
 const MONTH_LENGTH = 7;
@@ -122,4 +123,9 @@ export function byDayAndTime(a: Placed, b: Placed): number {
     return second === null ? 1 : first - second;
   }
   return String(a.empresa).localeCompare(String(b.empresa));
+}
+
+/** Saturday and Sunday: nobody works them, so a task put there deserves a warning. */
+export function isWeekend(iso: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) && weekdayOf(iso) >= WEEKEND_START;
 }

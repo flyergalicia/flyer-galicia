@@ -72,13 +72,18 @@ export function rangeOf(place: AgendaPlace, view: AgendaView): DateRange {
   return { from: monday, to: addDays(monday, DAYS_PER_WEEK - 1) };
 }
 
-/** Sunday only if it has something. */
+/**
+ * Sunday only if it has something, or if it is today: on a Sunday the agenda opens on today, not
+ * on the Monday that already went by.
+ */
 export function daysShown(
   place: AgendaPlace,
   actions: readonly { readonly fecha: string }[],
 ): readonly string[] {
   const week = daysOfWeek(mondayShown(place));
-  return actions.some(({ fecha }) => fecha === week[SUNDAY]) ? week : week.slice(0, SUNDAY);
+  const sunday = week[SUNDAY];
+  const showsSunday = sunday === today() || actions.some(({ fecha }) => fecha === sunday);
+  return showsSunday ? week : week.slice(0, SUNDAY);
 }
 
 /** The day being looked at: the chosen one if it is on the week, or today, or its Monday. */

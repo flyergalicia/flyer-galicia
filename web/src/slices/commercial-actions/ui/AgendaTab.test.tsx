@@ -119,8 +119,10 @@ describe("how it starts", () => {
     await expect
       .element(page.getByRole("button", { name: "Pegar desde Excel" }))
       .not.toBeInTheDocument();
+    // Sunday with nothing is left out, unless it is today.
+    const isSunday = new Date().getDay() === 0;
     await vi.waitFor(() => {
-      expect(days().elements()).toHaveLength(6);
+      expect(days().elements()).toHaveLength(isSunday ? 7 : 6);
     });
   });
 

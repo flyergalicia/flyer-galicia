@@ -97,6 +97,8 @@ Se actualizan **sólo a propósito**, y hay que mirar la diferencia antes de ace
 | Peso y tiempos           | `npm run perf:baseline`, después de `npm run release`                                                                                      |
 | `fixtures/design-system` | No se puede: se grabó de la versión anterior abierta, que ya no existe. Un caso nuevo de `cases.ts` se compara de otra forma               |
 
+Las capturas y el flyer impreso están tomados en macOS (`darwin/`) y cambian de un sistema a otro: se comparan sólo en una Mac. En GitHub y en Windows esas pruebas se saltean (`playwright.config.ts`).
+
 Las capturas, el flyer impreso, el contrato de red y el peso se tomaron de la versión anterior, y la app los cumple. Regrabarlos los pasa a ser de la app: hacelo sólo cuando un cambio de pantalla, de pedidos o de peso sea a propósito. Las tres capturas de Config → Flyer (`admin-flyer-config--*`) ya son de la app: se regrabaron el 6-nov-2026, al sacar de esa pantalla una frase que nombraba un archivo de la versión anterior.
 
 Límites de las capturas:

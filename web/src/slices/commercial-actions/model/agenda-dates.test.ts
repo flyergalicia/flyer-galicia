@@ -4,6 +4,7 @@ import {
   byDayAndTime,
   daysBetween,
   daysOfWeek,
+  isWeekend,
   mondayOf,
   monthEnd,
   monthOf,
@@ -120,5 +121,19 @@ describe("the order on the agenda", () => {
     expect
       .soft(byDayAndTime(at("2026-11-02", "10:00", "BETA"), at("2026-11-02", "10:00", "ACME")))
       .toBeGreaterThan(0);
+  });
+});
+
+describe("the days nobody works", () => {
+  it("are Saturday and Sunday", () => {
+    expect.soft(isWeekend("2026-12-05")).toBe(true);
+    expect.soft(isWeekend("2026-12-06")).toBe(true);
+    expect.soft(isWeekend("2026-12-04")).toBe(false);
+    expect.soft(isWeekend("2026-12-07")).toBe(false);
+  });
+
+  it("and a date half written is not one of them", () => {
+    expect.soft(isWeekend("")).toBe(false);
+    expect.soft(isWeekend("2026-12")).toBe(false);
   });
 });

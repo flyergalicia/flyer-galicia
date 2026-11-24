@@ -8,9 +8,10 @@ const TOKENS_FILE = "web/src/shared/ui/tokens/tokens.css";
 const SORT_MARK = "0.85em";
 
 function moduleFiles(): string[] {
+  // With "/" on every system: Windows lists its folders with "\".
   return readdirSync(SOURCE, { recursive: true, encoding: "utf8" })
     .filter((path) => path.endsWith(".css"))
-    .map((path) => join(SOURCE, path))
+    .map((path) => join(SOURCE, path).replaceAll("\\", "/"))
     .filter((path) => path !== TOKENS_FILE);
 }
 

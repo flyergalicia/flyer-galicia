@@ -10,7 +10,7 @@ import {
 import { ACTION_STATES, DATA_LIST_STATES, FREQUENCIES, MODALITIES } from "../model/labels.ts";
 import { canSendToLeader, huntersOf, leaderChoices, type Who } from "../model/who.ts";
 import { Availability } from "./Availability.tsx";
-import { HunterOptions, Optional, Pills, TimesField } from "./form-parts.tsx";
+import { HunterOptions, NonWorkingDay, Optional, Pills, TimesField } from "./form-parts.tsx";
 import { HunterWeek } from "./HunterWeek.tsx";
 import { PeopleOfList } from "./PeopleOfList.tsx";
 import styles from "./CommercialActions.module.css";
@@ -367,6 +367,7 @@ export function ActionForm({
           }}
         />
       </label>
+      {!isDataList && <NonWorkingDay date={form.fecha} />}
       {isDataList ? (
         <label className={styles.formField} data-section="datos">
           <span>

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mondayOf, monthOf } from "./agenda-dates.ts";
 import {
   type AgendaPlace,
@@ -81,6 +81,18 @@ describe("the days it shows", () => {
     expect.soft(daysShown(WEEK, [])).toEqual(SIX_DAYS);
     expect.soft(daysShown(WEEK, [{ fecha: "2026-10-25" }])).toHaveLength(7);
     expect.soft(daysShown(WEEK, [{ fecha: "2026-10-22" }])).toHaveLength(6);
+  });
+
+  it("and on a Sunday, that Sunday, to open on today and not on the Monday gone by", () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 25, 10) });
+    try {
+      const days = daysShown(NO_PLACE, []);
+      expect.soft(days).toEqual([...SIX_DAYS, "2026-10-25"]);
+      expect.soft(dayShown(NO_PLACE, "equipo", days)).toBe("2026-10-25");
+      expect.soft(daysShown({ ...NO_PLACE, monday: "2026-10-12" }, [])).toHaveLength(6);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
